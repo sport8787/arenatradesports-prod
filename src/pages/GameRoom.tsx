@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useGameState } from '@/hooks/useGameState';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -14,7 +15,7 @@ import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2 } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function GameRoom() {
@@ -22,15 +23,38 @@ export default function GameRoom() {
   const [searchParams] = useSearchParams();
   const isHost = searchParams.get('host') === 'true';
   const { gameState, loading, updateRoomStatus, submitVote } = useGameState(roomId || null);
+  const { playChips, playSuspense, playFanfare, playReveal, preloadSounds } = useSoundEffects();
+  
   const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
   const [showMycroft, setShowMycroft] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [prevStatus, setPrevStatus] = useState<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
   const isCurrentPlayer = gameState.currentPlayer?.session_id === sessionId;
   const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
+
+  // Preload sounds when component mounts
+  useEffect(() => {
+    preloadSounds();
+  }, [preloadSounds]);
+
+  // Play sounds on status changes
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    if (prevStatus !== currentStatus && currentStatus) {
+      if (currentStatus === 'voting' && prevStatus === 'question') {
+        playSuspense();
+      } else if (currentStatus === 'result' && prevStatus === 'voting') {
+        playReveal();
+        // Play fanfare after reveal
+        setTimeout(() => playFanfare(), 800);
+      }
+      setPrevStatus(currentStatus);
+    }
+  }, [gameState.room?.current_status, prevStatus, playSuspense, playReveal, playFanfare]);
 
   useEffect(() => {
     supabase.from('questions').select('*').then(({ data }) => {
@@ -64,7 +88,13 @@ export default function GameRoom() {
   };
 
   const goToVoting = () => updateRoomStatus('voting');
-  const showResults = () => updateRoomStatus('result');
+  
+  const showResults = async () => {
+    await updateRoomStatus('result');
+    // Play chips sound when showing results (someone scored)
+    setTimeout(() => playChips(), 500);
+  };
+
   const nextQuestion = async () => {
     if (!roomId) return;
     const nextIdx = (questionIndex + 1) % questions.length;
@@ -118,10 +148,13 @@ export default function GameRoom() {
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
-          <div className="flex -space-x-2">
-            {gameState.players.slice(0, 4).map((p, i) => (
-              <PlayerAvatar key={p.id} player={p} index={i} size="sm" showScore={false} />
-            ))}
+          <div className="flex items-center gap-4">
+            <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
+            <div className="flex -space-x-2">
+              {gameState.players.slice(0, 4).map((p, i) => (
+                <PlayerAvatar key={p.id} player={p} index={i} size="sm" showScore={false} />
+              ))}
+            </div>
           </div>
         </div>
 
