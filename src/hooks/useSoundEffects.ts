@@ -52,7 +52,13 @@ export function useSoundEffects() {
       );
 
       if (!response.ok) {
-        console.error('Failed to generate sound:', response.status);
+        // Silently fail - sound effects are optional
+        return null;
+      }
+
+      // Check if response is actually audio
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('audio')) {
         return null;
       }
 
@@ -64,7 +70,7 @@ export function useSoundEffects() {
       
       return audioUrl;
     } catch (error) {
-      console.error('Error generating sound effect:', error);
+      // Silently fail - sound effects are optional
       return null;
     } finally {
       loadingRef.current.delete(type);
