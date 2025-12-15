@@ -1,0 +1,117 @@
+import { useCallback, useRef } from 'react';
+
+// Sound effect prompts for casino theme
+const SFX_PROMPTS = {
+  chips: 'Casino poker chips falling and clinking on felt table, multiple chips cascading, satisfying metallic sound',
+  suspense: 'Dramatic suspense tension music sting, short orchestral hit with low brass and strings, building anticipation',
+  fanfare: 'Triumphant casino jackpot fanfare, celebratory brass section with bells and chimes, victory sound',
+  click: 'Crisp digital button click, modern UI sound, soft tap',
+  error: 'Low negative buzzer sound, wrong answer game show buzzer, short',
+  reveal: 'Dramatic reveal whoosh sound with sparkle, magical unveiling effect',
+} as const;
+
+type SoundType = keyof typeof SFX_PROMPTS;
+
+// Cache for generated audio blobs
+const audioCache = new Map<SoundType, string>();
+
+export function useSoundEffects() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const loadingRef = useRef<Set<SoundType>>(new Set());
+
+  const generateSound = useCallback(async (type: SoundType): Promise<string | null> => {
+    // Return cached audio if available
+    if (audioCache.has(type)) {
+      return audioCache.get(type)!;
+    }
+
+    // Prevent duplicate requests
+    if (loadingRef.current.has(type)) {
+      return null;
+    }
+
+    loadingRef.current.add(type);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-sfx`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: SFX_PROMPTS[type],
+            duration: type === 'fanfare' ? 4 : type === 'suspense' ? 3 : 2,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Failed to generate sound:', response.status);
+        return null;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Cache the generated audio
+      audioCache.set(type, audioUrl);
+      
+      return audioUrl;
+    } catch (error) {
+      console.error('Error generating sound effect:', error);
+      return null;
+    } finally {
+      loadingRef.current.delete(type);
+    }
+  }, []);
+
+  const playSound = useCallback(async (type: SoundType, volume: number = 0.7) => {
+    try {
+      const audioUrl = await generateSound(type);
+      
+      if (!audioUrl) {
+        console.log('Sound not available yet, skipping:', type);
+        return;
+      }
+
+      // Stop any currently playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      const audio = new Audio(audioUrl);
+      audio.volume = volume;
+      audioRef.current = audio;
+      
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  }, [generateSound]);
+
+  // Preload sounds in background
+  const preloadSounds = useCallback(async () => {
+    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal'];
+    
+    for (const sound of sounds) {
+      if (!audioCache.has(sound)) {
+        await generateSound(sound);
+      }
+    }
+  }, [generateSound]);
+
+  return {
+    playChips: () => playSound('chips'),
+    playSuspense: () => playSound('suspense', 0.5),
+    playFanfare: () => playSound('fanfare'),
+    playReveal: () => playSound('reveal'),
+    playClick: () => playSound('click', 0.4),
+    playError: () => playSound('error', 0.5),
+    preloadSounds,
+  };
+}
