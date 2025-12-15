@@ -401,7 +401,7 @@ export default function GameRoom() {
                   
                   {!isCurrentPlayer && (
                     <p className="text-center text-muted-foreground">
-                      {gameState.currentPlayer?.nickname} está analisando a questão...
+                      {gameState.currentPlayer?.nickname} está aguardando sua justificativa...
                     </p>
                   )}
                 </div>
