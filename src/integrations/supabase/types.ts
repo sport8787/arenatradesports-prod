@@ -103,6 +103,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rankings: {
+        Row: {
+          bluffs_detected: number
+          created_at: string
+          id: string
+          nickname: string
+          session_id: string
+          successful_bluffs: number
+          times_fooled: number
+          total_games: number
+          total_points: number
+          total_wins: number
+          updated_at: string
+        }
+        Insert: {
+          bluffs_detected?: number
+          created_at?: string
+          id?: string
+          nickname: string
+          session_id: string
+          successful_bluffs?: number
+          times_fooled?: number
+          total_games?: number
+          total_points?: number
+          total_wins?: number
+          updated_at?: string
+        }
+        Update: {
+          bluffs_detected?: number
+          created_at?: string
+          id?: string
+          nickname?: string
+          session_id?: string
+          successful_bluffs?: number
+          times_fooled?: number
+          total_games?: number
+          total_points?: number
+          total_wins?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rooms: {
         Row: {
           created_at: string

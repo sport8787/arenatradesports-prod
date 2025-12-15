@@ -1,20 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
+import { useRankings } from '@/hooks/useRankings';
 import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
+import { getRankTier } from '@/types/ranking';
+import { cn } from '@/lib/utils';
 
 export default function Index() {
   const navigate = useNavigate();
+  const { myRanking } = useRankings();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const tier = myRanking ? getRankTier(myRanking.total_points) : null;
 
   const createRoom = async () => {
     setLoading(true);
@@ -92,6 +98,29 @@ export default function Index() {
         </p>
       </motion.div>
 
+      {/* My Rank Badge */}
+      {myRanking && tier && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-6"
+        >
+          <Link 
+            to="/rankings"
+            className={cn(
+              'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-primary/30 hover:border-primary transition-colors',
+              tier.color
+            )}
+          >
+            <span className="text-xl">{tier.icon}</span>
+            <div>
+              <div className="font-orbitron font-bold text-sm">{myRanking.nickname}</div>
+              <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+            </div>
+          </Link>
+        </motion.div>
+      )}
+
       <LuxuryCard className="w-full max-w-md space-y-6">
         {!showJoinForm ? (
           <>
@@ -109,6 +138,13 @@ export default function Index() {
               <Users className="w-5 h-5 mr-2 inline" />
               Entrar na Mesa
             </GoldButton>
+
+            <Link to="/rankings" className="block">
+              <GoldButton variant="ghost" className="w-full">
+                <Trophy className="w-5 h-5 mr-2 inline" />
+                Ver Ranking
+              </GoldButton>
+            </Link>
           </>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
