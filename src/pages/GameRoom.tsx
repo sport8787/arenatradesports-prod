@@ -1,9 +1,10 @@
 import { useParams, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useRankings } from '@/hooks/useRankings';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -24,6 +25,7 @@ export default function GameRoom() {
   const isHost = searchParams.get('host') === 'true';
   const { gameState, loading, updateRoomStatus, submitVote } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
+  const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
@@ -31,6 +33,7 @@ export default function GameRoom() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
+  const rankingUpdatedRef = useRef<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
   const isCurrentPlayer = gameState.currentPlayer?.session_id === sessionId;
@@ -41,7 +44,7 @@ export default function GameRoom() {
     preloadSounds();
   }, [preloadSounds]);
 
-  // Play sounds on status changes
+  // Play sounds on status changes and update rankings
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     if (prevStatus !== currentStatus && currentStatus) {
@@ -49,12 +52,52 @@ export default function GameRoom() {
         playSuspense();
       } else if (currentStatus === 'result' && prevStatus === 'voting') {
         playReveal();
-        // Play fanfare after reveal
         setTimeout(() => playFanfare(), 800);
+        
+        // Update rankings when result is shown
+        const questionId = gameState.currentQuestion?.id;
+        if (questionId && rankingUpdatedRef.current !== questionId && myRanking) {
+          rankingUpdatedRef.current = questionId;
+          updateRankingsForResult();
+        }
       }
       setPrevStatus(currentStatus);
     }
   }, [gameState.room?.current_status, prevStatus, playSuspense, playReveal, playFanfare]);
+
+  // Update rankings based on result
+  const updateRankingsForResult = async () => {
+    if (!gameState.myPlayer || !myRanking) return;
+
+    const wasBluffSuccessful = gameState.votes.filter(v => v.vote_type === 'believe').length > 0;
+    const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
+    
+    // Current player (bluffer)
+    if (isCurrentPlayer) {
+      if (wasBluffSuccessful) {
+        // Successful bluff: +50 points per fooled player
+        const fooledCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
+        await updateRankingStats({
+          addPoints: 50 * fooledCount,
+          addSuccessfulBluff: true,
+        });
+      }
+    } else if (myVote) {
+      // Jury member
+      if (myVote.vote_type === 'doubt' && !wasBluffSuccessful) {
+        // Correctly doubted: +30 points
+        await updateRankingStats({
+          addPoints: 30,
+          addBluffDetected: true,
+        });
+      } else if (myVote.vote_type === 'believe' && wasBluffSuccessful) {
+        // Was fooled: just track it
+        await updateRankingStats({
+          addTimesFooled: true,
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     supabase.from('questions').select('*').then(({ data }) => {
@@ -64,6 +107,8 @@ export default function GameRoom() {
 
   const joinAsPlayer = async () => {
     if (!nickname || !roomId) return;
+    // Create/update ranking entry
+    await getOrCreateRanking(nickname);
     await supabase.from('players').insert({
       room_id: roomId,
       nickname,
