@@ -1,4 +1,4 @@
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,12 +16,13 @@ import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2 } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function GameRoom() {
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isHost = searchParams.get('host') === 'true';
   const { gameState, loading, updateRoomStatus, submitVote } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
@@ -200,12 +201,21 @@ export default function GameRoom() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-orbitron text-xl text-primary">O BLEFADOR</h1>
-            <button onClick={copyPin} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-              <span className="font-orbitron text-sm">PIN: {gameState.room?.pin}</span>
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/')} 
+              className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+              title="Voltar ao Início"
+            >
+              <Home className="w-5 h-5 text-primary" />
             </button>
+            <div>
+              <h1 className="font-orbitron text-xl text-primary">O BLEFADOR</h1>
+              <button onClick={copyPin} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+                <span className="font-orbitron text-sm">PIN: {gameState.room?.pin}</span>
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
