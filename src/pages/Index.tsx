@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useRankings } from '@/hooks/useRankings';
@@ -12,6 +12,11 @@ import { toast } from '@/hooks/use-toast';
 import { getRankTier } from '@/types/ranking';
 import { cn } from '@/lib/utils';
 
+interface ActiveRoom {
+  roomId: string;
+  nickname: string;
+}
+
 export default function Index() {
   const navigate = useNavigate();
   const { myRanking } = useRankings();
@@ -19,8 +24,41 @@ export default function Index() {
   const [pin, setPin] = useState('');
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
 
   const tier = myRanking ? getRankTier(myRanking.total_points) : null;
+
+  // Check if player has an active room
+  useEffect(() => {
+    const checkActiveRoom = async () => {
+      const sessionId = getOrCreateSessionId();
+      
+      // Find player's active room
+      const { data: player } = await supabase
+        .from('players')
+        .select('room_id, nickname, rooms!inner(id, current_status)')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (player && player.rooms) {
+        // Room is still active (not finished)
+        setActiveRoom({
+          roomId: player.room_id,
+          nickname: player.nickname
+        });
+      }
+    };
+
+    checkActiveRoom();
+  }, []);
+
+  const rejoinRoom = () => {
+    if (activeRoom) {
+      navigate(`/room/${activeRoom.roomId}`);
+    }
+  };
 
   const createRoom = async () => {
     setLoading(true);
@@ -64,12 +102,23 @@ export default function Index() {
       }
 
       const sessionId = getOrCreateSessionId();
-      await supabase.from('players').insert({
-        room_id: room.id,
-        nickname,
-        session_id: sessionId,
-        is_host: false,
-      });
+      
+      // Check if player already exists in this room
+      const { data: existingPlayer } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      if (!existingPlayer) {
+        await supabase.from('players').insert({
+          room_id: room.id,
+          nickname,
+          session_id: sessionId,
+          is_host: false,
+        });
+      }
 
       navigate(`/room/${room.id}`);
     } catch (error) {
@@ -98,26 +147,67 @@ export default function Index() {
         </p>
       </motion.div>
 
-      {/* My Rank Badge */}
+      {/* My Rank Badge - Clickable to rejoin room if active */}
       {myRanking && tier && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="mb-6"
         >
-          <Link 
-            to="/rankings"
-            className={cn(
-              'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-primary/30 hover:border-primary transition-colors',
-              tier.color
-            )}
-          >
-            <span className="text-xl">{tier.icon}</span>
-            <div>
-              <div className="font-orbitron font-bold text-sm">{myRanking.nickname}</div>
-              <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+          {activeRoom ? (
+            <button 
+              onClick={rejoinRoom}
+              className={cn(
+                'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-success/50 hover:border-success transition-all hover:scale-105',
+                tier.color
+              )}
+            >
+              <span className="text-xl">{tier.icon}</span>
+              <div className="text-left">
+                <div className="font-orbitron font-bold text-sm flex items-center gap-2">
+                  {myRanking.nickname}
+                  <span className="text-xs text-success animate-pulse">● EM JOGO</span>
+                </div>
+                <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+              </div>
+              <Play className="w-4 h-4 text-success ml-2" />
+            </button>
+          ) : (
+            <div 
+              className={cn(
+                'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-primary/30',
+                tier.color
+              )}
+            >
+              <span className="text-xl">{tier.icon}</span>
+              <div>
+                <div className="font-orbitron font-bold text-sm">{myRanking.nickname}</div>
+                <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+              </div>
             </div>
-          </Link>
+          )}
+        </motion.div>
+      )}
+
+      {/* Active Room Banner for players without ranking */}
+      {activeRoom && !myRanking && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-6"
+        >
+          <button 
+            onClick={rejoinRoom}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-success/20 to-success/10 border border-success/50 hover:border-success transition-all hover:scale-105"
+          >
+            <Play className="w-5 h-5 text-success" />
+            <div className="text-left">
+              <div className="font-orbitron font-bold text-sm text-foreground">
+                {activeRoom.nickname}
+              </div>
+              <div className="text-xs text-success">Clique para voltar à partida</div>
+            </div>
+          </button>
         </motion.div>
       )}
 
