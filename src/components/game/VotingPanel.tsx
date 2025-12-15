@@ -1,21 +1,43 @@
 import { motion } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CountdownTimer from './CountdownTimer';
 
 interface VotingPanelProps {
   onVote: (vote: 'believe' | 'doubt') => void;
   hasVoted: boolean;
   votedFor?: 'believe' | 'doubt';
   disabled?: boolean;
+  onTimerComplete?: () => void;
+  onTimerTick?: (secondsLeft: number) => void;
+  timerActive?: boolean;
 }
 
-export default function VotingPanel({ onVote, hasVoted, votedFor, disabled }: VotingPanelProps) {
+export default function VotingPanel({ 
+  onVote, 
+  hasVoted, 
+  votedFor, 
+  disabled,
+  onTimerComplete,
+  onTimerTick,
+  timerActive = true
+}: VotingPanelProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       className="space-y-6"
     >
+      {/* Timer */}
+      <div className="flex justify-center">
+        <CountdownTimer
+          duration={30}
+          isActive={timerActive && !hasVoted}
+          onComplete={() => onTimerComplete?.()}
+          onTick={onTimerTick}
+        />
+      </div>
+
       <div className="text-center">
         <h3 className="font-orbitron text-xl text-foreground mb-2">
           O Veredito

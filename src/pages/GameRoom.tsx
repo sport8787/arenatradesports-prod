@@ -23,7 +23,7 @@ export default function GameRoom() {
   const [searchParams] = useSearchParams();
   const isHost = searchParams.get('host') === 'true';
   const { gameState, loading, updateRoomStatus, submitVote } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
   
   const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
@@ -93,6 +93,20 @@ export default function GameRoom() {
     await updateRoomStatus('result');
     // Play chips sound when showing results (someone scored)
     setTimeout(() => playChips(), 500);
+  };
+
+  const handleTimerTick = (secondsLeft: number) => {
+    if (secondsLeft <= 5 && secondsLeft > 0) {
+      playTick();
+    }
+  };
+
+  const handleTimerComplete = () => {
+    playTimeUp();
+    // Auto-reveal results if host
+    if (gameState.myPlayer?.is_host) {
+      setTimeout(() => showResults(), 1000);
+    }
   };
 
   const nextQuestion = async () => {
@@ -228,6 +242,9 @@ export default function GameRoom() {
                       onVote={submitVote}
                       hasVoted={hasVoted}
                       votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
+                      onTimerTick={handleTimerTick}
+                      onTimerComplete={handleTimerComplete}
+                      timerActive={gameState.room?.current_status === 'voting'}
                     />
                   )}
                 </div>
