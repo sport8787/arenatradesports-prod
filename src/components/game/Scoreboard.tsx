@@ -3,6 +3,7 @@ import { Trophy } from 'lucide-react';
 import { Player } from '@/types/game';
 import { formatScore, getAvatarColor, getInitials } from '@/lib/gameUtils';
 import { cn } from '@/lib/utils';
+import BluffCoinDisplay from './BluffCoinDisplay';
 
 interface ScoreboardProps {
   players: Player[];
@@ -10,7 +11,7 @@ interface ScoreboardProps {
 }
 
 export default function Scoreboard({ players, currentPlayerId }: ScoreboardProps) {
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const sortedPlayers = [...players].sort((a, b) => b.bluffcoins - a.bluffcoins);
 
   return (
     <div className="luxury-card p-4 space-y-4">
@@ -47,9 +48,7 @@ export default function Scoreboard({ players, currentPlayerId }: ScoreboardProps
             <span className="flex-1 text-sm font-medium truncate">
               {player.nickname}
             </span>
-            <span className="font-orbitron text-sm text-primary font-bold">
-              {formatScore(player.score)}
-            </span>
+            <BluffCoinDisplay amount={player.bluffcoins} size="sm" showChange={false} />
           </motion.div>
         ))}
       </div>

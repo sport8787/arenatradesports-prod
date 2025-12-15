@@ -177,6 +177,27 @@ export function useGameState(roomId: string | null) {
       .eq('id', playerId);
   };
 
+  // Update player bluffcoins
+  const updateBluffcoins = async (playerId: string, amount: number) => {
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const newBalance = player.bluffcoins + amount;
+    if (newBalance < 0) return false; // Not enough coins
+
+    await supabase
+      .from('players')
+      .update({ bluffcoins: newBalance })
+      .eq('id', playerId);
+    
+    return true;
+  };
+
+  // Check if player has enough bluffcoins
+  const hasEnoughCoins = (amount: number) => {
+    return (gameState.myPlayer?.bluffcoins || 0) >= amount;
+  };
+
   return {
     gameState,
     loading,
@@ -184,6 +205,8 @@ export function useGameState(roomId: string | null) {
     nextPlayer,
     submitVote,
     updateScore,
+    updateBluffcoins,
+    hasEnoughCoins,
     refetch: fetchGameState,
   };
 }

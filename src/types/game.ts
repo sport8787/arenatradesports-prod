@@ -30,6 +30,7 @@ export interface Player {
   room_id: string;
   nickname: string;
   score: number;
+  bluffcoins: number;
   avatar_url: string | null;
   is_host: boolean;
   session_id: string;
