@@ -397,35 +397,44 @@ export default function GameRoom() {
               {/* DISCUSSION - Jury votes while player can use Mycroft */}
               {gameState.room?.current_status === 'discussion' && gameState.currentQuestion && (
                 <div className="space-y-6">
-                  <QuestionCard
-                    question={gameState.currentQuestion}
-                    showCorrectAnswer={isCurrentPlayer}
-                    selectedOption={selectedAnswer || undefined}
-                    confirmedAnswer={confirmedAnswer || undefined}
-                    disabled={true}
-                  />
-                  
                   {isCurrentPlayer ? (
-                    <div className="space-y-4">
-                      <div className="flex gap-4">
-                        <GoldButton 
-                          variant="outline" 
-                          onClick={activateMycroft} 
-                          className="flex-1"
-                          disabled={mycroftUsed || !hasEnoughCoins(MYCROFT_COST)}
-                        >
-                          <Bot className="w-5 h-5 mr-2 inline" /> 
-                          {mycroftUsed ? 'Mycroft Ativado' : (
-                            <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
-                          )}
-                        </GoldButton>
-                        <GoldButton onClick={showResults} className="flex-1">
-                          Ver Resultado
-                        </GoldButton>
+                    <>
+                      <QuestionCard
+                        question={gameState.currentQuestion}
+                        showCorrectAnswer={true}
+                        selectedOption={confirmedAnswer || selectedAnswer || undefined}
+                        confirmedAnswer={confirmedAnswer || selectedAnswer || undefined}
+                        disabled={true}
+                      />
+                      <div className="space-y-4">
+                        <p className="text-center text-muted-foreground">
+                          Aguardando o júri votar...
+                        </p>
+                        <div className="flex gap-4">
+                          <GoldButton 
+                            variant="outline" 
+                            onClick={activateMycroft} 
+                            className="flex-1"
+                            disabled={mycroftUsed || !hasEnoughCoins(MYCROFT_COST)}
+                          >
+                            <Bot className="w-5 h-5 mr-2 inline" /> 
+                            {mycroftUsed ? 'Mycroft Ativado' : (
+                              <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
+                            )}
+                          </GoldButton>
+                          <GoldButton onClick={showResults} className="flex-1">
+                            Ver Resultado
+                          </GoldButton>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <>
+                      <QuestionCard
+                        question={gameState.currentQuestion}
+                        showCorrectAnswer={false}
+                        disabled={true}
+                      />
                       {gameState.currentQuestion.mycroft_risk_level && (
                         <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
                       )}
