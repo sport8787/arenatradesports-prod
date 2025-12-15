@@ -94,7 +94,7 @@ export default function Index() {
           MILIONÁRIO
         </h2>
         <p className="text-muted-foreground mt-4 max-w-md mx-auto">
-          Engane, blefe e conquiste a fortuna. Quem mente melhor, ganha mais.
+          Analise, deduza e conquiste. Onde a inteligência emocional supera a sorte. Quem tem a melhor leitura humana, vence.
         </p>
       </motion.div>
 
