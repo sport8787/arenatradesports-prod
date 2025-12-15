@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CountdownTimer from './CountdownTimer';
 import { BluffCoinCost } from './BluffCoinDisplay';
+import cartaClaro from '@/assets/carta_claro.png';
+import cartaBlefe from '@/assets/carta_blefe.png';
 
 interface VotingPanelProps {
   onVote: (vote: 'believe' | 'doubt') => void;
@@ -50,51 +52,63 @@ export default function VotingPanel({
           O Veredito
         </h3>
         <p className="text-muted-foreground">
-          {hasVoted ? 'Aguardando outros jogadores...' : 'Você acredita ou duvida?'}
+          {hasVoted ? 'Aguardando outros jogadores...' : 'Escolha sua carta'}
         </p>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-6 justify-center">
+        {/* Carta CLARO (Acreditar) */}
         <motion.button
-          whileHover={{ scale: hasVoted ? 1 : 1.03 }}
-          whileTap={{ scale: hasVoted ? 1 : 0.97 }}
+          whileHover={{ scale: hasVoted ? 1 : 1.05, y: hasVoted ? 0 : -10 }}
+          whileTap={{ scale: hasVoted ? 1 : 0.95 }}
           onClick={() => !hasVoted && !disabled && onVote('believe')}
           disabled={hasVoted || disabled}
           className={cn(
-            'vote-believe flex-1 py-6 rounded-xl flex flex-col items-center gap-3 transition-all',
-            hasVoted && votedFor !== 'believe' && 'opacity-30',
-            hasVoted && votedFor === 'believe' && 'ring-2 ring-success ring-offset-2 ring-offset-background'
+            'relative transition-all duration-300',
+            hasVoted && votedFor !== 'believe' && 'opacity-30 scale-90',
+            hasVoted && votedFor === 'believe' && 'ring-4 ring-success ring-offset-4 ring-offset-background rounded-2xl'
           )}
         >
-          {hasVoted && votedFor === 'believe' ? (
-            <Loader2 className="w-8 h-8 animate-spin" />
-          ) : (
-            <ThumbsUp className="w-8 h-8" />
+          <img 
+            src={cartaClaro} 
+            alt="CLARO - Acreditar" 
+            className="w-32 h-48 object-cover rounded-xl shadow-lg"
+          />
+          {hasVoted && votedFor === 'believe' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl">
+              <Loader2 className="w-8 h-8 animate-spin text-success" />
+            </div>
           )}
-          <span className="text-lg">Acreditar</span>
-          <span className="text-xs text-muted-foreground">Grátis</span>
+          <p className="text-xs text-center mt-2 text-muted-foreground">Grátis</p>
         </motion.button>
 
+        {/* Carta BLEFE (Duvidar) */}
         <motion.button
-          whileHover={{ scale: hasVoted || !canAffordDoubt ? 1 : 1.03 }}
-          whileTap={{ scale: hasVoted || !canAffordDoubt ? 1 : 0.97 }}
+          whileHover={{ scale: hasVoted || !canAffordDoubt ? 1 : 1.05, y: hasVoted || !canAffordDoubt ? 0 : -10 }}
+          whileTap={{ scale: hasVoted || !canAffordDoubt ? 1 : 0.95 }}
           onClick={() => canDoubt && onVote('doubt')}
           disabled={hasVoted || disabled || !canAffordDoubt}
           className={cn(
-            'vote-doubt flex-1 py-6 rounded-xl flex flex-col items-center gap-3 transition-all',
-            hasVoted && votedFor !== 'doubt' && 'opacity-30',
-            hasVoted && votedFor === 'doubt' && 'ring-2 ring-destructive ring-offset-2 ring-offset-background',
-            !canAffordDoubt && !hasVoted && 'opacity-50 cursor-not-allowed'
+            'relative transition-all duration-300',
+            hasVoted && votedFor !== 'doubt' && 'opacity-30 scale-90',
+            hasVoted && votedFor === 'doubt' && 'ring-4 ring-destructive ring-offset-4 ring-offset-background rounded-2xl',
+            !canAffordDoubt && !hasVoted && 'opacity-50 cursor-not-allowed grayscale'
           )}
         >
-          {hasVoted && votedFor === 'doubt' ? (
-            <Loader2 className="w-8 h-8 animate-spin" />
-          ) : (
-            <ThumbsDown className="w-8 h-8" />
+          <img 
+            src={cartaBlefe} 
+            alt="BLEFE - Duvidar" 
+            className="w-32 h-48 object-cover rounded-xl shadow-lg"
+          />
+          {hasVoted && votedFor === 'doubt' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl">
+              <Loader2 className="w-8 h-8 animate-spin text-destructive" />
+            </div>
           )}
-          <span className="text-lg">Duvidar</span>
           {doubtCost > 0 && (
-            <BluffCoinCost amount={doubtCost} className={cn(!canAffordDoubt && 'text-destructive')} />
+            <div className="text-center mt-2">
+              <BluffCoinCost amount={doubtCost} className={cn('text-xs', !canAffordDoubt && 'text-destructive')} />
+            </div>
           )}
         </motion.button>
       </div>
