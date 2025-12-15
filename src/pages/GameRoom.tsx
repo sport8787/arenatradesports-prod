@@ -195,14 +195,27 @@ export default function GameRoom() {
   };
 
   const handleVoteWithCost = async (voteType: 'believe' | 'doubt') => {
+    console.log('handleVoteWithCost called:', voteType);
+    
     if (voteType === 'doubt') {
       if (!gameState.myPlayer || !hasEnoughCoins(DOUBT_COST)) {
         toast({ title: 'BluffCoins insuficientes para duvidar', variant: 'destructive' });
         return;
       }
-      await updateBluffcoins(gameState.myPlayer.id, -DOUBT_COST);
+      const success = await updateBluffcoins(gameState.myPlayer.id, -DOUBT_COST);
+      if (!success) {
+        toast({ title: 'Erro ao processar BluffCoins', variant: 'destructive' });
+        return;
+      }
     }
-    await submitVote(voteType);
+    
+    const voteSuccess = await submitVote(voteType);
+    if (voteSuccess) {
+      playReveal();
+      toast({ title: voteType === 'believe' ? 'Você votou: CLARO' : 'Você votou: BLEFE' });
+    } else {
+      toast({ title: 'Erro ao registrar voto', variant: 'destructive' });
+    }
   };
   
   const showResults = async () => {

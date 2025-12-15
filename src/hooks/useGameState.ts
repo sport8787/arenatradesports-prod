@@ -156,14 +156,34 @@ export function useGameState(roomId: string | null) {
 
   // Submit vote
   const submitVote = async (voteType: 'believe' | 'doubt') => {
-    if (!roomId || !gameState.myPlayer || !gameState.currentQuestion) return;
+    if (!roomId || !gameState.myPlayer || !gameState.currentQuestion) {
+      console.error('Cannot submit vote: missing required data', { roomId, myPlayer: gameState.myPlayer, currentQuestion: gameState.currentQuestion });
+      return false;
+    }
 
-    await supabase.from('votes').insert({
+    // Check if already voted
+    const existingVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
+    if (existingVote) {
+      console.log('Already voted');
+      return true;
+    }
+
+    console.log('Submitting vote:', { voteType, roomId, questionId: gameState.currentQuestion.id, playerId: gameState.myPlayer.id });
+
+    const { error } = await supabase.from('votes').insert({
       room_id: roomId,
       question_id: gameState.currentQuestion.id,
       player_id: gameState.myPlayer.id,
       vote_type: voteType,
     });
+
+    if (error) {
+      console.error('Error submitting vote:', error);
+      return false;
+    }
+
+    console.log('Vote submitted successfully');
+    return true;
   };
 
   // Update player score
