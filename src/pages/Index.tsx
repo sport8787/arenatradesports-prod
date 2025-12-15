@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useRankings } from '@/hooks/useRankings';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 interface ActiveRoom {
   roomId: string;
   nickname: string;
+  playerId: string;
 }
 
 export default function Index() {
@@ -36,7 +37,7 @@ export default function Index() {
       // Find player's active room
       const { data: player } = await supabase
         .from('players')
-        .select('room_id, nickname, rooms!inner(id, current_status)')
+        .select('id, room_id, nickname, rooms!inner(id, current_status)')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -46,7 +47,8 @@ export default function Index() {
         // Room is still active (not finished)
         setActiveRoom({
           roomId: player.room_id,
-          nickname: player.nickname
+          nickname: player.nickname,
+          playerId: player.id
         });
       }
     };
@@ -57,6 +59,19 @@ export default function Index() {
   const rejoinRoom = () => {
     if (activeRoom) {
       navigate(`/room/${activeRoom.roomId}`);
+    }
+  };
+
+  const leaveRoomPermanently = async () => {
+    if (!activeRoom) return;
+    
+    try {
+      await supabase.from('players').delete().eq('id', activeRoom.playerId);
+      setActiveRoom(null);
+      toast({ title: 'Você saiu da sala', description: 'Pode entrar em outra partida agora.' });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Erro ao sair da sala', variant: 'destructive' });
     }
   };
 
@@ -155,23 +170,32 @@ export default function Index() {
           className="mb-6"
         >
           {activeRoom ? (
-            <button 
-              onClick={rejoinRoom}
-              className={cn(
-                'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-success/50 hover:border-success transition-all hover:scale-105',
-                tier.color
-              )}
-            >
-              <span className="text-xl">{tier.icon}</span>
-              <div className="text-left">
-                <div className="font-orbitron font-bold text-sm flex items-center gap-2">
-                  {myRanking.nickname}
-                  <span className="text-xs text-success animate-pulse">● EM JOGO</span>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={rejoinRoom}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-success/50 hover:border-success transition-all hover:scale-105',
+                  tier.color
+                )}
+              >
+                <span className="text-xl">{tier.icon}</span>
+                <div className="text-left">
+                  <div className="font-orbitron font-bold text-sm flex items-center gap-2">
+                    {myRanking.nickname}
+                    <span className="text-xs text-success animate-pulse">● EM JOGO</span>
+                  </div>
+                  <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
                 </div>
-                <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
-              </div>
-              <Play className="w-4 h-4 text-success ml-2" />
-            </button>
+                <Play className="w-4 h-4 text-success ml-2" />
+              </button>
+              <button
+                onClick={leaveRoomPermanently}
+                className="p-2 rounded-full bg-destructive/20 border border-destructive/50 hover:bg-destructive/30 transition-all hover:scale-105"
+                title="Sair da sala permanentemente"
+              >
+                <LogOut className="w-4 h-4 text-destructive" />
+              </button>
+            </div>
           ) : (
             <div 
               className={cn(
@@ -194,7 +218,7 @@ export default function Index() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6"
+          className="mb-6 flex items-center gap-2"
         >
           <button 
             onClick={rejoinRoom}
@@ -207,6 +231,13 @@ export default function Index() {
               </div>
               <div className="text-xs text-success">Clique para voltar à partida</div>
             </div>
+          </button>
+          <button
+            onClick={leaveRoomPermanently}
+            className="p-3 rounded-xl bg-destructive/20 border border-destructive/50 hover:bg-destructive/30 transition-all hover:scale-105"
+            title="Sair da sala permanentemente"
+          >
+            <LogOut className="w-5 h-5 text-destructive" />
           </button>
         </motion.div>
       )}
