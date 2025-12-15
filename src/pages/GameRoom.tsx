@@ -16,7 +16,7 @@ import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function GameRoom() {
@@ -34,6 +34,9 @@ export default function GameRoom() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
+  const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
   const rankingUpdatedRef = useRef<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
@@ -133,7 +136,20 @@ export default function GameRoom() {
     }).eq('id', roomId);
   };
 
-  const goToVoting = () => updateRoomStatus('voting');
+  const goToVoting = () => {
+    // Reset answer states when going to voting
+    setSelectedAnswer(null);
+    setConfirmedAnswer(null);
+    setShowAnswer(false);
+    updateRoomStatus('voting');
+  };
+
+  const confirmAnswer = () => {
+    if (!selectedAnswer) return;
+    setConfirmedAnswer(selectedAnswer);
+    setShowAnswer(true);
+    playReveal();
+  };
   
   const showResults = async () => {
     await updateRoomStatus('result');
@@ -159,6 +175,10 @@ export default function GameRoom() {
     if (!roomId) return;
     const nextIdx = (questionIndex + 1) % questions.length;
     setQuestionIndex(nextIdx);
+    // Reset answer states for next question
+    setSelectedAnswer(null);
+    setConfirmedAnswer(null);
+    setShowAnswer(false);
     await supabase.from('rooms').update({
       current_status: 'question',
       current_question_id: questions[nextIdx]?.id,
@@ -256,21 +276,54 @@ export default function GameRoom() {
                 <div className="space-y-6">
                   <QuestionCard
                     question={gameState.currentQuestion}
-                    showCorrectAnswer={isCurrentPlayer}
+                    showCorrectAnswer={showAnswer}
+                    selectedOption={selectedAnswer || undefined}
+                    onSelectOption={isCurrentPlayer ? setSelectedAnswer : undefined}
+                    confirmedAnswer={confirmedAnswer || undefined}
+                    disabled={!isCurrentPlayer}
                   />
+                  
                   {isCurrentPlayer && (
-                    <div className="flex gap-4">
-                      <GoldButton variant="outline" onClick={() => setShowMycroft(true)} className="flex-1">
-                        <Bot className="w-5 h-5 mr-2 inline" /> Ativar Mycroft
+                    <div className="space-y-4">
+                      {/* Reveal Answer Button */}
+                      <GoldButton 
+                        onClick={confirmAnswer} 
+                        disabled={!selectedAnswer || !!confirmedAnswer}
+                        className="w-full"
+                        size="lg"
+                      >
+                        {confirmedAnswer ? (
+                          <>
+                            <Unlock className="w-5 h-5 mr-2 inline" /> Resposta Revelada
+                          </>
+                        ) : selectedAnswer ? (
+                          <>
+                            <Unlock className="w-5 h-5 mr-2 inline" /> Confirmar e Revelar Resposta
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-5 h-5 mr-2 inline" /> Selecione uma Resposta
+                          </>
+                        )}
                       </GoldButton>
-                      <GoldButton onClick={goToVoting} className="flex-1">
-                        Ir para Votação
-                      </GoldButton>
+
+                      {/* Actions after reveal */}
+                      {confirmedAnswer && (
+                        <div className="flex gap-4">
+                          <GoldButton variant="outline" onClick={() => setShowMycroft(true)} className="flex-1">
+                            <Bot className="w-5 h-5 mr-2 inline" /> Mycroft AI
+                          </GoldButton>
+                          <GoldButton onClick={goToVoting} className="flex-1">
+                            Ir para Votação
+                          </GoldButton>
+                        </div>
+                      )}
                     </div>
                   )}
+                  
                   {!isCurrentPlayer && (
                     <p className="text-center text-muted-foreground">
-                      {gameState.currentPlayer?.nickname} está respondendo...
+                      {gameState.currentPlayer?.nickname} está analisando a questão...
                     </p>
                   )}
                 </div>
