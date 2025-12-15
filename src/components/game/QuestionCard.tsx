@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Question } from '@/types/game';
-import { Brain, Zap } from 'lucide-react';
+import { Brain, Zap, CheckCircle2 } from 'lucide-react';
 
 interface QuestionCardProps {
   question: Question;
@@ -9,6 +9,7 @@ interface QuestionCardProps {
   selectedOption?: string;
   onSelectOption?: (option: 'A' | 'B' | 'C' | 'D') => void;
   disabled?: boolean;
+  confirmedAnswer?: string;
 }
 
 export default function QuestionCard({
@@ -17,6 +18,7 @@ export default function QuestionCard({
   selectedOption,
   onSelectOption,
   disabled = false,
+  confirmedAnswer,
 }: QuestionCardProps) {
   const options = [
     { key: 'A' as const, text: question.option_a },
@@ -33,6 +35,10 @@ export default function QuestionCard({
       default: return 'text-muted-foreground';
     }
   };
+
+  const isCorrect = (key: string) => showCorrectAnswer && key === question.correct_option;
+  const isWrong = (key: string) => showCorrectAnswer && confirmedAnswer === key && key !== question.correct_option;
+  const isPlayerChoice = (key: string) => confirmedAnswer === key;
 
   return (
     <motion.div
@@ -67,21 +73,37 @@ export default function QuestionCard({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            onClick={() => !disabled && onSelectOption?.(option.key)}
-            disabled={disabled}
+            onClick={() => !disabled && !confirmedAnswer && onSelectOption?.(option.key)}
+            disabled={disabled || !!confirmedAnswer}
             className={cn(
-              'option-card text-left',
-              showCorrectAnswer && option.key === question.correct_option && 'correct',
-              selectedOption === option.key && 'selected',
-              disabled && 'cursor-default'
+              'option-card text-left relative',
+              isCorrect(option.key) && 'ring-2 ring-success bg-success/10',
+              isWrong(option.key) && 'ring-2 ring-destructive bg-destructive/10',
+              selectedOption === option.key && !confirmedAnswer && 'selected',
+              isPlayerChoice(option.key) && !isCorrect(option.key) && !isWrong(option.key) && 'ring-2 ring-primary',
+              (disabled || !!confirmedAnswer) && 'cursor-default'
             )}
           >
             <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-orbitron font-bold text-primary">
-                {option.key}
+              <span className={cn(
+                'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-orbitron font-bold',
+                isCorrect(option.key) ? 'bg-success text-success-foreground' : 
+                isWrong(option.key) ? 'bg-destructive text-destructive-foreground' : 
+                'bg-primary/20 text-primary'
+              )}>
+                {isCorrect(option.key) ? <CheckCircle2 className="w-5 h-5" /> : option.key}
               </span>
               <span className="text-lg font-medium pt-1">{option.text}</span>
             </div>
+            {isCorrect(option.key) && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-2 -right-2 bg-success text-success-foreground text-xs font-bold px-2 py-1 rounded-full"
+              >
+                CORRETA
+              </motion.div>
+            )}
           </motion.button>
         ))}
       </div>
