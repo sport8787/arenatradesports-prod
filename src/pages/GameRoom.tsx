@@ -164,20 +164,23 @@ export default function GameRoom() {
     }).eq('id', roomId);
   };
 
-  const goToVoting = () => {
-    // Reset answer states when going to voting
-    setSelectedAnswer(null);
-    setConfirmedAnswer(null);
-    setShowAnswer(false);
-    setMycroftUsed(false);
-    updateRoomStatus('voting');
+  const goToVoting = async () => {
+    // From discussion, go to voting (transition state before results)
+    await updateRoomStatus('voting');
   };
 
-  const confirmAnswer = () => {
+  const goToResults = async () => {
+    await updateRoomStatus('result');
+    setTimeout(() => playChips(), 500);
+  };
+
+  const confirmAnswer = async () => {
     if (!selectedAnswer) return;
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
     playReveal();
+    // Update room status to discussion so jury can vote
+    await updateRoomStatus('discussion');
   };
 
   const activateMycroft = async () => {
@@ -230,6 +233,7 @@ export default function GameRoom() {
     setSelectedAnswer(null);
     setConfirmedAnswer(null);
     setShowAnswer(false);
+    setMycroftUsed(false);
     await supabase.from('rooms').update({
       current_status: 'question',
       current_question_id: questions[nextIdx]?.id,
@@ -390,34 +394,75 @@ export default function GameRoom() {
                 </div>
               )}
 
-              {/* VOTING */}
-              {gameState.room?.current_status === 'voting' && gameState.currentQuestion && (
+              {/* DISCUSSION - Jury votes while player can use Mycroft */}
+              {gameState.room?.current_status === 'discussion' && gameState.currentQuestion && (
                 <div className="space-y-6">
-                  {!isCurrentPlayer && gameState.currentQuestion.mycroft_risk_level && (
-                    <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
-                  )}
+                  <QuestionCard
+                    question={gameState.currentQuestion}
+                    showCorrectAnswer={isCurrentPlayer}
+                    selectedOption={selectedAnswer || undefined}
+                    confirmedAnswer={confirmedAnswer || undefined}
+                    disabled={true}
+                  />
+                  
                   {isCurrentPlayer ? (
-                    <div className="text-center py-8">
-                      <h3 className="font-orbitron text-xl mb-2">Aguardando Votos</h3>
-                      <p className="text-muted-foreground">O júri está decidindo...</p>
-                      {gameState.myPlayer?.is_host && (
-                        <GoldButton onClick={showResults} className="mt-4">
-                          Revelar Resultado
+                    <div className="space-y-4">
+                      <div className="flex gap-4">
+                        <GoldButton 
+                          variant="outline" 
+                          onClick={activateMycroft} 
+                          className="flex-1"
+                          disabled={mycroftUsed || !hasEnoughCoins(MYCROFT_COST)}
+                        >
+                          <Bot className="w-5 h-5 mr-2 inline" /> 
+                          {mycroftUsed ? 'Mycroft Ativado' : (
+                            <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
+                          )}
                         </GoldButton>
-                      )}
+                        <GoldButton onClick={showResults} className="flex-1">
+                          Ver Resultado
+                        </GoldButton>
+                      </div>
                     </div>
                   ) : (
-                    <VotingPanel
-                      onVote={handleVoteWithCost}
-                      hasVoted={hasVoted}
-                      votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
-                      onTimerTick={handleTimerTick}
-                      onTimerComplete={handleTimerComplete}
-                      timerActive={gameState.room?.current_status === 'voting'}
-                      doubtCost={DOUBT_COST}
-                      canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
-                    />
+                    <>
+                      {gameState.currentQuestion.mycroft_risk_level && (
+                        <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
+                      )}
+                      <VotingPanel
+                        onVote={handleVoteWithCost}
+                        hasVoted={hasVoted}
+                        votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
+                        onTimerTick={handleTimerTick}
+                        onTimerComplete={handleTimerComplete}
+                        timerActive={!hasVoted}
+                        doubtCost={DOUBT_COST}
+                        canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
+                      />
+                    </>
                   )}
+                </div>
+              )}
+
+              {/* VOTING - Waiting for results */}
+              {gameState.room?.current_status === 'voting' && gameState.currentQuestion && (
+                <div className="space-y-6">
+                  <QuestionCard
+                    question={gameState.currentQuestion}
+                    showCorrectAnswer={true}
+                    selectedOption={selectedAnswer || undefined}
+                    confirmedAnswer={confirmedAnswer || undefined}
+                    disabled={true}
+                  />
+                  <div className="text-center py-8">
+                    <h3 className="font-orbitron text-xl mb-2">Votação Encerrada</h3>
+                    <p className="text-muted-foreground">Aguardando resultado...</p>
+                    {gameState.myPlayer?.is_host && (
+                      <GoldButton onClick={showResults} className="mt-4">
+                        Revelar Resultado
+                      </GoldButton>
+                    )}
+                  </div>
                 </div>
               )}
 
