@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CountdownTimer from './CountdownTimer';
+import { BluffCoinCost } from './BluffCoinDisplay';
 
 interface VotingPanelProps {
   onVote: (vote: 'believe' | 'doubt') => void;
@@ -11,6 +12,8 @@ interface VotingPanelProps {
   onTimerComplete?: () => void;
   onTimerTick?: (secondsLeft: number) => void;
   timerActive?: boolean;
+  doubtCost?: number;
+  canAffordDoubt?: boolean;
 }
 
 export default function VotingPanel({ 
@@ -20,8 +23,12 @@ export default function VotingPanel({
   disabled,
   onTimerComplete,
   onTimerTick,
-  timerActive = true
+  timerActive = true,
+  doubtCost = 0,
+  canAffordDoubt = true
 }: VotingPanelProps) {
+  const canDoubt = canAffordDoubt && !hasVoted && !disabled;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -65,17 +72,19 @@ export default function VotingPanel({
             <ThumbsUp className="w-8 h-8" />
           )}
           <span className="text-lg">Acreditar</span>
+          <span className="text-xs text-muted-foreground">Grátis</span>
         </motion.button>
 
         <motion.button
-          whileHover={{ scale: hasVoted ? 1 : 1.03 }}
-          whileTap={{ scale: hasVoted ? 1 : 0.97 }}
-          onClick={() => !hasVoted && !disabled && onVote('doubt')}
-          disabled={hasVoted || disabled}
+          whileHover={{ scale: hasVoted || !canAffordDoubt ? 1 : 1.03 }}
+          whileTap={{ scale: hasVoted || !canAffordDoubt ? 1 : 0.97 }}
+          onClick={() => canDoubt && onVote('doubt')}
+          disabled={hasVoted || disabled || !canAffordDoubt}
           className={cn(
             'vote-doubt flex-1 py-6 rounded-xl flex flex-col items-center gap-3 transition-all',
             hasVoted && votedFor !== 'doubt' && 'opacity-30',
-            hasVoted && votedFor === 'doubt' && 'ring-2 ring-destructive ring-offset-2 ring-offset-background'
+            hasVoted && votedFor === 'doubt' && 'ring-2 ring-destructive ring-offset-2 ring-offset-background',
+            !canAffordDoubt && !hasVoted && 'opacity-50 cursor-not-allowed'
           )}
         >
           {hasVoted && votedFor === 'doubt' ? (
@@ -84,6 +93,9 @@ export default function VotingPanel({
             <ThumbsDown className="w-8 h-8" />
           )}
           <span className="text-lg">Duvidar</span>
+          {doubtCost > 0 && (
+            <BluffCoinCost amount={doubtCost} className={cn(!canAffordDoubt && 'text-destructive')} />
+          )}
         </motion.button>
       </div>
     </motion.div>

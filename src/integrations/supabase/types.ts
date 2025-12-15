@@ -17,6 +17,7 @@ export type Database = {
       players: {
         Row: {
           avatar_url: string | null
+          bluffcoins: number
           created_at: string
           id: string
           is_host: boolean
@@ -27,6 +28,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bluffcoins?: number
           created_at?: string
           id?: string
           is_host?: boolean
@@ -37,6 +39,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bluffcoins?: number
           created_at?: string
           id?: string
           is_host?: boolean

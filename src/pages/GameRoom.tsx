@@ -15,16 +15,26 @@ import MycroftPanel from '@/components/game/MycroftPanel';
 import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
+import BluffCoinDisplay, { BluffCoinCost } from '@/components/game/BluffCoinDisplay';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+
+// BluffCoin costs
+const MYCROFT_COST = 200;
+const DOUBT_COST = 100;
+
+// BluffCoin rewards
+const CORRECT_ANSWER_REWARD = 100;
+const SUCCESSFUL_BLUFF_REWARD = 300;
+const CORRECT_VOTE_REWARD = 150;
 
 export default function GameRoom() {
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isHost = searchParams.get('host') === 'true';
-  const { gameState, loading, updateRoomStatus, submitVote } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
@@ -37,7 +47,9 @@ export default function GameRoom() {
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [mycroftUsed, setMycroftUsed] = useState(false);
   const rankingUpdatedRef = useRef<string | null>(null);
+  const coinsUpdatedRef = useRef<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
   const isCurrentPlayer = gameState.currentPlayer?.session_id === sessionId;
@@ -69,33 +81,49 @@ export default function GameRoom() {
     }
   }, [gameState.room?.current_status, prevStatus, playSuspense, playReveal, playFanfare]);
 
-  // Update rankings based on result
+  // Update rankings and bluffcoins based on result
   const updateRankingsForResult = async () => {
     if (!gameState.myPlayer || !myRanking) return;
 
+    const questionId = gameState.currentQuestion?.id;
+    if (!questionId || coinsUpdatedRef.current === questionId) return;
+    coinsUpdatedRef.current = questionId;
+
     const wasBluffSuccessful = gameState.votes.filter(v => v.vote_type === 'believe').length > 0;
     const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
+    const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
     
-    // Current player (bluffer)
+    // Current player rewards
     if (isCurrentPlayer) {
+      // Correct answer reward
+      if (playerGotCorrect) {
+        await updateBluffcoins(gameState.myPlayer.id, CORRECT_ANSWER_REWARD);
+        toast({ title: `+${CORRECT_ANSWER_REWARD} BluffCoins`, description: 'Resposta correta!' });
+      }
+      
+      // Successful bluff reward
       if (wasBluffSuccessful) {
-        // Successful bluff: +50 points per fooled player
         const fooledCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
+        await updateBluffcoins(gameState.myPlayer.id, SUCCESSFUL_BLUFF_REWARD * fooledCount);
         await updateRankingStats({
           addPoints: 50 * fooledCount,
           addSuccessfulBluff: true,
         });
+        toast({ title: `+${SUCCESSFUL_BLUFF_REWARD * fooledCount} BluffCoins`, description: 'Persuasão bem-sucedida!' });
       }
     } else if (myVote) {
-      // Jury member
-      if (myVote.vote_type === 'doubt' && !wasBluffSuccessful) {
-        // Correctly doubted: +30 points
+      // Jury member rewards
+      const juryCorrect = (myVote.vote_type === 'doubt' && !playerGotCorrect) || 
+                          (myVote.vote_type === 'believe' && playerGotCorrect);
+      
+      if (juryCorrect) {
+        await updateBluffcoins(gameState.myPlayer.id, CORRECT_VOTE_REWARD);
         await updateRankingStats({
           addPoints: 30,
-          addBluffDetected: true,
+          addBluffDetected: myVote.vote_type === 'doubt',
         });
-      } else if (myVote.vote_type === 'believe' && wasBluffSuccessful) {
-        // Was fooled: just track it
+        toast({ title: `+${CORRECT_VOTE_REWARD} BluffCoins`, description: 'Leitura correta!' });
+      } else {
         await updateRankingStats({
           addTimesFooled: true,
         });
@@ -141,6 +169,7 @@ export default function GameRoom() {
     setSelectedAnswer(null);
     setConfirmedAnswer(null);
     setShowAnswer(false);
+    setMycroftUsed(false);
     updateRoomStatus('voting');
   };
 
@@ -149,6 +178,28 @@ export default function GameRoom() {
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
     playReveal();
+  };
+
+  const activateMycroft = async () => {
+    if (!gameState.myPlayer || !hasEnoughCoins(MYCROFT_COST)) {
+      toast({ title: 'BluffCoins insuficientes', variant: 'destructive' });
+      return;
+    }
+    await updateBluffcoins(gameState.myPlayer.id, -MYCROFT_COST);
+    setMycroftUsed(true);
+    setShowMycroft(true);
+    playChips();
+  };
+
+  const handleVoteWithCost = async (voteType: 'believe' | 'doubt') => {
+    if (voteType === 'doubt') {
+      if (!gameState.myPlayer || !hasEnoughCoins(DOUBT_COST)) {
+        toast({ title: 'BluffCoins insuficientes para duvidar', variant: 'destructive' });
+        return;
+      }
+      await updateBluffcoins(gameState.myPlayer.id, -DOUBT_COST);
+    }
+    await submitVote(voteType);
   };
   
   const showResults = async () => {
@@ -238,6 +289,8 @@ export default function GameRoom() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {/* BluffCoins Display */}
+            <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="md" />
             <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
             <div className="flex -space-x-2">
               {gameState.players.slice(0, 4).map((p, i) => (
@@ -310,8 +363,16 @@ export default function GameRoom() {
                       {/* Actions after reveal */}
                       {confirmedAnswer && (
                         <div className="flex gap-4">
-                          <GoldButton variant="outline" onClick={() => setShowMycroft(true)} className="flex-1">
-                            <Bot className="w-5 h-5 mr-2 inline" /> Mycroft AI
+                          <GoldButton 
+                            variant="outline" 
+                            onClick={activateMycroft} 
+                            className="flex-1"
+                            disabled={mycroftUsed || !hasEnoughCoins(MYCROFT_COST)}
+                          >
+                            <Bot className="w-5 h-5 mr-2 inline" /> 
+                            {mycroftUsed ? 'Mycroft Ativado' : (
+                              <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
+                            )}
                           </GoldButton>
                           <GoldButton onClick={goToVoting} className="flex-1">
                             Ir para Votação
@@ -347,12 +408,14 @@ export default function GameRoom() {
                     </div>
                   ) : (
                     <VotingPanel
-                      onVote={submitVote}
+                      onVote={handleVoteWithCost}
                       hasVoted={hasVoted}
                       votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
                       onTimerTick={handleTimerTick}
                       onTimerComplete={handleTimerComplete}
                       timerActive={gameState.room?.current_status === 'voting'}
+                      doubtCost={DOUBT_COST}
+                      canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
                     />
                   )}
                 </div>
