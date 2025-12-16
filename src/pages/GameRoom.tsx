@@ -27,10 +27,13 @@ import { toast } from '@/hooks/use-toast';
 const MYCROFT_COST = 200;
 const DOUBT_COST = 100;
 
-// BluffCoin rewards
-const CORRECT_ANSWER_REWARD = 100;
-const SUCCESSFUL_BLUFF_REWARD = 300;
-const CORRECT_VOTE_REWARD = 150;
+// BluffCoin rewards - Host
+const HOST_CORRECT_ANSWER = 100;
+const HOST_WRONG_PARTIAL_BLUFF = 200; // At least 1 jury voted CLARO
+const HOST_WRONG_FULL_BLUFF = 300;    // All jury voted CLARO
+
+// BluffCoin rewards - Jury
+const JURY_CORRECT_READING = 50;
 
 export default function GameRoom() {
   const { roomId } = useParams();
@@ -118,44 +121,53 @@ export default function GameRoom() {
     if (!questionId || coinsUpdatedRef.current === questionId) return;
     coinsUpdatedRef.current = questionId;
 
-    const wasBluffSuccessful = gameState.votes.filter(v => v.vote_type === 'believe').length > 0;
     const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
     const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
     
-    // Current player rewards
+    // Get jury votes
+    const juryVotes = gameState.votes;
+    const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
+    const totalJuryVotes = juryVotes.length;
+    
+    // HOST/PLAYER REWARDS
     if (isCurrentPlayer) {
-      // Correct answer reward
+      // +100 for correct answer
       if (playerGotCorrect) {
-        await updateBluffcoins(gameState.myPlayer.id, CORRECT_ANSWER_REWARD);
-        toast({ title: `+${CORRECT_ANSWER_REWARD} BluffCoins`, description: 'Resposta correta!' });
+        await updateBluffcoins(gameState.myPlayer.id, HOST_CORRECT_ANSWER);
+        toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
       }
       
-      // Successful bluff reward
-      if (wasBluffSuccessful) {
-        const fooledCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
-        await updateBluffcoins(gameState.myPlayer.id, SUCCESSFUL_BLUFF_REWARD * fooledCount);
-        await updateRankingStats({
-          addPoints: 50 * fooledCount,
-          addSuccessfulBluff: true,
-        });
-        toast({ title: `+${SUCCESSFUL_BLUFF_REWARD * fooledCount} BluffCoins`, description: 'Persuasão bem-sucedida!' });
+      // Bluff rewards (only for WRONG answers where jury believed)
+      if (!playerGotCorrect && believeVotes > 0) {
+        if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
+          // All jury voted CLARO - full bluff success
+          await updateBluffcoins(gameState.myPlayer.id, HOST_WRONG_FULL_BLUFF);
+          await updateRankingStats({ addPoints: 100, addSuccessfulBluff: true });
+          toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito! Todos acreditaram!' });
+        } else {
+          // At least 1 jury voted CLARO - partial bluff
+          await updateBluffcoins(gameState.myPlayer.id, HOST_WRONG_PARTIAL_BLUFF);
+          await updateRankingStats({ addPoints: 50, addSuccessfulBluff: true });
+          toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+        }
       }
-    } else if (myVote) {
-      // Jury member rewards
-      const juryCorrect = (myVote.vote_type === 'doubt' && !playerGotCorrect) || 
-                          (myVote.vote_type === 'believe' && playerGotCorrect);
+    } 
+    // JURY REWARDS
+    else if (myVote) {
+      // Correct reading: (wrong answer + voted BLEFE) OR (correct answer + voted CLARO)
+      const correctReading = 
+        (!playerGotCorrect && myVote.vote_type === 'doubt') || 
+        (playerGotCorrect && myVote.vote_type === 'believe');
       
-      if (juryCorrect) {
-        await updateBluffcoins(gameState.myPlayer.id, CORRECT_VOTE_REWARD);
+      if (correctReading) {
+        await updateBluffcoins(gameState.myPlayer.id, JURY_CORRECT_READING);
         await updateRankingStats({
           addPoints: 30,
           addBluffDetected: myVote.vote_type === 'doubt',
         });
-        toast({ title: `+${CORRECT_VOTE_REWARD} BluffCoins`, description: 'Leitura correta!' });
+        toast({ title: `+${JURY_CORRECT_READING} BluffCoins`, description: 'Leitura correta!' });
       } else {
-        await updateRankingStats({
-          addTimesFooled: true,
-        });
+        await updateRankingStats({ addTimesFooled: true });
       }
     }
   };
