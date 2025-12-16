@@ -47,6 +47,7 @@ export default function GameRoom() {
   const [showMycroft, setShowMycroft] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
+  const [hostEliminated, setHostEliminated] = useState(false);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
@@ -137,7 +138,13 @@ export default function GameRoom() {
     // Get jury votes
     const juryVotes = gameState.votes;
     const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
+    const doubtVotes = juryVotes.filter(v => v.vote_type === 'doubt').length;
     const totalJuryVotes = juryVotes.length;
+    
+    // Check for host elimination: wrong answer + ALL jury voted BLEFE
+    if (!playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0) {
+      setHostEliminated(true);
+    }
     
     // Only the HOST updates all bluffcoins to avoid race conditions
     if (isCurrentPlayer) {
@@ -634,12 +641,29 @@ export default function GameRoom() {
                     confirmedAnswer={confirmedAnswer}
                     onCoinSound={playCoinDrop}
                   />
-                  {isRoomHost ? (
-                    <GoldButton onClick={nextQuestion} className="w-full" size="lg">
-                      Próxima Rodada
-                    </GoldButton>
+                  
+                  {hostEliminated ? (
+                    <div className="text-center space-y-4 p-6 bg-destructive/20 border border-destructive rounded-lg">
+                      <div className="text-4xl">💀</div>
+                      <h2 className="font-orbitron text-2xl text-destructive">HOST ELIMINADO!</h2>
+                      <p className="text-muted-foreground">
+                        O host errou a resposta e todos os jurados votaram BLEFE.
+                      </p>
+                      <p className="text-lg font-semibold text-primary">FIM DE JOGO</p>
+                      <GoldButton onClick={() => navigate('/')} className="w-full" size="lg">
+                        Voltar ao Início
+                      </GoldButton>
+                    </div>
                   ) : (
-                    <WaitingMessage type="nextRound" />
+                    <>
+                      {isRoomHost ? (
+                        <GoldButton onClick={nextQuestion} className="w-full" size="lg">
+                          Próxima Rodada
+                        </GoldButton>
+                      ) : (
+                        <WaitingMessage type="nextRound" />
+                      )}
+                    </>
                   )}
                 </div>
               )}
