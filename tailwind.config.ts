@@ -63,6 +63,8 @@ export default {
           green: "hsl(var(--mycroft-green))",
           cyan: "hsl(var(--mycroft-cyan))",
         },
+        gold: "hsl(43 74% 49%)",
+        cyan: "hsl(180 100% 50%)",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
