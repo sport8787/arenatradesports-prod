@@ -1,8 +1,15 @@
 import { motion } from 'framer-motion';
-import { Check, X, Coins } from 'lucide-react';
+import { Check, X, Coins, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Player, Vote, Question } from '@/types/game';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { getAvatarColor, getInitials } from '@/lib/gameUtils';
+
+// Reward constants (same as GameRoom)
+const HOST_CORRECT_ANSWER = 100;
+const HOST_WRONG_PARTIAL_BLUFF = 200;
+const HOST_WRONG_FULL_BLUFF = 300;
+const JURY_CORRECT_READING = 50;
 
 interface ResultsPanelProps {
   question: Question;
@@ -10,6 +17,15 @@ interface ResultsPanelProps {
   players: Player[];
   votes: Vote[];
   wasBluffSuccessful: boolean;
+  confirmedAnswer?: 'A' | 'B' | 'C' | 'D' | null;
+}
+
+interface PlayerReward {
+  player: Player;
+  reward: number;
+  reason: string;
+  isHost: boolean;
+  voteType?: 'believe' | 'doubt';
 }
 
 export default function ResultsPanel({
@@ -18,20 +34,80 @@ export default function ResultsPanel({
   players,
   votes,
   wasBluffSuccessful,
+  confirmedAnswer,
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
+  const [showRewards, setShowRewards] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowCoins(true), 500);
-    return () => clearTimeout(timer);
+    const timer1 = setTimeout(() => setShowCoins(true), 500);
+    const timer2 = setTimeout(() => setShowRewards(true), 1200);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, []);
 
   const correctOption = question.correct_option;
   const correctText = question[`option_${correctOption.toLowerCase()}` as keyof Question] as string;
+  const playerGotCorrect = confirmedAnswer === correctOption;
 
-  // Players who believed a lie lose points, those who doubted correctly gain points
   const believers = votes.filter(v => v.vote_type === 'believe');
   const doubters = votes.filter(v => v.vote_type === 'doubt');
+  const totalJuryVotes = votes.length;
+
+  // Calculate rewards for each player
+  const calculateRewards = (): PlayerReward[] => {
+    const rewards: PlayerReward[] = [];
+
+    // Host reward
+    let hostReward = 0;
+    let hostReason = '';
+
+    if (playerGotCorrect) {
+      hostReward = HOST_CORRECT_ANSWER;
+      hostReason = 'Resposta correta';
+    } else if (believers.length > 0) {
+      if (believers.length === totalJuryVotes && totalJuryVotes > 0) {
+        hostReward = HOST_WRONG_FULL_BLUFF;
+        hostReason = 'Blefe perfeito!';
+      } else {
+        hostReward = HOST_WRONG_PARTIAL_BLUFF;
+        hostReason = 'Blefe parcial';
+      }
+    } else {
+      hostReason = 'Blefe descoberto';
+    }
+
+    rewards.push({
+      player: currentPlayer,
+      reward: hostReward,
+      reason: hostReason,
+      isHost: true,
+    });
+
+    // Jury rewards
+    votes.forEach((vote) => {
+      const player = players.find(p => p.id === vote.player_id);
+      if (!player || player.id === currentPlayer.id) return;
+
+      const correctReading = 
+        (!playerGotCorrect && vote.vote_type === 'doubt') || 
+        (playerGotCorrect && vote.vote_type === 'believe');
+
+      rewards.push({
+        player,
+        reward: correctReading ? JURY_CORRECT_READING : 0,
+        reason: correctReading ? 'Leitura correta' : 'Leitura errada',
+        isHost: false,
+        voteType: vote.vote_type as 'believe' | 'doubt',
+      });
+    });
+
+    return rewards;
+  };
+
+  const rewards = calculateRewards();
 
   return (
     <motion.div
@@ -128,6 +204,90 @@ export default function ResultsPanel({
           </div>
         </div>
       </motion.div>
+
+      {/* Rewards Breakdown */}
+      {showRewards && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-3"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Coins className="w-5 h-5 text-primary" />
+            <h4 className="font-orbitron text-lg text-primary uppercase tracking-wider">
+              Recompensas
+            </h4>
+          </div>
+
+          <div className="space-y-2">
+            {rewards.map((item, index) => {
+              const playerIndex = players.findIndex(p => p.id === item.player.id);
+              return (
+                <motion.div
+                  key={item.player.id}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg',
+                    item.isHost ? 'bg-primary/10 border border-primary/30' : 'bg-secondary/50'
+                  )}
+                >
+                  {/* Avatar */}
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br shrink-0',
+                      getAvatarColor(playerIndex >= 0 ? playerIndex : 0)
+                    )}
+                  >
+                    {getInitials(item.player.nickname)}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">{item.player.nickname}</span>
+                      {item.isHost && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary font-orbitron">
+                          HOST
+                        </span>
+                      )}
+                      {item.voteType && (
+                        <span className={cn(
+                          'text-xs px-2 py-0.5 rounded font-medium',
+                          item.voteType === 'believe' 
+                            ? 'bg-success/20 text-success' 
+                            : 'bg-destructive/20 text-destructive'
+                        )}>
+                          {item.voteType === 'believe' ? 'CLARO' : 'BLEFE'}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm text-muted-foreground">{item.reason}</span>
+                  </div>
+
+                  {/* Reward */}
+                  <div className={cn(
+                    'flex items-center gap-1 font-orbitron font-bold',
+                    item.reward > 0 ? 'text-success' : item.reward < 0 ? 'text-destructive' : 'text-muted-foreground'
+                  )}>
+                    {item.reward > 0 ? (
+                      <TrendingUp className="w-4 h-4" />
+                    ) : item.reward < 0 ? (
+                      <TrendingDown className="w-4 h-4" />
+                    ) : (
+                      <Minus className="w-4 h-4" />
+                    )}
+                    <span>{item.reward > 0 ? `+${item.reward}` : item.reward}</span>
+                    <Coins className="w-4 h-4 text-primary" />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

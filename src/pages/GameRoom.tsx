@@ -576,6 +576,7 @@ export default function GameRoom() {
                     players={gameState.players}
                     votes={gameState.votes}
                     wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
+                    confirmedAnswer={confirmedAnswer}
                   />
                   {isRoomHost ? (
                     <GoldButton onClick={nextQuestion} className="w-full" size="lg">
