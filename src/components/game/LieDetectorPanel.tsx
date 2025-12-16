@@ -10,6 +10,7 @@ interface LieDetectorPanelProps {
   isVisible: boolean;
   onClose: () => void;
   onActivate: () => void;
+  onPlayScanner?: () => void;
   cost: number;
   canAfford: boolean;
   hasUsed: boolean;
@@ -20,6 +21,7 @@ export default function LieDetectorPanel({
   isVisible,
   onClose,
   onActivate,
+  onPlayScanner,
   cost,
   canAfford,
   hasUsed,
@@ -47,6 +49,9 @@ export default function LieDetectorPanel({
     setIsScanning(true);
     setError(null);
     setTruth(null);
+
+    // Play scanner sound
+    onPlayScanner?.();
 
     // Scanning animation delay
     await new Promise(resolve => setTimeout(resolve, 1500));
