@@ -19,6 +19,7 @@ interface ResultsPanelProps {
   wasBluffSuccessful: boolean;
   confirmedAnswer?: 'A' | 'B' | 'C' | 'D' | null;
   onCoinSound?: () => void;
+  showCoinAnimation?: boolean;
 }
 
 interface PlayerReward {
@@ -43,6 +44,7 @@ export default function ResultsPanel({
   wasBluffSuccessful,
   confirmedAnswer,
   onCoinSound,
+  showCoinAnimation = true,
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
@@ -153,7 +155,7 @@ export default function ResultsPanel({
       className="space-y-8 relative"
     >
       {/* Falling Coins Animation */}
-      {showCoins && (
+      {showCoins && showCoinAnimation && (
         <div className="coins-container">
           {[...Array(10)].map((_, i) => (
             <motion.div
@@ -171,7 +173,7 @@ export default function ResultsPanel({
 
       {/* Coins flying to players animation */}
       <AnimatePresence>
-        {coinAnimations.map((coin) => {
+        {showCoinAnimation && coinAnimations.map((coin) => {
           const targetRef = rewardRefs.current[coin.targetIndex];
           const containerRect = containerRef.current?.getBoundingClientRect();
           
