@@ -10,6 +10,7 @@ import prizePix from '@/assets/prize-pix.jpg';
 import prizeMaleta from '@/assets/prize-maleta.jpg';
 import prizePs5 from '@/assets/prize-ps5.jpg';
 import prizeIphone from '@/assets/prize-iphone.jpg';
+import prizeSmartwatch from '@/assets/prize-smartwatch.jpg';
 
 interface PrizeCard {
   id: number;
@@ -17,6 +18,7 @@ interface PrizeCard {
   price: string;
   priceValue: number;
   image: string;
+  description: string;
 }
 
 // Sorted from cheapest to most expensive
@@ -27,6 +29,7 @@ const prizes: PrizeCard[] = [
     price: '100k Coins',
     priceValue: 100000,
     image: prizeGiftcard,
+    description: 'Use em qualquer loja online',
   },
   {
     id: 2,
@@ -34,27 +37,39 @@ const prizes: PrizeCard[] = [
     price: '200k Coins',
     priceValue: 200000,
     image: prizePix,
+    description: 'Dinheiro direto na sua conta',
   },
   {
     id: 3,
+    name: 'Smartwatch Premium',
+    price: '400k Coins',
+    priceValue: 400000,
+    image: prizeSmartwatch,
+    description: 'Tecnologia no seu pulso',
+  },
+  {
+    id: 4,
     name: 'Maleta Física Oficial',
     price: '500k Coins',
     priceValue: 500000,
     image: prizeMaleta,
+    description: 'Edição limitada do jogo',
   },
   {
-    id: 4,
+    id: 5,
     name: 'PlayStation 5',
     price: '800k Coins',
     priceValue: 800000,
     image: prizePs5,
+    description: 'Console de última geração',
   },
   {
-    id: 5,
+    id: 6,
     name: 'iPhone 16 Pro',
     price: '1M Coins',
     priceValue: 1000000,
     image: prizeIphone,
+    description: 'O smartphone mais avançado',
   },
 ];
 
@@ -139,31 +154,38 @@ export default function BlackMarket() {
               <motion.div
                 key={prize.id}
                 initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 0.5, y: 0 }}
+                animate={{ opacity: 0.7, y: 0 }}
                 transition={{ delay: 0.1 * index }}
-                className="relative group"
+                whileHover={{ opacity: 1, scale: 1.02 }}
+                className="relative group cursor-pointer"
               >
-                <div className="rounded-xl bg-secondary/30 border border-border/50 overflow-hidden pointer-events-none select-none transition-all duration-300">
+                <div className="rounded-xl bg-secondary/30 border border-border/50 overflow-hidden select-none transition-all duration-300 group-hover:border-gold/50 group-hover:shadow-lg group-hover:shadow-gold/10">
                   {/* EM BREVE Badge */}
                   <div className="absolute top-3 right-3 z-10 bg-gold/90 text-background text-xs font-bold px-2 py-1 rounded">
                     EM BREVE
                   </div>
                   
                   {/* Product Image */}
-                  <div className="w-full h-40 overflow-hidden">
+                  <div className="w-full h-40 overflow-hidden relative">
                     <img 
                       src={prize.image} 
                       alt={prize.name}
-                      className="w-full h-full object-cover grayscale"
+                      className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0 group-hover:scale-110"
                     />
+                    {/* Hover Overlay with Description */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">
+                      <p className="text-foreground/90 text-sm text-center font-medium">
+                        {prize.description}
+                      </p>
+                    </div>
                   </div>
                   
                   {/* Prize Info */}
-                  <div className="p-4 text-center">
-                    <h4 className="font-orbitron font-bold text-foreground/70">
+                  <div className="p-4 text-center transition-all duration-300">
+                    <h4 className="font-orbitron font-bold text-foreground/70 group-hover:text-foreground transition-colors">
                       {prize.name}
                     </h4>
-                    <p className="text-gold/70 font-orbitron text-sm mt-1">
+                    <p className="text-gold/70 font-orbitron text-sm mt-1 group-hover:text-gold transition-colors">
                       {prize.price}
                     </p>
                   </div>
