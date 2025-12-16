@@ -16,6 +16,8 @@ import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
 import BluffCoinDisplay, { BluffCoinCost } from '@/components/game/BluffCoinDisplay';
+import RoleBanner from '@/components/game/RoleBanner';
+import WaitingMessage from '@/components/game/WaitingMessage';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -316,6 +318,9 @@ export default function GameRoom() {
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Role Banner */}
+        <RoleBanner isHost={isRoomHost} />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -429,9 +434,7 @@ export default function GameRoom() {
                   )}
                   
                   {!isCurrentPlayer && (
-                    <p className="text-center text-muted-foreground">
-                      {gameState.currentPlayer?.nickname} está aguardando sua justificativa...
-                    </p>
+                    <WaitingMessage type="answer" />
                   )}
                 </div>
               )}
@@ -505,15 +508,17 @@ export default function GameRoom() {
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={true}
                   />
-                  <div className="text-center py-8">
-                    <h3 className="font-orbitron text-xl mb-2">Votação Encerrada</h3>
-                    <p className="text-muted-foreground">Aguardando resultado...</p>
-                    {isRoomHost && (
-                      <GoldButton onClick={showResults} className="mt-4">
+                  {isRoomHost ? (
+                    <div className="text-center py-8">
+                      <h3 className="font-orbitron text-xl mb-2">Votação Encerrada</h3>
+                      <p className="text-muted-foreground mb-4">Os votos foram computados</p>
+                      <GoldButton onClick={showResults}>
                         Revelar Resultado
                       </GoldButton>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <WaitingMessage type="result" />
+                  )}
                 </div>
               )}
 
@@ -527,10 +532,12 @@ export default function GameRoom() {
                     votes={gameState.votes}
                     wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                   />
-                  {isRoomHost && (
+                  {isRoomHost ? (
                     <GoldButton onClick={nextQuestion} className="w-full" size="lg">
                       Próxima Rodada
                     </GoldButton>
+                  ) : (
+                    <WaitingMessage type="nextRound" />
                   )}
                 </div>
               )}
@@ -539,7 +546,11 @@ export default function GameRoom() {
 
           {/* Sidebar */}
           <div className="space-y-4">
-            <Scoreboard players={gameState.players} currentPlayerId={gameState.currentPlayer?.id} />
+            <Scoreboard 
+              players={gameState.players} 
+              currentPlayerId={gameState.currentPlayer?.id}
+              hostSessionId={gameState.room?.host_id}
+            />
           </div>
         </div>
       </div>
