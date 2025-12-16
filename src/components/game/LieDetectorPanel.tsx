@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanLine, Loader2, Eye, Zap, ShieldCheck } from 'lucide-react';
+import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
@@ -26,19 +26,21 @@ export default function LieDetectorPanel({
   canAfford,
   hasUsed,
 }: LieDetectorPanelProps) {
-  const [truth, setTruth] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getCorrectAnswerText = () => {
-    const optionMap: Record<string, string> = {
-      'A': question.option_a,
-      'B': question.option_b,
-      'C': question.option_c,
-      'D': question.option_d,
-    };
-    return optionMap[question.correct_option] || '';
+  const getWrongOptions = () => {
+    const allOptions = [
+      { key: 'A', value: question.option_a },
+      { key: 'B', value: question.option_b },
+      { key: 'C', value: question.option_c },
+      { key: 'D', value: question.option_d },
+    ];
+    return allOptions
+      .filter(opt => opt.key !== question.correct_option)
+      .map(opt => opt.value);
   };
 
   const activateDetector = async () => {
@@ -48,7 +50,7 @@ export default function LieDetectorPanel({
     setIsLoading(true);
     setIsScanning(true);
     setError(null);
-    setTruth(null);
+    setAnalysis(null);
 
     // Play scanner sound
     onPlayScanner?.();
@@ -60,21 +62,21 @@ export default function LieDetectorPanel({
       const { data, error: fnError } = await supabase.functions.invoke('mycroft-ai', {
         body: {
           questionText: question.question_text,
-          correctAnswer: getCorrectAnswerText(),
+          wrongOptions: getWrongOptions(),
           type: 'detector',
         },
       });
 
       if (fnError) throw new Error(fnError.message);
 
-      if (data?.truth) {
-        setTruth(data.truth);
+      if (data?.analysis) {
+        setAnalysis(data.analysis);
       } else {
-        throw new Error('No truth received');
+        throw new Error('No analysis received');
       }
     } catch (err) {
       console.error('Error activating detector:', err);
-      setError('Falha na análise. Tente novamente.');
+      setError('Falha na análise comportamental. Tente novamente.');
     } finally {
       setIsLoading(false);
       setIsScanning(false);
@@ -127,25 +129,24 @@ export default function LieDetectorPanel({
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                    <Eye className="w-6 h-6 text-cyan-400" />
+                    <UserSearch className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
                     <h3 className="font-orbitron text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                      Detector de Mentiras
+                      Analista FBI
                     </h3>
                     <p className="text-xs text-cyan-300/60 uppercase tracking-wider">
-                      Fact-Checking AI
+                      Behavioral Analysis Unit
                     </p>
                   </div>
                 </div>
 
                 {/* Content */}
-                {!truth && !isLoading && !hasUsed && (
+                {!analysis && !isLoading && !hasUsed && (
                   <div className="space-y-4">
                     <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Ative o Detector para revelar a <span className="text-cyan-400 font-bold">verdade absoluta</span> sobre esta pergunta. 
-                        Use com sabedoria.
+                        Ative o Analista para receber uma <span className="text-cyan-400 font-bold">eliminação</span> de resposta incorreta e uma <span className="text-amber-400 font-bold">dica de pressão</span> psicológica.
                       </p>
                     </div>
 
@@ -161,7 +162,7 @@ export default function LieDetectorPanel({
                       }`}
                     >
                       <Zap className="w-5 h-5" />
-                      <span>Ativar Detector</span>
+                      <span>Ativar Analista</span>
                       <BluffCoinCost amount={cost} className="text-sm" />
                     </motion.button>
 
@@ -184,7 +185,7 @@ export default function LieDetectorPanel({
                       />
                     </div>
                     <p className="text-cyan-400 font-orbitron text-sm animate-pulse">
-                      ANALISANDO DADOS...
+                      ANALISANDO COMPORTAMENTO...
                     </p>
                     <div className="flex gap-1">
                       {[0, 1, 2, 3, 4].map((i) => (
@@ -199,27 +200,27 @@ export default function LieDetectorPanel({
                   </div>
                 )}
 
-                {truth && (
+                {analysis && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-4"
                   >
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <ShieldCheck className="w-5 h-5" />
+                    <div className="flex items-center gap-2 text-cyan-400">
+                      <AlertTriangle className="w-5 h-5" />
                       <span className="text-sm font-orbitron uppercase tracking-wider">
-                        Verdade Revelada
+                        Análise Comportamental
                       </span>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-900/30 to-cyan-900/30 rounded-lg p-4 border border-emerald-500/30">
-                      <p className="text-foreground leading-relaxed italic">
-                        "{truth}"
+                    <div className="bg-gradient-to-br from-slate-800/50 to-cyan-900/30 rounded-lg p-4 border border-cyan-500/30">
+                      <p className="text-foreground leading-relaxed whitespace-pre-line">
+                        {analysis}
                       </p>
                     </div>
 
-                    <p className="text-xs text-slate-400 text-center">
-                      — Elementar, meu caro Watson.
+                    <p className="text-xs text-amber-400/70 text-center italic">
+                      "A verdade está nos detalhes que eles tentam esconder."
                     </p>
                   </motion.div>
                 )}
@@ -230,10 +231,10 @@ export default function LieDetectorPanel({
                   </div>
                 )}
 
-                {hasUsed && !truth && !isLoading && (
+                {hasUsed && !analysis && !isLoading && (
                   <div className="text-center py-4">
                     <p className="text-slate-400 text-sm">
-                      Detector já utilizado nesta rodada.
+                      Analista já consultado nesta rodada.
                     </p>
                   </div>
                 )}

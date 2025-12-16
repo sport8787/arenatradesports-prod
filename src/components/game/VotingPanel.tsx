@@ -47,9 +47,10 @@ export default function VotingPanel({
       className="space-y-6"
     >
       {/* Timer */}
+      {/* Timer - 60 seconds for reading AI analysis */}
       <div className="flex justify-center">
         <CountdownTimer
-          duration={30}
+          duration={60}
           isActive={timerActive && !hasVoted}
           onComplete={() => onTimerComplete?.()}
           onTick={onTimerTick}
