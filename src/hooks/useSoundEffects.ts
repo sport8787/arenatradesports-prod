@@ -13,6 +13,7 @@ const SFX_PROMPTS = {
   vote: 'Soft notification chime, pleasant digital ding, short confirmation sound, single note bell',
   coinDrop: 'Single gold coin drop clink, metallic ping sound, satisfying coin landing, short crisp',
   gameOver: 'Sad dramatic game over sound, melancholic piano notes descending, tragic loss orchestral sting, defeat music',
+  cashRegister: 'Cash register cha-ching money sound, satisfying register bell, casino jackpot win sound, short celebratory',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -107,7 +108,7 @@ export function useSoundEffects() {
 
   // Preload sounds in background
   const preloadSounds = useCallback(async () => {
-    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop'];
+    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister'];
     
     for (const sound of sounds) {
       if (!audioCache.has(sound)) {
@@ -128,6 +129,7 @@ export function useSoundEffects() {
     playVote: () => playSound('vote', 0.5),
     playCoinDrop: () => playSound('coinDrop', 0.4),
     playGameOver: () => playSound('gameOver', 0.8),
+    playCashRegister: () => playSound('cashRegister', 0.7),
     preloadSounds,
   };
 }
