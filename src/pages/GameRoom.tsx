@@ -687,19 +687,58 @@ export default function GameRoom() {
                     wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                     confirmedAnswer={confirmedAnswer}
                     onCoinSound={playCoinDrop}
+                    showCoinAnimation={!hostEliminated}
                   />
                   
                   {hostEliminated && gameState.currentPlayer ? (
-                    <div className="space-y-4 p-6 bg-destructive/10 border border-destructive/50 rounded-lg">
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="space-y-6 p-8 bg-gradient-to-b from-destructive/20 via-destructive/10 to-background border-2 border-destructive/50 rounded-xl relative overflow-hidden"
+                    >
+                      {/* Dramatic background effect */}
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_hsl(var(--destructive)/0.3)_0%,_transparent_70%)]" />
+                      
                       <EliminationAnimation player={gameState.currentPlayer} />
-                      <p className="text-center text-muted-foreground">
-                        O host errou a resposta e todos os jurados votaram BLEFE.
-                      </p>
-                      <p className="text-center text-lg font-semibold text-primary">FIM DE JOGO</p>
-                      <GoldButton onClick={() => navigate('/')} className="w-full" size="lg">
-                        Voltar ao Início
-                      </GoldButton>
-                    </div>
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 2.5 }}
+                        className="relative z-10 space-y-4"
+                      >
+                        <p className="text-center text-muted-foreground">
+                          O host errou a resposta e todos os jurados votaram BLEFE.
+                        </p>
+                        <p className="text-center text-2xl font-orbitron font-bold text-destructive tracking-widest">
+                          FIM DE JOGO
+                        </p>
+                        
+                        <div className="flex flex-col gap-3 pt-4">
+                          <GoldButton 
+                            onClick={() => {
+                              navigate('/');
+                              setTimeout(() => {
+                                window.location.reload();
+                              }, 100);
+                            }} 
+                            className="w-full" 
+                            size="lg"
+                          >
+                            <Play className="w-5 h-5 mr-2" />
+                            INICIAR NOVA PARTIDA
+                          </GoldButton>
+                          <GoldButton 
+                            variant="outline" 
+                            onClick={() => navigate('/')} 
+                            className="w-full"
+                          >
+                            <Home className="w-5 h-5 mr-2" />
+                            Voltar ao Início
+                          </GoldButton>
+                        </div>
+                      </motion.div>
+                    </motion.div>
                   ) : (
                     <>
                       {isRoomHost ? (
