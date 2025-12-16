@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Coins, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Player, Vote, Question } from '@/types/game';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getAvatarColor, getInitials } from '@/lib/gameUtils';
 
 // Reward constants (same as GameRoom)
@@ -28,6 +28,12 @@ interface PlayerReward {
   voteType?: 'believe' | 'doubt';
 }
 
+interface CoinAnimation {
+  id: string;
+  targetIndex: number;
+  delay: number;
+}
+
 export default function ResultsPanel({
   question,
   currentPlayer,
@@ -38,15 +44,9 @@ export default function ResultsPanel({
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
-
-  useEffect(() => {
-    const timer1 = setTimeout(() => setShowCoins(true), 500);
-    const timer2 = setTimeout(() => setShowRewards(true), 1200);
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
+  const [coinAnimations, setCoinAnimations] = useState<CoinAnimation[]>([]);
+  const rewardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const correctOption = question.correct_option;
   const correctText = question[`option_${correctOption.toLowerCase()}` as keyof Question] as string;
@@ -109,13 +109,46 @@ export default function ResultsPanel({
 
   const rewards = calculateRewards();
 
+  useEffect(() => {
+    const timer1 = setTimeout(() => setShowCoins(true), 500);
+    const timer2 = setTimeout(() => setShowRewards(true), 1200);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
+  // Trigger coin animations when rewards are shown
+  useEffect(() => {
+    if (!showRewards) return;
+    
+    const animations: CoinAnimation[] = [];
+    
+    rewards.forEach((item, index) => {
+      if (item.reward > 0) {
+        // Create multiple coins per player based on reward amount
+        const coinCount = Math.min(Math.ceil(item.reward / 50), 5);
+        for (let i = 0; i < coinCount; i++) {
+          animations.push({
+            id: `${item.player.id}-${i}`,
+            targetIndex: index,
+            delay: index * 0.15 + i * 0.08,
+          });
+        }
+      }
+    });
+    
+    setCoinAnimations(animations);
+  }, [showRewards, rewards.length]);
+
   return (
     <motion.div
+      ref={containerRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-8"
+      className="space-y-8 relative"
     >
-      {/* Coin Animation */}
+      {/* Falling Coins Animation */}
       {showCoins && (
         <div className="coins-container">
           {[...Array(10)].map((_, i) => (
@@ -131,6 +164,55 @@ export default function ResultsPanel({
           ))}
         </div>
       )}
+
+      {/* Coins flying to players animation */}
+      <AnimatePresence>
+        {coinAnimations.map((coin) => {
+          const targetRef = rewardRefs.current[coin.targetIndex];
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          
+          if (!targetRef || !containerRect) return null;
+          
+          const targetRect = targetRef.getBoundingClientRect();
+          const targetX = targetRect.left - containerRect.left + 20;
+          const targetY = targetRect.top - containerRect.top + 20;
+          const startX = containerRect.width / 2;
+          const startY = 100;
+          
+          return (
+            <motion.div
+              key={coin.id}
+              initial={{ 
+                x: startX, 
+                y: startY, 
+                scale: 1.5, 
+                opacity: 1,
+              }}
+              animate={{ 
+                x: targetX, 
+                y: targetY, 
+                scale: 0.5, 
+                opacity: 0,
+              }}
+              transition={{ 
+                duration: 0.8, 
+                delay: coin.delay,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              className="absolute pointer-events-none z-50"
+            >
+              <div className="relative">
+                <Coins className="w-6 h-6 text-primary drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+                <motion.div
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 0.3, repeat: Infinity }}
+                  className="absolute inset-0 rounded-full bg-primary/30"
+                />
+              </div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
 
       {/* Correct Answer Reveal */}
       <motion.div
@@ -226,12 +308,14 @@ export default function ResultsPanel({
               return (
                 <motion.div
                   key={item.player.id}
+                  ref={(el) => { rewardRefs.current[index] = el; }}
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: index * 0.1 }}
                   className={cn(
-                    'flex items-center gap-3 p-3 rounded-lg',
-                    item.isHost ? 'bg-primary/10 border border-primary/30' : 'bg-secondary/50'
+                    'flex items-center gap-3 p-3 rounded-lg relative overflow-hidden',
+                    item.isHost ? 'bg-primary/10 border border-primary/30' : 'bg-secondary/50',
+                    item.reward > 0 && 'ring-1 ring-primary/20'
                   )}
                 >
                   {/* Avatar */}
