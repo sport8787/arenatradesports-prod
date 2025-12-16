@@ -95,23 +95,35 @@ export default function GameRoom() {
   // Play sounds on status changes and update rankings
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
-    if (prevStatus !== currentStatus && currentStatus) {
-      if (currentStatus === 'voting' && prevStatus === 'question') {
-        playSuspense();
-      } else if (currentStatus === 'result' && prevStatus === 'voting') {
-        playReveal();
-        setTimeout(() => playFanfare(), 800);
-        
-        // Update rankings when result is shown
-        const questionId = gameState.currentQuestion?.id;
-        if (questionId && rankingUpdatedRef.current !== questionId && myRanking) {
-          rankingUpdatedRef.current = questionId;
-          updateRankingsForResult();
-        }
-      }
-      setPrevStatus(currentStatus);
+
+    if (!currentStatus || prevStatus === currentStatus) return;
+
+    if (currentStatus === 'voting' && prevStatus === 'question') {
+      playSuspense();
     }
-  }, [gameState.room?.current_status, prevStatus, playSuspense, playReveal, playFanfare]);
+
+    // Entering results can happen from discussion (auto / manual) OR voting.
+    // We must award BluffCoins and update rankings in both cases.
+    if (currentStatus === 'result') {
+      playReveal();
+      setTimeout(() => playFanfare(), 800);
+
+      const questionId = gameState.currentQuestion?.id;
+      if (questionId && rankingUpdatedRef.current !== questionId) {
+        rankingUpdatedRef.current = questionId;
+        updateRankingsForResult();
+      }
+    }
+
+    setPrevStatus(currentStatus);
+  }, [
+    gameState.room?.current_status,
+    gameState.currentQuestion?.id,
+    prevStatus,
+    playSuspense,
+    playReveal,
+    playFanfare,
+  ]);
 
   // Update rankings and bluffcoins based on result
   // HOST is responsible for updating ALL players' bluffcoins to avoid race conditions
