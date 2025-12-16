@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ScanEye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CountdownTimer from './CountdownTimer';
 import { BluffCoinCost } from './BluffCoinDisplay';
@@ -16,6 +16,10 @@ interface VotingPanelProps {
   timerActive?: boolean;
   doubtCost?: number;
   canAffordDoubt?: boolean;
+  onDetectorClick?: () => void;
+  detectorCost?: number;
+  canAffordDetector?: boolean;
+  hasUsedDetector?: boolean;
 }
 
 export default function VotingPanel({ 
@@ -27,9 +31,14 @@ export default function VotingPanel({
   onTimerTick,
   timerActive = true,
   doubtCost = 0,
-  canAffordDoubt = true
+  canAffordDoubt = true,
+  onDetectorClick,
+  detectorCost = 150,
+  canAffordDetector = true,
+  hasUsedDetector = false,
 }: VotingPanelProps) {
   const canDoubt = canAffordDoubt && !hasVoted && !disabled;
+  const canUseDetector = canAffordDetector && !hasUsedDetector && !hasVoted && !disabled;
 
   return (
     <motion.div
@@ -55,6 +64,29 @@ export default function VotingPanel({
           {hasVoted ? 'Aguardando outros jogadores...' : 'Escolha sua carta'}
         </p>
       </div>
+
+      {/* Detector Button */}
+      {onDetectorClick && (
+        <div className="flex justify-center">
+          <motion.button
+            whileHover={{ scale: canUseDetector ? 1.02 : 1 }}
+            whileTap={{ scale: canUseDetector ? 0.98 : 1 }}
+            onClick={onDetectorClick}
+            disabled={!canUseDetector}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg font-orbitron text-xs uppercase tracking-wider transition-all border',
+              canUseDetector
+                ? 'bg-gradient-to-r from-cyan-900/50 to-blue-900/50 border-cyan-500/50 text-cyan-400 hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-500/20'
+                : 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed',
+              hasUsedDetector && 'opacity-50'
+            )}
+          >
+            <ScanEye className="w-4 h-4" />
+            <span>{hasUsedDetector ? 'Detector Usado' : 'Ativar Detector (IA)'}</span>
+            {!hasUsedDetector && <BluffCoinCost amount={detectorCost} className="text-xs" />}
+          </motion.button>
+        </div>
+      )}
 
       <div className="flex gap-6 justify-center">
         {/* Carta CLARO (Acreditar) */}

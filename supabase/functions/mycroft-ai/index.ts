@@ -27,7 +27,16 @@ serve(async (req) => {
 
     let systemPrompt: string;
     
-    if (type === 'analytics') {
+    if (type === 'detector') {
+      systemPrompt = `Você é uma IA analítica de verificação de fatos (Fact-Checking) no estilo Sherlock Holmes. O objetivo é desmascarar um mentiroso.
+
+A Pergunta é: "${questionText}"
+A Resposta Correta (Verdade) é: "${correctAnswer}"
+
+Sua tarefa: Explique de forma curta e direta (máximo 25 palavras) qual é a verdade científica ou histórica sobre esse fato, para provar que qualquer outra coisa é mentira. Use um tom de 'Sherlock Holmes' desvendando um mistério - perspicaz, confiante e ligeiramente dramático.
+
+Responda apenas com a explicação, sem introduções.`;
+    } else if (type === 'analytics') {
       systemPrompt = `Você é o Mycroft Analytics, uma IA especialista em análise comportamental e detecção de blefes. Você está ajudando o júri a decidir se o jogador está blefando ou falando a verdade.
 
 A Pergunta é: "${questionText}"
@@ -51,9 +60,11 @@ Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown o
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: type === 'analytics' 
-            ? 'Analise o risco de blefe desta pergunta.' 
-            : 'Me dê uma sugestão de blefe convincente.' 
+          { role: 'user', content: type === 'detector' 
+            ? 'Revele a verdade sobre este fato.'
+            : type === 'analytics' 
+              ? 'Analise o risco de blefe desta pergunta.' 
+              : 'Me dê uma sugestão de blefe convincente.' 
           }
         ],
         max_tokens: 150,
@@ -90,6 +101,12 @@ Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown o
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    if (type === 'detector') {
+      return new Response(JSON.stringify({ truth: content }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({ suggestion: content }), {
