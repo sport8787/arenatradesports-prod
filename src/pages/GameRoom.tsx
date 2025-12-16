@@ -82,6 +82,30 @@ export default function GameRoom() {
     prevVoteCountRef.current = currentVoteCount;
   }, [gameState.votes, gameState.currentQuestion?.id, gameState.room?.current_status, isRoomHost, playVote]);
 
+  // Auto-reveal results when all jurors have voted
+  useEffect(() => {
+    if (!isRoomHost || gameState.room?.current_status !== 'discussion') return;
+    
+    const totalJurors = gameState.players.filter(
+      p => p.session_id !== gameState.room?.host_id
+    ).length;
+    
+    const currentVoteCount = gameState.votes.filter(
+      v => v.question_id === gameState.currentQuestion?.id
+    ).length;
+    
+    // Auto-reveal when all jurors have voted
+    if (totalJurors > 0 && currentVoteCount >= totalJurors) {
+      // Small delay for better UX (let the last vote animation play)
+      const timer = setTimeout(async () => {
+        await updateRoomStatus('result');
+        setTimeout(() => playChips(), 500);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.votes, gameState.players, gameState.currentQuestion?.id, gameState.room?.current_status, gameState.room?.host_id, isRoomHost, updateRoomStatus, playChips]);
+
   // Play sounds on status changes and update rankings
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
