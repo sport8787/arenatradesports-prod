@@ -961,9 +961,14 @@ export default function GameRoom() {
         onConfirm={async () => {
           setShowCashOutDialog(false);
           setShowMoneyRain(true);
-          // Update ranking with cash out prize
-          if (myRanking) {
-            await updateRankingStats({ addPoints: accumulatedPrize });
+          // Update ranking with cash out prize - ensure ranking exists first
+          const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
+          let ranking = myRanking;
+          if (!ranking) {
+            ranking = await getOrCreateRanking(playerNickname);
+          }
+          if (ranking) {
+            await updateRankingStats({ addPoints: accumulatedPrize, addGame: true }, ranking);
           }
           playChips();
         }}
