@@ -20,6 +20,7 @@ import RoleBanner from '@/components/game/RoleBanner';
 import WaitingMessage from '@/components/game/WaitingMessage';
 import VoteCounter from '@/components/game/VoteCounter';
 import EliminationAnimation from '@/components/game/EliminationAnimation';
+import BluffFeedback from '@/components/game/BluffFeedback';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -36,11 +37,28 @@ const HOST_WRONG_FULL_BLUFF = 300;    // All jury voted CLARO
 // BluffCoin rewards - Jury
 const JURY_CORRECT_READING = 50;
 
+// Bluff feedback phrases
+const BLUFF_PHRASES = [
+  'Vendeu gelo para esquimó! ❄️',
+  'O Oscar vai para... VOCÊ! 🏆',
+  'Cairam igual patinhos! 🦆',
+  'Isso não é mentira, é Marketing! 📈',
+  'Nem o polígrafo pegava essa. 🤥',
+  'Mestre da manipulação. 🕵️‍♂️',
+  'Acreditou porque quis! 😂',
+  'Blefe de milhões! 💰',
+  'Nem tremeu a voz. Psicopata ou Gênio? 🤔',
+  'Chorem, meros mortais. O Mestre do Blefe chegou. 👑',
+  'Atuação digna de Netflix. 🎬',
+  'Enganar bobo é esporte olímpico? Porque você ganhou Ouro. 🥇',
+  'Se candidatar a político, ganha no primeiro turno. 🗳️',
+];
+
 export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -57,6 +75,7 @@ export default function GameRoom() {
   const rankingUpdatedRef = useRef<string | null>(null);
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
+  const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -197,6 +216,17 @@ export default function GameRoom() {
           toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
         }
         if (!playerGotCorrect && believeVotes > 0) {
+          // Show bluff feedback with random phrase and play cash register sound
+          const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
+          const description = believeVotes === totalJuryVotes ? 'Blefe PERFEITO!' : `${believeVotes} caíram no blefe!`;
+          
+          setTimeout(() => {
+            playCashRegister();
+            setBluffFeedback({ phrase: randomPhrase, description });
+            // Auto-hide after 3 seconds
+            setTimeout(() => setBluffFeedback(null), 3000);
+          }, 1200);
+          
           if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
             await updateRankingStats({ addPoints: HOST_WRONG_FULL_BLUFF, addSuccessfulBluff: true });
             toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito! Todos acreditaram!' });
@@ -697,6 +727,13 @@ export default function GameRoom() {
           onClose={() => setShowMycroft(false)}
         />
       )}
+      
+      {/* Bluff Feedback Overlay */}
+      <BluffFeedback
+        phrase={bluffFeedback?.phrase || ''}
+        description={bluffFeedback?.description || ''}
+        visible={!!bluffFeedback}
+      />
     </div>
   );
 }
