@@ -60,7 +60,7 @@ export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -758,6 +758,8 @@ export default function GameRoom() {
             }
           }}
           onPlayScanner={playScanner}
+          onPlayDataBeep={playDataBeep}
+          onPlayTyping={playTyping}
           cost={DETECTOR_COST}
           canAfford={hasEnoughCoins(DETECTOR_COST)}
           hasUsed={detectorUsed}

@@ -15,6 +15,8 @@ const SFX_PROMPTS = {
   gameOver: 'Sad dramatic game over sound, melancholic piano notes descending, tragic loss orchestral sting, defeat music',
   cashRegister: 'Cash register cha-ching money sound, satisfying register bell, casino jackpot win sound, short celebratory',
   scanner: 'Futuristic scanner beep sequence, sci-fi radar sweep sound, digital analysis processing, cyberpunk x-ray scan',
+  dataBeep: 'Digital computer beep sequence, retro terminal processing sound, short electronic data blip, sci-fi computer working',
+  typing: 'Fast keyboard typing sound, computer terminal input, hacker typing sequence, mechanical keys clicking rapidly',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -132,6 +134,8 @@ export function useSoundEffects() {
     playGameOver: () => playSound('gameOver', 0.8),
     playCashRegister: () => playSound('cashRegister', 0.7),
     playScanner: () => playSound('scanner', 0.6),
+    playDataBeep: () => playSound('dataBeep', 0.4),
+    playTyping: () => playSound('typing', 0.3),
     preloadSounds,
   };
 }
