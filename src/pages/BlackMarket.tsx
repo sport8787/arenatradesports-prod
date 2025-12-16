@@ -77,6 +77,17 @@ export default function BlackMarket() {
   const { myRanking } = useRankings();
   const userCoins = myRanking?.total_points || 0;
 
+  const formatCoins = (amount: number) => {
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `${Math.round(amount / 1000)}k`;
+    return amount.toString();
+  };
+
+  const getCoinsNeeded = (priceValue: number) => {
+    const needed = priceValue - userCoins;
+    return needed > 0 ? needed : 0;
+  };
+
   const handleRedeemClick = () => {
     toast({
       title: '🔒 Cofre Bloqueado',
@@ -188,6 +199,16 @@ export default function BlackMarket() {
                     <p className="text-gold/70 font-orbitron text-sm mt-1 group-hover:text-gold transition-colors">
                       {prize.price}
                     </p>
+                    {/* Coins Needed Counter */}
+                    {getCoinsNeeded(prize.priceValue) > 0 ? (
+                      <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground/70 transition-colors">
+                        Faltam <span className="text-gold font-bold">{formatCoins(getCoinsNeeded(prize.priceValue))}</span> coins
+                      </p>
+                    ) : (
+                      <p className="text-xs text-cyan mt-2 font-bold">
+                        ✓ Saldo suficiente!
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>
