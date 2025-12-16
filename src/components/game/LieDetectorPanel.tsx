@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle } from 'lucide-react';
+import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle, Brain } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
@@ -175,28 +175,121 @@ export default function LieDetectorPanel({
                 )}
 
                 {isLoading && (
-                  <div className="flex flex-col items-center justify-center py-8 gap-4">
-                    <div className="relative">
-                      <ScanLine className="w-16 h-16 text-cyan-400 animate-pulse" />
+                  <div className="space-y-4">
+                    {/* Profile Header */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-cyan-400 font-orbitron text-xs animate-pulse uppercase tracking-wider">
+                        Construindo Perfil...
+                      </p>
                       <motion.div
-                        className="absolute inset-0 border-2 border-cyan-400 rounded-full"
-                        animate={{ scale: [1, 1.5], opacity: [1, 0] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      />
+                        className="flex gap-1"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="w-1.5 h-1.5 bg-cyan-400 rounded-full"
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                          />
+                        ))}
+                      </motion.div>
                     </div>
-                    <p className="text-cyan-400 font-orbitron text-sm animate-pulse">
-                      ANALISANDO COMPORTAMENTO...
-                    </p>
-                    <div className="flex gap-1">
-                      {[0, 1, 2, 3, 4].map((i) => (
+
+                    {/* Silhouette Scanner */}
+                    <div className="relative flex justify-center py-4">
+                      <div className="relative w-24 h-32">
+                        {/* Head silhouette */}
                         <motion.div
-                          key={i}
-                          className="w-2 h-8 bg-cyan-500/50 rounded"
-                          animate={{ height: ['32px', '16px', '32px'] }}
-                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                          className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full border-2 border-cyan-500/50 bg-cyan-500/10"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
                         />
+                        {/* Body silhouette */}
+                        <motion.div
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-t-full border-2 border-b-0 border-cyan-500/50 bg-cyan-500/10"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                        />
+                        {/* Scan line */}
+                        <motion.div
+                          className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
+                          initial={{ top: 0 }}
+                          animate={{ top: '100%' }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                        />
+                        {/* Brain activity */}
+                        <motion.div
+                          className="absolute top-3 left-1/2 -translate-x-1/2"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: [0, 1, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        >
+                          <Brain className="w-6 h-6 text-amber-400" />
+                        </motion.div>
+                      </div>
+                    </div>
+
+                    {/* Profile Data Building */}
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Padrão de Mentira', delay: 0.3 },
+                        { label: 'Nível de Stress', delay: 0.6 },
+                        { label: 'Microexpressões', delay: 0.9 },
+                        { label: 'Tom de Voz', delay: 1.2 },
+                      ].map((item, i) => (
+                        <motion.div
+                          key={item.label}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: item.delay }}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="w-24 text-xs text-slate-400 font-mono">
+                            {item.label}
+                          </div>
+                          <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-cyan-500 to-amber-500 rounded-full"
+                              initial={{ width: '0%' }}
+                              animate={{ width: `${60 + Math.random() * 35}%` }}
+                              transition={{ delay: item.delay + 0.3, duration: 0.8, ease: 'easeOut' }}
+                            />
+                          </div>
+                          <motion.span
+                            className="text-xs font-mono text-cyan-400 w-8"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: item.delay + 0.8 }}
+                          >
+                            {Math.floor(60 + Math.random() * 35)}%
+                          </motion.span>
+                        </motion.div>
                       ))}
                     </div>
+
+                    {/* Status Messages */}
+                    <motion.div
+                      className="text-center space-y-1"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 1.5 }}
+                    >
+                      <p className="text-xs text-amber-400/80 font-mono">
+                        &gt; Cruzando dados comportamentais...
+                      </p>
+                      <motion.p
+                        className="text-xs text-cyan-400/80 font-mono"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 2 }}
+                      >
+                        &gt; Identificando vulnerabilidades...
+                      </motion.p>
+                    </motion.div>
                   </div>
                 )}
 
