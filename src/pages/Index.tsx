@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useRankings } from '@/hooks/useRankings';
@@ -259,6 +259,16 @@ export default function Index() {
               <Users className="w-5 h-5 mr-2 inline" />
               Entrar na Mesa
             </GoldButton>
+
+            <Link to="/mercado-negro" className="block">
+              <GoldButton 
+                className="w-full bg-gradient-to-r from-red-900/80 to-gold-dark/80 border-gold/50 hover:border-gold" 
+                size="lg"
+              >
+                <ShoppingCart className="w-5 h-5 mr-2 inline" />
+                MERCADO NEGRO 🛒
+              </GoldButton>
+            </Link>
 
             <Link to="/rankings" className="block">
               <GoldButton variant="ghost" className="w-full">
