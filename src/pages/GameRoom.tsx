@@ -19,6 +19,7 @@ import BluffCoinDisplay, { BluffCoinCost } from '@/components/game/BluffCoinDisp
 import RoleBanner from '@/components/game/RoleBanner';
 import WaitingMessage from '@/components/game/WaitingMessage';
 import VoteCounter from '@/components/game/VoteCounter';
+import EliminationAnimation from '@/components/game/EliminationAnimation';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -39,7 +40,7 @@ export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -125,6 +126,13 @@ export default function GameRoom() {
     playReveal,
     playFanfare,
   ]);
+
+  // Play game over sound when host is eliminated
+  useEffect(() => {
+    if (hostEliminated) {
+      playGameOver();
+    }
+  }, [hostEliminated, playGameOver]);
 
   // Update rankings and bluffcoins based on result
   // HOST is responsible for updating ALL players' bluffcoins to avoid race conditions
@@ -642,14 +650,13 @@ export default function GameRoom() {
                     onCoinSound={playCoinDrop}
                   />
                   
-                  {hostEliminated ? (
-                    <div className="text-center space-y-4 p-6 bg-destructive/20 border border-destructive rounded-lg">
-                      <div className="text-4xl">💀</div>
-                      <h2 className="font-orbitron text-2xl text-destructive">HOST ELIMINADO!</h2>
-                      <p className="text-muted-foreground">
+                  {hostEliminated && gameState.currentPlayer ? (
+                    <div className="space-y-4 p-6 bg-destructive/10 border border-destructive/50 rounded-lg">
+                      <EliminationAnimation player={gameState.currentPlayer} />
+                      <p className="text-center text-muted-foreground">
                         O host errou a resposta e todos os jurados votaram BLEFE.
                       </p>
-                      <p className="text-lg font-semibold text-primary">FIM DE JOGO</p>
+                      <p className="text-center text-lg font-semibold text-primary">FIM DE JOGO</p>
                       <GoldButton onClick={() => navigate('/')} className="w-full" size="lg">
                         Voltar ao Início
                       </GoldButton>
