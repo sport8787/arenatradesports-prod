@@ -39,7 +39,7 @@ export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -577,6 +577,7 @@ export default function GameRoom() {
                     votes={gameState.votes}
                     wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                     confirmedAnswer={confirmedAnswer}
+                    onCoinSound={playCoinDrop}
                   />
                   {isRoomHost ? (
                     <GoldButton onClick={nextQuestion} className="w-full" size="lg">

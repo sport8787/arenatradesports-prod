@@ -11,6 +11,7 @@ const SFX_PROMPTS = {
   tick: 'Deep dramatic clock tick sound, single tick, tension building game show timer',
   timeup: 'Game show time up buzzer, dramatic end of time alarm, short urgent',
   vote: 'Soft notification chime, pleasant digital ding, short confirmation sound, single note bell',
+  coinDrop: 'Single gold coin drop clink, metallic ping sound, satisfying coin landing, short crisp',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -105,7 +106,7 @@ export function useSoundEffects() {
 
   // Preload sounds in background
   const preloadSounds = useCallback(async () => {
-    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote'];
+    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop'];
     
     for (const sound of sounds) {
       if (!audioCache.has(sound)) {
@@ -124,6 +125,7 @@ export function useSoundEffects() {
     playTick: () => playSound('tick', 0.6),
     playTimeUp: () => playSound('timeup', 0.7),
     playVote: () => playSound('vote', 0.5),
+    playCoinDrop: () => playSound('coinDrop', 0.4),
     preloadSounds,
   };
 }
