@@ -1,68 +1,60 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Gift, Smartphone, Briefcase, Banknote, Gamepad2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Lock, Vault } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useRankings } from '@/hooks/useRankings';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
-import GoldButton from '@/components/game/GoldButton';
 import { toast } from '@/hooks/use-toast';
+
+import prizeGiftcard from '@/assets/prize-giftcard.jpg';
+import prizePix from '@/assets/prize-pix.jpg';
+import prizeMaleta from '@/assets/prize-maleta.jpg';
+import prizePs5 from '@/assets/prize-ps5.jpg';
+import prizeIphone from '@/assets/prize-iphone.jpg';
 
 interface PrizeCard {
   id: number;
   name: string;
   price: string;
   priceValue: number;
-  icon: React.ReactNode;
-  gradient: string;
+  image: string;
 }
 
+// Sorted from cheapest to most expensive
 const prizes: PrizeCard[] = [
   {
     id: 1,
-    name: 'iPhone 16 Pro',
-    price: '1M Coins',
-    priceValue: 1000000,
-    icon: <Smartphone className="w-10 h-10" />,
-    gradient: 'from-blue-500/20 to-purple-500/20',
+    name: 'GiftCard R$ 500',
+    price: '100k Coins',
+    priceValue: 100000,
+    image: prizeGiftcard,
   },
   {
     id: 2,
-    name: 'Maleta Física Oficial',
-    price: '500k Coins',
-    priceValue: 500000,
-    icon: <Briefcase className="w-10 h-10" />,
-    gradient: 'from-gold/20 to-primary/20',
-  },
-  {
-    id: 3,
     name: 'Pix de R$ 1.000',
     price: '200k Coins',
     priceValue: 200000,
-    icon: <Banknote className="w-10 h-10" />,
-    gradient: 'from-green-500/20 to-emerald-500/20',
+    image: prizePix,
+  },
+  {
+    id: 3,
+    name: 'Maleta Física Oficial',
+    price: '500k Coins',
+    priceValue: 500000,
+    image: prizeMaleta,
   },
   {
     id: 4,
     name: 'PlayStation 5',
     price: '800k Coins',
     priceValue: 800000,
-    icon: <Gamepad2 className="w-10 h-10" />,
-    gradient: 'from-blue-600/20 to-indigo-500/20',
+    image: prizePs5,
   },
   {
     id: 5,
-    name: 'GiftCard R$ 500',
-    price: '100k Coins',
-    priceValue: 100000,
-    icon: <CreditCard className="w-10 h-10" />,
-    gradient: 'from-yellow-500/20 to-orange-500/20',
-  },
-  {
-    id: 6,
-    name: 'Título Exclusivo',
-    price: '10k Coins',
-    priceValue: 10000,
-    icon: <Gift className="w-10 h-10" />,
-    gradient: 'from-cyan-500/20 to-blue-500/20',
+    name: 'iPhone 16 Pro',
+    price: '1M Coins',
+    priceValue: 1000000,
+    image: prizeIphone,
   },
 ];
 
@@ -151,29 +143,29 @@ export default function BlackMarket() {
                 transition={{ delay: 0.1 * index }}
                 className="relative group"
               >
-                <div className={`
-                  p-6 rounded-xl bg-gradient-to-br ${prize.gradient}
-                  border border-border/50 
-                  pointer-events-none select-none
-                  transition-all duration-300
-                `}>
+                <div className="rounded-xl bg-secondary/30 border border-border/50 overflow-hidden pointer-events-none select-none transition-all duration-300">
                   {/* EM BREVE Badge */}
-                  <div className="absolute top-3 right-3 bg-gold/90 text-background text-xs font-bold px-2 py-1 rounded">
+                  <div className="absolute top-3 right-3 z-10 bg-gold/90 text-background text-xs font-bold px-2 py-1 rounded">
                     EM BREVE
                   </div>
                   
-                  <div className="flex flex-col items-center gap-4 text-center">
-                    <div className="text-muted-foreground">
-                      {prize.icon}
-                    </div>
-                    <div>
-                      <h4 className="font-orbitron font-bold text-foreground/70">
-                        {prize.name}
-                      </h4>
-                      <p className="text-gold/70 font-orbitron text-sm mt-1">
-                        {prize.price}
-                      </p>
-                    </div>
+                  {/* Product Image */}
+                  <div className="w-full h-40 overflow-hidden">
+                    <img 
+                      src={prize.image} 
+                      alt={prize.name}
+                      className="w-full h-full object-cover grayscale"
+                    />
+                  </div>
+                  
+                  {/* Prize Info */}
+                  <div className="p-4 text-center">
+                    <h4 className="font-orbitron font-bold text-foreground/70">
+                      {prize.name}
+                    </h4>
+                    <p className="text-gold/70 font-orbitron text-sm mt-1">
+                      {prize.price}
+                    </p>
                   </div>
                 </div>
               </motion.div>
