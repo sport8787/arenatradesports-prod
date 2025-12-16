@@ -46,7 +46,7 @@ export default function GameRoom() {
   const [copied, setCopied] = useState(false);
   const [showMycroft, setShowMycroft] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
@@ -241,7 +241,17 @@ export default function GameRoom() {
     if (!roomId || questions.length === 0) return;
     if (!isRoomHost) return;
 
-    const q = questions[questionIndex];
+    // Select random question that hasn't been used
+    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
+    if (availableQuestions.length === 0) {
+      // Reset if all questions used
+      setUsedQuestionIds(new Set());
+      return startGame();
+    }
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    const q = availableQuestions[randomIndex];
+    setUsedQuestionIds(prev => new Set([...prev, q.id]));
+
     const hostIndex = Math.max(
       0,
       gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
@@ -338,8 +348,16 @@ export default function GameRoom() {
     if (!roomId) return;
     if (!isRoomHost) return;
 
-    const nextIdx = (questionIndex + 1) % questions.length;
-    setQuestionIndex(nextIdx);
+    // Select random question that hasn't been used
+    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
+    if (availableQuestions.length === 0) {
+      // Reset if all questions used
+      setUsedQuestionIds(new Set());
+    }
+    const questionsToUse = availableQuestions.length > 0 ? availableQuestions : questions;
+    const randomIndex = Math.floor(Math.random() * questionsToUse.length);
+    const nextQuestion = questionsToUse[randomIndex];
+    setUsedQuestionIds(prev => new Set([...prev, nextQuestion.id]));
 
     // Reset answer states for next question
     setSelectedAnswer(null);
@@ -357,7 +375,7 @@ export default function GameRoom() {
       .from('rooms')
       .update({
         current_status: 'question',
-        current_question_id: questions[nextIdx]?.id,
+        current_question_id: nextQuestion?.id,
         current_player_index: hostIndex,
       })
       .eq('id', roomId);
