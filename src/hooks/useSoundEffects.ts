@@ -14,6 +14,7 @@ const SFX_PROMPTS = {
   coinDrop: 'Single gold coin drop clink, metallic ping sound, satisfying coin landing, short crisp',
   gameOver: 'Sad dramatic game over sound, melancholic piano notes descending, tragic loss orchestral sting, defeat music',
   cashRegister: 'Cash register cha-ching money sound, satisfying register bell, casino jackpot win sound, short celebratory',
+  scanner: 'Futuristic scanner beep sequence, sci-fi radar sweep sound, digital analysis processing, cyberpunk x-ray scan',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -130,6 +131,7 @@ export function useSoundEffects() {
     playCoinDrop: () => playSound('coinDrop', 0.4),
     playGameOver: () => playSound('gameOver', 0.8),
     playCashRegister: () => playSound('cashRegister', 0.7),
+    playScanner: () => playSound('scanner', 0.6),
     preloadSounds,
   };
 }
