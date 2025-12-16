@@ -12,6 +12,7 @@ const SFX_PROMPTS = {
   timeup: 'Game show time up buzzer, dramatic end of time alarm, short urgent',
   vote: 'Soft notification chime, pleasant digital ding, short confirmation sound, single note bell',
   coinDrop: 'Single gold coin drop clink, metallic ping sound, satisfying coin landing, short crisp',
+  gameOver: 'Sad dramatic game over sound, melancholic piano notes descending, tragic loss orchestral sting, defeat music',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -126,6 +127,7 @@ export function useSoundEffects() {
     playTimeUp: () => playSound('timeup', 0.7),
     playVote: () => playSound('vote', 0.5),
     playCoinDrop: () => playSound('coinDrop', 0.4),
+    playGameOver: () => playSound('gameOver', 0.8),
     preloadSounds,
   };
 }
