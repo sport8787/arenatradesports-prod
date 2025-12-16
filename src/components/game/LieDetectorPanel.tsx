@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle, Brain } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
 import { BluffCoinCost } from './BluffCoinDisplay';
@@ -11,6 +11,8 @@ interface LieDetectorPanelProps {
   onClose: () => void;
   onActivate: () => void;
   onPlayScanner?: () => void;
+  onPlayDataBeep?: () => void;
+  onPlayTyping?: () => void;
   cost: number;
   canAfford: boolean;
   hasUsed: boolean;
@@ -22,6 +24,8 @@ export default function LieDetectorPanel({
   onClose,
   onActivate,
   onPlayScanner,
+  onPlayDataBeep,
+  onPlayTyping,
   cost,
   canAfford,
   hasUsed,
@@ -30,6 +34,39 @@ export default function LieDetectorPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const soundIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Play sounds during loading animation
+  useEffect(() => {
+    if (isLoading) {
+      // Play initial typing sound
+      onPlayTyping?.();
+      
+      // Set up interval for beep sounds during profile building
+      let beepCount = 0;
+      soundIntervalRef.current = setInterval(() => {
+        beepCount++;
+        if (beepCount <= 4) {
+          onPlayDataBeep?.();
+        }
+        if (beepCount === 2) {
+          onPlayTyping?.();
+        }
+      }, 400);
+    } else {
+      // Clear interval when loading stops
+      if (soundIntervalRef.current) {
+        clearInterval(soundIntervalRef.current);
+        soundIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (soundIntervalRef.current) {
+        clearInterval(soundIntervalRef.current);
+      }
+    };
+  }, [isLoading, onPlayDataBeep, onPlayTyping]);
 
   const getWrongOptions = () => {
     const allOptions = [
