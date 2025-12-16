@@ -22,8 +22,9 @@ import VoteCounter from '@/components/game/VoteCounter';
 import EliminationAnimation from '@/components/game/EliminationAnimation';
 import BluffFeedback from '@/components/game/BluffFeedback';
 import LieDetectorPanel from '@/components/game/LieDetectorPanel';
+import RoundProgress, { PRIZE_LADDER } from '@/components/game/RoundProgress';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -38,6 +39,9 @@ const HOST_WRONG_FULL_BLUFF = 300;    // All jury voted CLARO
 
 // BluffCoin rewards - Jury
 const JURY_CORRECT_READING = 50;
+
+// Game progression constants
+const MAX_ROUNDS = 15;
 
 // Bluff feedback phrases
 const BLUFF_PHRASES = [
@@ -69,6 +73,7 @@ export default function GameRoom() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
   const [hostEliminated, setHostEliminated] = useState(false);
+  const [gameCompleted, setGameCompleted] = useState(false);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
@@ -80,6 +85,12 @@ export default function GameRoom() {
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
+
+  // Round progression state
+  const [currentRound, setCurrentRound] = useState(0);
+  const [accumulatedPrize, setAccumulatedPrize] = useState(0);
+  const [hasGuaranteedPrize, setHasGuaranteedPrize] = useState(false); // Will be unlockable later
+  const [safeAmount, setSafeAmount] = useState(0);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -175,6 +186,27 @@ export default function GameRoom() {
     // Check for host elimination: wrong answer + ALL jury voted BLEFE
     if (!playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0) {
       setHostEliminated(true);
+      // If has guaranteed prize card, keep safe amount; otherwise lose everything
+      if (!hasGuaranteedPrize) {
+        setAccumulatedPrize(0);
+        toast({ title: 'ELIMINADO!', description: 'Você perdeu todo o prêmio acumulado.', variant: 'destructive' });
+      } else if (safeAmount > 0) {
+        setAccumulatedPrize(safeAmount);
+        toast({ title: 'ELIMINADO!', description: `Carta Bônus ativada! Você salvou ${safeAmount.toLocaleString()} BluffCoins.` });
+      }
+    } else if (playerGotCorrect || believeVotes > 0) {
+      // Round won - accumulate prize (if not eliminated)
+      if (currentRound > 0 && currentRound <= MAX_ROUNDS) {
+        const roundPrize = PRIZE_LADDER[currentRound - 1];
+        setAccumulatedPrize(prev => prev + roundPrize);
+        
+        // Check if game completed (all 15 rounds)
+        if (currentRound === MAX_ROUNDS) {
+          setGameCompleted(true);
+          playFanfare();
+          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${(accumulatedPrize + roundPrize).toLocaleString()} BluffCoins!` });
+        }
+      }
     }
     
     // Only the HOST updates all bluffcoins to avoid race conditions
@@ -290,6 +322,12 @@ export default function GameRoom() {
     if (!roomId || questions.length === 0) return;
     if (!isRoomHost) return;
 
+    // Reset game progression state
+    setCurrentRound(1);
+    setAccumulatedPrize(0);
+    setGameCompleted(false);
+    setHostEliminated(false);
+
     // Select random question that hasn't been used
     const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
     if (availableQuestions.length === 0) {
@@ -396,6 +434,16 @@ export default function GameRoom() {
   const nextQuestion = async () => {
     if (!roomId) return;
     if (!isRoomHost) return;
+    if (gameCompleted) return;
+
+    // Check if max rounds reached
+    if (currentRound >= MAX_ROUNDS) {
+      setGameCompleted(true);
+      return;
+    }
+
+    // Increment round
+    setCurrentRound(prev => prev + 1);
 
     // Select random question that hasn't been used
     const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
@@ -405,8 +453,8 @@ export default function GameRoom() {
     }
     const questionsToUse = availableQuestions.length > 0 ? availableQuestions : questions;
     const randomIndex = Math.floor(Math.random() * questionsToUse.length);
-    const nextQuestion = questionsToUse[randomIndex];
-    setUsedQuestionIds(prev => new Set([...prev, nextQuestion.id]));
+    const nextQ = questionsToUse[randomIndex];
+    setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
 
     // Reset answer states for next question
     setSelectedAnswer(null);
@@ -425,7 +473,7 @@ export default function GameRoom() {
       .from('rooms')
       .update({
         current_status: 'question',
-        current_question_id: nextQuestion?.id,
+        current_question_id: nextQ?.id,
         current_player_index: hostIndex,
       })
       .eq('id', roomId);
@@ -739,11 +787,64 @@ export default function GameRoom() {
                         </div>
                       </motion.div>
                     </motion.div>
+                  ) : gameCompleted ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="space-y-6 p-8 bg-gradient-to-b from-gold/20 via-gold/10 to-background border-2 border-gold/50 rounded-xl relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_hsl(var(--gold)/0.3)_0%,_transparent_70%)]" />
+                      
+                      <div className="relative z-10 text-center space-y-4">
+                        <motion.div
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: 'spring', duration: 1 }}
+                        >
+                          <Trophy className="w-20 h-20 mx-auto text-gold" />
+                        </motion.div>
+                        
+                        <h3 className="font-orbitron text-3xl text-gold font-bold">
+                          VITÓRIA TOTAL!
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Você completou todas as 15 rodadas!
+                        </p>
+                        <div className="bg-gold/20 rounded-lg p-4 border border-gold/30">
+                          <p className="text-sm text-muted-foreground">Prêmio Total</p>
+                          <p className="font-orbitron text-4xl text-gold font-bold">
+                            {accumulatedPrize.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gold/70">BluffCoins</p>
+                        </div>
+                        
+                        <div className="flex flex-col gap-3 pt-4">
+                          <GoldButton 
+                            onClick={() => {
+                              navigate('/');
+                              setTimeout(() => window.location.reload(), 100);
+                            }} 
+                            className="w-full" 
+                            size="lg"
+                          >
+                            <Play className="w-5 h-5 mr-2" />
+                            JOGAR NOVAMENTE
+                          </GoldButton>
+                          <GoldButton 
+                            variant="outline" 
+                            onClick={() => navigate('/mercado-negro')} 
+                            className="w-full"
+                          >
+                            Ver Mercado Negro
+                          </GoldButton>
+                        </div>
+                      </div>
+                    </motion.div>
                   ) : (
                     <>
                       {isRoomHost ? (
                         <GoldButton onClick={nextQuestion} className="w-full" size="lg">
-                          Próxima Rodada
+                          {currentRound < MAX_ROUNDS ? `Rodada ${currentRound + 1} de ${MAX_ROUNDS}` : 'Ver Resultado Final'}
                         </GoldButton>
                       ) : (
                         <WaitingMessage type="nextRound" />
@@ -757,6 +858,16 @@ export default function GameRoom() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Round Progress - Show when game is active */}
+            {currentRound > 0 && (
+              <RoundProgress
+                currentRound={currentRound}
+                accumulatedPrize={accumulatedPrize}
+                hasGuaranteedPrize={hasGuaranteedPrize}
+                safeAmount={safeAmount}
+                isHost={isRoomHost}
+              />
+            )}
             <Scoreboard 
               players={gameState.players} 
               currentPlayerId={gameState.currentPlayer?.id}
