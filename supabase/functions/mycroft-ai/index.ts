@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { questionText, correctAnswer, type } = await req.json();
+    const { questionText, correctAnswer, type, wrongOptions } = await req.json();
 
     if (!questionText) {
       throw new Error('Missing questionText');
@@ -28,14 +28,28 @@ serve(async (req) => {
     let systemPrompt: string;
     
     if (type === 'detector') {
-      systemPrompt = `Você é uma IA analítica de verificação de fatos (Fact-Checking) no estilo Sherlock Holmes. O objetivo é desmascarar um mentiroso.
+      const { wrongOptions } = await req.json().catch(() => ({}));
+      const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
+      
+      systemPrompt = `Você é uma IA especialista em detecção de mentiras e linguagem corporal do FBI. Sua missão é ajudar o júri a pressionar o suspeito, mas SEM dar a resposta final.
 
 A Pergunta é: "${questionText}"
-A Resposta Correta (Verdade) é: "${correctAnswer}"
+Opções INCORRETAS (para eliminação): ${wrongOptionsText}
 
-Sua tarefa: Explique de forma curta e direta (máximo 25 palavras) qual é a verdade científica ou histórica sobre esse fato, para provar que qualquer outra coisa é mentira. Use um tom de 'Sherlock Holmes' desvendando um mistério - perspicaz, confiante e ligeiramente dramático.
+Sua resposta DEVE ter exatamente 2 partes curtas:
 
-Responda apenas com a explicação, sem introduções.`;
+**ELIMINAÇÃO:** Escolha UMA das opções incorretas fornecidas e diga que ela é certamente errada. (Ex: "Meus dados indicam que [opção] certamente NÃO é a resposta.")
+
+**DICA DE PRESSÃO:** Dê UMA dica psicológica para o júri observar no jogador AGORA. Escolha aleatoriamente entre:
+- Olhar: "Se ele olhou para a direita superior ao responder, está criando uma imagem (mentindo)."
+- Voz: "Peça para ele repetir a resposta. Se o tom de voz subir, é insegurança."
+- Detalhes: "Pergunte o PORQUÊ. Mentirosos costumam dar detalhes excessivos para compensar."
+- Defensiva: "Acuse-o de mentir e veja a reação. A raiva imediata é sinal de culpa."
+- Corpo: "Observe as mãos. Gestos excessivos ou esconder as mãos indica nervosismo."
+
+REGRA DE OURO: JAMAIS revele qual é a opção correta. Mantenha o mistério.
+
+Responda de forma direta, no estilo FBI/analista comportamental.`;
     } else if (type === 'analytics') {
       systemPrompt = `Você é o Mycroft Analytics, uma IA especialista em análise comportamental e detecção de blefes. Você está ajudando o júri a decidir se o jogador está blefando ou falando a verdade.
 
@@ -61,7 +75,7 @@ Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown o
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: type === 'detector' 
-            ? 'Revele a verdade sobre este fato.'
+            ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
             : type === 'analytics' 
               ? 'Analise o risco de blefe desta pergunta.' 
               : 'Me dê uma sugestão de blefe convincente.' 
@@ -104,7 +118,7 @@ Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown o
     }
 
     if (type === 'detector') {
-      return new Response(JSON.stringify({ truth: content }), {
+      return new Response(JSON.stringify({ analysis: content }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
