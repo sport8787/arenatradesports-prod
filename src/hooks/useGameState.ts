@@ -53,8 +53,12 @@ export function useGameState(roomId: string | null) {
         currentQuestion = question as Question | null;
       }
 
-      // Determine current player
-      const currentPlayer = players?.[room.current_player_index] || null;
+      // Determine current player (host is always the player who responde/blefa)
+      const hostPlayer =
+        players?.find((p) => p.session_id === room.host_id) || null;
+
+      const currentPlayer =
+        hostPlayer || players?.[room.current_player_index] || null;
 
       // Fetch votes for current question
       let votes: Vote[] = [];
@@ -149,9 +153,17 @@ export function useGameState(roomId: string | null) {
   // Update current player index
   const nextPlayer = async () => {
     if (!roomId || !gameState.room) return;
-    
-    const nextIndex = (gameState.room.current_player_index + 1) % gameState.players.length;
-    await supabase.from('rooms').update({ current_player_index: nextIndex }).eq('id', roomId);
+
+    // Neste modo, o Host (criador da mesa) é sempre o "jogador da vez"
+    const hostIndex = gameState.players.findIndex(
+      (p) => p.session_id === gameState.room?.host_id
+    );
+    const indexToKeep = hostIndex >= 0 ? hostIndex : 0;
+
+    await supabase
+      .from('rooms')
+      .update({ current_player_index: indexToKeep })
+      .eq('id', roomId);
   };
 
   // Submit vote
