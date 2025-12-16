@@ -36,7 +36,7 @@ export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -51,6 +51,7 @@ export default function GameRoom() {
   const [mycroftUsed, setMycroftUsed] = useState(false);
   const rankingUpdatedRef = useRef<string | null>(null);
   const coinsUpdatedRef = useRef<string | null>(null);
+  const prevVoteCountRef = useRef<number>(0);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -61,6 +62,25 @@ export default function GameRoom() {
   useEffect(() => {
     preloadSounds();
   }, [preloadSounds]);
+
+  // Play vote notification sound for host when new votes come in
+  useEffect(() => {
+    const currentVoteCount = gameState.votes.filter(
+      v => v.question_id === gameState.currentQuestion?.id
+    ).length;
+    
+    // Only play sound for host during discussion phase when votes increase
+    if (
+      isRoomHost && 
+      gameState.room?.current_status === 'discussion' &&
+      currentVoteCount > prevVoteCountRef.current &&
+      prevVoteCountRef.current > 0 // Don't play on initial load
+    ) {
+      playVote();
+    }
+    
+    prevVoteCountRef.current = currentVoteCount;
+  }, [gameState.votes, gameState.currentQuestion?.id, gameState.room?.current_status, isRoomHost, playVote]);
 
   // Play sounds on status changes and update rankings
   useEffect(() => {
@@ -270,6 +290,7 @@ export default function GameRoom() {
     setConfirmedAnswer(null);
     setShowAnswer(false);
     setMycroftUsed(false);
+    prevVoteCountRef.current = 0; // Reset vote counter for sound notification
 
     const hostIndex = Math.max(
       0,
