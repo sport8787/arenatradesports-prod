@@ -25,6 +25,7 @@ import LieDetectorPanel from '@/components/game/LieDetectorPanel';
 import RoundProgress, { PRIZE_LADDER } from '@/components/game/RoundProgress';
 import BonusCardUnlock from '@/components/game/BonusCardUnlock';
 import CashOutDialog from '@/components/game/CashOutDialog';
+import MoneyRain from '@/components/game/MoneyRain';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -95,6 +96,7 @@ export default function GameRoom() {
   const [safeAmount, setSafeAmount] = useState(0);
   const [showBonusUnlock, setShowBonusUnlock] = useState(false);
   const [showCashOutDialog, setShowCashOutDialog] = useState(false);
+  const [showMoneyRain, setShowMoneyRain] = useState(false);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -958,18 +960,28 @@ export default function GameRoom() {
         potentialPrize={PRIZE_LADDER.reduce((a, b) => a + b, 0)}
         onConfirm={async () => {
           setShowCashOutDialog(false);
+          setShowMoneyRain(true);
           // Update ranking with cash out prize
           if (myRanking) {
             await updateRankingStats({ addPoints: accumulatedPrize });
           }
-          setGameCompleted(true);
           playChips();
+        }}
+        onCancel={() => setShowCashOutDialog(false)}
+      />
+
+      {/* Money Rain Animation */}
+      <MoneyRain
+        show={showMoneyRain}
+        amount={accumulatedPrize}
+        onComplete={() => {
+          setShowMoneyRain(false);
+          setGameCompleted(true);
           toast({ 
             title: '💰 CASH OUT!', 
             description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` 
           });
         }}
-        onCancel={() => setShowCashOutDialog(false)}
       />
     </div>
   );
