@@ -1,4 +1,4 @@
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,9 +31,7 @@ const CORRECT_VOTE_REWARD = 150;
 
 export default function GameRoom() {
   const { roomId } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const isHost = searchParams.get('host') === 'true';
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
@@ -52,7 +50,8 @@ export default function GameRoom() {
   const coinsUpdatedRef = useRef<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
-  const isCurrentPlayer = gameState.currentPlayer?.session_id === sessionId;
+  const isRoomHost = gameState.room?.host_id === sessionId;
+  const isCurrentPlayer = isRoomHost;
   const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
 
   // Preload sounds when component mounts
@@ -139,13 +138,17 @@ export default function GameRoom() {
 
   const joinAsPlayer = async () => {
     if (!nickname || !roomId) return;
+
+    const isHostForThisRoom = gameState.room?.host_id === sessionId;
+
     // Create/update ranking entry
     await getOrCreateRanking(nickname);
+
     await supabase.from('players').insert({
       room_id: roomId,
       nickname,
       session_id: sessionId,
-      is_host: isHost,
+      is_host: !!isHostForThisRoom,
     });
   };
 
@@ -157,14 +160,26 @@ export default function GameRoom() {
 
   const startGame = async () => {
     if (!roomId || questions.length === 0) return;
+    if (!isRoomHost) return;
+
     const q = questions[questionIndex];
-    await supabase.from('rooms').update({ 
-      current_status: 'question', 
-      current_question_id: q.id 
-    }).eq('id', roomId);
+    const hostIndex = Math.max(
+      0,
+      gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
+    );
+
+    await supabase
+      .from('rooms')
+      .update({
+        current_status: 'question',
+        current_question_id: q.id,
+        current_player_index: hostIndex,
+      })
+      .eq('id', roomId);
   };
 
   const goToVoting = async () => {
+    if (!isRoomHost) return;
     // From discussion, go to voting (transition state before results)
     await updateRoomStatus('voting');
   };
@@ -175,6 +190,7 @@ export default function GameRoom() {
   };
 
   const confirmAnswer = async () => {
+    if (!isRoomHost) return;
     if (!selectedAnswer) return;
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
@@ -219,6 +235,7 @@ export default function GameRoom() {
   };
   
   const showResults = async () => {
+    if (!isRoomHost) return;
     await updateRoomStatus('result');
     // Play chips sound when showing results (someone scored)
     setTimeout(() => playChips(), 500);
@@ -233,25 +250,37 @@ export default function GameRoom() {
   const handleTimerComplete = () => {
     playTimeUp();
     // Auto-reveal results if host
-    if (gameState.myPlayer?.is_host) {
+    if (isRoomHost) {
       setTimeout(() => showResults(), 1000);
     }
   };
 
   const nextQuestion = async () => {
     if (!roomId) return;
+    if (!isRoomHost) return;
+
     const nextIdx = (questionIndex + 1) % questions.length;
     setQuestionIndex(nextIdx);
+
     // Reset answer states for next question
     setSelectedAnswer(null);
     setConfirmedAnswer(null);
     setShowAnswer(false);
     setMycroftUsed(false);
-    await supabase.from('rooms').update({
-      current_status: 'question',
-      current_question_id: questions[nextIdx]?.id,
-      current_player_index: (gameState.room?.current_player_index || 0) + 1,
-    }).eq('id', roomId);
+
+    const hostIndex = Math.max(
+      0,
+      gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
+    );
+
+    await supabase
+      .from('rooms')
+      .update({
+        current_status: 'question',
+        current_question_id: questions[nextIdx]?.id,
+        current_player_index: hostIndex,
+      })
+      .eq('id', roomId);
   };
 
   if (loading) {
@@ -330,7 +359,7 @@ export default function GameRoom() {
                       <PlayerAvatar key={p.id} player={p} index={i} />
                     ))}
                   </div>
-                  {gameState.myPlayer?.is_host && gameState.players.length >= 2 && (
+                  {isRoomHost && gameState.players.length >= 2 && (
                     <GoldButton onClick={startGame} size="lg">
                       <Play className="w-5 h-5 mr-2 inline" /> Iniciar Jogo
                     </GoldButton>
@@ -479,7 +508,7 @@ export default function GameRoom() {
                   <div className="text-center py-8">
                     <h3 className="font-orbitron text-xl mb-2">Votação Encerrada</h3>
                     <p className="text-muted-foreground">Aguardando resultado...</p>
-                    {gameState.myPlayer?.is_host && (
+                    {isRoomHost && (
                       <GoldButton onClick={showResults} className="mt-4">
                         Revelar Resultado
                       </GoldButton>
@@ -498,7 +527,7 @@ export default function GameRoom() {
                     votes={gameState.votes}
                     wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                   />
-                  {gameState.myPlayer?.is_host && (
+                  {isRoomHost && (
                     <GoldButton onClick={nextQuestion} className="w-full" size="lg">
                       Próxima Rodada
                     </GoldButton>
