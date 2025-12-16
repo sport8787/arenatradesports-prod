@@ -24,6 +24,163 @@ export default function EliminationAnimation({ player, onComplete }: Elimination
 
   return (
     <div className="relative flex flex-col items-center justify-center py-8">
+      {/* Screen crack overlay - full container */}
+      {(phase === 'crack' || phase === 'shatter' || phase === 'skull') && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none z-30"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Main crack SVG */}
+          <svg 
+            className="absolute inset-0 w-full h-full" 
+            viewBox="0 0 400 300" 
+            preserveAspectRatio="xMidYMid slice"
+          >
+            {/* Central impact point crack pattern */}
+            <motion.path
+              d="M200 0 L195 40 L210 50 L190 80 L215 90 L185 120 L200 150"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="3"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+            />
+            <motion.path
+              d="M200 150 L220 180 L195 200 L225 230 L190 260 L210 300"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="2.5"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            />
+            {/* Left branches */}
+            <motion.path
+              d="M195 40 L150 60 L120 45 L80 70"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="2"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            />
+            <motion.path
+              d="M190 80 L140 100 L100 85 L50 110"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="2"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+            />
+            <motion.path
+              d="M185 120 L130 140 L90 130 L40 155"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="1.5"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            />
+            {/* Right branches */}
+            <motion.path
+              d="M210 50 L260 40 L290 55 L340 35"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="2"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            />
+            <motion.path
+              d="M215 90 L270 80 L310 95 L360 75"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="2"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+            />
+            <motion.path
+              d="M200 150 L260 160 L300 145 L350 165"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="1.5"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            />
+            {/* Bottom branches */}
+            <motion.path
+              d="M220 180 L280 200 L320 185 L380 210"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="1.5"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.25 }}
+            />
+            <motion.path
+              d="M195 200 L130 220 L80 210 L20 240"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="1.5"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.25 }}
+            />
+            {/* Small fracture details */}
+            <motion.path
+              d="M150 60 L145 90 L160 100"
+              stroke="hsl(var(--destructive)/0.7)"
+              strokeWidth="1"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 0.7 }}
+              transition={{ duration: 0.2, delay: 0.3 }}
+            />
+            <motion.path
+              d="M260 40 L275 70 L255 85"
+              stroke="hsl(var(--destructive)/0.7)"
+              strokeWidth="1"
+              fill="none"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 0.7 }}
+              transition={{ duration: 0.2, delay: 0.3 }}
+            />
+          </svg>
+          
+          {/* Glass shards falling effect during shatter phase */}
+          {phase === 'shatter' && (
+            <>
+              {[...Array(12)].map((_, i) => (
+                <motion.div
+                  key={`shard-${i}`}
+                  className="absolute w-4 h-6 bg-gradient-to-br from-destructive/40 to-destructive/10 border border-destructive/50"
+                  style={{
+                    left: `${30 + Math.random() * 40}%`,
+                    top: `${20 + Math.random() * 30}%`,
+                    clipPath: 'polygon(50% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)',
+                  }}
+                  initial={{ opacity: 1, y: 0, rotate: 0, scale: 1 }}
+                  animate={{ 
+                    opacity: 0, 
+                    y: 150 + Math.random() * 100,
+                    x: (Math.random() - 0.5) * 150,
+                    rotate: Math.random() * 360,
+                    scale: 0.3
+                  }}
+                  transition={{ duration: 1.2, ease: 'easeIn', delay: i * 0.05 }}
+                />
+              ))}
+            </>
+          )}
+        </motion.div>
+      )}
+
       {/* Background flash effect */}
       <motion.div
         className="absolute inset-0 bg-destructive/30"
@@ -32,13 +189,23 @@ export default function EliminationAnimation({ player, onComplete }: Elimination
         transition={{ duration: 0.3, repeat: phase === 'shake' ? 2 : 0 }}
       />
 
+      {/* Impact flash on crack */}
+      {phase === 'crack' && (
+        <motion.div
+          className="absolute inset-0 bg-white"
+          initial={{ opacity: 0.8 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        />
+      )}
+
       {/* Falling X marks */}
       {phase === 'shatter' && (
         <>
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute text-destructive"
+              className="absolute text-destructive z-20"
               initial={{ 
                 opacity: 1, 
                 x: 0, 
