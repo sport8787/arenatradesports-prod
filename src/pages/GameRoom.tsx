@@ -198,13 +198,24 @@ export default function GameRoom() {
       // Round won - accumulate prize (if not eliminated)
       if (currentRound > 0 && currentRound <= MAX_ROUNDS) {
         const roundPrize = PRIZE_LADDER[currentRound - 1];
-        setAccumulatedPrize(prev => prev + roundPrize);
+        const newAccumulated = accumulatedPrize + roundPrize;
+        setAccumulatedPrize(newAccumulated);
+        
+        // Unlock Guaranteed Prize card if host convinced 2+ jury members to vote CLARO
+        if (!hasGuaranteedPrize && !playerGotCorrect && believeVotes >= 2) {
+          setHasGuaranteedPrize(true);
+          setSafeAmount(newAccumulated);
+          toast({ 
+            title: '🛡️ CARTA BÔNUS DESBLOQUEADA!', 
+            description: `Prêmio Garantido ativado! ${newAccumulated.toLocaleString()} BluffCoins protegidos.` 
+          });
+        }
         
         // Check if game completed (all 15 rounds)
         if (currentRound === MAX_ROUNDS) {
           setGameCompleted(true);
           playFanfare();
-          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${(accumulatedPrize + roundPrize).toLocaleString()} BluffCoins!` });
+          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${newAccumulated.toLocaleString()} BluffCoins!` });
         }
       }
     }
