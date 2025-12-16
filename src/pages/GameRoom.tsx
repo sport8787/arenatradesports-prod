@@ -18,6 +18,7 @@ import Scoreboard from '@/components/game/Scoreboard';
 import BluffCoinDisplay, { BluffCoinCost } from '@/components/game/BluffCoinDisplay';
 import RoleBanner from '@/components/game/RoleBanner';
 import WaitingMessage from '@/components/game/WaitingMessage';
+import VoteCounter from '@/components/game/VoteCounter';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -452,9 +453,11 @@ export default function GameRoom() {
                         disabled={true}
                       />
                       <div className="space-y-4">
-                        <p className="text-center text-muted-foreground">
-                          Aguardando o júri votar...
-                        </p>
+                        {/* Vote counter for host */}
+                        <VoteCounter 
+                          totalJurors={gameState.players.filter(p => p.session_id !== gameState.room?.host_id).length}
+                          votesReceived={gameState.votes.filter(v => v.question_id === gameState.currentQuestion?.id).length}
+                        />
                         <div className="flex gap-4">
                           <GoldButton 
                             variant="outline" 
