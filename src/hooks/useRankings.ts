@@ -91,35 +91,36 @@ export function useRankings() {
     addSuccessfulBluff?: boolean;
     addBluffDetected?: boolean;
     addTimesFooled?: boolean;
-  }) => {
-    if (!myRanking) return;
+  }, rankingOverride?: Ranking | null) => {
+    const ranking = rankingOverride || myRanking;
+    if (!ranking) return;
 
     try {
       const newValues: Partial<Ranking> = {};
       
       if (updates.addPoints) {
-        newValues.total_points = myRanking.total_points + updates.addPoints;
+        newValues.total_points = ranking.total_points + updates.addPoints;
       }
       if (updates.addWin) {
-        newValues.total_wins = myRanking.total_wins + 1;
+        newValues.total_wins = ranking.total_wins + 1;
       }
       if (updates.addGame) {
-        newValues.total_games = myRanking.total_games + 1;
+        newValues.total_games = ranking.total_games + 1;
       }
       if (updates.addSuccessfulBluff) {
-        newValues.successful_bluffs = myRanking.successful_bluffs + 1;
+        newValues.successful_bluffs = ranking.successful_bluffs + 1;
       }
       if (updates.addBluffDetected) {
-        newValues.bluffs_detected = myRanking.bluffs_detected + 1;
+        newValues.bluffs_detected = ranking.bluffs_detected + 1;
       }
       if (updates.addTimesFooled) {
-        newValues.times_fooled = myRanking.times_fooled + 1;
+        newValues.times_fooled = ranking.times_fooled + 1;
       }
 
       await supabase
         .from('rankings')
         .update(newValues)
-        .eq('id', myRanking.id);
+        .eq('id', ranking.id);
 
       await fetchRankings();
     } catch (error) {
