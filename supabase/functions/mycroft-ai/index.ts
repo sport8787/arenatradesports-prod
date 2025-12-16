@@ -12,10 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { questionText, correctAnswer } = await req.json();
+    const { questionText, correctAnswer, type } = await req.json();
 
-    if (!questionText || !correctAnswer) {
-      throw new Error('Missing questionText or correctAnswer');
+    if (!questionText) {
+      throw new Error('Missing questionText');
     }
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -23,7 +23,23 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    console.log('Generating Mycroft suggestion for:', questionText);
+    console.log(`Generating Mycroft ${type || 'bluff'} for:`, questionText);
+
+    let systemPrompt: string;
+    
+    if (type === 'analytics') {
+      systemPrompt = `Você é o Mycroft Analytics, uma IA especialista em análise comportamental e detecção de blefes. Você está ajudando o júri a decidir se o jogador está blefando ou falando a verdade.
+
+A Pergunta é: "${questionText}"
+
+Sua tarefa: Analise esta pergunta e forneça uma análise de risco de blefe em formato JSON com:
+1. "riskLevel": número de 0 a 100 representando a probabilidade de blefe (0 = certamente verdade, 100 = certamente blefe)
+2. "analysis": uma análise curta e perspicaz (máximo 30 palavras) sobre por que alguém poderia blefar nesta pergunta, considerando a dificuldade e o tipo de conhecimento necessário.
+
+Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown ou explicações.`;
+    } else {
+      systemPrompt = `Você é o Mycroft, uma IA especialista em blefe e manipulação psicológica. O usuário precisa mentir sobre uma pergunta de trivia. A Pergunta é: "${questionText}". A Resposta Correta é: "${correctAnswer}". Sua tarefa: Crie uma mentira curta, criativa e muito convincente (máximo 20 palavras) que pareça a resposta certa, mas esteja errada. Use um tom confiante e levemente arrogante. Responda apenas com a sugestão de blefe, sem explicações adicionais.`;
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -34,17 +50,14 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: `Você é o Mycroft, uma IA especialista em blefe e manipulação psicológica. O usuário precisa mentir sobre uma pergunta de trivia. A Pergunta é: "${questionText}". A Resposta Correta é: "${correctAnswer}". Sua tarefa: Crie uma mentira curta, criativa e muito convincente (máximo 20 palavras) que pareça a resposta certa, mas esteja errada. Use um tom confiante e levemente arrogante. Responda apenas com a sugestão de blefe, sem explicações adicionais.`
-          },
-          {
-            role: 'user',
-            content: 'Me dê uma sugestão de blefe convincente.'
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: type === 'analytics' 
+            ? 'Analise o risco de blefe desta pergunta.' 
+            : 'Me dê uma sugestão de blefe convincente.' 
           }
         ],
-        max_tokens: 100,
-        temperature: 0.9,
+        max_tokens: 150,
+        temperature: type === 'analytics' ? 0.7 : 0.9,
       }),
     });
 
@@ -55,11 +68,31 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const suggestion = data.choices[0]?.message?.content?.trim();
+    const content = data.choices[0]?.message?.content?.trim();
 
-    console.log('Mycroft suggestion generated:', suggestion);
+    console.log('Mycroft response:', content);
 
-    return new Response(JSON.stringify({ suggestion }), {
+    if (type === 'analytics') {
+      try {
+        const parsed = JSON.parse(content);
+        return new Response(JSON.stringify({
+          riskLevel: parsed.riskLevel || 50,
+          analysis: parsed.analysis || 'Análise indisponível'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch {
+        // Fallback if JSON parsing fails
+        return new Response(JSON.stringify({
+          riskLevel: 50,
+          analysis: content || 'Análise indisponível'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ suggestion: content }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
