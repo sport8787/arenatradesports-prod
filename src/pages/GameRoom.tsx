@@ -21,6 +21,7 @@ import WaitingMessage from '@/components/game/WaitingMessage';
 import VoteCounter from '@/components/game/VoteCounter';
 import EliminationAnimation from '@/components/game/EliminationAnimation';
 import BluffFeedback from '@/components/game/BluffFeedback';
+import LieDetectorPanel from '@/components/game/LieDetectorPanel';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +29,7 @@ import { toast } from '@/hooks/use-toast';
 // BluffCoin costs
 const MYCROFT_COST = 200;
 const DOUBT_COST = 100;
+const DETECTOR_COST = 150;
 
 // BluffCoin rewards - Host
 const HOST_CORRECT_ANSWER = 100;
@@ -72,6 +74,8 @@ export default function GameRoom() {
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [mycroftUsed, setMycroftUsed] = useState(false);
+  const [detectorUsed, setDetectorUsed] = useState(false);
+  const [showDetector, setShowDetector] = useState(false);
   const rankingUpdatedRef = useRef<string | null>(null);
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
@@ -409,6 +413,7 @@ export default function GameRoom() {
     setConfirmedAnswer(null);
     setShowAnswer(false);
     setMycroftUsed(false);
+    setDetectorUsed(false);
     prevVoteCountRef.current = 0; // Reset vote counter for sound notification
 
     const hostIndex = Math.max(
@@ -637,6 +642,10 @@ export default function GameRoom() {
                         timerActive={!hasVoted}
                         doubtCost={DOUBT_COST}
                         canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
+                        onDetectorClick={() => setShowDetector(true)}
+                        detectorCost={DETECTOR_COST}
+                        canAffordDetector={hasEnoughCoins(DETECTOR_COST)}
+                        hasUsedDetector={detectorUsed}
                       />
                     </>
                   )}
@@ -734,6 +743,25 @@ export default function GameRoom() {
         description={bluffFeedback?.description || ''}
         visible={!!bluffFeedback}
       />
+
+      {/* Lie Detector Overlay */}
+      {gameState.currentQuestion && (
+        <LieDetectorPanel
+          question={gameState.currentQuestion}
+          isVisible={showDetector}
+          onClose={() => setShowDetector(false)}
+          onActivate={async () => {
+            if (gameState.myPlayer && hasEnoughCoins(DETECTOR_COST)) {
+              await updateBluffcoins(gameState.myPlayer.id, -DETECTOR_COST);
+              setDetectorUsed(true);
+              playChips();
+            }
+          }}
+          cost={DETECTOR_COST}
+          canAfford={hasEnoughCoins(DETECTOR_COST)}
+          hasUsed={detectorUsed}
+        />
+      )}
     </div>
   );
 }
