@@ -23,6 +23,7 @@ import EliminationAnimation from '@/components/game/EliminationAnimation';
 import BluffFeedback from '@/components/game/BluffFeedback';
 import LieDetectorPanel from '@/components/game/LieDetectorPanel';
 import RoundProgress, { PRIZE_LADDER } from '@/components/game/RoundProgress';
+import BonusCardUnlock from '@/components/game/BonusCardUnlock';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -89,8 +90,9 @@ export default function GameRoom() {
   // Round progression state
   const [currentRound, setCurrentRound] = useState(0);
   const [accumulatedPrize, setAccumulatedPrize] = useState(0);
-  const [hasGuaranteedPrize, setHasGuaranteedPrize] = useState(false); // Will be unlockable later
+  const [hasGuaranteedPrize, setHasGuaranteedPrize] = useState(false);
   const [safeAmount, setSafeAmount] = useState(0);
+  const [showBonusUnlock, setShowBonusUnlock] = useState(false);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -205,10 +207,8 @@ export default function GameRoom() {
         if (!hasGuaranteedPrize && !playerGotCorrect && believeVotes >= 2) {
           setHasGuaranteedPrize(true);
           setSafeAmount(newAccumulated);
-          toast({ 
-            title: '🛡️ CARTA BÔNUS DESBLOQUEADA!', 
-            description: `Prêmio Garantido ativado! ${newAccumulated.toLocaleString()} BluffCoins protegidos.` 
-          });
+          setShowBonusUnlock(true);
+          playFanfare();
         }
         
         // Check if game completed (all 15 rounds)
@@ -926,6 +926,13 @@ export default function GameRoom() {
           hasUsed={detectorUsed}
         />
       )}
+
+      {/* Bonus Card Unlock Animation */}
+      <BonusCardUnlock
+        show={showBonusUnlock}
+        safeAmount={safeAmount}
+        onComplete={() => setShowBonusUnlock(false)}
+      />
     </div>
   );
 }
