@@ -1,1 +1,7 @@
 project_id = "btcozufkcvvmulimwtkj"
+
+[functions.generate-sfx]
+verify_jwt = false
+
+[functions.mycroft-ai]
+verify_jwt = false

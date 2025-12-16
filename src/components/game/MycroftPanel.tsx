@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Bot, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
 import { Question } from '@/types/game';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MycroftPanelProps {
   question: Question;
@@ -12,6 +13,9 @@ interface MycroftPanelProps {
 
 export default function MycroftPanel({ question, variant, isVisible, onClose }: MycroftPanelProps) {
   const [riskProgress, setRiskProgress] = useState(0);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isVisible && variant === 'analytics' && question.mycroft_risk_level) {
@@ -21,6 +25,54 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
       return () => clearTimeout(timer);
     }
   }, [isVisible, variant, question.mycroft_risk_level]);
+
+  useEffect(() => {
+    if (isVisible && variant === 'bluff') {
+      generateAISuggestion();
+    }
+  }, [isVisible, variant]);
+
+  const getCorrectAnswerText = () => {
+    const optionMap: Record<string, string> = {
+      'A': question.option_a,
+      'B': question.option_b,
+      'C': question.option_c,
+      'D': question.option_d,
+    };
+    return optionMap[question.correct_option] || '';
+  };
+
+  const generateAISuggestion = async () => {
+    setIsLoading(true);
+    setError(null);
+    setAiSuggestion(null);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('mycroft-ai', {
+        body: {
+          questionText: question.question_text,
+          correctAnswer: getCorrectAnswerText(),
+        },
+      });
+
+      if (fnError) {
+        throw new Error(fnError.message);
+      }
+
+      if (data?.suggestion) {
+        setAiSuggestion(data.suggestion);
+      } else {
+        throw new Error('No suggestion received');
+      }
+    } catch (err) {
+      console.error('Error generating AI suggestion:', err);
+      setError('Erro ao gerar sugestão. Usando fallback...');
+      // Fallback to pre-processed suggestion
+      setAiSuggestion(question.mycroft_bluff_suggestion || 'Confie na sua intuição e blefe com confiança!');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -56,10 +108,10 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
               </div>
               <div>
                 <h3 className="mycroft-text text-lg font-bold">
-                  {variant === 'bluff' ? 'MYCROFT BLUFF' : 'MYCROFT ANALYTICS'}
+                  {variant === 'bluff' ? 'MYCROFT AI' : 'MYCROFT ANALYTICS'}
                 </h3>
                 <p className="text-xs text-mycroft-cyan/70 uppercase tracking-wider">
-                  {variant === 'bluff' ? 'Sugestão de Mentira' : 'Análise de Risco'}
+                  {variant === 'bluff' ? 'Sugestão de Blefe (IA)' : 'Análise de Risco'}
                 </p>
               </div>
             </div>
@@ -68,20 +120,35 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
               <>
                 {/* Bluff Suggestion */}
                 <div className="space-y-4">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-1" />
-                    <p className="text-foreground/90 leading-relaxed">
-                      {question.mycroft_bluff_suggestion}
-                    </p>
-                  </div>
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-3">
+                      <Loader2 className="w-8 h-8 text-mycroft-green animate-spin" />
+                      <p className="text-mycroft-cyan/80 text-sm font-orbitron">
+                        Mycroft está pensando...
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {error && (
+                        <p className="text-warning/70 text-xs mb-2">{error}</p>
+                      )}
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-1" />
+                        <p className="text-foreground/90 leading-relaxed">
+                          {aiSuggestion}
+                        </p>
+                      </div>
+                    </>
+                  )}
 
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={onClose}
-                    className="w-full py-3 rounded-lg bg-mycroft-green/20 border border-mycroft-green/50 text-mycroft-green font-orbitron font-bold uppercase tracking-wider hover:bg-mycroft-green/30 transition-colors"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-lg bg-mycroft-green/20 border border-mycroft-green/50 text-mycroft-green font-orbitron font-bold uppercase tracking-wider hover:bg-mycroft-green/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Entendido
+                    {isLoading ? 'Aguarde...' : 'Entendido'}
                   </motion.button>
                 </div>
               </>
