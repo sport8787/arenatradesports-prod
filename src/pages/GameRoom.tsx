@@ -114,14 +114,12 @@ export default function GameRoom() {
   }, [gameState.room?.current_status, prevStatus, playSuspense, playReveal, playFanfare]);
 
   // Update rankings and bluffcoins based on result
+  // HOST is responsible for updating ALL players' bluffcoins to avoid race conditions
   const updateRankingsForResult = async () => {
-    if (!gameState.myPlayer || !myRanking) return;
-
     const questionId = gameState.currentQuestion?.id;
     if (!questionId || coinsUpdatedRef.current === questionId) return;
     coinsUpdatedRef.current = questionId;
 
-    const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
     const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
     
     // Get jury votes
@@ -129,45 +127,71 @@ export default function GameRoom() {
     const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
     const totalJuryVotes = juryVotes.length;
     
-    // HOST/PLAYER REWARDS
+    // Only the HOST updates all bluffcoins to avoid race conditions
     if (isCurrentPlayer) {
-      // +100 for correct answer
-      if (playerGotCorrect) {
-        await updateBluffcoins(gameState.myPlayer.id, HOST_CORRECT_ANSWER);
-        toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
-      }
+      const hostPlayer = gameState.players.find(p => p.session_id === gameState.room?.host_id);
       
-      // Bluff rewards (only for WRONG answers where jury believed)
-      if (!playerGotCorrect && believeVotes > 0) {
-        if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
-          // All jury voted CLARO - full bluff success
-          await updateBluffcoins(gameState.myPlayer.id, HOST_WRONG_FULL_BLUFF);
-          await updateRankingStats({ addPoints: 100, addSuccessfulBluff: true });
-          toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito! Todos acreditaram!' });
-        } else {
-          // At least 1 jury voted CLARO - partial bluff
-          await updateBluffcoins(gameState.myPlayer.id, HOST_WRONG_PARTIAL_BLUFF);
-          await updateRankingStats({ addPoints: 50, addSuccessfulBluff: true });
-          toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+      if (hostPlayer) {
+        // HOST REWARDS
+        if (playerGotCorrect) {
+          await updateBluffcoins(hostPlayer.id, HOST_CORRECT_ANSWER);
+        }
+        
+        // Bluff rewards (only for WRONG answers where jury believed)
+        if (!playerGotCorrect && believeVotes > 0) {
+          if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
+            await updateBluffcoins(hostPlayer.id, HOST_WRONG_FULL_BLUFF);
+          } else {
+            await updateBluffcoins(hostPlayer.id, HOST_WRONG_PARTIAL_BLUFF);
+          }
         }
       }
-    } 
-    // JURY REWARDS
-    else if (myVote) {
-      // Correct reading: (wrong answer + voted BLEFE) OR (correct answer + voted CLARO)
-      const correctReading = 
-        (!playerGotCorrect && myVote.vote_type === 'doubt') || 
-        (playerGotCorrect && myVote.vote_type === 'believe');
       
-      if (correctReading) {
-        await updateBluffcoins(gameState.myPlayer.id, JURY_CORRECT_READING);
-        await updateRankingStats({
-          addPoints: 30,
-          addBluffDetected: myVote.vote_type === 'doubt',
-        });
-        toast({ title: `+${JURY_CORRECT_READING} BluffCoins`, description: 'Leitura correta!' });
-      } else {
-        await updateRankingStats({ addTimesFooled: true });
+      // JURY REWARDS - Host updates all jury members' bluffcoins
+      for (const vote of juryVotes) {
+        const correctReading = 
+          (!playerGotCorrect && vote.vote_type === 'doubt') || 
+          (playerGotCorrect && vote.vote_type === 'believe');
+        
+        if (correctReading) {
+          await updateBluffcoins(vote.player_id, JURY_CORRECT_READING);
+        }
+      }
+    }
+    
+    // Each player updates their own rankings and shows toasts (local to their session)
+    if (gameState.myPlayer && myRanking) {
+      const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
+      
+      if (isCurrentPlayer) {
+        // Host ranking updates and toasts
+        if (playerGotCorrect) {
+          toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
+        }
+        if (!playerGotCorrect && believeVotes > 0) {
+          if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
+            await updateRankingStats({ addPoints: 100, addSuccessfulBluff: true });
+            toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito! Todos acreditaram!' });
+          } else {
+            await updateRankingStats({ addPoints: 50, addSuccessfulBluff: true });
+            toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+          }
+        }
+      } else if (myVote) {
+        // Jury ranking updates and toasts
+        const correctReading = 
+          (!playerGotCorrect && myVote.vote_type === 'doubt') || 
+          (playerGotCorrect && myVote.vote_type === 'believe');
+        
+        if (correctReading) {
+          await updateRankingStats({
+            addPoints: 30,
+            addBluffDetected: myVote.vote_type === 'doubt',
+          });
+          toast({ title: `+${JURY_CORRECT_READING} BluffCoins`, description: 'Leitura correta!' });
+        } else {
+          await updateRankingStats({ addTimesFooled: true });
+        }
       }
     }
   };
