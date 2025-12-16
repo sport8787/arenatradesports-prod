@@ -24,8 +24,9 @@ import BluffFeedback from '@/components/game/BluffFeedback';
 import LieDetectorPanel from '@/components/game/LieDetectorPanel';
 import RoundProgress, { PRIZE_LADDER } from '@/components/game/RoundProgress';
 import BonusCardUnlock from '@/components/game/BonusCardUnlock';
+import CashOutDialog from '@/components/game/CashOutDialog';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -93,6 +94,7 @@ export default function GameRoom() {
   const [hasGuaranteedPrize, setHasGuaranteedPrize] = useState(false);
   const [safeAmount, setSafeAmount] = useState(0);
   const [showBonusUnlock, setShowBonusUnlock] = useState(false);
+  const [showCashOutDialog, setShowCashOutDialog] = useState(false);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -854,9 +856,22 @@ export default function GameRoom() {
                   ) : (
                     <>
                       {isRoomHost ? (
-                        <GoldButton onClick={nextQuestion} className="w-full" size="lg">
-                          {currentRound < MAX_ROUNDS ? `Rodada ${currentRound + 1} de ${MAX_ROUNDS}` : 'Ver Resultado Final'}
-                        </GoldButton>
+                        <div className="space-y-3">
+                          <GoldButton onClick={nextQuestion} className="w-full" size="lg">
+                            {currentRound < MAX_ROUNDS ? `Rodada ${currentRound + 1} de ${MAX_ROUNDS}` : 'Ver Resultado Final'}
+                          </GoldButton>
+                          
+                          {/* Cash Out Button - only show if accumulated something */}
+                          {accumulatedPrize > 0 && currentRound < MAX_ROUNDS && (
+                            <button
+                              onClick={() => setShowCashOutDialog(true)}
+                              className="w-full py-3 px-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 rounded-lg text-green-400 font-medium transition-all flex items-center justify-center gap-2"
+                            >
+                              <Banknote className="w-5 h-5" />
+                              Cash Out ({accumulatedPrize.toLocaleString()} BC)
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <WaitingMessage type="nextRound" />
                       )}
@@ -932,6 +947,29 @@ export default function GameRoom() {
         show={showBonusUnlock}
         safeAmount={safeAmount}
         onComplete={() => setShowBonusUnlock(false)}
+      />
+
+      {/* Cash Out Dialog */}
+      <CashOutDialog
+        show={showCashOutDialog}
+        currentRound={currentRound}
+        maxRounds={MAX_ROUNDS}
+        accumulatedPrize={accumulatedPrize}
+        potentialPrize={PRIZE_LADDER.reduce((a, b) => a + b, 0)}
+        onConfirm={async () => {
+          setShowCashOutDialog(false);
+          // Update ranking with cash out prize
+          if (myRanking) {
+            await updateRankingStats({ addPoints: accumulatedPrize });
+          }
+          setGameCompleted(true);
+          playChips();
+          toast({ 
+            title: '💰 CASH OUT!', 
+            description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` 
+          });
+        }}
+        onCancel={() => setShowCashOutDialog(false)}
       />
     </div>
   );
