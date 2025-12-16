@@ -18,6 +18,7 @@ interface ResultsPanelProps {
   votes: Vote[];
   wasBluffSuccessful: boolean;
   confirmedAnswer?: 'A' | 'B' | 'C' | 'D' | null;
+  onCoinSound?: () => void;
 }
 
 interface PlayerReward {
@@ -41,12 +42,15 @@ export default function ResultsPanel({
   votes,
   wasBluffSuccessful,
   confirmedAnswer,
+  onCoinSound,
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
   const [coinAnimations, setCoinAnimations] = useState<CoinAnimation[]>([]);
+  const playedSoundsRef = useRef<Set<number>>(new Set());
   const rewardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
 
   const correctOption = question.correct_option;
   const correctText = question[`option_${correctOption.toLowerCase()}` as keyof Question] as string;
@@ -198,6 +202,13 @@ export default function ResultsPanel({
                 duration: 0.8, 
                 delay: coin.delay,
                 ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              onAnimationComplete={() => {
+                // Play sound only once per player (first coin to arrive)
+                if (!playedSoundsRef.current.has(coin.targetIndex)) {
+                  playedSoundsRef.current.add(coin.targetIndex);
+                  onCoinSound?.();
+                }
               }}
               className="absolute pointer-events-none z-50"
             >
