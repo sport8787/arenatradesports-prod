@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Gift, Smartphone, Briefcase, Banknote } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Gift, Smartphone, Briefcase, Banknote, Gamepad2, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useRankings } from '@/hooks/useRankings';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
@@ -42,18 +42,18 @@ const prizes: PrizeCard[] = [
   },
   {
     id: 4,
-    name: 'Skin Exclusiva',
-    price: '50k Coins',
-    priceValue: 50000,
-    icon: <Gift className="w-10 h-10" />,
-    gradient: 'from-pink-500/20 to-rose-500/20',
+    name: 'PlayStation 5',
+    price: '800k Coins',
+    priceValue: 800000,
+    icon: <Gamepad2 className="w-10 h-10" />,
+    gradient: 'from-blue-600/20 to-indigo-500/20',
   },
   {
     id: 5,
-    name: 'Pack de Emojis VIP',
-    price: '25k Coins',
-    priceValue: 25000,
-    icon: <Gift className="w-10 h-10" />,
+    name: 'GiftCard R$ 500',
+    price: '100k Coins',
+    priceValue: 100000,
+    icon: <CreditCard className="w-10 h-10" />,
     gradient: 'from-yellow-500/20 to-orange-500/20',
   },
   {
