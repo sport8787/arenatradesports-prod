@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
-import { getOrCreateSessionId } from '@/lib/gameUtils';
+import { getOrCreateSessionId, uniqueQuestionsByText } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -126,7 +126,7 @@ export default function SinglePlayerRoom() {
   // Load questions
   useEffect(() => {
     supabase.from('questions').select('*').then(({ data }) => {
-      if (data) setQuestions(data as Question[]);
+      if (data) setQuestions(uniqueQuestionsByText(data as Question[]));
     });
   }, []);
 
