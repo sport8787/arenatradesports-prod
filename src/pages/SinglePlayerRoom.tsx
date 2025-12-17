@@ -58,16 +58,31 @@ const BLUFF_PHRASES = [
   'Atuação digna de Netflix. 🎬',
 ];
 
-// Generate weighted random briefcase prize (higher prizes are rarer)
+// Generate weighted random briefcase prize - Casa sempre ganha
+// NÍVEL 1 (Lixo): 70% - 500 a 5.000 BC
+// NÍVEL 2 (Trocado): 25% - 10.000 a 40.000 BC
+// NÍVEL 3 (Sorte): 4.5% - 50.000 a 100.000 BC
+// NÍVEL 4 (Jackpot Raro): 0.5% - 250.000 BC fixo
 const generateBriefcasePrize = (): number => {
   const random = Math.random();
-  // Weighted distribution: lower prizes more common
-  if (random < 0.40) return Math.floor(Math.random() * 9000) + 1000; // 1k-10k (40%)
-  if (random < 0.65) return Math.floor(Math.random() * 40000) + 10000; // 10k-50k (25%)
-  if (random < 0.82) return Math.floor(Math.random() * 50000) + 50000; // 50k-100k (17%)
-  if (random < 0.93) return Math.floor(Math.random() * 100000) + 100000; // 100k-200k (11%)
-  if (random < 0.98) return Math.floor(Math.random() * 150000) + 200000; // 200k-350k (5%)
-  return Math.floor(Math.random() * 100000) + 350000; // 350k-450k (2%)
+  
+  // NÍVEL 1 - Lixo (70%): Frustrar quem não teve coragem
+  if (random < 0.70) {
+    return Math.floor(Math.random() * 4501) + 500; // 500-5.000 BC
+  }
+  
+  // NÍVEL 2 - Trocado (25%): Pagar o custo da passagem
+  if (random < 0.95) {
+    return Math.floor(Math.random() * 30001) + 10000; // 10.000-40.000 BC
+  }
+  
+  // NÍVEL 3 - Sorte (4.5%): Prêmio razoável, longe do milhão
+  if (random < 0.995) {
+    return Math.floor(Math.random() * 50001) + 50000; // 50.000-100.000 BC
+  }
+  
+  // NÍVEL 4 - Jackpot Raro (0.5%): O milagre, 1 em 200
+  return 250000; // 250.000 BC fixo
 };
 
 type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
