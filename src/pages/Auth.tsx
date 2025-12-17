@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -21,15 +21,22 @@ const Auth = () => {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showNicknameSetup, setShowNicknameSetup] = useState(false);
+  const [newNickname, setNewNickname] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithGoogle, resetPassword, isAuthenticated, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
 
+  // Check if user needs to set nickname (Google login with default "Jogador")
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      navigate('/');
+    if (!loading && isAuthenticated && profile) {
+      if (profile.username === 'Jogador') {
+        setShowNicknameSetup(true);
+      } else {
+        navigate('/');
+      }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +123,25 @@ const Auth = () => {
     navigate('/');
   };
 
+  const handleSaveNickname = async () => {
+    const result = usernameSchema.safeParse(newNickname);
+    if (!result.success) {
+      toast({ title: 'Erro', description: result.error.errors[0].message, variant: 'destructive' });
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await updateProfile({ username: newNickname });
+    setIsLoading(false);
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
+    } else {
+      toast({ title: 'Nickname salvo!', description: `Bem-vindo, ${newNickname}!` });
+      navigate('/');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -124,6 +150,79 @@ const Auth = () => {
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
         >
           <Briefcase className="w-12 h-12 text-primary" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Nickname setup modal for Google users
+  if (showNicknameSetup) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-2xl" />
+        
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 w-full max-w-md"
+        >
+          <div className="text-center mb-8">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-primary/60 rounded-2xl shadow-2xl shadow-primary/30 mb-4"
+            >
+              <Sparkles className="w-10 h-10 text-primary-foreground" />
+            </motion.div>
+            <h1 className="text-2xl font-bold text-primary tracking-wider mb-2">ESCOLHA SEU NICKNAME</h1>
+            <p className="text-muted-foreground text-sm">Como você quer ser conhecido no jogo?</p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl p-8 shadow-2xl"
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Nickname</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Seu nome no jogo"
+                    value={newNickname}
+                    onChange={(e) => setNewNickname(e.target.value)}
+                    className="pl-10 bg-background/50 border-border/50 focus:border-primary"
+                    maxLength={20}
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">3-20 caracteres. Este nome aparecerá no ranking.</p>
+              </div>
+
+              <Button
+                onClick={handleSaveNickname}
+                disabled={isLoading || newNickname.length < 3}
+                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold py-6 text-lg shadow-lg shadow-primary/30"
+              >
+                {isLoading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <Briefcase className="w-5 h-5" />
+                  </motion.div>
+                ) : (
+                  'CONFIRMAR NICKNAME'
+                )}
+              </Button>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
     );
