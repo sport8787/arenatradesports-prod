@@ -18,6 +18,8 @@ const SFX_PROMPTS = {
   dataBeep: 'Digital computer beep sequence, retro terminal processing sound, short electronic data blip, sci-fi computer working',
   typing: 'Fast keyboard typing sound, computer terminal input, hacker typing sequence, mechanical keys clicking rapidly',
   siren: 'Dramatic police siren alarm burst, short urgent warning klaxon, intense alert sound, action movie raid alarm',
+  cardUnlock: 'Magical unlock sound with sparkles and shimmer, mystical achievement unlocked, epic power-up activation, fantasy spell casting with golden chimes',
+  shieldActivate: 'Futuristic energy shield activation sound, protective barrier power-up, sci-fi force field engaging, electronic whoosh with resonant hum',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -112,7 +114,7 @@ export function useSoundEffects() {
 
   // Preload sounds in background
   const preloadSounds = useCallback(async () => {
-    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister'];
+    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister', 'cardUnlock', 'shieldActivate'];
     
     for (const sound of sounds) {
       if (!audioCache.has(sound)) {
@@ -138,6 +140,8 @@ export function useSoundEffects() {
     playDataBeep: () => playSound('dataBeep', 0.4),
     playTyping: () => playSound('typing', 0.3),
     playSiren: () => playSound('siren', 0.8),
+    playCardUnlock: () => playSound('cardUnlock', 0.7),
+    playShieldActivate: () => playSound('shieldActivate', 0.6),
     preloadSounds,
   };
 }
