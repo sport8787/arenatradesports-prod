@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
-import { useRankings } from '@/hooks/useRankings';
+import { useAuth } from '@/hooks/useAuth';
 import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { getRankTier } from '@/types/ranking';
 import { cn } from '@/lib/utils';
 
 interface ActiveRoom {
@@ -20,18 +19,24 @@ interface ActiveRoom {
 
 export default function Index() {
   const navigate = useNavigate();
-  const { myRanking } = useRankings();
+  const { profile, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
-  const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
 
-  const tier = myRanking ? getRankTier(myRanking.total_points) : null;
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/auth');
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
   // Check if player has an active room
   useEffect(() => {
     const checkActiveRoom = async () => {
+      if (!profile) return;
+      
       const sessionId = getOrCreateSessionId();
       
       // Find player's active room
@@ -44,7 +49,6 @@ export default function Index() {
         .maybeSingle();
 
       if (player && player.rooms) {
-        // Room is still active (not finished)
         setActiveRoom({
           roomId: player.room_id,
           nickname: player.nickname,
@@ -54,7 +58,7 @@ export default function Index() {
     };
 
     checkActiveRoom();
-  }, []);
+  }, [profile]);
 
   const rejoinRoom = () => {
     if (activeRoom) {
@@ -99,8 +103,8 @@ export default function Index() {
   };
 
   const joinRoom = async () => {
-    if (!pin || !nickname) {
-      toast({ title: 'Preencha todos os campos', variant: 'destructive' });
+    if (!pin || !profile) {
+      toast({ title: 'Preencha o PIN', variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -129,7 +133,7 @@ export default function Index() {
       if (!existingPlayer) {
         await supabase.from('players').insert({
           room_id: room.id,
-          nickname,
+          nickname: profile.username,
           session_id: sessionId,
           is_host: false,
         });
@@ -144,12 +148,31 @@ export default function Index() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        >
+          <Coins className="w-12 h-12 text-primary" />
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        className="text-center mb-8"
       >
         <h1 className="font-orbitron text-4xl md:text-6xl font-black text-gold text-glow-gold mb-4">
           O BLEFADOR
@@ -158,63 +181,65 @@ export default function Index() {
           MILIONÁRIO
         </h2>
         <p className="text-muted-foreground mt-4 max-w-md mx-auto">
-          Analise, deduza e conquiste. Onde a inteligência emocional supera a sorte. Quem tem a melhor leitura humana, vence.
+          Analise, deduza e conquiste. Onde a inteligência emocional supera a sorte.
         </p>
       </motion.div>
 
-      {/* My Rank Badge - Clickable to rejoin room if active */}
-      {myRanking && tier && (
+      {/* User Profile Card */}
+      {profile && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6"
+          className="mb-6 w-full max-w-md"
         >
-          {activeRoom ? (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={rejoinRoom}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-success/50 hover:border-success transition-all hover:scale-105',
-                  tier.color
-                )}
-              >
-                <span className="text-xl">{tier.icon}</span>
-                <div className="text-left">
-                  <div className="font-orbitron font-bold text-sm flex items-center gap-2">
-                    {myRanking.nickname}
-                    <span className="text-xs text-success animate-pulse">● EM JOGO</span>
-                  </div>
-                  <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+          <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border border-primary/30 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <Play className="w-4 h-4 text-success ml-2" />
-              </button>
+                <div>
+                  <div className="font-orbitron font-bold text-lg text-foreground">
+                    Olá, {profile.username}!
+                  </div>
+                  <div className="text-xs text-muted-foreground">{profile.rank_title}</div>
+                </div>
+              </div>
               <button
-                onClick={leaveRoomPermanently}
-                className="p-2 rounded-full bg-destructive/20 border border-destructive/50 hover:bg-destructive/30 transition-all hover:scale-105"
-                title="Sair da sala permanentemente"
+                onClick={handleSignOut}
+                className="p-2 rounded-lg bg-destructive/20 border border-destructive/30 hover:bg-destructive/30 transition-all"
+                title="Sair"
               >
                 <LogOut className="w-4 h-4 text-destructive" />
               </button>
             </div>
-          ) : (
-            <div 
-              className={cn(
-                'flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r border border-primary/30',
-                tier.color
-              )}
-            >
-              <span className="text-xl">{tier.icon}</span>
-              <div>
-                <div className="font-orbitron font-bold text-sm">{myRanking.nickname}</div>
-                <div className="text-xs opacity-80">{tier.tier} • {myRanking.total_points} pts</div>
+            
+            {/* BluffCoins Balance */}
+            <div className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-primary/20">
+              <Coins className="w-6 h-6 text-primary" />
+              <span className="font-orbitron text-2xl font-bold text-primary">
+                {profile.bluff_coins.toLocaleString()}
+              </span>
+              <span className="text-sm text-muted-foreground">BluffCoins</span>
+            </div>
+
+            {/* Stats */}
+            <div className="mt-3 flex justify-center gap-6 text-xs text-muted-foreground">
+              <div className="text-center">
+                <div className="font-bold text-foreground">{profile.matches_played}</div>
+                <div>Partidas</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-foreground">{profile.wins}</div>
+                <div>Vitórias</div>
               </div>
             </div>
-          )}
+          </div>
         </motion.div>
       )}
 
-      {/* Active Room Banner for players without ranking */}
-      {activeRoom && !myRanking && (
+      {/* Active Room Banner */}
+      {activeRoom && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -227,9 +252,9 @@ export default function Index() {
             <Play className="w-5 h-5 text-success" />
             <div className="text-left">
               <div className="font-orbitron font-bold text-sm text-foreground">
-                {activeRoom.nickname}
+                Partida em andamento
               </div>
-              <div className="text-xs text-success">Clique para voltar à partida</div>
+              <div className="text-xs text-success">Clique para voltar</div>
             </div>
           </button>
           <button
@@ -307,13 +332,9 @@ export default function Index() {
               maxLength={4}
               className="text-center font-orbitron text-2xl tracking-widest bg-secondary border-border"
             />
-            <Input
-              placeholder="Seu Nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={15}
-              className="bg-secondary border-border"
-            />
+            <p className="text-xs text-center text-muted-foreground">
+              Entrando como: <span className="text-primary font-bold">{profile?.username}</span>
+            </p>
             <GoldButton onClick={joinRoom} disabled={loading} className="w-full" size="lg">
               Entrar
             </GoldButton>
