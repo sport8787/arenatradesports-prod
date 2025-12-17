@@ -27,6 +27,7 @@ import BonusCardUnlock from '@/components/game/BonusCardUnlock';
 import CashOutDialog from '@/components/game/CashOutDialog';
 import MoneyRain from '@/components/game/MoneyRain';
 import ConquestAchievement from '@/components/game/ConquestAchievement';
+import CaughtStamp from '@/components/game/CaughtStamp';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -102,6 +103,7 @@ export default function GameRoom() {
   
   // Succession state
   const [showConquest, setShowConquest] = useState(false);
+  const [showCaughtStamp, setShowCaughtStamp] = useState(false);
   const [eliminatedHostName, setEliminatedHostName] = useState('');
   const [successionInProgress, setSuccessionInProgress] = useState(false);
 
@@ -204,8 +206,9 @@ export default function GameRoom() {
       const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
       
       if (challengers.length > 0) {
-        // Trigger succession protocol instead of game over
-        await handleSuccession();
+        // Show dramatic "PEGO NO PULO!" stamp before succession
+        setShowCaughtStamp(true);
+        // Succession will be triggered when stamp animation completes
       } else {
         // No challengers - original game over behavior
         setHostEliminated(true);
@@ -1115,6 +1118,15 @@ export default function GameRoom() {
             title: '💰 CASH OUT!', 
             description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` 
           });
+        }}
+      />
+
+      {/* Caught Stamp - "PEGO NO PULO!" before succession */}
+      <CaughtStamp
+        show={showCaughtStamp}
+        onComplete={() => {
+          setShowCaughtStamp(false);
+          handleSuccession();
         }}
       />
 
