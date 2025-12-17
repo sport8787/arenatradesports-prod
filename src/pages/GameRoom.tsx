@@ -32,6 +32,7 @@ import AudioRecorder from '@/components/game/AudioRecorder';
 import AudioPlayer from '@/components/game/AudioPlayer';
 import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
+import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -1161,7 +1162,18 @@ export default function GameRoom() {
                 immunityCardUsed={immunityCardUsed}
               />
             )}
-            <Scoreboard 
+            
+            {/* Bonus Cards Panel - Show when game is active */}
+            {currentRound > 0 && (
+              <BonusCardsPanel
+                hasGuaranteedPrize={hasGuaranteedPrize}
+                safeAmount={safeAmount}
+                hasImmunityCard={hasImmunityCard}
+                immunityCardUsed={immunityCardUsed}
+              />
+            )}
+            
+            <Scoreboard
               players={gameState.players} 
               currentPlayerId={gameState.currentPlayer?.id}
               hostSessionId={gameState.room?.host_id}

@@ -175,29 +175,63 @@ export default function RoundProgress({
         </div>
       </div>
 
-      {/* Immunity Card Status */}
+      {/* Immunity Card Status with pulsing glow */}
       {hasImmunityCard && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className={cn(
-            "flex items-center gap-2 text-xs rounded-lg p-2 border",
+            "relative flex items-center gap-2 text-xs rounded-lg p-2 border overflow-hidden",
             immunityCardUsed 
               ? "bg-muted/30 border-border/30 text-muted-foreground"
               : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
           )}
         >
-          {immunityCardUsed ? (
-            <>
-              <ShieldOff className="w-4 h-4" />
-              <span>Carta Imunidade já utilizada</span>
-            </>
-          ) : (
-            <>
-              <ShieldCheck className="w-4 h-4" />
-              <span>Carta Imunidade ativa (1 uso)</span>
-            </>
+          {/* Pulsing glow effect when active */}
+          {!immunityCardUsed && (
+            <motion.div
+              animate={{
+                opacity: [0.3, 0.7, 0.3],
+                scale: [1, 1.05, 1],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 via-cyan-400/20 to-cyan-500/30 rounded-lg"
+            />
           )}
+          
+          {/* Animated ring around icon when active */}
+          {!immunityCardUsed && (
+            <motion.div
+              animate={{
+                boxShadow: [
+                  '0 0 0 0 hsl(180 100% 50% / 0)',
+                  '0 0 8px 2px hsl(180 100% 50% / 0.5)',
+                  '0 0 0 0 hsl(180 100% 50% / 0)',
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute left-2 w-4 h-4 rounded-full"
+            />
+          )}
+          
+          <div className="relative z-10 flex items-center gap-2">
+            {immunityCardUsed ? (
+              <>
+                <ShieldOff className="w-4 h-4" />
+                <span>Carta Imunidade já utilizada</span>
+              </>
+            ) : (
+              <>
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                </motion.div>
+                <span className="font-medium">Carta Imunidade ativa (1 uso)</span>
+              </>
+            )}
+          </div>
         </motion.div>
       )}
 
