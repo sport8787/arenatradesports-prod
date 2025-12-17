@@ -327,7 +327,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_rank_title: { Args: { coins: number }; Returns: string }
     }
     Enums: {
       answer_option: "A" | "B" | "C" | "D"
