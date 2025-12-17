@@ -63,12 +63,19 @@ export function useGameState(roomId: string | null) {
       // Fetch votes for current question
       let votes: Vote[] = [];
       if (room.current_question_id) {
-        const { data: votesData } = await supabase
+        const { data: votesData, error: votesError } = await supabase
           .from('votes')
           .select('*')
           .eq('room_id', roomId)
           .eq('question_id', room.current_question_id);
+        
+        if (votesError) {
+          console.error('[GameState] Error fetching votes:', votesError);
+        }
         votes = (votesData as Vote[]) || [];
+        console.log('[GameState] Fetched votes:', votes.length, 'for question:', room.current_question_id);
+      } else {
+        console.log('[GameState] No current question ID, skipping vote fetch');
       }
 
       setGameState({
@@ -103,7 +110,8 @@ export function useGameState(roomId: string | null) {
           table: 'rooms',
           filter: `id=eq.${roomId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] Room change detected:', payload);
           fetchGameState();
         }
       )
@@ -115,7 +123,8 @@ export function useGameState(roomId: string | null) {
           table: 'players',
           filter: `room_id=eq.${roomId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] Player change detected:', payload);
           fetchGameState();
         }
       )
@@ -127,11 +136,14 @@ export function useGameState(roomId: string | null) {
           table: 'votes',
           filter: `room_id=eq.${roomId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] Vote change detected:', payload);
           fetchGameState();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(roomChannel);
