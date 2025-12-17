@@ -868,7 +868,7 @@ export default function GameRoom() {
                         votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
                         onTimerTick={handleTimerTick}
                         onTimerComplete={handleTimerComplete}
-                        timerActive={!hasVoted}
+                        timerActive={!hasVoted && !!gameState.room?.current_audio_url}
                         doubtCost={DOUBT_COST}
                         canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
                         onDetectorClick={() => setShowDetector(true)}
