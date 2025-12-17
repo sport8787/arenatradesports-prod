@@ -23,6 +23,7 @@ export interface Room {
   current_question_id: string | null;
   current_player_index: number;
   created_at: string;
+  current_audio_url?: string | null;
 }
 
 export interface Player {

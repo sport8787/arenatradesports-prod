@@ -28,6 +28,8 @@ import CashOutDialog from '@/components/game/CashOutDialog';
 import MoneyRain from '@/components/game/MoneyRain';
 import ConquestAchievement from '@/components/game/ConquestAchievement';
 import CaughtStamp from '@/components/game/CaughtStamp';
+import AudioRecorder from '@/components/game/AudioRecorder';
+import AudioPlayer from '@/components/game/AudioPlayer';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -497,6 +499,7 @@ export default function GameRoom() {
         current_status: 'question',
         current_question_id: q.id,
         current_player_index: hostIndex,
+        current_audio_url: null, // Clear any previous audio
       })
       .eq('id', roomId);
   };
@@ -622,6 +625,7 @@ export default function GameRoom() {
         current_status: 'question',
         current_question_id: nextQ?.id,
         current_player_index: hostIndex,
+        current_audio_url: null, // Clear previous audio for new question
       })
       .eq('id', roomId);
   };
@@ -793,6 +797,12 @@ export default function GameRoom() {
                         disabled={true}
                       />
                       <div className="space-y-4">
+                        {/* Audio recorder for host */}
+                        <AudioRecorder 
+                          roomId={roomId || ''} 
+                          disabled={false}
+                        />
+                        
                         {/* Vote counter for host */}
                         <VoteCounter 
                           totalJurors={gameState.players.filter(p => p.session_id !== gameState.room?.host_id).length}
@@ -824,6 +834,11 @@ export default function GameRoom() {
                         question={gameState.currentQuestion}
                         showCorrectAnswer={false}
                         disabled={true}
+                      />
+                      {/* Audio player for jury to hear host's justification */}
+                      <AudioPlayer 
+                        audioUrl={gameState.room?.current_audio_url || null}
+                        hostName={gameState.currentPlayer?.nickname}
                       />
                       {gameState.currentQuestion.mycroft_risk_level && (
                         <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
