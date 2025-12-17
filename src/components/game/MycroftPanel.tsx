@@ -153,7 +153,7 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                   <div className="flex flex-col items-center justify-center py-8 gap-3">
                     <Loader2 className="w-8 h-8 text-mycroft-green animate-spin" />
                     <p className="text-mycroft-cyan/80 text-sm font-orbitron">
-                      Mycroft está pensando...
+                      Mycroft está escrevendo seu roteiro...
                     </p>
                   </div>
                 ) : (
@@ -161,12 +161,28 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                     {error && (
                       <p className="text-warning/70 text-xs mb-2">{error}</p>
                     )}
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-1" />
-                      <p className="text-foreground/90 leading-relaxed">
+                    
+                    {/* Teleprompter Header */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-xs text-mycroft-cyan/70 uppercase tracking-wider font-orbitron">
+                        Teleprompter • Leia naturalmente
+                      </span>
+                    </div>
+                    
+                    {/* Teleprompter Display */}
+                    <div className="relative bg-black/60 rounded-lg p-6 border border-mycroft-green/30">
+                      <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/80 to-transparent rounded-t-lg pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/80 to-transparent rounded-b-lg pointer-events-none" />
+                      
+                      <p className="text-xl md:text-2xl text-white leading-relaxed font-medium text-center tracking-wide">
                         {aiSuggestion}
                       </p>
                     </div>
+                    
+                    <p className="text-xs text-muted-foreground text-center italic">
+                      💡 Dica: Leia com naturalidade, como se estivesse pensando na hora
+                    </p>
                   </>
                 )}
 
@@ -177,7 +193,7 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                   disabled={isLoading}
                   className="w-full py-3 rounded-lg bg-mycroft-green/20 border border-mycroft-green/50 text-mycroft-green font-orbitron font-bold uppercase tracking-wider hover:bg-mycroft-green/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Aguarde...' : 'Entendido'}
+                  {isLoading ? 'Aguarde...' : 'Pronto pra Gravar'}
                 </motion.button>
               </div>
             ) : (
