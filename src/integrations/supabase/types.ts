@@ -192,6 +192,51 @@ export type Database = {
           },
         ]
       }
+      solo_rankings: {
+        Row: {
+          best_round: number
+          bluffs_detected: number
+          created_at: string
+          id: string
+          nickname: string
+          session_id: string
+          successful_bluffs: number
+          times_fooled: number
+          total_games: number
+          total_points: number
+          total_wins: number
+          updated_at: string
+        }
+        Insert: {
+          best_round?: number
+          bluffs_detected?: number
+          created_at?: string
+          id?: string
+          nickname: string
+          session_id: string
+          successful_bluffs?: number
+          times_fooled?: number
+          total_games?: number
+          total_points?: number
+          total_wins?: number
+          updated_at?: string
+        }
+        Update: {
+          best_round?: number
+          bluffs_detected?: number
+          created_at?: string
+          id?: string
+          nickname?: string
+          session_id?: string
+          successful_bluffs?: number
+          times_fooled?: number
+          total_games?: number
+          total_points?: number
+          total_wins?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       votes: {
         Row: {
           created_at: string

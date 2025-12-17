@@ -250,6 +250,16 @@ export default function Index() {
               Criar Mesa
             </GoldButton>
 
+            <Link to="/single-player" className="block">
+              <GoldButton 
+                className="w-full bg-gradient-to-r from-purple-900/80 via-red-900/60 to-purple-900/80 border-purple-500/50 hover:border-purple-400" 
+                size="lg"
+              >
+                <Bot className="w-5 h-5 mr-2 inline" />
+                DESAFIAR A MÁQUINA (SOLO) 🤖
+              </GoldButton>
+            </Link>
+
             <GoldButton 
               variant="outline" 
               onClick={() => setShowJoinForm(true)} 
