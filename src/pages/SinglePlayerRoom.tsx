@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
-import { getOrCreateSessionId, uniqueQuestionsByText } from '@/lib/gameUtils';
+import { useQuestionHistory } from '@/hooks/useQuestionHistory';
+import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -82,9 +82,10 @@ export default function SinglePlayerRoom() {
   const [guestNickname] = useState(() => `Convidado${Math.floor(Math.random() * 9999)}`);
   const displayName = isGuest ? guestNickname : profile?.username || 'Jogador';
   
+  // Use question history hook with user's profile ID
+  const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(profile?.user_id);
+  
   const [gamePhase, setGamePhase] = useState<GamePhase>('nickname');
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
   const [confirmedAnswer, setConfirmedAnswer] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
@@ -123,12 +124,12 @@ export default function SinglePlayerRoom() {
     preloadSounds();
   }, [preloadSounds]);
 
-  // Load questions
+  // Redirect to auth if not authenticated and not guest
   useEffect(() => {
-    supabase.from('questions').select('*').then(({ data }) => {
-      if (data) setQuestions(uniqueQuestionsByText(data as Question[]));
-    });
-  }, []);
+    if (!authLoading && !isAuthenticated && !isGuest) {
+      navigate('/auth');
+    }
+  }, [isAuthenticated, authLoading, navigate, isGuest]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -149,7 +150,7 @@ export default function SinglePlayerRoom() {
     // Start first round
     setCurrentRound(1);
     setAccumulatedPrize(0);
-    selectNextQuestion();
+    await selectNextQuestion();
     setGamePhase('question');
   };
   
@@ -168,18 +169,24 @@ export default function SinglePlayerRoom() {
     });
   };
 
-  const selectNextQuestion = () => {
-    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
-    if (availableQuestions.length === 0) {
-      setUsedQuestionIds(new Set());
-      const randomIndex = Math.floor(Math.random() * questions.length);
-      setCurrentQuestion(questions[randomIndex]);
-      setUsedQuestionIds(new Set([questions[randomIndex].id]));
-    } else {
-      const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-      const q = availableQuestions[randomIndex];
-      setCurrentQuestion(q);
-      setUsedQuestionIds(prev => new Set([...prev, q.id]));
+  const selectNextQuestion = async () => {
+    // Use intelligent question selection with history
+    let nextQ = getNextQuestion();
+    
+    // If null, all questions exhausted - reset and get fresh
+    if (!nextQ) {
+      await resetHistory();
+      // After reset, get first question from full pool
+      if (questions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * questions.length);
+        nextQ = questions[randomIndex];
+      }
+    }
+    
+    if (nextQ) {
+      setCurrentQuestion(nextQ);
+      // Register this question as used
+      await registerQuestionUsed(nextQ.id);
     }
     
     // Reset states
@@ -400,12 +407,12 @@ export default function SinglePlayerRoom() {
     setTimeout(() => playFanfare(), 800);
   };
 
-  const nextRound = () => {
+  const nextRound = async () => {
     if (currentRound >= MAX_ROUNDS) return;
     
     const nextRoundNum = currentRound + 1;
     setCurrentRound(nextRoundNum);
-    selectNextQuestion();
+    await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
     // Show briefcase modal before round 15
@@ -882,8 +889,8 @@ export default function SinglePlayerRoom() {
                           setSafeAmount(0);
                           setHasImmunityCard(false);
                           setImmunityCardUsed(false);
-                          setUsedQuestionIds(new Set());
-                        }} 
+                          resetHistory();
+                        }}
                         className="w-full" 
                         size="lg"
                       >
@@ -939,9 +946,9 @@ export default function SinglePlayerRoom() {
                         setSafeAmount(0);
                         setHasImmunityCard(false);
                         setImmunityCardUsed(false);
-                        setUsedQuestionIds(new Set());
+                        resetHistory();
                         setShowMoneyRain(false);
-                      }} 
+                      }}
                       className="w-full" 
                       size="lg"
                     >
