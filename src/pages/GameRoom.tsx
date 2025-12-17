@@ -457,7 +457,7 @@ export default function GameRoom() {
       .update({ detective_score: 0 })
       .eq('room_id', roomId);
 
-    // Reset game state for new host
+    // Reset game state for new host - INCLUDING question pool for fresh questions
     setCurrentRound(0);
     setAccumulatedPrize(0);
     setHasGuaranteedPrize(false);
@@ -470,6 +470,7 @@ export default function GameRoom() {
     setMycroftUsed(false);
     setDetectorUsed(false);
     setHostEliminated(false);
+    setUsedQuestionIds(new Set()); // Reset question pool so new host gets fresh questions
 
     // Show conquest achievement to new host
     if (newHost.session_id === sessionId) {
