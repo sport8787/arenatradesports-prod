@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Loader2, Volume2 } from 'lucide-react';
+import { Mic, Square, Loader2, Volume2, Pause, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import GoldButton from './GoldButton';
@@ -13,22 +13,66 @@ interface AudioRecorderProps {
 
 export default function AudioRecorder({ roomId, onRecordingComplete, disabled }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [waveformData, setWaveformData] = useState<number[]>(new Array(40).fill(0));
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  
   const MAX_DURATION = 60; // 60 seconds max
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
+      cleanup();
     };
   }, []);
+
+  const cleanup = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+  };
+
+  // Real-time waveform visualization
+  const updateWaveform = useCallback(() => {
+    if (!analyserRef.current || isPaused) {
+      animationFrameRef.current = requestAnimationFrame(updateWaveform);
+      return;
+    }
+
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+
+    // Sample 40 points from the frequency data
+    const samples = 40;
+    const step = Math.floor(dataArray.length / samples);
+    const newWaveform = [];
+    
+    for (let i = 0; i < samples; i++) {
+      const value = dataArray[i * step] / 255; // Normalize to 0-1
+      newWaveform.push(value);
+    }
+    
+    setWaveformData(newWaveform);
+    animationFrameRef.current = requestAnimationFrame(updateWaveform);
+  }, [isPaused]);
 
   const startRecording = async () => {
     try {
@@ -40,6 +84,23 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         } 
       });
       
+      streamRef.current = stream;
+
+      // Setup Web Audio API for visualization
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.7;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      // Start waveform animation
+      animationFrameRef.current = requestAnimationFrame(updateWaveform);
+
+      // Setup MediaRecorder
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -51,8 +112,13 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
         if (timerRef.current) clearInterval(timerRef.current);
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        
+        stream.getTracks().forEach(track => track.stop());
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
         
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         await uploadAudio(audioBlob);
@@ -60,7 +126,9 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
 
       mediaRecorder.start(100);
       setIsRecording(true);
+      setIsPaused(false);
       setRecordingTime(0);
+      setWaveformData(new Array(40).fill(0));
 
       // Timer
       timerRef.current = setInterval(() => {
@@ -83,10 +151,37 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
     }
   };
 
-  const stopRecording = () => {
+  const pauseRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+      
+      // Resume timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= MAX_DURATION - 1) {
+            stopRecording();
+            return MAX_DURATION;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
     }
   };
 
@@ -137,6 +232,9 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const progressPercent = (recordingTime / MAX_DURATION) * 100;
+  const isNearEnd = recordingTime > MAX_DURATION * 0.8;
+
   return (
     <div className="bg-background/50 backdrop-blur-sm border border-gold/20 rounded-xl p-4">
       <div className="flex items-center gap-3 mb-3">
@@ -145,7 +243,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         </div>
         <div>
           <h4 className="font-semibold text-sm">Justificativa em Áudio</h4>
-          <p className="text-xs text-muted-foreground">Grave sua explicação para o júri</p>
+          <p className="text-xs text-muted-foreground">Grave sua explicação para o júri (máx. 60s)</p>
         </div>
       </div>
 
@@ -160,67 +258,92 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
           >
             {/* Progress bar */}
             <div className="space-y-2">
-              <div className="relative h-3 bg-background/50 rounded-full overflow-hidden">
+              <div className="relative h-2 bg-background/50 rounded-full overflow-hidden">
                 <motion.div
                   className={`absolute inset-y-0 left-0 rounded-full transition-colors ${
-                    recordingTime > MAX_DURATION * 0.8 ? 'bg-destructive' : 'bg-gold'
+                    isNearEnd ? 'bg-destructive' : 'bg-gold'
                   }`}
-                  initial={{ width: '0%' }}
-                  animate={{ width: `${(recordingTime / MAX_DURATION) * 100}%` }}
-                  transition={{ duration: 0.3 }}
+                  style={{ width: `${progressPercent}%` }}
                 />
-                {/* Warning markers */}
+                {/* Warning marker at 80% */}
                 <div className="absolute inset-y-0 left-[80%] w-px bg-destructive/50" />
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className={`font-mono ${recordingTime > MAX_DURATION * 0.8 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {formatTime(recordingTime)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-mono font-bold ${isNearEnd ? 'text-destructive' : 'text-foreground'}`}>
+                    {formatTime(recordingTime)}
+                  </span>
+                  {isPaused && (
+                    <span className="text-amber-500 text-[10px] uppercase font-bold tracking-wider animate-pulse">
+                      Pausado
+                    </span>
+                  )}
+                </div>
                 <span className="text-muted-foreground">
                   {formatTime(MAX_DURATION - recordingTime)} restantes
                 </span>
               </div>
             </div>
 
-            {/* Recording indicator with waveform */}
-            <div className="flex items-center justify-center gap-4 py-2">
-              <motion.div
-                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                transition={{ repeat: Infinity, duration: 1 }}
-                className="w-3 h-3 rounded-full bg-destructive"
-              />
+            {/* Real-time waveform visualization */}
+            <div className="relative h-16 bg-background/30 rounded-lg overflow-hidden flex items-center justify-center px-2">
+              {/* Recording indicator */}
+              {!isPaused && (
+                <motion.div
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  className="absolute top-2 left-2 flex items-center gap-1.5"
+                >
+                  <div className="w-2 h-2 rounded-full bg-destructive" />
+                  <span className="text-[10px] text-destructive font-semibold uppercase">Rec</span>
+                </motion.div>
+              )}
               
-              {/* Compact waveform */}
-              <div className="flex items-center gap-0.5 h-8">
-                {[...Array(30)].map((_, i) => (
+              {/* Waveform bars */}
+              <div className="flex items-center gap-[2px] h-full py-2">
+                {waveformData.map((value, i) => (
                   <motion.div
                     key={i}
+                    className={`w-1 rounded-full ${isPaused ? 'bg-amber-500/50' : 'bg-gold'}`}
                     animate={{ 
-                      height: [4, Math.random() * 24 + 4, 4],
+                      height: isPaused ? 4 : Math.max(4, value * 48),
+                      opacity: isPaused ? 0.5 : 0.4 + value * 0.6
                     }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 0.2 + Math.random() * 0.3,
-                      delay: i * 0.02 
-                    }}
-                    className="w-0.5 bg-gold/60 rounded-full"
+                    transition={{ duration: 0.05 }}
                   />
                 ))}
               </div>
-              
-              <span className="text-xs text-destructive font-semibold uppercase tracking-wider">
-                Gravando
-              </span>
             </div>
 
-            <GoldButton 
-              onClick={stopRecording} 
-              variant="outline" 
-              className="w-full"
-            >
-              <Square className="w-4 h-4 mr-2 fill-current" />
-              Parar Gravação
-            </GoldButton>
+            {/* Control buttons */}
+            <div className="flex gap-2">
+              {isPaused ? (
+                <GoldButton 
+                  onClick={resumeRecording} 
+                  className="flex-1"
+                >
+                  <Play className="w-4 h-4 mr-2 fill-current" />
+                  Retomar
+                </GoldButton>
+              ) : (
+                <GoldButton 
+                  onClick={pauseRecording} 
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Pause className="w-4 h-4 mr-2 fill-current" />
+                  Pausar
+                </GoldButton>
+              )}
+              <GoldButton 
+                onClick={stopRecording} 
+                variant={isPaused ? "ghost" : "primary"}
+                className="flex-1"
+              >
+                <Square className="w-4 h-4 mr-2 fill-current" />
+                Finalizar
+              </GoldButton>
+            </div>
           </motion.div>
         ) : isUploading ? (
           <motion.div
