@@ -853,29 +853,65 @@ export default function GameRoom() {
                         showCorrectAnswer={false}
                         disabled={true}
                       />
-                      {/* Audio player for jury to hear host's justification */}
-                      <AudioPlayer 
-                        audioUrl={gameState.room?.current_audio_url || null}
-                        hostName={gameState.currentPlayer?.nickname}
-                        autoPlay={true}
-                      />
-                      {gameState.currentQuestion.mycroft_risk_level && (
-                        <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
+                      
+                      {/* Waiting for host to record audio */}
+                      {!gameState.room?.current_audio_url ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-6 bg-card/50 border border-border/30 rounded-xl text-center space-y-4"
+                        >
+                          <div className="flex items-center justify-center gap-3">
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 1.5 }}
+                              className="w-3 h-3 bg-gold rounded-full"
+                            />
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}
+                              className="w-3 h-3 bg-gold rounded-full"
+                            />
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}
+                              className="w-3 h-3 bg-gold rounded-full"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-orbitron text-gold text-lg">🎙️ HOST GRAVANDO...</p>
+                            <p className="text-muted-foreground text-sm mt-2">
+                              Aguarde {gameState.currentPlayer?.nickname || 'o host'} gravar sua justificativa
+                            </p>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <>
+                          {/* Audio player for jury to hear host's justification */}
+                          <AudioPlayer 
+                            audioUrl={gameState.room?.current_audio_url || null}
+                            hostName={gameState.currentPlayer?.nickname}
+                            autoPlay={true}
+                          />
+                          {gameState.currentQuestion.mycroft_risk_level && (
+                            <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
+                          )}
+                          <VotingPanel
+                            onVote={handleVoteWithCost}
+                            hasVoted={hasVoted}
+                            votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
+                            onTimerTick={handleTimerTick}
+                            onTimerComplete={handleTimerComplete}
+                            timerActive={!hasVoted}
+                            doubtCost={DOUBT_COST}
+                            canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
+                            onDetectorClick={() => setShowDetector(true)}
+                            detectorCost={DETECTOR_COST}
+                            canAffordDetector={hasEnoughCoins(DETECTOR_COST)}
+                            hasUsedDetector={detectorUsed}
+                          />
+                        </>
                       )}
-                      <VotingPanel
-                        onVote={handleVoteWithCost}
-                        hasVoted={hasVoted}
-                        votedFor={gameState.votes.find(v => v.player_id === gameState.myPlayer?.id)?.vote_type as 'believe' | 'doubt' | undefined}
-                        onTimerTick={handleTimerTick}
-                        onTimerComplete={handleTimerComplete}
-                        timerActive={!hasVoted && !!gameState.room?.current_audio_url}
-                        doubtCost={DOUBT_COST}
-                        canAffordDoubt={hasEnoughCoins(DOUBT_COST)}
-                        onDetectorClick={() => setShowDetector(true)}
-                        detectorCost={DETECTOR_COST}
-                        canAffordDetector={hasEnoughCoins(DETECTOR_COST)}
-                        hasUsedDetector={detectorUsed}
-                      />
                     </>
                   )}
                 </div>
