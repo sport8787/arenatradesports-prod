@@ -34,7 +34,7 @@ import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -80,6 +80,7 @@ export default function GameRoom() {
   
   const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showMycroft, setShowMycroft] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
@@ -531,6 +532,14 @@ export default function GameRoom() {
     window.open(whatsappUrl, '_blank');
   };
 
+  const copyRoomLink = () => {
+    const link = `${window.location.origin}/room/${roomId}`;
+    navigator.clipboard.writeText(link);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+    toast({ title: 'Link copiado!' });
+  };
+
   const startGame = async () => {
     if (!roomId || questions.length === 0) return;
     if (!isRoomHost) return;
@@ -783,16 +792,34 @@ export default function GameRoom() {
                     <p className="text-muted-foreground">Aguardando jogadores...</p>
                   )}
                   
-                  {/* WhatsApp Share Button */}
+                  {/* Share Buttons */}
                   {isRoomHost && (
-                    <GoldButton 
-                      variant="outline" 
-                      onClick={shareWhatsApp}
-                      className="bg-[#25D366]/20 border-[#25D366]/50 hover:bg-[#25D366]/30 hover:border-[#25D366]"
-                    >
-                      <MessageCircle className="w-5 h-5 mr-2 inline text-[#25D366]" />
-                      Convidar pelo WhatsApp
-                    </GoldButton>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <GoldButton 
+                        variant="outline" 
+                        onClick={shareWhatsApp}
+                        className="bg-[#25D366]/20 border-[#25D366]/50 hover:bg-[#25D366]/30 hover:border-[#25D366]"
+                      >
+                        <MessageCircle className="w-5 h-5 mr-2 inline text-[#25D366]" />
+                        Convidar pelo WhatsApp
+                      </GoldButton>
+                      <GoldButton 
+                        variant="outline" 
+                        onClick={copyRoomLink}
+                      >
+                        {linkCopied ? (
+                          <>
+                            <Check className="w-5 h-5 mr-2 inline text-success" />
+                            Link Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Link className="w-5 h-5 mr-2 inline" />
+                            Copiar Link da Sala
+                          </>
+                        )}
+                      </GoldButton>
+                    </div>
                   )}
                 </div>
               )}
