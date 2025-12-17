@@ -189,12 +189,6 @@ export default function GameRoom() {
     if (currentStatus === 'result') {
       playReveal();
       setTimeout(() => playFanfare(), 800);
-
-      const questionId = gameState.currentQuestion?.id;
-      if (questionId && rankingUpdatedRef.current !== questionId) {
-        rankingUpdatedRef.current = questionId;
-        updateRankingsForResult();
-      }
     }
 
     setPrevStatus(currentStatus);
@@ -205,6 +199,28 @@ export default function GameRoom() {
     playSuspense,
     playReveal,
     playFanfare,
+  ]);
+
+  // Process results ONLY when votes are available (separate effect to handle timing)
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    const questionId = gameState.currentQuestion?.id;
+    const juryCount = gameState.players.filter(p => p.session_id !== gameState.room?.host_id).length;
+    const votesCount = gameState.votes.length;
+    
+    // Only process when in result status, have question, and ALL jury members have voted
+    if (currentStatus === 'result' && questionId && votesCount > 0 && votesCount >= juryCount) {
+      if (rankingUpdatedRef.current !== questionId) {
+        console.log('[BonusCard] Processing results - votes:', votesCount, 'jury:', juryCount);
+        rankingUpdatedRef.current = questionId;
+        updateRankingsForResult();
+      }
+    }
+  }, [
+    gameState.room?.current_status,
+    gameState.currentQuestion?.id,
+    gameState.votes.length,
+    gameState.players.length,
   ]);
 
   // Play game over sound when host is eliminated
@@ -228,6 +244,19 @@ export default function GameRoom() {
     const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
     const doubtVotes = juryVotes.filter(v => v.vote_type === 'doubt').length;
     const totalJuryVotes = juryVotes.length;
+    
+    console.log('[BonusCard] Processing result:', {
+      confirmedAnswer,
+      correctOption: gameState.currentQuestion?.correct_option,
+      playerGotCorrect,
+      believeVotes,
+      doubtVotes,
+      totalJuryVotes,
+      hasGuaranteedPrize,
+      hasImmunityCard,
+      currentRound,
+      isCurrentPlayer,
+    });
     
     // Check for host elimination: wrong answer + ALL jury voted BLEFE
     const shouldEliminate = !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
