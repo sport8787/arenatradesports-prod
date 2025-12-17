@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy } from 'lucide-react';
+import { Trophy, Search } from 'lucide-react';
 import { Player } from '@/types/game';
 import { formatScore, getAvatarColor, getInitials } from '@/lib/gameUtils';
 import { cn } from '@/lib/utils';
@@ -54,7 +54,21 @@ export default function Scoreboard({ players, currentPlayerId, hostSessionId }: 
                 <span className="text-sm font-medium truncate block">
                   {player.nickname}
                 </span>
-                <RoleBadge role={isHost ? 'host' : 'jury'} size="sm" />
+                <div className="flex items-center gap-2">
+                  <RoleBadge role={isHost ? 'host' : 'jury'} size="sm" />
+                  {!isHost && player.detective_score > 0 && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30"
+                    >
+                      <Search className="w-3 h-3 text-cyan-400" />
+                      <span className="text-[10px] font-orbitron text-cyan-400 font-bold">
+                        {player.detective_score}
+                      </span>
+                    </motion.div>
+                  )}
+                </div>
               </div>
               <BluffCoinDisplay amount={player.bluffcoins} size="sm" showChange={false} />
             </motion.div>
