@@ -141,13 +141,28 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         });
       }, 1000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting recording:', error);
-      toast({ 
-        title: 'Erro ao acessar microfone', 
-        description: 'Permita o acesso ao microfone para gravar.',
-        variant: 'destructive' 
-      });
+      
+      // Detect Android overlay permission error
+      const isOverlayError = error?.name === 'NotAllowedError' || 
+        error?.message?.includes('permission') ||
+        error?.message?.includes('Permission');
+      
+      if (isOverlayError) {
+        toast({ 
+          title: 'Permissão bloqueada', 
+          description: 'Feche apps com sobreposição (bolhas de chat, gravadores) e tente novamente. Ou verifique as permissões do navegador.',
+          variant: 'destructive',
+          duration: 8000
+        });
+      } else {
+        toast({ 
+          title: 'Erro ao acessar microfone', 
+          description: 'Verifique se o microfone está disponível e permita o acesso.',
+          variant: 'destructive' 
+        });
+      }
     }
   };
 
