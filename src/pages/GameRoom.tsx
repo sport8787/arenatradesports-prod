@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRankings } from '@/hooks/useRankings';
-import { getOrCreateSessionId, uniqueQuestionsByText } from '@/lib/gameUtils';
+import { useQuestionHistory } from '@/hooks/useQuestionHistory';
+import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import GoldButton from '@/components/game/GoldButton';
@@ -78,12 +79,14 @@ export default function GameRoom() {
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
+  // Question history hook - uses session ID as user identifier for multiplayer
+  const sessionId = getOrCreateSessionId();
+  const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(sessionId);
+  
   const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showMycroft, setShowMycroft] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
   const [hostEliminated, setHostEliminated] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
@@ -121,7 +124,6 @@ export default function GameRoom() {
   const [eliminatedHostName, setEliminatedHostName] = useState('');
   const [successionInProgress, setSuccessionInProgress] = useState(false);
 
-  const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
   const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
@@ -502,7 +504,7 @@ export default function GameRoom() {
     setMycroftUsed(false);
     setDetectorUsed(false);
     setHostEliminated(false);
-    setUsedQuestionIds(new Set()); // Reset question pool so new host gets fresh questions
+    await resetHistory(); // Reset question pool so new host gets fresh questions
 
     // Show conquest achievement to new host
     if (newHost.session_id === sessionId) {
@@ -536,12 +538,6 @@ export default function GameRoom() {
       }
     }
   }, [gameState.players, gameState.room?.host_id, isRoomHost, successionInProgress]);
-
-  useEffect(() => {
-    supabase.from('questions').select('*').then(({ data }) => {
-      if (data) setQuestions(uniqueQuestionsByText(data as Question[]));
-    });
-  }, []);
 
   const joinAsPlayer = async () => {
     if (!nickname || !roomId) return;
@@ -592,19 +588,22 @@ export default function GameRoom() {
     setGameCompleted(false);
     setHostEliminated(false);
 
-    // Select random question that hasn't been used (by id)
-    const availableQuestions = questions.filter((q) => !usedQuestionIds.has(q.id));
-    const exhausted = availableQuestions.length === 0;
-    const pool = exhausted ? questions : availableQuestions;
-
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const q = pool[randomIndex];
-
-    // If exhausted, reset the pool and start tracking from this question
-    setUsedQuestionIds((prev) => {
-      const base = exhausted ? new Set<string>() : prev;
-      return new Set([...base, q.id]);
-    });
+    // Use intelligent question selection with history
+    let q = getNextQuestion();
+    
+    // If null, all questions exhausted - reset and get fresh
+    if (!q) {
+      await resetHistory();
+      if (questions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * questions.length);
+        q = questions[randomIndex];
+      }
+    }
+    
+    if (!q) return;
+    
+    // Register this question as used
+    await registerQuestionUsed(q.id);
 
     const hostIndex = Math.max(
       0,
@@ -713,18 +712,22 @@ export default function GameRoom() {
     // Increment round
     setCurrentRound(prev => prev + 1);
 
-    // Select random question that hasn't been used
-    const availableQuestions = questions.filter((q) => !usedQuestionIds.has(q.id));
-    const exhausted = availableQuestions.length === 0;
-    const pool = exhausted ? questions : availableQuestions;
-
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const nextQ = pool[randomIndex];
-
-    setUsedQuestionIds((prev) => {
-      const base = exhausted ? new Set<string>() : prev;
-      return new Set([...base, nextQ.id]);
-    });
+    // Use intelligent question selection with history
+    let nextQ = getNextQuestion();
+    
+    // If null, all questions exhausted - reset and get fresh
+    if (!nextQ) {
+      await resetHistory();
+      if (questions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * questions.length);
+        nextQ = questions[randomIndex];
+      }
+    }
+    
+    if (!nextQ) return;
+    
+    // Register this question as used
+    await registerQuestionUsed(nextQ.id);
 
     // Reset answer states for next question
     setSelectedAnswer(null);
