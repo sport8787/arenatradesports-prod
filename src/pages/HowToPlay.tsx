@@ -2,14 +2,17 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Target, 
-  Theater, 
+  Crown, 
   Bot, 
-  Coins, 
   ChevronRight,
   Shield,
-  Eye,
+  Skull,
   Sparkles,
-  AlertTriangle
+  AudioWaveform,
+  Mic,
+  BadgeCheck,
+  LogOut,
+  Scan
 } from 'lucide-react';
 import GoldButton from '@/components/game/GoldButton';
 
@@ -19,83 +22,114 @@ const sections = [
     title: "O OBJETIVO",
     emoji: "🎯",
     content: (
-      <p className="text-muted-foreground leading-relaxed">
-        Acumule o máximo de <span className="text-gold font-semibold">BluffCoins (B$)</span>. 
-        Use sua habilidade para enganar a mesa ou detectar mentiras.
-      </p>
+      <div className="space-y-3">
+        <p className="text-muted-foreground leading-relaxed">
+          Sobreviva a <span className="text-gold font-semibold">15 rodadas</span>. 
+          A cada rodada, o prêmio aumenta exponencialmente.
+        </p>
+        <div className="p-3 rounded-lg bg-gold/10 border border-gold/30 text-center">
+          <p className="font-orbitron text-gold font-bold text-lg">
+            Seu objetivo final: 1 MILHÃO de BluffCoins
+          </p>
+        </div>
+      </div>
     )
   },
   {
-    icon: Theater,
-    title: "OS PAPÉIS",
-    emoji: "🎭",
+    icon: Crown,
+    title: "A SUCESSÃO (KING OF THE HILL)",
+    emoji: "🔄",
     content: (
       <div className="space-y-4">
-        <div className="p-4 rounded-lg bg-gold/5 border border-gold/20">
+        <p className="text-muted-foreground leading-relaxed italic">
+          "Aqui, a cadeira do rei é disputada."
+        </p>
+        
+        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
           <div className="flex items-center gap-2 mb-2">
-            <Shield className="w-4 h-4 text-gold" />
-            <span className="font-orbitron text-gold font-bold">O JOGADOR DA VEZ</span>
+            <Skull className="w-4 h-4 text-destructive" />
+            <span className="font-orbitron text-destructive font-bold text-sm">MORTE SÚBITA</span>
           </div>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Recebe uma pergunta e a resposta secreta. Deve escolher uma opção e convencer o grupo.
+            Se o Jogador mentir e <span className="text-destructive font-semibold">TODOS</span> os 
+            desafiantes votarem <span className="text-destructive font-semibold">'BLEFE'</span> (Leitura Perfeita), 
+            o Jogador é eliminado imediatamente.
           </p>
-          <div className="mt-2 p-2 rounded bg-secondary/50 border-l-2 border-mycroft-cyan">
-            <p className="text-xs text-mycroft-cyan italic">
-              💡 Dica: Se não souber, minta. Se souber, fale a verdade (ou finja que está mentindo).
-            </p>
-          </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-mycroft-cyan/5 border border-mycroft-cyan/20">
+        <div className="p-4 rounded-lg bg-gold/10 border border-gold/30">
           <div className="flex items-center gap-2 mb-2">
-            <Eye className="w-4 h-4 text-mycroft-cyan" />
-            <span className="font-orbitron text-mycroft-cyan font-bold">O JÚRI (DESAFIANTES)</span>
+            <Crown className="w-4 h-4 text-gold" />
+            <span className="font-orbitron text-gold font-bold text-sm">O NOVO REI</span>
           </div>
-          <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-            Ouve a justificativa e vota:
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            O Desafiante com maior pontuação no Ranking assume o lugar de Host e herda a mesa.
           </p>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 p-2 rounded bg-success/10 border border-success/30">
-              <div className="w-3 h-3 rounded-full bg-success" />
-              <span className="text-success font-semibold text-sm">CLARO</span>
-              <span className="text-muted-foreground text-xs">— Acredito no Jogador</span>
-            </div>
-            <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 border border-destructive/30">
-              <div className="w-3 h-3 rounded-full bg-destructive" />
-              <span className="text-destructive font-semibold text-sm">BLEFE</span>
-              <span className="text-muted-foreground text-xs">— O Jogador está mentindo</span>
-            </div>
+        </div>
+      </div>
+    )
+  },
+  {
+    icon: Shield,
+    title: "CARTAS BÔNUS & CASHOUT",
+    emoji: "🃏",
+    content: (
+      <div className="space-y-4">
+        <p className="text-muted-foreground leading-relaxed italic">
+          "Mentir bem traz recompensas além de moedas:"
+        </p>
+        
+        <div className="p-4 rounded-lg bg-mycroft-cyan/10 border border-mycroft-cyan/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="w-4 h-4 text-mycroft-cyan" />
+            <span className="font-orbitron text-mycroft-cyan font-bold text-sm">IMUNIDADE</span>
           </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Se <span className="text-mycroft-cyan font-semibold">3 desafiantes</span> acreditarem 
+            na sua mentira (Voto CLARO), você evita uma eliminação futura.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+          <div className="flex items-center gap-2 mb-2">
+            <LogOut className="w-4 h-4 text-success" />
+            <span className="font-orbitron text-success font-bold text-sm">CASHOUT (RETIRADA)</span>
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Se pelo menos <span className="text-success font-semibold">2 desafiantes</span> acreditarem, 
+            você desbloqueia o botão de <span className="text-success font-semibold">CASHOUT</span> para 
+            parar o jogo e garantir seu lucro atual.
+          </p>
         </div>
       </div>
     )
   },
   {
     icon: Bot,
-    title: "A TECNOLOGIA BAKER-X",
+    title: "A TECNOLOGIA BAKER-X (IA)",
     emoji: "🤖",
     content: (
       <div className="space-y-3">
         <p className="text-muted-foreground leading-relaxed">
           Use o botão <span className="text-mycroft-green font-semibold">CONSULTAR MYCROFT</span> para 
-          receber ajuda da IA.
+          receber suporte tático.
         </p>
         <div className="space-y-2">
           <div className="flex items-start gap-3 p-3 rounded-lg bg-mycroft-green/5 border border-mycroft-green/20">
             <Sparkles className="w-4 h-4 text-mycroft-green mt-0.5" />
             <div>
-              <span className="text-mycroft-green font-semibold text-sm">Modo Jogador</span>
+              <span className="text-mycroft-green font-semibold text-sm">Jogador</span>
               <p className="text-muted-foreground text-xs mt-1">
-                A IA cria o roteiro da mentira perfeita.
+                Receba roteiros de mentira via Teleprompter.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg bg-mycroft-cyan/5 border border-mycroft-cyan/20">
-            <AlertTriangle className="w-4 h-4 text-mycroft-cyan mt-0.5" />
+            <Scan className="w-4 h-4 text-mycroft-cyan mt-0.5" />
             <div>
-              <span className="text-mycroft-cyan font-semibold text-sm">Modo Júri</span>
+              <span className="text-mycroft-cyan font-semibold text-sm">Júri</span>
               <p className="text-muted-foreground text-xs mt-1">
-                A IA analisa padrões para detectar o blefe.
+                Ative a Análise Forense de Áudio para detectar padrões vocais suspeitos.
               </p>
             </div>
           </div>
@@ -104,21 +138,22 @@ const sections = [
     )
   },
   {
-    icon: Coins,
-    title: "A ECONOMIA",
-    emoji: "💰",
+    icon: Mic,
+    title: "A JUSTIFICATIVA",
+    emoji: "🎙️",
     content: (
       <div className="space-y-3">
-        <p className="text-muted-foreground leading-relaxed">
-          Cada vitória rende <span className="text-gold font-semibold">B$</span>. 
-          Acumule para trocar por prêmios reais no{' '}
-          <span className="text-destructive font-semibold">Mercado Negro</span>.
+        <p className="text-muted-foreground leading-relaxed italic">
+          "Não há câmeras. Sua única arma é a voz."
         </p>
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
-          <p className="text-destructive/90 text-sm">
-            Cuidado: Votos errados custam moedas.
-          </p>
+        <div className="p-4 rounded-lg bg-gold/5 border border-gold/20">
+          <div className="flex items-center gap-3">
+            <AudioWaveform className="w-6 h-6 text-gold" />
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              O Jogador tem <span className="text-gold font-semibold">60 segundos</span> para gravar uma defesa. 
+              O Júri deve ouvir atentamente antes de votar.
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -151,7 +186,7 @@ export default function HowToPlay() {
       </motion.header>
 
       {/* Content */}
-      <main className="max-w-2xl mx-auto px-4 py-6 pb-32">
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-40">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -178,7 +213,7 @@ export default function HowToPlay() {
                     <span className="text-lg">{section.emoji}</span>
                   </div>
                   <div>
-                    <h2 className="font-orbitron text-foreground font-bold tracking-wide">
+                    <h2 className="font-orbitron text-foreground font-bold tracking-wide text-sm md:text-base">
                       {section.title}
                     </h2>
                   </div>
@@ -196,6 +231,18 @@ export default function HowToPlay() {
               )}
             </motion.section>
           ))}
+
+          {/* Footer quote */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="mt-8 p-4 rounded-xl bg-gradient-to-r from-gold/5 via-gold/10 to-gold/5 border border-gold/20 text-center"
+          >
+            <p className="text-gold/80 italic text-sm font-medium">
+              "A confiança é a moeda mais cara deste jogo. Use-a com sabedoria."
+            </p>
+          </motion.div>
         </motion.div>
       </main>
 
