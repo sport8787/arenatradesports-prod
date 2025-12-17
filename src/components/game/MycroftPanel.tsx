@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, AlertTriangle, TrendingUp, Loader2, Sparkles } from 'lucide-react';
 import { Question } from '@/types/game';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface MycroftPanelProps {
@@ -17,6 +17,8 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const teleprompterRef = useRef<HTMLDivElement>(null);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
   useEffect(() => {
     if (isVisible && variant === 'analytics') {
@@ -163,25 +165,51 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                     )}
                     
                     {/* Teleprompter Header */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-xs text-mycroft-cyan/70 uppercase tracking-wider font-orbitron">
-                        Teleprompter • Leia naturalmente
-                      </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-xs text-mycroft-cyan/70 uppercase tracking-wider font-orbitron">
+                          Teleprompter
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsAutoScrolling(!isAutoScrolling);
+                          if (!isAutoScrolling && teleprompterRef.current) {
+                            teleprompterRef.current.scrollTop = 0;
+                          }
+                        }}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          isAutoScrolling 
+                            ? 'bg-mycroft-green/30 text-mycroft-green' 
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        {isAutoScrolling ? '⏸ Pausar' : '▶ Auto-scroll'}
+                      </button>
                     </div>
                     
                     {/* Teleprompter Display */}
-                    <div className="relative bg-black/60 rounded-lg p-6 border border-mycroft-green/30">
-                      <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/80 to-transparent rounded-t-lg pointer-events-none" />
-                      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/80 to-transparent rounded-b-lg pointer-events-none" />
+                    <div className="relative">
+                      <div 
+                        ref={teleprompterRef}
+                        className="teleprompter-container relative bg-black/70 rounded-lg p-6 border-2 border-mycroft-green/40 max-h-[200px] overflow-y-auto scroll-smooth"
+                        style={{
+                          animation: isAutoScrolling ? 'teleprompter-scroll 15s linear infinite' : 'none',
+                        }}
+                      >
+                        <p className="text-lg sm:text-xl md:text-2xl text-white leading-loose font-medium text-center tracking-wide whitespace-pre-wrap">
+                          {aiSuggestion}
+                        </p>
+                      </div>
                       
-                      <p className="text-xl md:text-2xl text-white leading-relaxed font-medium text-center tracking-wide">
-                        {aiSuggestion}
-                      </p>
+                      {/* Gradient overlays */}
+                      <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/90 to-transparent rounded-t-lg pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/90 to-transparent rounded-b-lg pointer-events-none" />
                     </div>
                     
                     <p className="text-xs text-muted-foreground text-center italic">
-                      💡 Dica: Leia com naturalidade, como se estivesse pensando na hora
+                      💡 Leia devagar e com naturalidade, como se estivesse pensando na hora
                     </p>
                   </>
                 )}
