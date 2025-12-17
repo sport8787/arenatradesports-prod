@@ -115,6 +115,15 @@ export const useAuth = () => {
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/auth`;
+    
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
+    });
+    return { data, error };
+  };
+
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('No user logged in') };
 
@@ -154,6 +163,7 @@ export const useAuth = () => {
     signIn,
     signInWithGoogle,
     signOut,
+    resetPassword,
     updateProfile,
     addBluffCoins,
     refetchProfile,
