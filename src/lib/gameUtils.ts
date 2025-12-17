@@ -46,3 +46,25 @@ export function getInitials(nickname: string): string {
 export function formatScore(score: number): string {
   return score.toString().padStart(4, '0');
 }
+
+function normalizeQuestionText(text: string): string {
+  return text.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Removes duplicated questions (same question text) to prevent repeats within a match.
+ */
+export function uniqueQuestionsByText<T extends { question_text: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+
+  for (const row of rows) {
+    const key = normalizeQuestionText(row.question_text);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+
+  return out;
+}
+

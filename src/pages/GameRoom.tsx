@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRankings } from '@/hooks/useRankings';
-import { getOrCreateSessionId } from '@/lib/gameUtils';
+import { getOrCreateSessionId, uniqueQuestionsByText } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import GoldButton from '@/components/game/GoldButton';
@@ -539,7 +539,7 @@ export default function GameRoom() {
 
   useEffect(() => {
     supabase.from('questions').select('*').then(({ data }) => {
-      if (data) setQuestions(data as Question[]);
+      if (data) setQuestions(uniqueQuestionsByText(data as Question[]));
     });
   }, []);
 
@@ -592,16 +592,19 @@ export default function GameRoom() {
     setGameCompleted(false);
     setHostEliminated(false);
 
-    // Select random question that hasn't been used
-    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
-    if (availableQuestions.length === 0) {
-      // Reset if all questions used
-      setUsedQuestionIds(new Set());
-      return startGame();
-    }
-    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-    const q = availableQuestions[randomIndex];
-    setUsedQuestionIds(prev => new Set([...prev, q.id]));
+    // Select random question that hasn't been used (by id)
+    const availableQuestions = questions.filter((q) => !usedQuestionIds.has(q.id));
+    const exhausted = availableQuestions.length === 0;
+    const pool = exhausted ? questions : availableQuestions;
+
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const q = pool[randomIndex];
+
+    // If exhausted, reset the pool and start tracking from this question
+    setUsedQuestionIds((prev) => {
+      const base = exhausted ? new Set<string>() : prev;
+      return new Set([...base, q.id]);
+    });
 
     const hostIndex = Math.max(
       0,
@@ -711,15 +714,17 @@ export default function GameRoom() {
     setCurrentRound(prev => prev + 1);
 
     // Select random question that hasn't been used
-    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
-    if (availableQuestions.length === 0) {
-      // Reset if all questions used
-      setUsedQuestionIds(new Set());
-    }
-    const questionsToUse = availableQuestions.length > 0 ? availableQuestions : questions;
-    const randomIndex = Math.floor(Math.random() * questionsToUse.length);
-    const nextQ = questionsToUse[randomIndex];
-    setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
+    const availableQuestions = questions.filter((q) => !usedQuestionIds.has(q.id));
+    const exhausted = availableQuestions.length === 0;
+    const pool = exhausted ? questions : availableQuestions;
+
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const nextQ = pool[randomIndex];
+
+    setUsedQuestionIds((prev) => {
+      const base = exhausted ? new Set<string>() : prev;
+      return new Set([...base, nextQ.id]);
+    });
 
     // Reset answer states for next question
     setSelectedAnswer(null);
