@@ -290,3 +290,27 @@
 .animate-elastic-pop {
   animation: elastic-pop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
+
+/* Teleprompter Styles */
+@keyframes teleprompter-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.teleprompter-container {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(142 100% 50% / 0.3) transparent;
+}
+
+.teleprompter-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.teleprompter-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.teleprompter-container::-webkit-scrollbar-thumb {
+  background: hsl(142 100% 50% / 0.3);
+  border-radius: 2px;
+}
