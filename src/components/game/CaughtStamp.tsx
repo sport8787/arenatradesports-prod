@@ -1,5 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Target } from 'lucide-react';
+import { Eye, Target, AlertTriangle, Crosshair, Shield } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
+
+const STAMP_VARIATIONS = [
+  { title: 'PEGO NO PULO!', subtitle: 'LEITURA PERFEITA DO JÚRI', icon: 'eye' },
+  { title: 'BLEFE DETECTADO!', subtitle: 'O JÚRI NÃO SE DEIXOU ENGANAR', icon: 'target' },
+  { title: 'LEITURA PERFEITA!', subtitle: 'TODOS VIRAM A VERDADE', icon: 'crosshair' },
+  { title: 'DESMASCARADO!', subtitle: 'O BLEFE FOI DESCOBERTO', icon: 'alert' },
+  { title: 'CAIU NA ARMADILHA!', subtitle: 'O JÚRI FOI IMPLACÁVEL', icon: 'shield' },
+];
 
 interface CaughtStampProps {
   show: boolean;
@@ -7,6 +17,29 @@ interface CaughtStampProps {
 }
 
 export default function CaughtStamp({ show, onComplete }: CaughtStampProps) {
+  const { playSiren } = useSoundEffects();
+  
+  const variation = useMemo(() => 
+    STAMP_VARIATIONS[Math.floor(Math.random() * STAMP_VARIATIONS.length)],
+    [show]
+  );
+
+  const IconComponent = useMemo(() => {
+    switch (variation.icon) {
+      case 'target': return Target;
+      case 'crosshair': return Crosshair;
+      case 'alert': return AlertTriangle;
+      case 'shield': return Shield;
+      default: return Eye;
+    }
+  }, [variation]);
+
+  useEffect(() => {
+    if (show) {
+      playSiren();
+    }
+  }, [show, playSiren]);
+
   return (
     <AnimatePresence>
       {show && (
@@ -70,8 +103,7 @@ export default function CaughtStamp({ show, onComplete }: CaughtStampProps) {
                   transition={{ delay: 0.3, type: 'spring' }}
                   className="flex justify-center gap-2 mb-4"
                 >
-                  <Eye className="w-10 h-10 text-destructive" />
-                  <Target className="w-10 h-10 text-destructive" />
+                  <IconComponent className="w-10 h-10 text-destructive" />
                 </motion.div>
 
                 {/* Main text */}
@@ -82,7 +114,7 @@ export default function CaughtStamp({ show, onComplete }: CaughtStampProps) {
                   className="font-orbitron text-4xl md:text-5xl font-black text-destructive tracking-wider"
                   style={{ textShadow: '0 0 20px hsl(var(--destructive))' }}
                 >
-                  PEGO NO PULO!
+                  {variation.title}
                 </motion.h2>
 
                 {/* Subtitle */}
@@ -92,7 +124,7 @@ export default function CaughtStamp({ show, onComplete }: CaughtStampProps) {
                   transition={{ delay: 0.4 }}
                   className="font-orbitron text-lg text-destructive/80 tracking-[0.2em]"
                 >
-                  LEITURA PERFEITA DO JÚRI
+                  {variation.subtitle}
                 </motion.p>
 
                 {/* Decorative line */}

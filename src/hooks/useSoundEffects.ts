@@ -17,6 +17,7 @@ const SFX_PROMPTS = {
   scanner: 'Futuristic scanner beep sequence, sci-fi radar sweep sound, digital analysis processing, cyberpunk x-ray scan',
   dataBeep: 'Digital computer beep sequence, retro terminal processing sound, short electronic data blip, sci-fi computer working',
   typing: 'Fast keyboard typing sound, computer terminal input, hacker typing sequence, mechanical keys clicking rapidly',
+  siren: 'Dramatic police siren alarm burst, short urgent warning klaxon, intense alert sound, action movie raid alarm',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -136,6 +137,7 @@ export function useSoundEffects() {
     playScanner: () => playSound('scanner', 0.6),
     playDataBeep: () => playSound('dataBeep', 0.4),
     playTyping: () => playSound('typing', 0.3),
+    playSiren: () => playSound('siren', 0.8),
     preloadSounds,
   };
 }
