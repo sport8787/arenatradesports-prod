@@ -73,7 +73,7 @@ export default function RoundProgress({
         )}
       </div>
 
-      {/* Accumulated Prize */}
+      {/* Current Prize */}
       <div className="bg-gradient-to-r from-secondary via-secondary/80 to-secondary rounded-lg p-3 border border-border relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_hsl(var(--gold)/0.1)_0%,_transparent_50%)]" />
         
@@ -81,7 +81,7 @@ export default function RoundProgress({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-gold" />
-              <span className="text-xs text-muted-foreground">Acumulado</span>
+              <span className="text-xs text-muted-foreground">Prêmio Atual</span>
             </div>
             {hasGuaranteedPrize && safeAmount > 0 && (
               <div className="flex items-center gap-1 bg-gold/20 px-2 py-0.5 rounded-full">
