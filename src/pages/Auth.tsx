@@ -214,17 +214,18 @@ const Auth = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <label className="text-sm text-muted-foreground mb-1.5 block">Username</label>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Nickname</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Seu nome de jogador"
+                    placeholder="Seu nome no jogo"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="pl-10 bg-background/50 border-border/50 focus:border-primary"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">Este será seu nome nas partidas</p>
               </motion.div>
             )}
 

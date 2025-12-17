@@ -6,6 +6,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRankings } from '@/hooks/useRankings';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
+import { useAuth } from '@/hooks/useAuth';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -36,7 +37,6 @@ import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
-import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -100,12 +100,17 @@ export default function GameRoom() {
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
+  const { profile, isAuthenticated, loading: authLoading } = useAuth();
+  
+  // Guest mode check
+  const isGuest = sessionStorage.getItem('guestMode') === 'true';
+  const guestNickname = `Convidado${Math.floor(Math.random() * 9999)}`;
+  const displayNickname = isGuest ? guestNickname : profile?.username || 'Jogador';
   
   // Question history hook - uses session ID as user identifier for multiplayer
   const sessionId = getOrCreateSessionId();
   const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(sessionId);
   
-  const [nickname, setNickname] = useState('');
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showMycroft, setShowMycroft] = useState(false);
@@ -568,16 +573,16 @@ export default function GameRoom() {
   }, [gameState.players, gameState.room?.host_id, isRoomHost, successionInProgress]);
 
   const joinAsPlayer = async () => {
-    if (!nickname || !roomId) return;
+    if (!displayNickname || !roomId) return;
 
     const isHostForThisRoom = gameState.room?.host_id === sessionId;
 
     // Create/update ranking entry
-    await getOrCreateRanking(nickname);
+    await getOrCreateRanking(displayNickname);
 
     await supabase.from('players').insert({
       room_id: roomId,
-      nickname,
+      nickname: displayNickname,
       session_id: sessionId,
       is_host: !!isHostForThisRoom,
     });
@@ -877,15 +882,14 @@ export default function GameRoom() {
         <LuxuryCard className="w-full max-w-md space-y-6 text-center">
           <h2 className="font-orbitron text-2xl text-primary">Entrar na Mesa</h2>
           <div className="pin-display">{gameState.room?.pin}</div>
-          <Input
-            placeholder="Seu Nickname"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            maxLength={15}
-            className="bg-secondary border-border"
-          />
+          <p className="text-muted-foreground">
+            Entrando como: <span className="text-primary font-bold">{displayNickname}</span>
+          </p>
+          {isGuest && (
+            <p className="text-xs text-destructive/80">Modo convidado - moedas não serão salvas</p>
+          )}
           <GoldButton onClick={joinAsPlayer} className="w-full" size="lg">
-            Entrar
+            Entrar na Partida
           </GoldButton>
         </LuxuryCard>
       </div>
