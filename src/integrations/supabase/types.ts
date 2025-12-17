@@ -61,6 +61,42 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          bluff_coins: number
+          created_at: string
+          id: string
+          matches_played: number
+          rank_title: string
+          updated_at: string
+          user_id: string
+          username: string
+          wins: number
+        }
+        Insert: {
+          bluff_coins?: number
+          created_at?: string
+          id?: string
+          matches_played?: number
+          rank_title?: string
+          updated_at?: string
+          user_id: string
+          username: string
+          wins?: number
+        }
+        Update: {
+          bluff_coins?: number
+          created_at?: string
+          id?: string
+          matches_played?: number
+          rank_title?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+          wins?: number
+        }
+        Relationships: []
+      }
       questions: {
         Row: {
           category: string

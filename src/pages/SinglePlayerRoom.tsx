@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
+import { useAuth } from '@/hooks/useAuth';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -26,7 +27,7 @@ import CashOutDialog from '@/components/game/CashOutDialog';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import { Input } from '@/components/ui/input';
-import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame } from 'lucide-react';
+import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -75,8 +76,8 @@ export default function SinglePlayerRoom() {
   const navigate = useNavigate();
   const { playChips, playSuspense, playFanfare, playReveal, playGameOver, playCashRegister, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
+  const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile } = useAuth();
 
-  const [nickname, setNickname] = useState('');
   const [gamePhase, setGamePhase] = useState<GamePhase>('nickname');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
@@ -125,20 +126,37 @@ export default function SinglePlayerRoom() {
     });
   }, []);
 
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/auth');
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
   const startGame = async () => {
-    if (!nickname.trim()) {
-      toast({ title: 'Digite seu nickname', variant: 'destructive' });
+    if (!profile) {
+      toast({ title: 'Erro ao carregar perfil', variant: 'destructive' });
       return;
     }
 
     // Create/update solo ranking
-    await getOrCreateSoloRanking(nickname);
+    await getOrCreateSoloRanking(profile.username);
 
     // Start first round
     setCurrentRound(1);
     setAccumulatedPrize(0);
     selectNextQuestion();
     setGamePhase('question');
+  };
+  
+  // Persist bluffcoins to profile
+  const persistWinnings = async (amount: number) => {
+    if (!profile || amount <= 0) return;
+    await addBluffCoins(amount);
+    await updateProfile({ 
+      matches_played: profile.matches_played + 1,
+      wins: gamePhase === 'victory' ? profile.wins + 1 : profile.wins
+    });
   };
 
   const selectNextQuestion = () => {
@@ -180,7 +198,7 @@ export default function SinglePlayerRoom() {
   };
 
   // Special Round 15 processing (no bluff, pure trivia)
-  const processRound15Results = () => {
+  const processRound15Results = async () => {
     if (!currentQuestion || !confirmedAnswer) return;
     
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
@@ -191,6 +209,9 @@ export default function SinglePlayerRoom() {
       setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
       setShowMoneyRain(true);
       playFanfare();
+      
+      // Persist winnings to profile
+      await persistWinnings(FINAL_ROUND_PRIZE);
       
       if (myRanking) {
         updateSoloRankingStats({ 
@@ -208,6 +229,11 @@ export default function SinglePlayerRoom() {
       playGameOver();
       
       const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
+      
+      // Persist safe amount if any
+      if (finalPrize > 0) {
+        await persistWinnings(finalPrize);
+      }
       
       if (myRanking) {
         updateSoloRankingStats({ 
@@ -256,7 +282,7 @@ export default function SinglePlayerRoom() {
     }, 300);
   };
 
-  const processResults = () => {
+  const processResults = async () => {
     if (!currentQuestion || !confirmedAnswer) return;
 
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
@@ -282,12 +308,18 @@ export default function SinglePlayerRoom() {
         setAiTaunt(getRandomTaunt());
         playGameOver();
         
+        // Persist safe amount if any
+        const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
+        if (finalPrize > 0) {
+          await persistWinnings(finalPrize);
+        }
+        
         // Update ranking
         if (myRanking) {
           updateSoloRankingStats({ 
             addGame: true, 
             setBestRound: currentRound,
-            addPoints: accumulatedPrize 
+            addPoints: finalPrize
           });
         }
         
@@ -376,12 +408,15 @@ export default function SinglePlayerRoom() {
   };
 
   // Handle briefcase choice - player takes the mystery prize
-  const handleOpenBriefcase = () => {
+  const handleOpenBriefcase = async () => {
     setShowBriefcaseModal(false);
     const prize = generateBriefcasePrize();
     setBriefcasePrize(prize);
     setAccumulatedPrize(prize);
     playCashRegister();
+    
+    // Persist winnings to profile
+    await persistWinnings(prize);
     
     // Update ranking
     if (myRanking) {
@@ -409,9 +444,12 @@ export default function SinglePlayerRoom() {
     setGamePhase('victory');
   };
 
-  const handleCashOut = () => {
+  const handleCashOut = async () => {
     setShowMoneyRain(true);
     playCashRegister();
+    
+    // Persist winnings to profile
+    await persistWinnings(accumulatedPrize);
     
     // Update ranking
     if (myRanking) {
@@ -427,6 +465,20 @@ export default function SinglePlayerRoom() {
     setShowCashOutDialog(false);
     setGamePhase('victory');
   };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        >
+          <Coins className="w-12 h-12 text-primary" />
+        </motion.div>
+      </div>
+    );
+  }
 
   // Nickname entry screen
   if (gamePhase === 'nickname') {
@@ -459,13 +511,10 @@ export default function SinglePlayerRoom() {
             ))}
           </div>
 
-          <Input
-            placeholder="Seu Nickname"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            maxLength={15}
-            className="bg-secondary border-border text-center"
-          />
+          <div className="py-3 px-4 rounded-lg bg-primary/10 border border-primary/30">
+            <p className="text-sm text-muted-foreground">Jogando como:</p>
+            <p className="font-orbitron text-lg text-primary font-bold">{profile?.username}</p>
+          </div>
           
           <GoldButton onClick={startGame} className="w-full" size="lg">
             <Play className="w-5 h-5 mr-2" />
@@ -503,7 +552,7 @@ export default function SinglePlayerRoom() {
                 <BotIcon className="w-5 h-5" />
                 MODO SOLO
               </h1>
-              <p className="text-xs text-muted-foreground">{nickname}</p>
+              <p className="text-xs text-muted-foreground">{profile?.username}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
