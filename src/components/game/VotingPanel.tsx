@@ -66,25 +66,25 @@ export default function VotingPanel({
         </p>
       </div>
 
-      {/* Detector Button */}
+      {/* Detector Button - CONSULTAR MYCROFT */}
       {onDetectorClick && (
         <div className="flex justify-center">
           <motion.button
-            whileHover={{ scale: canUseDetector ? 1.02 : 1 }}
-            whileTap={{ scale: canUseDetector ? 0.98 : 1 }}
+            whileHover={{ scale: canUseDetector ? 1.05 : 1 }}
+            whileTap={{ scale: canUseDetector ? 0.95 : 1 }}
             onClick={onDetectorClick}
             disabled={!canUseDetector}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-orbitron text-xs uppercase tracking-wider transition-all border',
+              'flex items-center gap-3 px-6 py-3 rounded-xl font-orbitron text-sm uppercase tracking-wider transition-all border-2',
               canUseDetector
-                ? 'bg-gradient-to-r from-cyan-900/50 to-blue-900/50 border-cyan-500/50 text-cyan-400 hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-500/20'
+                ? 'bg-gradient-to-r from-emerald-900/60 via-cyan-900/60 to-emerald-900/60 border-emerald-400/70 text-emerald-300 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-500/30 animate-pulse'
                 : 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed',
-              hasUsedDetector && 'opacity-50'
+              hasUsedDetector && 'opacity-50 animate-none'
             )}
           >
-            <ScanEye className="w-4 h-4" />
-            <span>{hasUsedDetector ? 'Detector Usado' : 'Ativar Detector (IA)'}</span>
-            {!hasUsedDetector && <BluffCoinCost amount={detectorCost} className="text-xs" />}
+            <ScanEye className="w-5 h-5" />
+            <span>{hasUsedDetector ? 'Mycroft Consultado' : 'CONSULTAR MYCROFT'}</span>
+            {!hasUsedDetector && <BluffCoinCost amount={detectorCost} className="text-sm" />}
           </motion.button>
         </div>
       )}
