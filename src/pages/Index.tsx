@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,18 +24,34 @@ export default function Index() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [guestNickname, setGuestNickname] = useState('');
 
-  // Redirect to auth if not authenticated
+  // Check for guest mode
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate('/auth');
+    const guestMode = sessionStorage.getItem('guestMode');
+    if (guestMode === 'true') {
+      setIsGuest(true);
+      // Generate random guest name
+      const randomNum = Math.floor(Math.random() * 9999);
+      setGuestNickname(`Convidado${randomNum}`);
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, []);
+
+  // Redirect to auth if not authenticated and not guest
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated && !isGuest) {
+      const guestMode = sessionStorage.getItem('guestMode');
+      if (guestMode !== 'true') {
+        navigate('/auth');
+      }
+    }
+  }, [isAuthenticated, authLoading, navigate, isGuest]);
 
   // Check if player has an active room
   useEffect(() => {
     const checkActiveRoom = async () => {
-      if (!profile) return;
+      if (!profile && !isGuest) return;
       
       const sessionId = getOrCreateSessionId();
       
@@ -58,7 +74,7 @@ export default function Index() {
     };
 
     checkActiveRoom();
-  }, [profile]);
+  }, [profile, isGuest]);
 
   const rejoinRoom = () => {
     if (activeRoom) {
@@ -103,7 +119,8 @@ export default function Index() {
   };
 
   const joinRoom = async () => {
-    if (!pin || !profile) {
+    const nickname = isGuest ? guestNickname : profile?.username;
+    if (!pin || !nickname) {
       toast({ title: 'Preencha o PIN', variant: 'destructive' });
       return;
     }
@@ -133,7 +150,7 @@ export default function Index() {
       if (!existingPlayer) {
         await supabase.from('players').insert({
           room_id: room.id,
-          nickname: profile.username,
+          nickname: nickname,
           session_id: sessionId,
           is_host: false,
         });
@@ -149,12 +166,18 @@ export default function Index() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
+    if (isGuest) {
+      sessionStorage.removeItem('guestMode');
+      setIsGuest(false);
+      navigate('/auth');
+    } else {
+      await signOut();
+      navigate('/auth');
+    }
   };
 
   // Loading state
-  if (authLoading) {
+  if (authLoading && !isGuest) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <motion.div
@@ -166,6 +189,8 @@ export default function Index() {
       </div>
     );
   }
+
+  const displayName = isGuest ? guestNickname : profile?.username;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -186,54 +211,74 @@ export default function Index() {
       </motion.div>
 
       {/* User Profile Card */}
-      {profile && (
+      {(profile || isGuest) && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="mb-6 w-full max-w-md"
         >
-          <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border border-primary/30 rounded-xl p-4">
+          <div className={cn(
+            "border rounded-xl p-4",
+            isGuest 
+              ? "bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 border-muted-foreground/30"
+              : "bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border-primary/30"
+          )}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary-foreground" />
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center",
+                  isGuest 
+                    ? "bg-gradient-to-br from-muted-foreground to-muted-foreground/60"
+                    : "bg-gradient-to-br from-primary to-primary/60"
+                )}>
+                  {isGuest ? (
+                    <UserX className="w-6 h-6 text-background" />
+                  ) : (
+                    <User className="w-6 h-6 text-primary-foreground" />
+                  )}
                 </div>
                 <div>
                   <div className="font-orbitron font-bold text-lg text-foreground">
-                    Olá, {profile.username}!
+                    Olá, {displayName}!
                   </div>
-                  <div className="text-xs text-muted-foreground">{profile.rank_title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {isGuest ? 'Convidado (não salva moedas)' : profile?.rank_title}
+                  </div>
                 </div>
               </div>
               <button
                 onClick={handleSignOut}
                 className="p-2 rounded-lg bg-destructive/20 border border-destructive/30 hover:bg-destructive/30 transition-all"
-                title="Sair"
+                title={isGuest ? "Sair do modo convidado" : "Sair"}
               >
                 <LogOut className="w-4 h-4 text-destructive" />
               </button>
             </div>
             
-            {/* BluffCoins Balance */}
-            <div className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-primary/20">
-              <Coins className="w-6 h-6 text-primary" />
-              <span className="font-orbitron text-2xl font-bold text-primary">
-                {profile.bluff_coins.toLocaleString()}
-              </span>
-              <span className="text-sm text-muted-foreground">BluffCoins</span>
-            </div>
+            {/* BluffCoins Balance - only show for authenticated users */}
+            {!isGuest && profile && (
+              <>
+                <div className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-primary/20">
+                  <Coins className="w-6 h-6 text-primary" />
+                  <span className="font-orbitron text-2xl font-bold text-primary">
+                    {profile.bluff_coins.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground">BluffCoins</span>
+                </div>
 
-            {/* Stats */}
-            <div className="mt-3 flex justify-center gap-6 text-xs text-muted-foreground">
-              <div className="text-center">
-                <div className="font-bold text-foreground">{profile.matches_played}</div>
-                <div>Partidas</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-foreground">{profile.wins}</div>
-                <div>Vitórias</div>
-              </div>
-            </div>
+                {/* Stats */}
+                <div className="mt-3 flex justify-center gap-6 text-xs text-muted-foreground">
+                  <div className="text-center">
+                    <div className="font-bold text-foreground">{profile.matches_played}</div>
+                    <div>Partidas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-bold text-foreground">{profile.wins}</div>
+                    <div>Vitórias</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
       )}
@@ -333,7 +378,8 @@ export default function Index() {
               className="text-center font-orbitron text-2xl tracking-widest bg-secondary border-border"
             />
             <p className="text-xs text-center text-muted-foreground">
-              Entrando como: <span className="text-primary font-bold">{profile?.username}</span>
+              Entrando como: <span className="text-primary font-bold">{displayName}</span>
+              {isGuest && <span className="block text-destructive/80">(Modo convidado - sem salvar moedas)</span>}
             </p>
             <GoldButton onClick={joinRoom} disabled={loading} className="w-full" size="lg">
               Entrar

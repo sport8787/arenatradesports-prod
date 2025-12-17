@@ -78,6 +78,10 @@ export default function SinglePlayerRoom() {
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
   const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile } = useAuth();
 
+  const isGuest = sessionStorage.getItem('guestMode') === 'true';
+  const [guestNickname] = useState(() => `Convidado${Math.floor(Math.random() * 9999)}`);
+  const displayName = isGuest ? guestNickname : profile?.username || 'Jogador';
+  
   const [gamePhase, setGamePhase] = useState<GamePhase>('nickname');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
@@ -126,12 +130,12 @@ export default function SinglePlayerRoom() {
     });
   }, []);
 
-  // Redirect to auth if not authenticated
+  // Redirect to auth if not authenticated and not guest
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated && !isGuest) {
       navigate('/auth');
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, isGuest]);
 
   const startGame = async () => {
     if (!profile) {
@@ -149,8 +153,13 @@ export default function SinglePlayerRoom() {
     setGamePhase('question');
   };
   
-  // Persist bluffcoins to profile
+  // Persist bluffcoins to profile (only for authenticated non-guest users)
   const persistWinnings = async (amount: number) => {
+    // Don't persist for guests
+    if (isGuest) {
+      toast({ title: 'Modo Convidado', description: 'BluffCoins não foram salvos. Faça login para guardar seu progresso!' });
+      return;
+    }
     if (!profile || amount <= 0) return;
     await addBluffCoins(amount);
     await updateProfile({ 
@@ -513,7 +522,8 @@ export default function SinglePlayerRoom() {
 
           <div className="py-3 px-4 rounded-lg bg-primary/10 border border-primary/30">
             <p className="text-sm text-muted-foreground">Jogando como:</p>
-            <p className="font-orbitron text-lg text-primary font-bold">{profile?.username}</p>
+            <p className="font-orbitron text-lg text-primary font-bold">{displayName}</p>
+            {isGuest && <p className="text-xs text-destructive/80 mt-1">Modo convidado - moedas não serão salvas</p>}
           </div>
           
           <GoldButton onClick={startGame} className="w-full" size="lg">
@@ -552,7 +562,7 @@ export default function SinglePlayerRoom() {
                 <BotIcon className="w-5 h-5" />
                 MODO SOLO
               </h1>
-              <p className="text-xs text-muted-foreground">{profile?.username}</p>
+              <p className="text-xs text-muted-foreground">{displayName}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
