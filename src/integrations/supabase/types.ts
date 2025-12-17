@@ -19,6 +19,7 @@ export type Database = {
           avatar_url: string | null
           bluffcoins: number
           created_at: string
+          detective_score: number
           id: string
           is_host: boolean
           nickname: string
@@ -30,6 +31,7 @@ export type Database = {
           avatar_url?: string | null
           bluffcoins?: number
           created_at?: string
+          detective_score?: number
           id?: string
           is_host?: boolean
           nickname: string
@@ -41,6 +43,7 @@ export type Database = {
           avatar_url?: string | null
           bluffcoins?: number
           created_at?: string
+          detective_score?: number
           id?: string
           is_host?: boolean
           nickname?: string

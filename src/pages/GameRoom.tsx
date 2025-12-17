@@ -26,6 +26,7 @@ import RoundProgress, { PRIZE_LADDER } from '@/components/game/RoundProgress';
 import BonusCardUnlock from '@/components/game/BonusCardUnlock';
 import CashOutDialog from '@/components/game/CashOutDialog';
 import MoneyRain from '@/components/game/MoneyRain';
+import ConquestAchievement from '@/components/game/ConquestAchievement';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -45,6 +46,7 @@ const JURY_CORRECT_READING = 50;
 
 // Game progression constants
 const MAX_ROUNDS = 15;
+const INITIAL_BLUFFCOINS = 1000;
 
 // Bluff feedback phrases
 const BLUFF_PHRASES = [
@@ -97,6 +99,11 @@ export default function GameRoom() {
   const [showBonusUnlock, setShowBonusUnlock] = useState(false);
   const [showCashOutDialog, setShowCashOutDialog] = useState(false);
   const [showMoneyRain, setShowMoneyRain] = useState(false);
+  
+  // Succession state
+  const [showConquest, setShowConquest] = useState(false);
+  const [eliminatedHostName, setEliminatedHostName] = useState('');
+  const [successionInProgress, setSuccessionInProgress] = useState(false);
 
   const sessionId = getOrCreateSessionId();
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -190,15 +197,25 @@ export default function GameRoom() {
     const totalJuryVotes = juryVotes.length;
     
     // Check for host elimination: wrong answer + ALL jury voted BLEFE
-    if (!playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0) {
-      setHostEliminated(true);
-      // If has guaranteed prize card, keep safe amount; otherwise lose everything
-      if (!hasGuaranteedPrize) {
-        setAccumulatedPrize(0);
-        toast({ title: 'ELIMINADO!', description: 'Você perdeu todo o prêmio acumulado.', variant: 'destructive' });
-      } else if (safeAmount > 0) {
-        setAccumulatedPrize(safeAmount);
-        toast({ title: 'ELIMINADO!', description: `Carta Bônus ativada! Você salvou ${safeAmount.toLocaleString()} BluffCoins.` });
+    const shouldEliminate = !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
+    
+    if (shouldEliminate) {
+      // Check if there are challengers to take over
+      const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
+      
+      if (challengers.length > 0) {
+        // Trigger succession protocol instead of game over
+        await handleSuccession();
+      } else {
+        // No challengers - original game over behavior
+        setHostEliminated(true);
+        if (!hasGuaranteedPrize) {
+          setAccumulatedPrize(0);
+          toast({ title: 'ELIMINADO!', description: 'Você perdeu todo o prêmio acumulado.', variant: 'destructive' });
+        } else if (safeAmount > 0) {
+          setAccumulatedPrize(safeAmount);
+          toast({ title: 'ELIMINADO!', description: `Carta Bônus ativada! Você salvou ${safeAmount.toLocaleString()} BluffCoins.` });
+        }
       }
     } else if (playerGotCorrect || believeVotes > 0) {
       // Round won - accumulate prize (if not eliminated)
@@ -224,7 +241,7 @@ export default function GameRoom() {
       }
     }
     
-    // Only the HOST updates all bluffcoins to avoid race conditions
+    // Only the HOST updates all bluffcoins and detective scores to avoid race conditions
     if (isCurrentPlayer) {
       const hostPlayer = gameState.players.find(p => p.session_id === gameState.room?.host_id);
       
@@ -244,7 +261,7 @@ export default function GameRoom() {
         }
       }
       
-      // JURY REWARDS - Host updates all jury members' bluffcoins
+      // JURY REWARDS + DETECTIVE SCORE UPDATES - Host updates all jury members
       for (const vote of juryVotes) {
         const correctReading = 
           (!playerGotCorrect && vote.vote_type === 'doubt') || 
@@ -252,6 +269,15 @@ export default function GameRoom() {
         
         if (correctReading) {
           await updateBluffcoins(vote.player_id, JURY_CORRECT_READING);
+          
+          // Update detective score for correct reading (+1 point)
+          const juryPlayer = gameState.players.find(p => p.id === vote.player_id);
+          if (juryPlayer) {
+            await supabase
+              .from('players')
+              .update({ detective_score: (juryPlayer.detective_score || 0) + 1 })
+              .eq('id', vote.player_id);
+          }
         }
       }
     }
@@ -304,6 +330,109 @@ export default function GameRoom() {
       }
     }
   };
+
+  // SUCCESSION PROTOCOL - King of the Hill
+  const handleSuccession = async () => {
+    if (!roomId || successionInProgress) return;
+    setSuccessionInProgress(true);
+
+    const currentHost = gameState.players.find(p => p.session_id === gameState.room?.host_id);
+    const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
+    
+    if (challengers.length === 0 || !currentHost) {
+      setHostEliminated(true);
+      setSuccessionInProgress(false);
+      return;
+    }
+
+    // Find best challenger: highest detective_score, tiebreak by earliest vote (fastest response)
+    const sortedChallengers = [...challengers].sort((a, b) => {
+      const scoreA = a.detective_score || 0;
+      const scoreB = b.detective_score || 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Tiebreak: earliest created_at (first to join = fastest responder assumption)
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+
+    const newHost = sortedChallengers[0];
+    const eliminatedName = currentHost.nickname;
+
+    // Store eliminated host name for conquest popup
+    setEliminatedHostName(eliminatedName);
+
+    // Toast for everyone: succession announcement
+    toast({ 
+      title: '👑 SUCESSÃO!', 
+      description: `${eliminatedName} foi eliminado! ${newHost.nickname} assumiu a maleta.` 
+    });
+
+    // Update room host_id
+    await supabase
+      .from('rooms')
+      .update({ host_id: newHost.session_id })
+      .eq('id', roomId);
+
+    // Update player is_host flags
+    await supabase
+      .from('players')
+      .update({ is_host: false })
+      .eq('id', currentHost.id);
+
+    await supabase
+      .from('players')
+      .update({ is_host: true, bluffcoins: INITIAL_BLUFFCOINS })
+      .eq('id', newHost.id);
+
+    // Reset detective scores for new round
+    await supabase
+      .from('players')
+      .update({ detective_score: 0 })
+      .eq('room_id', roomId);
+
+    // Reset game state for new host
+    setCurrentRound(0);
+    setAccumulatedPrize(0);
+    setHasGuaranteedPrize(false);
+    setSafeAmount(0);
+    setSelectedAnswer(null);
+    setConfirmedAnswer(null);
+    setShowAnswer(false);
+    setMycroftUsed(false);
+    setDetectorUsed(false);
+    setHostEliminated(false);
+
+    // Show conquest achievement to new host
+    if (newHost.session_id === sessionId) {
+      setShowConquest(true);
+    }
+
+    // Play fanfare for the new host
+    playFanfare();
+    
+    setSuccessionInProgress(false);
+
+    // Return to lobby to start fresh round
+    await supabase
+      .from('rooms')
+      .update({ current_status: 'lobby', current_question_id: null })
+      .eq('id', roomId);
+  };
+
+  // Monitor host bluffcoins for succession trigger
+  useEffect(() => {
+    if (!gameState.room || !isRoomHost || successionInProgress) return;
+    
+    const hostPlayer = gameState.players.find(p => p.session_id === gameState.room?.host_id);
+    if (hostPlayer && hostPlayer.bluffcoins <= 0) {
+      const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
+      if (challengers.length > 0) {
+        handleSuccession();
+      } else {
+        setHostEliminated(true);
+        toast({ title: 'ELIMINADO!', description: 'Saldo zerado! Fim de jogo.', variant: 'destructive' });
+      }
+    }
+  }, [gameState.players, gameState.room?.host_id, isRoomHost, successionInProgress]);
 
   useEffect(() => {
     supabase.from('questions').select('*').then(({ data }) => {
@@ -987,6 +1116,13 @@ export default function GameRoom() {
             description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` 
           });
         }}
+      />
+
+      {/* Conquest Achievement - King of the Hill */}
+      <ConquestAchievement
+        show={showConquest}
+        eliminatedHostName={eliminatedHostName}
+        onComplete={() => setShowConquest(false)}
       />
     </div>
   );

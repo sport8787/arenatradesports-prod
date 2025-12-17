@@ -35,6 +35,7 @@ export interface Player {
   is_host: boolean;
   session_id: string;
   created_at: string;
+  detective_score: number;
 }
 
 export interface Vote {
