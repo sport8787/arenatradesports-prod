@@ -247,32 +247,43 @@ export default function ResultsPanel({
         </div>
       </motion.div>
 
-      {/* Bluff Result */}
+      {/* Result Message */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
         className={cn(
           'text-center p-6 rounded-xl border-2',
-          wasBluffSuccessful 
-            ? 'bg-primary/10 border-primary/50' 
-            : 'bg-destructive/10 border-destructive/50'
+          playerGotCorrect
+            ? 'bg-success/10 border-success/50'
+            : wasBluffSuccessful 
+              ? 'bg-primary/10 border-primary/50' 
+              : 'bg-destructive/10 border-destructive/50'
         )}
       >
         <div className="flex items-center justify-center gap-3 mb-2">
-          {wasBluffSuccessful ? (
+          {playerGotCorrect ? (
+            <Check className="w-8 h-8 text-success" />
+          ) : wasBluffSuccessful ? (
             <Check className="w-8 h-8 text-primary" />
           ) : (
             <X className="w-8 h-8 text-destructive" />
           )}
           <h4 className="font-orbitron text-xl">
-            {wasBluffSuccessful ? 'Blefe Bem-Sucedido!' : 'Blefe Descoberto!'}
+            {playerGotCorrect 
+              ? 'Parabéns! Você Acertou!' 
+              : wasBluffSuccessful 
+                ? 'Blefe Bem-Sucedido!' 
+                : 'Blefe Descoberto!'
+            }
           </h4>
         </div>
         <p className="text-muted-foreground">
-          {wasBluffSuccessful 
-            ? `${currentPlayer.nickname} enganou ${believers.length} jogador(es)!`
-            : `${doubters.length} jogador(es) descobriram a mentira!`
+          {playerGotCorrect 
+            ? `${currentPlayer.nickname} respondeu corretamente!`
+            : wasBluffSuccessful 
+              ? `${currentPlayer.nickname} enganou ${believers.length} jogador(es)!`
+              : `${doubters.length} jogador(es) descobriram a mentira!`
           }
         </p>
       </motion.div>
