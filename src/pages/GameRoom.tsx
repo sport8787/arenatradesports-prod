@@ -92,6 +92,7 @@ export default function GameRoom() {
   const rankingUpdatedRef = useRef<string | null>(null);
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
+  const prevAudioUrlRef = useRef<string | null>(null);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -137,6 +138,23 @@ export default function GameRoom() {
     
     prevVoteCountRef.current = currentVoteCount;
   }, [gameState.votes, gameState.currentQuestion?.id, gameState.room?.current_status, isRoomHost, playVote]);
+
+  // Play notification sound for jury when host finishes recording audio
+  useEffect(() => {
+    const currentAudioUrl = gameState.room?.current_audio_url;
+    
+    // Play sound only for jury members when audio URL changes from null to a value
+    if (
+      !isRoomHost && 
+      gameState.room?.current_status === 'discussion' &&
+      currentAudioUrl && 
+      !prevAudioUrlRef.current
+    ) {
+      playVote();
+    }
+    
+    prevAudioUrlRef.current = currentAudioUrl || null;
+  }, [gameState.room?.current_audio_url, gameState.room?.current_status, isRoomHost, playVote]);
 
   // Handler for auto-reveal when all jurors have voted (called from VoteCounter)
   const handleAllVoted = async () => {
