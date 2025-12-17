@@ -34,6 +34,8 @@ import AudioPlayer from '@/components/game/AudioPlayer';
 import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
+import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
+import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -71,6 +73,26 @@ const BLUFF_PHRASES = [
   'Enganar bobo é esporte olímpico? Porque você ganhou Ouro. 🥇',
   'Se candidatar a político, ganha no primeiro turno. 🗳️',
 ];
+
+// Generate weighted random briefcase prize - Casa sempre ganha
+// NÍVEL 1 (Lixo): 70% - 500 a 5.000 BC
+// NÍVEL 2 (Trocado): 25% - 10.000 a 40.000 BC
+// NÍVEL 3 (Sorte): 4.5% - 50.000 a 100.000 BC
+// NÍVEL 4 (Jackpot Raro): 0.5% - 250.000 BC fixo
+const generateBriefcasePrize = (): number => {
+  const random = Math.random();
+  
+  if (random < 0.70) {
+    return Math.floor(Math.random() * 4501) + 500; // 500-5.000 BC
+  }
+  if (random < 0.95) {
+    return Math.floor(Math.random() * 30001) + 10000; // 10.000-40.000 BC
+  }
+  if (random < 0.995) {
+    return Math.floor(Math.random() * 50001) + 50000; // 50.000-100.000 BC
+  }
+  return 250000; // 250.000 BC fixo
+};
 
 export default function GameRoom() {
   const { roomId } = useParams();
@@ -111,6 +133,12 @@ export default function GameRoom() {
   const [showCashOutDialog, setShowCashOutDialog] = useState(false);
   const [newlyUnlockedCard, setNewlyUnlockedCard] = useState<'guaranteed' | 'immunity' | null>(null);
   const [showMoneyRain, setShowMoneyRain] = useState(false);
+  
+  // Briefcase modal state
+  const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
+  const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
+  const [briefcasePrize, setBriefcasePrize] = useState(0);
+  const [round15QuestionId, setRound15QuestionId] = useState<string | null>(null);
   
   // Immunity card state
   const [hasImmunityCard, setHasImmunityCard] = useState(false);
@@ -720,7 +748,8 @@ export default function GameRoom() {
     }
 
     // Increment round
-    setCurrentRound(prev => prev + 1);
+    const nextRoundNum = currentRound + 1;
+    setCurrentRound(nextRoundNum);
 
     // Use intelligent question selection with history
     let nextQ = getNextQuestion();
@@ -748,6 +777,14 @@ export default function GameRoom() {
     setNewlyUnlockedCard(null);
     prevVoteCountRef.current = 0; // Reset vote counter for sound notification
 
+    // Show briefcase modal before round 15
+    if (nextRoundNum === MAX_ROUNDS) {
+      setRound15QuestionId(nextQ?.id || null);
+      setShowBriefcaseModal(true);
+      // Don't update room status yet - wait for player choice
+      return;
+    }
+
     const hostIndex = Math.max(
       0,
       gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
@@ -762,6 +799,54 @@ export default function GameRoom() {
         current_audio_url: null, // Clear previous audio for new question
       })
       .eq('id', roomId);
+  };
+
+  // Handle briefcase choice - player takes the mystery prize
+  const handleOpenBriefcase = async () => {
+    setShowBriefcaseModal(false);
+    const prize = generateBriefcasePrize();
+    setBriefcasePrize(prize);
+    setAccumulatedPrize(prize);
+    playCashRegister();
+    
+    // Update ranking with cash out prize
+    const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
+    let ranking = myRanking;
+    if (!ranking) {
+      ranking = await getOrCreateRanking(playerNickname);
+    }
+    if (ranking) {
+      await updateRankingStats({ addPoints: prize, addGame: true, addWin: true }, ranking);
+    }
+    
+    setShowBriefcaseReveal(true);
+  };
+
+  // Handle briefcase refusal - player sees the final question
+  const handleRefuseBriefcase = async () => {
+    setShowBriefcaseModal(false);
+    
+    const hostIndex = Math.max(
+      0,
+      gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
+    );
+
+    await supabase
+      .from('rooms')
+      .update({
+        current_status: 'question',
+        current_question_id: round15QuestionId,
+        current_player_index: hostIndex,
+        current_audio_url: null,
+      })
+      .eq('id', roomId);
+  };
+
+  // Handle briefcase reveal completion
+  const handleBriefcaseRevealComplete = () => {
+    setShowBriefcaseReveal(false);
+    setShowMoneyRain(true);
+    setGameCompleted(true);
   };
 
   if (loading) {
@@ -1478,6 +1563,20 @@ export default function GameRoom() {
       <ImmunitySavedOverlay
         show={showImmunitySaved}
         onComplete={() => setShowImmunitySaved(false)}
+      />
+
+      {/* Mystery Briefcase Modal - Round 15 */}
+      <MysteryBriefcaseModal
+        show={showBriefcaseModal}
+        onOpenBriefcase={handleOpenBriefcase}
+        onRefuse={handleRefuseBriefcase}
+      />
+
+      {/* Briefcase Reveal Modal */}
+      <BriefcaseRevealModal
+        show={showBriefcaseReveal}
+        prizeAmount={briefcasePrize}
+        onContinue={handleBriefcaseRevealComplete}
       />
     </div>
   );
