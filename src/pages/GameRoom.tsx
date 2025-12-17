@@ -1094,19 +1094,47 @@ export default function GameRoom() {
                           
                           {/* Cash Out Button - only enabled after CARTA BÔNUS PRÊMIO GARANTIDO */}
                           {accumulatedPrize > 0 && currentRound < MAX_ROUNDS && (
-                            <button
-                              onClick={() => hasGuaranteedPrize && setShowCashOutDialog(true)}
-                              disabled={!hasGuaranteedPrize}
-                              className={`w-full py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                                hasGuaranteedPrize 
-                                  ? 'bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 text-green-400 cursor-pointer' 
-                                  : 'bg-muted/20 border border-border/30 text-muted-foreground cursor-not-allowed'
-                              }`}
-                            >
-                              <Banknote className="w-5 h-5" />
-                              Cash Out ({accumulatedPrize.toLocaleString()} BC)
-                              {!hasGuaranteedPrize && <Lock className="w-4 h-4 ml-1" />}
-                            </button>
+                            <div className="relative group">
+                              <button
+                                onClick={() => hasGuaranteedPrize && setShowCashOutDialog(true)}
+                                disabled={!hasGuaranteedPrize}
+                                className={`w-full py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                                  hasGuaranteedPrize 
+                                    ? 'bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 text-green-400 cursor-pointer' 
+                                    : 'bg-muted/20 border border-border/30 text-muted-foreground cursor-not-allowed'
+                                }`}
+                              >
+                                <Banknote className="w-5 h-5" />
+                                Cash Out ({accumulatedPrize.toLocaleString()} BC)
+                                {!hasGuaranteedPrize && <Lock className="w-4 h-4 ml-1" />}
+                              </button>
+                              
+                              {/* Tooltip explaining unlock conditions */}
+                              {!hasGuaranteedPrize && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-popover border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                                  <p className="text-xs font-semibold text-foreground mb-2">Como desbloquear:</p>
+                                  <div className="space-y-2 text-[11px] text-muted-foreground">
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-gold">🏆</span>
+                                      <div>
+                                        <span className="font-medium text-gold">Carta Prêmio Garantido:</span>
+                                        <p>Convença 2+ jurados a votar CLARO quando errar</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-cyan-400">🛡️</span>
+                                      <div>
+                                        <span className="font-medium text-cyan-400">Carta Imunidade:</span>
+                                        <p>Convença 3+ jurados a votar CLARO quando errar</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full">
+                                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-border" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -1129,6 +1157,8 @@ export default function GameRoom() {
                 hasGuaranteedPrize={hasGuaranteedPrize}
                 safeAmount={safeAmount}
                 isHost={isRoomHost}
+                hasImmunityCard={hasImmunityCard}
+                immunityCardUsed={immunityCardUsed}
               />
             )}
             <Scoreboard 

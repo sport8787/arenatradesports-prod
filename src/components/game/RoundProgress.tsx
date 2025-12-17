@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, Trophy, Coins, Flame } from 'lucide-react';
+import { Shield, Trophy, Coins, Flame, ShieldCheck, ShieldOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Prize ladder values (in BluffCoins)
@@ -14,6 +14,8 @@ interface RoundProgressProps {
   hasGuaranteedPrize: boolean;
   safeAmount: number;
   isHost: boolean;
+  hasImmunityCard?: boolean;
+  immunityCardUsed?: boolean;
 }
 
 const formatPrize = (amount: number) => {
@@ -28,6 +30,8 @@ export default function RoundProgress({
   hasGuaranteedPrize,
   safeAmount,
   isHost,
+  hasImmunityCard = false,
+  immunityCardUsed = false,
 }: RoundProgressProps) {
   const nextRound = currentRound + 1;
   const nextPrize = nextRound <= 15 ? PRIZE_LADDER[nextRound - 1] : null;
@@ -80,9 +84,9 @@ export default function RoundProgress({
               <span className="text-xs text-muted-foreground">Acumulado</span>
             </div>
             {hasGuaranteedPrize && safeAmount > 0 && (
-              <div className="flex items-center gap-1 bg-cyan/20 px-2 py-0.5 rounded-full">
-                <Shield className="w-3 h-3 text-cyan" />
-                <span className="text-[10px] text-cyan font-bold">
+              <div className="flex items-center gap-1 bg-gold/20 px-2 py-0.5 rounded-full">
+                <Shield className="w-3 h-3 text-gold" />
+                <span className="text-[10px] text-gold font-bold">
                   {formatPrize(safeAmount)} protegido
                 </span>
               </div>
@@ -170,6 +174,32 @@ export default function RoundProgress({
           })}
         </div>
       </div>
+
+      {/* Immunity Card Status */}
+      {hasImmunityCard && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            "flex items-center gap-2 text-xs rounded-lg p-2 border",
+            immunityCardUsed 
+              ? "bg-muted/30 border-border/30 text-muted-foreground"
+              : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+          )}
+        >
+          {immunityCardUsed ? (
+            <>
+              <ShieldOff className="w-4 h-4" />
+              <span>Carta Imunidade já utilizada</span>
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-4 h-4" />
+              <span>Carta Imunidade ativa (1 uso)</span>
+            </>
+          )}
+        </motion.div>
+      )}
 
       {/* Risk Warning */}
       {!hasGuaranteedPrize && accumulatedPrize > 0 && (
