@@ -258,8 +258,11 @@ export default function GameRoom() {
       isCurrentPlayer,
     });
     
-    // Check for host elimination: wrong answer + ALL jury voted BLEFE
-    const shouldEliminate = !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
+    // CRITICAL: Elimination check ONLY runs on HOST client because:
+    // 1. confirmedAnswer is local state that only exists on host's browser
+    // 2. Jury clients have confirmedAnswer as null, which would incorrectly trigger elimination
+    // 3. Elimination is determined by: wrong answer + ALL jury voted BLEFE
+    const shouldEliminate = isRoomHost && !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
     
     if (shouldEliminate) {
       // Check if immunity card can save the player (not on round 15, and card not used yet)
@@ -289,7 +292,7 @@ export default function GameRoom() {
           }
         }
       }
-    } else if (playerGotCorrect || believeVotes > 0) {
+    } else if ((isRoomHost && playerGotCorrect) || believeVotes > 0) {
       // Round won - accumulate prize (if not eliminated)
       if (currentRound > 0 && currentRound <= MAX_ROUNDS) {
         const roundPrize = PRIZE_LADDER[currentRound - 1];
