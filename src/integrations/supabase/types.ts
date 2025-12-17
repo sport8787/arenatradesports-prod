@@ -273,6 +273,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       votes: {
         Row: {
           created_at: string
@@ -328,9 +349,17 @@ export type Database = {
     }
     Functions: {
       calculate_rank_title: { Args: { coins: number }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       answer_option: "A" | "B" | "C" | "D"
+      app_role: "admin" | "user"
       difficulty_level: "Easy" | "Medium" | "Hard"
       room_status: "lobby" | "question" | "discussion" | "voting" | "result"
     }
@@ -461,6 +490,7 @@ export const Constants = {
   public: {
     Enums: {
       answer_option: ["A", "B", "C", "D"],
+      app_role: ["admin", "user"],
       difficulty_level: ["Easy", "Medium", "Hard"],
       room_status: ["lobby", "question", "discussion", "voting", "result"],
     },
