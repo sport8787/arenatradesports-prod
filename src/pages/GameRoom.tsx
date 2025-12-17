@@ -75,7 +75,7 @@ export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   
   const [nickname, setNickname] = useState('');
@@ -236,7 +236,7 @@ export default function GameRoom() {
         // Use immunity card - player is saved!
         setImmunityCardUsed(true);
         setShowImmunitySaved(true);
-        playFanfare();
+        playShieldActivate(); // Shield activation sound when immunity saves player
         // Don't eliminate - player survives this round
       } else {
         // Check if there are challengers to take over
@@ -270,15 +270,17 @@ export default function GameRoom() {
           setHasGuaranteedPrize(true);
           setSafeAmount(newAccumulated);
           setShowBonusUnlock(true);
-          playFanfare();
+          playCardUnlock(); // Special unlock sound for bonus card
         }
         
         // Unlock Immunity card if host convinced 3+ jury members to vote CLARO
         if (!hasImmunityCard && !playerGotCorrect && believeVotes >= 3) {
           setHasImmunityCard(true);
           // Show immunity unlock after bonus unlock (if both trigger) or immediately
-          setTimeout(() => setShowImmunityUnlock(true), hasGuaranteedPrize ? 0 : 3500);
-          playFanfare();
+          setTimeout(() => {
+            setShowImmunityUnlock(true);
+            playShieldActivate(); // Special shield activation sound
+          }, hasGuaranteedPrize ? 0 : 3500);
         }
         
         // Check if game completed (all 15 rounds)
