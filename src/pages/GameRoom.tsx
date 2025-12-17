@@ -557,8 +557,10 @@ export default function GameRoom() {
   };
 
   const copyPin = () => {
-    navigator.clipboard.writeText(gameState.room?.pin || '');
+    const pinToCopy = gameState.room?.pin || '';
+    navigator.clipboard.writeText(pinToCopy);
     setCopied(true);
+    toast({ title: `PIN copiado: ${pinToCopy}` });
     setTimeout(() => setCopied(false), 2000);
   };
 

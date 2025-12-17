@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Volume2, Loader2, Bell } from 'lucide-react';
 import GoldButton from './GoldButton';
@@ -15,7 +15,7 @@ export default function AudioPlayer({ audioUrl, hostName, autoPlay = false }: Au
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasListened, setHasListened] = useState(false);
-  const [autoPlayTriggered, setAutoPlayTriggered] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevAudioUrlRef = useRef<string | null>(null);
 
@@ -23,63 +23,103 @@ export default function AudioPlayer({ audioUrl, hostName, autoPlay = false }: Au
   useEffect(() => {
     if (audioUrl !== prevAudioUrlRef.current) {
       setHasListened(false);
-      setAutoPlayTriggered(false);
+      setIsReady(false);
+      setProgress(0);
+      setDuration(0);
+      setIsPlaying(false);
       prevAudioUrlRef.current = audioUrl;
     }
   }, [audioUrl]);
 
+  // Setup audio element - only depends on audioUrl
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!audioUrl) {
+      audioRef.current = null;
+      return;
+    }
 
-    const audio = new Audio(audioUrl);
+    const audio = new Audio();
     audioRef.current = audio;
 
-    audio.addEventListener('loadstart', () => setIsLoading(true));
-    audio.addEventListener('canplay', () => {
+    const handleLoadStart = () => setIsLoading(true);
+    const handleCanPlay = () => {
       setIsLoading(false);
-      // Auto-play when audio is ready and autoPlay is enabled
-      if (autoPlay && !autoPlayTriggered && !hasListened) {
-        setAutoPlayTriggered(true);
-        audio.play().then(() => {
-          setIsPlaying(true);
-          setHasListened(true);
-        }).catch(err => {
-          console.log('Auto-play blocked by browser:', err);
-        });
+      setIsReady(true);
+    };
+    const handleLoadedMetadata = () => setDuration(audio.duration);
+    const handleTimeUpdate = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
       }
-    });
-    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
-    audio.addEventListener('timeupdate', () => {
-      setProgress((audio.currentTime / audio.duration) * 100);
-    });
-    audio.addEventListener('ended', () => {
+    };
+    const handleEnded = () => {
       setIsPlaying(false);
       setProgress(0);
-    });
+    };
+    const handleError = (e: Event) => {
+      console.error('Audio error:', e);
+      setIsLoading(false);
+    };
+
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    // Set the source and load
+    audio.src = audioUrl;
+    audio.load();
 
     return () => {
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
       audio.pause();
       audio.src = '';
     };
-  }, [audioUrl, autoPlay, autoPlayTriggered, hasListened]);
+  }, [audioUrl]);
 
-  const togglePlay = () => {
-    if (!audioRef.current) return;
+  // Handle autoPlay separately
+  useEffect(() => {
+    if (autoPlay && isReady && !hasListened && audioRef.current) {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        setHasListened(true);
+      }).catch(err => {
+        console.log('Auto-play blocked by browser:', err);
+      });
+    }
+  }, [autoPlay, isReady, hasListened]);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !isReady) return;
 
     if (isPlaying) {
-      audioRef.current.pause();
+      audio.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
-      setHasListened(true); // Mark as listened when play starts
+      audio.play().then(() => {
+        setIsPlaying(true);
+        setHasListened(true);
+      }).catch(err => {
+        console.error('Play failed:', err);
+      });
     }
-    setIsPlaying(!isPlaying);
-  };
+  }, [isPlaying, isReady]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const currentTime = audioRef.current?.currentTime || 0;
 
   if (!audioUrl) {
     return (
@@ -166,7 +206,7 @@ export default function AudioPlayer({ audioUrl, hostName, autoPlay = false }: Au
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground font-mono">
-            {audioRef.current ? formatTime(audioRef.current.currentTime) : '0:00'}
+            {formatTime(currentTime)}
           </span>
           <span className="text-xs text-muted-foreground font-mono">
             {formatTime(duration)}
@@ -176,7 +216,7 @@ export default function AudioPlayer({ audioUrl, hostName, autoPlay = false }: Au
         <GoldButton 
           onClick={togglePlay}
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || !isReady}
         >
           {isLoading ? (
             <>
