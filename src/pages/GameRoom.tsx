@@ -354,16 +354,23 @@ export default function GameRoom() {
           toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
         }
         if (!playerGotCorrect && believeVotes > 0) {
-          // Show bluff feedback with random phrase and play cash register sound
-          const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
-          const description = believeVotes === totalJuryVotes ? 'Blefe PERFEITO!' : `${believeVotes} caíram no blefe!`;
+          // Check if a bonus card is being unlocked - if so, skip bluff feedback
+          const unlockingBonusCard = 
+            (!hasGuaranteedPrize && believeVotes >= 2) || 
+            (!hasImmunityCard && believeVotes >= 3);
           
-          setTimeout(() => {
-            playCashRegister();
-            setBluffFeedback({ phrase: randomPhrase, description });
-            // Auto-hide after 3 seconds
-            setTimeout(() => setBluffFeedback(null), 3000);
-          }, 1200);
+          // Only show bluff feedback if NO bonus card is being unlocked
+          if (!unlockingBonusCard) {
+            const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
+            const description = believeVotes === totalJuryVotes ? 'Blefe PERFEITO!' : `${believeVotes} caíram no blefe!`;
+            
+            setTimeout(() => {
+              playCashRegister();
+              setBluffFeedback({ phrase: randomPhrase, description });
+              // Auto-hide after 3 seconds
+              setTimeout(() => setBluffFeedback(null), 3000);
+            }, 1200);
+          }
           
           if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
             await updateRankingStats({ addPoints: HOST_WRONG_FULL_BLUFF, addSuccessfulBluff: true });
