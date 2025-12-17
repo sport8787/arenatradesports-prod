@@ -23,8 +23,10 @@ import MoneyRain from '@/components/game/MoneyRain';
 import AudioRecorder from '@/components/game/AudioRecorder';
 import BluffFeedback from '@/components/game/BluffFeedback';
 import CashOutDialog from '@/components/game/CashOutDialog';
+import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
+import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import { Input } from '@/components/ui/input';
-import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull } from 'lucide-react';
+import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -38,6 +40,7 @@ const HOST_WRONG_FULL_BLUFF = 300;
 // Game progression constants
 const MAX_ROUNDS = 15;
 const INITIAL_BLUFFCOINS = 1000;
+const FINAL_ROUND_PRIZE = 1000000; // Fixed 1M prize for round 15
 
 // Bluff feedback phrases
 const BLUFF_PHRASES = [
@@ -54,7 +57,19 @@ const BLUFF_PHRASES = [
   'Atuação digna de Netflix. 🎬',
 ];
 
-type GamePhase = 'nickname' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+// Generate weighted random briefcase prize (higher prizes are rarer)
+const generateBriefcasePrize = (): number => {
+  const random = Math.random();
+  // Weighted distribution: lower prizes more common
+  if (random < 0.40) return Math.floor(Math.random() * 9000) + 1000; // 1k-10k (40%)
+  if (random < 0.65) return Math.floor(Math.random() * 40000) + 10000; // 10k-50k (25%)
+  if (random < 0.82) return Math.floor(Math.random() * 50000) + 50000; // 50k-100k (17%)
+  if (random < 0.93) return Math.floor(Math.random() * 100000) + 100000; // 100k-200k (11%)
+  if (random < 0.98) return Math.floor(Math.random() * 150000) + 200000; // 200k-350k (5%)
+  return Math.floor(Math.random() * 100000) + 350000; // 350k-450k (2%)
+};
+
+type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 export default function SinglePlayerRoom() {
   const navigate = useNavigate();
@@ -92,6 +107,9 @@ export default function SinglePlayerRoom() {
   const [immunityCardUsed, setImmunityCardUsed] = useState(false);
   const [showImmunityUnlock, setShowImmunityUnlock] = useState(false);
   const [showImmunitySaved, setShowImmunitySaved] = useState(false);
+  const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
+  const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
+  const [briefcasePrize, setBriefcasePrize] = useState(0);
 
   const sessionId = getOrCreateSessionId();
 
@@ -152,7 +170,59 @@ export default function SinglePlayerRoom() {
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
     playReveal();
-    setGamePhase('recording');
+    
+    // Round 15: Skip recording/voting, go directly to results
+    if (currentRound === MAX_ROUNDS) {
+      setTimeout(() => processRound15Results(), 1500);
+    } else {
+      setGamePhase('recording');
+    }
+  };
+
+  // Special Round 15 processing (no bluff, pure trivia)
+  const processRound15Results = () => {
+    if (!currentQuestion || !confirmedAnswer) return;
+    
+    const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
+    
+    if (playerAnsweredCorrectly) {
+      // VICTORY! Win exactly 1,000,000 BC
+      setAccumulatedPrize(FINAL_ROUND_PRIZE);
+      setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
+      setShowMoneyRain(true);
+      playFanfare();
+      
+      if (myRanking) {
+        updateSoloRankingStats({ 
+          addGame: true, 
+          addWin: true,
+          setBestRound: 15,
+          addPoints: FINAL_ROUND_PRIZE
+        });
+      }
+      
+      toast({ title: '🏆 1 MILHÃO!', description: 'Você conquistou o prêmio máximo!' });
+      setGamePhase('victory');
+    } else {
+      // ELIMINATION - lose all or fall to safe amount
+      playGameOver();
+      
+      const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
+      
+      if (myRanking) {
+        updateSoloRankingStats({ 
+          addGame: true, 
+          setBestRound: 15,
+          addPoints: finalPrize
+        });
+      }
+      
+      if (hasGuaranteedPrize && safeAmount > 0) {
+        setAccumulatedPrize(safeAmount);
+      }
+      
+      setGamePhase('eliminated');
+    }
   };
 
   const activateMycroft = () => {
@@ -255,15 +325,14 @@ export default function SinglePlayerRoom() {
 
       setBluffcoins(prev => prev + reward);
       
-      // Accumulate prize
+      // Prize is NOT cumulative - it REPLACES the previous value
       const roundPrize = PRIZE_LADDER[currentRound - 1];
-      const newAccumulated = accumulatedPrize + roundPrize;
-      setAccumulatedPrize(newAccumulated);
+      setAccumulatedPrize(roundPrize);
 
       // Check for bonus card unlocks
       if (!hasGuaranteedPrize && !playerAnsweredCorrectly && believeVotes >= 2) {
         setHasGuaranteedPrize(true);
-        setSafeAmount(newAccumulated);
+        setSafeAmount(roundPrize);
         setNewlyUnlockedCard('guaranteed');
         setTimeout(() => {
           setShowBonusUnlock(true);
@@ -281,24 +350,8 @@ export default function SinglePlayerRoom() {
         }, delay);
       }
 
-      // Check for victory
-      if (currentRound === MAX_ROUNDS) {
-        setShowMoneyRain(true);
-        playFanfare();
-        
-        // Update ranking with win
-        if (myRanking) {
-          updateSoloRankingStats({ 
-            addGame: true, 
-            addWin: true,
-            setBestRound: 15,
-            addPoints: newAccumulated + reward
-          });
-        }
-        
-        setGamePhase('victory');
-        return;
-      }
+      // Round 15 is handled separately by processRound15Results
+      // This code won't run for round 15 because confirmAnswer goes to processRound15Results directly
     }
 
     setGamePhase('result');
@@ -309,10 +362,51 @@ export default function SinglePlayerRoom() {
   const nextRound = () => {
     if (currentRound >= MAX_ROUNDS) return;
     
-    setCurrentRound(prev => prev + 1);
+    const nextRoundNum = currentRound + 1;
+    setCurrentRound(nextRoundNum);
     selectNextQuestion();
-    setGamePhase('question');
     setNewlyUnlockedCard(null);
+    
+    // Show briefcase modal before round 15
+    if (nextRoundNum === MAX_ROUNDS) {
+      setShowBriefcaseModal(true);
+    } else {
+      setGamePhase('question');
+    }
+  };
+
+  // Handle briefcase choice - player takes the mystery prize
+  const handleOpenBriefcase = () => {
+    setShowBriefcaseModal(false);
+    const prize = generateBriefcasePrize();
+    setBriefcasePrize(prize);
+    setAccumulatedPrize(prize);
+    playCashRegister();
+    
+    // Update ranking
+    if (myRanking) {
+      updateSoloRankingStats({ 
+        addGame: true, 
+        addWin: true,
+        setBestRound: 14, // They stopped before attempting round 15
+        addPoints: prize
+      });
+    }
+    
+    setShowBriefcaseReveal(true);
+  };
+
+  // Handle briefcase refusal - player sees the question
+  const handleRefuseBriefcase = () => {
+    setShowBriefcaseModal(false);
+    setGamePhase('question');
+  };
+
+  // Handle briefcase reveal completion
+  const handleBriefcaseRevealComplete = () => {
+    setShowBriefcaseReveal(false);
+    setShowMoneyRain(true);
+    setGamePhase('victory');
   };
 
   const handleCashOut = () => {
@@ -436,6 +530,24 @@ export default function SinglePlayerRoom() {
               {/* QUESTION PHASE */}
               {gamePhase === 'question' && currentQuestion && (
                 <div className="space-y-6">
+                  {/* Round 15 Special Banner */}
+                  {currentRound === MAX_ROUNDS && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="p-4 bg-gradient-to-r from-gold/20 via-amber-500/20 to-gold/20 border-2 border-gold/50 rounded-lg text-center"
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <Flame className="w-5 h-5 text-gold animate-pulse" />
+                        <span className="font-orbitron text-lg text-gold font-bold">RODADA FINAL - ALL IN!</span>
+                        <Flame className="w-5 h-5 text-gold animate-pulse" />
+                      </div>
+                      <p className="text-sm text-gold/80">
+                        ⚠️ Sem chance de blefe! Acerte a pergunta ou perca tudo.
+                      </p>
+                    </motion.div>
+                  )}
+
                   <QuestionCard
                     question={currentQuestion}
                     showCorrectAnswer={showAnswer}
@@ -455,7 +567,11 @@ export default function SinglePlayerRoom() {
                       {confirmedAnswer ? (
                         <><Unlock className="w-5 h-5 mr-2" /> Resposta Revelada</>
                       ) : selectedAnswer ? (
-                        <><Unlock className="w-5 h-5 mr-2" /> Confirmar e Revelar Resposta</>
+                        currentRound === MAX_ROUNDS ? (
+                          <><Flame className="w-5 h-5 mr-2" /> CONFIRMAR - VALE 1 MILHÃO!</>
+                        ) : (
+                          <><Unlock className="w-5 h-5 mr-2" /> Confirmar e Revelar Resposta</>
+                        )
                       ) : (
                         <><Lock className="w-5 h-5 mr-2" /> Selecione uma Resposta</>
                       )}
@@ -871,6 +987,19 @@ export default function SinglePlayerRoom() {
       />
 
       <MoneyRain show={showMoneyRain} amount={accumulatedPrize} />
+
+      {/* Briefcase Modals */}
+      <MysteryBriefcaseModal
+        show={showBriefcaseModal}
+        onOpenBriefcase={handleOpenBriefcase}
+        onRefuse={handleRefuseBriefcase}
+      />
+
+      <BriefcaseRevealModal
+        show={showBriefcaseReveal}
+        prizeAmount={briefcasePrize}
+        onContinue={handleBriefcaseRevealComplete}
+      />
     </div>
   );
 }
