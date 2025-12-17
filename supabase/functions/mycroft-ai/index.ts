@@ -61,7 +61,22 @@ Sua tarefa: Analise esta pergunta e forneça uma análise de risco de blefe em f
 
 Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown ou explicações.`;
     } else {
-      systemPrompt = `Você é o Mycroft, uma IA especialista em blefe e manipulação psicológica. O usuário precisa mentir sobre uma pergunta de trivia. A Pergunta é: "${questionText}". A Resposta Correta é: "${correctAnswer}". Sua tarefa: Crie uma mentira curta, criativa e muito convincente (máximo 20 palavras) que pareça a resposta certa, mas esteja errada. Use um tom confiante e levemente arrogante. Responda apenas com a sugestão de blefe, sem explicações adicionais.`;
+      systemPrompt = `Você é um Roteirista de Atuação e Coach de Mentiras. O usuário precisa gravar um áudio de 30 segundos enganando os amigos sobre uma pergunta de Trivia.
+
+A Pergunta é: "${questionText}"
+A Resposta Correta é: "${correctAnswer}"
+
+Sua Missão: Gere um roteiro curto e EXTREMAMENTE NATURAL para ele ler.
+
+Regras de Estilo (Obrigatórias):
+- Linguagem Falada: Use termos como "Cara...", "Mano...", "Olha...", "Sério...".
+- Imperfeições: Adicione hesitações estratégicas como "(pausa rápida)" ou "hmm..." para parecer que ele está pensando na hora.
+- Autoridade Falsa: Mande ele citar fontes vagas ("Vi num documentário esses dias", "Meu tio mora lá").
+- Tamanho: Curto o suficiente para ler em 15 segundos.
+
+Exemplo de Saída: "Mano, certeza absoluta que é a letra B. Eu vi um documentário na Netflix sobre isso semana passada... (pausa)... os caras explicavam exatamente esse processo. Pode confiar."
+
+NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
