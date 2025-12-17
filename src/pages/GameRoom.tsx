@@ -979,7 +979,7 @@ export default function GameRoom() {
                     currentPlayer={gameState.currentPlayer}
                     players={gameState.players}
                     votes={gameState.votes}
-                    wasBluffSuccessful={gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
+                    wasBluffSuccessful={confirmedAnswer !== gameState.currentQuestion?.correct_option && gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                     confirmedAnswer={confirmedAnswer}
                     onCoinSound={playCoinDrop}
                     showCoinAnimation={!hostEliminated}
