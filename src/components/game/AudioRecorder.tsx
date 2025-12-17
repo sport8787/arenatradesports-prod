@@ -19,7 +19,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const MAX_DURATION = 30; // 30 seconds max
+  const MAX_DURATION = 60; // 60 seconds max
 
   useEffect(() => {
     return () => {
@@ -156,37 +156,61 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-3"
+            className="space-y-4"
           >
-            {/* Recording indicator */}
-            <div className="flex items-center justify-center gap-3 py-4">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 1 }}
-                className="w-4 h-4 rounded-full bg-destructive"
-              />
-              <span className="font-mono text-xl text-destructive">
-                {formatTime(recordingTime)}
-              </span>
-              <span className="text-xs text-muted-foreground">/ {formatTime(MAX_DURATION)}</span>
+            {/* Progress bar */}
+            <div className="space-y-2">
+              <div className="relative h-3 bg-background/50 rounded-full overflow-hidden">
+                <motion.div
+                  className={`absolute inset-y-0 left-0 rounded-full transition-colors ${
+                    recordingTime > MAX_DURATION * 0.8 ? 'bg-destructive' : 'bg-gold'
+                  }`}
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${(recordingTime / MAX_DURATION) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+                {/* Warning markers */}
+                <div className="absolute inset-y-0 left-[80%] w-px bg-destructive/50" />
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className={`font-mono ${recordingTime > MAX_DURATION * 0.8 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {formatTime(recordingTime)}
+                </span>
+                <span className="text-muted-foreground">
+                  {formatTime(MAX_DURATION - recordingTime)} restantes
+                </span>
+              </div>
             </div>
 
-            {/* Waveform visualization */}
-            <div className="flex items-center justify-center gap-1 h-12">
-              {[...Array(20)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ 
-                    height: [8, Math.random() * 32 + 8, 8],
-                  }}
-                  transition={{ 
-                    repeat: Infinity, 
-                    duration: 0.3 + Math.random() * 0.4,
-                    delay: i * 0.05 
-                  }}
-                  className="w-1 bg-gold/60 rounded-full"
-                />
-              ))}
+            {/* Recording indicator with waveform */}
+            <div className="flex items-center justify-center gap-4 py-2">
+              <motion.div
+                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
+                transition={{ repeat: Infinity, duration: 1 }}
+                className="w-3 h-3 rounded-full bg-destructive"
+              />
+              
+              {/* Compact waveform */}
+              <div className="flex items-center gap-0.5 h-8">
+                {[...Array(30)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ 
+                      height: [4, Math.random() * 24 + 4, 4],
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 0.2 + Math.random() * 0.3,
+                      delay: i * 0.02 
+                    }}
+                    className="w-0.5 bg-gold/60 rounded-full"
+                  />
+                ))}
+              </div>
+              
+              <span className="text-xs text-destructive font-semibold uppercase tracking-wider">
+                Gravando
+              </span>
             </div>
 
             <GoldButton 

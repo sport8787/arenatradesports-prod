@@ -6,19 +6,26 @@ import GoldButton from './GoldButton';
 interface AudioPlayerProps {
   audioUrl: string | null;
   hostName?: string;
+  autoPlay?: boolean;
 }
 
-export default function AudioPlayer({ audioUrl, hostName }: AudioPlayerProps) {
+export default function AudioPlayer({ audioUrl, hostName, autoPlay = false }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasListened, setHasListened] = useState(false);
+  const [autoPlayTriggered, setAutoPlayTriggered] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevAudioUrlRef = useRef<string | null>(null);
 
-  // Reset hasListened when audioUrl changes
+  // Reset states when audioUrl changes
   useEffect(() => {
-    setHasListened(false);
+    if (audioUrl !== prevAudioUrlRef.current) {
+      setHasListened(false);
+      setAutoPlayTriggered(false);
+      prevAudioUrlRef.current = audioUrl;
+    }
   }, [audioUrl]);
 
   useEffect(() => {
@@ -28,7 +35,19 @@ export default function AudioPlayer({ audioUrl, hostName }: AudioPlayerProps) {
     audioRef.current = audio;
 
     audio.addEventListener('loadstart', () => setIsLoading(true));
-    audio.addEventListener('canplay', () => setIsLoading(false));
+    audio.addEventListener('canplay', () => {
+      setIsLoading(false);
+      // Auto-play when audio is ready and autoPlay is enabled
+      if (autoPlay && !autoPlayTriggered && !hasListened) {
+        setAutoPlayTriggered(true);
+        audio.play().then(() => {
+          setIsPlaying(true);
+          setHasListened(true);
+        }).catch(err => {
+          console.log('Auto-play blocked by browser:', err);
+        });
+      }
+    });
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('timeupdate', () => {
       setProgress((audio.currentTime / audio.duration) * 100);
@@ -42,7 +61,7 @@ export default function AudioPlayer({ audioUrl, hostName }: AudioPlayerProps) {
       audio.pause();
       audio.src = '';
     };
-  }, [audioUrl]);
+  }, [audioUrl, autoPlay, autoPlayTriggered, hasListened]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;

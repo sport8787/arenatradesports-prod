@@ -857,6 +857,7 @@ export default function GameRoom() {
                       <AudioPlayer 
                         audioUrl={gameState.room?.current_audio_url || null}
                         hostName={gameState.currentPlayer?.nickname}
+                        autoPlay={true}
                       />
                       {gameState.currentQuestion.mycroft_risk_level && (
                         <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
