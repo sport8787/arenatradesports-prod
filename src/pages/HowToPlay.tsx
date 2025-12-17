@@ -12,7 +12,10 @@ import {
   Mic,
   BadgeCheck,
   LogOut,
-  Scan
+  Scan,
+  Drama,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import GoldButton from '@/components/game/GoldButton';
 
@@ -31,6 +34,52 @@ const sections = [
           <p className="font-orbitron text-gold font-bold text-lg">
             Seu objetivo final: 1 MILHÃO de BluffCoins
           </p>
+        </div>
+      </div>
+    )
+  },
+  {
+    icon: Drama,
+    title: "OS PAPÉIS",
+    emoji: "🎭",
+    content: (
+      <div className="space-y-4">
+        <div className="p-4 rounded-lg bg-gold/10 border border-gold/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Crown className="w-4 h-4 text-gold" />
+            <span className="font-orbitron text-gold font-bold text-sm">O JOGADOR DA VEZ</span>
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-2">
+            Recebe uma pergunta e a <span className="text-gold font-semibold">resposta secreta</span>. 
+            Deve escolher uma opção e convencer o grupo.
+          </p>
+          <div className="p-2 rounded bg-gold/5 border border-gold/20">
+            <p className="text-gold/80 text-xs italic">
+              💡 Dica: Se não souber, minta. Se souber, fale a verdade (ou finja que está mentindo).
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-lg bg-mycroft-cyan/10 border border-mycroft-cyan/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Scan className="w-4 h-4 text-mycroft-cyan" />
+            <span className="font-orbitron text-mycroft-cyan font-bold text-sm">O JÚRI (DESAFIANTES)</span>
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-3">
+            Ouve a justificativa e vota:
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded bg-success/10 border border-success/30">
+              <CheckCircle className="w-4 h-4 text-success" />
+              <span className="text-success font-semibold text-sm">CLARO (Verde):</span>
+              <span className="text-muted-foreground text-xs">Acredito no Jogador.</span>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 border border-destructive/30">
+              <XCircle className="w-4 h-4 text-destructive" />
+              <span className="text-destructive font-semibold text-sm">BLEFE (Vermelho):</span>
+              <span className="text-muted-foreground text-xs">O Jogador está mentindo.</span>
+            </div>
+          </div>
         </div>
       </div>
     )
