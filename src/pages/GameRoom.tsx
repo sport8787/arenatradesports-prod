@@ -831,33 +831,59 @@ export default function GameRoom() {
                     <p className="text-muted-foreground">Aguardando jogadores...</p>
                   )}
                   
-                  {/* Share Buttons */}
+                  {/* PIN Display */}
                   {isRoomHost && (
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-gold/20 via-gold/10 to-gold/20 border-2 border-gold/50 rounded-xl p-4 text-center">
+                        <p className="text-sm text-muted-foreground mb-1">PIN da Sala</p>
+                        <p className="font-orbitron text-4xl font-black text-gold tracking-widest">{gameState.room?.pin}</p>
+                      </div>
+                      
                       <GoldButton 
-                        variant="outline" 
-                        onClick={shareWhatsApp}
-                        className="bg-[#25D366]/20 border-[#25D366]/50 hover:bg-[#25D366]/30 hover:border-[#25D366]"
+                        onClick={copyPin}
+                        size="lg"
+                        className="w-full text-lg"
                       >
-                        <MessageCircle className="w-5 h-5 mr-2 inline text-[#25D366]" />
-                        Convidar pelo WhatsApp
-                      </GoldButton>
-                      <GoldButton 
-                        variant="outline" 
-                        onClick={copyRoomLink}
-                      >
-                        {linkCopied ? (
+                        {copied ? (
                           <>
-                            <Check className="w-5 h-5 mr-2 inline text-success" />
-                            Link Copiado!
+                            <Check className="w-6 h-6 mr-2 inline text-success" />
+                            PIN Copiado!
                           </>
                         ) : (
                           <>
-                            <Link className="w-5 h-5 mr-2 inline" />
-                            Copiar Link da Sala
+                            <Copy className="w-6 h-6 mr-2 inline" />
+                            Copiar PIN
                           </>
                         )}
                       </GoldButton>
+                      
+                      {/* Share Buttons */}
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <GoldButton 
+                          variant="outline" 
+                          onClick={shareWhatsApp}
+                          className="bg-[#25D366]/20 border-[#25D366]/50 hover:bg-[#25D366]/30 hover:border-[#25D366]"
+                        >
+                          <MessageCircle className="w-5 h-5 mr-2 inline text-[#25D366]" />
+                          Convidar pelo WhatsApp
+                        </GoldButton>
+                        <GoldButton 
+                          variant="outline" 
+                          onClick={copyRoomLink}
+                        >
+                          {linkCopied ? (
+                            <>
+                              <Check className="w-5 h-5 mr-2 inline text-success" />
+                              Link Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Link className="w-5 h-5 mr-2 inline" />
+                              Copiar Link da Sala
+                            </>
+                          )}
+                        </GoldButton>
+                      </div>
                     </div>
                   )}
                 </div>
