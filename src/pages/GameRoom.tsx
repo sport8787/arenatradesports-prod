@@ -638,7 +638,17 @@ export default function GameRoom() {
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
     playReveal();
-    // Update room status to discussion so jury can vote
+    
+    // Round 15 (ALL-IN): Skip discussion/voting, go directly to result
+    if (currentRound === MAX_ROUNDS) {
+      setTimeout(async () => {
+        await updateRoomStatus('result');
+        playChips();
+      }, 1500); // Brief delay for dramatic effect
+      return;
+    }
+    
+    // Normal rounds: Update room status to discussion so jury can vote
     await updateRoomStatus('discussion');
   };
 
@@ -914,6 +924,20 @@ export default function GameRoom() {
                   
                   {isCurrentPlayer && (
                     <div className="space-y-4">
+                      {/* Round 15 ALL-IN indicator */}
+                      {currentRound === MAX_ROUNDS && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="p-4 bg-gradient-to-r from-red-500/20 to-gold/20 border-2 border-red-500/50 rounded-xl text-center"
+                        >
+                          <p className="font-orbitron text-lg text-red-400">⚠️ RODADA ALL-IN</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Sem votação do júri. Acerte para ganhar 1 MILHÃO!
+                          </p>
+                        </motion.div>
+                      )}
+                      
                       {/* Reveal Answer Button */}
                       <GoldButton 
                         onClick={confirmAnswer} 
@@ -936,8 +960,8 @@ export default function GameRoom() {
                         )}
                       </GoldButton>
 
-                      {/* Actions after reveal */}
-                      {confirmedAnswer && (
+                      {/* Actions after reveal - Only show for non-Round-15 */}
+                      {confirmedAnswer && currentRound !== MAX_ROUNDS && (
                         <div className="flex gap-4">
                           <GoldButton 
                             variant="outline" 
@@ -955,11 +979,38 @@ export default function GameRoom() {
                           </GoldButton>
                         </div>
                       )}
+                      
+                      {/* Round 15: Show waiting message after confirming */}
+                      {confirmedAnswer && currentRound === MAX_ROUNDS && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-center py-4"
+                        >
+                          <Loader2 className="w-8 h-8 text-gold animate-spin mx-auto mb-2" />
+                          <p className="text-muted-foreground">Calculando resultado final...</p>
+                        </motion.div>
+                      )}
                     </div>
                   )}
                   
                   {!isCurrentPlayer && (
-                    <WaitingMessage type="answer" />
+                    <div className="space-y-4">
+                      {/* Round 15 ALL-IN indicator for jury */}
+                      {currentRound === MAX_ROUNDS && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="p-4 bg-gradient-to-r from-red-500/20 to-gold/20 border-2 border-red-500/50 rounded-xl text-center"
+                        >
+                          <p className="font-orbitron text-lg text-red-400">⚠️ RODADA ALL-IN</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Sem votação. O host decide sozinho!
+                          </p>
+                        </motion.div>
+                      )}
+                      <WaitingMessage type="answer" />
+                    </div>
                   )}
                 </div>
               )}
