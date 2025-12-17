@@ -11,6 +11,21 @@ interface MycroftPanelProps {
   onClose?: () => void;
 }
 
+const EMOTION_TIPS = [
+  "Fale rindo um pouco, como se fosse óbvio.",
+  "Pareça ofendido por eles duvidarem.",
+  "Fale bem rápido para não dar tempo de pensarem.",
+  "Faça uma pausa dramática antes de responder.",
+  "Olhe nos olhos de cada um enquanto fala.",
+  "Suspire como se a resposta fosse muito fácil.",
+  "Finja estar tentando lembrar os detalhes.",
+  "Aja como professor explicando para crianças.",
+  "Fale baixinho, como se fosse um segredo.",
+  "Gesticule bastante enquanto explica.",
+  "Franzir a testa como se estivesse concentrado.",
+  "Dê de ombros no final, tipo 'é isso aí'.",
+];
+
 export default function MycroftPanel({ question, variant, isVisible, onClose }: MycroftPanelProps) {
   const [riskProgress, setRiskProgress] = useState(0);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
@@ -19,6 +34,7 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
   const [error, setError] = useState<string | null>(null);
   const teleprompterRef = useRef<HTMLDivElement>(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [emotionTip, setEmotionTip] = useState<string>('');
 
   useEffect(() => {
     if (isVisible && variant === 'analytics') {
@@ -42,10 +58,15 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
     return optionMap[question.correct_option] || '';
   };
 
+  const getRandomEmotionTip = () => {
+    return EMOTION_TIPS[Math.floor(Math.random() * EMOTION_TIPS.length)];
+  };
+
   const generateAISuggestion = async () => {
     setIsLoading(true);
     setError(null);
     setAiSuggestion(null);
+    setEmotionTip(getRandomEmotionTip());
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('mycroft-ai', {
@@ -206,6 +227,13 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                       {/* Gradient overlays */}
                       <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/90 to-transparent rounded-t-lg pointer-events-none" />
                       <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-black/90 to-transparent rounded-b-lg pointer-events-none" />
+                    </div>
+                    
+                    {/* Emotion Tip */}
+                    <div className="bg-mycroft-cyan/10 border border-mycroft-cyan/30 rounded-lg px-4 py-3">
+                      <p className="text-sm text-mycroft-cyan italic text-center">
+                        🎭 <span className="font-semibold">Dica:</span> {emotionTip}
+                      </p>
                     </div>
                     
                     <p className="text-xs text-muted-foreground text-center italic">
