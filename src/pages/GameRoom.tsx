@@ -781,7 +781,14 @@ export default function GameRoom() {
     if (nextRoundNum === MAX_ROUNDS) {
       setRound15QuestionId(nextQ?.id || null);
       setShowBriefcaseModal(true);
-      // Don't update room status yet - wait for player choice
+      playSuspense(); // Dramatic suspense sound
+      
+      // Signal to jury that host is deciding on briefcase
+      await supabase
+        .from('rooms')
+        .update({ current_audio_url: 'BRIEFCASE_DECISION' })
+        .eq('id', roomId);
+      
       return;
     }
 
@@ -808,6 +815,12 @@ export default function GameRoom() {
     setBriefcasePrize(prize);
     setAccumulatedPrize(prize);
     playCashRegister();
+    
+    // Clear briefcase decision marker
+    await supabase
+      .from('rooms')
+      .update({ current_audio_url: null })
+      .eq('id', roomId);
     
     // Update ranking with cash out prize
     const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
@@ -1239,8 +1252,75 @@ export default function GameRoom() {
                 </div>
               )}
 
+              {/* BRIEFCASE DECISION - Jury sees this while host decides */}
+              {gameState.room?.current_status === 'result' && gameState.room?.current_audio_url === 'BRIEFCASE_DECISION' && !isRoomHost && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-6 p-8 bg-gradient-to-b from-gold/20 via-gold/10 to-background border-2 border-gold/50 rounded-xl relative overflow-hidden"
+                >
+                  {/* Animated background glow */}
+                  <motion.div
+                    animate={{
+                      opacity: [0.3, 0.6, 0.3],
+                      scale: [1, 1.1, 1],
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(var(--gold)/0.4)_0%,_transparent_70%)]"
+                  />
+                  
+                  <div className="relative z-10 text-center space-y-6">
+                    {/* Animated briefcase */}
+                    <motion.div
+                      animate={{
+                        y: [-5, 5, -5],
+                        rotateY: [0, 10, 0, -10, 0],
+                      }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-32 h-24 mx-auto bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-lg border-4 border-gold/60 flex items-center justify-center relative"
+                    >
+                      <motion.div
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-0 bg-gradient-to-t from-gold/20 to-transparent rounded-lg"
+                      />
+                      <span className="text-4xl">💼</span>
+                    </motion.div>
+
+                    <div className="space-y-2">
+                      <h3 className="font-orbitron text-2xl text-gold">RODADA FINAL</h3>
+                      <p className="text-lg text-foreground font-medium">
+                        O HOST está decidindo sobre a <span className="text-gold">MALETA MISTERIOSA</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Será que ele vai arriscar tudo pela pergunta de 1 Milhão?
+                      </p>
+                    </div>
+
+                    {/* Animated waiting dots */}
+                    <div className="flex items-center justify-center gap-3">
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                        className="w-3 h-3 bg-gold rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }}
+                        className="w-3 h-3 bg-gold rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }}
+                        className="w-3 h-3 bg-gold rounded-full"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {/* RESULT */}
-              {gameState.room?.current_status === 'result' && gameState.currentQuestion && gameState.currentPlayer && (
+              {gameState.room?.current_status === 'result' && gameState.room?.current_audio_url !== 'BRIEFCASE_DECISION' && gameState.currentQuestion && gameState.currentPlayer && (
                 <div className="space-y-6">
                   <ResultsPanel
                     question={gameState.currentQuestion}
