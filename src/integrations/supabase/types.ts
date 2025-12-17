@@ -154,6 +154,7 @@ export type Database = {
       rooms: {
         Row: {
           created_at: string
+          current_audio_url: string | null
           current_player_index: number
           current_question_id: string | null
           current_status: Database["public"]["Enums"]["room_status"]
@@ -163,6 +164,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_audio_url?: string | null
           current_player_index?: number
           current_question_id?: string | null
           current_status?: Database["public"]["Enums"]["room_status"]
@@ -172,6 +174,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_audio_url?: string | null
           current_player_index?: number
           current_question_id?: string | null
           current_status?: Database["public"]["Enums"]["room_status"]
