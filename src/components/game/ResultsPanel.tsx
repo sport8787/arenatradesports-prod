@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Coins, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Check, X, Coins, TrendingUp, TrendingDown, Minus, Shield, Trophy } from 'lucide-react';
 import { Player, Vote, Question } from '@/types/game';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
@@ -20,6 +20,7 @@ interface ResultsPanelProps {
   confirmedAnswer?: 'A' | 'B' | 'C' | 'D' | null;
   onCoinSound?: () => void;
   showCoinAnimation?: boolean;
+  unlockedCard?: 'guaranteed' | 'immunity' | null;
 }
 
 interface PlayerReward {
@@ -45,6 +46,7 @@ export default function ResultsPanel({
   confirmedAnswer,
   onCoinSound,
   showCoinAnimation = true,
+  unlockedCard,
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
@@ -300,7 +302,6 @@ export default function ResultsPanel({
         </div>
       </motion.div>
 
-      {/* Rewards Breakdown */}
       {showRewards && (
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -383,6 +384,74 @@ export default function ResultsPanel({
               );
             })}
           </div>
+
+          {/* Achievement Unlocked Banner */}
+          {unlockedCard && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+              className={cn(
+                'mt-4 p-4 rounded-xl border-2 relative overflow-hidden',
+                unlockedCard === 'immunity' 
+                  ? 'bg-gradient-to-r from-cyan-500/20 via-cyan-400/10 to-cyan-500/20 border-cyan-400/50'
+                  : 'bg-gradient-to-r from-gold/20 via-amber-400/10 to-gold/20 border-gold/50'
+              )}
+            >
+              {/* Animated shine effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+              />
+              
+              <div className="relative z-10 flex items-center gap-4">
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0]
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className={cn(
+                    'w-14 h-14 rounded-full flex items-center justify-center',
+                    unlockedCard === 'immunity' 
+                      ? 'bg-gradient-to-br from-cyan-400 to-cyan-600'
+                      : 'bg-gradient-to-br from-gold to-amber-600'
+                  )}
+                >
+                  {unlockedCard === 'immunity' ? (
+                    <Shield className="w-7 h-7 text-background" fill="currentColor" />
+                  ) : (
+                    <Trophy className="w-7 h-7 text-background" />
+                  )}
+                </motion.div>
+                
+                <div className="flex-1">
+                  <p className={cn(
+                    'text-xs font-medium uppercase tracking-wider',
+                    unlockedCard === 'immunity' ? 'text-cyan-400' : 'text-gold'
+                  )}>
+                    🏆 Conquista Desbloqueada!
+                  </p>
+                  <p className={cn(
+                    'font-orbitron text-lg font-bold',
+                    unlockedCard === 'immunity' ? 'text-cyan-300' : 'text-gold'
+                  )}>
+                    {unlockedCard === 'immunity' 
+                      ? 'CARTA BÔNUS IMUNIDADE' 
+                      : 'CARTA BÔNUS PRÊMIO GARANTIDO'
+                    }
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {unlockedCard === 'immunity' 
+                      ? 'Salva você de 1 eliminação (exceto rodada 15)'
+                      : 'Protege seu prêmio acumulado se for eliminado'
+                    }
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       )}
     </motion.div>

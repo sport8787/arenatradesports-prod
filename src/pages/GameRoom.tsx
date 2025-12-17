@@ -105,6 +105,7 @@ export default function GameRoom() {
   const [safeAmount, setSafeAmount] = useState(0);
   const [showBonusUnlock, setShowBonusUnlock] = useState(false);
   const [showCashOutDialog, setShowCashOutDialog] = useState(false);
+  const [newlyUnlockedCard, setNewlyUnlockedCard] = useState<'guaranteed' | 'immunity' | null>(null);
   const [showMoneyRain, setShowMoneyRain] = useState(false);
   
   // Immunity card state
@@ -267,20 +268,28 @@ export default function GameRoom() {
         
         // Unlock Guaranteed Prize card if host convinced 2+ jury members to vote CLARO
         if (!hasGuaranteedPrize && !playerGotCorrect && believeVotes >= 2) {
+          console.log('[BonusCard] Unlocking Guaranteed Prize card - believeVotes:', believeVotes);
           setHasGuaranteedPrize(true);
           setSafeAmount(newAccumulated);
-          setShowBonusUnlock(true);
-          playCardUnlock(); // Special unlock sound for bonus card
+          setNewlyUnlockedCard('guaranteed');
+          // Delay showing the unlock animation slightly so results panel shows first
+          setTimeout(() => {
+            setShowBonusUnlock(true);
+            playCardUnlock();
+          }, 1500);
         }
         
         // Unlock Immunity card if host convinced 3+ jury members to vote CLARO
         if (!hasImmunityCard && !playerGotCorrect && believeVotes >= 3) {
+          console.log('[BonusCard] Unlocking Immunity card - believeVotes:', believeVotes);
           setHasImmunityCard(true);
+          setNewlyUnlockedCard('immunity');
           // Show immunity unlock after bonus unlock (if both trigger) or immediately
+          const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 5000 : 1500;
           setTimeout(() => {
             setShowImmunityUnlock(true);
-            playShieldActivate(); // Special shield activation sound
-          }, hasGuaranteedPrize ? 0 : 3500);
+            playShieldActivate();
+          }, delay);
         }
         
         // Check if game completed (all 15 rounds)
@@ -660,6 +669,7 @@ export default function GameRoom() {
     setShowAnswer(false);
     setMycroftUsed(false);
     setDetectorUsed(false);
+    setNewlyUnlockedCard(null);
     prevVoteCountRef.current = 0; // Reset vote counter for sound notification
 
     const hostIndex = Math.max(
@@ -983,6 +993,7 @@ export default function GameRoom() {
                     confirmedAnswer={confirmedAnswer}
                     onCoinSound={playCoinDrop}
                     showCoinAnimation={!hostEliminated}
+                    unlockedCard={newlyUnlockedCard}
                   />
                   
                   {hostEliminated && gameState.currentPlayer ? (
