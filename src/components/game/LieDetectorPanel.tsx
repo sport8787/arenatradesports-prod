@@ -1,9 +1,32 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle, Brain } from 'lucide-react';
+import { ScanLine, Loader2, Eye, Zap, UserSearch, AlertTriangle, Brain, AudioWaveform, Volume2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
 import { BluffCoinCost } from './BluffCoinDisplay';
+
+// Animated Waveform Component
+const AnimatedWaveform = () => {
+  return (
+    <div className="flex items-center justify-center gap-0.5 h-16">
+      {[...Array(24)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="w-1 bg-gradient-to-t from-cyan-500 to-amber-400 rounded-full"
+          animate={{
+            height: [8, 20 + Math.random() * 40, 8],
+          }}
+          transition={{
+            duration: 0.4 + Math.random() * 0.3,
+            repeat: Infinity,
+            repeatType: 'reverse',
+            delay: i * 0.05,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
 
 interface LieDetectorPanelProps {
   question: Question;
@@ -166,14 +189,14 @@ export default function LieDetectorPanel({
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                    <UserSearch className="w-6 h-6 text-cyan-400" />
+                    <AudioWaveform className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
                     <h3 className="font-orbitron text-lg font-bold text-cyan-400 uppercase tracking-wider">
-                      Analista FBI
+                      Perito Forense
                     </h3>
                     <p className="text-xs text-cyan-300/60 uppercase tracking-wider">
-                      Behavioral Analysis Unit
+                      Análise Vocal & Linguística
                     </p>
                   </div>
                 </div>
@@ -183,7 +206,7 @@ export default function LieDetectorPanel({
                   <div className="space-y-4">
                     <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                       <p className="text-sm text-slate-300 leading-relaxed">
-                        Ative o Analista para receber uma <span className="text-cyan-400 font-bold">eliminação</span> de resposta incorreta e uma <span className="text-amber-400 font-bold">dica de pressão</span> psicológica.
+                        Ative o Perito para receber uma <span className="text-cyan-400 font-bold">armadilha lógica</span> (eliminação de resposta) e um <span className="text-amber-400 font-bold">alerta forense</span> sobre o áudio.
                       </p>
                     </div>
 
@@ -198,8 +221,8 @@ export default function LieDetectorPanel({
                           : 'bg-slate-700 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      <Zap className="w-5 h-5" />
-                      <span>Ativar Analista</span>
+                      <Volume2 className="w-5 h-5" />
+                      <span>Analisar Áudio</span>
                       <BluffCoinCost amount={cost} className="text-sm" />
                     </motion.button>
 
@@ -216,7 +239,7 @@ export default function LieDetectorPanel({
                     {/* Profile Header */}
                     <div className="flex items-center justify-between">
                       <p className="text-cyan-400 font-orbitron text-xs animate-pulse uppercase tracking-wider">
-                        Construindo Perfil...
+                        Analisando Padrões Vocais...
                       </p>
                       <motion.div
                         className="flex gap-1"
@@ -234,50 +257,27 @@ export default function LieDetectorPanel({
                       </motion.div>
                     </div>
 
-                    {/* Silhouette Scanner */}
-                    <div className="relative flex justify-center py-4">
-                      <div className="relative w-24 h-32">
-                        {/* Head silhouette */}
-                        <motion.div
-                          className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full border-2 border-cyan-500/50 bg-cyan-500/10"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                        />
-                        {/* Body silhouette */}
-                        <motion.div
-                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-t-full border-2 border-b-0 border-cyan-500/50 bg-cyan-500/10"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.4 }}
-                        />
-                        {/* Scan line */}
-                        <motion.div
-                          className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
-                          initial={{ top: 0 }}
-                          animate={{ top: '100%' }}
-                          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        />
-                        {/* Brain activity */}
-                        <motion.div
-                          className="absolute top-3 left-1/2 -translate-x-1/2"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: [0, 1, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <Brain className="w-6 h-6 text-amber-400" />
-                        </motion.div>
-                      </div>
+                    {/* Waveform Animation */}
+                    <div className="relative py-4 bg-slate-800/30 rounded-lg border border-cyan-500/20">
+                      <AnimatedWaveform />
+                      <motion.div
+                        className="absolute bottom-2 left-1/2 -translate-x-1/2"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Volume2 className="w-5 h-5 text-amber-400" />
+                      </motion.div>
                     </div>
 
-                    {/* Profile Data Building */}
+                    {/* Voice Analysis Data */}
                     <div className="space-y-2">
                       {[
-                        { label: 'Padrão de Mentira', delay: 0.3 },
-                        { label: 'Nível de Stress', delay: 0.6 },
-                        { label: 'Microexpressões', delay: 0.9 },
-                        { label: 'Tom de Voz', delay: 1.2 },
-                      ].map((item, i) => (
+                        { label: 'Frequência Vocal', delay: 0.3 },
+                        { label: 'Padrão de Pausa', delay: 0.6 },
+                        { label: 'Nível de Tensão', delay: 0.9 },
+                        { label: 'Coerência Lógica', delay: 1.2 },
+                      ].map((item) => (
                         <motion.div
                           key={item.label}
                           initial={{ opacity: 0, x: -20 }}
@@ -285,7 +285,7 @@ export default function LieDetectorPanel({
                           transition={{ delay: item.delay }}
                           className="flex items-center gap-3"
                         >
-                          <div className="w-24 text-xs text-slate-400 font-mono">
+                          <div className="w-28 text-xs text-slate-400 font-mono">
                             {item.label}
                           </div>
                           <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -316,7 +316,7 @@ export default function LieDetectorPanel({
                       transition={{ delay: 1.5 }}
                     >
                       <p className="text-xs text-amber-400/80 font-mono">
-                        &gt; Cruzando dados comportamentais...
+                        &gt; Processando espectro de frequência...
                       </p>
                       <motion.p
                         className="text-xs text-cyan-400/80 font-mono"
@@ -324,7 +324,7 @@ export default function LieDetectorPanel({
                         animate={{ opacity: 1 }}
                         transition={{ delay: 2 }}
                       >
-                        &gt; Identificando vulnerabilidades...
+                        &gt; Detectando anomalias na fala...
                       </motion.p>
                     </motion.div>
                   </div>
@@ -337,9 +337,9 @@ export default function LieDetectorPanel({
                     className="space-y-4"
                   >
                     <div className="flex items-center gap-2 text-cyan-400">
-                      <AlertTriangle className="w-5 h-5" />
+                      <AudioWaveform className="w-5 h-5" />
                       <span className="text-sm font-orbitron uppercase tracking-wider">
-                        Análise Comportamental
+                        Relatório Forense
                       </span>
                     </div>
 
@@ -350,7 +350,7 @@ export default function LieDetectorPanel({
                     </div>
 
                     <p className="text-xs text-amber-400/70 text-center italic">
-                      "A verdade está nos detalhes que eles tentam esconder."
+                      "A voz não mente. Escute com atenção."
                     </p>
                   </motion.div>
                 )}
@@ -364,7 +364,7 @@ export default function LieDetectorPanel({
                 {hasUsed && !analysis && !isLoading && (
                   <div className="text-center py-4">
                     <p className="text-slate-400 text-sm">
-                      Analista já consultado nesta rodada.
+                      Perito já consultado nesta rodada.
                     </p>
                   </div>
                 )}
