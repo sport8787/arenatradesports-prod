@@ -34,7 +34,7 @@ import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import { Input } from '@/components/ui/input';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
+import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -524,6 +524,13 @@ export default function GameRoom() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const shareWhatsApp = () => {
+    const pin = gameState.room?.pin || '';
+    const message = `🎯 Vem pro O BLEFADOR MILIONÁRIO!\n\n📌 PIN da sala: ${pin}\n\n🔗 Entre pelo app: ${window.location.origin}\n\nAnalise, deduza e conquiste! 💰`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const startGame = async () => {
     if (!roomId || questions.length === 0) return;
     if (!isRoomHost) return;
@@ -774,6 +781,18 @@ export default function GameRoom() {
                   )}
                   {gameState.players.length < 2 && (
                     <p className="text-muted-foreground">Aguardando jogadores...</p>
+                  )}
+                  
+                  {/* WhatsApp Share Button */}
+                  {isRoomHost && (
+                    <GoldButton 
+                      variant="outline" 
+                      onClick={shareWhatsApp}
+                      className="bg-[#25D366]/20 border-[#25D366]/50 hover:bg-[#25D366]/30 hover:border-[#25D366]"
+                    >
+                      <MessageCircle className="w-5 h-5 mr-2 inline text-[#25D366]" />
+                      Convidar pelo WhatsApp
+                    </GoldButton>
                   )}
                 </div>
               )}
