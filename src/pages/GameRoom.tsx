@@ -30,6 +30,8 @@ import ConquestAchievement from '@/components/game/ConquestAchievement';
 import CaughtStamp from '@/components/game/CaughtStamp';
 import AudioRecorder from '@/components/game/AudioRecorder';
 import AudioPlayer from '@/components/game/AudioPlayer';
+import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
+import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import { Input } from '@/components/ui/input';
 import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -103,6 +105,12 @@ export default function GameRoom() {
   const [showBonusUnlock, setShowBonusUnlock] = useState(false);
   const [showCashOutDialog, setShowCashOutDialog] = useState(false);
   const [showMoneyRain, setShowMoneyRain] = useState(false);
+  
+  // Immunity card state
+  const [hasImmunityCard, setHasImmunityCard] = useState(false);
+  const [immunityCardUsed, setImmunityCardUsed] = useState(false);
+  const [showImmunityUnlock, setShowImmunityUnlock] = useState(false);
+  const [showImmunitySaved, setShowImmunitySaved] = useState(false);
   
   // Succession state
   const [showConquest, setShowConquest] = useState(false);
@@ -222,22 +230,31 @@ export default function GameRoom() {
     const shouldEliminate = !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
     
     if (shouldEliminate) {
-      // Check if there are challengers to take over
-      const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
-      
-      if (challengers.length > 0) {
-        // Show dramatic "PEGO NO PULO!" stamp before succession
-        setShowCaughtStamp(true);
-        // Succession will be triggered when stamp animation completes
+      // Check if immunity card can save the player (not on round 15, and card not used yet)
+      if (hasImmunityCard && !immunityCardUsed && currentRound !== MAX_ROUNDS) {
+        // Use immunity card - player is saved!
+        setImmunityCardUsed(true);
+        setShowImmunitySaved(true);
+        playFanfare();
+        // Don't eliminate - player survives this round
       } else {
-        // No challengers - original game over behavior
-        setHostEliminated(true);
-        if (!hasGuaranteedPrize) {
-          setAccumulatedPrize(0);
-          toast({ title: 'ELIMINADO!', description: 'Você perdeu todo o prêmio acumulado.', variant: 'destructive' });
-        } else if (safeAmount > 0) {
-          setAccumulatedPrize(safeAmount);
-          toast({ title: 'ELIMINADO!', description: `Carta Bônus ativada! Você salvou ${safeAmount.toLocaleString()} BluffCoins.` });
+        // Check if there are challengers to take over
+        const challengers = gameState.players.filter(p => p.session_id !== gameState.room?.host_id);
+        
+        if (challengers.length > 0) {
+          // Show dramatic "PEGO NO PULO!" stamp before succession
+          setShowCaughtStamp(true);
+          // Succession will be triggered when stamp animation completes
+        } else {
+          // No challengers - original game over behavior
+          setHostEliminated(true);
+          if (!hasGuaranteedPrize) {
+            setAccumulatedPrize(0);
+            toast({ title: 'ELIMINADO!', description: 'Você perdeu todo o prêmio acumulado.', variant: 'destructive' });
+          } else if (safeAmount > 0) {
+            setAccumulatedPrize(safeAmount);
+            toast({ title: 'ELIMINADO!', description: `Carta Bônus ativada! Você salvou ${safeAmount.toLocaleString()} BluffCoins.` });
+          }
         }
       }
     } else if (playerGotCorrect || believeVotes > 0) {
@@ -252,6 +269,14 @@ export default function GameRoom() {
           setHasGuaranteedPrize(true);
           setSafeAmount(newAccumulated);
           setShowBonusUnlock(true);
+          playFanfare();
+        }
+        
+        // Unlock Immunity card if host convinced 3+ jury members to vote CLARO
+        if (!hasImmunityCard && !playerGotCorrect && believeVotes >= 3) {
+          setHasImmunityCard(true);
+          // Show immunity unlock after bonus unlock (if both trigger) or immediately
+          setTimeout(() => setShowImmunityUnlock(true), hasGuaranteedPrize ? 0 : 3500);
           playFanfare();
         }
         
@@ -417,6 +442,8 @@ export default function GameRoom() {
     setAccumulatedPrize(0);
     setHasGuaranteedPrize(false);
     setSafeAmount(0);
+    setHasImmunityCard(false);
+    setImmunityCardUsed(false);
     setSelectedAnswer(null);
     setConfirmedAnswer(null);
     setShowAnswer(false);
@@ -1065,14 +1092,20 @@ export default function GameRoom() {
                             {currentRound < MAX_ROUNDS ? `Rodada ${currentRound + 1} de ${MAX_ROUNDS}` : 'Ver Resultado Final'}
                           </GoldButton>
                           
-                          {/* Cash Out Button - only show if accumulated something */}
+                          {/* Cash Out Button - only enabled after CARTA BÔNUS PRÊMIO GARANTIDO */}
                           {accumulatedPrize > 0 && currentRound < MAX_ROUNDS && (
                             <button
-                              onClick={() => setShowCashOutDialog(true)}
-                              className="w-full py-3 px-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 rounded-lg text-green-400 font-medium transition-all flex items-center justify-center gap-2"
+                              onClick={() => hasGuaranteedPrize && setShowCashOutDialog(true)}
+                              disabled={!hasGuaranteedPrize}
+                              className={`w-full py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                                hasGuaranteedPrize 
+                                  ? 'bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 text-green-400 cursor-pointer' 
+                                  : 'bg-muted/20 border border-border/30 text-muted-foreground cursor-not-allowed'
+                              }`}
                             >
                               <Banknote className="w-5 h-5" />
                               Cash Out ({accumulatedPrize.toLocaleString()} BC)
+                              {!hasGuaranteedPrize && <Lock className="w-4 h-4 ml-1" />}
                             </button>
                           )}
                         </div>
@@ -1205,6 +1238,18 @@ export default function GameRoom() {
         show={showConquest}
         eliminatedHostName={eliminatedHostName}
         onComplete={() => setShowConquest(false)}
+      />
+
+      {/* Immunity Card Unlock */}
+      <ImmunityCardUnlock
+        show={showImmunityUnlock}
+        onComplete={() => setShowImmunityUnlock(false)}
+      />
+
+      {/* Immunity Saved Overlay */}
+      <ImmunitySavedOverlay
+        show={showImmunitySaved}
+        onComplete={() => setShowImmunitySaved(false)}
       />
     </div>
   );
