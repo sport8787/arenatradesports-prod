@@ -264,6 +264,66 @@ export default function GameRoom() {
     
   }, [gameState.room?.current_status, prevStatus, personaMuted, speakPersona]);
 
+  // Hórus reads the question when question card is revealed (after round_start)
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    const question = gameState.currentQuestion;
+    
+    if (personaMuted) return;
+    if (currentStatus !== 'question' || !question) return;
+    
+    // Wait for round_start to finish, then read the question
+    const readQuestionTimer = setTimeout(() => {
+      const questionText = question.question_text;
+      speakPersona('question_read', questionText);
+    }, 4000); // 4 second delay to let round_start finish
+    
+    return () => clearTimeout(readQuestionTimer);
+  }, [gameState.currentQuestion?.id, gameState.room?.current_status, personaMuted, speakPersona]);
+
+  // Hórus announces result after voting/reveal
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    
+    if (personaMuted) return;
+    if (currentStatus !== 'result') return;
+    if (!confirmedAnswer || !gameState.currentQuestion) return;
+    
+    const playerGotCorrect = confirmedAnswer === gameState.currentQuestion.correct_option;
+    const juryVotes = gameState.votes;
+    const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
+    const doubtVotes = juryVotes.filter(v => v.vote_type === 'doubt').length;
+    const totalJuryVotes = juryVotes.length;
+    
+    // Only announce if we have votes (jury voted)
+    if (totalJuryVotes === 0) return;
+    
+    // Small delay so results panel appears first
+    const announceTimer = setTimeout(() => {
+      if (!playerGotCorrect && doubtVotes === totalJuryVotes) {
+        // Bluff failed - player caught!
+        speakPersona('bluff_fail');
+      } else if (!playerGotCorrect && believeVotes > 0) {
+        // Bluff success!
+        speakPersona('bluff_success');
+      } else if (playerGotCorrect) {
+        // Correct answer
+        speakPersona('correct_answer');
+      }
+    }, 1200);
+    
+    return () => clearTimeout(announceTimer);
+  }, [gameState.room?.current_status, gameState.votes.length, confirmedAnswer, gameState.currentQuestion, personaMuted, speakPersona]);
+
+  // Hórus offers briefcase when modal appears
+  useEffect(() => {
+    if (personaMuted) return;
+    if (!showBriefcaseModal) return;
+    
+    // Speak briefcase offer
+    speakPersona('briefcase_offer');
+  }, [showBriefcaseModal, personaMuted, speakPersona]);
+
   // Process results ONLY when votes are available (separate effect to handle timing)
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
