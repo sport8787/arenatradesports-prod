@@ -77,6 +77,12 @@ export function useDialogManager(): UseDialogManagerReturn {
   }, []);
 
   const speak = useCallback(async (moment: GameMoment, dynamicText?: string) => {
+    // Stop any ongoing speech first
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    
     const config = getDialogConfig(moment);
     const persona = PERSONAS[config.persona];
 
@@ -90,7 +96,10 @@ export function useDialogManager(): UseDialogManagerReturn {
 
     let textToSpeak: string;
 
-    if (config.useLiveAI && dynamicText) {
+    // For question_read moment, always use the provided dynamic text (the question)
+    if (moment === 'question_read' && dynamicText) {
+      textToSpeak = dynamicText;
+    } else if (config.useLiveAI && dynamicText) {
       // Use dynamic AI-generated text for special moments
       textToSpeak = dynamicText;
     } else {

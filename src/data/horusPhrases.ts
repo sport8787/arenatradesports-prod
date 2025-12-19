@@ -12,7 +12,7 @@ export interface HorusPhrase {
 
 // Round start phrases (10)
 const ROUND_START: HorusPhrase[] = [
-  { id: 'rs1', moment: 'round_start', text: 'Que os jogos comecem! Preparem suas melhores mentiras.', emotion: 'dramatic' },
+  { id: 'rs1', moment: 'round_start', text: 'A caçada começou. Jogadores, posicionem suas máscaras. O tribunal está aberto.', emotion: 'dramatic' },
   { id: 'rs2', moment: 'round_start', text: 'Uma nova rodada se inicia. Quem será o mestre do engano desta vez?', emotion: 'dramatic' },
   { id: 'rs3', moment: 'round_start', text: 'Olhos bem abertos, mentes afiadas. É hora de blefar!', emotion: 'excited' },
   { id: 'rs4', moment: 'round_start', text: 'Bem-vindos de volta ao palco das mentiras. Surpreendam-me.', emotion: 'sarcastic' },
@@ -72,12 +72,14 @@ const BLUFF_FAIL: HorusPhrase[] = [
   { id: 'bf8', moment: 'bluff_fail', text: 'Falhou no blefe! Sua atuação não convenceu ninguém!', emotion: 'sarcastic' },
 ];
 
-// Briefcase offer phrases (4)
+// Briefcase offer phrases (6)
 const BRIEFCASE_OFFER: HorusPhrase[] = [
-  { id: 'bo1', moment: 'briefcase_offer', text: 'A maleta misteriosa aparece! O que você vai escolher?', emotion: 'dramatic' },
-  { id: 'bo2', moment: 'briefcase_offer', text: 'Eis a maleta! Fortuna ou desgraça te aguardam lá dentro.', emotion: 'menacing' },
-  { id: 'bo3', moment: 'briefcase_offer', text: 'A maleta chegou! Abrir agora ou arriscar tudo na pergunta?', emotion: 'dramatic' },
-  { id: 'bo4', moment: 'briefcase_offer', text: 'Escolha sabiamente! A maleta ou a glória final?', emotion: 'dramatic' },
+  { id: 'bo1', moment: 'briefcase_offer', text: 'Espere! Antes de arriscar tudo, olhe para esta maleta. Ela tem o peso da segurança. Você prefere a verdade ou o prêmio garantido?', emotion: 'dramatic' },
+  { id: 'bo2', moment: 'briefcase_offer', text: 'A maleta misteriosa aparece! O que você vai escolher?', emotion: 'dramatic' },
+  { id: 'bo3', moment: 'briefcase_offer', text: 'Eis a maleta! Fortuna ou desgraça te aguardam lá dentro.', emotion: 'menacing' },
+  { id: 'bo4', moment: 'briefcase_offer', text: 'A maleta chegou! Abrir agora ou arriscar tudo na pergunta final?', emotion: 'dramatic' },
+  { id: 'bo5', moment: 'briefcase_offer', text: 'A maleta te chama! Aceite a segurança ou enfrente o desconhecido?', emotion: 'menacing' },
+  { id: 'bo6', moment: 'briefcase_offer', text: 'Escolha sabiamente! A maleta ou a glória final?', emotion: 'dramatic' },
 ];
 
 // Elimination phrases (4)
