@@ -39,7 +39,19 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status}`);
+
+      // IMPORTANT: SFX are optional — don't fail the whole app with a 500.
+      // Return 200 + JSON so the client can safely ignore (it checks for audio/* content-type).
+      return new Response(
+        JSON.stringify({
+          error: `ElevenLabs API error: ${response.status}`,
+          detail: errorText,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -54,10 +66,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-sfx function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // Same rationale: don't bubble up a 500 to the frontend for optional SFX.
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
