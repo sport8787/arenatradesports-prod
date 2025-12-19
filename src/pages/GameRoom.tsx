@@ -7,6 +7,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRankings } from '@/hooks/useRankings';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useAuth } from '@/hooks/useAuth';
+import { useDialogManager } from '@/hooks/useDialogManager';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -37,7 +38,8 @@ import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
-import { Play, Copy, Check, Bot, Loader2, Volume2, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
+import PersonaIndicator from '@/components/game/PersonaIndicator';
+import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // BluffCoin costs
@@ -101,6 +103,7 @@ export default function GameRoom() {
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
+  const { state: dialogState, speak: speakPersona, stopSpeaking, getActivePersona } = useDialogManager();
   
   // Guest mode check
   const isGuest = sessionStorage.getItem('guestMode') === 'true';
@@ -156,6 +159,9 @@ export default function GameRoom() {
   const [showCaughtStamp, setShowCaughtStamp] = useState(false);
   const [eliminatedHostName, setEliminatedHostName] = useState('');
   const [successionInProgress, setSuccessionInProgress] = useState(false);
+  
+  // AI persona mute state
+  const [personaMuted, setPersonaMuted] = useState(false);
 
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
@@ -1661,6 +1667,19 @@ export default function GameRoom() {
         show={showBriefcaseReveal}
         prizeAmount={briefcasePrize}
         onContinue={handleBriefcaseRevealComplete}
+      />
+
+      {/* AI Persona Indicator - Hórus & Mycroft */}
+      <PersonaIndicator
+        activePersona={dialogState.activePersona}
+        isSpeaking={dialogState.isSpeaking}
+        isLoading={dialogState.isLoading}
+        currentText={dialogState.currentText}
+        onMute={() => {
+          setPersonaMuted(!personaMuted);
+          if (!personaMuted) stopSpeaking();
+        }}
+        isMuted={personaMuted}
       />
     </div>
   );
