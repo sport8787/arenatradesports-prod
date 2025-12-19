@@ -7,6 +7,7 @@ interface DialogState {
   isSpeaking: boolean;
   currentText: string | null;
   isLoading: boolean;
+  error: string | null;
 }
 
 interface UseDialogManagerReturn {
@@ -22,6 +23,7 @@ export function useDialogManager(): UseDialogManagerReturn {
     isSpeaking: false,
     currentText: null,
     isLoading: false,
+    error: null,
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -56,8 +58,9 @@ export function useDialogManager(): UseDialogManagerReturn {
       );
 
       if (!response.ok) {
-        console.error('TTS request failed:', response.status);
-        return null;
+        const errorData = await response.json().catch(() => ({}));
+        console.error('TTS request failed:', response.status, errorData);
+        throw new Error(errorData.error || `TTS error: ${response.status}`);
       }
 
       const audioBlob = await response.blob();
@@ -82,6 +85,7 @@ export function useDialogManager(): UseDialogManagerReturn {
       activePersona: config.persona,
       isLoading: true,
       isSpeaking: false,
+      error: null,
     }));
 
     let textToSpeak: string;
@@ -123,7 +127,6 @@ export function useDialogManager(): UseDialogManagerReturn {
         setState(prev => ({ 
           ...prev, 
           isSpeaking: false,
-          // Keep persona active for a moment after speaking
         }));
         
         // Clear persona after a delay
@@ -139,17 +142,53 @@ export function useDialogManager(): UseDialogManagerReturn {
 
       audio.onerror = () => {
         console.error('Error playing audio');
-        setState(prev => ({ ...prev, isSpeaking: false, isLoading: false }));
+        setState(prev => ({ 
+          ...prev, 
+          isSpeaking: false, 
+          isLoading: false,
+          error: 'Erro ao reproduzir áudio',
+        }));
       };
 
       try {
         await audio.play();
       } catch (error) {
         console.error('Failed to play audio:', error);
-        setState(prev => ({ ...prev, isSpeaking: false, isLoading: false }));
+        // Fallback: just show the text without audio
+        setState(prev => ({ 
+          ...prev, 
+          isSpeaking: false, 
+          isLoading: false,
+          error: 'Áudio indisponível - mostrando texto',
+        }));
+        
+        // Auto-clear text after 4 seconds (simulating speech duration)
+        setTimeout(() => {
+          setState(prev => ({
+            ...prev,
+            activePersona: null,
+            currentText: null,
+            error: null,
+          }));
+        }, 4000);
       }
     } else {
-      setState(prev => ({ ...prev, isLoading: false }));
+      // TTS failed - show text as fallback without audio
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: 'TTS indisponível - mostrando texto',
+      }));
+      
+      // Auto-clear text after 4 seconds
+      setTimeout(() => {
+        setState(prev => ({
+          ...prev,
+          activePersona: null,
+          currentText: null,
+          error: null,
+        }));
+      }, 4000);
     }
   }, [generateTTS]);
 
@@ -163,6 +202,7 @@ export function useDialogManager(): UseDialogManagerReturn {
       isSpeaking: false,
       currentText: null,
       isLoading: false,
+      error: null,
     });
   }, []);
 

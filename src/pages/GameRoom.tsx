@@ -242,6 +242,28 @@ export default function GameRoom() {
     playFanfare,
   ]);
 
+  // Hórus voice triggers - automatic speech based on game moments
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    
+    // Don't trigger voice if muted
+    if (personaMuted) return;
+    
+    // Only trigger on status changes, not on initial load
+    if (!prevStatus || prevStatus === currentStatus) return;
+    
+    // Round start - when entering question phase from lobby
+    if (currentStatus === 'question' && prevStatus === 'lobby') {
+      speakPersona('round_start');
+    }
+    
+    // New round - when entering question phase from result
+    if (currentStatus === 'question' && prevStatus === 'result') {
+      speakPersona('round_start');
+    }
+    
+  }, [gameState.room?.current_status, prevStatus, personaMuted, speakPersona]);
+
   // Process results ONLY when votes are available (separate effect to handle timing)
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
