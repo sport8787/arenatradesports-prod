@@ -2,13 +2,20 @@
 
 export type PersonaId = 'horus' | 'mycroft';
 
+export interface VoiceSettings {
+  stability: number;
+  similarityBoost: number;
+}
+
 export interface Persona {
   id: PersonaId;
   name: string;
   title: string;
   voiceId: string; // ElevenLabs voice ID
+  voiceSettings: VoiceSettings;
+  systemPrompt: string;
   description: string;
-  icon: 'pharaoh' | 'analyst';
+  icon: 'eye' | 'monocle';
 }
 
 export const PERSONAS: Record<PersonaId, Persona> = {
@@ -16,17 +23,27 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     id: 'horus',
     name: 'HÓRUS',
     title: 'O Apresentador',
-    voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George - deep, authoritative voice
+    voiceId: 'nPczCjzI2devNBz1zQrb', // Brian - deep, authoritative voice (similar to Adan)
+    voiceSettings: {
+      stability: 0.5,
+      similarityBoost: 0.75,
+    },
+    systemPrompt: `Você é o Hórus, o faraó vivo e mestre de cerimônias deste Game Show. Sua missão é entreter e desestabilizar. Use bordões como 'A caçada começou', 'A maleta te chama' ou 'Eu vejo a verdade sob sua máscara'. Seja imponente e sarcástico. Suas falas devem ser teatrais, provocadoras e cheias de personalidade. Você adora criar tensão e drama.`,
     description: 'Imponente e sarcástico. Comanda o palco com carisma.',
-    icon: 'pharaoh',
+    icon: 'eye',
   },
   mycroft: {
     id: 'mycroft',
     name: 'MYCROFT',
     title: 'O Especialista',
-    voiceId: 'onwK4e9ZLuTAKqWW03F9', // Daniel - analytical, calm voice
+    voiceId: 'N2lVS1w4EtoT3dr4eOWO', // Callum - calm, analytical voice (similar to Clyde)
+    voiceSettings: {
+      stability: 0.8,
+      similarityBoost: 0.9,
+    },
+    systemPrompt: `Você é o Mycroft, uma IA analítica especializada em microexpressões e padrões de fraude. Você é frio e direto. Suas frases devem começar com termos como 'Análise concluída', 'Probabilidade calculada' ou 'Desvio de padrão detectado'. Sem emoções, apenas dados. Seja breve e técnico.`,
     description: 'Frio e analítico. Só fala quando há dados a analisar.',
-    icon: 'analyst',
+    icon: 'monocle',
   },
 };
 
@@ -47,7 +64,8 @@ export type GameMoment =
   | 'taunt'
   | 'waiting'
   | 'voting_start'
-  | 'verdict'; // Mycroft's analysis
+  | 'verdict'
+  | 'all_in_temptation'; // Special moment for All-in vs Maleta decision
 
 export interface DialogConfig {
   moment: GameMoment;
@@ -64,6 +82,7 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'bluff_success', persona: 'horus', useLiveAI: false },
   { moment: 'bluff_fail', persona: 'horus', useLiveAI: false },
   { moment: 'all_in', persona: 'horus', useLiveAI: true }, // Live AI for dramatic moment
+  { moment: 'all_in_temptation', persona: 'horus', useLiveAI: true }, // Live AI for temptation
   { moment: 'briefcase_offer', persona: 'horus', useLiveAI: false },
   { moment: 'briefcase_open', persona: 'horus', useLiveAI: false },
   { moment: 'briefcase_refuse', persona: 'horus', useLiveAI: false },
@@ -81,4 +100,9 @@ export function getDialogConfig(moment: GameMoment): DialogConfig {
 
 export function getPersona(id: PersonaId): Persona {
   return PERSONAS[id];
+}
+
+// Generate temptation phrase for All-in vs Maleta decision
+export function generateTemptationContext(playerName: string, currentScore: number, briefcaseValue: number): string {
+  return `O jogador ${playerName} está com ${currentScore} pontos. A maleta oferece ${briefcaseValue} pontos garantidos. Gere uma frase de tentação questionando se o jogador prefere a segurança da maleta ou o risco do All-in. Seja teatral e provocador.`;
 }

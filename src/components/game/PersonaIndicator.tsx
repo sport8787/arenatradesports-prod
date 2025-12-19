@@ -2,31 +2,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { PersonaId, PERSONAS } from '@/types/personas';
 
-// Pharaoh icon for Hórus
-const PharaohIcon = ({ className }: { className?: string }) => (
+// Eye of Hórus icon
+const EyeOfHorusIcon = ({ className }: { className?: string }) => (
   <svg 
     viewBox="0 0 24 24" 
     fill="currentColor" 
     className={className}
   >
-    <path d="M12 2L4 6v2h16V6L12 2zM4 10v8c0 2.21 3.58 4 8 4s8-1.79 8-4v-8H4zm8 10c-3.31 0-6-1.34-6-3v-5h12v5c0 1.66-2.69 3-6 3z"/>
-    <path d="M12 4l5 2.5H7L12 4z"/>
-    <circle cx="9" cy="14" r="1.5"/>
-    <circle cx="15" cy="14" r="1.5"/>
+    {/* Eye of Horus - Egyptian style */}
+    <path d="M12 4C7 4 2.73 7.11 1 11.5 2.73 15.89 7 19 12 19s9.27-3.11 11-7.5C21.27 7.11 17 4 12 4zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+    <circle cx="12" cy="11.5" r="2.5"/>
+    {/* Decorative lines below (Egyptian style) */}
+    <path d="M8 17l-3 4M12 18v3M16 17l3 4" strokeWidth="1.5" stroke="currentColor" fill="none"/>
   </svg>
 );
 
-// Analyst icon for Mycroft
-const AnalystIcon = ({ className }: { className?: string }) => (
+// Monocle icon for Mycroft
+const MonocleIcon = ({ className }: { className?: string }) => (
   <svg 
     viewBox="0 0 24 24" 
     fill="currentColor" 
     className={className}
   >
-    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-    <path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
-    <circle cx="12" cy="6" r="1"/>
-    <path d="M10 8h4v1h-4z"/>
+    {/* Monocle lens */}
+    <circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="12" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="1"/>
+    {/* Chain/cord */}
+    <path d="M18 10c1.5 0 3 1 3 3v6" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+    {/* Reflection */}
+    <path d="M9 8l1.5 1.5" stroke="currentColor" strokeWidth="1" fill="none"/>
   </svg>
 );
 
@@ -68,10 +72,10 @@ export default function PersonaIndicator({
           transition={{ repeat: Infinity, duration: 1.5 }}
         >
           <div className={`
-            w-8 h-8 rounded-full flex items-center justify-center
-            ${activePersona === 'horus' ? 'bg-amber-500/30' : 'bg-muted/30'}
+            w-10 h-10 rounded-full flex items-center justify-center
+            ${activePersona === 'horus' ? 'bg-amber-500/30 ring-2 ring-amber-400/50' : 'bg-muted/30'}
           `}>
-            <PharaohIcon className={`w-5 h-5 ${activePersona === 'horus' ? 'text-amber-400' : 'text-muted-foreground'}`} />
+            <EyeOfHorusIcon className={`w-6 h-6 ${activePersona === 'horus' ? 'text-amber-400' : 'text-muted-foreground'}`} />
           </div>
           <div className="flex flex-col">
             <span className={`text-xs font-bold ${activePersona === 'horus' ? 'text-amber-400' : 'text-muted-foreground'}`}>
@@ -120,10 +124,10 @@ export default function PersonaIndicator({
           transition={{ repeat: Infinity, duration: 1.5 }}
         >
           <div className={`
-            w-8 h-8 rounded-full flex items-center justify-center
-            ${activePersona === 'mycroft' ? 'bg-mycroft-green/30' : 'bg-muted/30'}
+            w-10 h-10 rounded-full flex items-center justify-center
+            ${activePersona === 'mycroft' ? 'bg-mycroft-green/30 ring-2 ring-mycroft-green/50' : 'bg-muted/30'}
           `}>
-            <AnalystIcon className={`w-5 h-5 ${activePersona === 'mycroft' ? 'text-mycroft-green' : 'text-muted-foreground'}`} />
+            <MonocleIcon className={`w-6 h-6 ${activePersona === 'mycroft' ? 'text-mycroft-green' : 'text-muted-foreground'}`} />
           </div>
           <div className="flex flex-col">
             <span className={`text-xs font-bold ${activePersona === 'mycroft' ? 'text-mycroft-green' : 'text-muted-foreground'}`}>
