@@ -27,8 +27,9 @@ export function useDialogManager(): UseDialogManagerReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCache = useRef<Map<string, string>>(new Map());
 
-  const generateTTS = useCallback(async (text: string, voiceId: string): Promise<string | null> => {
-    const cacheKey = `${voiceId}:${text}`;
+  const generateTTS = useCallback(async (text: string, personaId: PersonaId): Promise<string | null> => {
+    const persona = PERSONAS[personaId];
+    const cacheKey = `${persona.voiceId}:${text}`;
     
     // Check cache first
     if (audioCache.current.has(cacheKey)) {
@@ -47,9 +48,9 @@ export function useDialogManager(): UseDialogManagerReturn {
           },
           body: JSON.stringify({ 
             text, 
-            voiceId,
-            stability: voiceId === PERSONAS.mycroft.voiceId ? 0.7 : 0.5, // Mycroft more stable
-            similarityBoost: 0.75,
+            voiceId: persona.voiceId,
+            stability: persona.voiceSettings.stability,
+            similarityBoost: persona.voiceSettings.similarityBoost,
           }),
         }
       );
@@ -101,8 +102,8 @@ export function useDialogManager(): UseDialogManagerReturn {
 
     setState(prev => ({ ...prev, currentText: textToSpeak }));
 
-    // Generate and play TTS
-    const audioUrl = await generateTTS(textToSpeak, persona.voiceId);
+    // Generate and play TTS using persona settings
+    const audioUrl = await generateTTS(textToSpeak, config.persona);
 
     if (audioUrl) {
       // Stop any current audio
