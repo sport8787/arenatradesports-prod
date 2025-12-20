@@ -42,14 +42,21 @@ export function useAudioSync({
 
   // Schedule audio to play at a specific time
   const scheduleAudioPlay = useCallback((audioUrl: string, playAt: number, text: string) => {
+    // CRITICAL: Never play audio if not allowed (presencial mode non-host)
+    if (!canPlayAudio) {
+      console.log('[AudioSync] Audio blocked - presencial mode, not host');
+      return;
+    }
+
     const now = Date.now();
     const delay = Math.max(0, playAt - now);
 
     console.log('[AudioSync] Scheduling audio play in', delay, 'ms');
 
     setTimeout(() => {
+      // Double-check permission before playing
       if (!canPlayAudio) {
-        console.log('[AudioSync] Cannot play audio (mode restriction)');
+        console.log('[AudioSync] Audio blocked at play time - permission changed');
         return;
       }
 

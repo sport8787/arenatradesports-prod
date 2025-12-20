@@ -46,65 +46,150 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   const audioCache = useRef<Map<string, string>>(new Map());
   const queueRef = useRef<QueueItem[]>([]);
   const isProcessingRef = useRef(false);
+  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const MAX_RETRIES = 2;
 
-  const generateTTS = useCallback(async (text: string, personaId: PersonaId): Promise<string | null> => {
-    const persona = PERSONAS[personaId];
-    const cacheKey = `${persona.voiceId}:${text}`;
-    
-    if (audioCache.current.has(cacheKey)) {
-      return audioCache.current.get(cacheKey)!;
-    }
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ 
-            text, 
-            voiceId: persona.voiceId,
-            stability: persona.voiceSettings.stability,
-            similarityBoost: persona.voiceSettings.similarityBoost,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`TTS error: ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      audioCache.current.set(cacheKey, audioUrl);
-      return audioUrl;
-    } catch (error) {
-      console.error('Error generating TTS:', error);
-      return null;
+  // Clear old cache entries to prevent stale audio
+  const clearOldCache = useCallback(() => {
+    const maxCacheSize = 20;
+    if (audioCache.current.size > maxCacheSize) {
+      const entries = Array.from(audioCache.current.entries());
+      const toRemove = entries.slice(0, entries.length - maxCacheSize);
+      toRemove.forEach(([key, url]) => {
+        URL.revokeObjectURL(url);
+        audioCache.current.delete(key);
+      });
+      console.log('[DialogManager] Cleared', toRemove.length, 'old cache entries');
     }
   }, []);
 
-  // Play audio locally
-  const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {
-    if (audioRef.current) audioRef.current.pause();
+  const generateTTS = useCallback(async (text: string, personaId: PersonaId, forceRefresh = false): Promise<string | null> => {
+    const persona = PERSONAS[personaId];
+    const cacheKey = `${persona.voiceId}:${text}`;
     
-    const audio = new Audio(audioUrl);
+    // Force refresh clears the cache entry
+    if (forceRefresh && audioCache.current.has(cacheKey)) {
+      const oldUrl = audioCache.current.get(cacheKey)!;
+      URL.revokeObjectURL(oldUrl);
+      audioCache.current.delete(cacheKey);
+      console.log('[DialogManager] Force refreshed cache for:', cacheKey.substring(0, 50));
+    }
+    
+    if (audioCache.current.has(cacheKey)) {
+      console.log('[DialogManager] Using cached audio for:', cacheKey.substring(0, 50));
+      return audioCache.current.get(cacheKey)!;
+    }
+
+    // Clear old cache before adding new entries
+    clearOldCache();
+
+    const attemptFetch = async (attempt: number): Promise<string | null> => {
+      try {
+        console.log('[DialogManager] Generating TTS (attempt', attempt + 1, '):', text.substring(0, 50));
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ 
+              text, 
+              voiceId: persona.voiceId,
+              stability: persona.voiceSettings.stability,
+              similarityBoost: persona.voiceSettings.similarityBoost,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`TTS error: ${response.status} ${response.statusText}`);
+        }
+
+        const audioBlob = await response.blob();
+        
+        if (audioBlob.size === 0) {
+          throw new Error('Empty audio blob received');
+        }
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioCache.current.set(cacheKey, audioUrl);
+        console.log('[DialogManager] TTS generated successfully:', audioBlob.size, 'bytes');
+        return audioUrl;
+      } catch (error) {
+        console.error('[DialogManager] TTS error (attempt', attempt + 1, '):', error);
+        
+        if (attempt < MAX_RETRIES) {
+          console.log('[DialogManager] Retrying in 1 second...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return attemptFetch(attempt + 1);
+        }
+        
+        console.error('[DialogManager] TTS failed after', MAX_RETRIES + 1, 'attempts');
+        setState(prev => ({ ...prev, error: `Erro ao gerar áudio: ${error}` }));
+        return null;
+      }
+    };
+
+    return attemptFetch(0);
+  }, [clearOldCache]);
+
+  // Play audio locally with proper loading wait
+  const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {
+    // Stop any current audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current = null;
+    }
+    
+    const audio = new Audio();
     audioRef.current = audio;
     
-    audio.onplay = () => setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
-    audio.onended = onEnded;
-    audio.onerror = onEnded;
+    // Set up event handlers before loading
+    audio.onplay = () => {
+      console.log('[DialogManager] Audio started playing');
+      setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
+    };
     
-    try {
-      await audio.play();
-    } catch {
-      // Fallback: wait then continue
-      setTimeout(onEnded, 4000);
-    }
+    audio.onended = () => {
+      console.log('[DialogManager] Audio ended naturally');
+      onEnded();
+    };
+    
+    audio.onerror = (e) => {
+      console.error('[DialogManager] Audio playback error:', e);
+      setState(prev => ({ ...prev, error: 'Erro ao reproduzir áudio' }));
+      onEnded();
+    };
+
+    // Wait for audio to be fully loaded before playing
+    audio.oncanplaythrough = async () => {
+      console.log('[DialogManager] Audio ready to play, duration:', audio.duration);
+      try {
+        await audio.play();
+      } catch (err) {
+        console.error('[DialogManager] Play failed:', err);
+        // Fallback: wait based on expected duration then continue
+        setTimeout(onEnded, 4000);
+      }
+    };
+
+    // Set source and start loading
+    audio.src = audioUrl;
+    audio.load();
+    
+    // Timeout fallback in case loading takes too long
+    setTimeout(() => {
+      if (!audio.currentTime && audio.readyState < 3) {
+        console.warn('[DialogManager] Audio loading timeout, forcing continue');
+        onEnded();
+      }
+    }, 15000);
   }, []);
 
   const processQueue = useCallback(async () => {
