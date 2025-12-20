@@ -62,14 +62,20 @@ export default function QuestionCard({
   const isWrong = (key: string) => showCorrectAnswer && confirmedAnswer === key && key !== question.correct_option;
   const isPlayerChoice = (key: string) => confirmedAnswer === key;
 
-  // Trigger narration when question changes
+  // Handle question changes and animations
   useEffect(() => {
-    if (!autoNarrate || hasNarrated) return;
-
-    // Start category animation
+    // Reset states for new question
+    setHasNarrated(false);
     setShowCategory(true);
     setShowQuestion(false);
     setShowOptions(false);
+
+    if (!autoNarrate) {
+      // If not auto-narrating, show everything immediately
+      setShowQuestion(true);
+      setShowOptions(true);
+      return;
+    }
 
     // Start narration in sync with category display
     const narrateTimer = setTimeout(() => {
@@ -91,23 +97,9 @@ export default function QuestionCard({
       clearTimeout(narrateTimer);
       clearTimeout(questionTimer);
       clearTimeout(optionsTimer);
-    };
-  }, [question.id, autoNarrate, narrateQuestion, hasNarrated]);
-
-  // Reset state when question changes
-  useEffect(() => {
-    setHasNarrated(false);
-    setShowCategory(true);
-    setShowQuestion(false);
-    setShowOptions(false);
-  }, [question.id]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
       stopNarration();
     };
-  }, [stopNarration]);
+  }, [question.id, autoNarrate, narrateQuestion, stopNarration]);
 
   return (
     <motion.div
