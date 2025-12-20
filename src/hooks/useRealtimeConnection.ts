@@ -51,6 +51,13 @@ export function useRealtimeConnection({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const onMessageRef = useRef(onMessage);
+  
+  // Keep onMessage ref updated
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   const cleanup = useCallback(() => {
     if (retryTimeoutRef.current) {
@@ -66,6 +73,7 @@ export function useRealtimeConnection({
 
   const connect = useCallback(() => {
     if (isUnmountedRef.current || !enabled) return;
+    if (subscriptions.length === 0) return;
 
     cleanup();
 
@@ -86,7 +94,7 @@ export function useRealtimeConnection({
 
       channel = channel.on('postgres_changes', config, (payload) => {
         console.log(`[Realtime] ${table} change:`, payload.eventType);
-        onMessage(payload);
+        onMessageRef.current(payload);
       });
     });
 
@@ -98,6 +106,7 @@ export function useRealtimeConnection({
       console.log(`[Realtime] Channel ${channelName} status: ${status}`, err || '');
 
       if (status === 'SUBSCRIBED') {
+        retryCountRef.current = 0;
         setConnectionState({
           isConnected: true,
           isReconnecting: false,
@@ -108,31 +117,29 @@ export function useRealtimeConnection({
         const errorMessage = err?.message || status;
         console.error(`[Realtime] Connection error: ${errorMessage}`);
         
-        setConnectionState((prev) => ({
+        const currentRetry = retryCountRef.current;
+        retryCountRef.current = currentRetry + 1;
+        
+        setConnectionState({
           isConnected: false,
-          isReconnecting: true,
-          retryCount: prev.retryCount + 1,
+          isReconnecting: currentRetry < MAX_RETRIES,
+          retryCount: currentRetry + 1,
           lastError: errorMessage,
-        }));
+        });
 
         // Schedule retry with exponential backoff
-        const currentRetryCount = connectionState.retryCount;
-        if (currentRetryCount < MAX_RETRIES) {
-          const delay = getBackoffDelay(currentRetryCount);
-          console.log(`[Realtime] Scheduling retry #${currentRetryCount + 1} in ${Math.round(delay)}ms`);
+        if (currentRetry < MAX_RETRIES) {
+          const delay = getBackoffDelay(currentRetry);
+          console.log(`[Realtime] Scheduling retry #${currentRetry + 1} in ${Math.round(delay)}ms`);
           
           retryTimeoutRef.current = setTimeout(() => {
             if (!isUnmountedRef.current) {
-              console.log(`[Realtime] Attempting reconnection #${currentRetryCount + 1}`);
+              console.log(`[Realtime] Attempting reconnection #${currentRetry + 1}`);
               connect();
             }
           }, delay);
         } else {
           console.error(`[Realtime] Max retries (${MAX_RETRIES}) reached. Giving up.`);
-          setConnectionState((prev) => ({
-            ...prev,
-            isReconnecting: false,
-          }));
         }
       } else if (status === 'CLOSED') {
         setConnectionState((prev) => ({
@@ -141,11 +148,12 @@ export function useRealtimeConnection({
         }));
       }
     });
-  }, [channelName, subscriptions, onMessage, enabled, cleanup, connectionState.retryCount]);
+  }, [channelName, subscriptions, enabled, cleanup]);
 
   // Manual reconnect function
   const reconnect = useCallback(() => {
     console.log('[Realtime] Manual reconnection requested');
+    retryCountRef.current = 0;
     setConnectionState({
       isConnected: false,
       isReconnecting: true,
@@ -157,8 +165,9 @@ export function useRealtimeConnection({
 
   useEffect(() => {
     isUnmountedRef.current = false;
+    retryCountRef.current = 0;
 
-    if (enabled) {
+    if (enabled && subscriptions.length > 0) {
       connect();
     }
 
@@ -166,7 +175,7 @@ export function useRealtimeConnection({
       isUnmountedRef.current = true;
       cleanup();
     };
-  }, [enabled, connect, cleanup]);
+  }, [enabled, channelName]); // Only depend on enabled and channelName, not connect/cleanup
 
   return {
     ...connectionState,
