@@ -310,6 +310,19 @@ export default function GameRoom() {
     if (currentStatus === 'result') {
       playReveal();
       setTimeout(() => playFanfare(), 800);
+      
+      // All-in round (15): Hórus speaks based on result
+      if (currentRound === MAX_ROUNDS && isRoomHost && canPlayAudio && !personaMuted) {
+        const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
+        setTimeout(() => {
+          if (playerGotCorrect) {
+            speakPersona('victory');
+          } else {
+            // Player lost on All-in - speak the regret phrase
+            speakPersona('all_in_loss');
+          }
+        }, 1500);
+      }
     }
 
     setPrevStatus(currentStatus);
@@ -320,6 +333,13 @@ export default function GameRoom() {
     playSuspense,
     playReveal,
     playFanfare,
+    currentRound,
+    isRoomHost,
+    canPlayAudio,
+    personaMuted,
+    confirmedAnswer,
+    gameState.currentQuestion?.correct_option,
+    speakPersona,
   ]);
 
   // Hórus voice triggers - automatic speech based on game moments
@@ -1734,8 +1754,9 @@ export default function GameRoom() {
                     wasBluffSuccessful={confirmedAnswer !== gameState.currentQuestion?.correct_option && gameState.votes.filter(v => v.vote_type === 'believe').length > 0}
                     confirmedAnswer={confirmedAnswer}
                     onCoinSound={playCoinDrop}
-                    showCoinAnimation={!hostEliminated}
+                    showCoinAnimation={!hostEliminated && !(currentRound === MAX_ROUNDS && confirmedAnswer !== gameState.currentQuestion?.correct_option)}
                     unlockedCard={newlyUnlockedCard}
+                    isAllInRound={currentRound === MAX_ROUNDS}
                   />
                   
                   {hostEliminated && gameState.currentPlayer ? (

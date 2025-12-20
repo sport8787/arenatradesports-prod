@@ -56,6 +56,7 @@ export type GameMoment =
   | 'bluff_success'
   | 'bluff_fail'
   | 'all_in'
+  | 'all_in_loss' // Player lost on All-in round
   | 'briefcase_offer'
   | 'briefcase_open'
   | 'briefcase_refuse'
@@ -66,10 +67,10 @@ export type GameMoment =
   | 'voting_start'
   | 'verdict'
   | 'all_in_temptation' // Special moment for All-in vs Maleta decision
-  | 'bribe_offer' // Hórus bribe attempt after Mycroft verdict
+  | 'bribe_offer' // Hórus offer after Mycroft verdict
   | 'special_challenge' // Desafios especiais de alto risco
   | 'jury_deliberation' // Quando o júri está votando
-  | 'post_vote_bribe' // Suborno após votação, antes do resultado
+  | 'post_vote_bribe' // Oferta após votação, antes do resultado
   | 'comeback' // Jogador se recuperando
   | 'streak' // Sequência de vitórias
   | 'cash_out'; // Quando o jogador aceita sair com o prêmio
@@ -89,6 +90,7 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'bluff_success', persona: 'horus', useLiveAI: false },
   { moment: 'bluff_fail', persona: 'horus', useLiveAI: false },
   { moment: 'all_in', persona: 'horus', useLiveAI: true }, // Live AI for dramatic moment
+  { moment: 'all_in_loss', persona: 'horus', useLiveAI: false }, // Pre-recorded loss phrases
   { moment: 'all_in_temptation', persona: 'horus', useLiveAI: true }, // Live AI for temptation
   { moment: 'briefcase_offer', persona: 'horus', useLiveAI: false },
   { moment: 'briefcase_open', persona: 'horus', useLiveAI: false },
@@ -99,7 +101,7 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'waiting', persona: 'horus', useLiveAI: false },
   { moment: 'voting_start', persona: 'horus', useLiveAI: false },
   { moment: 'verdict', persona: 'mycroft', useLiveAI: true }, // Live AI for analysis
-  { moment: 'bribe_offer', persona: 'horus', useLiveAI: false }, // Pre-recorded bribe phrases
+  { moment: 'bribe_offer', persona: 'horus', useLiveAI: false }, // Pre-recorded offer phrases
   { moment: 'special_challenge', persona: 'horus', useLiveAI: false },
   { moment: 'jury_deliberation', persona: 'horus', useLiveAI: false },
   { moment: 'post_vote_bribe', persona: 'horus', useLiveAI: false },

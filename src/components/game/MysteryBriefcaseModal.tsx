@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, HelpCircle, Eye, Sparkles } from 'lucide-react';
+import { Briefcase, HelpCircle, Sparkles, Zap } from 'lucide-react';
 import GoldButton from './GoldButton';
 
 interface MysteryBriefcaseModalProps {
@@ -140,15 +140,28 @@ export default function MysteryBriefcaseModal({ show, onOpenBriefcase, onRefuse 
                   ABRIR A MALETA E PARAR
                 </GoldButton>
 
-                <GoldButton
-                  variant="outline"
-                  onClick={onRefuse}
-                  className="w-full border-destructive/50 hover:bg-destructive/20"
-                  size="lg"
+                {/* ALL-IN Button - Large, gold, pulsing */}
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.02, 1],
+                    boxShadow: [
+                      '0 0 20px hsl(var(--gold)/0.3)',
+                      '0 0 40px hsl(var(--gold)/0.6)',
+                      '0 0 20px hsl(var(--gold)/0.3)',
+                    ],
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="rounded-xl"
                 >
-                  <Eye className="w-5 h-5 mr-2" />
-                  RECUSAR E VER A PERGUNTA
-                </GoldButton>
+                  <GoldButton
+                    onClick={onRefuse}
+                    className="w-full bg-gradient-to-r from-gold via-amber-400 to-gold text-background hover:from-amber-400 hover:via-gold hover:to-amber-400 border-2 border-gold shadow-[0_0_30px_hsl(var(--gold)/0.5)]"
+                    size="lg"
+                  >
+                    <Zap className="w-6 h-6 mr-2" />
+                    <span className="font-orbitron text-lg font-bold tracking-wider">EU VOU ALL-IN!</span>
+                  </GoldButton>
+                </motion.div>
               </motion.div>
 
               {/* Warning */}
@@ -156,9 +169,9 @@ export default function MysteryBriefcaseModal({ show, onOpenBriefcase, onRefuse 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1 }}
-                className="text-xs text-center text-muted-foreground"
+                className="text-xs text-center text-destructive/80 font-medium"
               >
-                ⚠️ Na Rodada 15, errar a pergunta significa perder tudo (ou cair para o seguro).
+                ⚠️ ATENÇÃO: Errar a pergunta significa perder TUDO!
               </motion.p>
             </div>
           </motion.div>

@@ -21,6 +21,7 @@ interface ResultsPanelProps {
   onCoinSound?: () => void;
   showCoinAnimation?: boolean;
   unlockedCard?: 'guaranteed' | 'immunity' | null;
+  isAllInRound?: boolean; // Round 15 - no bluff, just right or wrong
 }
 
 interface PlayerReward {
@@ -47,6 +48,7 @@ export default function ResultsPanel({
   onCoinSound,
   showCoinAnimation = true,
   unlockedCard,
+  isAllInRound = false,
 }: ResultsPanelProps) {
   const [showCoins, setShowCoins] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
@@ -83,6 +85,10 @@ export default function ResultsPanel({
         hostReward = HOST_WRONG_PARTIAL_BLUFF;
         hostReason = 'Blefe parcial';
       }
+    } else if (isAllInRound) {
+      // All-in round: player lost, show zero
+      hostReward = 0;
+      hostReason = 'Você errou a pergunta';
     } else {
       hostReason = 'Blefe descoberto';
     }
@@ -272,18 +278,22 @@ export default function ResultsPanel({
           <h4 className="font-orbitron text-xl">
             {playerGotCorrect 
               ? 'Parabéns! Você Acertou!' 
-              : wasBluffSuccessful 
-                ? 'Blefe Bem-Sucedido!' 
-                : 'Blefe Descoberto!'
+              : isAllInRound
+                ? 'Poxa, que pena! Você errou a pergunta'
+                : wasBluffSuccessful 
+                  ? 'Blefe Bem-Sucedido!' 
+                  : 'Blefe Descoberto!'
             }
           </h4>
         </div>
         <p className="text-muted-foreground">
           {playerGotCorrect 
             ? `${currentPlayer.nickname} respondeu corretamente!`
-            : wasBluffSuccessful 
-              ? `${currentPlayer.nickname} enganou ${believers.length} jogador(es)!`
-              : `${doubters.length} jogador(es) descobriram a mentira!`
+            : isAllInRound
+              ? 'Você deveria ter aceitado a Maleta Misteriosa...'
+              : wasBluffSuccessful 
+                ? `${currentPlayer.nickname} enganou ${believers.length} jogador(es)!`
+                : `${doubters.length} jogador(es) descobriram a mentira!`
           }
         </p>
       </motion.div>
