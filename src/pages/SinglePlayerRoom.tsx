@@ -6,6 +6,7 @@ import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useHorusNarration, HORUS_CLIMAX_PHRASES } from '@/hooks/useHorusNarration';
+import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -158,6 +159,9 @@ export default function SinglePlayerRoom() {
 
   const sessionId = getOrCreateSessionId();
 
+  // Question audio preloader for upcoming questions
+  const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: true, preloadCount: 3 });
+
   // Preload sounds
   useEffect(() => {
     preloadSounds();
@@ -245,6 +249,10 @@ export default function SinglePlayerRoom() {
     setBotVotes([]);
     setAiTaunt(null);
     setAnalyzingProgress(0);
+
+    // Preload audio for upcoming questions in background (fire and forget)
+    // Pass empty set since getNextQuestion already filters used questions
+    preloadUpcomingQuestions(questions, new Set(), nextRound);
   };
 
   const confirmAnswer = () => {
