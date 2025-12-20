@@ -93,10 +93,10 @@ export default function HorusPostVoteBribe({
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="font-orbitron text-2xl text-destructive font-bold"
                 >
-                  ⚠️ SEU DESTINO JÁ ESTÁ SELADO! ⚠️
+                  ⚠️ O JÚRI JÁ VOTOU! ⚠️
                 </motion.div>
                 <p className="text-sm text-muted-foreground italic">
-                  O júri já votou. Mas o Hórus tem uma proposta...
+                  Seu destino foi selado. Mas o Hórus tem uma proposta...
                 </p>
               </div>
 
@@ -202,7 +202,7 @@ export default function HorusPostVoteBribe({
                 }`}
               >
                 <p className="text-sm text-muted-foreground mb-1">
-                  {isAllIn ? 'Proposta de Desistência' : 'Desistência Inteligente'}
+                  {isAllIn ? 'Pacto de Cavalheiros' : 'Desistência Honrosa'}
                 </p>
                 {hasExactValue ? (
                   <>
