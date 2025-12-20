@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useHorusNarration, HORUS_CLIMAX_PHRASES } from '@/hooks/useHorusNarration';
 import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
+import { useDialogManager } from '@/hooks/useDialogManager';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -149,13 +150,26 @@ export default function SinglePlayerRoom() {
     shouldEliminate: boolean;
   } | null>(null);
 
-  // Horus narration hook with caching
+  // Horus narration hook with caching (for climax moments)
   const horusNarration = useHorusNarration({
     enabled: true,
     onNarrationEnd: () => {
       console.log('[SinglePlayerRoom] Horus narration ended');
     },
   });
+
+  // Dialog manager for round_start and question_read narration
+  const { 
+    speak: speakPersona, 
+    stopSpeaking, 
+    clearQueue,
+  } = useDialogManager({
+    canPlayAudio: true,
+    gameMode: 'single',
+  });
+
+  // Track previous gamePhase for voice triggers
+  const prevGamePhaseRef = useRef<GamePhase | null>(null);
 
   const sessionId = getOrCreateSessionId();
 
@@ -171,15 +185,37 @@ export default function SinglePlayerRoom() {
   useEffect(() => {
     return () => {
       horusNarration.stopNarration();
+      stopSpeaking();
     };
-  }, [horusNarration]);
+  }, [horusNarration, stopSpeaking]);
 
-  // Redirect to auth if not authenticated and not guest
+  // Hórus voice triggers - round_start THEN question_read in sequence
   useEffect(() => {
-    if (!authLoading && !isAuthenticated && !isGuest) {
-      navigate('/auth');
+    const prevPhase = prevGamePhaseRef.current;
+    
+    // Update ref for next comparison
+    prevGamePhaseRef.current = gamePhase;
+    
+    // Only trigger on phase changes, not initial load
+    if (!prevPhase || prevPhase === gamePhase) return;
+    
+    // When entering question phase from briefcase or result - queue bordão then question
+    if (gamePhase === 'question' && (prevPhase === 'briefcase' || prevPhase === 'result' || prevPhase === 'nickname')) {
+      // Queue round_start first, then question_read via onComplete callback
+      speakPersona('round_start', undefined, 10, () => {
+        // After round_start finishes, read the question
+        if (currentQuestion) {
+          speakPersona('question_read', currentQuestion.question_text);
+        }
+      });
     }
-  }, [isAuthenticated, authLoading, navigate, isGuest]);
+    
+    // Stop all narration when entering result phase (prevent question repeating)
+    if (gamePhase === 'result' || gamePhase === 'eliminated' || gamePhase === 'victory') {
+      clearQueue();
+      stopSpeaking();
+    }
+  }, [gamePhase, currentQuestion, speakPersona, clearQueue, stopSpeaking]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -797,6 +833,7 @@ export default function SinglePlayerRoom() {
                     onSelectOption={setSelectedAnswer}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={false}
+                    autoNarrate={false}
                   />
                   
                   <div className="space-y-4">
@@ -831,6 +868,7 @@ export default function SinglePlayerRoom() {
                     selectedOption={confirmedAnswer || undefined}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={true}
+                    autoNarrate={false}
                   />
                   
                   <div className="space-y-4">
@@ -937,6 +975,7 @@ export default function SinglePlayerRoom() {
                     selectedOption={confirmedAnswer || undefined}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={true}
+                    autoNarrate={false}
                   />
 
                   {/* Bot votes display */}

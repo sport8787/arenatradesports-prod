@@ -347,8 +347,10 @@ export default function GameRoom() {
   ]);
 
   // Hórus voice triggers - automatic speech based on game moments
+  // FIXED: Queue round_start with onComplete callback that triggers question_read
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
+    const question = gameState.currentQuestion;
     
     // Don't trigger voice if muted or if not allowed to play audio
     if (personaMuted || !canPlayAudio) return;
@@ -356,34 +358,25 @@ export default function GameRoom() {
     // Only trigger on status changes, not on initial load
     if (!prevStatus || prevStatus === currentStatus) return;
     
-    // Round start - when entering question phase from lobby
-    if (currentStatus === 'question' && prevStatus === 'lobby') {
-      speakPersona('round_start');
+    // Round start - when entering question phase from lobby or result
+    if (currentStatus === 'question' && (prevStatus === 'lobby' || prevStatus === 'result')) {
+      // Queue round_start first, then question_read via onComplete callback
+      // This ensures the bordão plays BEFORE the question is read
+      speakPersona('round_start', undefined, 10, () => {
+        // After round_start finishes, read the question
+        if (question) {
+          speakPersona('question_read', question.question_text);
+        }
+      });
     }
     
-    // New round - when entering question phase from result
-    if (currentStatus === 'question' && prevStatus === 'result') {
-      speakPersona('round_start');
+    // Stop all narration when entering result phase (prevent question repeating)
+    if (currentStatus === 'result') {
+      clearQueue();
+      stopSpeaking();
     }
     
-  }, [gameState.room?.current_status, prevStatus, personaMuted, canPlayAudio, speakPersona]);
-
-  // Hórus reads the question when question card is revealed (after round_start)
-  useEffect(() => {
-    const currentStatus = gameState.room?.current_status;
-    const question = gameState.currentQuestion;
-    
-    if (personaMuted || !canPlayAudio) return;
-    if (currentStatus !== 'question' || !question) return;
-    
-    // Wait for round_start to finish, then read the question
-    const readQuestionTimer = setTimeout(() => {
-      const questionText = question.question_text;
-      speakPersona('question_read', questionText);
-    }, 4000); // 4 second delay to let round_start finish
-    
-    return () => clearTimeout(readQuestionTimer);
-  }, [gameState.currentQuestion?.id, gameState.room?.current_status, personaMuted, canPlayAudio, speakPersona]);
+  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
@@ -1454,6 +1447,7 @@ export default function GameRoom() {
                     onSelectOption={isCurrentPlayer ? setSelectedAnswer : undefined}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={!isCurrentPlayer}
+                    autoNarrate={false}
                   />
                   
                   {isCurrentPlayer && (
@@ -1560,6 +1554,7 @@ export default function GameRoom() {
                         selectedOption={confirmedAnswer || selectedAnswer || undefined}
                         confirmedAnswer={confirmedAnswer || selectedAnswer || undefined}
                         disabled={true}
+                        autoNarrate={false}
                       />
                       <div className="space-y-4">
                         {/* Audio recorder for host */}
@@ -1599,6 +1594,7 @@ export default function GameRoom() {
                         question={gameState.currentQuestion}
                         showCorrectAnswer={false}
                         disabled={true}
+                        autoNarrate={false}
                       />
                       
                       {/* Waiting for host to record audio */}
@@ -1673,6 +1669,7 @@ export default function GameRoom() {
                     selectedOption={selectedAnswer || undefined}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={true}
+                    autoNarrate={false}
                   />
                   {isRoomHost ? (
                     <div className="text-center py-8">
