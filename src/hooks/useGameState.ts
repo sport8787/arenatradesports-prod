@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GameState, Room, Player, Question, Vote, RoomStatus, GameMode } from '@/types/game';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
+import { useRealtimeConnection } from './useRealtimeConnection';
 
 export function useGameState(roomId: string | null) {
   const [gameState, setGameState] = useState<GameState>({
@@ -93,61 +94,34 @@ export function useGameState(roomId: string | null) {
     }
   }, [roomId, sessionId]);
 
-  // Subscribe to realtime updates
-  useEffect(() => {
-    if (!roomId) return;
+  // Realtime subscriptions configuration
+  const subscriptions = useMemo(() => {
+    if (!roomId) return [];
+    return [
+      { table: 'rooms', filter: `id=eq.${roomId}` },
+      { table: 'players', filter: `room_id=eq.${roomId}` },
+      { table: 'votes', filter: `room_id=eq.${roomId}` },
+    ];
+  }, [roomId]);
 
+  // Handle realtime messages
+  const handleRealtimeMessage = useCallback(() => {
     fetchGameState();
+  }, [fetchGameState]);
 
-    // Subscribe to room changes
-    const roomChannel = supabase
-      .channel(`room-${roomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rooms',
-          filter: `id=eq.${roomId}`,
-        },
-        (payload) => {
-          console.log('[Realtime] Room change detected:', payload);
-          fetchGameState();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'players',
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          console.log('[Realtime] Player change detected:', payload);
-          fetchGameState();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'votes',
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          console.log('[Realtime] Vote change detected:', payload);
-          fetchGameState();
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status);
-      });
+  // Use the reconnection hook
+  const { isConnected, isReconnecting, retryCount, reconnect } = useRealtimeConnection({
+    channelName: `room-${roomId}`,
+    subscriptions,
+    onMessage: handleRealtimeMessage,
+    enabled: !!roomId,
+  });
 
-    return () => {
-      supabase.removeChannel(roomChannel);
-    };
+  // Initial fetch
+  useEffect(() => {
+    if (roomId) {
+      fetchGameState();
+    }
   }, [roomId, fetchGameState]);
 
   // Update room status
@@ -263,5 +237,10 @@ export function useGameState(roomId: string | null) {
     hasEnoughCoins,
     updateGameMode,
     refetch: fetchGameState,
+    // Connection status
+    isConnected,
+    isReconnecting,
+    retryCount,
+    reconnect,
   };
 }

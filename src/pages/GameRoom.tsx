@@ -44,6 +44,7 @@ import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import PersonaIndicator from '@/components/game/PersonaIndicator';
 import GameModeSelector from '@/components/game/GameModeSelector';
 import HorusBribeOffer from '@/components/game/HorusBribeOffer';
+import ConnectionIndicator from '@/components/game/ConnectionIndicator';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -107,7 +108,7 @@ export default function GameRoom() {
   const navigate = useNavigate();
   const sessionId = getOrCreateSessionId();
   
-  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -1239,6 +1240,14 @@ export default function GameRoom() {
 
   return (
     <div className="min-h-screen p-4 md:p-8">
+      {/* Connection status indicator */}
+      <ConnectionIndicator
+        isConnected={isConnected}
+        isReconnecting={isReconnecting}
+        retryCount={retryCount}
+        onReconnect={reconnect}
+      />
+
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Role Banner */}
         <RoleBanner isHost={isRoomHost} />
