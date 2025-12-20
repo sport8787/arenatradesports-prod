@@ -3,10 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
 import { getOrCreateSessionId, uniqueQuestionsByText } from '@/lib/gameUtils';
 
+// Difficulty-based round distribution (15 rounds total)
+// Easy: rounds 1-5, Medium: rounds 6-10, Hard: rounds 11-15
+const getDifficultyForRound = (round: number): 'Easy' | 'Medium' | 'Hard' => {
+  if (round <= 5) return 'Easy';
+  if (round <= 10) return 'Medium';
+  return 'Hard';
+};
+
 interface UseQuestionHistoryResult {
   questions: Question[];
   loading: boolean;
-  getNextQuestion: () => Question | null;
+  getNextQuestion: (currentRound?: number) => Question | null;
   registerQuestionUsed: (questionId: string) => Promise<void>;
   resetHistory: () => Promise<void>;
 }
@@ -75,19 +83,32 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
     loadData();
   }, [effectiveUserId, canPersist]);
 
-  // Get next question that hasn't been used
-  const getNextQuestion = useCallback((): Question | null => {
+  // Get next question that hasn't been used, filtered by difficulty based on round
+  const getNextQuestion = useCallback((currentRound: number = 1): Question | null => {
     if (questions.length === 0) return null;
     
-    // Filter out used questions
-    const availableQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
+    // Get the appropriate difficulty for this round
+    const targetDifficulty = getDifficultyForRound(currentRound);
     
-    console.log(`[QuestionHistory] Available: ${availableQuestions.length}/${questions.length}`);
+    // Filter out used questions and filter by difficulty
+    const availableQuestions = questions.filter(
+      q => !usedQuestionIds.has(q.id) && q.difficulty === targetDifficulty
+    );
     
+    console.log(`[QuestionHistory] Round ${currentRound} (${targetDifficulty}): ${availableQuestions.length} available`);
+    
+    // If no questions available for this difficulty, try any unused question
     if (availableQuestions.length === 0) {
-      // User has seen all questions - reset history and start fresh
-      console.log('[QuestionHistory] All questions used, will reset on next question');
-      return null; // Signal that reset is needed
+      const fallbackQuestions = questions.filter(q => !usedQuestionIds.has(q.id));
+      
+      if (fallbackQuestions.length === 0) {
+        console.log('[QuestionHistory] All questions used, will reset on next question');
+        return null; // Signal that reset is needed
+      }
+      
+      console.log(`[QuestionHistory] No ${targetDifficulty} questions, using fallback`);
+      const randomIndex = Math.floor(Math.random() * fallbackQuestions.length);
+      return fallbackQuestions[randomIndex];
     }
     
     // Select random question from available pool
