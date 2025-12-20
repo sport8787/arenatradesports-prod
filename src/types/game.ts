@@ -1,4 +1,5 @@
 export type RoomStatus = 'lobby' | 'question' | 'discussion' | 'voting' | 'result';
+export type GameMode = 'online' | 'presencial';
 
 export interface Question {
   id: string;
@@ -24,6 +25,7 @@ export interface Room {
   current_player_index: number;
   created_at: string;
   current_audio_url?: string | null;
+  game_mode: GameMode;
 }
 
 export interface Player {

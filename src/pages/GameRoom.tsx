@@ -41,6 +41,8 @@ import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import PersonaIndicator from '@/components/game/PersonaIndicator';
+import GameModeSelector from '@/components/game/GameModeSelector';
+import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -101,7 +103,7 @@ const generateBriefcasePrize = (): number => {
 export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -185,6 +187,12 @@ export default function GameRoom() {
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
   const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
+  
+  // Audio permission based on game mode
+  // Online: everyone hears audio
+  // Presencial: only host hears audio
+  const gameMode = (gameState.room as any)?.game_mode as GameMode | undefined;
+  const canPlayAudio = gameMode === 'presencial' ? isRoomHost : true;
 
   // Preload sounds when component mounts
   useEffect(() => {
@@ -271,8 +279,8 @@ export default function GameRoom() {
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     
-    // Don't trigger voice if muted
-    if (personaMuted) return;
+    // Don't trigger voice if muted or if not allowed to play audio
+    if (personaMuted || !canPlayAudio) return;
     
     // Only trigger on status changes, not on initial load
     if (!prevStatus || prevStatus === currentStatus) return;
@@ -287,14 +295,14 @@ export default function GameRoom() {
       speakPersona('round_start');
     }
     
-  }, [gameState.room?.current_status, prevStatus, personaMuted, speakPersona]);
+  }, [gameState.room?.current_status, prevStatus, personaMuted, canPlayAudio, speakPersona]);
 
   // Hórus reads the question when question card is revealed (after round_start)
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     const question = gameState.currentQuestion;
     
-    if (personaMuted) return;
+    if (personaMuted || !canPlayAudio) return;
     if (currentStatus !== 'question' || !question) return;
     
     // Wait for round_start to finish, then read the question
@@ -304,19 +312,19 @@ export default function GameRoom() {
     }, 4000); // 4 second delay to let round_start finish
     
     return () => clearTimeout(readQuestionTimer);
-  }, [gameState.currentQuestion?.id, gameState.room?.current_status, personaMuted, speakPersona]);
+  }, [gameState.currentQuestion?.id, gameState.room?.current_status, personaMuted, canPlayAudio, speakPersona]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
 
   // Hórus offers briefcase when modal appears
   useEffect(() => {
-    if (personaMuted) return;
+    if (personaMuted || !canPlayAudio) return;
     if (!showBriefcaseModal) return;
     
     // Speak briefcase offer
     speakPersona('briefcase_offer');
-  }, [showBriefcaseModal, personaMuted, speakPersona]);
+  }, [showBriefcaseModal, personaMuted, canPlayAudio, speakPersona]);
 
   // Start response timer when question is shown
   useEffect(() => {
@@ -335,7 +343,7 @@ export default function GameRoom() {
     
     if (!questionId || !question || !confirmedAnswer) return;
     if (verdictTriggeredRef.current === questionId) return;
-    if (personaMuted) return;
+    if (personaMuted || !canPlayAudio) return;
     
     // Mark as triggered
     verdictTriggeredRef.current = questionId;
@@ -368,18 +376,20 @@ export default function GameRoom() {
       setCurrentVerdict(verdict);
       
       // Speak the verdict with Mycroft's voice - use callback for when complete
+      // This ensures Hórus only speaks AFTER Mycroft finishes (audio queue)
       speakPersona('verdict', verdict.fullVerdict, 10, () => {
         // Mycroft finished speaking - now proceed to result reveal
         mycroftCompleteRef.current = true;
         setAwaitingMycroftComplete(false);
         
-        // Now announce result with Hórus
+        // Now announce result with Hórus (queued after Mycroft)
         const playerCorrect = confirmedAnswer === question.correct_option;
         const totalVotes = gameState.votes.length;
         const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
         const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
         
         if (totalVotes > 0) {
+          // Hórus announces result AFTER Mycroft's audio ends
           setTimeout(() => {
             if (!playerCorrect && doubtCount === totalVotes) {
               speakPersona('bluff_fail');
@@ -407,6 +417,7 @@ export default function GameRoom() {
     gameState.votes, 
     confirmedAnswer, 
     personaMuted, 
+    canPlayAudio,
     generateVerdict, 
     recordBluffResult, 
     speakPersona,
@@ -1105,7 +1116,14 @@ export default function GameRoom() {
           <div className="flex items-center gap-4">
             {/* BluffCoins Display */}
             <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="md" />
-            <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
+            {/* Audio indicator based on game mode */}
+            <div title={canPlayAudio ? "Áudio ativo" : "Áudio desativado (modo presencial)"}>
+              {canPlayAudio ? (
+                <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
+              ) : (
+                <VolumeX className="w-5 h-5 text-muted-foreground" />
+              )}
+            </div>
             <div className="flex -space-x-2">
               {gameState.players.slice(0, 4).map((p, i) => (
                 <PlayerAvatar key={p.id} player={p} index={i} size="sm" showScore={false} />
@@ -1127,6 +1145,23 @@ export default function GameRoom() {
                       <PlayerAvatar key={p.id} player={p} index={i} />
                     ))}
                   </div>
+                  
+                  {/* Game Mode Selector - Host only */}
+                  {isRoomHost && (
+                    <GameModeSelector
+                      value={gameMode || 'online'}
+                      onChange={(mode) => updateGameMode(mode)}
+                      disabled={false}
+                    />
+                  )}
+                  
+                  {/* Show current mode for non-hosts */}
+                  {!isRoomHost && gameMode && (
+                    <div className="text-sm text-muted-foreground">
+                      Modo: <span className="text-gold font-medium">{gameMode === 'online' ? 'Online' : 'Presencial'}</span>
+                    </div>
+                  )}
+                  
                   {isRoomHost && gameState.players.length >= 2 && (
                     <GoldButton onClick={startGame} size="lg">
                       <Play className="w-5 h-5 mr-2 inline" /> Iniciar Jogo
