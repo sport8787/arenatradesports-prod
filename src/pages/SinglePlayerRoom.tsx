@@ -152,6 +152,16 @@ export default function SinglePlayerRoom() {
     preloadSounds();
   }, [preloadSounds]);
 
+  // Cleanup Horus audio on unmount
+  useEffect(() => {
+    return () => {
+      if (horusAudioRef.current) {
+        horusAudioRef.current.pause();
+        horusAudioRef.current = null;
+      }
+    };
+  }, []);
+
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
     if (!authLoading && !isAuthenticated && !isGuest) {
@@ -353,24 +363,86 @@ export default function SinglePlayerRoom() {
     playSuspense();
   };
 
+  // Horus voice ID for ElevenLabs (dramatic male voice)
+  const HORUS_VOICE_ID = 'onwK4e9ZLuTAKqWW03F9'; // Daniel - deep dramatic voice
+  const horusAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Play Horus TTS audio
+  const playHorusTTS = async (text: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            text, 
+            voiceId: HORUS_VOICE_ID,
+            stability: 0.6,
+            similarityBoost: 0.8
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Horus TTS failed:', response.status);
+        return null;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Stop any previous audio
+      if (horusAudioRef.current) {
+        horusAudioRef.current.pause();
+        horusAudioRef.current = null;
+      }
+      
+      const audio = new Audio(audioUrl);
+      horusAudioRef.current = audio;
+      
+      return new Promise<void>((resolve) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        audio.play().catch(() => resolve());
+      });
+    } catch (error) {
+      console.error('Horus TTS error:', error);
+      return null;
+    }
+  };
+
   // Handle when player listens to Horus proposal
-  const handleHorusListen = () => {
+  const handleHorusListen = async () => {
     setHorusBribeListening(true);
     
     // Dynamic phrase based on accumulated prize
     const phrases = [
-      "Seu destino já está selado nas mãos do júri...",
-      "Os votos foram contados. Mas eu posso te salvar.",
-      "O veredicto está pronto. Quer arriscar tudo?",
-      "Antes de revelar seu destino... uma última chance.",
+      "Seu destino já está selado nas mãos do júri. Mas eu, Hórus, posso te dar uma saída.",
+      "Os votos foram contados. O veredicto está pronto. Mas eu tenho uma proposta.",
+      "O tribunal já decidiu seu destino. Quer arriscar tudo... ou aceitar minha oferta?",
+      "Antes de revelar seu destino... uma última chance de sair com dignidade.",
+      "Eu vi seu desempenho. Impressionante ou patético, depende do ponto de vista. Aceite minha oferta."
     ];
     
-    setHorusBribePhrase(phrases[Math.floor(Math.random() * phrases.length)]);
+    const selectedPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+    setHorusBribePhrase(selectedPhrase);
     
-    // Auto-complete after speech
-    setTimeout(() => {
-      setHorusBribeListening(false);
-    }, 3000);
+    // Play TTS audio
+    await playHorusTTS(selectedPhrase);
+    
+    // Mark listening as complete
+    setHorusBribeListening(false);
   };
 
   // Handle when player accepts Horus bribe (cash out before seeing result)
