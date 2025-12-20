@@ -5,8 +5,10 @@ import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, C
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
+import { useAudioPreloader } from '@/hooks/useAudioPreloader';
 import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
+import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,9 @@ export default function Index() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
+
+  // Audio preloader - starts automatically when user enters lobby
+  const audioPreloader = useAudioPreloader(isAuthenticated || isGuest);
 
   // Check for guest mode
   useEffect(() => {
@@ -395,6 +400,14 @@ export default function Index() {
           <span className="text-xs text-mycroft-cyan/70">Powered by Mycroft AI</span>
         </div>
       </LuxuryCard>
+
+      {/* Audio Preload Indicator */}
+      <AudioPreloadIndicator
+        isLoading={audioPreloader.isLoading}
+        isComplete={audioPreloader.isComplete}
+        progressPercent={audioPreloader.progressPercent}
+        currentPhrase={audioPreloader.currentPhrase}
+      />
     </div>
   );
 }
