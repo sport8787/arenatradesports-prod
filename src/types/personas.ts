@@ -65,7 +65,8 @@ export type GameMoment =
   | 'waiting'
   | 'voting_start'
   | 'verdict'
-  | 'all_in_temptation'; // Special moment for All-in vs Maleta decision
+  | 'all_in_temptation' // Special moment for All-in vs Maleta decision
+  | 'bribe_offer'; // Hórus bribe attempt after Mycroft verdict
 
 export interface DialogConfig {
   moment: GameMoment;
@@ -92,6 +93,7 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'waiting', persona: 'horus', useLiveAI: false },
   { moment: 'voting_start', persona: 'horus', useLiveAI: false },
   { moment: 'verdict', persona: 'mycroft', useLiveAI: true }, // Live AI for analysis
+  { moment: 'bribe_offer', persona: 'horus', useLiveAI: false }, // Pre-recorded bribe phrases
 ];
 
 export function getDialogConfig(moment: GameMoment): DialogConfig {

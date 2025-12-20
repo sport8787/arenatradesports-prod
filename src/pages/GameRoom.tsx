@@ -43,6 +43,7 @@ import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import PersonaIndicator from '@/components/game/PersonaIndicator';
 import GameModeSelector from '@/components/game/GameModeSelector';
+import HorusBribeOffer from '@/components/game/HorusBribeOffer';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -223,6 +224,13 @@ export default function GameRoom() {
   const verdictTriggeredRef = useRef<string | null>(null);
   const [awaitingMycroftComplete, setAwaitingMycroftComplete] = useState(false);
   const mycroftCompleteRef = useRef(false);
+  
+  // Hórus Bribe state
+  const [showBribeOffer, setShowBribeOffer] = useState(false);
+  const [bribeAmount, setBribeAmount] = useState(0);
+  const [isBribeListening, setIsBribeListening] = useState(false);
+  const [bribePhrase, setBribePhrase] = useState<string | null>(null);
+  const bribeTriggeredRef = useRef<string | null>(null);
 
   // Preload sounds when component mounts
   useEffect(() => {
@@ -406,35 +414,31 @@ export default function GameRoom() {
       setCurrentVerdict(verdict);
       
       // Speak the verdict with Mycroft's voice - use callback for when complete
-      // This ensures Hórus only speaks AFTER Mycroft finishes (audio queue)
+      // This ensures Hórus Bribe triggers AFTER Mycroft finishes (audio queue)
       speakPersona('verdict', verdict.fullVerdict, 10, () => {
-        // Mycroft finished speaking - now proceed to result reveal
+        // Mycroft finished speaking
         mycroftCompleteRef.current = true;
         setAwaitingMycroftComplete(false);
         
-        // Now announce result with Hórus (queued after Mycroft)
-        const playerCorrect = confirmedAnswer === question.correct_option;
-        const totalVotes = gameState.votes.length;
-        const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
-        const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
-        
-        if (totalVotes > 0) {
-          // Hórus announces result AFTER Mycroft's audio ends
-          setTimeout(() => {
-            if (!playerCorrect && doubtCount === totalVotes) {
-              speakPersona('bluff_fail');
-            } else if (!playerCorrect && believeCount > 0) {
-              speakPersona('bluff_success');
-            } else if (playerCorrect) {
-              speakPersona('correct_answer');
-            }
-          }, 500);
-        }
-        
-        // Hide verdict panel after announcement
+        // Hide verdict panel
         setTimeout(() => {
           setShowMycroftVerdict(false);
-        }, 8000);
+        }, 2000);
+        
+        // TRIGGER HÓRUS BRIBE OFFER after Mycroft verdict
+        // Only show for host and if not already triggered for this question
+        if (isRoomHost && bribeTriggeredRef.current !== questionId) {
+          bribeTriggeredRef.current = questionId;
+          
+          // Calculate bribe amount (random between 5000 and 25000)
+          const randomBribe = Math.floor(Math.random() * 20001) + 5000;
+          setBribeAmount(randomBribe);
+          
+          // Show bribe offer after a short delay
+          setTimeout(() => {
+            setShowBribeOffer(true);
+          }, 2500);
+        }
       });
     } catch (error) {
       console.error('Failed to generate Mycroft verdict:', error);
@@ -448,6 +452,7 @@ export default function GameRoom() {
     confirmedAnswer, 
     personaMuted, 
     canPlayAudio,
+    isRoomHost,
     generateVerdict, 
     recordBluffResult, 
     speakPersona,
@@ -1088,6 +1093,85 @@ export default function GameRoom() {
     setShowBriefcaseReveal(false);
     setShowMoneyRain(true);
     setGameCompleted(true);
+  };
+
+  // Hórus Bribe handlers
+  const handleListenBribeProposal = () => {
+    setIsBribeListening(true);
+    // Speak the bribe offer with Hórus voice
+    speakPersona('bribe_offer', undefined, 10, () => {
+      // Speech complete
+    });
+    // Get the phrase that will be spoken for display
+    const phrases = [
+      'O Mycroft já te entregou para os leões. Mas eu sou generoso. Esqueça o All-in. Aceite o conteúdo desta maleta e saia agora com dignidade. Você prefere a glória incerta ou o prêmio na mão?',
+      'Eu sinto o cheiro do seu medo daqui. Essa maleta tem exatamente o que você precisa para não passar vergonha. Pega ou larga?',
+      'O Mycroft é apenas uma máquina. Eu sou o poder. Eu te dou um caminho de saída agora. Aceite o suborno e encerramos este tribunal.',
+      'Seus adversários já decidiram seu destino. A maleta é sua última tábua de salvação. Escolha rápido!',
+    ];
+    setBribePhrase(phrases[Math.floor(Math.random() * phrases.length)]);
+  };
+
+  const handleAcceptBribe = async () => {
+    setShowBribeOffer(false);
+    setIsBribeListening(false);
+    setBribePhrase(null);
+    
+    // Award the bribe amount
+    if (gameState.myPlayer) {
+      await updateBluffcoins(gameState.myPlayer.id, bribeAmount);
+      playCashRegister();
+      toast({ 
+        title: '💰 SUBORNO ACEITO!', 
+        description: `Você ganhou ${bribeAmount.toLocaleString()} BluffCoins!` 
+      });
+    }
+    
+    // Proceed to reveal results
+    const question = gameState.currentQuestion;
+    const playerCorrect = confirmedAnswer === question?.correct_option;
+    const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
+    const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
+    const totalVotes = gameState.votes.length;
+    
+    // Hórus announces the result after bribe
+    setTimeout(() => {
+      if (totalVotes > 0) {
+        if (!playerCorrect && doubtCount === totalVotes) {
+          speakPersona('bluff_fail');
+        } else if (!playerCorrect && believeCount > 0) {
+          speakPersona('bluff_success');
+        } else if (playerCorrect) {
+          speakPersona('correct_answer');
+        }
+      }
+    }, 500);
+  };
+
+  const handleRejectBribe = () => {
+    setShowBribeOffer(false);
+    setIsBribeListening(false);
+    setBribePhrase(null);
+    
+    // Hórus comments on rejection
+    const question = gameState.currentQuestion;
+    const playerCorrect = confirmedAnswer === question?.correct_option;
+    const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
+    const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
+    const totalVotes = gameState.votes.length;
+    
+    // Announce result immediately after rejection
+    setTimeout(() => {
+      if (totalVotes > 0) {
+        if (!playerCorrect && doubtCount === totalVotes) {
+          speakPersona('bluff_fail');
+        } else if (!playerCorrect && believeCount > 0) {
+          speakPersona('bluff_success');
+        } else if (playerCorrect) {
+          speakPersona('correct_answer');
+        }
+      }
+    }, 500);
   };
 
   if (loading) {
@@ -1937,6 +2021,17 @@ export default function GameRoom() {
         isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
         isGenerating={isVerdictGenerating}
         onClose={() => setShowMycroftVerdict(false)}
+      />
+
+      {/* Hórus Bribe Offer - The Temptation */}
+      <HorusBribeOffer
+        isVisible={showBribeOffer}
+        bribeAmount={bribeAmount}
+        onAcceptBribe={handleAcceptBribe}
+        onRejectBribe={handleRejectBribe}
+        onListenProposal={handleListenBribeProposal}
+        isListening={isBribeListening}
+        currentPhrase={bribePhrase}
       />
     </div>
   );

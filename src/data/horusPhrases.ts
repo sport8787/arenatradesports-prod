@@ -82,6 +82,34 @@ const BRIEFCASE_OFFER: HorusPhrase[] = [
   { id: 'bo6', moment: 'briefcase_offer', text: 'Escolha sabiamente! A maleta ou a glória final?', emotion: 'dramatic' },
 ];
 
+// Bribe offer phrases (4 variations with different personalities)
+const BRIBE_OFFER: HorusPhrase[] = [
+  { 
+    id: 'br1', 
+    moment: 'bribe_offer', 
+    text: 'O Mycroft já te entregou para os leões. Mas eu sou generoso. Esqueça o All-in. Aceite o conteúdo desta maleta e saia agora com dignidade. Você prefere a glória incerta ou o prêmio na mão?', 
+    emotion: 'dramatic' 
+  },
+  { 
+    id: 'br2', 
+    moment: 'bribe_offer', 
+    text: 'Eu sinto o cheiro do seu medo daqui. Essa maleta tem exatamente o que você precisa para não passar vergonha. Pega ou larga?', 
+    emotion: 'sarcastic' 
+  },
+  { 
+    id: 'br3', 
+    moment: 'bribe_offer', 
+    text: 'O Mycroft é apenas uma máquina. Eu sou o poder. Eu te dou um caminho de saída agora. Aceite o suborno e encerramos este tribunal.', 
+    emotion: 'neutral' 
+  },
+  { 
+    id: 'br4', 
+    moment: 'bribe_offer', 
+    text: 'Seus adversários já decidiram seu destino. A maleta é sua última tábua de salvação. Escolha rápido!', 
+    emotion: 'menacing' 
+  },
+];
+
 // Elimination phrases (4)
 const ELIMINATION: HorusPhrase[] = [
   { id: 'el1', moment: 'elimination', text: 'Você caiu! O trono agora pertence a outro!', emotion: 'menacing' },
@@ -116,6 +144,7 @@ export const HORUS_PHRASES: HorusPhrase[] = [
   ...BLUFF_SUCCESS,
   ...BLUFF_FAIL,
   ...BRIEFCASE_OFFER,
+  ...BRIBE_OFFER,
   ...ELIMINATION,
   ...VICTORY,
   ...TAUNT,
