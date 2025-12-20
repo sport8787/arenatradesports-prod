@@ -26,6 +26,7 @@ import BluffFeedback from '@/components/game/BluffFeedback';
 import CashOutDialog from '@/components/game/CashOutDialog';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
+import HorusPostVoteBribe from '@/components/game/HorusPostVoteBribe';
 import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -131,6 +132,18 @@ export default function SinglePlayerRoom() {
   const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
   const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
   const [briefcasePrize, setBriefcasePrize] = useState(0);
+  
+  // Horus Post-Vote Bribe states
+  const [showHorusBribe, setShowHorusBribe] = useState(false);
+  const [horusBribeListening, setHorusBribeListening] = useState(false);
+  const [horusBribePhrase, setHorusBribePhrase] = useState<string | null>(null);
+  const [pendingResultData, setPendingResultData] = useState<{
+    playerAnsweredCorrectly: boolean;
+    votes: BotVote[];
+    believeVotes: number;
+    doubtVotes: number;
+    shouldEliminate: boolean;
+  } | null>(null);
 
   const sessionId = getOrCreateSessionId();
 
@@ -326,6 +339,77 @@ export default function SinglePlayerRoom() {
     // Check elimination: wrong answer + all bots voted BLEFE
     const shouldEliminate = !playerAnsweredCorrectly && doubtVotes === 3;
 
+    // Store pending result data and show Horus bribe offer BEFORE revealing result
+    setPendingResultData({
+      playerAnsweredCorrectly,
+      votes,
+      believeVotes,
+      doubtVotes,
+      shouldEliminate,
+    });
+    
+    // Show Horus bribe offer after voting, before result
+    setShowHorusBribe(true);
+    playSuspense();
+  };
+
+  // Handle when player listens to Horus proposal
+  const handleHorusListen = () => {
+    setHorusBribeListening(true);
+    
+    // Dynamic phrase based on accumulated prize
+    const phrases = [
+      "Seu destino já está selado nas mãos do júri...",
+      "Os votos foram contados. Mas eu posso te salvar.",
+      "O veredicto está pronto. Quer arriscar tudo?",
+      "Antes de revelar seu destino... uma última chance.",
+    ];
+    
+    setHorusBribePhrase(phrases[Math.floor(Math.random() * phrases.length)]);
+    
+    // Auto-complete after speech
+    setTimeout(() => {
+      setHorusBribeListening(false);
+    }, 3000);
+  };
+
+  // Handle when player accepts Horus bribe (cash out before seeing result)
+  const handleHorusAcceptBribe = async () => {
+    setShowHorusBribe(false);
+    setHorusBribeListening(false);
+    setHorusBribePhrase(null);
+    setPendingResultData(null);
+    
+    setShowMoneyRain(true);
+    playCashRegister();
+    
+    // Persist winnings to profile
+    await persistWinnings(accumulatedPrize);
+    
+    // Update ranking
+    if (myRanking) {
+      updateSoloRankingStats({ 
+        addGame: true, 
+        addWin: true,
+        setBestRound: currentRound,
+        addPoints: accumulatedPrize 
+      });
+    }
+    
+    toast({ title: '💰 DESISTÊNCIA INTELIGENTE!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    setGamePhase('victory');
+  };
+
+  // Handle when player rejects Horus bribe (see the real result)
+  const handleHorusRejectBribe = async () => {
+    setShowHorusBribe(false);
+    setHorusBribeListening(false);
+    setHorusBribePhrase(null);
+    
+    if (!pendingResultData) return;
+    
+    const { playerAnsweredCorrectly, believeVotes, shouldEliminate } = pendingResultData;
+    
     if (shouldEliminate) {
       if (hasImmunityCard && !immunityCardUsed && currentRound !== MAX_ROUNDS) {
         // Immunity saves the player
@@ -355,6 +439,7 @@ export default function SinglePlayerRoom() {
         }
         
         setGamePhase('eliminated');
+        setPendingResultData(null);
         return;
       }
     } else {
@@ -412,14 +497,12 @@ export default function SinglePlayerRoom() {
           playShieldActivate();
         }, delay);
       }
-
-      // Round 15 is handled separately by processRound15Results
-      // This code won't run for round 15 because confirmAnswer goes to processRound15Results directly
     }
 
     setGamePhase('result');
     playReveal();
     setTimeout(() => playFanfare(), 800);
+    setPendingResultData(null);
   };
 
   const nextRound = async () => {
@@ -1068,6 +1151,18 @@ export default function SinglePlayerRoom() {
       />
 
       <MoneyRain show={showMoneyRain} amount={accumulatedPrize} />
+
+      {/* Horus Post-Vote Bribe */}
+      <HorusPostVoteBribe
+        isVisible={showHorusBribe}
+        totalBluffCoins={accumulatedPrize > 0 ? accumulatedPrize : null}
+        onAcceptBribe={handleHorusAcceptBribe}
+        onRejectBribe={handleHorusRejectBribe}
+        onListenProposal={handleHorusListen}
+        isListening={horusBribeListening}
+        currentPhrase={horusBribePhrase}
+        isAllIn={currentRound === MAX_ROUNDS}
+      />
 
       {/* Briefcase Modals */}
       <MysteryBriefcaseModal
