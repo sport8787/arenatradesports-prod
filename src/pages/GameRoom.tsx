@@ -108,7 +108,7 @@ export default function GameRoom() {
   const sessionId = getOrCreateSessionId();
   
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode } = useGameState(roomId || null);
-  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
+  const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
   const { 
@@ -434,9 +434,10 @@ export default function GameRoom() {
           const randomBribe = Math.floor(Math.random() * 20001) + 5000;
           setBribeAmount(randomBribe);
           
-          // Show bribe offer after a short delay
+          // Show bribe offer after a short delay with temptation sound
           setTimeout(() => {
             setShowBribeOffer(true);
+            playTemptation();
           }, 2500);
         }
       });

@@ -20,6 +20,7 @@ const SFX_PROMPTS = {
   siren: 'Dramatic police siren alarm burst, short urgent warning klaxon, intense alert sound, action movie raid alarm',
   cardUnlock: 'Magical unlock sound with sparkles and shimmer, mystical achievement unlocked, epic power-up activation, fantasy spell casting with golden chimes',
   shieldActivate: 'Futuristic energy shield activation sound, protective barrier power-up, sci-fi force field engaging, electronic whoosh with resonant hum',
+  temptation: 'Dark mysterious temptation sound, ominous low brass with seductive strings, devil whisper ambiance, sinister but alluring orchestral sting, dramatic suspense with golden shimmer',
 } as const;
 
 type SoundType = keyof typeof SFX_PROMPTS;
@@ -114,7 +115,7 @@ export function useSoundEffects() {
 
   // Preload sounds in background
   const preloadSounds = useCallback(async () => {
-    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister', 'cardUnlock', 'shieldActivate'];
+    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister', 'cardUnlock', 'shieldActivate', 'temptation'];
     
     for (const sound of sounds) {
       if (!audioCache.has(sound)) {
@@ -142,6 +143,7 @@ export function useSoundEffects() {
     playSiren: () => playSound('siren', 0.8),
     playCardUnlock: () => playSound('cardUnlock', 0.7),
     playShieldActivate: () => playSound('shieldActivate', 0.6),
+    playTemptation: () => playSound('temptation', 0.8),
     preloadSounds,
   };
 }
