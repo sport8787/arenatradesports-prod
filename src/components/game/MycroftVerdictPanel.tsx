@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, AlertTriangle, Shield, Activity, Clock, Mic } from 'lucide-react';
+import { Bot, AlertTriangle, Shield, Activity, Clock, Mic, Loader2 } from 'lucide-react';
 import { VerdictReport } from '@/hooks/useMycroftVerdict';
 
 interface MycroftVerdictPanelProps {
   verdict: VerdictReport | null;
   isVisible: boolean;
   isSpeaking: boolean;
+  isGenerating?: boolean;
   onClose?: () => void;
 }
 
@@ -25,7 +26,7 @@ const getRiskBorderColor = (level: string) => {
     case 'HIGH': return 'border-orange-500/50';
     case 'MEDIUM': return 'border-yellow-500/50';
     case 'LOW': return 'border-green-500/50';
-    default: return 'border-blue-500/50';
+    default: return 'border-cyan-500/50';
   }
 };
 
@@ -35,11 +36,93 @@ const getRiskBgColor = (level: string) => {
     case 'HIGH': return 'bg-orange-500/10';
     case 'MEDIUM': return 'bg-yellow-500/10';
     case 'LOW': return 'bg-green-500/10';
-    default: return 'bg-blue-500/10';
+    default: return 'bg-cyan-500/10';
   }
 };
 
-export default function MycroftVerdictPanel({ verdict, isVisible, isSpeaking, onClose }: MycroftVerdictPanelProps) {
+export default function MycroftVerdictPanel({ verdict, isVisible, isSpeaking, isGenerating, onClose }: MycroftVerdictPanelProps) {
+  // Show loading state
+  if (isGenerating && isVisible) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ duration: 0.3 }}
+          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96
+            bg-slate-900/95 backdrop-blur-xl border border-cyan-500/50
+            rounded-xl shadow-2xl overflow-hidden z-50"
+        >
+          {/* Header */}
+          <div className="px-4 py-3 bg-cyan-500/10 border-b border-cyan-500/50">
+            <div className="flex items-center gap-2">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+              >
+                <Bot className="w-5 h-5 text-cyan-400" />
+              </motion.div>
+              <div>
+                <h3 className="font-bold text-cyan-400 text-sm">MYCROFT</h3>
+                <p className="text-xs text-cyan-400/60">Sistema de Arbitragem</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Loading Content */}
+          <div className="px-4 py-8 flex flex-col items-center justify-center gap-4">
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.5, 1, 0.5]
+              }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="relative"
+            >
+              <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl" />
+              <Loader2 className="w-12 h-12 text-cyan-400 animate-spin relative z-10" />
+            </motion.div>
+            
+            <div className="text-center space-y-2">
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-cyan-300 font-mono text-sm"
+              >
+                Gerando Veredito...
+              </motion.p>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 3, ease: 'easeInOut' }}
+                className="h-1 bg-gradient-to-r from-cyan-500/50 via-cyan-400 to-cyan-500/50 rounded-full mx-auto max-w-[200px]"
+              />
+              <p className="text-xs text-slate-400">
+                Analisando métricas comportamentais...
+              </p>
+            </div>
+            
+            {/* Scanning animation */}
+            <div className="w-full grid grid-cols-3 gap-2 mt-2">
+              {['Latência', 'Histórico', 'Fatos'].map((label, i) => (
+                <motion.div
+                  key={label}
+                  initial={{ opacity: 0.3 }}
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ repeat: Infinity, duration: 1, delay: i * 0.3 }}
+                  className="text-center py-2 bg-slate-800/50 rounded border border-slate-700/50"
+                >
+                  <p className="text-xs text-cyan-400/80">{label}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+  
   if (!isVisible || !verdict) return null;
 
   const formatTime = (ms: number) => {
