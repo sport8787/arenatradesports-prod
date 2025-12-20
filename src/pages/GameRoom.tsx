@@ -137,10 +137,16 @@ export default function GameRoom() {
   
   // Audio permission based on game mode
   // Online: everyone hears audio (synced via WebSocket)
-  // Presencial: only host hears audio
+  // Audio permission: Presencial = only host, Online = all players (synced)
   const gameMode = (gameState.room as any)?.game_mode as GameMode | undefined;
-  const canPlayAudio = gameMode === 'presencial' ? isRoomHost : true;
-  const isOnlineMode = gameMode === 'online' || !gameMode;
+  const isPresencialMode = gameMode === 'presencial';
+  const isOnlineMode = !isPresencialMode;
+  const canPlayAudio = isPresencialMode ? isRoomHost : true;
+  
+  // Log mode for debugging
+  useEffect(() => {
+    console.log('[GameRoom] Audio mode:', { gameMode, isPresencialMode, isOnlineMode, canPlayAudio, isRoomHost });
+  }, [gameMode, isPresencialMode, isOnlineMode, canPlayAudio, isRoomHost]);
 
   // Audio sync for online mode
   const { broadcastAudio, broadcastStop, isConnected: isAudioSyncConnected } = useAudioSync({
@@ -426,19 +432,28 @@ export default function GameRoom() {
         }, 2000);
         
         // TRIGGER HÓRUS BRIBE OFFER after Mycroft verdict
-        // Only show for host and if not already triggered for this question
+        // Only show for host, if not already triggered, from round 3+, and 25% chance
         if (isRoomHost && bribeTriggeredRef.current !== questionId) {
           bribeTriggeredRef.current = questionId;
           
-          // Calculate bribe amount (random between 5000 and 25000)
-          const randomBribe = Math.floor(Math.random() * 20001) + 5000;
-          setBribeAmount(randomBribe);
+          // Bribe only happens from round 3+ with 25% probability
+          const shouldTriggerBribe = currentRound >= 3 && Math.random() < 0.25;
           
-          // Show bribe offer after a short delay with temptation sound
-          setTimeout(() => {
-            setShowBribeOffer(true);
-            playTemptation();
-          }, 2500);
+          if (shouldTriggerBribe) {
+            // Calculate bribe amount (random between 5000 and 25000)
+            const randomBribe = Math.floor(Math.random() * 20001) + 5000;
+            setBribeAmount(randomBribe);
+            
+            // Show bribe offer after a short delay with temptation sound
+            setTimeout(() => {
+              setShowBribeOffer(true);
+              playTemptation();
+            }, 2500);
+            
+            console.log('[Hórus Bribe] Triggered at round', currentRound, 'with amount', randomBribe);
+          } else {
+            console.log('[Hórus Bribe] Skipped - round:', currentRound, '(need 3+) or 75% chance roll');
+          }
         }
       });
     } catch (error) {
