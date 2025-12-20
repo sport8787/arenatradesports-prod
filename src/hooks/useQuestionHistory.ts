@@ -11,6 +11,12 @@ interface UseQuestionHistoryResult {
   resetHistory: () => Promise<void>;
 }
 
+// Helper to check if a string is a valid UUID
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionIds, setUsedQuestionIds] = useState<Set<string>>(new Set());
@@ -19,6 +25,9 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
   // Use session ID as fallback for guest users
   const sessionId = getOrCreateSessionId();
   const effectiveUserId = userId || sessionId;
+  
+  // Check if we can persist to database (only if userId is a valid UUID)
+  const canPersist = isValidUUID(effectiveUserId);
 
   // Load questions and user's history
   useEffect(() => {
@@ -39,20 +48,24 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
         const uniqueQuestions = uniqueQuestionsByText(questionsData as Question[]);
         setQuestions(uniqueQuestions);
         
-        // Step 2: Load user's question history
-        const { data: historyData, error: historyError } = await supabase
-          .from('user_question_history')
-          .select('question_id')
-          .eq('user_id', effectiveUserId);
-        
-        if (historyError) {
-          console.error('Error loading question history:', historyError);
-          // Continue without history - will be fresh start
-        } else if (historyData) {
-          const usedIds = new Set(historyData.map(h => h.question_id));
-          setUsedQuestionIds(usedIds);
+        // Step 2: Load user's question history (only if we have a valid UUID)
+        if (canPersist) {
+          const { data: historyData, error: historyError } = await supabase
+            .from('user_question_history')
+            .select('question_id')
+            .eq('user_id', effectiveUserId);
           
-          console.log(`[QuestionHistory] Loaded ${uniqueQuestions.length} questions, ${usedIds.size} already used`);
+          if (historyError) {
+            console.error('Error loading question history:', historyError);
+            // Continue without history - will be fresh start
+          } else if (historyData) {
+            const usedIds = new Set(historyData.map(h => h.question_id));
+            setUsedQuestionIds(usedIds);
+            
+            console.log(`[QuestionHistory] Loaded ${uniqueQuestions.length} questions, ${usedIds.size} already used`);
+          }
+        } else {
+          console.log(`[QuestionHistory] Guest mode - history stored in memory only`);
         }
       } finally {
         setLoading(false);
@@ -60,7 +73,7 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
     };
     
     loadData();
-  }, [effectiveUserId]);
+  }, [effectiveUserId, canPersist]);
 
   // Get next question that hasn't been used
   const getNextQuestion = useCallback((): Question | null => {
@@ -87,6 +100,12 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
     // Update local state immediately
     setUsedQuestionIds(prev => new Set([...prev, questionId]));
     
+    // Only persist to database if we have a valid UUID
+    if (!canPersist) {
+      console.log(`[QuestionHistory] Guest mode - question ${questionId} tracked locally only`);
+      return;
+    }
+    
     // Persist to database
     try {
       const { error } = await supabase
@@ -106,12 +125,18 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
     } catch (err) {
       console.error('Error in registerQuestionUsed:', err);
     }
-  }, [effectiveUserId]);
+  }, [effectiveUserId, canPersist]);
 
   // Reset user's history (when they've seen all questions)
   const resetHistory = useCallback(async () => {
     // Clear local state
     setUsedQuestionIds(new Set());
+    
+    // Only clear from database if we have a valid UUID
+    if (!canPersist) {
+      console.log('[QuestionHistory] Guest mode - local history reset');
+      return;
+    }
     
     // Clear from database
     try {
@@ -128,7 +153,7 @@ export function useQuestionHistory(userId?: string): UseQuestionHistoryResult {
     } catch (err) {
       console.error('Error in resetHistory:', err);
     }
-  }, [effectiveUserId]);
+  }, [effectiveUserId, canPersist]);
 
   return {
     questions,
