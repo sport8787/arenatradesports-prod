@@ -3,12 +3,14 @@ import { Bot, AlertTriangle, TrendingUp, Loader2, Sparkles } from 'lucide-react'
 import { Question } from '@/types/game';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import MycroftAvatar from './MycroftAvatar';
 
 interface MycroftPanelProps {
   question: Question;
   variant: 'bluff' | 'analytics';
   isVisible: boolean;
   onClose?: () => void;
+  isSpeaking?: boolean;
 }
 
 const EMOTION_TIPS = [
@@ -26,7 +28,7 @@ const EMOTION_TIPS = [
   "Dê de ombros no final, tipo 'é isso aí'.",
 ];
 
-export default function MycroftPanel({ question, variant, isVisible, onClose }: MycroftPanelProps) {
+export default function MycroftPanel({ question, variant, isVisible, onClose, isSpeaking = false }: MycroftPanelProps) {
   const [riskProgress, setRiskProgress] = useState(0);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -152,11 +154,14 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
             `}
             layout
           >
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-mycroft-green/20 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-mycroft-green" />
-              </div>
+            {/* Header with Animated Avatar */}
+            <div className="flex items-center gap-4 mb-4">
+              <MycroftAvatar 
+                isAnimating={isLoading} 
+                isSpeaking={isSpeaking || isLoading}
+                size="md"
+                variant="full"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="mycroft-text text-lg font-bold">
@@ -165,7 +170,7 @@ export default function MycroftPanel({ question, variant, isVisible, onClose }: 
                   <Sparkles className="w-4 h-4 text-mycroft-cyan animate-pulse" />
                 </div>
                 <p className="text-xs text-mycroft-cyan/70 uppercase tracking-wider">
-                  {variant === 'bluff' ? 'Sugestão de Blefe (IA)' : 'Análise de Risco (IA)'}
+                  {variant === 'bluff' ? 'Roteirista de Blefes' : 'Fact-Checking & Análise'}
                 </p>
               </div>
             </div>

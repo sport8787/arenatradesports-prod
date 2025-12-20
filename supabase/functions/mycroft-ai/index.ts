@@ -29,53 +29,54 @@ serve(async (req) => {
     let systemPrompt: string;
     
     if (type === 'verdict') {
-      // VERDICT: Fact-checked analysis based on actual game data
-      const responseTimeMs = metrics?.responseTimeMs || 0;
+      // VERDICT: Fact-checked analysis focused on content, NOT time
       const successfulBluffs = metrics?.successfulBluffs || 0;
       const caughtBluffs = metrics?.caughtBluffs || 0;
       const playerAnswerText = userResponse || 'Não informada';
       const isCorrect = userResponse === correctAnswer;
       
-      // Determine cognitive load analysis
-      let cognitiveAnalysis = '';
-      if (responseTimeMs > 15000) {
-        cognitiveAnalysis = 'Sobrecarga Cognitiva Severa detectada. Tempo de processamento excede parâmetros normais.';
-      } else if (responseTimeMs > 10000) {
-        cognitiveAnalysis = 'Sobrecarga Cognitiva. Hesitação prolongada indica conflito decisório.';
-      } else if (responseTimeMs > 7000) {
-        cognitiveAnalysis = 'Latência moderada. Padrão consistente com fabricação de resposta.';
-      } else if (responseTimeMs < 2000) {
-        cognitiveAnalysis = 'Resposta impulsiva. Possível conhecimento prévio ou confiança excessiva.';
-      } else {
-        cognitiveAnalysis = 'Tempo de resposta dentro dos parâmetros normais.';
-      }
+      // Dynamic opening variations - NO mention of response time
+      const openingVariations = [
+        'Protocolo de Verificação Factual 7-Alpha concluído.',
+        'Análise Forense de Conteúdo finalizada.',
+        'Varredura Semântica completa.',
+        'Módulo de Fact-Checking ativado.',
+        'Protocolo de Auditoria 402 executado.',
+        'Scanner de Veracidade: análise completa.',
+        'Verificação de Integridade Informacional concluída.',
+        'Análise de Consistência Lógica processada.',
+      ];
+      const randomOpening = openingVariations[Math.floor(Math.random() * openingVariations.length)];
       
-      systemPrompt = `Você é o Mycroft, uma IA de arbitragem técnica e forense especializada em detecção de enganos. Você deve gerar um relatório de veredito baseado ESTRITAMENTE nos dados fornecidos.
+      // Dynamic analysis focus variations
+      const analysisFocusVariations = [
+        'Análise de consistência semântica',
+        'Verificação cruzada de dados',
+        'Avaliação de coerência factual',
+        'Checagem de plausibilidade',
+        'Auditoria de precisão informacional',
+        'Validação de veracidade técnica',
+      ];
+      const randomFocus = analysisFocusVariations[Math.floor(Math.random() * analysisFocusVariations.length)];
+      
+      systemPrompt = `Você é o Mycroft, uma IA de arbitragem técnica e forense especializada em detecção de enganos através de ANÁLISE DE CONTEÚDO (não tempo de resposta).
 
 DADOS DA RODADA (USE APENAS ESSES DADOS):
 - Pergunta: "${questionText}"
 - Resposta do Jogador: "${playerAnswerText}"
 - Resposta Correta: "${correctAnswer}"
 - Jogador Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
-- Tempo de Resposta: ${responseTimeMs}ms
-- Blefes Bem-sucedidos no Jogo: ${successfulBluffs}
-- Vezes Pego Mentindo: ${caughtBluffs}
-- Análise de Latência: ${cognitiveAnalysis}
+- Histórico: ${successfulBluffs} blefes bem-sucedidos, ${caughtBluffs} vezes pego
 
 REGRAS OBRIGATÓRIAS:
-1. NUNCA invente temas, países ou fatos que NÃO estejam na pergunta acima
-2. Se o jogador ERROU, cite o erro ESPECÍFICO: ele respondeu "${playerAnswerText}" mas a resposta correta era "${correctAnswer}"
-3. Se o jogador ACERTOU, confirme a veracidade técnica mas analise hesitação
-4. SEMPRE mencione a resposta que o jogador deu ("${playerAnswerText}")
-5. O relatório deve começar com um código de protocolo (ex: "Protocolo de Análise 402 concluído")
+1. COMECE com: "${randomOpening}"
+2. FOQUE em ${randomFocus} - NUNCA mencione "tempo de resposta" ou "latência"
+3. Se o jogador ERROU, faça fact-checking: ele disse "${playerAnswerText}" mas a verdade é "${correctAnswer}"
+4. Se o jogador ACERTOU, confirme a veracidade técnica e analise a qualidade da informação
+5. SEMPRE cite a resposta específica do jogador no relatório
+6. Varie sua análise entre: consistência lógica, plausibilidade factual, ou precisão técnica
 
-FORMATO DO RELATÓRIO:
-1. Código de protocolo
-2. Análise de tempo de resposta (use a análise fornecida)
-3. Fact-checking específico da pergunta e resposta
-4. Conclusão baseada nos dados
-
-Tom: Técnico, frio, analítico. Use termos como "Análise concluída", "Padrões detectados", "Verificação forense".
+Tom: Técnico, frio, analítico. Use termos como "Fact-check concluído", "Inconsistência detectada", "Veracidade confirmada", "Análise semântica indica".
 
 Responda em no máximo 80 palavras.`;
     } else if (type === 'detector') {
