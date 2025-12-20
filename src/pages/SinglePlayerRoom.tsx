@@ -216,14 +216,16 @@ export default function SinglePlayerRoom() {
   };
 
   const selectNextQuestion = async () => {
-    // Use intelligent question selection with history
-    let nextQ = getNextQuestion();
+    // Use intelligent question selection with history - pass current round for difficulty filtering
+    const nextRound = currentRound + 1;
+    let nextQ = getNextQuestion(nextRound);
     
     // If null, all questions exhausted - reset and get fresh
     if (!nextQ) {
       await resetHistory();
-      // After reset, get first question from full pool
-      if (questions.length > 0) {
+      // After reset, get first question from full pool filtered by difficulty
+      nextQ = getNextQuestion(nextRound);
+      if (!nextQ && questions.length > 0) {
         const randomIndex = Math.floor(Math.random() * questions.length);
         nextQ = questions[randomIndex];
       }

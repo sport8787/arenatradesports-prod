@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Question } from '@/types/game';
-import { Brain, Zap, CheckCircle2, Volume2, Loader2 } from 'lucide-react';
+import { Brain, Zap, CheckCircle2, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useQuestionNarration } from '@/hooks/useQuestionNarration';
 
@@ -132,21 +132,14 @@ export default function QuestionCard({
                 {question.category}
               </motion.span>
               
-              {/* Narration indicator */}
-              {(isLoading || isNarrating) && (
+              {/* Subtle narration indicator - only shows when actively playing */}
+              {isNarrating && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-1 ml-2 px-2 py-1 rounded-full bg-primary/20"
+                  className="ml-2"
                 >
-                  {isLoading ? (
-                    <Loader2 className="w-3 h-3 text-primary animate-spin" />
-                  ) : (
-                    <Volume2 className="w-3 h-3 text-primary animate-pulse" />
-                  )}
-                  <span className="text-[10px] text-primary">
-                    {isLoading ? 'Carregando...' : 'Narrando'}
-                  </span>
+                  <Volume2 className="w-4 h-4 text-primary/60 animate-pulse" />
                 </motion.div>
               )}
             </motion.div>

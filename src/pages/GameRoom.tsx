@@ -895,13 +895,14 @@ export default function GameRoom() {
     setGameCompleted(false);
     setHostEliminated(false);
 
-    // Use intelligent question selection with history
-    let q = getNextQuestion();
+    // Use intelligent question selection with history - pass round 1 for first question
+    let q = getNextQuestion(1);
     
     // If null, all questions exhausted - reset and get fresh
     if (!q) {
       await resetHistory();
-      if (questions.length > 0) {
+      q = getNextQuestion(1);
+      if (!q && questions.length > 0) {
         const randomIndex = Math.floor(Math.random() * questions.length);
         q = questions[randomIndex];
       }
@@ -1035,13 +1036,14 @@ export default function GameRoom() {
     const nextRoundNum = currentRound + 1;
     setCurrentRound(nextRoundNum);
 
-    // Use intelligent question selection with history
-    let nextQ = getNextQuestion();
+    // Use intelligent question selection with history - pass next round for difficulty filtering
+    let nextQ = getNextQuestion(nextRoundNum);
     
     // If null, all questions exhausted - reset and get fresh
     if (!nextQ) {
       await resetHistory();
-      if (questions.length > 0) {
+      nextQ = getNextQuestion(nextRoundNum);
+      if (!nextQ && questions.length > 0) {
         const randomIndex = Math.floor(Math.random() * questions.length);
         nextQ = questions[randomIndex];
       }
