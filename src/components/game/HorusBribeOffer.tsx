@@ -83,7 +83,7 @@ export default function HorusBribeOffer({
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="font-orbitron text-2xl text-gold font-bold"
                 >
-                  ⚠️ TENTAÇÃO DO HÓRUS ⚠️
+                  ⚠️ SEU DESTINO JÁ ESTÁ SELADO! ⚠️
                 </motion.div>
                 <p className="text-sm text-muted-foreground">
                   O Hórus tem uma proposta irrecusável...
@@ -171,7 +171,6 @@ export default function HorusBribeOffer({
                 <p className="font-orbitron text-3xl text-gold font-bold">
                   {bribeAmount.toLocaleString('pt-BR')} BC
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">ou conteúdo misterioso da maleta</p>
               </motion.div>
 
               {/* Speech Display */}
