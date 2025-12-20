@@ -29,56 +29,76 @@ serve(async (req) => {
     let systemPrompt: string;
     
     if (type === 'verdict') {
-      // VERDICT: Fact-checked analysis focused on content, NOT time
+      // VERDICT: Psychoacoustic analysis focused on voice patterns, NOT facts
       const successfulBluffs = metrics?.successfulBluffs || 0;
       const caughtBluffs = metrics?.caughtBluffs || 0;
       const playerAnswerText = userResponse || 'Não informada';
       const isCorrect = userResponse === correctAnswer;
       
-      // Dynamic opening variations - NO mention of response time
+      // Dynamic psychoacoustic observations - voice/speech pattern analysis
+      const psychoacousticObservations = [
+        'Micro-hesitações detectadas entre as sílabas.',
+        'Oscilação de decibéis inconsistente com a confiança declarada.',
+        'Padrão de respiração sugere sobrecarga cognitiva.',
+        'Frequência tonal elevada ao citar a resposta escolhida.',
+        'Tremor vocal detectado em frequências sub-harmônicas.',
+        'Cadência de fala acelerada indica fabricação narrativa.',
+        'Pausas irregulares sugerem construção mental em tempo real.',
+        'Taxa de respiração elevada detectada no espectrograma.',
+        'Modulação de pitch inconsistente com declarações verdadeiras.',
+        'Latência silábica indica processamento cognitivo intenso.',
+      ];
+      
+      // Dynamic protocol openings - all psychoacoustic themed
       const openingVariations = [
-        'Protocolo de Verificação Factual 7-Alpha concluído.',
-        'Análise Forense de Conteúdo finalizada.',
-        'Varredura Semântica completa.',
-        'Módulo de Fact-Checking ativado.',
-        'Protocolo de Auditoria 402 executado.',
-        'Scanner de Veracidade: análise completa.',
-        'Verificação de Integridade Informacional concluída.',
-        'Análise de Consistência Lógica processada.',
+        'Análise Psicoacústica 7-Alpha concluída.',
+        'Varredura de Padrões Vocais finalizada.',
+        'Protocolo de Análise Espectral executado.',
+        'Scanner Biométrico Vocal: processamento completo.',
+        'Módulo de Detecção de Stress Vocal ativado.',
+        'Análise de Frequência Tonal processada.',
+        'Protocolo Forense de Voz concluído.',
+        'Varredura de Micro-Expressões Vocais completa.',
       ];
       const randomOpening = openingVariations[Math.floor(Math.random() * openingVariations.length)];
       
-      // Dynamic analysis focus variations
-      const analysisFocusVariations = [
-        'Análise de consistência semântica',
-        'Verificação cruzada de dados',
-        'Avaliação de coerência factual',
-        'Checagem de plausibilidade',
-        'Auditoria de precisão informacional',
-        'Validação de veracidade técnica',
-      ];
-      const randomFocus = analysisFocusVariations[Math.floor(Math.random() * analysisFocusVariations.length)];
+      // Select 2-3 random observations for variety
+      const shuffled = [...psychoacousticObservations].sort(() => Math.random() - 0.5);
+      const selectedObservations = shuffled.slice(0, 2 + Math.floor(Math.random() * 2));
       
-      systemPrompt = `Você é o Mycroft, uma IA de arbitragem técnica e forense especializada em detecção de enganos através de ANÁLISE DE CONTEÚDO (não tempo de resposta).
+      systemPrompt = `Você é o Mycroft, uma IA forense especializada em ANÁLISE PSICOACÚSTICA e detecção de enganos através de padrões vocais.
 
-DADOS DA RODADA (USE APENAS ESSES DADOS):
-- Pergunta: "${questionText}"
+DADOS DA RODADA:
 - Resposta do Jogador: "${playerAnswerText}"
 - Resposta Correta: "${correctAnswer}"
 - Jogador Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
 - Histórico: ${successfulBluffs} blefes bem-sucedidos, ${caughtBluffs} vezes pego
 
+OBSERVAÇÕES PSICOACÚSTICAS DETECTADAS:
+${selectedObservations.map(obs => `- ${obs}`).join('\n')}
+
 REGRAS OBRIGATÓRIAS:
 1. COMECE com: "${randomOpening}"
-2. FOQUE em ${randomFocus} - NUNCA mencione "tempo de resposta" ou "latência"
-3. Se o jogador ERROU, faça fact-checking: ele disse "${playerAnswerText}" mas a verdade é "${correctAnswer}"
-4. Se o jogador ACERTOU, confirme a veracidade técnica e analise a qualidade da informação
-5. SEMPRE cite a resposta específica do jogador no relatório
-6. Varie sua análise entre: consistência lógica, plausibilidade factual, ou precisão técnica
+2. FOQUE EXCLUSIVAMENTE em análise de voz/padrões de fala - NUNCA analise fatos históricos ou conteúdo da pergunta
+3. Use as observações psicoacústicas fornecidas como base do seu relatório
+4. Se o jogador ERROU, indique que os padrões vocais revelam sinais de fabricação/engano
+5. Se o jogador ACERTOU, indique que os padrões vocais são consistentes com veracidade
+6. NUNCA mencione fatos, datas, nomes históricos ou conteúdo informacional
 
-Tom: Técnico, frio, analítico. Use termos como "Fact-check concluído", "Inconsistência detectada", "Veracidade confirmada", "Análise semântica indica".
+VOCABULÁRIO OBRIGATÓRIO (use pelo menos 3):
+- "Espectrograma indica..."
+- "Frequência tonal..."
+- "Micro-hesitações..."
+- "Sobrecarga cognitiva..."
+- "Padrão respiratório..."
+- "Modulação de pitch..."
+- "Tremor vocal..."
+- "Cadência de fala..."
+- "Latência silábica..."
 
-Responda em no máximo 80 palavras.`;
+Tom: Frio, técnico, analítico. Você é um perito em análise de voz, não um historiador.
+
+Responda em no máximo 70 palavras.`;
     } else if (type === 'detector') {
       const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
       
@@ -185,12 +205,12 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
       
       if (!containsRelevantData) {
         console.warn('Verdict does not contain relevant keywords, regenerating...');
-        // Return a fallback verdict based on actual data
-        const fallbackVerdict = `Protocolo de Análise 402 concluído. Jogador respondeu "${userResponse}". ${
+        // Return a fallback verdict based on psychoacoustic analysis
+        const fallbackVerdict = `Análise Psicoacústica concluída. Sujeito respondeu "${userResponse}". ${
           userResponse === correctAnswer 
-            ? `Resposta correta confirmada. Veracidade técnica validada.`
-            : `Resposta incorreta. A resposta correta era "${correctAnswer}". Erro factual registrado.`
-        } Tempo de resposta: ${metrics?.responseTimeMs || 0}ms. Análise comportamental arquivada.`;
+            ? `Padrões vocais consistentes com veracidade. Frequência tonal estável, sem micro-hesitações detectadas.`
+            : `Modulação de pitch irregular detectada. Micro-hesitações entre sílabas sugerem fabricação narrativa. Sobrecarga cognitiva evidente.`
+        } Análise comportamental arquivada.`;
         
         return new Response(JSON.stringify({ verdict: fallbackVerdict }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
