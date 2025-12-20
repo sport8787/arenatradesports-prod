@@ -1198,6 +1198,24 @@ export default function GameRoom() {
     );
   }
 
+  // Room not found or error - prevent black screen
+  if (!gameState.room) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <LuxuryCard className="w-full max-w-md space-y-6 text-center">
+          <h2 className="font-orbitron text-2xl text-destructive">Sala não encontrada</h2>
+          <p className="text-muted-foreground">
+            A sala pode ter sido encerrada ou o código está incorreto.
+          </p>
+          <GoldButton onClick={() => navigate('/')} className="w-full" size="lg">
+            <Home className="w-5 h-5 mr-2 inline" />
+            Voltar ao Início
+          </GoldButton>
+        </LuxuryCard>
+      </div>
+    );
+  }
+
   // Not joined yet
   if (!gameState.myPlayer) {
     return (
