@@ -108,6 +108,7 @@ export default function GameRoom() {
   const { state: dialogState, speak: speakPersona, stopSpeaking, getActivePersona } = useDialogManager();
   const { 
     metrics: verdictMetrics, 
+    isGenerating: isVerdictGenerating,
     startResponseTimer, 
     stopResponseTimer, 
     recordBluffResult, 
@@ -1854,8 +1855,9 @@ export default function GameRoom() {
       {/* Mycroft Verdict Panel */}
       <MycroftVerdictPanel
         verdict={currentVerdict}
-        isVisible={showMycroftVerdict}
+        isVisible={showMycroftVerdict || isVerdictGenerating}
         isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
+        isGenerating={isVerdictGenerating}
         onClose={() => setShowMycroftVerdict(false)}
       />
     </div>
