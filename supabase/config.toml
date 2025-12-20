@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.mycroft-ai]
 verify_jwt = false
+
+[functions.cleanup-old-rooms]
+verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false
