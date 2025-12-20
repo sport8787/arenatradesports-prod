@@ -15,6 +15,7 @@ import AdminQuestions from "./pages/AdminQuestions";
 import NotFound from "./pages/NotFound";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { preCacheMycroftPhrases } from "./services/mycroftBlockService";
+import { AudioDebugPanel } from "./components/game/AudioDebugPanel";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <AudioDebugPanel />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
