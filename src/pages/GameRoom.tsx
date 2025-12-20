@@ -239,7 +239,6 @@ export default function GameRoom() {
     await updateRoomStatus('result');
     setTimeout(() => playChips(), 500);
   };
-  };
 
   // Play sounds on status changes and update rankings
   useEffect(() => {
