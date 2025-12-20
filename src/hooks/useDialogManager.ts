@@ -10,6 +10,17 @@ interface DialogState {
   error: string | null;
 }
 
+interface QueueItem {
+  moment: GameMoment;
+  dynamicText?: string;
+  onComplete?: () => void;
+}
+
+interface UseDialogManagerOptions {
+  canPlayAudio?: boolean;
+  onAudioGenerated?: (audioUrl: string, text: string, personaId: string) => void;
+}
+
 interface UseDialogManagerReturn {
   state: DialogState;
   speak: (moment: GameMoment, dynamicText?: string, priority?: number, onComplete?: () => void) => Promise<void>;
@@ -17,9 +28,12 @@ interface UseDialogManagerReturn {
   getActivePersona: () => typeof PERSONAS.horus | typeof PERSONAS.mycroft | null;
   isQueueEmpty: () => boolean;
   clearQueue: () => void;
+  playExternalAudio: (audioUrl: string, text: string, onComplete?: () => void) => void;
 }
 
-export function useDialogManager(): UseDialogManagerReturn {
+export function useDialogManager(options: UseDialogManagerOptions = {}): UseDialogManagerReturn {
+  const { canPlayAudio = true, onAudioGenerated } = options;
+  
   const [state, setState] = useState<DialogState>({
     activePersona: null,
     isSpeaking: false,
@@ -30,7 +44,7 @@ export function useDialogManager(): UseDialogManagerReturn {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCache = useRef<Map<string, string>>(new Map());
-  const queueRef = useRef<Array<{ moment: GameMoment; dynamicText?: string; onComplete?: () => void }>>([]);
+  const queueRef = useRef<QueueItem[]>([]);
   const isProcessingRef = useRef(false);
 
   const generateTTS = useCallback(async (text: string, personaId: PersonaId): Promise<string | null> => {
@@ -74,6 +88,25 @@ export function useDialogManager(): UseDialogManagerReturn {
     }
   }, []);
 
+  // Play audio locally
+  const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {
+    if (audioRef.current) audioRef.current.pause();
+    
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    
+    audio.onplay = () => setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
+    audio.onended = onEnded;
+    audio.onerror = onEnded;
+    
+    try {
+      await audio.play();
+    } catch {
+      // Fallback: wait then continue
+      setTimeout(onEnded, 4000);
+    }
+  }, []);
+
   const processQueue = useCallback(async () => {
     if (isProcessingRef.current || queueRef.current.length === 0) return;
     
@@ -114,21 +147,27 @@ export function useDialogManager(): UseDialogManagerReturn {
     };
 
     if (audioUrl) {
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-      audio.onplay = () => setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
-      audio.onended = finishAndProcessNext;
-      audio.onerror = finishAndProcessNext;
-      try {
-        await audio.play();
-      } catch {
-        setTimeout(finishAndProcessNext, 4000);
+      // If we have a callback for audio sync, notify it
+      if (onAudioGenerated) {
+        onAudioGenerated(audioUrl, textToSpeak, config.persona);
+        // In sync mode, the audio will be played via broadcast
+        // We still update state and wait for completion
+        setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
+        
+        // Estimate duration based on text length (rough: 150ms per character)
+        const estimatedDuration = Math.max(3000, textToSpeak.length * 80);
+        setTimeout(finishAndProcessNext, estimatedDuration);
+      } else if (canPlayAudio) {
+        // No sync - play locally
+        await playAudioLocally(audioUrl, finishAndProcessNext);
+      } else {
+        // Can't play audio - just finish
+        setTimeout(finishAndProcessNext, 500);
       }
     } else {
       setTimeout(finishAndProcessNext, 4000);
     }
-  }, [generateTTS]);
+  }, [generateTTS, canPlayAudio, onAudioGenerated, playAudioLocally]);
 
   const speak = useCallback(async (moment: GameMoment, dynamicText?: string, _priority?: number, onComplete?: () => void) => {
     queueRef.current.push({ moment, dynamicText, onComplete });
@@ -150,5 +189,44 @@ export function useDialogManager(): UseDialogManagerReturn {
 
   const getActivePersona = useCallback(() => state.activePersona ? PERSONAS[state.activePersona] : null, [state.activePersona]);
 
-  return { state, speak, stopSpeaking, getActivePersona, isQueueEmpty, clearQueue };
+  // Play audio received from external source (sync)
+  const playExternalAudio = useCallback((audioUrl: string, text: string, onComplete?: () => void) => {
+    if (!canPlayAudio) return;
+
+    setState(prev => ({
+      ...prev,
+      isSpeaking: true,
+      currentText: text,
+    }));
+
+    if (audioRef.current) audioRef.current.pause();
+    
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    audio.onended = () => {
+      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+      if (onComplete) onComplete();
+    };
+
+    audio.onerror = () => {
+      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+      if (onComplete) onComplete();
+    };
+
+    audio.play().catch(() => {
+      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+      if (onComplete) onComplete();
+    });
+  }, [canPlayAudio]);
+
+  return { 
+    state, 
+    speak, 
+    stopSpeaking, 
+    getActivePersona, 
+    isQueueEmpty, 
+    clearQueue,
+    playExternalAudio,
+  };
 }

@@ -8,6 +8,7 @@ import { useRankings } from '@/hooks/useRankings';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
+import { useAudioSync } from '@/hooks/useAudioSync';
 import { useMycroftVerdict, VerdictReport } from '@/hooks/useMycroftVerdict';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
@@ -103,11 +104,12 @@ const generateBriefcasePrize = (): number => {
 export default function GameRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const sessionId = getOrCreateSessionId();
+  
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
-  const { state: dialogState, speak: speakPersona, stopSpeaking, isQueueEmpty, clearQueue } = useDialogManager();
   const { 
     metrics: verdictMetrics, 
     isGenerating: isVerdictGenerating,
@@ -124,9 +126,47 @@ export default function GameRoom() {
   const guestNickname = `Convidado${Math.floor(Math.random() * 9999)}`;
   const displayNickname = isGuest ? guestNickname : profile?.username || 'Jogador';
   
-  // Question history hook - uses session ID as user identifier for multiplayer
-  const sessionId = getOrCreateSessionId();
+  // Question history hook
   const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(sessionId);
+  
+  // Core game state
+  const isRoomHost = gameState.room?.host_id === sessionId;
+  const isCurrentPlayer = isRoomHost;
+  const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
+  
+  // Audio permission based on game mode
+  // Online: everyone hears audio (synced via WebSocket)
+  // Presencial: only host hears audio
+  const gameMode = (gameState.room as any)?.game_mode as GameMode | undefined;
+  const canPlayAudio = gameMode === 'presencial' ? isRoomHost : true;
+  const isOnlineMode = gameMode === 'online' || !gameMode;
+
+  // Audio sync for online mode
+  const { broadcastAudio, broadcastStop, isConnected: isAudioSyncConnected } = useAudioSync({
+    roomId: roomId || null,
+    isHost: isRoomHost,
+    canPlayAudio,
+  });
+
+  // Dialog manager with audio sync integration
+  const handleAudioGenerated = useCallback((audioUrl: string, text: string, personaId: string) => {
+    // In online mode, host broadcasts audio to all players
+    if (isOnlineMode && isRoomHost) {
+      broadcastAudio(audioUrl, text, personaId);
+    }
+  }, [isOnlineMode, isRoomHost, broadcastAudio]);
+
+  const { 
+    state: dialogState, 
+    speak: speakPersona, 
+    stopSpeaking, 
+    isQueueEmpty, 
+    clearQueue,
+    playExternalAudio,
+  } = useDialogManager({
+    canPlayAudio: isOnlineMode ? isRoomHost : canPlayAudio, // In online mode, only host generates TTS
+    onAudioGenerated: isOnlineMode ? handleAudioGenerated : undefined,
+  });
   
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -183,16 +223,6 @@ export default function GameRoom() {
   const verdictTriggeredRef = useRef<string | null>(null);
   const [awaitingMycroftComplete, setAwaitingMycroftComplete] = useState(false);
   const mycroftCompleteRef = useRef(false);
-
-  const isRoomHost = gameState.room?.host_id === sessionId;
-  const isCurrentPlayer = isRoomHost;
-  const hasVoted = gameState.votes.some(v => v.player_id === gameState.myPlayer?.id);
-  
-  // Audio permission based on game mode
-  // Online: everyone hears audio
-  // Presencial: only host hears audio
-  const gameMode = (gameState.room as any)?.game_mode as GameMode | undefined;
-  const canPlayAudio = gameMode === 'presencial' ? isRoomHost : true;
 
   // Preload sounds when component mounts
   useEffect(() => {
@@ -1116,6 +1146,13 @@ export default function GameRoom() {
           <div className="flex items-center gap-4">
             {/* BluffCoins Display */}
             <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="md" />
+            {/* Audio sync indicator for online mode */}
+            {isOnlineMode && (
+              <div 
+                className={`w-2 h-2 rounded-full ${isAudioSyncConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`}
+                title={isAudioSyncConnected ? 'Sincronização ativa' : 'Conectando...'}
+              />
+            )}
             {/* Audio indicator based on game mode */}
             <div title={canPlayAudio ? "Áudio ativo" : "Áudio desativado (modo presencial)"}>
               {canPlayAudio ? (
