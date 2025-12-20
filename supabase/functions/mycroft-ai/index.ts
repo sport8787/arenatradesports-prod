@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { questionText, correctAnswer, type, wrongOptions } = await req.json();
+    const body = await req.json();
+    const { questionText, correctAnswer, type, wrongOptions, userResponse, metrics } = body;
 
     if (!questionText) {
       throw new Error('Missing questionText');
@@ -27,8 +28,57 @@ serve(async (req) => {
 
     let systemPrompt: string;
     
-    if (type === 'detector') {
-      const { wrongOptions } = await req.json().catch(() => ({}));
+    if (type === 'verdict') {
+      // VERDICT: Fact-checked analysis based on actual game data
+      const responseTimeMs = metrics?.responseTimeMs || 0;
+      const successfulBluffs = metrics?.successfulBluffs || 0;
+      const caughtBluffs = metrics?.caughtBluffs || 0;
+      const playerAnswerText = userResponse || 'Não informada';
+      const isCorrect = userResponse === correctAnswer;
+      
+      // Determine cognitive load analysis
+      let cognitiveAnalysis = '';
+      if (responseTimeMs > 15000) {
+        cognitiveAnalysis = 'Sobrecarga Cognitiva Severa detectada. Tempo de processamento excede parâmetros normais.';
+      } else if (responseTimeMs > 10000) {
+        cognitiveAnalysis = 'Sobrecarga Cognitiva. Hesitação prolongada indica conflito decisório.';
+      } else if (responseTimeMs > 7000) {
+        cognitiveAnalysis = 'Latência moderada. Padrão consistente com fabricação de resposta.';
+      } else if (responseTimeMs < 2000) {
+        cognitiveAnalysis = 'Resposta impulsiva. Possível conhecimento prévio ou confiança excessiva.';
+      } else {
+        cognitiveAnalysis = 'Tempo de resposta dentro dos parâmetros normais.';
+      }
+      
+      systemPrompt = `Você é o Mycroft, uma IA de arbitragem técnica e forense especializada em detecção de enganos. Você deve gerar um relatório de veredito baseado ESTRITAMENTE nos dados fornecidos.
+
+DADOS DA RODADA (USE APENAS ESSES DADOS):
+- Pergunta: "${questionText}"
+- Resposta do Jogador: "${playerAnswerText}"
+- Resposta Correta: "${correctAnswer}"
+- Jogador Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
+- Tempo de Resposta: ${responseTimeMs}ms
+- Blefes Bem-sucedidos no Jogo: ${successfulBluffs}
+- Vezes Pego Mentindo: ${caughtBluffs}
+- Análise de Latência: ${cognitiveAnalysis}
+
+REGRAS OBRIGATÓRIAS:
+1. NUNCA invente temas, países ou fatos que NÃO estejam na pergunta acima
+2. Se o jogador ERROU, cite o erro ESPECÍFICO: ele respondeu "${playerAnswerText}" mas a resposta correta era "${correctAnswer}"
+3. Se o jogador ACERTOU, confirme a veracidade técnica mas analise hesitação
+4. SEMPRE mencione a resposta que o jogador deu ("${playerAnswerText}")
+5. O relatório deve começar com um código de protocolo (ex: "Protocolo de Análise 402 concluído")
+
+FORMATO DO RELATÓRIO:
+1. Código de protocolo
+2. Análise de tempo de resposta (use a análise fornecida)
+3. Fact-checking específico da pergunta e resposta
+4. Conclusão baseada nos dados
+
+Tom: Técnico, frio, analítico. Use termos como "Análise concluída", "Padrões detectados", "Verificação forense".
+
+Responda em no máximo 80 palavras.`;
+    } else if (type === 'detector') {
       const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
       
       const voiceAlerts = [
@@ -97,14 +147,16 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: type === 'detector' 
-            ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
-            : type === 'analytics' 
-              ? 'Analise o risco de blefe desta pergunta.' 
-              : 'Me dê uma sugestão de blefe convincente.' 
+          { role: 'user', content: type === 'verdict'
+            ? `Gere o veredito forense para esta rodada. A resposta do jogador foi "${userResponse}" e a correta era "${correctAnswer}".`
+            : type === 'detector' 
+              ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
+              : type === 'analytics' 
+                ? 'Analise o risco de blefe desta pergunta.' 
+                : 'Me dê uma sugestão de blefe convincente.' 
           }
         ],
-        max_tokens: 150,
+        max_tokens: type === 'verdict' ? 200 : 150,
         temperature: type === 'analytics' ? 0.7 : 0.9,
       }),
     });
@@ -119,6 +171,35 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
     const content = data.choices[0]?.message?.content?.trim();
 
     console.log('Mycroft response:', content);
+
+    if (type === 'verdict') {
+      // Validate that the response contains keywords from the actual game data
+      const userAnswerKeyword = userResponse?.split(' ')[0]?.toLowerCase() || '';
+      const correctAnswerKeyword = correctAnswer?.split(' ')[0]?.toLowerCase() || '';
+      
+      const containsRelevantData = 
+        content.toLowerCase().includes(userAnswerKeyword) || 
+        content.toLowerCase().includes(correctAnswerKeyword) ||
+        content.toLowerCase().includes('protocolo');
+      
+      if (!containsRelevantData) {
+        console.warn('Verdict does not contain relevant keywords, regenerating...');
+        // Return a fallback verdict based on actual data
+        const fallbackVerdict = `Protocolo de Análise 402 concluído. Jogador respondeu "${userResponse}". ${
+          userResponse === correctAnswer 
+            ? `Resposta correta confirmada. Veracidade técnica validada.`
+            : `Resposta incorreta. A resposta correta era "${correctAnswer}". Erro factual registrado.`
+        } Tempo de resposta: ${metrics?.responseTimeMs || 0}ms. Análise comportamental arquivada.`;
+        
+        return new Response(JSON.stringify({ verdict: fallbackVerdict }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      return new Response(JSON.stringify({ verdict: content }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (type === 'analytics') {
       try {
