@@ -170,6 +170,15 @@ const ALL_IN: HorusPhrase[] = [
   { id: 'ai8', moment: 'all_in', text: 'All-in! As cartas estão na mesa! Que vença o melhor mentiroso!', emotion: 'dramatic' },
 ];
 
+// All-in loss phrases - player lost on round 15
+const ALL_IN_LOSS: HorusPhrase[] = [
+  { id: 'ail1', moment: 'all_in_loss', text: 'Você deveria ter aceitado a Maleta Misteriosa... agora, você sai de mãos vazias.', emotion: 'menacing' },
+  { id: 'ail2', moment: 'all_in_loss', text: 'A ganância te destruiu! A maleta estava ali, te chamando... e você recusou.', emotion: 'sarcastic' },
+  { id: 'ail3', moment: 'all_in_loss', text: 'O All-in te consumiu. A maleta era sua salvação, mas você escolheu o abismo.', emotion: 'dramatic' },
+  { id: 'ail4', moment: 'all_in_loss', text: 'Poxa, que pena! Tudo perdido. A maleta nunca decepciona... você deveria ter confiado nela.', emotion: 'sarcastic' },
+  { id: 'ail5', moment: 'all_in_loss', text: 'Zero pontos. Nada. O vazio. A maleta teria sido tão gentil com você...', emotion: 'menacing' },
+];
+
 // Special challenge phrases (8)
 const SPECIAL_CHALLENGE: HorusPhrase[] = [
   { id: 'sc1', moment: 'special_challenge', text: 'Desafio especial! Esta pergunta vale o dobro! Você aceita o risco?', emotion: 'excited' },
@@ -247,6 +256,7 @@ export const HORUS_PHRASES: HorusPhrase[] = [
   ...VICTORY,
   ...TAUNT,
   ...ALL_IN,
+  ...ALL_IN_LOSS,
   ...SPECIAL_CHALLENGE,
   ...JURY_DELIBERATION,
   ...POST_VOTE_BRIBE,
