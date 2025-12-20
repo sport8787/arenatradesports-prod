@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, stability, similarityBoost } = await req.json();
+    const { text, voiceId, stability, similarityBoost, uploadToStorage, roomId } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!ELEVENLABS_API_KEY) {
       throw new Error('ELEVENLABS_API_KEY is not configured');
@@ -59,6 +62,43 @@ serve(async (req) => {
     const audioBuffer = await response.arrayBuffer();
     console.log('TTS generated, size:', audioBuffer.byteLength);
 
+    // If uploadToStorage is requested, upload to Supabase Storage and return URL
+    if (uploadToStorage && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      const fileName = `tts/${roomId || 'general'}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('game-audio')
+        .upload(fileName, audioBuffer, {
+          contentType: 'audio/mpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw new Error(`Storage upload error: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-audio')
+        .getPublicUrl(fileName);
+
+      console.log('Audio uploaded to storage:', publicUrl);
+
+      return new Response(
+        JSON.stringify({ audioUrl: publicUrl, size: audioBuffer.byteLength }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // Return audio directly as before
     return new Response(audioBuffer, {
       headers: {
         ...corsHeaders,
