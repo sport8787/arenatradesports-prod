@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { GameState, Room, Player, Question, Vote, RoomStatus } from '@/types/game';
+import { GameState, Room, Player, Question, Vote, RoomStatus, GameMode } from '@/types/game';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 
 export function useGameState(roomId: string | null) {
@@ -242,6 +242,16 @@ export function useGameState(roomId: string | null) {
     return (gameState.myPlayer?.bluffcoins || 0) >= amount;
   };
 
+  // Update game mode
+  const updateGameMode = async (mode: GameMode) => {
+    if (!roomId) return;
+
+    await supabase
+      .from('rooms')
+      .update({ game_mode: mode } as any)
+      .eq('id', roomId);
+  };
+
   return {
     gameState,
     loading,
@@ -251,6 +261,7 @@ export function useGameState(roomId: string | null) {
     updateScore,
     updateBluffcoins,
     hasEnoughCoins,
+    updateGameMode,
     refetch: fetchGameState,
   };
 }
