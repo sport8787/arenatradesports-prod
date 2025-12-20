@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useGameState } from '@/hooks/useGameState';
@@ -105,7 +105,7 @@ export default function GameRoom() {
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
-  const { state: dialogState, speak: speakPersona, stopSpeaking, getActivePersona } = useDialogManager();
+  const { state: dialogState, speak: speakPersona, stopSpeaking, isQueueEmpty, clearQueue } = useDialogManager();
   const { 
     metrics: verdictMetrics, 
     isGenerating: isVerdictGenerating,
@@ -179,6 +179,8 @@ export default function GameRoom() {
   const [showMycroftVerdict, setShowMycroftVerdict] = useState(false);
   const [currentVerdict, setCurrentVerdict] = useState<VerdictReport | null>(null);
   const verdictTriggeredRef = useRef<string | null>(null);
+  const [awaitingMycroftComplete, setAwaitingMycroftComplete] = useState(false);
+  const mycroftCompleteRef = useRef(false);
 
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
@@ -226,10 +228,17 @@ export default function GameRoom() {
   }, [gameState.room?.current_audio_url, gameState.room?.current_status, isRoomHost, playVote]);
 
   // Handler for auto-reveal when all jurors have voted (called from VoteCounter)
+  // Now triggers Mycroft FIRST, then goes to results after Mycroft finishes
   const handleAllVoted = async () => {
     if (!isRoomHost) return;
+    
+    // Trigger Mycroft verdict first - results will show after he finishes
+    await triggerMycroftVerdict();
+    
+    // Go to result status after Mycroft starts (he'll announce before Hórus)
     await updateRoomStatus('result');
     setTimeout(() => playChips(), 500);
+  };
   };
 
   // Play sounds on status changes and update rankings
@@ -298,39 +307,8 @@ export default function GameRoom() {
     return () => clearTimeout(readQuestionTimer);
   }, [gameState.currentQuestion?.id, gameState.room?.current_status, personaMuted, speakPersona]);
 
-  // Hórus announces result after voting/reveal
-  useEffect(() => {
-    const currentStatus = gameState.room?.current_status;
-    
-    if (personaMuted) return;
-    if (currentStatus !== 'result') return;
-    if (!confirmedAnswer || !gameState.currentQuestion) return;
-    
-    const playerGotCorrect = confirmedAnswer === gameState.currentQuestion.correct_option;
-    const juryVotes = gameState.votes;
-    const believeVotes = juryVotes.filter(v => v.vote_type === 'believe').length;
-    const doubtVotes = juryVotes.filter(v => v.vote_type === 'doubt').length;
-    const totalJuryVotes = juryVotes.length;
-    
-    // Only announce if we have votes (jury voted)
-    if (totalJuryVotes === 0) return;
-    
-    // Small delay so results panel appears first
-    const announceTimer = setTimeout(() => {
-      if (!playerGotCorrect && doubtVotes === totalJuryVotes) {
-        // Bluff failed - player caught!
-        speakPersona('bluff_fail');
-      } else if (!playerGotCorrect && believeVotes > 0) {
-        // Bluff success!
-        speakPersona('bluff_success');
-      } else if (playerGotCorrect) {
-        // Correct answer
-        speakPersona('correct_answer');
-      }
-    }, 1200);
-    
-    return () => clearTimeout(announceTimer);
-  }, [gameState.room?.current_status, gameState.votes.length, confirmedAnswer, gameState.currentQuestion, personaMuted, speakPersona]);
+  // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
+  // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
 
   // Hórus offers briefcase when modal appears
   useEffect(() => {
@@ -350,27 +328,32 @@ export default function GameRoom() {
     }
   }, [gameState.room?.current_status, gameState.currentQuestion?.id, isRoomHost, startResponseTimer]);
 
-  // Mycroft Verdict - trigger after result is shown and Hórus finishes speaking
-  useEffect(() => {
-    const currentStatus = gameState.room?.current_status;
-    const questionId = gameState.currentQuestion?.id;
+  // Mycroft Verdict - triggers when voting ends (timer complete or manual)
+  // The game MUST wait for Mycroft to finish before proceeding to results
+  const triggerMycroftVerdict = useCallback(async () => {
     const question = gameState.currentQuestion;
+    const questionId = question?.id;
     
+    if (!questionId || !question || !confirmedAnswer) return;
+    if (verdictTriggeredRef.current === questionId) return;
     if (personaMuted) return;
-    if (currentStatus !== 'result') return;
-    if (!questionId || !question || verdictTriggeredRef.current === questionId) return;
-    if (gameState.votes.length === 0) return;
-    if (!confirmedAnswer) return; // Need the user's actual answer
     
-    // Mark this question as verdict-triggered
+    // Mark as triggered
     verdictTriggeredRef.current = questionId;
+    mycroftCompleteRef.current = false;
+    setAwaitingMycroftComplete(true);
+    
+    // Stop any current audio
+    clearQueue();
+    
+    // Show Mycroft panel immediately
+    setShowMycroftVerdict(true);
     
     // Record bluff result for metrics
     const playerGotCorrect = confirmedAnswer === question.correct_option;
     const believeVotes = gameState.votes.filter(v => v.vote_type === 'believe').length;
     const doubtVotes = gameState.votes.filter(v => v.vote_type === 'doubt').length;
     
-    // Was this a successful bluff?
     const wasBluffSuccessful = !playerGotCorrect && believeVotes > 0;
     const wasBluffCaught = !playerGotCorrect && doubtVotes === gameState.votes.length;
     
@@ -380,36 +363,55 @@ export default function GameRoom() {
       recordBluffResult(false);
     }
     
-    // Delay Mycroft verdict to let Hórus finish speaking (about 5 seconds after result)
-    const verdictTimer = setTimeout(async () => {
-      try {
-        // Generate verdict with actual question context and user response
-        const verdict = await generateVerdict(question, confirmedAnswer);
-        setCurrentVerdict(verdict);
-        setShowMycroftVerdict(true);
+    try {
+      // Generate verdict with actual question context
+      const verdict = await generateVerdict(question, confirmedAnswer);
+      setCurrentVerdict(verdict);
+      
+      // Speak the verdict with Mycroft's voice - use callback for when complete
+      speakPersona('verdict', verdict.fullVerdict, 10, () => {
+        // Mycroft finished speaking - now proceed to result reveal
+        mycroftCompleteRef.current = true;
+        setAwaitingMycroftComplete(false);
         
-        // Speak the verdict with Mycroft's voice
-        speakPersona('verdict', verdict.fullVerdict);
+        // Now announce result with Hórus
+        const playerCorrect = confirmedAnswer === question.correct_option;
+        const totalVotes = gameState.votes.length;
+        const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
+        const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
         
-        // Hide verdict panel after speech finishes (estimated 15 seconds for long text)
+        if (totalVotes > 0) {
+          setTimeout(() => {
+            if (!playerCorrect && doubtCount === totalVotes) {
+              speakPersona('bluff_fail');
+            } else if (!playerCorrect && believeCount > 0) {
+              speakPersona('bluff_success');
+            } else if (playerCorrect) {
+              speakPersona('correct_answer');
+            }
+          }, 500);
+        }
+        
+        // Hide verdict panel after announcement
         setTimeout(() => {
           setShowMycroftVerdict(false);
-        }, 20000);
-      } catch (error) {
-        console.error('Failed to generate Mycroft verdict:', error);
-      }
-    }, 6000); // 6 seconds after result to let Hórus finish
-    
-    return () => clearTimeout(verdictTimer);
+        }, 8000);
+      });
+    } catch (error) {
+      console.error('Failed to generate Mycroft verdict:', error);
+      mycroftCompleteRef.current = true;
+      setAwaitingMycroftComplete(false);
+      setShowMycroftVerdict(false);
+    }
   }, [
-    gameState.room?.current_status, 
     gameState.currentQuestion, 
-    gameState.votes.length, 
+    gameState.votes, 
     confirmedAnswer, 
     personaMuted, 
     generateVerdict, 
     recordBluffResult, 
-    speakPersona
+    speakPersona,
+    clearQueue
   ]);
 
   // Process results ONLY when votes are available (separate effect to handle timing)
@@ -909,11 +911,15 @@ export default function GameRoom() {
     }
   };
 
-  const handleTimerComplete = () => {
+  // Timer complete - voting time ended, trigger Mycroft
+  const handleTimerComplete = async () => {
     playTimeUp();
-    // Auto-reveal results if host
+    // Auto-trigger Mycroft and reveal results if host
     if (isRoomHost) {
-      setTimeout(() => showResults(), 1000);
+      setTimeout(async () => {
+        await triggerMycroftVerdict();
+        await showResults();
+      }, 1000);
     }
   };
 

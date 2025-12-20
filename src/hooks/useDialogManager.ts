@@ -12,9 +12,11 @@ interface DialogState {
 
 interface UseDialogManagerReturn {
   state: DialogState;
-  speak: (moment: GameMoment, dynamicText?: string) => Promise<void>;
+  speak: (moment: GameMoment, dynamicText?: string, priority?: number, onComplete?: () => void) => Promise<void>;
   stopSpeaking: () => void;
   getActivePersona: () => typeof PERSONAS.horus | typeof PERSONAS.mycroft | null;
+  isQueueEmpty: () => boolean;
+  clearQueue: () => void;
 }
 
 export function useDialogManager(): UseDialogManagerReturn {
@@ -28,12 +30,13 @@ export function useDialogManager(): UseDialogManagerReturn {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCache = useRef<Map<string, string>>(new Map());
+  const queueRef = useRef<Array<{ moment: GameMoment; dynamicText?: string; onComplete?: () => void }>>([]);
+  const isProcessingRef = useRef(false);
 
   const generateTTS = useCallback(async (text: string, personaId: PersonaId): Promise<string | null> => {
     const persona = PERSONAS[personaId];
     const cacheKey = `${persona.voiceId}:${text}`;
     
-    // Check cache first
     if (audioCache.current.has(cacheKey)) {
       return audioCache.current.get(cacheKey)!;
     }
@@ -58,17 +61,12 @@ export function useDialogManager(): UseDialogManagerReturn {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('TTS request failed:', response.status, errorData);
-        throw new Error(errorData.error || `TTS error: ${response.status}`);
+        throw new Error(`TTS error: ${response.status}`);
       }
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Cache the URL
       audioCache.current.set(cacheKey, audioUrl);
-      
       return audioUrl;
     } catch (error) {
       console.error('Error generating TTS:', error);
@@ -76,15 +74,13 @@ export function useDialogManager(): UseDialogManagerReturn {
     }
   }, []);
 
-  const speak = useCallback(async (moment: GameMoment, dynamicText?: string) => {
-    // Stop any ongoing speech first
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+  const processQueue = useCallback(async () => {
+    if (isProcessingRef.current || queueRef.current.length === 0) return;
     
-    const config = getDialogConfig(moment);
-    const persona = PERSONAS[config.persona];
+    isProcessingRef.current = true;
+    const item = queueRef.current.shift()!;
+    
+    const config = getDialogConfig(item.moment);
 
     setState(prev => ({
       ...prev,
@@ -95,135 +91,64 @@ export function useDialogManager(): UseDialogManagerReturn {
     }));
 
     let textToSpeak: string;
-
-    // For question_read moment, always use the provided dynamic text (the question)
-    if (moment === 'question_read' && dynamicText) {
-      textToSpeak = dynamicText;
-    } else if (config.useLiveAI && dynamicText) {
-      // Use dynamic AI-generated text for special moments
-      textToSpeak = dynamicText;
+    if (item.moment === 'question_read' && item.dynamicText) {
+      textToSpeak = item.dynamicText;
+    } else if (config.useLiveAI && item.dynamicText) {
+      textToSpeak = item.dynamicText;
+    } else if (config.persona === 'horus') {
+      const phrase = getRandomHorusPhrase(item.moment);
+      textToSpeak = phrase?.text || 'Que os jogos comecem!';
     } else {
-      // Use cached phrases for Hórus
-      if (config.persona === 'horus') {
-        const phrase = getRandomHorusPhrase(moment);
-        textToSpeak = phrase?.text || 'Que os jogos comecem!';
-      } else {
-        // Mycroft always uses dynamic text
-        textToSpeak = dynamicText || 'Análise em processamento...';
-      }
+      textToSpeak = item.dynamicText || 'Análise em processamento...';
     }
 
     setState(prev => ({ ...prev, currentText: textToSpeak }));
 
-    // Generate and play TTS using persona settings
     const audioUrl = await generateTTS(textToSpeak, config.persona);
 
-    if (audioUrl) {
-      // Stop any current audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+    const finishAndProcessNext = () => {
+      setState(prev => ({ ...prev, isSpeaking: false, activePersona: null, currentText: null }));
+      if (item.onComplete) item.onComplete();
+      isProcessingRef.current = false;
+      setTimeout(() => processQueue(), 300);
+    };
 
+    if (audioUrl) {
+      if (audioRef.current) audioRef.current.pause();
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
-
-      audio.onplay = () => {
-        setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
-      };
-
-      audio.onended = () => {
-        setState(prev => ({ 
-          ...prev, 
-          isSpeaking: false,
-        }));
-        
-        // Clear persona after a delay
-        setTimeout(() => {
-          setState(prev => {
-            if (!prev.isSpeaking) {
-              return { ...prev, activePersona: null, currentText: null };
-            }
-            return prev;
-          });
-        }, 2000);
-      };
-
-      audio.onerror = () => {
-        console.error('Error playing audio');
-        setState(prev => ({ 
-          ...prev, 
-          isSpeaking: false, 
-          isLoading: false,
-          error: 'Erro ao reproduzir áudio',
-        }));
-      };
-
+      audio.onplay = () => setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
+      audio.onended = finishAndProcessNext;
+      audio.onerror = finishAndProcessNext;
       try {
         await audio.play();
-      } catch (error) {
-        console.error('Failed to play audio:', error);
-        // Fallback: just show the text without audio
-        setState(prev => ({ 
-          ...prev, 
-          isSpeaking: false, 
-          isLoading: false,
-          error: 'Áudio indisponível - mostrando texto',
-        }));
-        
-        // Auto-clear text after 4 seconds (simulating speech duration)
-        setTimeout(() => {
-          setState(prev => ({
-            ...prev,
-            activePersona: null,
-            currentText: null,
-            error: null,
-          }));
-        }, 4000);
+      } catch {
+        setTimeout(finishAndProcessNext, 4000);
       }
     } else {
-      // TTS failed - show text as fallback without audio
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false,
-        error: 'TTS indisponível - mostrando texto',
-      }));
-      
-      // Auto-clear text after 4 seconds
-      setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          activePersona: null,
-          currentText: null,
-          error: null,
-        }));
-      }, 4000);
+      setTimeout(finishAndProcessNext, 4000);
     }
   }, [generateTTS]);
 
+  const speak = useCallback(async (moment: GameMoment, dynamicText?: string, _priority?: number, onComplete?: () => void) => {
+    queueRef.current.push({ moment, dynamicText, onComplete });
+    if (!isProcessingRef.current) processQueue();
+  }, [processQueue]);
+
   const stopSpeaking = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    setState({
-      activePersona: null,
-      isSpeaking: false,
-      currentText: null,
-      isLoading: false,
-      error: null,
-    });
+    if (audioRef.current) audioRef.current.pause();
+    queueRef.current = [];
+    isProcessingRef.current = false;
+    setState({ activePersona: null, isSpeaking: false, currentText: null, isLoading: false, error: null });
   }, []);
 
-  const getActivePersona = useCallback(() => {
-    if (!state.activePersona) return null;
-    return PERSONAS[state.activePersona];
-  }, [state.activePersona]);
+  const clearQueue = useCallback(() => {
+    queueRef.current = [];
+  }, []);
 
-  return {
-    state,
-    speak,
-    stopSpeaking,
-    getActivePersona,
-  };
+  const isQueueEmpty = useCallback(() => queueRef.current.length === 0 && !isProcessingRef.current, []);
+
+  const getActivePersona = useCallback(() => state.activePersona ? PERSONAS[state.activePersona] : null, [state.activePersona]);
+
+  return { state, speak, stopSpeaking, getActivePersona, isQueueEmpty, clearQueue };
 }
