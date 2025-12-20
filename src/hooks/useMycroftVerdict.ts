@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Question } from '@/types/game';
 
 export interface VerdictMetrics {
   responseTimeMs: number;
@@ -8,6 +10,13 @@ export interface VerdictMetrics {
   audioRecordingDuration?: number;
 }
 
+export interface QuestionContext {
+  question: Question;
+  userResponse: string; // The option letter the user chose (A, B, C, D)
+  userResponseText: string; // The actual text of the option chosen
+  correctAnswerText: string; // The actual text of the correct answer
+}
+
 export interface VerdictReport {
   protocolCode: string;
   metrics: VerdictMetrics;
@@ -15,6 +24,7 @@ export interface VerdictReport {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   recommendation: string;
   fullVerdict: string;
+  questionContext?: QuestionContext;
 }
 
 // Generate random protocol code
@@ -22,62 +32,6 @@ const generateProtocolCode = (): string => {
   const codes = ['402', '503', '101', '707', '999', '314', '227'];
   const code = codes[Math.floor(Math.random() * codes.length)];
   return `Protocolo de Análise ${code} concluído.`;
-};
-
-// Analyze response time
-const analyzeResponseTime = (timeMs: number): string | null => {
-  if (timeMs > 15000) {
-    return 'Sobrecarga Cognitiva Severa detectada. Tempo de processamento excede parâmetros normais.';
-  }
-  if (timeMs > 10000) {
-    return 'Sobrecarga Cognitiva. Hesitação prolongada indica conflito decisório.';
-  }
-  if (timeMs > 7000) {
-    return 'Latência moderada. Padrão consistente com fabricação de resposta.';
-  }
-  if (timeMs < 2000) {
-    return 'Resposta impulsiva. Possível conhecimento prévio ou confiança excessiva.';
-  }
-  return null;
-};
-
-// Analyze bluff history
-const analyzeBluffHistory = (successful: number, caught: number): string | null => {
-  const total = successful + caught;
-  if (total === 0) return null;
-  
-  const successRate = successful / total;
-  
-  if (successRate >= 0.8 && total >= 3) {
-    return 'Perfil de Manipulador Experiente. Taxa de sucesso em blefes excede 80%.';
-  }
-  if (successRate <= 0.2 && total >= 3) {
-    return 'Jogador de baixa credibilidade. Histórico comprometido.';
-  }
-  if (caught >= 3) {
-    return `Alerta: ${caught} flagras registrados. Credibilidade em declínio.`;
-  }
-  if (successful >= 3) {
-    return `Atenção: ${successful} blefes bem-sucedidos. Adversário habilidoso.`;
-  }
-  return null;
-};
-
-// Simulate audio stress analysis
-const analyzeAudioStress = (durationMs?: number): string | null => {
-  if (!durationMs) return null;
-  
-  // Simulate random analysis results
-  const analyses = [
-    'Análise de frequência vocal: Micro-tremores detectados na faixa 85-120Hz.',
-    'Padrão de hesitação identificado. Pausas irregulares sugerem elaboração mental.',
-    'Velocidade de fala acelerada em 23%. Indicador de ansiedade moderada.',
-    'Tom de voz estável. Controle emocional acima da média.',
-    'Variação de pitch detectada. Possível indicador de estresse narrativo.',
-    'Cadência vocal uniforme. Resposta potencialmente ensaiada.',
-  ];
-  
-  return analyses[Math.floor(Math.random() * analyses.length)];
 };
 
 // Determine risk level
@@ -103,29 +57,15 @@ const calculateRiskLevel = (metrics: VerdictMetrics): 'LOW' | 'MEDIUM' | 'HIGH' 
   return 'LOW';
 };
 
-// Generate recommendation based on analysis
-const generateRecommendation = (riskLevel: string, metrics: VerdictMetrics): string => {
-  const recommendations = {
-    CRITICAL: [
-      'Recomendação: Máxima vigilância. Alta probabilidade de blefe em andamento.',
-      'Veredicto: Jogador em modo de alto risco. Duvidar é estatisticamente favorável.',
-    ],
-    HIGH: [
-      'Avaliação: Padrões suspeitos detectados. Proceder com cautela.',
-      'Sugestão: Analisar linguagem corporal para confirmação.',
-    ],
-    MEDIUM: [
-      'Status: Dentro dos parâmetros normais. Nenhuma anomalia crítica.',
-      'Observação: Monitoramento contínuo recomendado.',
-    ],
-    LOW: [
-      'Conclusão: Comportamento consistente com resposta genuína.',
-      'Nota: Baixa probabilidade de engano baseado em dados disponíveis.',
-    ],
-  };
-  
-  const options = recommendations[riskLevel as keyof typeof recommendations] || recommendations.LOW;
-  return options[Math.floor(Math.random() * options.length)];
+// Get answer text from question
+const getAnswerText = (question: Question, option: 'A' | 'B' | 'C' | 'D'): string => {
+  switch (option) {
+    case 'A': return question.option_a;
+    case 'B': return question.option_b;
+    case 'C': return question.option_c;
+    case 'D': return question.option_d;
+    default: return '';
+  }
 };
 
 export function useMycroftVerdict() {
@@ -136,6 +76,7 @@ export function useMycroftVerdict() {
     totalRounds: 0,
   });
   
+  const [isGenerating, setIsGenerating] = useState(false);
   const responseStartTime = useRef<number | null>(null);
 
   // Start tracking response time when question is shown
@@ -169,51 +110,138 @@ export function useMycroftVerdict() {
     setMetrics(prev => ({ ...prev, audioRecordingDuration: durationMs }));
   }, []);
 
-  // Generate full verdict report
-  const generateVerdict = useCallback((): VerdictReport => {
-    const analysis: string[] = [];
+  // Generate verdict using AI with actual question context
+  const generateVerdict = useCallback(async (
+    question: Question,
+    userResponse: 'A' | 'B' | 'C' | 'D'
+  ): Promise<VerdictReport> => {
+    setIsGenerating(true);
     
-    // Protocol code
+    const userResponseText = getAnswerText(question, userResponse);
+    const correctAnswerText = getAnswerText(question, question.correct_option);
+    const isCorrect = userResponse === question.correct_option;
+    
+    const questionContext: QuestionContext = {
+      question,
+      userResponse,
+      userResponseText,
+      correctAnswerText,
+    };
+    
     const protocolCode = generateProtocolCode();
-    
-    // Analyze response time
-    const responseAnalysis = analyzeResponseTime(metrics.responseTimeMs);
-    if (responseAnalysis) analysis.push(responseAnalysis);
-    
-    // Analyze bluff history
-    const historyAnalysis = analyzeBluffHistory(metrics.successfulBluffs, metrics.caughtBluffs);
-    if (historyAnalysis) analysis.push(historyAnalysis);
-    
-    // Analyze audio
-    const audioAnalysis = analyzeAudioStress(metrics.audioRecordingDuration);
-    if (audioAnalysis) analysis.push(audioAnalysis);
-    
-    // If no analysis points, add generic one
-    if (analysis.length === 0) {
-      analysis.push('Dados insuficientes para análise conclusiva. Coleta de métricas em andamento.');
-    }
-    
-    // Calculate risk
     const riskLevel = calculateRiskLevel(metrics);
     
-    // Generate recommendation
-    const recommendation = generateRecommendation(riskLevel, metrics);
-    
-    // Build full verdict text for TTS
-    const fullVerdict = [
-      protocolCode,
-      ...analysis,
-      recommendation,
-    ].join(' ');
-    
-    return {
-      protocolCode,
-      metrics,
-      analysis,
-      riskLevel,
-      recommendation,
-      fullVerdict,
-    };
+    try {
+      // Call the AI edge function for fact-checked verdict
+      const { data, error } = await supabase.functions.invoke('mycroft-ai', {
+        body: {
+          type: 'verdict',
+          questionText: question.question_text,
+          correctAnswer: correctAnswerText,
+          userResponse: userResponseText,
+          metrics: {
+            responseTimeMs: metrics.responseTimeMs,
+            successfulBluffs: metrics.successfulBluffs,
+            caughtBluffs: metrics.caughtBluffs,
+          },
+        },
+      });
+      
+      if (error) {
+        console.error('Error generating AI verdict:', error);
+        throw error;
+      }
+      
+      const aiVerdict = data?.verdict || '';
+      
+      // Validate the verdict contains relevant keywords
+      const userKeyword = userResponseText.split(' ')[0]?.toLowerCase() || '';
+      const correctKeyword = correctAnswerText.split(' ')[0]?.toLowerCase() || '';
+      const verdictLower = aiVerdict.toLowerCase();
+      
+      const isValid = 
+        verdictLower.includes(userKeyword) || 
+        verdictLower.includes(correctKeyword) ||
+        verdictLower.includes('protocolo') ||
+        verdictLower.includes(isCorrect ? 'corret' : 'incorret');
+      
+      if (!isValid && aiVerdict) {
+        console.warn('AI verdict failed validation, using fallback');
+      }
+      
+      // Use AI verdict if valid, otherwise generate fallback
+      const finalVerdict = (isValid && aiVerdict) ? aiVerdict : generateFallbackVerdict(
+        question,
+        userResponseText,
+        correctAnswerText,
+        isCorrect,
+        metrics,
+        protocolCode
+      );
+      
+      // Parse analysis from verdict
+      const analysis: string[] = [];
+      if (metrics.responseTimeMs > 10000) {
+        analysis.push('Sobrecarga Cognitiva detectada.');
+      }
+      if (metrics.successfulBluffs >= 3) {
+        analysis.push(`${metrics.successfulBluffs} blefes bem-sucedidos registrados.`);
+      }
+      if (metrics.caughtBluffs >= 2) {
+        analysis.push(`Jogador flagrado ${metrics.caughtBluffs} vezes.`);
+      }
+      if (!isCorrect) {
+        analysis.push(`Erro factual: respondeu "${userResponseText}" quando a correta era "${correctAnswerText}".`);
+      } else {
+        analysis.push('Resposta correta confirmada.');
+      }
+      
+      const recommendation = isCorrect 
+        ? 'Veracidade técnica validada. Nenhuma anomalia crítica detectada.'
+        : 'Erro registrado. Credibilidade em análise.';
+      
+      setIsGenerating(false);
+      
+      return {
+        protocolCode,
+        metrics,
+        analysis,
+        riskLevel,
+        recommendation,
+        fullVerdict: finalVerdict,
+        questionContext,
+      };
+    } catch (error) {
+      console.error('Failed to generate AI verdict, using fallback:', error);
+      setIsGenerating(false);
+      
+      // Fallback verdict based on actual data
+      const fallbackVerdict = generateFallbackVerdict(
+        question,
+        userResponseText,
+        correctAnswerText,
+        isCorrect,
+        metrics,
+        protocolCode
+      );
+      
+      const analysis: string[] = [];
+      if (!isCorrect) {
+        analysis.push(`Erro factual: respondeu "${userResponseText}" quando a correta era "${correctAnswerText}".`);
+      } else {
+        analysis.push('Resposta correta confirmada.');
+      }
+      
+      return {
+        protocolCode,
+        metrics,
+        analysis,
+        riskLevel,
+        recommendation: isCorrect ? 'Veracidade confirmada.' : 'Erro registrado.',
+        fullVerdict: fallbackVerdict,
+        questionContext,
+      };
+    }
   }, [metrics]);
 
   // Reset metrics for new game
@@ -228,6 +256,7 @@ export function useMycroftVerdict() {
 
   return {
     metrics,
+    isGenerating,
     startResponseTimer,
     stopResponseTimer,
     recordBluffResult,
@@ -235,4 +264,30 @@ export function useMycroftVerdict() {
     generateVerdict,
     resetMetrics,
   };
+}
+
+// Generate a fallback verdict based strictly on actual game data
+function generateFallbackVerdict(
+  question: Question,
+  userResponseText: string,
+  correctAnswerText: string,
+  isCorrect: boolean,
+  metrics: VerdictMetrics,
+  protocolCode: string
+): string {
+  const timeAnalysis = metrics.responseTimeMs > 10000 
+    ? 'Sobrecarga Cognitiva detectada.' 
+    : metrics.responseTimeMs < 2000 
+      ? 'Resposta impulsiva registrada.' 
+      : 'Tempo de resposta normal.';
+  
+  const factCheck = isCorrect
+    ? `Resposta "${userResponseText}" está tecnicamente correta. Veracidade validada.`
+    : `Erro factual detectado. Jogador respondeu "${userResponseText}", mas a resposta correta era "${correctAnswerText}".`;
+  
+  const bluffHistory = metrics.successfulBluffs > 0 || metrics.caughtBluffs > 0
+    ? `Histórico: ${metrics.successfulBluffs} blefes bem-sucedidos, ${metrics.caughtBluffs} flagras.`
+    : '';
+  
+  return `${protocolCode} ${timeAnalysis} ${factCheck} ${bluffHistory}`.trim();
 }

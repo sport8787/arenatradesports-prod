@@ -353,17 +353,19 @@ export default function GameRoom() {
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     const questionId = gameState.currentQuestion?.id;
+    const question = gameState.currentQuestion;
     
     if (personaMuted) return;
     if (currentStatus !== 'result') return;
-    if (!questionId || verdictTriggeredRef.current === questionId) return;
+    if (!questionId || !question || verdictTriggeredRef.current === questionId) return;
     if (gameState.votes.length === 0) return;
+    if (!confirmedAnswer) return; // Need the user's actual answer
     
     // Mark this question as verdict-triggered
     verdictTriggeredRef.current = questionId;
     
     // Record bluff result for metrics
-    const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
+    const playerGotCorrect = confirmedAnswer === question.correct_option;
     const believeVotes = gameState.votes.filter(v => v.vote_type === 'believe').length;
     const doubtVotes = gameState.votes.filter(v => v.vote_type === 'doubt').length;
     
@@ -378,24 +380,29 @@ export default function GameRoom() {
     }
     
     // Delay Mycroft verdict to let Hórus finish speaking (about 5 seconds after result)
-    const verdictTimer = setTimeout(() => {
-      const verdict = generateVerdict();
-      setCurrentVerdict(verdict);
-      setShowMycroftVerdict(true);
-      
-      // Speak the verdict with Mycroft's voice
-      speakPersona('verdict', verdict.fullVerdict);
-      
-      // Hide verdict panel after speech finishes (estimated 15 seconds for long text)
-      setTimeout(() => {
-        setShowMycroftVerdict(false);
-      }, 20000);
+    const verdictTimer = setTimeout(async () => {
+      try {
+        // Generate verdict with actual question context and user response
+        const verdict = await generateVerdict(question, confirmedAnswer);
+        setCurrentVerdict(verdict);
+        setShowMycroftVerdict(true);
+        
+        // Speak the verdict with Mycroft's voice
+        speakPersona('verdict', verdict.fullVerdict);
+        
+        // Hide verdict panel after speech finishes (estimated 15 seconds for long text)
+        setTimeout(() => {
+          setShowMycroftVerdict(false);
+        }, 20000);
+      } catch (error) {
+        console.error('Failed to generate Mycroft verdict:', error);
+      }
     }, 6000); // 6 seconds after result to let Hórus finish
     
     return () => clearTimeout(verdictTimer);
   }, [
     gameState.room?.current_status, 
-    gameState.currentQuestion?.id, 
+    gameState.currentQuestion, 
     gameState.votes.length, 
     confirmedAnswer, 
     personaMuted, 
