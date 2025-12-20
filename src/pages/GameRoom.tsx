@@ -899,6 +899,10 @@ export default function GameRoom() {
   
   const showResults = async () => {
     if (!isRoomHost) return;
+    
+    // Trigger Mycroft verdict FIRST, then go to results
+    await triggerMycroftVerdict();
+    
     await updateRoomStatus('result');
     // Play chips sound when showing results (someone scored)
     setTimeout(() => playChips(), 500);
@@ -910,15 +914,12 @@ export default function GameRoom() {
     }
   };
 
-  // Timer complete - voting time ended, trigger Mycroft
+  // Timer complete - voting time ended, trigger Mycroft and results
   const handleTimerComplete = async () => {
     playTimeUp();
-    // Auto-trigger Mycroft and reveal results if host
+    // Auto-reveal results if host (showResults now includes Mycroft trigger)
     if (isRoomHost) {
-      setTimeout(async () => {
-        await triggerMycroftVerdict();
-        await showResults();
-      }, 1000);
+      setTimeout(() => showResults(), 1000);
     }
   };
 
