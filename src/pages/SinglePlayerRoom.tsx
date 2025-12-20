@@ -5,6 +5,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
+import { useHorusNarration, HORUS_CLIMAX_PHRASES } from '@/hooks/useHorusNarration';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -135,8 +136,6 @@ export default function SinglePlayerRoom() {
   
   // Horus Post-Vote Bribe states
   const [showHorusBribe, setShowHorusBribe] = useState(false);
-  const [horusBribeListening, setHorusBribeListening] = useState(false);
-  const [horusBribePhrase, setHorusBribePhrase] = useState<string | null>(null);
   const [pendingResultData, setPendingResultData] = useState<{
     playerAnsweredCorrectly: boolean;
     votes: BotVote[];
@@ -144,6 +143,14 @@ export default function SinglePlayerRoom() {
     doubtVotes: number;
     shouldEliminate: boolean;
   } | null>(null);
+
+  // Horus narration hook with caching
+  const horusNarration = useHorusNarration({
+    enabled: true,
+    onNarrationEnd: () => {
+      console.log('[SinglePlayerRoom] Horus narration ended');
+    },
+  });
 
   const sessionId = getOrCreateSessionId();
 
@@ -155,12 +162,9 @@ export default function SinglePlayerRoom() {
   // Cleanup Horus audio on unmount
   useEffect(() => {
     return () => {
-      if (horusAudioRef.current) {
-        horusAudioRef.current.pause();
-        horusAudioRef.current = null;
-      }
+      horusNarration.stopNarration();
     };
-  }, []);
+  }, [horusNarration]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -349,7 +353,7 @@ export default function SinglePlayerRoom() {
     // Check elimination: wrong answer + all bots voted BLEFE
     const shouldEliminate = !playerAnsweredCorrectly && doubtVotes === 3;
 
-    // Store pending result data and show Horus bribe offer BEFORE revealing result
+    // Store pending result data
     setPendingResultData({
       playerAnsweredCorrectly,
       votes,
@@ -358,98 +362,57 @@ export default function SinglePlayerRoom() {
       shouldEliminate,
     });
     
-    // Show Horus bribe offer after voting, before result
-    setShowHorusBribe(true);
-    playSuspense();
-  };
-
-  // Horus voice ID for ElevenLabs (dramatic male voice)
-  const HORUS_VOICE_ID = 'onwK4e9ZLuTAKqWW03F9'; // Daniel - deep dramatic voice
-  const horusAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Play Horus TTS audio
-  const playHorusTTS = async (text: string) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ 
-            text, 
-            voiceId: HORUS_VOICE_ID,
-            stability: 0.6,
-            similarityBoost: 0.8
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        console.error('Horus TTS failed:', response.status);
-        return null;
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Stop any previous audio
-      if (horusAudioRef.current) {
-        horusAudioRef.current.pause();
-        horusAudioRef.current = null;
-      }
-      
-      const audio = new Audio(audioUrl);
-      horusAudioRef.current = audio;
-      
-      return new Promise<void>((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
-        audio.play().catch(() => resolve());
-      });
-    } catch (error) {
-      console.error('Horus TTS error:', error);
-      return null;
+    // CRITICAL LOGIC: Only show Horus offer if player got it WRONG (bluffing)
+    if (!playerAnsweredCorrectly) {
+      // Player is bluffing - show Acordo de Ouro
+      setShowHorusBribe(true);
+      playSuspense();
+    } else {
+      // Player answered correctly - skip offer, go directly to victory reveal
+      handleVictoryReveal(playerAnsweredCorrectly, believeVotes, shouldEliminate);
     }
   };
 
-  // Handle when player listens to Horus proposal
+  // Handle direct victory reveal (when player answered correctly)
+  const handleVictoryReveal = async (
+    playerAnsweredCorrectly: boolean,
+    believeVotes: number,
+    shouldEliminate: boolean
+  ) => {
+    // Play victory narration with cache
+    await horusNarration.narrateClimaxMoment('VITORIA_REVELADA');
+    
+    // Calculate rewards
+    let reward = HOST_CORRECT_ANSWER;
+    toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
+
+    setBluffcoins(prev => prev + reward);
+    
+    // Prize is NOT cumulative - it REPLACES the previous value
+    const roundPrize = PRIZE_LADDER[currentRound - 1];
+    setAccumulatedPrize(roundPrize);
+
+    setGamePhase('result');
+    playReveal();
+    setTimeout(() => playFanfare(), 800);
+    setPendingResultData(null);
+  };
+
+
+  // Handle when player listens to Horus proposal - uses cached audio
   const handleHorusListen = async () => {
-    setHorusBribeListening(true);
-    
-    // Dynamic phrase based on accumulated prize
-    const phrases = [
-      "Seu destino já está selado nas mãos do júri. Mas eu, Hórus, posso te dar uma saída.",
-      "Os votos foram contados. O veredicto está pronto. Mas eu tenho uma proposta.",
-      "O tribunal já decidiu seu destino. Quer arriscar tudo... ou aceitar minha oferta?",
-      "Antes de revelar seu destino... uma última chance de sair com dignidade.",
-      "Eu vi seu desempenho. Impressionante ou patético, depende do ponto de vista. Aceite minha oferta."
-    ];
-    
-    const selectedPhrase = phrases[Math.floor(Math.random() * phrases.length)];
-    setHorusBribePhrase(selectedPhrase);
-    
-    // Play TTS audio
-    await playHorusTTS(selectedPhrase);
-    
-    // Mark listening as complete
-    setHorusBribeListening(false);
+    // Use cached climax moment based on round
+    if (currentRound === MAX_ROUNDS) {
+      await horusNarration.narrateClimaxMoment('MALETA_FINAL');
+    } else {
+      await horusNarration.narrateClimaxMoment('ACORDO_OURO');
+    }
   };
 
   // Handle when player accepts Horus bribe (cash out before seeing result)
   const handleHorusAcceptBribe = async () => {
     setShowHorusBribe(false);
-    setHorusBribeListening(false);
-    setHorusBribePhrase(null);
+    horusNarration.stopNarration();
     setPendingResultData(null);
     
     setShowMoneyRain(true);
@@ -468,22 +431,32 @@ export default function SinglePlayerRoom() {
       });
     }
     
-    toast({ title: '💰 DESISTÊNCIA INTELIGENTE!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    toast({ title: '💰 ACORDO DE OURO ACEITO!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
     setGamePhase('victory');
   };
 
   // Handle when player rejects Horus bribe (see the real result)
   const handleHorusRejectBribe = async () => {
     setShowHorusBribe(false);
-    setHorusBribeListening(false);
-    setHorusBribePhrase(null);
+    horusNarration.stopNarration();
     
     if (!pendingResultData) return;
     
     const { playerAnsweredCorrectly, believeVotes, shouldEliminate } = pendingResultData;
     
     if (shouldEliminate) {
-      if (hasImmunityCard && !immunityCardUsed && currentRound !== MAX_ROUNDS) {
+      // Player is about to be eliminated - play the mockery
+      if (currentRound === MAX_ROUNDS) {
+        // All-in loss - sarcastic tripudio
+        await horusNarration.narrateClimaxMoment('ALL_IN_TRIPUDIO');
+        
+        // Zero the balance immediately for All-in
+        setAccumulatedPrize(0);
+        setBluffcoins(0);
+        
+        playGameOver();
+        setGamePhase('eliminated');
+      } else if (hasImmunityCard && !immunityCardUsed) {
         // Immunity saves the player
         setImmunityCardUsed(true);
         setShowImmunitySaved(true);
@@ -491,6 +464,9 @@ export default function SinglePlayerRoom() {
         setGamePhase('result');
         playReveal();
       } else {
+        // Play the loss narration with cached audio
+        await horusNarration.narrateClimaxMoment('RECUSA_DERROTA');
+        
         // Show AI taunt and eliminate
         setAiTaunt(getRandomTaunt());
         playGameOver();
@@ -511,9 +487,9 @@ export default function SinglePlayerRoom() {
         }
         
         setGamePhase('eliminated');
-        setPendingResultData(null);
-        return;
       }
+      setPendingResultData(null);
+      return;
     } else {
       // Calculate rewards
       let reward = 0;
@@ -1231,9 +1207,11 @@ export default function SinglePlayerRoom() {
         onAcceptBribe={handleHorusAcceptBribe}
         onRejectBribe={handleHorusRejectBribe}
         onListenProposal={handleHorusListen}
-        isListening={horusBribeListening}
-        currentPhrase={horusBribePhrase}
+        isListening={horusNarration.isNarrating}
+        isLoading={horusNarration.isLoading}
+        currentPhrase={horusNarration.currentPhrase}
         isAllIn={currentRound === MAX_ROUNDS}
+        playerGotCorrect={pendingResultData?.playerAnsweredCorrectly ?? false}
       />
 
       {/* Briefcase Modals */}

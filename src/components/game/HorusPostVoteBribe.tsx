@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Sparkles, Volume2, AlertTriangle, Coins } from 'lucide-react';
+import { Briefcase, Sparkles, Volume2, AlertTriangle, Coins, Loader2, Check, X } from 'lucide-react';
 import GoldButton from './GoldButton';
 
 interface HorusPostVoteBribeProps {
@@ -10,8 +10,10 @@ interface HorusPostVoteBribeProps {
   onRejectBribe: () => void;
   onListenProposal: () => void;
   isListening: boolean;
+  isLoading?: boolean;
   currentPhrase: string | null;
   isAllIn?: boolean; // Round 15 - shows briefcase aesthetic
+  playerGotCorrect?: boolean; // If player answered correctly, skip offer
 }
 
 export default function HorusPostVoteBribe({
@@ -21,33 +23,56 @@ export default function HorusPostVoteBribe({
   onRejectBribe,
   onListenProposal,
   isListening,
+  isLoading = false,
   currentPhrase,
   isAllIn = false,
+  playerGotCorrect = false,
 }: HorusPostVoteBribeProps) {
   const [showChoices, setShowChoices] = useState(false);
   const [glowIntensity, setGlowIntensity] = useState(false);
+  const [autoTriggered, setAutoTriggered] = useState(false);
+
+  // Auto-trigger proposal when visible and player got wrong (bluffing)
+  useEffect(() => {
+    if (isVisible && !playerGotCorrect && !autoTriggered && !isListening) {
+      setAutoTriggered(true);
+      // Small delay for dramatic effect
+      const timer = setTimeout(() => {
+        onListenProposal();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, playerGotCorrect, autoTriggered, isListening, onListenProposal]);
 
   // Start glow when listening
   useEffect(() => {
-    if (isListening) {
+    if (isListening && !isLoading) {
       setGlowIntensity(true);
       const timer = setTimeout(() => setShowChoices(true), 2500);
       return () => clearTimeout(timer);
+    } else if (isLoading) {
+      setGlowIntensity(true);
     } else {
       setGlowIntensity(false);
     }
-  }, [isListening]);
+  }, [isListening, isLoading]);
 
   // Reset state when visibility changes
   useEffect(() => {
     if (!isVisible) {
       setShowChoices(false);
       setGlowIntensity(false);
+      setAutoTriggered(false);
     }
   }, [isVisible]);
 
   // Determine display value
   const hasExactValue = totalBluffCoins !== null && totalBluffCoins !== undefined && totalBluffCoins > 0;
+
+  // Determine labels based on context
+  const offerTitle = isAllIn ? 'MALETA FINAL' : 'ACORDO DE OURO';
+  const acceptLabel = isAllIn ? 'ACEITAR MALETA' : 'ACEITAR ACORDO';
+  const rejectLabel = 'REVELAR DESTINO';
 
   return (
     <AnimatePresence>
@@ -71,36 +96,30 @@ export default function HorusPostVoteBribe({
                 scale: glowIntensity ? [1, 1.15, 1] : 1,
               }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className={`absolute inset-0 blur-2xl ${
-                isAllIn 
-                  ? 'bg-[radial-gradient(ellipse_at_center,_hsl(var(--gold)/0.7)_0%,_transparent_60%)]'
-                  : 'bg-[radial-gradient(ellipse_at_center,_hsl(var(--destructive)/0.5)_0%,_transparent_60%)]'
-              }`}
+              className="absolute inset-0 blur-2xl bg-[radial-gradient(ellipse_at_center,_hsl(var(--gold)/0.7)_0%,_transparent_60%)]"
             />
 
-            <div className={`relative bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 rounded-2xl p-6 space-y-6 ${
-              isAllIn ? 'border-gold/60' : 'border-destructive/60'
-            }`}>
+            <div className="relative bg-gradient-to-b from-gray-900 via-gray-900 to-black border-2 border-gold/60 rounded-2xl p-6 space-y-6">
               {/* Header - Dramatic */}
               <div className="text-center space-y-2">
                 <motion.div
                   animate={{ 
                     scale: [1, 1.08, 1],
                     textShadow: glowIntensity 
-                      ? ['0 0 15px hsl(var(--destructive))', '0 0 40px hsl(var(--destructive))', '0 0 15px hsl(var(--destructive))']
-                      : '0 0 15px hsl(var(--destructive))'
+                      ? ['0 0 15px hsl(var(--gold))', '0 0 40px hsl(var(--gold))', '0 0 15px hsl(var(--gold))']
+                      : '0 0 15px hsl(var(--gold))'
                   }}
                   transition={{ duration: 1.5, repeat: Infinity }}
-                  className="font-orbitron text-2xl text-destructive font-bold"
+                  className="font-orbitron text-2xl text-gold font-bold"
                 >
-                  ⚠️ O JÚRI JÁ VOTOU! ⚠️
+                  ⚖️ {offerTitle} ⚖️
                 </motion.div>
                 <p className="text-sm text-muted-foreground italic">
-                  Seu destino foi selado. Mas o Hórus tem uma proposta...
+                  O júri votou. Seu destino está selado. Mas eu tenho uma proposta...
                 </p>
               </div>
 
-              {/* Visual Element - Coins or Briefcase based on context */}
+              {/* Visual Element - Always Gold themed */}
               <div className="flex justify-center py-4">
                 {isAllIn ? (
                   // Briefcase for All-In round
@@ -113,13 +132,11 @@ export default function HorusPostVoteBribe({
                     className="relative"
                   >
                     {glowIntensity && (
-                      <>
-                        <motion.div
-                          animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                          className="absolute inset-0 w-36 h-28 bg-gold/30 rounded-lg blur-xl"
-                        />
-                      </>
+                      <motion.div
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-0 w-36 h-28 bg-gold/30 rounded-lg blur-xl"
+                      />
                     )}
                     <div className={`
                       w-36 h-28 bg-gradient-to-br from-gray-800 via-gray-900 to-black 
@@ -159,7 +176,7 @@ export default function HorusPostVoteBribe({
                     </div>
                   </motion.div>
                 ) : (
-                  // Coins pile for normal rounds - NO BRIEFCASE
+                  // Gold coins pile for normal rounds
                   <motion.div
                     animate={{
                       y: glowIntensity ? [-8, 8, -8] : [-4, 4, -4],
@@ -195,14 +212,10 @@ export default function HorusPostVoteBribe({
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`text-center p-4 rounded-xl border ${
-                  isAllIn 
-                    ? 'bg-gold/10 border-gold/40'
-                    : 'bg-destructive/10 border-destructive/40'
-                }`}
+                className="text-center p-4 rounded-xl border bg-gold/10 border-gold/40"
               >
                 <p className="text-sm text-muted-foreground mb-1">
-                  {isAllIn ? 'Pacto de Cavalheiros' : 'Desistência Honrosa'}
+                  {isAllIn ? 'Pega ou Larga?' : 'Desistência Honrosa'}
                 </p>
                 {hasExactValue ? (
                   <>
@@ -219,7 +232,7 @@ export default function HorusPostVoteBribe({
                       Prêmio Acumulado
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Deseja desistir e sair com seu prêmio acumulado?
+                      Aceite e saia com o que conquistou
                     </p>
                   </>
                 )}
@@ -227,26 +240,26 @@ export default function HorusPostVoteBribe({
 
               {/* Speech Display */}
               <AnimatePresence>
-                {currentPhrase && isListening && (
+                {(currentPhrase || isLoading) && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className={`border rounded-lg p-4 ${
-                      isAllIn 
-                        ? 'bg-black/60 border-gold/40'
-                        : 'bg-black/60 border-destructive/40'
-                    }`}
+                    className="border rounded-lg p-4 bg-black/60 border-gold/40"
                   >
                     <div className="flex items-start gap-3">
                       <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
+                        animate={{ scale: isLoading ? [1, 1.2, 1] : [1, 1.1, 1] }}
+                        transition={{ duration: isLoading ? 0.8 : 0.5, repeat: Infinity }}
                       >
-                        <Volume2 className={`w-5 h-5 flex-shrink-0 mt-1 ${isAllIn ? 'text-gold' : 'text-destructive'}`} />
+                        {isLoading ? (
+                          <Loader2 className="w-5 h-5 flex-shrink-0 mt-1 text-gold animate-spin" />
+                        ) : (
+                          <Volume2 className="w-5 h-5 flex-shrink-0 mt-1 text-gold" />
+                        )}
                       </motion.div>
                       <p className="text-sm text-foreground italic leading-relaxed">
-                        "{currentPhrase}"
+                        {isLoading ? 'Preparando mensagem do Hórus...' : `"${currentPhrase}"`}
                       </p>
                     </div>
                   </motion.div>
@@ -255,56 +268,65 @@ export default function HorusPostVoteBribe({
 
               {/* Actions */}
               <div className="space-y-3">
-                {!isListening && !showChoices && (
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <GoldButton
-                      onClick={onListenProposal}
-                      className="w-full"
-                      size="lg"
-                    >
-                      <Volume2 className="w-5 h-5 mr-2" />
-                      Ouvir Proposta do Hórus
-                    </GoldButton>
-                  </motion.div>
-                )}
-
-                {showChoices && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-2 gap-3"
-                  >
-                    <GoldButton
-                      onClick={onAcceptBribe}
-                      className="bg-success/20 border-success/50 hover:bg-success/30"
-                    >
-                      <Coins className="w-4 h-4 mr-2" />
-                      Aceitar e Sair
-                    </GoldButton>
-                    <GoldButton
-                      variant="outline"
-                      onClick={onRejectBribe}
-                      className="border-destructive/50 hover:bg-destructive/20"
-                    >
-                      <AlertTriangle className="w-4 h-4 mr-2" />
-                      Ver Resultado
-                    </GoldButton>
-                  </motion.div>
-                )}
-
-                {isListening && !showChoices && (
+                {/* Loading state */}
+                {isLoading && (
                   <div className="text-center py-2">
                     <motion.div
                       animate={{ opacity: [0.5, 1, 0.5] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
                       className="text-sm text-muted-foreground"
                     >
-                      Ouvindo proposta...
+                      Carregando áudio...
                     </motion.div>
                   </div>
+                )}
+
+                {/* Listening state */}
+                {isListening && !isLoading && !showChoices && (
+                  <div className="text-center py-2">
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="text-sm text-gold"
+                    >
+                      <Volume2 className="w-4 h-4 inline-block mr-2 animate-pulse" />
+                      Ouvindo o Hórus...
+                    </motion.div>
+                  </div>
+                )}
+
+                {/* Choice buttons */}
+                {showChoices && !isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-1 gap-3"
+                  >
+                    {/* Accept button - Big, Gold, Pulsating */}
+                    <motion.div
+                      animate={{ scale: [1, 1.02, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <GoldButton
+                        onClick={onAcceptBribe}
+                        className="w-full h-14 text-lg bg-gradient-to-r from-gold/30 via-amber-500/30 to-gold/30 border-gold hover:border-gold/80"
+                        size="lg"
+                      >
+                        <Check className="w-5 h-5 mr-2" />
+                        {acceptLabel}
+                      </GoldButton>
+                    </motion.div>
+
+                    {/* Reject button - Red, Dangerous */}
+                    <GoldButton
+                      variant="outline"
+                      onClick={onRejectBribe}
+                      className="w-full h-12 border-destructive/60 hover:bg-destructive/20 text-destructive hover:text-destructive"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      {rejectLabel}
+                    </GoldButton>
+                  </motion.div>
                 )}
               </div>
             </div>
