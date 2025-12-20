@@ -194,6 +194,7 @@ export type Database = {
           current_player_index: number
           current_question_id: string | null
           current_status: Database["public"]["Enums"]["room_status"]
+          game_mode: string
           host_id: string
           id: string
           pin: string
@@ -204,6 +205,7 @@ export type Database = {
           current_player_index?: number
           current_question_id?: string | null
           current_status?: Database["public"]["Enums"]["room_status"]
+          game_mode?: string
           host_id: string
           id?: string
           pin: string
@@ -214,6 +216,7 @@ export type Database = {
           current_player_index?: number
           current_question_id?: string | null
           current_status?: Database["public"]["Enums"]["room_status"]
+          game_mode?: string
           host_id?: string
           id?: string
           pin?: string
