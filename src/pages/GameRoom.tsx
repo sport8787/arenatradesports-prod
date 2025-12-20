@@ -6,6 +6,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useRankings } from '@/hooks/useRankings';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
+import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
 import { useAudioSync } from '@/hooks/useAudioSync';
@@ -130,6 +131,9 @@ export default function GameRoom() {
   
   // Question history hook
   const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(sessionId);
+  
+  // Question audio preloader for upcoming questions
+  const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: true, preloadCount: 3 });
   
   // Core game state
   const isRoomHost = gameState.room?.host_id === sessionId;
@@ -913,6 +917,9 @@ export default function GameRoom() {
     // Register this question as used
     await registerQuestionUsed(q.id);
 
+    // Preload audio for upcoming questions in background (fire and forget)
+    preloadUpcomingQuestions(questions, new Set(), 1);
+
     const hostIndex = Math.max(
       0,
       gameState.players.findIndex((p) => p.session_id === gameState.room?.host_id)
@@ -1053,6 +1060,9 @@ export default function GameRoom() {
     
     // Register this question as used
     await registerQuestionUsed(nextQ.id);
+
+    // Preload audio for upcoming questions in background (fire and forget)
+    preloadUpcomingQuestions(questions, new Set(), nextRoundNum);
 
     // Reset answer states for next question
     setSelectedAnswer(null);
