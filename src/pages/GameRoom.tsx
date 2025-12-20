@@ -198,6 +198,8 @@ export default function GameRoom() {
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
   const prevAudioUrlRef = useRef<string | null>(null);
+  // Track if we've already narrated for current question to prevent duplicates
+  const hasNarratedQuestionRef = useRef<string | null>(null);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -348,9 +350,11 @@ export default function GameRoom() {
 
   // Hórus voice triggers - automatic speech based on game moments
   // FIXED: Queue round_start with onComplete callback that triggers question_read
+  // FIXED: Track question ID to prevent duplicate narration
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     const question = gameState.currentQuestion;
+    const questionId = question?.id;
     
     // Don't trigger voice if muted or if not allowed to play audio
     if (personaMuted || !canPlayAudio) return;
@@ -360,6 +364,17 @@ export default function GameRoom() {
     
     // Round start - when entering question phase from lobby or result
     if (currentStatus === 'question' && (prevStatus === 'lobby' || prevStatus === 'result')) {
+      // Check if we've already narrated for this question
+      if (questionId && hasNarratedQuestionRef.current === questionId) {
+        console.log('[GameRoom] Already narrated for question', questionId, '- skipping');
+        return;
+      }
+      
+      // Mark this question as narrated
+      if (questionId) {
+        hasNarratedQuestionRef.current = questionId;
+      }
+      
       // Queue round_start first, then question_read via onComplete callback
       // This ensures the bordão plays BEFORE the question is read
       speakPersona('round_start', undefined, 10, () => {

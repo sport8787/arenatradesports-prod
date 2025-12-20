@@ -170,6 +170,8 @@ export default function SinglePlayerRoom() {
 
   // Track previous gamePhase for voice triggers
   const prevGamePhaseRef = useRef<GamePhase | null>(null);
+  // Track if we've already narrated for current round to prevent duplicates
+  const hasNarratedRoundRef = useRef<number | null>(null);
 
   const sessionId = getOrCreateSessionId();
 
@@ -190,6 +192,7 @@ export default function SinglePlayerRoom() {
   }, [horusNarration, stopSpeaking]);
 
   // Hórus voice triggers - round_start THEN question_read in sequence
+  // FIXED: Use currentRound as key to prevent duplicate narration
   useEffect(() => {
     const prevPhase = prevGamePhaseRef.current;
     
@@ -200,7 +203,17 @@ export default function SinglePlayerRoom() {
     if (!prevPhase || prevPhase === gamePhase) return;
     
     // When entering question phase from briefcase or result - queue bordão then question
+    // ONLY if we haven't already narrated for this round
     if (gamePhase === 'question' && (prevPhase === 'briefcase' || prevPhase === 'result' || prevPhase === 'nickname')) {
+      // Check if we've already narrated for this round
+      if (hasNarratedRoundRef.current === currentRound) {
+        console.log('[SinglePlayerRoom] Already narrated for round', currentRound, '- skipping');
+        return;
+      }
+      
+      // Mark this round as narrated
+      hasNarratedRoundRef.current = currentRound;
+      
       // Queue round_start first, then question_read via onComplete callback
       speakPersona('round_start', undefined, 10, () => {
         // After round_start finishes, read the question
@@ -215,7 +228,7 @@ export default function SinglePlayerRoom() {
       clearQueue();
       stopSpeaking();
     }
-  }, [gamePhase, currentQuestion, speakPersona, clearQueue, stopSpeaking]);
+  }, [gamePhase, currentQuestion, currentRound, speakPersona, clearQueue, stopSpeaking]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -241,18 +254,23 @@ export default function SinglePlayerRoom() {
   };
   
   // Persist bluffcoins to profile (only for authenticated non-guest users)
-  const persistWinnings = async (amount: number) => {
+  const persistWinnings = async (amount: number, isVictory: boolean = false) => {
     // Don't persist for guests
     if (isGuest) {
       toast({ title: 'Modo Convidado', description: 'BluffCoins não foram salvos. Faça login para guardar seu progresso!' });
       return;
     }
     if (!profile || amount <= 0) return;
-    await addBluffCoins(amount);
+    
+    // Combine bluff_coins update with other stats in a single call to avoid race condition
+    const newBalance = profile.bluff_coins + amount;
     await updateProfile({ 
+      bluff_coins: newBalance,
       matches_played: profile.matches_played + 1,
-      wins: gamePhase === 'victory' ? profile.wins + 1 : profile.wins
+      wins: isVictory ? profile.wins + 1 : profile.wins
     });
+    
+    console.log('[SinglePlayerRoom] Persisted winnings:', amount, 'New balance:', newBalance);
   };
 
   const selectNextQuestion = async () => {
@@ -319,7 +337,7 @@ export default function SinglePlayerRoom() {
       playFanfare();
       
       // Persist winnings to profile
-      await persistWinnings(FINAL_ROUND_PRIZE);
+      await persistWinnings(FINAL_ROUND_PRIZE, true);
       
       if (myRanking) {
         updateSoloRankingStats({ 
@@ -340,7 +358,7 @@ export default function SinglePlayerRoom() {
       
       // Persist safe amount if any
       if (finalPrize > 0) {
-        await persistWinnings(finalPrize);
+        await persistWinnings(finalPrize, false);
       }
       
       if (myRanking) {
@@ -477,7 +495,7 @@ export default function SinglePlayerRoom() {
     playCashRegister();
     
     // Persist winnings to profile
-    await persistWinnings(accumulatedPrize);
+    await persistWinnings(accumulatedPrize, true);
     
     // Update ranking
     if (myRanking) {
@@ -540,7 +558,7 @@ export default function SinglePlayerRoom() {
         // Persist safe amount if any
         const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
         if (finalPrize > 0) {
-          await persistWinnings(finalPrize);
+          await persistWinnings(finalPrize, false);
         }
         
         // Update ranking
@@ -644,7 +662,7 @@ export default function SinglePlayerRoom() {
     playCashRegister();
     
     // Persist winnings to profile
-    await persistWinnings(prize);
+    await persistWinnings(prize, true);
     
     // Update ranking
     if (myRanking) {
@@ -677,7 +695,7 @@ export default function SinglePlayerRoom() {
     playCashRegister();
     
     // Persist winnings to profile
-    await persistWinnings(accumulatedPrize);
+    await persistWinnings(accumulatedPrize, true);
     
     // Update ranking
     if (myRanking) {

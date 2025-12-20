@@ -41,6 +41,7 @@ export default function QuestionCard({
     onNarrationComplete?.();
   }, [onNarrationComplete]);
 
+  // Only initialize narration hook if autoNarrate is enabled
   const { isNarrating, narrateQuestion, stopNarration } = useQuestionNarration({
     enabled: autoNarrate,
     onNarrationStart: handleNarrationStart,
@@ -67,7 +68,7 @@ export default function QuestionCard({
   const isWrong = (key: string) => showCorrectAnswer && confirmedAnswer === key && key !== question.correct_option;
   const isPlayerChoice = (key: string) => confirmedAnswer === key;
 
-  // Handle question changes and animations
+  // Handle question changes and animations - ONLY narrate if autoNarrate is true
   useEffect(() => {
     // Reset states for new question
     setHasNarrated(false);
@@ -75,14 +76,14 @@ export default function QuestionCard({
     setShowQuestion(false);
     setShowOptions(false);
 
+    // If not auto-narrating, show everything immediately and DON'T call narrateQuestion
     if (!autoNarrate) {
-      // If not auto-narrating, show everything immediately
       setShowQuestion(true);
       setShowOptions(true);
       return;
     }
 
-    // Start narration in sync with category display
+    // Start narration in sync with category display - ONLY if autoNarrate is true
     const narrateTimer = setTimeout(() => {
       narrateQuestion(question);
       setHasNarrated(true);
@@ -102,9 +103,11 @@ export default function QuestionCard({
       clearTimeout(narrateTimer);
       clearTimeout(questionTimer);
       clearTimeout(optionsTimer);
-      stopNarration();
+      if (autoNarrate) {
+        stopNarration();
+      }
     };
-  }, [question.id, autoNarrate, narrateQuestion, stopNarration]);
+  }, [question.id, autoNarrate, narrateQuestion, stopNarration, question]);
 
   return (
     <motion.div
