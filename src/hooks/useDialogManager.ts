@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
 import { getRandomHorusPhrase } from '@/data/horusPhrases';
+import { getCachedAudio, clearAudioMemoryCache } from '@/services/audioCacheService';
+import { playGlobalAudio, stopGlobalAudio } from '@/services/globalAudioContext';
 
 interface DialogState {
   activePersona: PersonaId | null;
@@ -21,6 +23,8 @@ interface UseDialogManagerOptions {
   onAudioGenerated?: (audioUrl: string, text: string, personaId: string) => void;
   uploadToStorage?: boolean; // For online mode - upload audio to storage for sharing
   roomId?: string;
+  isHost?: boolean; // For Presencial mode - only host generates audio
+  gameMode?: string; // 'single', 'online', 'presencial'
 }
 
 interface UseDialogManagerReturn {
@@ -34,7 +38,14 @@ interface UseDialogManagerReturn {
 }
 
 export function useDialogManager(options: UseDialogManagerOptions = {}): UseDialogManagerReturn {
-  const { canPlayAudio = true, onAudioGenerated, uploadToStorage = false, roomId } = options;
+  const { 
+    canPlayAudio = true, 
+    onAudioGenerated, 
+    uploadToStorage = false, 
+    roomId,
+    isHost = true,
+    gameMode = 'single'
+  } = options;
   
   const [state, setState] = useState<DialogState>({
     activePersona: null,
@@ -45,170 +56,66 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioCache = useRef<Map<string, string>>(new Map());
   const queueRef = useRef<QueueItem[]>([]);
   const isProcessingRef = useRef(false);
-  const retryCountRef = useRef<Map<string, number>>(new Map());
-  const MAX_RETRIES = 2;
 
-  // Clear old cache entries to prevent stale audio
-  const clearOldCache = useCallback(() => {
-    const maxCacheSize = 20;
-    if (audioCache.current.size > maxCacheSize) {
-      const entries = Array.from(audioCache.current.entries());
-      const toRemove = entries.slice(0, entries.length - maxCacheSize);
-      toRemove.forEach(([key, url]) => {
-        URL.revokeObjectURL(url);
-        audioCache.current.delete(key);
+  const generateTTS = useCallback(async (
+    text: string, 
+    personaId: PersonaId, 
+    moment?: GameMoment,
+    forceRefresh = false
+  ): Promise<string | null> => {
+    try {
+      const result = await getCachedAudio({
+        text,
+        personaId,
+        moment,
+        forceRefresh,
+        isHost,
+        gameMode,
       });
-      console.log('[DialogManager] Cleared', toRemove.length, 'old cache entries');
-    }
-  }, []);
 
-  const generateTTS = useCallback(async (text: string, personaId: PersonaId, forceRefresh = false): Promise<string | null> => {
-    const persona = PERSONAS[personaId];
-    const cacheKey = `${persona.voiceId}:${text}`;
-    
-    // Force refresh clears the cache entry
-    if (forceRefresh && audioCache.current.has(cacheKey)) {
-      const oldUrl = audioCache.current.get(cacheKey)!;
-      if (oldUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(oldUrl);
+      if (result) {
+        console.log('[DialogManager] Audio retrieved:', result.fromCache ? 'from cache' : 'freshly generated');
+        return result.audioUrl;
       }
-      audioCache.current.delete(cacheKey);
-      console.log('[DialogManager] Force refreshed cache for:', cacheKey.substring(0, 50));
+      return null;
+    } catch (error) {
+      console.error('[DialogManager] Error getting audio:', error);
+      setState(prev => ({ ...prev, error: `Erro ao gerar áudio: ${error}` }));
+      return null;
     }
-    
-    if (audioCache.current.has(cacheKey)) {
-      console.log('[DialogManager] Using cached audio for:', cacheKey.substring(0, 50));
-      return audioCache.current.get(cacheKey)!;
-    }
+  }, [isHost, gameMode]);
 
-    // Clear old cache before adding new entries
-    clearOldCache();
-
-    const attemptFetch = async (attempt: number): Promise<string | null> => {
-      try {
-        console.log('[DialogManager] Generating TTS (attempt', attempt + 1, '), uploadToStorage:', uploadToStorage, 'text:', text.substring(0, 50));
-        
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ 
-              text, 
-              voiceId: persona.voiceId,
-              stability: persona.voiceSettings.stability,
-              similarityBoost: persona.voiceSettings.similarityBoost,
-              uploadToStorage: uploadToStorage,
-              roomId: roomId,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`TTS error: ${response.status} ${response.statusText}`);
-        }
-
-        // If uploadToStorage, response is JSON with audioUrl
-        if (uploadToStorage) {
-          const data = await response.json();
-          if (data.audioUrl) {
-            audioCache.current.set(cacheKey, data.audioUrl);
-            console.log('[DialogManager] TTS uploaded to storage:', data.audioUrl);
-            return data.audioUrl;
-          }
-          throw new Error('No audioUrl in response');
-        }
-
-        // Otherwise, response is audio blob
-        const audioBlob = await response.blob();
-        
-        if (audioBlob.size === 0) {
-          throw new Error('Empty audio blob received');
-        }
-        
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioCache.current.set(cacheKey, audioUrl);
-        console.log('[DialogManager] TTS generated successfully:', audioBlob.size, 'bytes');
-        return audioUrl;
-      } catch (error) {
-        console.error('[DialogManager] TTS error (attempt', attempt + 1, '):', error);
-        
-        if (attempt < MAX_RETRIES) {
-          console.log('[DialogManager] Retrying in 1 second...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return attemptFetch(attempt + 1);
-        }
-        
-        console.error('[DialogManager] TTS failed after', MAX_RETRIES + 1, 'attempts');
-        setState(prev => ({ ...prev, error: `Erro ao gerar áudio: ${error}` }));
-        return null;
-      }
-    };
-
-    return attemptFetch(0);
-  }, [clearOldCache, uploadToStorage, roomId]);
-
-  // Play audio locally with proper loading wait
+  // Play audio locally using global audio context
   const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {
-    // Stop any current audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.onended = null;
-      audioRef.current.onerror = null;
-      audioRef.current = null;
-    }
+    setState(prev => ({ ...prev, isLoading: false }));
     
-    const audio = new Audio();
-    audioRef.current = audio;
-    
-    // Set up event handlers before loading
-    audio.onplay = () => {
-      console.log('[DialogManager] Audio started playing');
-      setState(prev => ({ ...prev, isSpeaking: true, isLoading: false }));
-    };
-    
-    audio.onended = () => {
-      console.log('[DialogManager] Audio ended naturally');
-      onEnded();
-    };
-    
-    audio.onerror = (e) => {
-      console.error('[DialogManager] Audio playback error:', e);
-      setState(prev => ({ ...prev, error: 'Erro ao reproduzir áudio' }));
-      onEnded();
-    };
-
-    // Wait for audio to be fully loaded before playing
-    audio.oncanplaythrough = async () => {
-      console.log('[DialogManager] Audio ready to play, duration:', audio.duration);
-      try {
-        await audio.play();
-      } catch (err) {
-        console.error('[DialogManager] Play failed:', err);
-        // Fallback: wait based on expected duration then continue
-        setTimeout(onEnded, 4000);
+    const audio = playGlobalAudio(
+      audioUrl,
+      () => {
+        console.log('[DialogManager] Audio ended naturally');
+        onEnded();
+      },
+      (error) => {
+        console.error('[DialogManager] Audio playback error:', error);
+        setState(prev => ({ ...prev, error: 'Erro ao reproduzir áudio' }));
+        onEnded();
       }
-    };
+    );
 
-    // Set source and start loading
-    audio.src = audioUrl;
-    audio.load();
-    
-    // Timeout fallback in case loading takes too long
+    audioRef.current = audio;
+    setState(prev => ({ ...prev, isSpeaking: true }));
+
+    // Timeout fallback
     setTimeout(() => {
-      if (!audio.currentTime && audio.readyState < 3) {
+      if (audio && !audio.ended && audio.currentTime === 0) {
         console.warn('[DialogManager] Audio loading timeout, forcing continue');
         onEnded();
       }
     }, 15000);
   }, []);
+
 
   const processQueue = useCallback(async () => {
     if (isProcessingRef.current || queueRef.current.length === 0) return;
@@ -240,7 +147,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
     setState(prev => ({ ...prev, currentText: textToSpeak }));
 
-    const audioUrl = await generateTTS(textToSpeak, config.persona);
+    const audioUrl = await generateTTS(textToSpeak, config.persona, item.moment);
 
     const finishAndProcessNext = () => {
       setState(prev => ({ ...prev, isSpeaking: false, activePersona: null, currentText: null }));
@@ -278,6 +185,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   }, [processQueue]);
 
   const stopSpeaking = useCallback(() => {
+    stopGlobalAudio();
     if (audioRef.current) audioRef.current.pause();
     queueRef.current = [];
     isProcessingRef.current = false;
@@ -302,25 +210,19 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
       currentText: text,
     }));
 
-    if (audioRef.current) audioRef.current.pause();
-    
-    const audio = new Audio(audioUrl);
+    const audio = playGlobalAudio(
+      audioUrl,
+      () => {
+        setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+        if (onComplete) onComplete();
+      },
+      () => {
+        setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+        if (onComplete) onComplete();
+      }
+    );
+
     audioRef.current = audio;
-
-    audio.onended = () => {
-      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
-      if (onComplete) onComplete();
-    };
-
-    audio.onerror = () => {
-      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
-      if (onComplete) onComplete();
-    };
-
-    audio.play().catch(() => {
-      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
-      if (onComplete) onComplete();
-    });
   }, [canPlayAudio]);
 
   return { 
