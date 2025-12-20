@@ -18,7 +18,7 @@ async function generateHash(text: string, voiceId: string): Promise<string> {
 // Moments that should always be cached (static phrases)
 const CACHEABLE_MOMENTS: GameMoment[] = [
   'round_start',
-  'question_read',
+  'question_read', // Questions are now cached globally
   'correct_answer',
   'wrong_answer',
   'bluff_success',
