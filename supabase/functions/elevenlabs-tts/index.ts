@@ -27,6 +27,9 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
+    // CRITICAL: Normalize text for consistent caching
+    const normalizedText = text.trim();
+
     // Default to George voice if not specified
     const voice = voiceId || 'JBFqnCBsd6RMkjVDRZzb';
 
@@ -45,7 +48,7 @@ serve(async (req) => {
             .from('audio-cache')
             .getPublicUrl(cacheKey);
           
-          console.log('Cache hit for:', cacheKey, '->', publicUrl);
+          console.log('🟢 CACHE HIT:', cacheKey, '->', publicUrl);
           
           return new Response(
             JSON.stringify({ audioUrl: publicUrl, cached: true }),
@@ -54,13 +57,13 @@ serve(async (req) => {
             }
           );
         }
-        console.log('Cache miss for:', cacheKey);
+        console.log('🔴 CACHE MISS:', cacheKey, '- Calling ElevenLabs API');
       } catch (cacheError) {
         console.warn('Cache check error:', cacheError);
       }
     }
 
-    console.log('Generating TTS for voice:', voice, 'text length:', text.length);
+    console.log('🔴 GENERATING TTS for voice:', voice, 'text length:', normalizedText.length, 'chars');
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voice}`,
@@ -71,7 +74,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text,
+          text: normalizedText,
           model_id: 'eleven_multilingual_v2',
           output_format: 'mp3_44100_128',
           voice_settings: {

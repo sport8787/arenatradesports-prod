@@ -1,12 +1,15 @@
 // Audio Cache Service - Manages ElevenLabs TTS caching via Supabase Storage
 // Reduces credit consumption by caching frequently used phrases
+// OPTIMIZED: Added session-level deduplication, text normalization, and debug logging
 
 import { supabase } from '@/integrations/supabase/client';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
 
 // Simple hash function for generating cache keys
 async function generateHash(text: string, voiceId: string): Promise<string> {
-  const data = `${voiceId}:${text}`;
+  // CRITICAL: Normalize text before hashing to prevent duplicate cache entries
+  const normalizedText = text.trim().toLowerCase();
+  const data = `${voiceId}:${normalizedText}`;
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
@@ -50,6 +53,39 @@ const MYCROFT_CACHEABLE_PHRASES = [
   'Verificação biométrica iniciada',
 ];
 
+// Mycroft behavior phrases pool (cached - 20 phrases)
+export const MYCROFT_BEHAVIOR_POOL = [
+  'Sinais indicam insegurança na voz.',
+  'Padrão vocal consistente detectado.',
+  'Microexpressões faciais neutras.',
+  'Frequência cardíaca elevada identificada.',
+  'Tom de voz indica confiança genuína.',
+  'Hesitação detectada nas pausas.',
+  'Linguagem corporal defensiva.',
+  'Padrão de respiração alterado.',
+  'Contato visual inconsistente.',
+  'Gestos indicam nervosismo.',
+  'Ritmo de fala acelerado.',
+  'Pitch vocal estável.',
+  'Sudorese detectada.',
+  'Movimentos repetitivos observados.',
+  'Postura indica desconforto.',
+  'Dilatação pupilar anormal.',
+  'Padrão de piscadas irregular.',
+  'Tensão muscular facial.',
+  'Modulação vocal artificial.',
+  'Comportamento evasivo identificado.',
+];
+
+// Mycroft intro phrases (fixed - cached)
+export const MYCROFT_INTRO_PHRASES = [
+  'Protocolo 402 concluído.',
+  'Análise biométrica finalizada.',
+  'Escaneamento neural completo.',
+  'Verificação de padrões encerrada.',
+  'Protocolo de detecção ativo.',
+];
+
 interface CacheResult {
   audioUrl: string;
   fromCache: boolean;
@@ -66,6 +102,17 @@ interface GetCachedAudioOptions {
 
 // In-memory cache for session
 const memoryCache = new Map<string, string>();
+
+// SESSION-LEVEL DEDUPLICATION: Track all requests made this session to prevent duplicate API calls
+const sessionRequestLog = new Set<string>();
+
+// Debug statistics
+let cacheHits = 0;
+let cacheMisses = 0;
+
+export function getAudioCacheStats() {
+  return { cacheHits, cacheMisses, sessionRequests: sessionRequestLog.size, memoryCacheSize: memoryCache.size };
+}
 
 export async function getCachedAudio(options: GetCachedAudioOptions): Promise<CacheResult | null> {
   const { 
@@ -86,24 +133,28 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
   const persona = PERSONAS[personaId];
   const voiceId = persona.voiceId;
 
+  // CRITICAL: Normalize text for consistent hashing
+  const normalizedText = text.trim();
+
   // Determine if this should be cached
-  const shouldCache = shouldCacheAudio(personaId, moment, text);
+  const shouldCache = shouldCacheAudio(personaId, moment, normalizedText);
   
-  // Generate hash for cache key
-  const hash = await generateHash(text, voiceId);
+  // Generate hash for cache key (uses normalized text internally)
+  const hash = await generateHash(normalizedText, voiceId);
   const cacheFileName = `${hash}.mp3`;
 
-  console.log('[AudioCache] Request:', { 
-    text: text.substring(0, 50), 
-    personaId, 
-    moment, 
-    shouldCache,
-    hash: hash.substring(0, 8)
-  });
+  // SESSION-LEVEL DEDUPLICATION: Block if EXACT same text was already requested
+  if (sessionRequestLog.has(hash) && memoryCache.has(hash)) {
+    cacheHits++;
+    console.log(`🟢 CACHE HIT (SESSION BLOCK): ${cacheFileName} - Text: "${normalizedText.substring(0, 40)}..."`);
+    return { audioUrl: memoryCache.get(hash)!, fromCache: true };
+  }
 
   // Check memory cache first (fastest)
   if (!forceRefresh && memoryCache.has(hash)) {
-    console.log('[AudioCache] Memory cache hit');
+    cacheHits++;
+    console.log(`🟢 CACHE HIT (MEMORY): ${cacheFileName} - Text: "${normalizedText.substring(0, 40)}..."`);
+    sessionRequestLog.add(hash);
     return { audioUrl: memoryCache.get(hash)!, fromCache: true };
   }
 
@@ -119,8 +170,10 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
           .from('audio-cache')
           .getPublicUrl(cacheFileName);
         
-        console.log('[AudioCache] Storage cache hit:', publicUrl);
+        cacheHits++;
+        console.log(`🟢 CACHE HIT (STORAGE): ${cacheFileName} - Text: "${normalizedText.substring(0, 40)}..."`);
         memoryCache.set(hash, publicUrl);
+        sessionRequestLog.add(hash);
         return { audioUrl: publicUrl, fromCache: true };
       }
     } catch (error) {
@@ -129,9 +182,10 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
   }
 
   // Generate new audio via ElevenLabs
+  cacheMisses++;
+  console.log(`🔴 CACHE MISS: Chamando ElevenLabs - Text: "${normalizedText.substring(0, 40)}..." (${normalizedText.length} chars)`);
+  
   try {
-    console.log('[AudioCache] Generating new audio via ElevenLabs');
-    
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
       {
@@ -142,7 +196,7 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ 
-          text, 
+          text: normalizedText, 
           voiceId,
           stability: persona.voiceSettings.stability,
           similarityBoost: persona.voiceSettings.similarityBoost,
@@ -163,7 +217,8 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
       const data = await response.json();
       if (data.audioUrl) {
         memoryCache.set(hash, data.audioUrl);
-        console.log('[AudioCache] Audio cached and returned:', data.audioUrl);
+        sessionRequestLog.add(hash);
+        console.log(`🟡 AUDIO GENERATED & CACHED: ${cacheFileName}`);
         return { audioUrl: data.audioUrl, fromCache: false };
       }
     }
@@ -176,7 +231,8 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
 
     const audioUrl = URL.createObjectURL(audioBlob);
     memoryCache.set(hash, audioUrl);
-    console.log('[AudioCache] Audio generated (not cached):', audioBlob.size, 'bytes');
+    sessionRequestLog.add(hash);
+    console.log(`🟡 AUDIO GENERATED (BLOB): ${audioBlob.size} bytes`);
     
     return { audioUrl, fromCache: false };
   } catch (error) {
@@ -199,13 +255,25 @@ function shouldCacheAudio(personaId: PersonaId, moment?: GameMoment, text?: stri
     return true;
   }
 
-  // Mycroft: Only cache fixed introductions
+  // Mycroft: Cache fixed introductions and behavior phrases
   if (personaId === 'mycroft') {
     if (!text) return false;
     
-    // Check if the text starts with a cacheable phrase
+    const lowerText = text.toLowerCase();
+    
+    // Check if text is from intro pool
+    if (MYCROFT_INTRO_PHRASES.some(phrase => lowerText.includes(phrase.toLowerCase()))) {
+      return true;
+    }
+    
+    // Check if text is from behavior pool
+    if (MYCROFT_BEHAVIOR_POOL.some(phrase => lowerText.includes(phrase.toLowerCase()))) {
+      return true;
+    }
+    
+    // Check legacy cacheable phrases
     return MYCROFT_CACHEABLE_PHRASES.some(phrase => 
-      text.toLowerCase().startsWith(phrase.toLowerCase())
+      lowerText.startsWith(phrase.toLowerCase())
     );
   }
 
@@ -220,7 +288,10 @@ export function clearAudioMemoryCache(): void {
     }
   });
   memoryCache.clear();
-  console.log('[AudioCache] Memory cache cleared');
+  sessionRequestLog.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+  console.log('[AudioCache] Memory cache and session log cleared');
 }
 
 // Pre-cache common phrases for faster first-time playback
@@ -230,4 +301,14 @@ export async function preCacheCommonPhrases(): Promise<void> {
   // This could be called on app initialization to warm up the cache
   // Implementation would iterate through common phrases and call getCachedAudio
   // For now, caching happens on-demand
+}
+
+// Get a random phrase from Mycroft behavior pool
+export function getRandomMycroftBehavior(): string {
+  return MYCROFT_BEHAVIOR_POOL[Math.floor(Math.random() * MYCROFT_BEHAVIOR_POOL.length)];
+}
+
+// Get a random Mycroft intro
+export function getRandomMycroftIntro(): string {
+  return MYCROFT_INTRO_PHRASES[Math.floor(Math.random() * MYCROFT_INTRO_PHRASES.length)];
 }
