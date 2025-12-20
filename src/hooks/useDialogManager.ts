@@ -19,6 +19,8 @@ interface QueueItem {
 interface UseDialogManagerOptions {
   canPlayAudio?: boolean;
   onAudioGenerated?: (audioUrl: string, text: string, personaId: string) => void;
+  uploadToStorage?: boolean; // For online mode - upload audio to storage for sharing
+  roomId?: string;
 }
 
 interface UseDialogManagerReturn {
@@ -32,7 +34,7 @@ interface UseDialogManagerReturn {
 }
 
 export function useDialogManager(options: UseDialogManagerOptions = {}): UseDialogManagerReturn {
-  const { canPlayAudio = true, onAudioGenerated } = options;
+  const { canPlayAudio = true, onAudioGenerated, uploadToStorage = false, roomId } = options;
   
   const [state, setState] = useState<DialogState>({
     activePersona: null,
@@ -70,7 +72,9 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
     // Force refresh clears the cache entry
     if (forceRefresh && audioCache.current.has(cacheKey)) {
       const oldUrl = audioCache.current.get(cacheKey)!;
-      URL.revokeObjectURL(oldUrl);
+      if (oldUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(oldUrl);
+      }
       audioCache.current.delete(cacheKey);
       console.log('[DialogManager] Force refreshed cache for:', cacheKey.substring(0, 50));
     }
@@ -85,7 +89,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
     const attemptFetch = async (attempt: number): Promise<string | null> => {
       try {
-        console.log('[DialogManager] Generating TTS (attempt', attempt + 1, '):', text.substring(0, 50));
+        console.log('[DialogManager] Generating TTS (attempt', attempt + 1, '), uploadToStorage:', uploadToStorage, 'text:', text.substring(0, 50));
         
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
@@ -101,6 +105,8 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
               voiceId: persona.voiceId,
               stability: persona.voiceSettings.stability,
               similarityBoost: persona.voiceSettings.similarityBoost,
+              uploadToStorage: uploadToStorage,
+              roomId: roomId,
             }),
           }
         );
@@ -109,6 +115,18 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
           throw new Error(`TTS error: ${response.status} ${response.statusText}`);
         }
 
+        // If uploadToStorage, response is JSON with audioUrl
+        if (uploadToStorage) {
+          const data = await response.json();
+          if (data.audioUrl) {
+            audioCache.current.set(cacheKey, data.audioUrl);
+            console.log('[DialogManager] TTS uploaded to storage:', data.audioUrl);
+            return data.audioUrl;
+          }
+          throw new Error('No audioUrl in response');
+        }
+
+        // Otherwise, response is audio blob
         const audioBlob = await response.blob();
         
         if (audioBlob.size === 0) {
@@ -135,7 +153,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
     };
 
     return attemptFetch(0);
-  }, [clearOldCache]);
+  }, [clearOldCache, uploadToStorage, roomId]);
 
   // Play audio locally with proper loading wait
   const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {

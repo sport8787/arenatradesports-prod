@@ -174,6 +174,8 @@ export default function GameRoom() {
   } = useDialogManager({
     canPlayAudio: isOnlineMode ? isRoomHost : canPlayAudio, // In online mode, only host generates TTS
     onAudioGenerated: isOnlineMode ? handleAudioGenerated : undefined,
+    uploadToStorage: isOnlineMode && isRoomHost, // Upload to storage for sharing in online mode
+    roomId: roomId || undefined,
   });
   
   const [copied, setCopied] = useState(false);
