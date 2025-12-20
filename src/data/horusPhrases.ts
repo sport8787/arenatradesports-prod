@@ -82,31 +82,37 @@ const BRIEFCASE_OFFER: HorusPhrase[] = [
   { id: 'bo6', moment: 'briefcase_offer', text: 'Escolha sabiamente! A maleta ou a glória final?', emotion: 'dramatic' },
 ];
 
-// Bribe offer phrases (4 variations with different personalities)
+// Pacto/Acordo offer phrases - Hórus offers after voting when player is bluffing
 const BRIBE_OFFER: HorusPhrase[] = [
   { 
     id: 'br1', 
     moment: 'bribe_offer', 
-    text: 'O Mycroft já te entregou para os leões. Mas eu sou generoso. Esqueça o All-in. Aceite o conteúdo desta maleta e saia agora com dignidade. Você prefere a glória incerta ou o prêmio na mão?', 
+    text: 'Seu destino já foi selado pelo júri. Você confia na sua mentira ou prefere aceitar meu acordo e sair com o que já conquistou?', 
     emotion: 'dramatic' 
   },
   { 
     id: 'br2', 
     moment: 'bribe_offer', 
-    text: 'Eu sinto o cheiro do seu medo daqui. Essa maleta tem exatamente o que você precisa para não passar vergonha. Pega ou larga?', 
-    emotion: 'sarcastic' 
+    text: 'Eu tenho um Pacto de Cavalheiros para você. O júri é implacável, mas eu sou generoso.', 
+    emotion: 'menacing' 
   },
   { 
     id: 'br3', 
     moment: 'bribe_offer', 
-    text: 'O Mycroft é apenas uma máquina. Eu sou o poder. Eu te dou um caminho de saída agora. Aceite o suborno e encerramos este tribunal.', 
-    emotion: 'neutral' 
+    text: 'Esta é a sua Saída de Emergência. Pegue o prêmio acumulado e saia com dignidade. O que vai ser?', 
+    emotion: 'sarcastic' 
   },
   { 
     id: 'br4', 
     moment: 'bribe_offer', 
-    text: 'Seus adversários já decidiram seu destino. A maleta é sua última tábua de salvação. Escolha rápido!', 
+    text: 'Não jogue sua sorte ao vento. Aceite a Desistência Honrosa antes que o veredicto seja revelado.', 
     emotion: 'menacing' 
+  },
+  { 
+    id: 'br5', 
+    moment: 'bribe_offer', 
+    text: 'O júri é implacável, mas eu sou generoso. Considere este Acordo de Ouro antes que seja tarde demais.', 
+    emotion: 'dramatic' 
   },
 ];
 
@@ -186,16 +192,16 @@ const JURY_DELIBERATION: HorusPhrase[] = [
   { id: 'jd6', moment: 'jury_deliberation', text: 'Cada segundo de espera é uma eternidade. O veredicto se aproxima!', emotion: 'menacing' },
 ];
 
-// Post-vote bribe phrases (8)
+// Post-vote offer phrases (8) - Hórus offers after voting when player is bluffing
 const POST_VOTE_BRIBE: HorusPhrase[] = [
-  { id: 'pvb1', moment: 'post_vote_bribe', text: 'Seu destino já está selado nas mãos do júri. Mas eu, Hórus, posso te dar uma saída.', emotion: 'dramatic' },
-  { id: 'pvb2', moment: 'post_vote_bribe', text: 'Os votos foram contados. O veredicto está pronto. Mas eu tenho uma proposta.', emotion: 'menacing' },
-  { id: 'pvb3', moment: 'post_vote_bribe', text: 'O tribunal já decidiu seu destino. Quer arriscar tudo... ou aceitar minha oferta?', emotion: 'dramatic' },
-  { id: 'pvb4', moment: 'post_vote_bribe', text: 'Antes de revelar seu destino... uma última chance de sair com dignidade.', emotion: 'neutral' },
-  { id: 'pvb5', moment: 'post_vote_bribe', text: 'Eu vi seu desempenho. Aceite minha oferta antes que seja tarde demais.', emotion: 'sarcastic' },
-  { id: 'pvb6', moment: 'post_vote_bribe', text: 'O veredicto está lacrado. Mas por um preço, você pode escapar do julgamento.', emotion: 'menacing' },
-  { id: 'pvb7', moment: 'post_vote_bribe', text: 'Uma última chance antes da revelação. O que você prefere: certeza ou risco?', emotion: 'dramatic' },
-  { id: 'pvb8', moment: 'post_vote_bribe', text: 'Seu futuro já foi decidido. Mas eu sou generoso. Aceite e saia vitorioso.', emotion: 'neutral' },
+  { id: 'pvb1', moment: 'post_vote_bribe', text: 'Seu destino já foi selado pelo júri. Você confia na sua mentira ou prefere aceitar meu acordo?', emotion: 'dramatic' },
+  { id: 'pvb2', moment: 'post_vote_bribe', text: 'Os votos foram contados. O veredicto está pronto. Eu tenho um Pacto de Cavalheiros para você.', emotion: 'menacing' },
+  { id: 'pvb3', moment: 'post_vote_bribe', text: 'O tribunal já decidiu seu destino. Esta é a sua Saída de Emergência. O que vai ser?', emotion: 'dramatic' },
+  { id: 'pvb4', moment: 'post_vote_bribe', text: 'Antes de revelar seu destino... aceite a Desistência Honrosa e saia com dignidade.', emotion: 'neutral' },
+  { id: 'pvb5', moment: 'post_vote_bribe', text: 'Eu vi seu desempenho. Considere este Acordo de Ouro antes que seja tarde demais.', emotion: 'sarcastic' },
+  { id: 'pvb6', moment: 'post_vote_bribe', text: 'O veredicto está lacrado. Pegue o prêmio acumulado e saia agora, ou enfrente o julgamento.', emotion: 'menacing' },
+  { id: 'pvb7', moment: 'post_vote_bribe', text: 'Não jogue sua sorte ao vento. O prêmio na mão vale mais que a glória incerta.', emotion: 'dramatic' },
+  { id: 'pvb8', moment: 'post_vote_bribe', text: 'O júri é implacável, mas eu sou generoso. Aceite e saia vitorioso.', emotion: 'neutral' },
 ];
 
 // Comeback phrases (6)

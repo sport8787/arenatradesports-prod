@@ -434,28 +434,40 @@ export default function GameRoom() {
           setShowMycroftVerdict(false);
         }, 2000);
         
-        // TRIGGER HÓRUS BRIBE OFFER after Mycroft verdict
-        // Only show for host, if not already triggered, from round 3+, and 25% chance
+        // TRIGGER HÓRUS OFFER after Mycroft verdict
+        // Conditions:
+        // 1. Only for host
+        // 2. Not already triggered for this question
+        // 3. From round 3+
+        // 4. ONLY if player got the answer WRONG (is bluffing)
+        // 5. 25% probability
         if (isRoomHost && bribeTriggeredRef.current !== questionId) {
           bribeTriggeredRef.current = questionId;
           
-          // Bribe only happens from round 3+ with 25% probability
-          const shouldTriggerBribe = currentRound >= 3 && Math.random() < 0.25;
+          // Check if player got the answer wrong (is bluffing)
+          const playerGotCorrect = confirmedAnswer === question.correct_option;
           
-          if (shouldTriggerBribe) {
-            // Calculate bribe amount (random between 5000 and 25000)
-            const randomBribe = Math.floor(Math.random() * 20001) + 5000;
-            setBribeAmount(randomBribe);
+          // Offer only happens from round 3+, when player is BLUFFING, with 25% probability
+          const shouldTriggerOffer = currentRound >= 3 && !playerGotCorrect && Math.random() < 0.25;
+          
+          if (shouldTriggerOffer) {
+            // Offer amount = accumulated prize (player can cash out with what they have)
+            const offerAmount = accumulatedPrize > 0 ? accumulatedPrize : Math.floor(Math.random() * 20001) + 5000;
+            setBribeAmount(offerAmount);
             
-            // Show bribe offer after a short delay with temptation sound
+            // Show offer after a short delay with temptation sound
             setTimeout(() => {
               setShowBribeOffer(true);
               playTemptation();
             }, 2500);
             
-            console.log('[Hórus Bribe] Triggered at round', currentRound, 'with amount', randomBribe);
+            console.log('[Hórus Offer] Triggered at round', currentRound, '- player is bluffing, offer:', offerAmount);
           } else {
-            console.log('[Hórus Bribe] Skipped - round:', currentRound, '(need 3+) or 75% chance roll');
+            if (playerGotCorrect) {
+              console.log('[Hórus Offer] Skipped - player answered correctly (not bluffing)');
+            } else {
+              console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+) or 75% chance roll');
+            }
           }
         }
       });
@@ -1117,16 +1129,17 @@ export default function GameRoom() {
   // Hórus Bribe handlers
   const handleListenBribeProposal = () => {
     setIsBribeListening(true);
-    // Speak the bribe offer with Hórus voice
+    // Speak the offer with Hórus voice
     speakPersona('bribe_offer', undefined, 10, () => {
       // Speech complete
     });
     // Get the phrase that will be spoken for display
     const phrases = [
-      'O Mycroft já te entregou para os leões. Mas eu sou generoso. Esqueça o All-in. Aceite o conteúdo desta maleta e saia agora com dignidade. Você prefere a glória incerta ou o prêmio na mão?',
-      'Eu sinto o cheiro do seu medo daqui. Essa maleta tem exatamente o que você precisa para não passar vergonha. Pega ou larga?',
-      'O Mycroft é apenas uma máquina. Eu sou o poder. Eu te dou um caminho de saída agora. Aceite o suborno e encerramos este tribunal.',
-      'Seus adversários já decidiram seu destino. A maleta é sua última tábua de salvação. Escolha rápido!',
+      'Seu destino já foi selado pelo júri. Você confia na sua mentira ou prefere aceitar meu acordo e sair com o que já conquistou?',
+      'Eu tenho um Pacto de Cavalheiros para você. O júri é implacável, mas eu sou generoso.',
+      'Esta é a sua Saída de Emergência. Pegue o prêmio acumulado e saia com dignidade. O que vai ser?',
+      'Não jogue sua sorte ao vento. Aceite a Desistência Honrosa antes que o veredicto seja revelado.',
+      'O júri é implacável, mas eu sou generoso. Considere este Acordo de Ouro antes que seja tarde demais.',
     ];
     setBribePhrase(phrases[Math.floor(Math.random() * phrases.length)]);
   };
@@ -1136,13 +1149,13 @@ export default function GameRoom() {
     setIsBribeListening(false);
     setBribePhrase(null);
     
-    // Award the bribe amount
+    // Award the offer amount (accumulated prize)
     if (gameState.myPlayer) {
       await updateBluffcoins(gameState.myPlayer.id, bribeAmount);
       playCashRegister();
       toast({ 
-        title: '💰 SUBORNO ACEITO!', 
-        description: `Você ganhou ${bribeAmount.toLocaleString()} BluffCoins!` 
+        title: '💰 ACORDO ACEITO!', 
+        description: `Você saiu com ${bribeAmount.toLocaleString()} BluffCoins!` 
       });
     }
     
