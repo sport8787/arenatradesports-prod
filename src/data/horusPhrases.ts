@@ -110,23 +110,35 @@ const BRIBE_OFFER: HorusPhrase[] = [
   },
 ];
 
-// Elimination phrases (4)
+// Elimination phrases (10)
 const ELIMINATION: HorusPhrase[] = [
   { id: 'el1', moment: 'elimination', text: 'Você caiu! O trono agora pertence a outro!', emotion: 'menacing' },
   { id: 'el2', moment: 'elimination', text: 'Eliminado! Seus dias de glória acabaram!', emotion: 'dramatic' },
   { id: 'el3', moment: 'elimination', text: 'Game over! Foi bom enquanto durou... ou não.', emotion: 'sarcastic' },
   { id: 'el4', moment: 'elimination', text: 'Sua jornada termina aqui! Adeus, mentiroso fracassado!', emotion: 'menacing' },
+  { id: 'el5', moment: 'elimination', text: 'O tribunal proferiu sua sentença. Culpado e eliminado!', emotion: 'dramatic' },
+  { id: 'el6', moment: 'elimination', text: 'Que queda espetacular! Guarde esse momento na memória.', emotion: 'sarcastic' },
+  { id: 'el7', moment: 'elimination', text: 'Você apostou alto e perdeu tudo. Típico.', emotion: 'menacing' },
+  { id: 'el8', moment: 'elimination', text: 'A máscara caiu e você junto com ela. Próximo!', emotion: 'sarcastic' },
+  { id: 'el9', moment: 'elimination', text: 'Suas mentiras não foram suficientes. O abismo te espera!', emotion: 'dramatic' },
+  { id: 'el10', moment: 'elimination', text: 'Derrotado, humilhado, eliminado. O trio perfeito!', emotion: 'menacing' },
 ];
 
-// Victory phrases (4)
+// Victory phrases (10)
 const VICTORY: HorusPhrase[] = [
   { id: 'vi1', moment: 'victory', text: 'Vitória absoluta! Você é o mestre supremo do blefe!', emotion: 'excited' },
   { id: 'vi2', moment: 'victory', text: 'Parabéns, campeão! Você conquistou todas as rodadas!', emotion: 'dramatic' },
   { id: 'vi3', moment: 'victory', text: 'Lendário! Você venceu o jogo completo!', emotion: 'excited' },
   { id: 'vi4', moment: 'victory', text: 'Glória eterna! O trono é seu por direito!', emotion: 'dramatic' },
+  { id: 'vi5', moment: 'victory', text: 'Incrível! Você provou que é o maior mentiroso de todos!', emotion: 'excited' },
+  { id: 'vi6', moment: 'victory', text: 'Contra todas as probabilidades, você venceu! Impressionante!', emotion: 'dramatic' },
+  { id: 'vi7', moment: 'victory', text: 'O tribunal se curva diante do novo campeão! Você é uma lenda!', emotion: 'excited' },
+  { id: 'vi8', moment: 'victory', text: 'Vitória épica! Sua lábia conquistou o mundo!', emotion: 'dramatic' },
+  { id: 'vi9', moment: 'victory', text: 'Você enganou a todos e levou o prêmio! Bravo, mestre do engano!', emotion: 'excited' },
+  { id: 'vi10', moment: 'victory', text: 'O impossível aconteceu! Você dominou o Blefador! Parabéns, campeão!', emotion: 'dramatic' },
 ];
 
-// Taunt phrases (6)
+// Taunt phrases (10)
 const TAUNT: HorusPhrase[] = [
   { id: 'ta1', moment: 'taunt', text: 'Vamos, me surpreenda! Ou será que não consegue?', emotion: 'sarcastic' },
   { id: 'ta2', moment: 'taunt', text: 'Isso é o melhor que você tem? Patético.', emotion: 'menacing' },
@@ -134,6 +146,86 @@ const TAUNT: HorusPhrase[] = [
   { id: 'ta4', moment: 'taunt', text: 'Eu já vi mentiras melhores de crianças de cinco anos.', emotion: 'sarcastic' },
   { id: 'ta5', moment: 'taunt', text: 'Está nervoso? Bom, você deveria estar!', emotion: 'menacing' },
   { id: 'ta6', moment: 'taunt', text: 'O júri está esperando. Não os decepcione... como sempre.', emotion: 'sarcastic' },
+  { id: 'ta7', moment: 'taunt', text: 'Vejo insegurança nos seus olhos. Delicioso!', emotion: 'menacing' },
+  { id: 'ta8', moment: 'taunt', text: 'Você acha que pode me enganar? Eu sou o Hórus!', emotion: 'dramatic' },
+  { id: 'ta9', moment: 'taunt', text: 'Cada segundo de hesitação é uma confissão de fraqueza.', emotion: 'sarcastic' },
+  { id: 'ta10', moment: 'taunt', text: 'Respire fundo. Vai precisar de todo o ar para essa mentira.', emotion: 'menacing' },
+];
+
+// All-in challenge phrases (8)
+const ALL_IN: HorusPhrase[] = [
+  { id: 'ai1', moment: 'all_in', text: 'É tudo ou nada! A rodada final chegou! Você está preparado para apostar tudo?', emotion: 'dramatic' },
+  { id: 'ai2', moment: 'all_in', text: 'O momento da verdade! All-in! Mostre do que você é feito!', emotion: 'excited' },
+  { id: 'ai3', moment: 'all_in', text: 'Chegamos ao clímax! Sua fortuna inteira está em jogo! Trema!', emotion: 'menacing' },
+  { id: 'ai4', moment: 'all_in', text: 'All-in! O destino bate à sua porta! Você vai atender ou fugir?', emotion: 'dramatic' },
+  { id: 'ai5', moment: 'all_in', text: 'Este é o momento que separa os lendários dos medíocres! All-in!', emotion: 'excited' },
+  { id: 'ai6', moment: 'all_in', text: 'A maior aposta da sua vida! Glória ou ruína, não há meio termo!', emotion: 'dramatic' },
+  { id: 'ai7', moment: 'all_in', text: 'O palco está montado para o grand finale! Mostre sua verdadeira face!', emotion: 'excited' },
+  { id: 'ai8', moment: 'all_in', text: 'All-in! As cartas estão na mesa! Que vença o melhor mentiroso!', emotion: 'dramatic' },
+];
+
+// Special challenge phrases (8)
+const SPECIAL_CHALLENGE: HorusPhrase[] = [
+  { id: 'sc1', moment: 'special_challenge', text: 'Desafio especial! Esta pergunta vale o dobro! Você aceita o risco?', emotion: 'excited' },
+  { id: 'sc2', moment: 'special_challenge', text: 'Atenção! Uma pergunta de alto risco apareceu! Preparado para o desafio?', emotion: 'dramatic' },
+  { id: 'sc3', moment: 'special_challenge', text: 'Desafio bônus ativado! As recompensas são maiores, mas os riscos também!', emotion: 'excited' },
+  { id: 'sc4', moment: 'special_challenge', text: 'Uma oportunidade única surge! Arrisque grande, ganhe grande!', emotion: 'dramatic' },
+  { id: 'sc5', moment: 'special_challenge', text: 'Modo especial desbloqueado! Mostre que você merece estar aqui!', emotion: 'excited' },
+  { id: 'sc6', moment: 'special_challenge', text: 'O destino te presenteia com um desafio épico! Não desperdice!', emotion: 'dramatic' },
+  { id: 'sc7', moment: 'special_challenge', text: 'Desafio relâmpago! Pense rápido e aja mais rápido ainda!', emotion: 'menacing' },
+  { id: 'sc8', moment: 'special_challenge', text: 'Uma prova de fogo te aguarda! Só os fortes sobrevivem!', emotion: 'dramatic' },
+];
+
+// Jury deliberation phrases (6)
+const JURY_DELIBERATION: HorusPhrase[] = [
+  { id: 'jd1', moment: 'jury_deliberation', text: 'O júri está deliberando... Seu destino está nas mãos deles agora.', emotion: 'dramatic' },
+  { id: 'jd2', moment: 'jury_deliberation', text: 'Os votos estão sendo contados. Respire fundo, o veredicto vem aí.', emotion: 'menacing' },
+  { id: 'jd3', moment: 'jury_deliberation', text: 'Silêncio no tribunal! O júri analisa cada palavra que você disse.', emotion: 'dramatic' },
+  { id: 'jd4', moment: 'jury_deliberation', text: 'Eles estão decidindo se você é gênio ou fracasso. Que suspense!', emotion: 'sarcastic' },
+  { id: 'jd5', moment: 'jury_deliberation', text: 'O momento mais tenso do jogo! O que o júri vai decidir?', emotion: 'dramatic' },
+  { id: 'jd6', moment: 'jury_deliberation', text: 'Cada segundo de espera é uma eternidade. O veredicto se aproxima!', emotion: 'menacing' },
+];
+
+// Post-vote bribe phrases (8)
+const POST_VOTE_BRIBE: HorusPhrase[] = [
+  { id: 'pvb1', moment: 'post_vote_bribe', text: 'Seu destino já está selado nas mãos do júri. Mas eu, Hórus, posso te dar uma saída.', emotion: 'dramatic' },
+  { id: 'pvb2', moment: 'post_vote_bribe', text: 'Os votos foram contados. O veredicto está pronto. Mas eu tenho uma proposta.', emotion: 'menacing' },
+  { id: 'pvb3', moment: 'post_vote_bribe', text: 'O tribunal já decidiu seu destino. Quer arriscar tudo... ou aceitar minha oferta?', emotion: 'dramatic' },
+  { id: 'pvb4', moment: 'post_vote_bribe', text: 'Antes de revelar seu destino... uma última chance de sair com dignidade.', emotion: 'neutral' },
+  { id: 'pvb5', moment: 'post_vote_bribe', text: 'Eu vi seu desempenho. Aceite minha oferta antes que seja tarde demais.', emotion: 'sarcastic' },
+  { id: 'pvb6', moment: 'post_vote_bribe', text: 'O veredicto está lacrado. Mas por um preço, você pode escapar do julgamento.', emotion: 'menacing' },
+  { id: 'pvb7', moment: 'post_vote_bribe', text: 'Uma última chance antes da revelação. O que você prefere: certeza ou risco?', emotion: 'dramatic' },
+  { id: 'pvb8', moment: 'post_vote_bribe', text: 'Seu futuro já foi decidido. Mas eu sou generoso. Aceite e saia vitorioso.', emotion: 'neutral' },
+];
+
+// Comeback phrases (6)
+const COMEBACK: HorusPhrase[] = [
+  { id: 'cb1', moment: 'comeback', text: 'Olha só! O azarão está voltando ao jogo! Que reviravolta!', emotion: 'excited' },
+  { id: 'cb2', moment: 'comeback', text: 'De quase eliminado a candidato à vitória! Impressionante!', emotion: 'dramatic' },
+  { id: 'cb3', moment: 'comeback', text: 'Você não desistiu! A fênix renasce das cinzas!', emotion: 'excited' },
+  { id: 'cb4', moment: 'comeback', text: 'Contra todas as expectativas, você voltou! O jogo não acabou!', emotion: 'dramatic' },
+  { id: 'cb5', moment: 'comeback', text: 'Uma recuperação espetacular! Nunca subestime um mentiroso determinado!', emotion: 'excited' },
+  { id: 'cb6', moment: 'comeback', text: 'Do fundo do poço ao topo! Essa é a história de um verdadeiro campeão!', emotion: 'dramatic' },
+];
+
+// Streak phrases (6)
+const STREAK: HorusPhrase[] = [
+  { id: 'st1', moment: 'streak', text: 'Sequência de vitórias! Você está em chamas!', emotion: 'excited' },
+  { id: 'st2', moment: 'streak', text: 'Três acertos seguidos! Imparável!', emotion: 'dramatic' },
+  { id: 'st3', moment: 'streak', text: 'Você está dominando! O júri não consegue te parar!', emotion: 'excited' },
+  { id: 'st4', moment: 'streak', text: 'Sequência perfeita! Você está jogando como um mestre!', emotion: 'dramatic' },
+  { id: 'st5', moment: 'streak', text: 'Invencível! Ninguém consegue te derrubar!', emotion: 'excited' },
+  { id: 'st6', moment: 'streak', text: 'Uma sequência histórica! Lendas nascem assim!', emotion: 'dramatic' },
+];
+
+// Cash out phrases (6)
+const CASH_OUT: HorusPhrase[] = [
+  { id: 'co1', moment: 'cash_out', text: 'Decisão sábia! Você leva para casa o que conquistou! Até a próxima!', emotion: 'neutral' },
+  { id: 'co2', moment: 'cash_out', text: 'Você escolheu a segurança! Um jogador inteligente sabe quando parar.', emotion: 'sarcastic' },
+  { id: 'co3', moment: 'cash_out', text: 'Saindo por cima! Nem todos têm essa coragem... ou seria covardia?', emotion: 'sarcastic' },
+  { id: 'co4', moment: 'cash_out', text: 'O prêmio é seu! Você jogou bem e soube a hora de sair!', emotion: 'neutral' },
+  { id: 'co5', moment: 'cash_out', text: 'Parabéns pela vitória! Você sai como vencedor, não como ganancioso!', emotion: 'dramatic' },
+  { id: 'co6', moment: 'cash_out', text: 'Decisão final tomada! O dinheiro na mão vale mais que a glória incerta!', emotion: 'neutral' },
 ];
 
 // All phrases combined
@@ -148,6 +240,13 @@ export const HORUS_PHRASES: HorusPhrase[] = [
   ...ELIMINATION,
   ...VICTORY,
   ...TAUNT,
+  ...ALL_IN,
+  ...SPECIAL_CHALLENGE,
+  ...JURY_DELIBERATION,
+  ...POST_VOTE_BRIBE,
+  ...COMEBACK,
+  ...STREAK,
+  ...CASH_OUT,
 ];
 
 // Get random phrase for a specific moment

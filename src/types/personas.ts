@@ -66,7 +66,13 @@ export type GameMoment =
   | 'voting_start'
   | 'verdict'
   | 'all_in_temptation' // Special moment for All-in vs Maleta decision
-  | 'bribe_offer'; // Hórus bribe attempt after Mycroft verdict
+  | 'bribe_offer' // Hórus bribe attempt after Mycroft verdict
+  | 'special_challenge' // Desafios especiais de alto risco
+  | 'jury_deliberation' // Quando o júri está votando
+  | 'post_vote_bribe' // Suborno após votação, antes do resultado
+  | 'comeback' // Jogador se recuperando
+  | 'streak' // Sequência de vitórias
+  | 'cash_out'; // Quando o jogador aceita sair com o prêmio
 
 export interface DialogConfig {
   moment: GameMoment;
@@ -94,6 +100,12 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'voting_start', persona: 'horus', useLiveAI: false },
   { moment: 'verdict', persona: 'mycroft', useLiveAI: true }, // Live AI for analysis
   { moment: 'bribe_offer', persona: 'horus', useLiveAI: false }, // Pre-recorded bribe phrases
+  { moment: 'special_challenge', persona: 'horus', useLiveAI: false },
+  { moment: 'jury_deliberation', persona: 'horus', useLiveAI: false },
+  { moment: 'post_vote_bribe', persona: 'horus', useLiveAI: false },
+  { moment: 'comeback', persona: 'horus', useLiveAI: false },
+  { moment: 'streak', persona: 'horus', useLiveAI: false },
+  { moment: 'cash_out', persona: 'horus', useLiveAI: false },
 ];
 
 export function getDialogConfig(moment: GameMoment): DialogConfig {
