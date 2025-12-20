@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, stability, similarityBoost, uploadToStorage, roomId } = await req.json();
+    const { text, voiceId, stability, similarityBoost, uploadToStorage, roomId, cacheKey } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -28,6 +29,36 @@ serve(async (req) => {
 
     // Default to George voice if not specified
     const voice = voiceId || 'JBFqnCBsd6RMkjVDRZzb';
+
+    // If cacheKey provided, check cache first
+    if (cacheKey && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      try {
+        // Check if cached audio exists
+        const { data: existingFiles } = await supabase.storage
+          .from('audio-cache')
+          .list('', { search: cacheKey });
+
+        if (existingFiles && existingFiles.length > 0 && existingFiles.some(f => f.name === cacheKey)) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('audio-cache')
+            .getPublicUrl(cacheKey);
+          
+          console.log('Cache hit for:', cacheKey, '->', publicUrl);
+          
+          return new Response(
+            JSON.stringify({ audioUrl: publicUrl, cached: true }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+        console.log('Cache miss for:', cacheKey);
+      } catch (cacheError) {
+        console.warn('Cache check error:', cacheError);
+      }
+    }
 
     console.log('Generating TTS for voice:', voice, 'text length:', text.length);
 
@@ -62,7 +93,40 @@ serve(async (req) => {
     const audioBuffer = await response.arrayBuffer();
     console.log('TTS generated, size:', audioBuffer.byteLength);
 
-    // If uploadToStorage is requested, upload to Supabase Storage and return URL
+    // If cacheKey provided, upload to audio-cache bucket
+    if (cacheKey && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('audio-cache')
+          .upload(cacheKey, audioBuffer, {
+            contentType: 'audio/mpeg',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Cache upload error:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('audio-cache')
+            .getPublicUrl(cacheKey);
+          
+          console.log('Audio cached at:', publicUrl);
+          
+          return new Response(
+            JSON.stringify({ audioUrl: publicUrl, cached: false }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+      } catch (cacheError) {
+        console.error('Cache storage error:', cacheError);
+      }
+    }
+
+    // If uploadToStorage is requested (for room sync), upload to game-audio bucket
     if (uploadToStorage && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
