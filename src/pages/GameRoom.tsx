@@ -8,6 +8,7 @@ import { useRankings } from '@/hooks/useRankings';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
+import { useMycroftVerdict, VerdictReport } from '@/hooks/useMycroftVerdict';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -15,6 +16,7 @@ import GoldButton from '@/components/game/GoldButton';
 import PlayerAvatar from '@/components/game/PlayerAvatar';
 import QuestionCard from '@/components/game/QuestionCard';
 import MycroftPanel from '@/components/game/MycroftPanel';
+import MycroftVerdictPanel from '@/components/game/MycroftVerdictPanel';
 import VotingPanel from '@/components/game/VotingPanel';
 import ResultsPanel from '@/components/game/ResultsPanel';
 import Scoreboard from '@/components/game/Scoreboard';
@@ -104,6 +106,15 @@ export default function GameRoom() {
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
   const { state: dialogState, speak: speakPersona, stopSpeaking, getActivePersona } = useDialogManager();
+  const { 
+    metrics: verdictMetrics, 
+    startResponseTimer, 
+    stopResponseTimer, 
+    recordBluffResult, 
+    recordAudioDuration,
+    generateVerdict, 
+    resetMetrics: resetVerdictMetrics 
+  } = useMycroftVerdict();
   
   // Guest mode check
   const isGuest = sessionStorage.getItem('guestMode') === 'true';
@@ -162,6 +173,11 @@ export default function GameRoom() {
   
   // AI persona mute state
   const [personaMuted, setPersonaMuted] = useState(false);
+  
+  // Mycroft Verdict state
+  const [showMycroftVerdict, setShowMycroftVerdict] = useState(false);
+  const [currentVerdict, setCurrentVerdict] = useState<VerdictReport | null>(null);
+  const verdictTriggeredRef = useRef<string | null>(null);
 
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
@@ -323,6 +339,70 @@ export default function GameRoom() {
     // Speak briefcase offer
     speakPersona('briefcase_offer');
   }, [showBriefcaseModal, personaMuted, speakPersona]);
+
+  // Start response timer when question is shown
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    
+    if (currentStatus === 'question' && isRoomHost) {
+      startResponseTimer();
+    }
+  }, [gameState.room?.current_status, gameState.currentQuestion?.id, isRoomHost, startResponseTimer]);
+
+  // Mycroft Verdict - trigger after result is shown and Hórus finishes speaking
+  useEffect(() => {
+    const currentStatus = gameState.room?.current_status;
+    const questionId = gameState.currentQuestion?.id;
+    
+    if (personaMuted) return;
+    if (currentStatus !== 'result') return;
+    if (!questionId || verdictTriggeredRef.current === questionId) return;
+    if (gameState.votes.length === 0) return;
+    
+    // Mark this question as verdict-triggered
+    verdictTriggeredRef.current = questionId;
+    
+    // Record bluff result for metrics
+    const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
+    const believeVotes = gameState.votes.filter(v => v.vote_type === 'believe').length;
+    const doubtVotes = gameState.votes.filter(v => v.vote_type === 'doubt').length;
+    
+    // Was this a successful bluff?
+    const wasBluffSuccessful = !playerGotCorrect && believeVotes > 0;
+    const wasBluffCaught = !playerGotCorrect && doubtVotes === gameState.votes.length;
+    
+    if (wasBluffSuccessful) {
+      recordBluffResult(true);
+    } else if (wasBluffCaught) {
+      recordBluffResult(false);
+    }
+    
+    // Delay Mycroft verdict to let Hórus finish speaking (about 5 seconds after result)
+    const verdictTimer = setTimeout(() => {
+      const verdict = generateVerdict();
+      setCurrentVerdict(verdict);
+      setShowMycroftVerdict(true);
+      
+      // Speak the verdict with Mycroft's voice
+      speakPersona('verdict', verdict.fullVerdict);
+      
+      // Hide verdict panel after speech finishes (estimated 15 seconds for long text)
+      setTimeout(() => {
+        setShowMycroftVerdict(false);
+      }, 20000);
+    }, 6000); // 6 seconds after result to let Hórus finish
+    
+    return () => clearTimeout(verdictTimer);
+  }, [
+    gameState.room?.current_status, 
+    gameState.currentQuestion?.id, 
+    gameState.votes.length, 
+    confirmedAnswer, 
+    personaMuted, 
+    generateVerdict, 
+    recordBluffResult, 
+    speakPersona
+  ]);
 
   // Process results ONLY when votes are available (separate effect to handle timing)
   useEffect(() => {
@@ -1762,6 +1842,14 @@ export default function GameRoom() {
           if (!personaMuted) stopSpeaking();
         }}
         isMuted={personaMuted}
+      />
+
+      {/* Mycroft Verdict Panel */}
+      <MycroftVerdictPanel
+        verdict={currentVerdict}
+        isVisible={showMycroftVerdict}
+        isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
+        onClose={() => setShowMycroftVerdict(false)}
       />
     </div>
   );
