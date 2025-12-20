@@ -28,6 +28,8 @@ import CashOutDialog from '@/components/game/CashOutDialog';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
 import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import HorusPostVoteBribe from '@/components/game/HorusPostVoteBribe';
+import WaxSealBreaking from '@/components/game/WaxSealBreaking';
+import ContractTearing from '@/components/game/ContractTearing';
 import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -136,6 +138,8 @@ export default function SinglePlayerRoom() {
   
   // Horus Post-Vote Bribe states
   const [showHorusBribe, setShowHorusBribe] = useState(false);
+  const [showWaxSealBreaking, setShowWaxSealBreaking] = useState(false);
+  const [showContractTearing, setShowContractTearing] = useState(false);
   const [pendingResultData, setPendingResultData] = useState<{
     playerAnsweredCorrectly: boolean;
     votes: BotVote[];
@@ -413,6 +417,14 @@ export default function SinglePlayerRoom() {
   const handleHorusAcceptBribe = async () => {
     setShowHorusBribe(false);
     horusNarration.stopNarration();
+    
+    // Show contract tearing animation
+    setShowContractTearing(true);
+  };
+
+  // Called when contract tearing animation completes
+  const handleContractTearingComplete = async () => {
+    setShowContractTearing(false);
     setPendingResultData(null);
     
     setShowMoneyRain(true);
@@ -439,6 +451,14 @@ export default function SinglePlayerRoom() {
   const handleHorusRejectBribe = async () => {
     setShowHorusBribe(false);
     horusNarration.stopNarration();
+    
+    // Show wax seal breaking animation before revealing result
+    setShowWaxSealBreaking(true);
+  };
+
+  // Called when wax seal breaking animation completes
+  const handleWaxSealBreakingComplete = async () => {
+    setShowWaxSealBreaking(false);
     
     if (!pendingResultData) return;
     
@@ -490,61 +510,61 @@ export default function SinglePlayerRoom() {
       }
       setPendingResultData(null);
       return;
-    } else {
-      // Calculate rewards
-      let reward = 0;
+    }
+    
+    // Calculate rewards (player survived even though they were bluffing)
+    let reward = 0;
+    
+    if (playerAnsweredCorrectly) {
+      reward = HOST_CORRECT_ANSWER;
+      toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
+    } else if (believeVotes > 0) {
+      // Bluff successful
+      if (believeVotes === 3) {
+        reward = HOST_WRONG_FULL_BLUFF;
+        toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito!' });
+      } else {
+        reward = HOST_WRONG_PARTIAL_BLUFF;
+        toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+      }
       
-      if (playerAnsweredCorrectly) {
-        reward = HOST_CORRECT_ANSWER;
-        toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
-      } else if (believeVotes > 0) {
-        // Bluff successful
-        if (believeVotes === 3) {
-          reward = HOST_WRONG_FULL_BLUFF;
-          toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito!' });
-        } else {
-          reward = HOST_WRONG_PARTIAL_BLUFF;
-          toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
-        }
-        
-        // Show bluff feedback
-        const unlockingBonusCard = (!hasGuaranteedPrize && believeVotes >= 2) || (!hasImmunityCard && believeVotes >= 3);
-        if (!unlockingBonusCard) {
-          const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
-          setTimeout(() => {
-            playCashRegister();
-            setBluffFeedback({ phrase: randomPhrase, description: `${believeVotes} caíram no blefe!` });
-            setTimeout(() => setBluffFeedback(null), 3000);
-          }, 1200);
-        }
-      }
-
-      setBluffcoins(prev => prev + reward);
-      
-      // Prize is NOT cumulative - it REPLACES the previous value
-      const roundPrize = PRIZE_LADDER[currentRound - 1];
-      setAccumulatedPrize(roundPrize);
-
-      // Check for bonus card unlocks
-      if (!hasGuaranteedPrize && !playerAnsweredCorrectly && believeVotes >= 2) {
-        setHasGuaranteedPrize(true);
-        setSafeAmount(roundPrize);
-        setNewlyUnlockedCard('guaranteed');
+      // Show bluff feedback
+      const unlockingBonusCard = (!hasGuaranteedPrize && believeVotes >= 2) || (!hasImmunityCard && believeVotes >= 3);
+      if (!unlockingBonusCard) {
+        const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
         setTimeout(() => {
-          setShowBonusUnlock(true);
-          playCardUnlock();
-        }, 1500);
+          playCashRegister();
+          setBluffFeedback({ phrase: randomPhrase, description: `${believeVotes} caíram no blefe!` });
+          setTimeout(() => setBluffFeedback(null), 3000);
+        }, 1200);
       }
+    }
 
-      if (!hasImmunityCard && !playerAnsweredCorrectly && believeVotes >= 3) {
-        setHasImmunityCard(true);
-        setNewlyUnlockedCard('immunity');
-        const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 5000 : 1500;
-        setTimeout(() => {
-          setShowImmunityUnlock(true);
-          playShieldActivate();
-        }, delay);
-      }
+    setBluffcoins(prev => prev + reward);
+    
+    // Prize is NOT cumulative - it REPLACES the previous value
+    const roundPrize = PRIZE_LADDER[currentRound - 1];
+    setAccumulatedPrize(roundPrize);
+
+    // Check for bonus card unlocks
+    if (!hasGuaranteedPrize && !playerAnsweredCorrectly && believeVotes >= 2) {
+      setHasGuaranteedPrize(true);
+      setSafeAmount(roundPrize);
+      setNewlyUnlockedCard('guaranteed');
+      setTimeout(() => {
+        setShowBonusUnlock(true);
+        playCardUnlock();
+      }, 1500);
+    }
+
+    if (!hasImmunityCard && !playerAnsweredCorrectly && believeVotes >= 3) {
+      setHasImmunityCard(true);
+      setNewlyUnlockedCard('immunity');
+      const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 5000 : 1500;
+      setTimeout(() => {
+        setShowImmunityUnlock(true);
+        playShieldActivate();
+      }, delay);
     }
 
     setGamePhase('result');
@@ -1212,6 +1232,19 @@ export default function SinglePlayerRoom() {
         currentPhrase={horusNarration.currentPhrase}
         isAllIn={currentRound === MAX_ROUNDS}
         playerGotCorrect={pendingResultData?.playerAnsweredCorrectly ?? false}
+      />
+
+      {/* Wax Seal Breaking Animation - when player rejects Horus offer */}
+      <WaxSealBreaking
+        isVisible={showWaxSealBreaking}
+        onAnimationComplete={handleWaxSealBreakingComplete}
+      />
+
+      {/* Contract Tearing Animation - when player accepts Horus offer */}
+      <ContractTearing
+        isVisible={showContractTearing}
+        prizeAmount={accumulatedPrize}
+        onAnimationComplete={handleContractTearingComplete}
       />
 
       {/* Briefcase Modals */}
