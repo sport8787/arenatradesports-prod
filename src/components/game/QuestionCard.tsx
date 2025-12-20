@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Question } from '@/types/game';
 import { Brain, Zap, CheckCircle2, Volume2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuestionNarration } from '@/hooks/useQuestionNarration';
 
 interface QuestionCardProps {
@@ -31,15 +31,20 @@ export default function QuestionCard({
   const [showOptions, setShowOptions] = useState(false);
   const [hasNarrated, setHasNarrated] = useState(false);
 
-  const { isNarrating, isLoading, narrateQuestion, stopNarration } = useQuestionNarration({
+  // Keep callbacks stable to avoid restarting animations/narration every render
+  const handleNarrationStart = useCallback(() => {
+    console.log('[QuestionCard] Narration started');
+  }, []);
+
+  const handleNarrationEnd = useCallback(() => {
+    console.log('[QuestionCard] Narration ended');
+    onNarrationComplete?.();
+  }, [onNarrationComplete]);
+
+  const { isNarrating, narrateQuestion, stopNarration } = useQuestionNarration({
     enabled: autoNarrate,
-    onNarrationStart: () => {
-      console.log('[QuestionCard] Narration started');
-    },
-    onNarrationEnd: () => {
-      console.log('[QuestionCard] Narration ended');
-      onNarrationComplete?.();
-    },
+    onNarrationStart: handleNarrationStart,
+    onNarrationEnd: handleNarrationEnd,
   });
 
   const options = [
