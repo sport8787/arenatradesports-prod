@@ -88,6 +88,7 @@ const Auth = () => {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
         } else {
+          sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso' });
           navigate('/');
         }
@@ -100,6 +101,7 @@ const Auth = () => {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
         } else {
+          sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Blefador!' });
           navigate('/');
         }
