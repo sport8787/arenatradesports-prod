@@ -353,74 +353,104 @@ export default function GameRoom() {
   // Hórus voice triggers - automatic speech based on game moments
   // UPDATED: Removed round_start TTS (bordões) - now uses local SFX instead
   // Only question_read uses TTS to save ElevenLabs credits
-  // OTIMIZADO: Observa apenas status e question ID para evitar re-renders desnecessários
+  // FIX UX: evita repetição (3x) e cancela leitura imediatamente ao sair de "question"
   const currentStatus = gameState.room?.current_status;
   const currentQuestionId = gameState.currentQuestion?.id;
-  
+  const currentQuestionText = gameState.currentQuestion?.question_text;
+
+  // Estado interno do gatilho de áudio (sem depender de players/votos)
+  const audioPrevStatusRef = useRef<string | null>(null);
+  const questionNarrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Mantém referências atuais sem colocar dependências voláteis no useEffect
+  const audioRuntimeRef = useRef({
+    personaMuted,
+    canPlayAudio,
+    speakPersona,
+    clearQueue,
+    stopSpeaking,
+    playReveal,
+    currentStatus,
+    currentQuestionId,
+  });
+  audioRuntimeRef.current = {
+    personaMuted,
+    canPlayAudio,
+    speakPersona,
+    clearQueue,
+    stopSpeaking,
+    playReveal,
+    currentStatus,
+    currentQuestionId,
+  };
+
   useEffect(() => {
-    const question = gameState.currentQuestion;
-    const questionId = currentQuestionId;
-    const questionText = question?.question_text;
-    
-    // Don't trigger voice if muted or if not allowed to play audio
+    const prevStatusForAudio = audioPrevStatusRef.current;
+    audioPrevStatusRef.current = currentStatus ?? null;
+
+    // Sempre cancela timeout pendente do ciclo anterior
+    if (questionNarrationTimeoutRef.current) {
+      clearTimeout(questionNarrationTimeoutRef.current);
+      questionNarrationTimeoutRef.current = null;
+    }
+
+    // Não dispara sem status/pergunta
+    if (!currentStatus || !currentQuestionId) return;
+
+    // Não dispara se estiver mutado / sem permissão
     if (personaMuted || !canPlayAudio) return;
-    
-    // TRAVA DE EXECUÇÃO ÚNICA: Gera chave única combinando status e ID da pergunta
-    const currentKey = `${currentStatus}-${questionId}`;
-    
-    // BLOQUEIO ATÔMICO: Verifica e atualiza ANTES de qualquer operação async
-    if (lastAudioTriggerKey.current === currentKey) {
-      console.log('[GameRoom] Audio already triggered for key:', currentKey, '- skipping');
-      return;
-    }
-    
-    // LIMPEZA DE FILA: Ao mudar de status, interrompe qualquer áudio em andamento
-    if (prevStatus && prevStatus !== currentStatus) {
-      clearQueue();
-      stopSpeaking();
-    }
-    
-    // Only trigger on status changes, not on initial load
-    if (!prevStatus || prevStatus === currentStatus) return;
-    
-    // Round start - when entering question phase from lobby or result
-    if (currentStatus === 'question' && (prevStatus === 'lobby' || prevStatus === 'result')) {
-      // Check if we've already narrated for this question
-      if (questionId && hasNarratedQuestionRef.current === questionId) {
-        console.log('[GameRoom] Already narrated for question', questionId, '- skipping');
-        return;
-      }
-      
-      // ATUALIZAÇÃO ATÔMICA: Atualiza a ref IMEDIATAMENTE antes de qualquer await ou delay
-      lastAudioTriggerKey.current = currentKey;
-      
-      // Mark this question as narrated
-      if (questionId) {
-        hasNarratedQuestionRef.current = questionId;
-      }
-      lastPlayedIdRef.current = `question_${questionId}_${questionText?.slice(0, 50)}`;
-      
-      console.log('[GameRoom] Triggering audio for key:', currentKey);
-      
-      // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
+
+    // Dispara leitura apenas ao ENTRAR na fase de pergunta
+    // (lobby/result -> question). Qualquer outro status não deve reler a pergunta.
+    if (currentStatus === 'question' && (prevStatusForAudio === 'lobby' || prevStatusForAudio === 'result')) {
+      // Evita repetição para a mesma pergunta
+      if (hasNarratedQuestionRef.current === currentQuestionId) return;
+
+      const questionReadKey = `question_read-${currentQuestionId}`;
+
+      // GATILHO ATÔMICO: trava por pergunta (não por status)
+      if (lastAudioTriggerKey.current === questionReadKey) return;
+      lastAudioTriggerKey.current = questionReadKey;
+
+      hasNarratedQuestionRef.current = currentQuestionId;
+      lastPlayedIdRef.current = `question_${currentQuestionId}_${(currentQuestionText ?? '').slice(0, 50)}`;
+
+      console.log('[GameRoom] Triggering question narration:', { questionReadKey, prevStatusForAudio });
+
+      // SFX local antes da leitura
       playReveal();
-      
-      // Small delay then read the question with TTS
-      setTimeout(() => {
-        if (question) {
-          speakPersona('question_read', question.question_text);
-        }
+
+      // Delay curto; se o status mudar antes (ex: host confirma rápido), o cleanup cancela
+      questionNarrationTimeoutRef.current = setTimeout(() => {
+        const rt = audioRuntimeRef.current;
+
+        // Guardas: não ler fora da fase de pergunta
+        if (rt.personaMuted || !rt.canPlayAudio) return;
+        if (rt.currentStatus !== 'question') return;
+        if (rt.currentQuestionId !== currentQuestionId) return;
+        if (!currentQuestionText) return;
+
+        rt.speakPersona('question_read', currentQuestionText);
       }, 800);
     }
-    
-    // Stop all narration when entering result phase (prevent question repeating)
-    if (currentStatus === 'result') {
-      clearQueue();
-      stopSpeaking();
-    }
-    
-  // FILTRO DE ESTADO: Apenas status e questionId como dependências, sem votes/players
-  }, [currentStatus, currentQuestionId, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal, gameState.currentQuestion]);
+
+    return () => {
+      // LIMPEZA DE FILA: ao sair de "question", interrompe imediatamente (pause) e limpa fila
+      // (isso impede a leitura "vazar" para discussion/voting/result)
+      if (currentStatus === 'question') {
+        const rt = audioRuntimeRef.current;
+        rt.clearQueue();
+        rt.stopSpeaking();
+      }
+
+      if (questionNarrationTimeoutRef.current) {
+        clearTimeout(questionNarrationTimeoutRef.current);
+        questionNarrationTimeoutRef.current = null;
+      }
+    };
+
+  // FILTRO DE ESTADO: observa apenas status e questionId
+  }, [currentStatus, currentQuestionId]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
