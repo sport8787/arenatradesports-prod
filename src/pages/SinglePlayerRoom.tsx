@@ -40,7 +40,6 @@ import { stopGlobalAudio } from '@/services/globalAudioContext';
 // HÓRUS 2.0: Agora usa horus2Engine como sistema principal
 import { 
   playHorus2Audio, 
-  playMycroftConfirmation, 
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
@@ -288,6 +287,9 @@ export default function SinglePlayerRoom() {
     // Create/update solo ranking
     await getOrCreateSoloRanking(profile.username);
 
+    // HÓRUS 2.0: Play abertura audio when game starts
+    playHorus2Audio('game_start');
+
     // Start first round
     setCurrentRound(1);
     setAccumulatedPrize(0);
@@ -356,8 +358,8 @@ export default function SinglePlayerRoom() {
     setShowAnswer(true);
     playReveal();
     
-    // HÓRUS 2.0: Play random Mycroft audio when player confirms answer
-    playMycroftConfirmation();
+    // NOTE: Mycroft audio removed from here - it was playing at wrong time
+    // Now we only play audio after jury analysis is complete
     
     // Round 15: Skip recording/voting, go directly to results
     if (currentRound === MAX_ROUNDS) {
@@ -624,9 +626,14 @@ export default function SinglePlayerRoom() {
     
     if (playerAnsweredCorrectly) {
       reward = HOST_CORRECT_ANSWER;
+      // HÓRUS 2.0: Play victory audio for correct answer
+      playHorus2Audio('correct_answer');
       toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
     } else if (believeVotes > 0) {
       // Bluff successful
+      // HÓRUS 2.0: Play bluff success audio
+      playHorus2Audio('bluff_success');
+      
       if (believeVotes === 3) {
         reward = HOST_WRONG_FULL_BLUFF;
         toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito!' });
@@ -688,10 +695,8 @@ export default function SinglePlayerRoom() {
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
-    // HÓRUS 2.0: Play round transition bordão (50% chance)
-    if (Math.random() > 0.5) {
-      playHorus2Audio('round_transition');
-    }
+    // HÓRUS 2.0: Play round transition bordão (always play between rounds)
+    playHorus2Audio('round_transition');
     
     // Show briefcase modal before round 15
     if (nextRoundNum === MAX_ROUNDS) {
