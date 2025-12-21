@@ -37,6 +37,12 @@ import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { stopGlobalAudio } from '@/services/globalAudioContext';
+import { 
+  playMomentAudio, 
+  playMycroftAudio, 
+  getRandomAudioFile,
+  playHorusAudio 
+} from '@/services/horusLocalAudio';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -328,6 +334,9 @@ export default function SinglePlayerRoom() {
     setShowAnswer(true);
     playReveal();
     
+    // Play random Mycroft audio when player confirms answer
+    playMycroftAudio();
+    
     // Round 15: Skip recording/voting, go directly to results
     if (currentRound === MAX_ROUNDS) {
       setTimeout(() => processRound15Results(), 1500);
@@ -460,8 +469,8 @@ export default function SinglePlayerRoom() {
     believeVotes: number,
     shouldEliminate: boolean
   ) => {
-    // Play victory narration with cache
-    await horusNarration.narrateClimaxMoment('VITORIA_REVELADA');
+    // Play local victory audio
+    playMomentAudio('victory');
     
     // Calculate rewards
     let reward = HOST_CORRECT_ANSWER;
@@ -480,13 +489,12 @@ export default function SinglePlayerRoom() {
   };
 
 
-  // Handle when player listens to Horus proposal - uses cached audio
+  // Handle when player listens to Horus proposal - uses local audio
   const handleHorusListen = async () => {
-    // Use cached climax moment based on round
-    if (currentRound === MAX_ROUNDS) {
-      await horusNarration.narrateClimaxMoment('MALETA_FINAL');
-    } else {
-      await horusNarration.narrateClimaxMoment('ACORDO_OURO');
+    // Use local acordo audio instead of ElevenLabs
+    const acordoAudio = getRandomAudioFile('acordo');
+    if (acordoAudio) {
+      playHorusAudio(acordoAudio);
     }
   };
 
@@ -544,8 +552,8 @@ export default function SinglePlayerRoom() {
     if (shouldEliminate) {
       // Player is about to be eliminated - play the mockery
       if (currentRound === MAX_ROUNDS) {
-        // All-in loss - sarcastic tripudio
-        await horusNarration.narrateClimaxMoment('ALL_IN_TRIPUDIO');
+        // All-in loss - play local derrota audio
+        playMomentAudio('all_in_loss');
         
         // Zero the balance immediately for All-in
         setAccumulatedPrize(0);
@@ -561,8 +569,8 @@ export default function SinglePlayerRoom() {
         setGamePhase('result');
         playReveal();
       } else {
-        // Play the loss narration with cached audio
-        await horusNarration.narrateClimaxMoment('RECUSA_DERROTA');
+        // Play local elimination audio
+        playMomentAudio('elimination');
         
         // Show AI taunt and eliminate
         setAiTaunt(getRandomTaunt());
