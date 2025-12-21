@@ -170,8 +170,8 @@ export default function SinglePlayerRoom() {
     gameMode: 'single',
   });
 
-  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas
-  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger();
+  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas (persistente no modo solo)
+  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger('single');
   const questionReadTimeoutRef = useRef<number | null>(null);
 
   // Keep latest references without forcing the narration effect to re-run on every render
