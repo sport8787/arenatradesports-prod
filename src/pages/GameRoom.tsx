@@ -145,8 +145,11 @@ export default function GameRoom() {
   // Audio permission based on game mode
   // Online: everyone hears audio (synced via WebSocket)
   // Audio permission: Presencial = only host, Online = all players (synced)
-  const gameMode = (gameState.room as any)?.game_mode as GameMode | undefined;
-  const isPresencialMode = gameMode === 'presencial';
+  const rawGameMode = (gameState.room as any)?.game_mode as unknown;
+  const normalizedGameMode = typeof rawGameMode === 'string' ? rawGameMode.trim().toLowerCase() : undefined;
+  const gameMode = normalizedGameMode as GameMode | undefined;
+
+  const isPresencialMode = normalizedGameMode === 'presencial';
   const isOnlineMode = !isPresencialMode;
   const canPlayAudio = isPresencialMode ? isRoomHost : true;
   const dialogGameMode: 'presencial' | 'online' = isPresencialMode ? 'presencial' : 'online';
