@@ -30,7 +30,8 @@ export function getHorusCacheProgress() {
   return { ...preCacheProgress };
 }
 
-// Pre-cache all Horus fixed phrases on app start
+// Pre-cache all Horus fixed phrases - ONLY CALLED MANUALLY or when entering game room
+// This checks Supabase Storage but does NOT call ElevenLabs if audio exists
 export async function preCacheHorusPhrases(): Promise<void> {
   if (preCacheProgress.inProgress || preCacheProgress.completed) {
     console.log('[HorusCache] Pre-cache already running or completed, skipping...');
@@ -38,7 +39,7 @@ export async function preCacheHorusPhrases(): Promise<void> {
   }
 
   preCacheProgress.inProgress = true;
-  console.log('[HorusCache] 🦅 Starting Horus pre-cache...');
+  console.log('[HorusCache] 🦅 Starting Horus pre-cache (checking storage only, NO ElevenLabs calls if cached)...');
   
   // Collect all phrases to cache
   const allPhrases = [
@@ -57,14 +58,14 @@ export async function preCacheHorusPhrases(): Promise<void> {
   ];
 
   preCacheProgress.total = allPhrases.length;
-  console.log(`[HorusCache] 📝 ${allPhrases.length} phrases to pre-cache`);
+  console.log(`[HorusCache] 📝 ${allPhrases.length} phrases to check in storage`);
 
   let cached = 0;
   let fromStorage = 0;
   let newlyGenerated = 0;
   let errors = 0;
 
-  // Process ONE at a time to avoid rate limits (ElevenLabs limit: 5 concurrent)
+  // Process ONE at a time to avoid rate limits
   for (let i = 0; i < allPhrases.length; i++) {
     const phrase = allPhrases[i];
     
@@ -79,18 +80,19 @@ export async function preCacheHorusPhrases(): Promise<void> {
         cached++;
         if (result.fromCache) {
           fromStorage++;
-          // Cache hit - no delay needed
+          // Cache hit - NO ElevenLabs cost, NO delay needed
         } else {
           newlyGenerated++;
-          // API call made - wait 500ms before next request
+          // ⚠️ API call made - wait 500ms before next request to avoid rate limits
+          console.log(`[HorusCache] ⚠️ NEW AUDIO GENERATED (ElevenLabs cost): ${phrase.substring(0, 40)}...`);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       
       preCacheProgress.cached = cached;
       
-      // Log progress every 10 phrases
-      if ((i + 1) % 10 === 0) {
+      // Log progress every 20 phrases (less spam)
+      if ((i + 1) % 20 === 0) {
         console.log(`[HorusCache] Progress: ${i + 1}/${allPhrases.length} (${fromStorage} from cache, ${newlyGenerated} generated)`);
       }
     } catch (error) {
@@ -106,9 +108,14 @@ export async function preCacheHorusPhrases(): Promise<void> {
   
   console.log(`[HorusCache] ✅ Pre-cache complete!`);
   console.log(`[HorusCache] 📊 Stats: ${cached}/${allPhrases.length} cached`);
-  console.log(`[HorusCache] 🟢 From Storage: ${fromStorage}`);
-  console.log(`[HorusCache] 🔴 Newly Generated: ${newlyGenerated}`);
-  console.log(`[HorusCache] 💰 Next session will have ${cached} phrases ready from cache!`);
+  console.log(`[HorusCache] 🟢 From Storage (FREE): ${fromStorage}`);
+  console.log(`[HorusCache] 🔴 Newly Generated (ElevenLabs cost): ${newlyGenerated}`);
+  
+  if (newlyGenerated === 0) {
+    console.log(`[HorusCache] 💰 ZERO ElevenLabs calls! All ${fromStorage} phrases were already cached.`);
+  } else {
+    console.log(`[HorusCache] 💰 ${newlyGenerated} ElevenLabs calls made. Next session will be FREE.`);
+  }
 }
 
 // Reset cache progress (useful for testing)
