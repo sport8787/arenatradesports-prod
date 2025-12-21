@@ -178,11 +178,8 @@ export default function SinglePlayerRoom() {
   // Question audio preloader for upcoming questions
   const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: true, preloadCount: 3 });
 
-  // Preload sounds
-  useEffect(() => {
-    preloadSounds();
-  }, [preloadSounds]);
-
+  // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
+  // Sounds will be generated on-demand when needed.
   // Cleanup Horus audio on unmount
   useEffect(() => {
     return () => {

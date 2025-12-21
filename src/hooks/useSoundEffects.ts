@@ -25,8 +25,32 @@ const SFX_PROMPTS = {
 
 type SoundType = keyof typeof SFX_PROMPTS;
 
-// Cache for generated audio blobs
+// Cache for generated audio URLs (session)
 const audioCache = new Map<SoundType, string>();
+
+// Simple stats for auditing ElevenLabs SFX usage
+let sfxCacheHits = 0;
+let sfxApiCalls = 0;
+let sfxErrors = 0;
+let lastSfxEvent: { type: SoundType; source: 'cache' | 'api' | 'error'; ts: number } | null = null;
+
+export function getSfxStats() {
+  return {
+    sfxCacheHits,
+    sfxApiCalls,
+    sfxErrors,
+    lastSfxEvent,
+    sfxCacheSize: audioCache.size,
+  };
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export function useSoundEffects() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -35,6 +59,8 @@ export function useSoundEffects() {
   const generateSound = useCallback(async (type: SoundType): Promise<string | null> => {
     // Return cached audio if available
     if (audioCache.has(type)) {
+      sfxCacheHits++;
+      lastSfxEvent = { type, source: 'cache', ts: Date.now() };
       return audioCache.get(type)!;
     }
 
@@ -46,41 +72,66 @@ export function useSoundEffects() {
     loadingRef.current.add(type);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-sfx`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            prompt: SFX_PROMPTS[type],
-            duration: type === 'fanfare' ? 4 : type === 'suspense' ? 3 : 2,
-          }),
-        }
-      );
+      const prompt = SFX_PROMPTS[type];
+      const duration = type === 'fanfare' ? 4 : type === 'suspense' ? 3 : 2;
+
+      // Deterministic cache key so the backend can store/reuse SFX
+      const hash = (await sha256Hex(`sfx:v1:${duration}:${prompt.trim().toLowerCase()}`)).slice(0, 32);
+      const cacheKey = `sfx_${hash}.mp3`;
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-sfx`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          prompt,
+          duration,
+          cacheKey,
+        }),
+      });
 
       if (!response.ok) {
         // Silently fail - sound effects are optional
         return null;
       }
 
-      // Check if response is actually audio
-      const contentType = response.headers.get('content-type');
-      if (!contentType?.includes('audio')) {
+      const contentType = response.headers.get('content-type') || '';
+
+      // JSON response means we got a public URL (cached or freshly generated)
+      if (contentType.includes('application/json')) {
+        const data = await response.json().catch(() => null);
+        if (data?.audioUrl) {
+          audioCache.set(type, data.audioUrl);
+          lastSfxEvent = { type, source: data.cached ? 'cache' : 'api', ts: Date.now() };
+          if (data.cached) {
+            sfxCacheHits++;
+          } else {
+            sfxApiCalls++;
+          }
+          return data.audioUrl;
+        }
+        return null;
+      }
+
+      // Audio response (fallback)
+      if (!contentType.includes('audio')) {
         return null;
       }
 
       const audioBlob = await response.blob();
+      if (!audioBlob.size) return null;
+
       const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Cache the generated audio
       audioCache.set(type, audioUrl);
-      
+      sfxApiCalls++;
+      lastSfxEvent = { type, source: 'api', ts: Date.now() };
       return audioUrl;
-    } catch (error) {
+    } catch {
+      sfxErrors++;
+      lastSfxEvent = { type, source: 'error', ts: Date.now() };
       // Silently fail - sound effects are optional
       return null;
     } finally {
@@ -88,41 +139,38 @@ export function useSoundEffects() {
     }
   }, []);
 
-  const playSound = useCallback(async (type: SoundType, volume: number = 0.7) => {
-    try {
-      const audioUrl = await generateSound(type);
-      
-      if (!audioUrl) {
-        console.log('Sound not available yet, skipping:', type);
-        return;
-      }
+  const playSound = useCallback(
+    async (type: SoundType, volume: number = 0.7) => {
+      try {
+        const audioUrl = await generateSound(type);
 
-      // Stop any currently playing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+        if (!audioUrl) {
+          return;
+        }
 
-      const audio = new Audio(audioUrl);
-      audio.volume = volume;
-      audioRef.current = audio;
-      
-      await audio.play();
-    } catch (error) {
-      console.error('Error playing sound:', error);
-    }
-  }, [generateSound]);
+        // Stop any currently playing audio
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+
+        const audio = new Audio(audioUrl);
+        audio.volume = volume;
+        audioRef.current = audio;
+
+        await audio.play();
+      } catch {
+        // ignore
+      }
+    },
+    [generateSound]
+  );
 
   // Preload sounds in background
+  // IMPORTANT: Disabled by default to avoid spending ElevenLabs credits just by entering a room.
   const preloadSounds = useCallback(async () => {
-    const sounds: SoundType[] = ['chips', 'suspense', 'fanfare', 'reveal', 'tick', 'timeup', 'vote', 'coinDrop', 'cashRegister', 'cardUnlock', 'shieldActivate', 'temptation'];
-    
-    for (const sound of sounds) {
-      if (!audioCache.has(sound)) {
-        await generateSound(sound);
-      }
-    }
-  }, [generateSound]);
+    return;
+  }, []);
 
   return {
     playChips: () => playSound('chips'),
