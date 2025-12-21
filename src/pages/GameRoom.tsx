@@ -132,9 +132,10 @@ export default function GameRoom() {
   // Question history hook
   const { questions, loading: questionsLoading, getNextQuestion, registerQuestionUsed, resetHistory } = useQuestionHistory(sessionId);
   
-  // Question audio preloader for upcoming questions
-  const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: true, preloadCount: 3 });
-  
+  // Question audio preloader DISABLED to prevent ElevenLabs credit consumption
+  // Audio will only be generated at the exact moment of question display
+  // const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: false, preloadCount: 0 });
+
   // Core game state
   const isRoomHost = gameState.room?.host_id === sessionId;
   const isCurrentPlayer = isRoomHost;
@@ -922,8 +923,8 @@ export default function GameRoom() {
     // Register this question as used
     await registerQuestionUsed(q.id);
 
-    // Preload audio for upcoming questions in background (fire and forget)
-    preloadUpcomingQuestions(questions, new Set(), 1);
+    // Preload audio DISABLED to prevent ElevenLabs credit consumption
+    // Audio will only be generated at the exact moment of question display
 
     const hostIndex = Math.max(
       0,
@@ -1066,8 +1067,8 @@ export default function GameRoom() {
     // Register this question as used
     await registerQuestionUsed(nextQ.id);
 
-    // Preload audio for upcoming questions in background (fire and forget)
-    preloadUpcomingQuestions(questions, new Set(), nextRoundNum);
+    // Preload audio DISABLED to prevent ElevenLabs credit consumption
+    // Audio will only be generated at the exact moment of question display
 
     // Reset answer states for next question
     setSelectedAnswer(null);

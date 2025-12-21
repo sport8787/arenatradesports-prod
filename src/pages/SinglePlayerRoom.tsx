@@ -175,8 +175,9 @@ export default function SinglePlayerRoom() {
 
   const sessionId = getOrCreateSessionId();
 
-  // Question audio preloader for upcoming questions
-  const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: true, preloadCount: 3 });
+  // Question audio preloader DISABLED to prevent ElevenLabs credit consumption
+  // Audio will only be generated at the exact moment of question display
+  // const { preloadUpcomingQuestions } = useQuestionAudioPreloader({ enabled: false, preloadCount: 0 });
 
   // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
   // Sounds will be generated on-demand when needed.
@@ -301,9 +302,8 @@ export default function SinglePlayerRoom() {
     setAiTaunt(null);
     setAnalyzingProgress(0);
 
-    // Preload audio for upcoming questions in background (fire and forget)
-    // Pass empty set since getNextQuestion already filters used questions
-    preloadUpcomingQuestions(questions, new Set(), nextRound);
+    // Preload audio DISABLED to prevent ElevenLabs credit consumption
+    // Audio will only be generated at the exact moment of question display
   };
 
   const confirmAnswer = () => {
