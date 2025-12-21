@@ -1,8 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GameState, Room, Player, Question, Vote, RoomStatus, GameMode } from '@/types/game';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { useRealtimeConnection } from './useRealtimeConnection';
+
+// Track state changes to prevent unnecessary audio triggers
+interface StateChangeInfo {
+  hasChanged: boolean;
+  statusChanged: boolean;
+  questionChanged: boolean;
+}
 
 export function useGameState(roomId: string | null) {
   const [gameState, setGameState] = useState<GameState>({
@@ -14,8 +21,16 @@ export function useGameState(roomId: string | null) {
     votes: [],
   });
   const [loading, setLoading] = useState(true);
+  const [lastStateChange, setLastStateChange] = useState<StateChangeInfo>({ 
+    hasChanged: false, 
+    statusChanged: false, 
+    questionChanged: false 
+  });
   const sessionId = getOrCreateSessionId();
-
+  
+  // Refs to track previous status/questionId for change detection
+  const prevStatusRef = useRef<RoomStatus | null>(null);
+  const prevQuestionIdRef = useRef<string | null>(null);
   // Fetch initial game state
   const fetchGameState = useCallback(async () => {
     if (!roomId) return;
@@ -78,6 +93,18 @@ export function useGameState(roomId: string | null) {
       } else {
         console.log('[GameState] No current question ID, skipping vote fetch');
       }
+
+      // Detect if status or question changed (for audio trigger control)
+      const statusChanged = prevStatusRef.current !== null && prevStatusRef.current !== room.current_status;
+      const questionChanged = prevQuestionIdRef.current !== null && prevQuestionIdRef.current !== room.current_question_id;
+      const hasChanged = statusChanged || questionChanged;
+      
+      // Update refs for next comparison
+      prevStatusRef.current = room.current_status as RoomStatus;
+      prevQuestionIdRef.current = room.current_question_id;
+      
+      // Update state change info
+      setLastStateChange({ hasChanged, statusChanged, questionChanged });
 
       setGameState({
         room: room as Room,
@@ -198,7 +225,7 @@ export function useGameState(roomId: string | null) {
   // Update player bluffcoins
   const updateBluffcoins = async (playerId: string, amount: number) => {
     const player = gameState.players.find(p => p.id === playerId);
-    if (!player) return;
+    if (!player) return false;
 
     const newBalance = player.bluffcoins + amount;
     if (newBalance < 0) return false; // Not enough coins
@@ -209,6 +236,25 @@ export function useGameState(roomId: string | null) {
       .eq('id', playerId);
     
     return true;
+  };
+
+  // Reset bluffcoins to zero (for All-in loss)
+  const resetBluffcoins = async (playerId: string) => {
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    await supabase
+      .from('players')
+      .update({ bluffcoins: 0 })
+      .eq('id', playerId);
+    
+    return true;
+  };
+
+  // Check if player should skip bribe (chose correct answer)
+  const shouldSkipBribe = (playerAnswer: 'A' | 'B' | 'C' | 'D' | null): boolean => {
+    if (!gameState.currentQuestion || !playerAnswer) return false;
+    return playerAnswer === gameState.currentQuestion.correct_option;
   };
 
   // Check if player has enough bluffcoins
@@ -226,6 +272,15 @@ export function useGameState(roomId: string | null) {
       .eq('id', roomId);
   };
 
+  // Get complete question context for Mycroft analysis
+  const getQuestionContext = () => {
+    return {
+      question: gameState.currentQuestion,
+      votes: gameState.votes,
+      players: gameState.players,
+    };
+  };
+
   return {
     gameState,
     loading,
@@ -234,8 +289,12 @@ export function useGameState(roomId: string | null) {
     submitVote,
     updateScore,
     updateBluffcoins,
+    resetBluffcoins,
     hasEnoughCoins,
     updateGameMode,
+    shouldSkipBribe,
+    getQuestionContext,
+    lastStateChange,
     refetch: fetchGameState,
     // Connection status
     isConnected,
