@@ -172,6 +172,8 @@ export default function SinglePlayerRoom() {
   const prevGamePhaseRef = useRef<GamePhase | null>(null);
   // Track if we've already narrated for current round to prevent duplicates
   const hasNarratedRoundRef = useRef<number | null>(null);
+  // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
+  const lastPlayedIdRef = useRef<string | null>(null);
 
   const sessionId = getOrCreateSessionId();
 
@@ -209,8 +211,19 @@ export default function SinglePlayerRoom() {
         return;
       }
       
+      // Generate unique ID combining round and question text hash for duplicate prevention
+      const questionText = currentQuestion?.question_text;
+      const audioId = `round_${currentRound}_${questionText?.slice(0, 50)}`;
+      
+      // Prevent duplicate TTS synthesis on re-renders
+      if (lastPlayedIdRef.current === audioId) {
+        console.log('[SinglePlayerRoom] lastPlayedIdRef already has this audio ID - skipping TTS');
+        return;
+      }
+      
       // Mark this round as narrated
       hasNarratedRoundRef.current = currentRound;
+      lastPlayedIdRef.current = audioId;
       
       // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
       playReveal();
