@@ -5,10 +5,10 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
-import { useHorusNarration, HORUS_CLIMAX_PHRASES } from '@/hooks/useHorusNarration';
+// HÓRUS 2.0: useHorusNarration removido - agora usa horus2Engine
 import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
 import { useDialogManager } from '@/hooks/useDialogManager';
-import { useAtomicNarrationTrigger } from '@/hooks/useAtomicNarrationTrigger';
+// HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -37,9 +37,15 @@ import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { stopGlobalAudio } from '@/services/globalAudioContext';
+// HÓRUS 2.0: Agora usa horus2Engine como sistema principal
 import { 
-  playMomentAudio, 
-  playMycroftAudio, 
+  playHorus2Audio, 
+  playMycroftConfirmation, 
+  stopHorus2Audio,
+  hasLocalAudioForMoment
+} from '@/services/horus2Engine';
+// Mantém horusLocalAudio para compatibilidade com momentos específicos
+import { 
   getRandomAudioFile,
   playHorusAudio 
 } from '@/services/horusLocalAudio';
@@ -158,15 +164,9 @@ export default function SinglePlayerRoom() {
     shouldEliminate: boolean;
   } | null>(null);
 
-  // Horus narration hook with caching (for climax moments)
-  const horusNarration = useHorusNarration({
-    enabled: true,
-    onNarrationEnd: () => {
-      console.log('[SinglePlayerRoom] Horus narration ended');
-    },
-  });
+  // HÓRUS 2.0: Hook legado removido, agora usa horus2Engine diretamente
 
-  // Dialog manager for round_start and question_read narration
+  // Dialog manager for question_read narration
   const { 
     speak: speakPersona, 
     stopSpeaking, 
@@ -176,8 +176,8 @@ export default function SinglePlayerRoom() {
     gameMode: 'single',
   });
 
-  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas (persistente no modo solo)
-  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger('single');
+  // HÓRUS 2.0: Ref para controle de narração
+  const lastNarrationIdRef = useRef<string | null>(null);
   const questionReadTimeoutRef = useRef<number | null>(null);
 
   // Keep latest references without forcing the narration effect to re-run on every render
@@ -213,21 +213,19 @@ export default function SinglePlayerRoom() {
       clearQueueRef.current();
       stopSpeakingRef.current();
       stopGlobalAudio();
-      horusNarration.stopNarration();
+      stopHorus2Audio();
     };
-  }, [horusNarration]);
+  }, []);
 
   const currentQuestionId = currentQuestion?.id ?? null;
 
-  // Hórus question narration trigger (atomic + cancellable)
+  // HÓRUS 2.0: Question narration trigger (simplified)
   useEffect(() => {
-    // Cancel any pending scheduled read immediately
     if (questionReadTimeoutRef.current) {
       clearTimeout(questionReadTimeoutRef.current);
       questionReadTimeoutRef.current = null;
     }
 
-    // On any status change away from the question, kill queued/playing voice audio
     if (gamePhase !== 'question') {
       clearQueueRef.current();
       stopSpeakingRef.current();
@@ -236,9 +234,11 @@ export default function SinglePlayerRoom() {
     }
 
     if (!currentQuestionId) return;
-
-    // TRAVA ATÔMICA: usa o hook unificado
-    if (!shouldTriggerNarration('question_read', currentQuestionId)) return;
+    
+    // HÓRUS 2.0: Prevent duplicate narration
+    const narrationId = `question_${currentQuestionId}`;
+    if (lastNarrationIdRef.current === narrationId) return;
+    lastNarrationIdRef.current = narrationId;
 
     playRevealRef.current();
 
@@ -248,7 +248,7 @@ export default function SinglePlayerRoom() {
 
       speakPersonaRef.current('question_read', q.question_text);
     }, 800);
-  }, [gamePhase, currentQuestionId, shouldTriggerNarration]);
+  }, [gamePhase, currentQuestionId]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -334,8 +334,8 @@ export default function SinglePlayerRoom() {
     setShowAnswer(true);
     playReveal();
     
-    // Play random Mycroft audio when player confirms answer
-    playMycroftAudio();
+    // HÓRUS 2.0: Play random Mycroft audio when player confirms answer
+    playMycroftConfirmation();
     
     // Round 15: Skip recording/voting, go directly to results
     if (currentRound === MAX_ROUNDS) {
@@ -469,8 +469,8 @@ export default function SinglePlayerRoom() {
     believeVotes: number,
     shouldEliminate: boolean
   ) => {
-    // Play local victory audio
-    playMomentAudio('victory');
+    // HÓRUS 2.0: Play local victory audio
+    playHorus2Audio('victory');
     
     // Calculate rewards
     let reward = HOST_CORRECT_ANSWER;
@@ -501,7 +501,7 @@ export default function SinglePlayerRoom() {
   // Handle when player accepts Horus bribe (cash out before seeing result)
   const handleHorusAcceptBribe = async () => {
     setShowHorusBribe(false);
-    horusNarration.stopNarration();
+    stopHorus2Audio();
     
     // Show contract tearing animation
     setShowContractTearing(true);
@@ -535,7 +535,7 @@ export default function SinglePlayerRoom() {
   // Handle when player rejects Horus bribe (see the real result)
   const handleHorusRejectBribe = async () => {
     setShowHorusBribe(false);
-    horusNarration.stopNarration();
+    stopHorus2Audio();
     
     // Show wax seal breaking animation before revealing result
     setShowWaxSealBreaking(true);
@@ -552,8 +552,8 @@ export default function SinglePlayerRoom() {
     if (shouldEliminate) {
       // Player is about to be eliminated - play the mockery
       if (currentRound === MAX_ROUNDS) {
-        // All-in loss - play local derrota audio
-        playMomentAudio('all_in_loss');
+        // HÓRUS 2.0: All-in loss audio
+        playHorus2Audio('all_in_loss');
         
         // Zero the balance immediately for All-in
         setAccumulatedPrize(0);
@@ -569,8 +569,8 @@ export default function SinglePlayerRoom() {
         setGamePhase('result');
         playReveal();
       } else {
-        // Play local elimination audio
-        playMomentAudio('elimination');
+        // HÓRUS 2.0: Play elimination audio
+        playHorus2Audio('elimination');
         
         // Show AI taunt and eliminate
         setAiTaunt(getRandomTaunt());
@@ -1315,9 +1315,9 @@ export default function SinglePlayerRoom() {
         onAcceptBribe={handleHorusAcceptBribe}
         onRejectBribe={handleHorusRejectBribe}
         onListenProposal={handleHorusListen}
-        isListening={horusNarration.isNarrating}
-        isLoading={horusNarration.isLoading}
-        currentPhrase={horusNarration.currentPhrase}
+        isListening={false}
+        isLoading={false}
+        currentPhrase={null}
         isAllIn={currentRound === MAX_ROUNDS}
         playerGotCorrect={pendingResultData?.playerAnsweredCorrectly ?? false}
       />

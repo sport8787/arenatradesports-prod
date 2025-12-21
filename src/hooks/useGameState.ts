@@ -11,6 +11,11 @@ interface StateChangeInfo {
   questionChanged: boolean;
 }
 
+// Hórus 2.0: Unique narration trigger ID
+// Format: `${status}_${questionId}` - only updates when status OR questionId changes
+// This prevents audio repetition from player joins or vote updates
+export type NarrationId = string | null;
+
 export function useGameState(roomId: string | null) {
   const [gameState, setGameState] = useState<GameState>({
     room: null,
@@ -26,6 +31,11 @@ export function useGameState(roomId: string | null) {
     statusChanged: false, 
     questionChanged: false 
   });
+  
+  // Hórus 2.0: Single narration trigger ID
+  // Only changes when current_status OR current_question_id changes
+  const [lastNarrationId, setLastNarrationId] = useState<NarrationId>(null);
+  
   const sessionId = getOrCreateSessionId();
   
   // Refs to track previous status/questionId for change detection
@@ -98,6 +108,14 @@ export function useGameState(roomId: string | null) {
       const statusChanged = prevStatusRef.current !== null && prevStatusRef.current !== room.current_status;
       const questionChanged = prevQuestionIdRef.current !== null && prevQuestionIdRef.current !== room.current_question_id;
       const hasChanged = statusChanged || questionChanged;
+      
+      // Hórus 2.0: Generate unique narration ID only when status OR questionId changes
+      // This is the SINGLE SOURCE OF TRUTH for triggering audio
+      if (statusChanged || questionChanged) {
+        const newNarrationId = `${room.current_status}_${room.current_question_id || 'none'}`;
+        setLastNarrationId(newNarrationId);
+        console.log('[GameState] Narration ID updated:', newNarrationId);
+      }
       
       // Update refs for next comparison
       prevStatusRef.current = room.current_status as RoomStatus;
@@ -327,6 +345,8 @@ export function useGameState(roomId: string | null) {
     calculateBribeAmount,
     checkBribeEligibility,
     lastStateChange,
+    // Hórus 2.0: Single narration trigger
+    lastNarrationId,
     refetch: fetchGameState,
     // Connection status
     isConnected,
