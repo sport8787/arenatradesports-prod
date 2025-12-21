@@ -165,14 +165,22 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
     setState(prev => ({ ...prev, currentText: textToSpeak }));
 
-    const audioUrl = await generateTTS(textToSpeak, config.persona, item.moment);
-
     const finishAndProcessNext = () => {
       setState(prev => ({ ...prev, isSpeaking: false, activePersona: null, currentText: null }));
       if (item.onComplete) item.onComplete();
       isProcessingRef.current = false;
       setTimeout(() => processQueue(), 300);
     };
+
+    // If this client can't play audio and there's no external audio handler,
+    // don't generate TTS (avoids wasted credits / duplicate narrations on juror devices).
+    if (!canPlayAudio && !onAudioGenerated) {
+      setState(prev => ({ ...prev, isLoading: false, isSpeaking: false }));
+      setTimeout(finishAndProcessNext, 10);
+      return;
+    }
+
+    const audioUrl = await generateTTS(textToSpeak, config.persona, item.moment);
 
     if (audioUrl) {
       // If we have a callback for audio sync, notify it

@@ -170,11 +170,11 @@ export default function GameRoom() {
     }
   }, [isOnlineMode, isRoomHost, broadcastAudio]);
 
-  const { 
-    state: dialogState, 
-    speak: speakPersona, 
-    stopSpeaking, 
-    isQueueEmpty, 
+  const {
+    state: dialogState,
+    speak: speakPersona,
+    stopSpeaking,
+    isQueueEmpty,
     clearQueue,
     playExternalAudio,
   } = useDialogManager({
@@ -182,6 +182,8 @@ export default function GameRoom() {
     onAudioGenerated: isOnlineMode ? handleAudioGenerated : undefined,
     uploadToStorage: isOnlineMode && isRoomHost, // Upload to storage for sharing in online mode
     roomId: roomId || undefined,
+    isHost: isRoomHost,
+    gameMode: dialogGameMode,
   });
   
   const [copied, setCopied] = useState(false);
