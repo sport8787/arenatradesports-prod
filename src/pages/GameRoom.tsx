@@ -56,8 +56,6 @@ import {
   playHorus2Audio,
   stopHorus2Audio,
   hasLocalAudioForMoment,
-  isOpeningInProgress,
-  onOpeningEnded,
 } from '@/services/horus2Engine';
 
 // BluffCoin costs
@@ -432,38 +430,28 @@ export default function GameRoom() {
           }
         };
 
-        // Primeira rodada: toca ABERTURA e depois espera terminar para ler pergunta
+        // Primeira rodada: toca ABERTURA e só depois lê a pergunta
         if (isFirstRound) {
           const opening = getLocalAudioForMoment('game_start');
 
           if (opening) {
             console.log('[GameRoom] Playing opening audio for first round');
-            
+
             if (isOnlineMode) {
+              // No sync não há onended; usa duração fixa (~15s) para evitar sobreposição
+              const OPENING_WAIT_MS = 15000;
               broadcastAudio(opening, 'game_start', 'horus');
+              setTimeout(playQuestionRead, OPENING_WAIT_MS);
             } else {
-              // Inicia abertura (não bloqueia)
-              playHorus2Audio('game_start');
+              // Offline: sincroniza com o término real do áudio
+              playHorus2Audio('game_start', undefined, () => {
+                console.log('[GameRoom] Opening ended, now reading question');
+                setTimeout(playQuestionRead, 400);
+              });
             }
-            
-            // Registra callback para quando abertura terminar
-            onOpeningEnded(() => {
-              console.log('[GameRoom] Opening ended, now reading question');
-              // Pequeno delay para transição suave
-              setTimeout(playQuestionRead, 400);
-            });
-            
+
             break;
           }
-        }
-
-        // Se já houver abertura tocando (reconexão), espera terminar
-        if (isOpeningInProgress()) {
-          console.log('[GameRoom] Opening still playing, waiting...');
-          onOpeningEnded(() => {
-            setTimeout(playQuestionRead, 400);
-          });
-          break;
         }
 
         // Caso normal: só lê a pergunta após pequeno delay
