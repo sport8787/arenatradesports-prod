@@ -6,6 +6,8 @@ import { getAudioCacheStats } from '@/services/audioCacheService';
 interface AudioStats {
   cacheHits: number;
   cacheMisses: number;
+  blockedDuplicates: number;
+  estimatedCreditsSaved: number;
   sessionRequests: number;
   memoryCacheSize: number;
 }
@@ -15,6 +17,8 @@ export function AudioDebugPanel() {
   const [stats, setStats] = useState<AudioStats>({
     cacheHits: 0,
     cacheMisses: 0,
+    blockedDuplicates: 0,
+    estimatedCreditsSaved: 0,
     sessionRequests: 0,
     memoryCacheSize: 0,
   });
@@ -31,7 +35,7 @@ export function AudioDebugPanel() {
 
   const totalRequests = stats.cacheHits + stats.cacheMisses;
   const hitRate = totalRequests > 0 ? ((stats.cacheHits / totalRequests) * 100).toFixed(1) : '0.0';
-  const estimatedSavings = stats.cacheHits * 50; // ~50 chars average per request
+  const totalSaved = stats.estimatedCreditsSaved;
 
   return (
     <>
@@ -113,6 +117,17 @@ export function AudioDebugPanel() {
                 </div>
               </div>
 
+              {/* Blocked Duplicates */}
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs">⛔</span>
+                  <span className="text-xs text-orange-500">Duplicatas Bloqueadas</span>
+                </div>
+                <span className="text-xl font-bold text-orange-400 font-mono">
+                  {stats.blockedDuplicates}
+                </span>
+              </div>
+
               {/* Additional Info */}
               <div className="space-y-2 pt-2 border-t border-border">
                 <div className="flex justify-between text-xs">
@@ -128,8 +143,8 @@ export function AudioDebugPanel() {
                   <span className="font-mono">{stats.sessionRequests} unique</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Est. Chars Saved</span>
-                  <span className="font-mono text-green-400">~{estimatedSavings.toLocaleString()}</span>
+                  <span className="text-muted-foreground">💸 Créditos Salvos</span>
+                  <span className="font-mono text-green-400 font-bold">~{totalSaved.toLocaleString()} chars</span>
                 </div>
               </div>
 

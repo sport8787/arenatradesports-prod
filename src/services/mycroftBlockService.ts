@@ -1,13 +1,21 @@
 // Mycroft Block Service - Splits Mycroft narration into 3 cacheable parts
 // INTRO (Fixed/Cached) + FACT (Dynamic/Short) + BEHAVIOR (Pool of 20 cached phrases)
 // This dramatically reduces ElevenLabs credit consumption
+// 
+// MODULAR "LEGO" APPROACH:
+// - [INTRO] = From cache (Supabase Storage)
+// - [FACT] = Dynamic, MAX 150 CHARS (only part sent to ElevenLabs API)
+// - [CLOSING] = From cache (Supabase Storage)
 
 import { getCachedAudio, getRandomMycroftBehavior, getRandomMycroftIntro, MYCROFT_BEHAVIOR_POOL, MYCROFT_INTRO_PHRASES } from './audioCacheService';
 import { playGlobalAudio, stopGlobalAudio } from './globalAudioContext';
 
+// HARD LIMIT: Maximum characters for dynamic fact (matches edge function)
+const MAX_DYNAMIC_CHARS = 150;
+
 export interface MycroftVerdictBlocks {
   intro: string;       // Fixed phrase - cached
-  fact: string;        // Dynamic - short text about the specific answer
+  fact: string;        // Dynamic - short text about the specific answer (MAX 150 chars)
   behavior: string;    // From pool - cached
 }
 
@@ -40,24 +48,48 @@ export async function preCacheMycroftPhrases(): Promise<void> {
 }
 
 // Generate the 3 blocks for Mycroft verdict
+// MODULAR LEGO: Only the FACT portion is dynamic and costs API credits
 export function generateMycroftBlocks(
   isCorrect: boolean,
   userAnswer: string,
-  correctAnswer: string
+  correctAnswer: string,
+  aiGeneratedFact?: string // Optional AI-generated fact from mycroft-ai edge function
 ): MycroftVerdictBlocks {
-  // 1. INTRO - Fixed phrase (will be cached)
+  // 1. INTRO - Fixed phrase (will be cached) - FREE
   const intro = getRandomMycroftIntro();
   
-  // 2. FACT - Dynamic but SHORT (10-15 words max)
+  // 2. FACT - Dynamic but HARD LIMITED to MAX_DYNAMIC_CHARS
   // This is the ONLY part that costs API credits per unique answer
-  const fact = isCorrect
-    ? `Resposta correta confirmada: ${correctAnswer.substring(0, 30)}.`
-    : `Erro detectado. Você disse ${userAnswer.substring(0, 20)}, mas era ${correctAnswer.substring(0, 20)}.`;
+  let fact: string;
   
-  // 3. BEHAVIOR - From pool (will be cached)
+  if (aiGeneratedFact) {
+    // Use AI-generated fact, but enforce hard limit
+    fact = aiGeneratedFact.length > MAX_DYNAMIC_CHARS 
+      ? aiGeneratedFact.substring(0, MAX_DYNAMIC_CHARS) + '...'
+      : aiGeneratedFact;
+  } else {
+    // Fallback: Generate locally (even shorter, no API cost)
+    fact = isCorrect
+      ? `Resposta "${correctAnswer.substring(0, 25)}" validada.`
+      : `Erro: "${userAnswer.substring(0, 15)}" ≠ "${correctAnswer.substring(0, 15)}".`;
+  }
+  
+  // Log credit estimate
+  console.log(`💸 Créditos Estimados para FATO dinâmico: ${fact.length} caracteres (limite: ${MAX_DYNAMIC_CHARS})`);
+  
+  // 3. BEHAVIOR - From pool (will be cached) - FREE
   const behavior = getRandomMycroftBehavior();
   
   return { intro, fact, behavior };
+}
+
+// Validate that a fact string is within the hard limit
+export function validateFactLength(fact: string): { isValid: boolean; length: number; limit: number } {
+  return {
+    isValid: fact.length <= MAX_DYNAMIC_CHARS,
+    length: fact.length,
+    limit: MAX_DYNAMIC_CHARS
+  };
 }
 
 // Play Mycroft verdict in 3 sequential audio blocks
