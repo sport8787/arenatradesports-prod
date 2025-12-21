@@ -8,6 +8,7 @@ import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 import { useHorusNarration, HORUS_CLIMAX_PHRASES } from '@/hooks/useHorusNarration';
 import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
 import { useDialogManager } from '@/hooks/useDialogManager';
+import { useAtomicNarrationTrigger } from '@/hooks/useAtomicNarrationTrigger';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
@@ -169,8 +170,8 @@ export default function SinglePlayerRoom() {
     gameMode: 'single',
   });
 
-  // Atomic lock + cancellation for question narration (prevents repeated reads)
-  const lastQuestionReadKeyRef = useRef<string | null>(null);
+  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas
+  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger();
   const questionReadTimeoutRef = useRef<number | null>(null);
 
   // Keep latest references without forcing the narration effect to re-run on every render
@@ -230,25 +231,18 @@ export default function SinglePlayerRoom() {
 
     if (!currentQuestionId) return;
 
-    const currentKey = `question_read:${currentQuestionId}`;
-
-    if (lastQuestionReadKeyRef.current === currentKey) return;
-
-    // ATOMIC: lock immediately before any delay
-    lastQuestionReadKeyRef.current = currentKey;
+    // TRAVA ATÔMICA: usa o hook unificado
+    if (!shouldTriggerNarration('question_read', currentQuestionId)) return;
 
     playRevealRef.current();
 
     questionReadTimeoutRef.current = window.setTimeout(() => {
-      // Ignore if phase/question changed since scheduling
-      if (lastQuestionReadKeyRef.current !== currentKey) return;
-
       const q = currentQuestionRef.current;
       if (!q || q.id !== currentQuestionId) return;
 
       speakPersonaRef.current('question_read', q.question_text);
     }, 800);
-  }, [gamePhase, currentQuestionId]);
+  }, [gamePhase, currentQuestionId, shouldTriggerNarration]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
