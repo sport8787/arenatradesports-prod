@@ -284,11 +284,11 @@ export default function SinglePlayerRoom() {
       return;
     }
 
+    // HÓRUS 2.0: Abertura imediata no clique (evita bloqueio de autoplay por causa de awaits)
+    playHorus2Audio('game_start');
+
     // Create/update solo ranking
     await getOrCreateSoloRanking(profile.username);
-
-    // HÓRUS 2.0: Play abertura audio when game starts
-    playHorus2Audio('game_start');
 
     // Start first round
     setCurrentRound(1);

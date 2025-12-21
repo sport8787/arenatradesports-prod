@@ -52,10 +52,10 @@ import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, 
 import { toast } from '@/hooks/use-toast';
 import { 
   getHorus2Audio,
-  playHorus2Audio, 
-  playMycroftConfirmation, 
+  getLocalAudioForMoment,
+  playHorus2Audio,
   stopHorus2Audio,
-  hasLocalAudioForMoment
+  hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
 
 // BluffCoin costs
@@ -218,6 +218,11 @@ export default function GameRoom() {
 
   // Round progression state
   const [currentRound, setCurrentRound] = useState(0);
+  const currentRoundRef = useRef(0);
+  useEffect(() => {
+    currentRoundRef.current = currentRound;
+  }, [currentRound]);
+
   const [accumulatedPrize, setAccumulatedPrize] = useState(0);
   const [hasGuaranteedPrize, setHasGuaranteedPrize] = useState(false);
   const [safeAmount, setSafeAmount] = useState(0);
@@ -404,27 +409,74 @@ export default function GameRoom() {
     
     // Mapeia status para momento do jogo
     switch (status) {
-      case 'question':
-        // SFX local de abertura
+      case 'question': {
+        // Entrada de rodada + leitura da pergunta (question_read)
         playReveal();
 
-        // Delay curto antes de ler a pergunta
+        const isFirstRound = currentRoundRef.current === 1;
+        const OPENING_DELAY_MS = 3200;
+
+        // Primeira rodada: toca ABERTURA antes da leitura da pergunta
+        if (isFirstRound) {
+          const opening = getLocalAudioForMoment('game_start');
+
+          if (opening) {
+            if (isOnlineMode) {
+              broadcastAudio(opening, 'game_start', 'horus');
+              setTimeout(async () => {
+                if (gameState.room?.current_status !== 'question') return;
+                if (!questionText) return;
+
+                const res = await getHorus2Audio('question_read', questionText);
+                if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
+              }, OPENING_DELAY_MS);
+              break;
+            }
+
+            // Presencial: encadeia abertura -> leitura
+            playHorus2Audio('game_start', undefined, () => {
+              // Verifica se ainda estamos na fase de pergunta
+              if (gameState.room?.current_status !== 'question') return;
+              if (!questionText) return;
+              playHorus2Audio('question_read', questionText);
+            });
+            break;
+          }
+        }
+
+        // Caso normal: só lê a pergunta
         setTimeout(async () => {
-          // Verifica se ainda estamos na fase de pergunta
           if (gameState.room?.current_status !== 'question') return;
           if (!questionText) return;
 
-          // Hórus 2.0: gera/pega áudio e transmite para todos no modo online
           if (isOnlineMode) {
             const res = await getHorus2Audio('question_read', questionText);
             if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
             return;
           }
 
-          // Presencial: toca local
           await playHorus2Audio('question_read', questionText);
         }, 800);
         break;
+      }
+
+      case 'discussion': {
+        // IMPORTANTE: no multiplayer, o júri vota durante a "discussion".
+        // Então o bordão precisa acontecer aqui (não só em "voting").
+        if (hasLocalAudioForMoment('taunt')) {
+          setTimeout(async () => {
+            if (gameState.room?.current_status !== 'discussion') return;
+
+            if (isOnlineMode) {
+              const res = await getHorus2Audio('taunt');
+              if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
+            } else {
+              await playHorus2Audio('taunt');
+            }
+          }, 1200);
+        }
+        break;
+      }
 
       case 'result':
         // Áudio de resultado é tratado pelo Mycroft Verdict flow
@@ -432,7 +484,7 @@ export default function GameRoom() {
         break;
 
       case 'voting':
-        // Fase de votação - pode tocar bordão
+        // Fase de votação explícita (fallback) - pode tocar bordão
         if (hasLocalAudioForMoment('taunt')) {
           (async () => {
             if (isOnlineMode) {
@@ -445,12 +497,8 @@ export default function GameRoom() {
         }
         break;
 
-      case 'discussion':
-        // Fase de discussão - silêncio
-        break;
-
       case 'lobby':
-        // Voltou ao lobby - pode tocar abertura em novo jogo
+        // Voltou ao lobby
         break;
     }
     
@@ -1054,15 +1102,8 @@ export default function GameRoom() {
     setShowAnswer(true);
     playReveal();
 
-    // HÓRUS 2.0: Mycroft (local) ao confirmar resposta
-    if (!personaMuted && canPlayAudio) {
-      if (isOnlineMode) {
-        const res = await getHorus2Audio('answer_confirm');
-        if (res) broadcastAudio(res.audioUrl, 'answer_confirm', 'mycroft');
-      } else {
-        playMycroftConfirmation();
-      }
-    }
+    // HÓRUS 2.0: removido áudio local do Mycroft aqui (mycroft.mp3/mycroft2.mp3)
+    // Ele estava chegando atrasado em alguns clientes e tocando quando o júri terminava a votação.
 
     // Round 15 (ALL-IN): Skip discussion/voting, go directly to result
     if (currentRound === MAX_ROUNDS) {
