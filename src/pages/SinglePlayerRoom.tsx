@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { GameOpening } from '@/components/game/GameOpening';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
@@ -104,7 +105,7 @@ const generateBriefcasePrize = (): number => {
   return 250000; // 250.000 BC fixo
 };
 
-type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+type GamePhase = 'nickname' | 'opening' | 'briefcase' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 export default function SinglePlayerRoom() {
   const navigate = useNavigate();
@@ -284,11 +285,13 @@ export default function SinglePlayerRoom() {
       return;
     }
 
-    // HÓRUS 2.0: Abertura imediata no clique (evita bloqueio de autoplay por causa de awaits)
-    playHorus2Audio('game_start');
+    // Show cinematic opening with audio
+    setGamePhase('opening');
+  };
 
+  const handleOpeningComplete = async () => {
     // Create/update solo ranking
-    await getOrCreateSoloRanking(profile.username);
+    await getOrCreateSoloRanking(profile!.username);
 
     // Start first round
     setCurrentRound(1);
@@ -828,6 +831,11 @@ export default function SinglePlayerRoom() {
         </LuxuryCard>
       </div>
     );
+  }
+
+  // Cinematic opening sequence
+  if (gamePhase === 'opening') {
+    return <GameOpening onComplete={handleOpeningComplete} />;
   }
 
   // Main game UI
