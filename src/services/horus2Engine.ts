@@ -75,6 +75,48 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
 let currentAudio: HTMLAudioElement | null = null;
 let isPlaying = false;
 
+// Estado de abertura - garante que a leitura da pergunta espera a abertura terminar
+let isOpeningPlaying = false;
+let openingEndedCallbacks: Array<() => void> = [];
+
+/**
+ * Verifica se a abertura está tocando
+ */
+export function isOpeningInProgress(): boolean {
+  return isOpeningPlaying;
+}
+
+/**
+ * Registra callback para quando a abertura terminar
+ * Se não houver abertura tocando, executa imediatamente
+ */
+export function onOpeningEnded(callback: () => void): void {
+  if (!isOpeningPlaying) {
+    callback();
+  } else {
+    openingEndedCallbacks.push(callback);
+  }
+}
+
+/**
+ * Marca início da abertura
+ */
+function markOpeningStart(): void {
+  console.log('[Hórus 2.0] Opening audio STARTED');
+  isOpeningPlaying = true;
+}
+
+/**
+ * Marca fim da abertura e executa callbacks pendentes
+ */
+function markOpeningEnd(): void {
+  console.log('[Hórus 2.0] Opening audio ENDED, executing', openingEndedCallbacks.length, 'pending callbacks');
+  isOpeningPlaying = false;
+  const callbacks = [...openingEndedCallbacks];
+  openingEndedCallbacks = [];
+  callbacks.forEach(cb => cb());
+}
+
 /**
  * Para qualquer áudio em reprodução
  */
@@ -188,6 +230,9 @@ export async function playHorus2Audio(
   // Para áudio anterior
   stopHorus2Audio();
   
+  // Detecta se é áudio de abertura
+  const isOpeningAudio = moment === 'game_start' || moment === 'round_start';
+  
   try {
     const result = await getHorus2Audio(moment, dynamicText);
     
@@ -199,25 +244,48 @@ export async function playHorus2Audio(
     
     isPlaying = true;
     
+    // Marca início da abertura
+    if (isOpeningAudio) {
+      markOpeningStart();
+    }
+    
     // Usa playGlobalAudio para consistência com o resto do sistema
     currentAudio = playGlobalAudio(
       result.audioUrl,
       () => {
         isPlaying = false;
         currentAudio = null;
+        
+        // Marca fim da abertura e executa callbacks pendentes
+        if (isOpeningAudio) {
+          markOpeningEnd();
+        }
+        
         onEnd?.();
       },
       (error) => {
         isPlaying = false;
         currentAudio = null;
+        
+        // Mesmo com erro, marca fim da abertura para não bloquear
+        if (isOpeningAudio) {
+          markOpeningEnd();
+        }
+        
         onError?.(error);
       }
     );
     
-    console.log('[Hórus 2.0] Playing audio from', result.source, ':', result.audioUrl);
+    console.log('[Hórus 2.0] Playing audio from', result.source, ':', result.audioUrl, isOpeningAudio ? '(OPENING)' : '');
   } catch (error) {
     console.error('[Hórus 2.0] Error playing audio:', error);
     isPlaying = false;
+    
+    // Mesmo com erro, marca fim da abertura
+    if (isOpeningAudio) {
+      markOpeningEnd();
+    }
+    
     onError?.(error instanceof Error ? error : new Error(String(error)));
   }
 }

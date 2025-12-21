@@ -56,6 +56,8 @@ import {
   playHorus2Audio,
   stopHorus2Audio,
   hasLocalAudioForMoment,
+  isOpeningInProgress,
+  onOpeningEnded,
 } from '@/services/horus2Engine';
 
 // BluffCoin costs
@@ -414,49 +416,58 @@ export default function GameRoom() {
         playReveal();
 
         const isFirstRound = currentRoundRef.current === 1;
-        const OPENING_DELAY_MS = 3200;
 
-        // Primeira rodada: toca ABERTURA antes da leitura da pergunta
+        // Função que toca a leitura da pergunta
+        const playQuestionRead = async () => {
+          if (gameState.room?.current_status !== 'question') return;
+          if (!questionText) return;
+
+          console.log('[GameRoom] Playing question read audio');
+          
+          if (isOnlineMode) {
+            const res = await getHorus2Audio('question_read', questionText);
+            if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
+          } else {
+            await playHorus2Audio('question_read', questionText);
+          }
+        };
+
+        // Primeira rodada: toca ABERTURA e depois espera terminar para ler pergunta
         if (isFirstRound) {
           const opening = getLocalAudioForMoment('game_start');
 
           if (opening) {
+            console.log('[GameRoom] Playing opening audio for first round');
+            
             if (isOnlineMode) {
               broadcastAudio(opening, 'game_start', 'horus');
-              setTimeout(async () => {
-                if (gameState.room?.current_status !== 'question') return;
-                if (!questionText) return;
-
-                const res = await getHorus2Audio('question_read', questionText);
-                if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
-              }, OPENING_DELAY_MS);
-              break;
+            } else {
+              // Inicia abertura (não bloqueia)
+              playHorus2Audio('game_start');
             }
-
-            // Presencial: encadeia abertura -> leitura
-            playHorus2Audio('game_start', undefined, () => {
-              // Verifica se ainda estamos na fase de pergunta
-              if (gameState.room?.current_status !== 'question') return;
-              if (!questionText) return;
-              playHorus2Audio('question_read', questionText);
+            
+            // Registra callback para quando abertura terminar
+            onOpeningEnded(() => {
+              console.log('[GameRoom] Opening ended, now reading question');
+              // Pequeno delay para transição suave
+              setTimeout(playQuestionRead, 400);
             });
+            
             break;
           }
         }
 
-        // Caso normal: só lê a pergunta
-        setTimeout(async () => {
-          if (gameState.room?.current_status !== 'question') return;
-          if (!questionText) return;
+        // Se já houver abertura tocando (reconexão), espera terminar
+        if (isOpeningInProgress()) {
+          console.log('[GameRoom] Opening still playing, waiting...');
+          onOpeningEnded(() => {
+            setTimeout(playQuestionRead, 400);
+          });
+          break;
+        }
 
-          if (isOnlineMode) {
-            const res = await getHorus2Audio('question_read', questionText);
-            if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
-            return;
-          }
-
-          await playHorus2Audio('question_read', questionText);
-        }, 800);
+        // Caso normal: só lê a pergunta após pequeno delay
+        setTimeout(playQuestionRead, 800);
         break;
       }
 
