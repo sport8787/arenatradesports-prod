@@ -4,10 +4,16 @@ import { Mic, Square, Loader2, Volume2, Pause, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import GoldButton from './GoldButton';
+import { 
+  VoiceMetrics,
+  markRecordingStart,
+  analyzeAudioFrame,
+  finalizeForensicsSession 
+} from '@/services/audioForensicsService';
 
-interface AudioRecorderProps {
+export interface AudioRecorderProps {
   roomId: string;
-  onRecordingComplete?: (audioUrl: string) => void;
+  onRecordingComplete?: (audioUrl: string, metrics: VoiceMetrics) => void;
   disabled?: boolean;
 }
 
@@ -26,6 +32,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
   
   const MAX_DURATION = 60; // 60 seconds max
 
@@ -50,7 +57,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
     }
   };
 
-  // Real-time waveform visualization
+  // Real-time waveform visualization + forensics analysis
   const updateWaveform = useCallback(() => {
     if (!analyserRef.current || isPaused) {
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
@@ -71,6 +78,10 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
     }
     
     setWaveformData(newWaveform);
+    
+    // FORENSICS: Analyze audio frame for metrics
+    analyzeAudioFrame(analyserRef.current);
+    
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
   }, [isPaused]);
 
@@ -92,7 +103,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
       
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048; // Increased for better pitch detection
       analyser.smoothingTimeConstant = 0.7;
       source.connect(analyser);
       analyserRef.current = analyser;
@@ -115,14 +126,25 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         if (timerRef.current) clearInterval(timerRef.current);
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         
+        // Calculate recording duration
+        const recordingDurationMs = Date.now() - recordingStartTimeRef.current;
+        
+        // FORENSICS: Finalize session and get metrics
+        const metrics = finalizeForensicsSession(recordingDurationMs);
+        console.log('[AudioRecorder] Final forensic metrics:', metrics);
+        
         stream.getTracks().forEach(track => track.stop());
         if (audioContext.state !== 'closed') {
           audioContext.close();
         }
         
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        await uploadAudio(audioBlob);
+        await uploadAudio(audioBlob, metrics);
       };
+
+      // FORENSICS: Mark recording start time
+      recordingStartTimeRef.current = Date.now();
+      markRecordingStart();
 
       mediaRecorder.start(100);
       setIsRecording(true);
@@ -200,7 +222,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
     }
   };
 
-  const uploadAudio = async (blob: Blob) => {
+  const uploadAudio = async (blob: Blob, metrics: VoiceMetrics) => {
     setIsUploading(true);
     try {
       const fileName = `${roomId}/${Date.now()}.webm`;
@@ -227,7 +249,8 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         .update({ current_audio_url: url })
         .eq('id', roomId);
 
-      onRecordingComplete?.(url);
+      // Pass metrics along with audio URL
+      onRecordingComplete?.(url, metrics);
       toast({ title: 'Áudio gravado!', description: 'Sua justificativa foi salva.' });
 
     } catch (error) {
@@ -313,6 +336,16 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
                   <span className="text-[10px] text-destructive font-semibold uppercase">Rec</span>
                 </motion.div>
               )}
+              
+              {/* Forensics indicator */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute top-2 right-2 flex items-center gap-1"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                <span className="text-[9px] text-cyan-500 font-mono uppercase">Forense</span>
+              </motion.div>
               
               {/* Waveform bars */}
               <div className="flex items-center gap-[2px] h-full py-2">

@@ -9,6 +9,17 @@ const corsHeaders = {
 // HARD LIMIT: Maximum characters for dynamic analysis
 const MAX_DYNAMIC_CHARS = 150;
 
+// Voice metrics interface (matches client-side)
+interface VoiceMetrics {
+  responseLatencyMs: number;
+  pitchStability: 'stable' | 'unstable' | 'micro-tremors';
+  speechRateBPM: number;
+  avgPitch: number;
+  pitchVariance: number;
+  peakAmplitude: number;
+  recordingDurationMs: number;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,7 +27,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { questionText, correctAnswer, type, wrongOptions, userResponse, metrics } = body;
+    const { questionText, correctAnswer, type, wrongOptions, userResponse, metrics, voiceMetrics } = body;
 
     if (!questionText) {
       throw new Error('Missing questionText');
@@ -29,66 +40,55 @@ serve(async (req) => {
 
     console.log(`Generating Mycroft ${type || 'bluff'} for:`, questionText);
     console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
+    
+    // Log voice metrics if provided
+    if (voiceMetrics) {
+      console.log('🎙️ Voice Forensics Data:', voiceMetrics);
+    }
 
     let systemPrompt: string;
     
     if (type === 'verdict') {
-      // VERDICT: Psychoacoustic analysis focused on voice patterns, NOT facts
-      const successfulBluffs = metrics?.successfulBluffs || 0;
-      const caughtBluffs = metrics?.caughtBluffs || 0;
+      // FORENSIC VERDICT: Uses real captured voice data
+      const vm = voiceMetrics as VoiceMetrics | undefined;
       const playerAnswerText = userResponse || 'Não informada';
       const isCorrect = userResponse === correctAnswer;
       
-      // Dynamic psychoacoustic observations - voice/speech pattern analysis
-      const psychoacousticObservations = [
-        'Micro-hesitações detectadas entre as sílabas.',
-        'Oscilação de decibéis inconsistente com a confiança declarada.',
-        'Padrão de respiração sugere sobrecarga cognitiva.',
-        'Frequência tonal elevada ao citar a resposta escolhida.',
-        'Tremor vocal detectado em frequências sub-harmônicas.',
-        'Cadência de fala acelerada indica fabricação narrativa.',
-        'Pausas irregulares sugerem construção mental em tempo real.',
-        'Taxa de respiração elevada detectada no espectrograma.',
-        'Modulação de pitch inconsistente com declarações verdadeiras.',
-        'Latência silábica indica processamento cognitivo intenso.',
-      ];
+      // Build forensic data string from real metrics
+      let forensicData = '';
+      if (vm && vm.responseLatencyMs > 0) {
+        const latencyDesc = vm.responseLatencyMs < 800 ? 'rápida' : 
+                           vm.responseLatencyMs < 2000 ? 'moderada' : 'hesitante';
+        const pitchDesc = vm.pitchStability === 'stable' ? 'estável' :
+                         vm.pitchStability === 'micro-tremors' ? 'micro-tremores' : 'instável';
+        const speedDesc = vm.speechRateBPM > 180 ? 'acelerada' :
+                         vm.speechRateBPM > 100 ? 'normal' : 'lenta';
+        
+        forensicData = `
+DADOS FORENSES REAIS CAPTURADOS:
+- Latência: ${vm.responseLatencyMs}ms (${latencyDesc})
+- Pitch: ${pitchDesc} (${vm.avgPitch}Hz, variância ${vm.pitchVariance})
+- Velocidade: ${vm.speechRateBPM} palavras/min (${speedDesc})
+- Duração: ${Math.round(vm.recordingDurationMs / 1000)}s`;
+      }
       
-      // Dynamic protocol openings - all psychoacoustic themed
-      const openingVariations = [
-        'Análise Psicoacústica 7-Alpha concluída.',
-        'Varredura de Padrões Vocais finalizada.',
-        'Protocolo de Análise Espectral executado.',
-        'Scanner Biométrico Vocal: processamento completo.',
-        'Módulo de Detecção de Stress Vocal ativado.',
-        'Análise de Frequência Tonal processada.',
-        'Protocolo Forense de Voz concluído.',
-        'Varredura de Micro-Expressões Vocais completa.',
-      ];
-      const randomOpening = openingVariations[Math.floor(Math.random() * openingVariations.length)];
-      
-      // Select 2-3 random observations for variety
-      const shuffled = [...psychoacousticObservations].sort(() => Math.random() - 0.5);
-      const selectedObservations = shuffled.slice(0, 2 + Math.floor(Math.random() * 2));
-      
-      // MODULAR LEGO APPROACH: Only generate the dynamic FACT portion
-      // [INTRO] and [CLOSING] are pre-cached and added by the client
-      // This saves ~80% of ElevenLabs credits
-      systemPrompt = `Você é o Mycroft, uma IA forense.
+      systemPrompt = `Você é o Mycroft, IA forense de análise vocal. MÁXIMO ${MAX_DYNAMIC_CHARS} CARACTERES.
 
-REGRA CRÍTICA: Sua resposta deve ter NO MÁXIMO ${MAX_DYNAMIC_CHARS} CARACTERES (aproximadamente 2 frases curtas).
+${forensicData || 'DADOS: Análise de padrões vocais em andamento.'}
 
-DADOS:
-- Jogador respondeu: "${playerAnswerText}"
+FATO:
+- Resposta: "${playerAnswerText}"
 - Correto: "${correctAnswer}"
-- Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
+- Resultado: ${isCorrect ? 'ACERTO' : 'ERRO'}
 
-TAREFA: Gere APENAS uma análise técnica CURTA (máx 2 frases).
-- Se ERROU: mencione brevemente o erro e um termo técnico.
-- Se ACERTOU: confirme a veracidade com um termo técnico.
+TAREFA: Gere análise técnica CURTA citando os dados capturados.
+${vm ? `- CITE os números reais (latência ${vm.responseLatencyMs}ms, pitch ${vm.pitchStability}, ${vm.speechRateBPM} wpm).` : ''}
+- Se ERROU: aponte o erro com dado forense.
+- Se ACERTOU: confirme com métrica de confiança.
 
-PROIBIDO: Não inclua introduções ("Protocolo concluído", "Análise finalizada") ou encerramentos ("Padrões vocais indicam..."). Esses vêm do cache.
+PROIBIDO: Introduções genéricas, apenas análise técnica direta.
+Responda em NO MÁXIMO ${MAX_DYNAMIC_CHARS} caracteres.`;
 
-Responda APENAS com a análise curta, técnica e direta. MÁXIMO ${MAX_DYNAMIC_CHARS} caracteres.`;
     } else if (type === 'detector') {
       const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
       
@@ -159,7 +159,7 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: type === 'verdict'
-            ? `Análise curta (máx ${MAX_DYNAMIC_CHARS} chars). Jogador: "${userResponse}", Correto: "${correctAnswer}".`
+            ? `Análise forense (máx ${MAX_DYNAMIC_CHARS} chars). Resposta: "${userResponse}", Correto: "${correctAnswer}". Use os dados reais capturados.`
             : type === 'detector' 
               ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
               : type === 'analytics' 

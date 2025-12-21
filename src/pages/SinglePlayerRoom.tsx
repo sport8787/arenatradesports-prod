@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { VoiceMetrics, startForensicsSession } from '@/services/audioForensicsService';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
@@ -151,6 +152,9 @@ export default function SinglePlayerRoom() {
   const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
   const [briefcasePrize, setBriefcasePrize] = useState(0);
   
+  // Voice forensics metrics
+  const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  
   // Horus Post-Vote Bribe states
   const [showHorusBribe, setShowHorusBribe] = useState(false);
   const [showWaxSealBreaking, setShowWaxSealBreaking] = useState(false);
@@ -291,6 +295,7 @@ export default function SinglePlayerRoom() {
     setCurrentRound(1);
     setAccumulatedPrize(0);
     await selectNextQuestion();
+    startForensicsSession(); // Start tracking response latency
     setGamePhase('question');
   };
   
@@ -699,6 +704,7 @@ export default function SinglePlayerRoom() {
     if (nextRoundNum === MAX_ROUNDS) {
       setShowBriefcaseModal(true);
     } else {
+      startForensicsSession();
       setGamePhase('question');
     }
   };
@@ -730,6 +736,7 @@ export default function SinglePlayerRoom() {
   // Handle briefcase refusal - player sees the question
   const handleRefuseBriefcase = () => {
     setShowBriefcaseModal(false);
+    startForensicsSession();
     setGamePhase('question');
   };
 
