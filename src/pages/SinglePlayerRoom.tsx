@@ -35,6 +35,7 @@ import ContractTearing from '@/components/game/ContractTearing';
 import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { stopGlobalAudio } from '@/services/globalAudioContext';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -168,12 +169,24 @@ export default function SinglePlayerRoom() {
     gameMode: 'single',
   });
 
-  // Track previous gamePhase for voice triggers
-  const prevGamePhaseRef = useRef<GamePhase | null>(null);
-  // Track if we've already narrated for current round to prevent duplicates
-  const hasNarratedRoundRef = useRef<number | null>(null);
-  // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
-  const lastPlayedIdRef = useRef<string | null>(null);
+  // Atomic lock + cancellation for question narration (prevents repeated reads)
+  const lastQuestionReadKeyRef = useRef<string | null>(null);
+  const questionReadTimeoutRef = useRef<number | null>(null);
+
+  // Keep latest references without forcing the narration effect to re-run on every render
+  const currentQuestionRef = useRef<Question | null>(null);
+  const speakPersonaRef = useRef(speakPersona);
+  const stopSpeakingRef = useRef(stopSpeaking);
+  const clearQueueRef = useRef(clearQueue);
+  const playRevealRef = useRef(playReveal);
+
+  useEffect(() => {
+    currentQuestionRef.current = currentQuestion;
+    speakPersonaRef.current = speakPersona;
+    stopSpeakingRef.current = stopSpeaking;
+    clearQueueRef.current = clearQueue;
+    playRevealRef.current = playReveal;
+  }, [currentQuestion, speakPersona, stopSpeaking, clearQueue, playReveal]);
 
   const sessionId = getOrCreateSessionId();
 
@@ -186,62 +199,56 @@ export default function SinglePlayerRoom() {
   // Cleanup Horus audio on unmount
   useEffect(() => {
     return () => {
+      if (questionReadTimeoutRef.current) {
+        clearTimeout(questionReadTimeoutRef.current);
+        questionReadTimeoutRef.current = null;
+      }
+      clearQueueRef.current();
+      stopSpeakingRef.current();
+      stopGlobalAudio();
       horusNarration.stopNarration();
-      stopSpeaking();
     };
-  }, [horusNarration, stopSpeaking]);
+  }, [horusNarration]);
 
-  // Hórus voice triggers - UPDATED: Removed round_start TTS (bordões) - now uses local SFX
-  // Only question_read uses TTS to save ElevenLabs credits
+  const currentQuestionId = currentQuestion?.id ?? null;
+
+  // Hórus question narration trigger (atomic + cancellable)
   useEffect(() => {
-    const prevPhase = prevGamePhaseRef.current;
-    
-    // Update ref for next comparison
-    prevGamePhaseRef.current = gamePhase;
-    
-    // Only trigger on phase changes, not initial load
-    if (!prevPhase || prevPhase === gamePhase) return;
-    
-    // When entering question phase from briefcase or result
-    // ONLY if we haven't already narrated for this round
-    if (gamePhase === 'question' && (prevPhase === 'briefcase' || prevPhase === 'result' || prevPhase === 'nickname')) {
-      // Check if we've already narrated for this round
-      if (hasNarratedRoundRef.current === currentRound) {
-        console.log('[SinglePlayerRoom] Already narrated for round', currentRound, '- skipping');
-        return;
-      }
-      
-      // Generate unique ID combining round and question text hash for duplicate prevention
-      const questionText = currentQuestion?.question_text;
-      const audioId = `round_${currentRound}_${questionText?.slice(0, 50)}`;
-      
-      // Prevent duplicate TTS synthesis on re-renders
-      if (lastPlayedIdRef.current === audioId) {
-        console.log('[SinglePlayerRoom] lastPlayedIdRef already has this audio ID - skipping TTS');
-        return;
-      }
-      
-      // Mark this round as narrated
-      hasNarratedRoundRef.current = currentRound;
-      lastPlayedIdRef.current = audioId;
-      
-      // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
-      playReveal();
-      
-      // Small delay then read the question with TTS
-      setTimeout(() => {
-        if (currentQuestion) {
-          speakPersona('question_read', currentQuestion.question_text);
-        }
-      }, 800);
+    // Cancel any pending scheduled read immediately
+    if (questionReadTimeoutRef.current) {
+      clearTimeout(questionReadTimeoutRef.current);
+      questionReadTimeoutRef.current = null;
     }
-    
-    // Stop all narration when entering result phase (prevent question repeating)
-    if (gamePhase === 'result' || gamePhase === 'eliminated' || gamePhase === 'victory') {
-      clearQueue();
-      stopSpeaking();
+
+    // On any status change away from the question, kill queued/playing voice audio
+    if (gamePhase !== 'question') {
+      clearQueueRef.current();
+      stopSpeakingRef.current();
+      stopGlobalAudio();
+      return;
     }
-  }, [gamePhase, currentQuestion, currentRound, speakPersona, clearQueue, stopSpeaking, playReveal]);
+
+    if (!currentQuestionId) return;
+
+    const currentKey = `question_read:${currentQuestionId}`;
+
+    if (lastQuestionReadKeyRef.current === currentKey) return;
+
+    // ATOMIC: lock immediately before any delay
+    lastQuestionReadKeyRef.current = currentKey;
+
+    playRevealRef.current();
+
+    questionReadTimeoutRef.current = window.setTimeout(() => {
+      // Ignore if phase/question changed since scheduling
+      if (lastQuestionReadKeyRef.current !== currentKey) return;
+
+      const q = currentQuestionRef.current;
+      if (!q || q.id !== currentQuestionId) return;
+
+      speakPersonaRef.current('question_read', q.question_text);
+    }, 800);
+  }, [gamePhase, currentQuestionId]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
