@@ -89,6 +89,8 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'wrong_answer': 'erro',
   'victory': 'vitoria',
   'cash_out': 'vitoria',
+  'bluff_success': 'vitoria',
+  'correct_answer': 'vitoria',
 };
 
 // Get a random audio file for a specific category
