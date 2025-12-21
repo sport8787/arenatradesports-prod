@@ -1009,20 +1009,45 @@ export default function GameRoom() {
     }
   }, [gameState.players, gameState.room?.host_id, isRoomHost, successionInProgress]);
 
+  const [joiningGame, setJoiningGame] = useState(false);
+  
   const joinAsPlayer = async () => {
     if (!displayNickname || !roomId) return;
+    if (joiningGame) return; // Prevent double-click
+    
+    setJoiningGame(true);
+    
+    try {
+      const isHostForThisRoom = gameState.room?.host_id === sessionId;
 
-    const isHostForThisRoom = gameState.room?.host_id === sessionId;
+      // Check if player already exists in this room (prevent duplicates)
+      const { data: existingPlayer } = await supabase
+        .from('players')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('session_id', sessionId)
+        .maybeSingle();
 
-    // Create/update ranking entry
-    await getOrCreateRanking(displayNickname);
+      if (existingPlayer) {
+        // Player already in room, just refresh state
+        return;
+      }
 
-    await supabase.from('players').insert({
-      room_id: roomId,
-      nickname: displayNickname,
-      session_id: sessionId,
-      is_host: !!isHostForThisRoom,
-    });
+      // Create/update ranking entry
+      await getOrCreateRanking(displayNickname);
+
+      await supabase.from('players').insert({
+        room_id: roomId,
+        nickname: displayNickname,
+        session_id: sessionId,
+        is_host: !!isHostForThisRoom,
+      });
+    } catch (error) {
+      console.error('Error joining game:', error);
+      toast({ title: 'Erro ao entrar', description: 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setJoiningGame(false);
+    }
   };
 
   const copyPin = () => {
@@ -1443,8 +1468,15 @@ export default function GameRoom() {
           {isGuest && (
             <p className="text-xs text-destructive/80">Modo convidado - moedas não serão salvas</p>
           )}
-          <GoldButton onClick={joinAsPlayer} className="w-full" size="lg">
-            Entrar na Partida
+          <GoldButton onClick={joinAsPlayer} disabled={joiningGame} className="w-full" size="lg">
+            {joiningGame ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 inline animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              'Entrar na Partida'
+            )}
           </GoldButton>
         </LuxuryCard>
       </div>
