@@ -347,8 +347,8 @@ export default function GameRoom() {
   ]);
 
   // Hórus voice triggers - automatic speech based on game moments
-  // FIXED: Queue round_start with onComplete callback that triggers question_read
-  // FIXED: Track question ID to prevent duplicate narration
+  // UPDATED: Removed round_start TTS (bordões) - now uses local SFX instead
+  // Only question_read uses TTS to save ElevenLabs credits
   useEffect(() => {
     const currentStatus = gameState.room?.current_status;
     const question = gameState.currentQuestion;
@@ -373,14 +373,15 @@ export default function GameRoom() {
         hasNarratedQuestionRef.current = questionId;
       }
       
-      // Queue round_start first, then question_read via onComplete callback
-      // This ensures the bordão plays BEFORE the question is read
-      speakPersona('round_start', undefined, 10, () => {
-        // After round_start finishes, read the question
+      // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
+      playReveal();
+      
+      // Small delay then read the question with TTS
+      setTimeout(() => {
         if (question) {
           speakPersona('question_read', question.question_text);
         }
-      });
+      }, 800);
     }
     
     // Stop all narration when entering result phase (prevent question repeating)
@@ -389,7 +390,7 @@ export default function GameRoom() {
       stopSpeaking();
     }
     
-  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking]);
+  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)

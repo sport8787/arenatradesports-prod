@@ -189,8 +189,8 @@ export default function SinglePlayerRoom() {
     };
   }, [horusNarration, stopSpeaking]);
 
-  // Hórus voice triggers - round_start THEN question_read in sequence
-  // FIXED: Use currentRound as key to prevent duplicate narration
+  // Hórus voice triggers - UPDATED: Removed round_start TTS (bordões) - now uses local SFX
+  // Only question_read uses TTS to save ElevenLabs credits
   useEffect(() => {
     const prevPhase = prevGamePhaseRef.current;
     
@@ -200,7 +200,7 @@ export default function SinglePlayerRoom() {
     // Only trigger on phase changes, not initial load
     if (!prevPhase || prevPhase === gamePhase) return;
     
-    // When entering question phase from briefcase or result - queue bordão then question
+    // When entering question phase from briefcase or result
     // ONLY if we haven't already narrated for this round
     if (gamePhase === 'question' && (prevPhase === 'briefcase' || prevPhase === 'result' || prevPhase === 'nickname')) {
       // Check if we've already narrated for this round
@@ -212,13 +212,15 @@ export default function SinglePlayerRoom() {
       // Mark this round as narrated
       hasNarratedRoundRef.current = currentRound;
       
-      // Queue round_start first, then question_read via onComplete callback
-      speakPersona('round_start', undefined, 10, () => {
-        // After round_start finishes, read the question
+      // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
+      playReveal();
+      
+      // Small delay then read the question with TTS
+      setTimeout(() => {
         if (currentQuestion) {
           speakPersona('question_read', currentQuestion.question_text);
         }
-      });
+      }, 800);
     }
     
     // Stop all narration when entering result phase (prevent question repeating)
@@ -226,7 +228,7 @@ export default function SinglePlayerRoom() {
       clearQueue();
       stopSpeaking();
     }
-  }, [gamePhase, currentQuestion, currentRound, speakPersona, clearQueue, stopSpeaking]);
+  }, [gamePhase, currentQuestion, currentRound, speakPersona, clearQueue, stopSpeaking, playReveal]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
