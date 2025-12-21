@@ -201,6 +201,8 @@ export default function GameRoom() {
   const prevAudioUrlRef = useRef<string | null>(null);
   // Track if we've already narrated for current question to prevent duplicates
   const hasNarratedQuestionRef = useRef<string | null>(null);
+  // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
+  const lastPlayedIdRef = useRef<string | null>(null);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -353,6 +355,7 @@ export default function GameRoom() {
     const currentStatus = gameState.room?.current_status;
     const question = gameState.currentQuestion;
     const questionId = question?.id;
+    const questionText = question?.question_text;
     
     // Don't trigger voice if muted or if not allowed to play audio
     if (personaMuted || !canPlayAudio) return;
@@ -368,10 +371,20 @@ export default function GameRoom() {
         return;
       }
       
+      // Generate unique ID combining round/question ID and text hash for duplicate prevention
+      const audioId = `question_${questionId}_${questionText?.slice(0, 50)}`;
+      
+      // Prevent duplicate TTS synthesis on re-renders
+      if (lastPlayedIdRef.current === audioId) {
+        console.log('[GameRoom] lastPlayedIdRef already has this audio ID - skipping TTS');
+        return;
+      }
+      
       // Mark this question as narrated
       if (questionId) {
         hasNarratedQuestionRef.current = questionId;
       }
+      lastPlayedIdRef.current = audioId;
       
       // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
       playReveal();
