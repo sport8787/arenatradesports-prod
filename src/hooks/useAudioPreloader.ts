@@ -44,17 +44,16 @@ export function useAudioPreloader(autoStart = true) {
     });
   }, []);
 
-  // Auto-start preloading when component mounts
-  useEffect(() => {
-    if (autoStart && !state.isComplete && !state.isLoading) {
-      // Delay start to not compete with initial page load
-      const timer = setTimeout(() => {
-        startPreload();
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart, state.isComplete, state.isLoading, startPreload]);
+  // Auto-start preloading DISABLED to prevent ElevenLabs credit consumption
+  // Audio will only be generated at the exact moment of gameplay
+  // useEffect(() => {
+  //   if (autoStart && !state.isComplete && !state.isLoading) {
+  //     const timer = setTimeout(() => {
+  //       startPreload();
+  //     }, 2000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [autoStart, state.isComplete, state.isLoading, startPreload]);
 
   return {
     ...state,

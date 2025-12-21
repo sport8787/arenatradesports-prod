@@ -78,6 +78,14 @@ let isPreloading = false;
 let preloadComplete = false;
 
 export async function preloadCommonPhrases(onProgress?: ProgressCallback): Promise<void> {
+  // DISABLED: Preloading is now forbidden to prevent ElevenLabs credit consumption
+  // Audio will only be generated at the exact moment of gameplay (question_read / verdict)
+  console.log('[AudioPreloader] ⛔ PRELOAD DISABLED - Audio will be generated on-demand only');
+  onProgress?.({ loaded: 0, total: 0, isComplete: true });
+  return;
+
+  // Original code commented out:
+  /*
   if (isPreloading || preloadComplete) {
     console.log('[AudioPreloader] Already preloading or complete, skipping');
     return;
@@ -154,13 +162,8 @@ export async function preloadCommonPhrases(onProgress?: ProgressCallback): Promi
   isPreloading = false;
   preloadComplete = true;
 
-  console.log('[AudioPreloader] Preload complete!', loaded, '/', total, 'phrases cached');
-  
-  onProgress?.({
-    loaded,
-    total,
-    isComplete: true,
-  });
+  */
+  // End of commented out code
 }
 
 export function isPreloadComplete(): boolean {
