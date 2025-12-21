@@ -50,6 +50,7 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
   'victory': 'vitoria',
   'cash_out': 'vitoria',
   'bluff_success': 'vitoria',
+  'correct_answer': 'vitoria',
   
   // Eliminação / Derrota
   'elimination': 'eliminacao',
