@@ -76,7 +76,11 @@ export type GameMoment =
   | 'post_vote_bribe' // Oferta após votação, antes do resultado
   | 'comeback' // Jogador se recuperando
   | 'streak' // Sequência de vitórias
-  | 'cash_out'; // Quando o jogador aceita sair com o prêmio
+  | 'cash_out' // Quando o jogador aceita sair com o prêmio
+  | 'round_transition' // Transição entre rodadas
+  | 'player_timeout' // Jogador demorou para responder
+  | 'thinking_taunt' // Provocação enquanto jogador pensa
+  | 'answer_confirm'; // Confirmação de resposta (Mycroft)
 
 export interface DialogConfig {
   moment: GameMoment;

@@ -60,9 +60,12 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
   'all_in': 'all_in',
   'all_in_temptation': 'all_in',
   
-  // Bordões / Taunts
+  // Bordões / Taunts (inclui novos momentos)
   'taunt': 'bordao',
   'waiting': 'bordao',
+  'round_transition': 'bordao',
+  'player_timeout': 'bordao',
+  'thinking_taunt': 'bordao',
   
   // Mycroft (confirmação de resposta)
   'answer_confirm': 'mycroft',

@@ -83,6 +83,9 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'all_in_temptation': 'all_in',
   'taunt': 'bordao',
   'waiting': 'bordao',
+  'round_transition': 'bordao',
+  'player_timeout': 'bordao',
+  'thinking_taunt': 'bordao',
   'bluff_fail': 'derrota',
   'all_in_loss': 'derrota',
   'elimination': 'eliminacao',
@@ -91,6 +94,7 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'cash_out': 'vitoria',
   'bluff_success': 'vitoria',
   'correct_answer': 'vitoria',
+  'answer_confirm': 'mycroft',
 };
 
 // Get a random audio file for a specific category
