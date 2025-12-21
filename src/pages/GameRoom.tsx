@@ -51,6 +51,7 @@ import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { 
+  getHorus2Audio,
   playHorus2Audio, 
   playMycroftConfirmation, 
   stopHorus2Audio,
@@ -327,18 +328,20 @@ export default function GameRoom() {
       playReveal();
       setTimeout(() => playFanfare(), 800);
       
-      // All-in round (15): Hórus speaks based on result
-      if (currentRound === MAX_ROUNDS && isRoomHost && canPlayAudio && !personaMuted) {
-        const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
-        setTimeout(() => {
-          if (playerGotCorrect) {
-            speakPersona('victory');
-          } else {
-            // Player lost on All-in - speak the regret phrase
-            speakPersona('all_in_loss');
-          }
-        }, 1500);
-      }
+        // All-in round (15): Hórus speaks based on result
+        if (currentRound === MAX_ROUNDS && isRoomHost && canPlayAudio && !personaMuted) {
+          const playerGotCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
+          setTimeout(async () => {
+            const moment = playerGotCorrect ? 'victory' : 'all_in_loss';
+
+            if (isOnlineMode) {
+              const res = await getHorus2Audio(moment);
+              if (res) broadcastAudio(res.audioUrl, moment, 'horus');
+            } else {
+              await playHorus2Audio(moment);
+            }
+          }, 1500);
+        }
     }
 
     setPrevStatus(currentStatus);
@@ -381,55 +384,69 @@ export default function GameRoom() {
       return;
     }
     
-    // Não dispara se estiver mutado ou sem permissão
-    if (personaMuted || !canPlayAudio) return;
-    
-    // Marca como executado ANTES de disparar (previne race conditions)
-    lastExecutedNarrationRef.current = lastNarrationId;
-    
-    // Parse do ID: formato é `${status}_${questionId}`
-    const [status, questionId] = lastNarrationId.split('_');
-    const questionText = gameState.currentQuestion?.question_text;
-    
-    console.log('[Hórus 2.0] Processing narration:', { status, questionId, lastNarrationId });
-    
-    // Cleanup: para áudio anterior
-    stopHorus2Audio();
-    clearQueue();
+     // Não dispara se estiver mutado ou sem permissão
+     if (personaMuted || !canPlayAudio) return;
+     // Online: só o host gera e transmite (evita eco/duplicação)
+     if (isOnlineMode && !isRoomHost) return;
+     
+     // Marca como executado ANTES de disparar (previne race conditions)
+     lastExecutedNarrationRef.current = lastNarrationId;
+     
+     // Parse do ID: formato é `${status}_${questionId}`
+     const [status, questionId] = lastNarrationId.split('_');
+     const questionText = gameState.currentQuestion?.question_text;
+     
+     console.log('[Hórus 2.0] Processing narration:', { status, questionId, lastNarrationId });
+     
+     // Cleanup: para áudio anterior
+     stopHorus2Audio();
+     clearQueue();
     
     // Mapeia status para momento do jogo
     switch (status) {
       case 'question':
         // SFX local de abertura
         playReveal();
-        
+
         // Delay curto antes de ler a pergunta
-        setTimeout(() => {
+        setTimeout(async () => {
           // Verifica se ainda estamos na fase de pergunta
           if (gameState.room?.current_status !== 'question') return;
           if (!questionText) return;
-          
-          // Usa TTS para ler a pergunta (via cache/API)
-          speakPersona('question_read', questionText);
+
+          // Hórus 2.0: gera/pega áudio e transmite para todos no modo online
+          if (isOnlineMode) {
+            const res = await getHorus2Audio('question_read', questionText);
+            if (res) broadcastAudio(res.audioUrl, questionText, 'horus');
+            return;
+          }
+
+          // Presencial: toca local
+          await playHorus2Audio('question_read', questionText);
         }, 800);
         break;
-        
+
       case 'result':
         // Áudio de resultado é tratado pelo Mycroft Verdict flow
         // Não precisa fazer nada aqui
         break;
-        
+
       case 'voting':
         // Fase de votação - pode tocar bordão
         if (hasLocalAudioForMoment('taunt')) {
-          playHorus2Audio('taunt');
+          if (isOnlineMode) {
+            const res = await getHorus2Audio('taunt');
+            if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
+          } else {
+            playHorus2Audio('taunt');
+          }
         }
         break;
-        
+
       case 'discussion':
         // Fase de discussão - silêncio
         break;
-        
+
       case 'lobby':
         // Voltou ao lobby - pode tocar abertura em novo jogo
         break;
@@ -447,11 +464,21 @@ export default function GameRoom() {
   // Hórus offers briefcase when modal appears
   useEffect(() => {
     if (personaMuted || !canPlayAudio) return;
+    if (isOnlineMode && !isRoomHost) return;
     if (!showBriefcaseModal) return;
-    
-    // Speak briefcase offer
-    speakPersona('briefcase_offer');
-  }, [showBriefcaseModal, personaMuted, canPlayAudio, speakPersona]);
+
+    // Sem áudio gravado para este momento: usa frase cacheável (Callum v3) via Hórus 2.0
+    const phrase = 'Antes de arriscar tudo... a maleta está te chamando.';
+
+    (async () => {
+      if (isOnlineMode) {
+        const res = await getHorus2Audio('briefcase_offer', phrase);
+        if (res) broadcastAudio(res.audioUrl, phrase, 'horus');
+        return;
+      }
+      await playHorus2Audio('briefcase_offer', phrase);
+    })();
+  }, [showBriefcaseModal, personaMuted, canPlayAudio, isOnlineMode, isRoomHost]);
 
   // Start response timer when question is shown
   useEffect(() => {
@@ -1024,7 +1051,17 @@ export default function GameRoom() {
     setConfirmedAnswer(selectedAnswer);
     setShowAnswer(true);
     playReveal();
-    
+
+    // HÓRUS 2.0: Mycroft (local) ao confirmar resposta
+    if (!personaMuted && canPlayAudio) {
+      if (isOnlineMode) {
+        const res = await getHorus2Audio('answer_confirm');
+        if (res) broadcastAudio(res.audioUrl, 'answer_confirm', 'mycroft');
+      } else {
+        playMycroftConfirmation();
+      }
+    }
+
     // Round 15 (ALL-IN): Skip discussion/voting, go directly to result
     if (currentRound === MAX_ROUNDS) {
       setTimeout(async () => {
@@ -1033,7 +1070,7 @@ export default function GameRoom() {
       }, 1500); // Brief delay for dramatic effect
       return;
     }
-    
+
     // Normal rounds: Update room status to discussion so jury can vote
     await updateRoomStatus('discussion');
   };
@@ -1236,28 +1273,21 @@ export default function GameRoom() {
   // - Isso economiza ~480 créditos por oferta
   const handleListenBribeProposal = async () => {
     setIsBribeListening(true);
-    
-    // Frase fixa cacheável: "Seu destino já está selado, mas eu tenho um Acordo de Ouro para você..."
-    const introPhrase = 'Seu destino já está selado, mas eu tenho um Acordo de Ouro para você...';
-    setBribePhrase(introPhrase);
-    
-    // Falar intro (pode ser cacheado)
-    speakPersona('bribe_intro', introPhrase);
-    
-    // Após 3s, falar o valor (dinâmico, mas curto ~15-20 créditos)
-    setTimeout(() => {
-      const valorFormatado = bribeAmount.toLocaleString('pt-BR');
-      const valorPhrase = `${valorFormatado} BluffCoins`;
-      setBribePhrase(`${introPhrase} ${valorPhrase}...`);
-      speakPersona('bribe_value', valorPhrase);
-    }, 3000);
-    
-    // Após 5s, finalizar com frase cacheável
-    setTimeout(() => {
-      const outroPhrase = 'Pega ou larga?';
-      setBribePhrase(`Seu destino já está selado... ${bribeAmount.toLocaleString('pt-BR')} BluffCoins... Pega ou larga?`);
-      speakPersona('bribe_outro', outroPhrase);
-    }, 5000);
+
+    // HÓRUS 2.0: Áudio gravado (acordo*.mp3) - custo zero
+    const phrase = 'Seu destino já está selado, mas eu tenho um acordo...';
+    setBribePhrase(`${phrase} ${bribeAmount.toLocaleString('pt-BR')} BluffCoins.`);
+
+    if (personaMuted || !canPlayAudio) return;
+    if (isOnlineMode && !isRoomHost) return;
+
+    if (isOnlineMode) {
+      const res = await getHorus2Audio('bribe_offer', phrase);
+      if (res) broadcastAudio(res.audioUrl, phrase, 'horus');
+      return;
+    }
+
+    await playHorus2Audio('bribe_offer', phrase);
   };
 
   const handleAcceptBribe = async () => {
@@ -1292,21 +1322,27 @@ export default function GameRoom() {
     // Muda status para 'result' e executa áudio de derrota
     await updateRoomStatus('result');
     
-    // Hórus anuncia o resultado (derrota, já que só oferece para quem errou)
-    setTimeout(() => {
+    // Hórus anuncia o resultado (derrota/vitória)
+    setTimeout(async () => {
       const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
       const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
       const totalVotes = gameState.votes.length;
-      
-      if (totalVotes > 0) {
-        if (doubtCount === totalVotes) {
-          // Todos votaram BLEFE - eliminação
-          speakPersona('bluff_fail');
-        } else if (believeCount > 0) {
-          // Alguns acreditaram - blefe parcial
-          speakPersona('bluff_success');
-        }
+
+      if (totalVotes <= 0) return;
+
+      const moment = doubtCount === totalVotes ? 'bluff_fail' : (believeCount > 0 ? 'bluff_success' : null);
+      if (!moment) return;
+
+      if (personaMuted || !canPlayAudio) return;
+      if (isOnlineMode && !isRoomHost) return;
+
+      if (isOnlineMode) {
+        const res = await getHorus2Audio(moment);
+        if (res) broadcastAudio(res.audioUrl, moment, 'horus');
+        return;
       }
+
+      await playHorus2Audio(moment);
     }, 500);
   };
 

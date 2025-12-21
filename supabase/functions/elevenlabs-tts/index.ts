@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, stability, similarityBoost, uploadToStorage, roomId, cacheKey } = await req.json();
+    const { text, voiceId, stability, similarityBoost, style, useSpeakerBoost, speed, uploadToStorage, roomId, cacheKey } = await req.json();
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -81,13 +81,14 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               text: normalizedText,
-              model_id: 'eleven_multilingual_v2',
+              model_id: 'eleven_turbo_v2_5',
               output_format: 'mp3_44100_128',
               voice_settings: {
                 stability: stability ?? 0.5,
                 similarity_boost: similarityBoost ?? 0.75,
-                style: 0.5,
-                use_speaker_boost: true,
+                style: style ?? 0.5,
+                use_speaker_boost: useSpeakerBoost ?? true,
+                speed: speed ?? 1.0,
               },
             }),
           }

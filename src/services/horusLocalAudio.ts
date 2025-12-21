@@ -88,7 +88,7 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'thinking_taunt': 'bordao',
   'bluff_fail': 'derrota',
   'all_in_loss': 'derrota',
-  'elimination': 'eliminacao',
+  'elimination': 'derrota',
   'wrong_answer': 'erro',
   'victory': 'vitoria',
   'cash_out': 'vitoria',
