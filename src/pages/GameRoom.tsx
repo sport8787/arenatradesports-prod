@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
 import { useAudioSync } from '@/hooks/useAudioSync';
 import { useMycroftVerdict, VerdictReport } from '@/hooks/useMycroftVerdict';
+import { useAtomicNarrationTrigger } from '@/hooks/useAtomicNarrationTrigger';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -203,8 +204,8 @@ export default function GameRoom() {
   const hasNarratedQuestionRef = useRef<string | null>(null);
   // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
   const lastPlayedIdRef = useRef<string | null>(null);
-  // TRAVA DE EXECUÇÃO ÚNICA: Impede chamadas duplicadas de áudio na mesma rodada
-  const lastAudioTriggerKey = useRef<string | null>(null);
+  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas
+  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger();
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -406,16 +407,13 @@ export default function GameRoom() {
       // Evita repetição para a mesma pergunta
       if (hasNarratedQuestionRef.current === currentQuestionId) return;
 
-      const questionReadKey = `question_read-${currentQuestionId}`;
-
-      // GATILHO ATÔMICO: trava por pergunta (não por status)
-      if (lastAudioTriggerKey.current === questionReadKey) return;
-      lastAudioTriggerKey.current = questionReadKey;
+      // TRAVA ATÔMICA: usa o hook unificado
+      if (!shouldTriggerNarration('question_read', currentQuestionId)) return;
 
       hasNarratedQuestionRef.current = currentQuestionId;
       lastPlayedIdRef.current = `question_${currentQuestionId}_${(currentQuestionText ?? '').slice(0, 50)}`;
 
-      console.log('[GameRoom] Triggering question narration:', { questionReadKey, prevStatusForAudio });
+      console.log('[GameRoom] Triggering question narration:', { currentQuestionId, prevStatusForAudio });
 
       // SFX local antes da leitura
       playReveal();
