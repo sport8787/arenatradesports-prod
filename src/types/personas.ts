@@ -5,6 +5,9 @@ export type PersonaId = 'horus' | 'mycroft';
 export interface VoiceSettings {
   stability: number;
   similarityBoost: number;
+  style?: number;
+  useSpeakerBoost?: boolean;
+  speed?: number;
 }
 
 export interface Persona {
@@ -23,10 +26,13 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     id: 'horus',
     name: 'HÓRUS',
     title: 'O Apresentador',
-    voiceId: 'nPczCjzI2devNBz1zQrb', // Brian - deep, authoritative voice (similar to Adan)
+    voiceId: 'N2lVS1w4EtoT3dr4eOWO', // Callum v3
     voiceSettings: {
-      stability: 0.5,
-      similarityBoost: 0.75,
+      stability: 0.35,
+      similarityBoost: 0.85,
+      style: 0.65,
+      useSpeakerBoost: true,
+      speed: 1.05,
     },
     systemPrompt: `Você é o Hórus, o faraó vivo e mestre de cerimônias deste Game Show. Sua missão é entreter e desestabilizar. Use bordões como 'A caçada começou', 'A maleta te chama' ou 'Eu vejo a verdade sob sua máscara'. Seja imponente e sarcástico. Suas falas devem ser teatrais, provocadoras e cheias de personalidade. Você adora criar tensão e drama.`,
     description: 'Imponente e sarcástico. Comanda o palco com carisma.',

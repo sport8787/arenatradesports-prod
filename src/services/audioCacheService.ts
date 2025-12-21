@@ -260,6 +260,9 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
           voiceId,
           stability: persona.voiceSettings.stability,
           similarityBoost: persona.voiceSettings.similarityBoost,
+          style: persona.voiceSettings.style,
+          useSpeakerBoost: persona.voiceSettings.useSpeakerBoost,
+          speed: persona.voiceSettings.speed,
           // Tell edge function to cache if applicable
           cacheKey: shouldCache ? cacheFileName : undefined,
         }),

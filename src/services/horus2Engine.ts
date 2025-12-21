@@ -53,7 +53,7 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
   'correct_answer': 'vitoria',
   
   // Eliminação / Derrota
-  'elimination': 'eliminacao',
+  'elimination': 'derrota',
   'all_in_loss': 'derrota',
   
   // All-in

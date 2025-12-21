@@ -260,7 +260,7 @@ export default function SinglePlayerRoom() {
       const q = currentQuestionRef.current;
       if (!q || q.id !== currentQuestionId) return;
 
-      speakPersonaRef.current('question_read', q.question_text);
+      playHorus2Audio('question_read', q.question_text);
     }, 800);
     
     // HÓRUS 2.0: Bordão after 20 seconds if player hasn't answered
