@@ -59,6 +59,11 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   const queueRef = useRef<QueueItem[]>([]);
   const isProcessingRef = useRef(false);
 
+  // Dedupe immediate duplicate question narrations (fixes "Hórus lê 3x" on host)
+  const lastQuestionReadKeyRef = useRef<string | null>(null);
+  const lastQuestionReadAtRef = useRef<number>(0);
+  const QUESTION_READ_DEDUPE_WINDOW_MS = 15000;
+
   // Track if game has actually started (to prevent TTS calls before gameplay)
   const gameStartedRef = useRef(false);
 
@@ -205,12 +210,31 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
     }
   }, [generateTTS, canPlayAudio, onAudioGenerated, playAudioLocally]);
 
-  const speak = useCallback(async (moment: GameMoment, dynamicText?: string, _priority?: number, onComplete?: () => void) => {
-    // Mark game as started when first gameplay speech is requested
-    markGameStarted();
-    queueRef.current.push({ moment, dynamicText, onComplete });
-    if (!isProcessingRef.current) processQueue();
-  }, [processQueue, markGameStarted]);
+  const speak = useCallback(
+    async (moment: GameMoment, dynamicText?: string, _priority?: number, onComplete?: () => void) => {
+      // Mark game as started when first gameplay speech is requested
+      markGameStarted();
+
+      // Prevent immediate duplicate "question_read" enqueues (common cause of triple narration)
+      if (moment === 'question_read' && typeof dynamicText === 'string') {
+        const key = dynamicText.trim().toLowerCase();
+        const now = Date.now();
+        const ageMs = now - lastQuestionReadAtRef.current;
+
+        if (lastQuestionReadKeyRef.current === key && ageMs < QUESTION_READ_DEDUPE_WINDOW_MS) {
+          console.log('[DialogManager] ⛔ Duplicate question_read blocked', { ageMs });
+          return;
+        }
+
+        lastQuestionReadKeyRef.current = key;
+        lastQuestionReadAtRef.current = now;
+      }
+
+      queueRef.current.push({ moment, dynamicText, onComplete });
+      if (!isProcessingRef.current) processQueue();
+    },
+    [processQueue, markGameStarted]
+  );
 
   const stopSpeaking = useCallback(() => {
     stopGlobalAudio();
