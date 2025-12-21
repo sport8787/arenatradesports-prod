@@ -38,9 +38,14 @@ export function useGameState(roomId: string | null) {
   
   const sessionId = getOrCreateSessionId();
   
-  // Refs to track previous status/questionId for change detection
+  // Refs to track previous status/questionId for change detection (audio trigger)
   const prevStatusRef = useRef<RoomStatus | null>(null);
   const prevQuestionIdRef = useRef<string | null>(null);
+
+  // Monitor de mudanças (debug): mostra valor antigo -> novo
+  const prevRoomStatusLogRef = useRef<RoomStatus | null>(null);
+  const prevRoomQuestionIdLogRef = useRef<string | null>(null);
+
   // Fetch initial game state
   const fetchGameState = useCallback(async () => {
     if (!roomId) return;
@@ -170,9 +175,51 @@ export function useGameState(roomId: string | null) {
     }
   }, [roomId, fetchGameState]);
 
+  // Monitor de Mudanças: loga sempre que status/pergunta mudarem
+  useEffect(() => {
+    const room = gameState.room;
+    if (!room) return;
+
+    const prevStatus = prevRoomStatusLogRef.current;
+    const prevQuestionId = prevRoomQuestionIdLogRef.current;
+
+    const statusChanged = prevStatus !== null && prevStatus !== room.current_status;
+    const questionChanged = prevQuestionId !== null && prevQuestionId !== room.current_question_id;
+
+    if (prevStatus === null && prevQuestionId === null) {
+      console.log('[Room Monitor] init', {
+        status: room.current_status,
+        questionId: room.current_question_id,
+      });
+    } else if (statusChanged || questionChanged) {
+      console.log('[Room Monitor] change', {
+        status: { from: prevStatus, to: room.current_status },
+        questionId: { from: prevQuestionId, to: room.current_question_id },
+      });
+    }
+
+    prevRoomStatusLogRef.current = room.current_status as RoomStatus;
+    prevRoomQuestionIdLogRef.current = room.current_question_id;
+  }, [gameState.room?.current_status, gameState.room?.current_question_id]);
+
   // Update room status
   const updateRoomStatus = async (status: RoomStatus, questionId?: string) => {
     if (!roomId) return;
+
+    // Trava de Status: se não houver mudança real, aborta e não envia nada
+    const currentStatus = gameState.room?.current_status ?? null;
+    const currentQuestionId = gameState.room?.current_question_id ?? null;
+
+    const statusUnchanged = currentStatus === status;
+    const questionUnchanged = questionId === undefined || currentQuestionId === questionId;
+
+    if (statusUnchanged && questionUnchanged) {
+      console.log('[updateRoomStatus] noop (sem mudança)', {
+        status,
+        questionId: questionId ?? currentQuestionId,
+      });
+      return;
+    }
 
     const updates: Partial<Room> = { current_status: status };
     if (questionId !== undefined) {
