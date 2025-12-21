@@ -617,8 +617,25 @@ export default function GameRoom() {
     const shouldEliminate = isRoomHost && !playerGotCorrect && doubtVotes === totalJuryVotes && totalJuryVotes > 0;
     
     if (shouldEliminate) {
+      // Round 15 (All-in): Reset ALL bluffcoins - player loses everything
+      if (currentRound === MAX_ROUNDS) {
+        const hostPlayer = gameState.players.find(p => p.session_id === gameState.room?.host_id);
+        if (hostPlayer) {
+          console.log('[All-in] Player lost on round 15 - resetting all BluffCoins');
+          await resetBluffcoins(hostPlayer.id);
+          toast({ 
+            title: 'ALL-IN PERDIDO!', 
+            description: 'Você apostou tudo e perdeu. Seus BluffCoins foram zerados.', 
+            variant: 'destructive' 
+          });
+        }
+        setHostEliminated(true);
+        setAccumulatedPrize(0);
+        return;
+      }
+      
       // Check if immunity card can save the player (not on round 15, and card not used yet)
-      if (hasImmunityCard && !immunityCardUsed && currentRound !== MAX_ROUNDS) {
+      if (hasImmunityCard && !immunityCardUsed) {
         // Use immunity card - player is saved!
         setImmunityCardUsed(true);
         setShowImmunitySaved(true);
