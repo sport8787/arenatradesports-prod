@@ -15,6 +15,7 @@ import AdminQuestions from "./pages/AdminQuestions";
 import NotFound from "./pages/NotFound";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { preCacheMycroftPhrases } from "./services/mycroftBlockService";
+import { preCacheHorusPhrases, getHorusCacheProgress } from "./services/horusCacheService";
 import { AudioDebugPanel } from "./components/game/AudioDebugPanel";
 
 const queryClient = new QueryClient();
@@ -23,24 +24,38 @@ const queryClient = new QueryClient();
 if (typeof window !== 'undefined') {
   (window as any).getAudioCacheStats = () => {
     const stats = getAudioCacheStats();
+    const horusProgress = getHorusCacheProgress();
     console.log('📊 AUDIO CACHE STATS:', stats);
     console.log(`   🟢 Cache Hits: ${stats.cacheHits}`);
     console.log(`   🔴 Cache Misses: ${stats.cacheMisses}`);
+    console.log(`   ⛔ Blocked Duplicates: ${stats.blockedDuplicates}`);
+    console.log(`   💰 Credits Saved: ${stats.estimatedCreditsSaved} chars`);
     console.log(`   📁 Memory Cache Size: ${stats.memoryCacheSize}`);
     console.log(`   🔒 Session Requests: ${stats.sessionRequests}`);
-    return stats;
+    console.log(`   🦅 Horus Pre-cache: ${horusProgress.cached}/${horusProgress.total} (${horusProgress.completed ? 'complete' : 'in progress'})`);
+    return { ...stats, horusProgress };
   };
   console.log('💡 Debug: Call window.getAudioCacheStats() to view audio cache statistics');
 }
 
 const App = () => {
-  // Pre-cache Mycroft phrases on app start (background)
+  // Pre-cache Mycroft and Horus phrases on app start (background)
   useEffect(() => {
-    // Run pre-caching in background after a short delay
-    const timer = setTimeout(() => {
+    // Run Mycroft pre-caching first (smaller set)
+    const mycroftTimer = setTimeout(() => {
+      console.log('[App] 🎭 Starting background pre-cache...');
       preCacheMycroftPhrases().catch(console.error);
-    }, 3000);
-    return () => clearTimeout(timer);
+    }, 2000);
+    
+    // Run Horus pre-caching after Mycroft (larger set, staggered)
+    const horusTimer = setTimeout(() => {
+      preCacheHorusPhrases().catch(console.error);
+    }, 5000);
+    
+    return () => {
+      clearTimeout(mycroftTimer);
+      clearTimeout(horusTimer);
+    };
   }, []);
 
   return (
