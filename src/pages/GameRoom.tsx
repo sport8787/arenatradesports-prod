@@ -203,6 +203,8 @@ export default function GameRoom() {
   const hasNarratedQuestionRef = useRef<string | null>(null);
   // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
   const lastPlayedIdRef = useRef<string | null>(null);
+  // TRAVA DE EXECUÇÃO ÚNICA: Impede chamadas duplicadas de áudio na mesma rodada
+  const lastAudioTriggerKey = useRef<string | null>(null);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -360,6 +362,15 @@ export default function GameRoom() {
     // Don't trigger voice if muted or if not allowed to play audio
     if (personaMuted || !canPlayAudio) return;
     
+    // TRAVA DE EXECUÇÃO ÚNICA: Gera chave única combinando status e ID da pergunta
+    const currentKey = `${currentStatus}-${questionId}`;
+    
+    // BLOQUEIO: Se a chave já foi processada, não dispara o áudio novamente
+    if (lastAudioTriggerKey.current === currentKey) {
+      console.log('[GameRoom] Audio already triggered for key:', currentKey, '- skipping');
+      return;
+    }
+    
     // TRAVA DE ÁUDIO: Only trigger on actual status/question changes, not player joins
     // This prevents audio from being triggered when new players enter the room
     if (!lastStateChange.statusChanged && !lastStateChange.questionChanged) {
@@ -386,6 +397,9 @@ export default function GameRoom() {
         console.log('[GameRoom] lastPlayedIdRef already has this audio ID - skipping TTS');
         return;
       }
+      
+      // Atualiza a ref da trava de execução única
+      lastAudioTriggerKey.current = currentKey;
       
       // Mark this question as narrated
       if (questionId) {
