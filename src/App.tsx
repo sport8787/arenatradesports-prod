@@ -14,8 +14,7 @@ import HowToPlay from "./pages/HowToPlay";
 import AdminQuestions from "./pages/AdminQuestions";
 import NotFound from "./pages/NotFound";
 import { getAudioCacheStats } from "./services/audioCacheService";
-import { preCacheMycroftPhrases } from "./services/mycroftBlockService";
-import { preCacheHorusPhrases, getHorusCacheProgress } from "./services/horusCacheService";
+import { getHorusCacheProgress } from "./services/horusCacheService";
 import { AudioDebugPanel } from "./components/game/AudioDebugPanel";
 
 const queryClient = new QueryClient();
@@ -39,23 +38,11 @@ if (typeof window !== 'undefined') {
 }
 
 const App = () => {
-  // Pre-cache Mycroft and Horus phrases on app start (background)
+  // NOTE: Pre-cache was DISABLED from automatic startup
+  // The pre-cache now only runs when user enters a game room (SinglePlayerRoom/GameRoom)
+  // This prevents ElevenLabs credit consumption on the landing page
   useEffect(() => {
-    // Run Mycroft pre-caching first (smaller set)
-    const mycroftTimer = setTimeout(() => {
-      console.log('[App] 🎭 Starting background pre-cache...');
-      preCacheMycroftPhrases().catch(console.error);
-    }, 2000);
-    
-    // Run Horus pre-caching after Mycroft (larger set, staggered)
-    const horusTimer = setTimeout(() => {
-      preCacheHorusPhrases().catch(console.error);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(mycroftTimer);
-      clearTimeout(horusTimer);
-    };
+    console.log('[App] 🎭 Pre-cache DISABLED on startup - will run only when entering a game room');
   }, []);
 
   return (
