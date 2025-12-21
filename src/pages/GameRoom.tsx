@@ -109,7 +109,7 @@ export default function GameRoom() {
   const navigate = useNavigate();
   const sessionId = getOrCreateSessionId();
   
-  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, hasEnoughCoins, updateGameMode, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, lastStateChange, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -360,6 +360,13 @@ export default function GameRoom() {
     // Don't trigger voice if muted or if not allowed to play audio
     if (personaMuted || !canPlayAudio) return;
     
+    // TRAVA DE ÁUDIO: Only trigger on actual status/question changes, not player joins
+    // This prevents audio from being triggered when new players enter the room
+    if (!lastStateChange.statusChanged && !lastStateChange.questionChanged) {
+      console.log('[GameRoom] No status/question change - skipping audio trigger (likely player join)');
+      return;
+    }
+    
     // Only trigger on status changes, not on initial load
     if (!prevStatus || prevStatus === currentStatus) return;
     
@@ -403,7 +410,7 @@ export default function GameRoom() {
       stopSpeaking();
     }
     
-  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal]);
+  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal, lastStateChange]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
