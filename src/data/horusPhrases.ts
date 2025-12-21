@@ -243,6 +243,20 @@ const CASH_OUT: HorusPhrase[] = [
   { id: 'co6', moment: 'cash_out', text: 'Decisão final tomada! O dinheiro na mão vale mais que a glória incerta!', emotion: 'neutral' },
 ];
 
+// Bribe audio economy phrases - split for credit savings
+// Intro phrase (cached) + Value (synthesized) + Outro phrase (cached)
+const BRIBE_INTRO: HorusPhrase[] = [
+  { id: 'bi1', moment: 'bribe_intro', text: 'Seu destino já está selado, mas eu tenho um Acordo de Ouro para você...', emotion: 'dramatic' },
+  { id: 'bi2', moment: 'bribe_intro', text: 'Espere! Antes de revelar seu destino... eu tenho uma proposta irrecusável...', emotion: 'menacing' },
+  { id: 'bi3', moment: 'bribe_intro', text: 'O veredicto está lacrado. Mas eu posso te oferecer uma saída...', emotion: 'dramatic' },
+];
+
+const BRIBE_OUTRO: HorusPhrase[] = [
+  { id: 'bot1', moment: 'bribe_outro', text: '...Pega ou larga?', emotion: 'menacing' },
+  { id: 'bot2', moment: 'bribe_outro', text: '...Aceita ou arrisca?', emotion: 'dramatic' },
+  { id: 'bot3', moment: 'bribe_outro', text: '...O que vai ser?', emotion: 'sarcastic' },
+];
+
 // All phrases combined
 export const HORUS_PHRASES: HorusPhrase[] = [
   ...ROUND_START,
@@ -263,6 +277,8 @@ export const HORUS_PHRASES: HorusPhrase[] = [
   ...COMEBACK,
   ...STREAK,
   ...CASH_OUT,
+  ...BRIBE_INTRO,
+  ...BRIBE_OUTRO,
 ];
 
 // Get random phrase for a specific moment
