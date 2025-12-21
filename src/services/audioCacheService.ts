@@ -128,6 +128,20 @@ export function getAudioCacheStats() {
   };
 }
 
+function isSilentDebugEnabled(): boolean {
+  // Default ON (safety): set localStorage.blefador_silent_debug = '0' to disable
+  try {
+    return localStorage.getItem('blefador_silent_debug') !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function isAllowedInSilentDebug(moment?: GameMoment): boolean {
+  // Only allow paid generation for the current question narration and Mycroft verdict
+  return moment === 'question_read' || moment === 'verdict';
+}
+
 export async function getCachedAudio(options: GetCachedAudioOptions): Promise<CacheResult | null> {
   const { 
     text, 
@@ -138,6 +152,9 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     isHost = true,
     gameMode = 'single'
   } = options;
+
+  const silentDebug = isSilentDebugEnabled();
+  const effectiveCacheOnly = cacheOnly || (silentDebug && !isAllowedInSilentDebug(moment));
 
   // In Presencial mode, only Host should generate/play audio
   if (gameMode === 'presencial' && !isHost) {
@@ -211,21 +228,23 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     }
   }
 
-  // CACHE-ONLY MODE: never call ElevenLabs (used by preloaders to avoid credit burn)
-  if (cacheOnly) {
-    console.log(`[AudioCache] 🧊 CACHE-ONLY MISS: Skipping ElevenLabs for "${normalizedText.substring(0, 40)}..."`);
+  // CACHE-ONLY MODE: never call ElevenLabs (used by preloaders and silent-debug to avoid credit burn)
+  if (effectiveCacheOnly) {
+    const reason = cacheOnly ? 'cacheOnly=true' : 'modo silencioso (debug)';
+    console.log(`[AudioCache] 🧊 CACHE-ONLY MISS (${reason}): Bloqueando ElevenLabs para "${normalizedText.substring(0, 40)}..."`);
     return null;
   }
 
   // Generate new audio via ElevenLabs
   cacheMisses++;
+  console.warn(`⚠️ TENTANDO GASTAR CRÉDITOS COM O TEXTO: ${normalizedText}`);
   console.log(`🔴 CACHE MISS: Chamando ElevenLabs - Text: "${normalizedText.substring(0, 40)}..." (${normalizedText.length} chars)`);
   console.log(`💸 CUSTO API: ${normalizedText.length} caracteres serão cobrados`);
   
   // Update re-render lock BEFORE making API call
   lastSynthesizedText = normalizedText;
   lastSynthesizedHash = hash;
-  
+
   try {
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
