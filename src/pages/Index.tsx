@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
@@ -9,7 +9,6 @@ import { useAudioPreloader } from '@/hooks/useAudioPreloader';
 import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
-import { GameOpening } from '@/components/game/GameOpening';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -22,7 +21,6 @@ interface ActiveRoom {
 
 export default function Index() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { profile, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
@@ -30,19 +28,9 @@ export default function Index() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
-  const [showOpening, setShowOpening] = useState(false);
 
   // Audio preloader DISABLED on landing page to prevent any ElevenLabs usage before playing
   const audioPreloader = useAudioPreloader(false);
-
-  // Check if we should show opening (from auth redirect)
-  useEffect(() => {
-    const shouldShowOpening = sessionStorage.getItem('showOpening');
-    if (shouldShowOpening === 'true' && isAuthenticated && !authLoading) {
-      sessionStorage.removeItem('showOpening');
-      setShowOpening(true);
-    }
-  }, [isAuthenticated, authLoading]);
 
   // Check for guest mode
   useEffect(() => {
@@ -208,11 +196,6 @@ export default function Index() {
   }
 
   const displayName = isGuest ? guestNickname : profile?.username;
-
-  // Show opening cinematic
-  if (showOpening) {
-    return <GameOpening onComplete={() => setShowOpening(false)} />;
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
