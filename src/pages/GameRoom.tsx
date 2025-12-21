@@ -434,12 +434,14 @@ export default function GameRoom() {
       case 'voting':
         // Fase de votação - pode tocar bordão
         if (hasLocalAudioForMoment('taunt')) {
-          if (isOnlineMode) {
-            const res = await getHorus2Audio('taunt');
-            if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
-          } else {
-            playHorus2Audio('taunt');
-          }
+          (async () => {
+            if (isOnlineMode) {
+              const res = await getHorus2Audio('taunt');
+              if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
+            } else {
+              await playHorus2Audio('taunt');
+            }
+          })();
         }
         break;
 
