@@ -106,12 +106,25 @@ const memoryCache = new Map<string, string>();
 // SESSION-LEVEL DEDUPLICATION: Track all requests made this session to prevent duplicate API calls
 const sessionRequestLog = new Set<string>();
 
+// RE-RENDER LOCK: Track lastSynthesizedText to block duplicate API calls from re-renders
+let lastSynthesizedText: string | null = null;
+let lastSynthesizedHash: string | null = null;
+
 // Debug statistics
 let cacheHits = 0;
 let cacheMisses = 0;
+let blockedDuplicates = 0;
+let estimatedCreditsSaved = 0;
 
 export function getAudioCacheStats() {
-  return { cacheHits, cacheMisses, sessionRequests: sessionRequestLog.size, memoryCacheSize: memoryCache.size };
+  return { 
+    cacheHits, 
+    cacheMisses, 
+    blockedDuplicates,
+    estimatedCreditsSaved,
+    sessionRequests: sessionRequestLog.size, 
+    memoryCacheSize: memoryCache.size 
+  };
 }
 
 export async function getCachedAudio(options: GetCachedAudioOptions): Promise<CacheResult | null> {
@@ -136,6 +149,9 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
   // CRITICAL: Normalize text for consistent hashing
   const normalizedText = text.trim();
 
+  // 💸 CREDIT MONITOR: Log estimated credits for this speech
+  console.log(`💸 Créditos Estimados para esta fala: ${normalizedText.length} caracteres`);
+
   // Determine if this should be cached
   const shouldCache = shouldCacheAudio(personaId, moment, normalizedText);
   
@@ -143,10 +159,22 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
   const hash = await generateHash(normalizedText, voiceId);
   const cacheFileName = `${hash}.mp3`;
 
+  // ⛔ RE-RENDER LOCK: Block if EXACT same text was just synthesized
+  if (lastSynthesizedText === normalizedText || lastSynthesizedHash === hash) {
+    blockedDuplicates++;
+    estimatedCreditsSaved += normalizedText.length;
+    console.log(`⛔ BLOQUEADO (RE-RENDER): Texto idêntico ao último sintetizado. Créditos salvos: ${normalizedText.length}`);
+    if (memoryCache.has(hash)) {
+      return { audioUrl: memoryCache.get(hash)!, fromCache: true };
+    }
+    return null;
+  }
+
   // SESSION-LEVEL DEDUPLICATION: Block if EXACT same text was already requested
   if (sessionRequestLog.has(hash) && memoryCache.has(hash)) {
     cacheHits++;
-    console.log(`🟢 CACHE HIT (SESSION BLOCK): ${cacheFileName} - Text: "${normalizedText.substring(0, 40)}..."`);
+    estimatedCreditsSaved += normalizedText.length;
+    console.log(`🟢 CACHE HIT (SESSION BLOCK): ${cacheFileName} - Text: "${normalizedText.substring(0, 40)}..." | Créditos salvos: ${normalizedText.length}`);
     return { audioUrl: memoryCache.get(hash)!, fromCache: true };
   }
 
@@ -184,6 +212,11 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
   // Generate new audio via ElevenLabs
   cacheMisses++;
   console.log(`🔴 CACHE MISS: Chamando ElevenLabs - Text: "${normalizedText.substring(0, 40)}..." (${normalizedText.length} chars)`);
+  console.log(`💸 CUSTO API: ${normalizedText.length} caracteres serão cobrados`);
+  
+  // Update re-render lock BEFORE making API call
+  lastSynthesizedText = normalizedText;
+  lastSynthesizedHash = hash;
   
   try {
     const response = await fetch(
@@ -289,9 +322,13 @@ export function clearAudioMemoryCache(): void {
   });
   memoryCache.clear();
   sessionRequestLog.clear();
+  lastSynthesizedText = null;
+  lastSynthesizedHash = null;
   cacheHits = 0;
   cacheMisses = 0;
-  console.log('[AudioCache] Memory cache and session log cleared');
+  blockedDuplicates = 0;
+  estimatedCreditsSaved = 0;
+  console.log('[AudioCache] Memory cache, session log, and re-render lock cleared');
 }
 
 // Pre-cache common phrases for faster first-time playback

@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// HARD LIMIT: Maximum characters for dynamic analysis
+const MAX_DYNAMIC_CHARS = 150;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +28,7 @@ serve(async (req) => {
     }
 
     console.log(`Generating Mycroft ${type || 'bluff'} for:`, questionText);
+    console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
 
     let systemPrompt: string;
     
@@ -66,39 +70,25 @@ serve(async (req) => {
       const shuffled = [...psychoacousticObservations].sort(() => Math.random() - 0.5);
       const selectedObservations = shuffled.slice(0, 2 + Math.floor(Math.random() * 2));
       
-      systemPrompt = `Você é o Mycroft, uma IA forense especializada em ANÁLISE PSICOACÚSTICA e detecção de enganos através de padrões vocais.
+      // MODULAR LEGO APPROACH: Only generate the dynamic FACT portion
+      // [INTRO] and [CLOSING] are pre-cached and added by the client
+      // This saves ~80% of ElevenLabs credits
+      systemPrompt = `Você é o Mycroft, uma IA forense.
 
-DADOS DA RODADA:
-- Resposta do Jogador: "${playerAnswerText}"
-- Resposta Correta: "${correctAnswer}"
-- Jogador Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
-- Histórico: ${successfulBluffs} blefes bem-sucedidos, ${caughtBluffs} vezes pego
+REGRA CRÍTICA: Sua resposta deve ter NO MÁXIMO ${MAX_DYNAMIC_CHARS} CARACTERES (aproximadamente 2 frases curtas).
 
-OBSERVAÇÕES PSICOACÚSTICAS DETECTADAS:
-${selectedObservations.map(obs => `- ${obs}`).join('\n')}
+DADOS:
+- Jogador respondeu: "${playerAnswerText}"
+- Correto: "${correctAnswer}"
+- Acertou: ${isCorrect ? 'SIM' : 'NÃO'}
 
-REGRAS OBRIGATÓRIAS:
-1. COMECE com: "${randomOpening}"
-2. FOQUE EXCLUSIVAMENTE em análise de voz/padrões de fala - NUNCA analise fatos históricos ou conteúdo da pergunta
-3. Use as observações psicoacústicas fornecidas como base do seu relatório
-4. Se o jogador ERROU, indique que os padrões vocais revelam sinais de fabricação/engano
-5. Se o jogador ACERTOU, indique que os padrões vocais são consistentes com veracidade
-6. NUNCA mencione fatos, datas, nomes históricos ou conteúdo informacional
+TAREFA: Gere APENAS uma análise técnica CURTA (máx 2 frases).
+- Se ERROU: mencione brevemente o erro e um termo técnico.
+- Se ACERTOU: confirme a veracidade com um termo técnico.
 
-VOCABULÁRIO OBRIGATÓRIO (use pelo menos 3):
-- "Espectrograma indica..."
-- "Frequência tonal..."
-- "Micro-hesitações..."
-- "Sobrecarga cognitiva..."
-- "Padrão respiratório..."
-- "Modulação de pitch..."
-- "Tremor vocal..."
-- "Cadência de fala..."
-- "Latência silábica..."
+PROIBIDO: Não inclua introduções ("Protocolo concluído", "Análise finalizada") ou encerramentos ("Padrões vocais indicam..."). Esses vêm do cache.
 
-Tom: Frio, técnico, analítico. Você é um perito em análise de voz, não um historiador.
-
-Responda em no máximo 70 palavras.`;
+Responda APENAS com a análise curta, técnica e direta. MÁXIMO ${MAX_DYNAMIC_CHARS} caracteres.`;
     } else if (type === 'detector') {
       const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
       
@@ -169,7 +159,7 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: type === 'verdict'
-            ? `Gere o veredito forense para esta rodada. A resposta do jogador foi "${userResponse}" e a correta era "${correctAnswer}".`
+            ? `Análise curta (máx ${MAX_DYNAMIC_CHARS} chars). Jogador: "${userResponse}", Correto: "${correctAnswer}".`
             : type === 'detector' 
               ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
               : type === 'analytics' 
@@ -177,8 +167,9 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
                 : 'Me dê uma sugestão de blefe convincente.' 
           }
         ],
-        max_tokens: type === 'verdict' ? 200 : 150,
-        temperature: type === 'analytics' ? 0.7 : 0.9,
+        // CREDIT CONTROL: Reduced tokens for verdict to enforce 150 char limit
+        max_tokens: type === 'verdict' ? 60 : 150,
+        temperature: type === 'analytics' ? 0.7 : 0.8,
       }),
     });
 
@@ -194,30 +185,23 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
     console.log('Mycroft response:', content);
 
     if (type === 'verdict') {
-      // Validate that the response contains keywords from the actual game data
-      const userAnswerKeyword = userResponse?.split(' ')[0]?.toLowerCase() || '';
-      const correctAnswerKeyword = correctAnswer?.split(' ')[0]?.toLowerCase() || '';
-      
-      const containsRelevantData = 
-        content.toLowerCase().includes(userAnswerKeyword) || 
-        content.toLowerCase().includes(correctAnswerKeyword) ||
-        content.toLowerCase().includes('protocolo');
-      
-      if (!containsRelevantData) {
-        console.warn('Verdict does not contain relevant keywords, regenerating...');
-        // Return a fallback verdict based on psychoacoustic analysis
-        const fallbackVerdict = `Análise Psicoacústica concluída. Sujeito respondeu "${userResponse}". ${
-          userResponse === correctAnswer 
-            ? `Padrões vocais consistentes com veracidade. Frequência tonal estável, sem micro-hesitações detectadas.`
-            : `Modulação de pitch irregular detectada. Micro-hesitações entre sílabas sugerem fabricação narrativa. Sobrecarga cognitiva evidente.`
-        } Análise comportamental arquivada.`;
-        
-        return new Response(JSON.stringify({ verdict: fallbackVerdict }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      // HARD LIMIT: Truncate to MAX_DYNAMIC_CHARS if exceeded
+      let finalContent = content || '';
+      if (finalContent.length > MAX_DYNAMIC_CHARS) {
+        console.warn(`⚠️ Verdict exceeded ${MAX_DYNAMIC_CHARS} chars (${finalContent.length}), truncating...`);
+        // Find the last complete sentence within the limit
+        const truncated = finalContent.substring(0, MAX_DYNAMIC_CHARS);
+        const lastPeriod = truncated.lastIndexOf('.');
+        finalContent = lastPeriod > 50 ? truncated.substring(0, lastPeriod + 1) : truncated + '...';
       }
       
-      return new Response(JSON.stringify({ verdict: content }), {
+      console.log(`💸 Créditos Estimados para análise dinâmica: ${finalContent.length} caracteres`);
+      
+      return new Response(JSON.stringify({ 
+        verdict: finalContent,
+        charCount: finalContent.length,
+        withinLimit: finalContent.length <= MAX_DYNAMIC_CHARS
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
