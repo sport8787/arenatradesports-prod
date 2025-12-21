@@ -179,6 +179,8 @@ export default function SinglePlayerRoom() {
   // HÓRUS 2.0: Ref para controle de narração
   const lastNarrationIdRef = useRef<string | null>(null);
   const questionReadTimeoutRef = useRef<number | null>(null);
+  const thinkingTauntTimeoutRef = useRef<number | null>(null);
+  const questionStartTimeRef = useRef<number | null>(null);
 
   // Keep latest references without forcing the narration effect to re-run on every render
   const currentQuestionRef = useRef<Question | null>(null);
@@ -210,6 +212,10 @@ export default function SinglePlayerRoom() {
         clearTimeout(questionReadTimeoutRef.current);
         questionReadTimeoutRef.current = null;
       }
+      if (thinkingTauntTimeoutRef.current) {
+        clearTimeout(thinkingTauntTimeoutRef.current);
+        thinkingTauntTimeoutRef.current = null;
+      }
       clearQueueRef.current();
       stopSpeakingRef.current();
       stopGlobalAudio();
@@ -225,11 +231,16 @@ export default function SinglePlayerRoom() {
       clearTimeout(questionReadTimeoutRef.current);
       questionReadTimeoutRef.current = null;
     }
+    if (thinkingTauntTimeoutRef.current) {
+      clearTimeout(thinkingTauntTimeoutRef.current);
+      thinkingTauntTimeoutRef.current = null;
+    }
 
     if (gamePhase !== 'question') {
       clearQueueRef.current();
       stopSpeakingRef.current();
       stopGlobalAudio();
+      questionStartTimeRef.current = null;
       return;
     }
 
@@ -239,6 +250,9 @@ export default function SinglePlayerRoom() {
     const narrationId = `question_${currentQuestionId}`;
     if (lastNarrationIdRef.current === narrationId) return;
     lastNarrationIdRef.current = narrationId;
+    
+    // Track when question started for timeout detection
+    questionStartTimeRef.current = Date.now();
 
     playRevealRef.current();
 
@@ -248,7 +262,15 @@ export default function SinglePlayerRoom() {
 
       speakPersonaRef.current('question_read', q.question_text);
     }, 800);
-  }, [gamePhase, currentQuestionId]);
+    
+    // HÓRUS 2.0: Bordão after 20 seconds if player hasn't answered
+    thinkingTauntTimeoutRef.current = window.setTimeout(() => {
+      // Only play if still in question phase
+      if (gamePhase === 'question' && !confirmedAnswer) {
+        playHorus2Audio('thinking_taunt');
+      }
+    }, 20000);
+  }, [gamePhase, currentQuestionId, confirmedAnswer]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -665,6 +687,11 @@ export default function SinglePlayerRoom() {
     setCurrentRound(nextRoundNum);
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
+    
+    // HÓRUS 2.0: Play round transition bordão (50% chance)
+    if (Math.random() > 0.5) {
+      playHorus2Audio('round_transition');
+    }
     
     // Show briefcase modal before round 15
     if (nextRoundNum === MAX_ROUNDS) {
