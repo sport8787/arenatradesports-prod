@@ -54,6 +54,9 @@ export function useHorusNarration(options: UseHorusNarrationOptions = {}): UseHo
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef(false);
+  
+  // Track if narration has been explicitly triggered (to prevent pre-game TTS calls)
+  const narrationTriggeredRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
