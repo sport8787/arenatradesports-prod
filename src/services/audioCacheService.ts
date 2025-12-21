@@ -96,6 +96,7 @@ interface GetCachedAudioOptions {
   personaId: PersonaId;
   moment?: GameMoment;
   forceRefresh?: boolean;
+  cacheOnly?: boolean; // true = never call ElevenLabs (only memory/storage hits)
   isHost?: boolean; // For Presencial mode
   gameMode?: string;
 }
@@ -133,6 +134,7 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     personaId, 
     moment, 
     forceRefresh = false,
+    cacheOnly = false,
     isHost = true,
     gameMode = 'single'
   } = options;
@@ -207,6 +209,12 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     } catch (error) {
       console.warn('[AudioCache] Error checking cache:', error);
     }
+  }
+
+  // CACHE-ONLY MODE: never call ElevenLabs (used by preloaders to avoid credit burn)
+  if (cacheOnly) {
+    console.log(`[AudioCache] 🧊 CACHE-ONLY MISS: Skipping ElevenLabs for "${normalizedText.substring(0, 40)}..."`);
+    return null;
   }
 
   // Generate new audio via ElevenLabs

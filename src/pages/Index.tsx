@@ -29,8 +29,8 @@ export default function Index() {
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
 
-  // Audio preloader - starts automatically when user enters lobby
-  const audioPreloader = useAudioPreloader(isAuthenticated || isGuest);
+  // Audio preloader DISABLED on landing page to prevent any ElevenLabs usage before playing
+  const audioPreloader = useAudioPreloader(false);
 
   // Check for guest mode
   useEffect(() => {

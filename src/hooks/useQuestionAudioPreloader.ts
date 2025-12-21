@@ -61,6 +61,7 @@ export function useQuestionAudioPreloader(options: UseQuestionAudioPreloaderOpti
         text,
         personaId: 'horus',
         moment: 'question_read',
+        cacheOnly: true,
       });
 
       if (result && isMounted.current) {
