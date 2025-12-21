@@ -353,10 +353,13 @@ export default function GameRoom() {
   // Hórus voice triggers - automatic speech based on game moments
   // UPDATED: Removed round_start TTS (bordões) - now uses local SFX instead
   // Only question_read uses TTS to save ElevenLabs credits
+  // OTIMIZADO: Observa apenas status e question ID para evitar re-renders desnecessários
+  const currentStatus = gameState.room?.current_status;
+  const currentQuestionId = gameState.currentQuestion?.id;
+  
   useEffect(() => {
-    const currentStatus = gameState.room?.current_status;
     const question = gameState.currentQuestion;
-    const questionId = question?.id;
+    const questionId = currentQuestionId;
     const questionText = question?.question_text;
     
     // Don't trigger voice if muted or if not allowed to play audio
@@ -365,17 +368,16 @@ export default function GameRoom() {
     // TRAVA DE EXECUÇÃO ÚNICA: Gera chave única combinando status e ID da pergunta
     const currentKey = `${currentStatus}-${questionId}`;
     
-    // BLOQUEIO: Se a chave já foi processada, não dispara o áudio novamente
+    // BLOQUEIO ATÔMICO: Verifica e atualiza ANTES de qualquer operação async
     if (lastAudioTriggerKey.current === currentKey) {
       console.log('[GameRoom] Audio already triggered for key:', currentKey, '- skipping');
       return;
     }
     
-    // TRAVA DE ÁUDIO: Only trigger on actual status/question changes, not player joins
-    // This prevents audio from being triggered when new players enter the room
-    if (!lastStateChange.statusChanged && !lastStateChange.questionChanged) {
-      console.log('[GameRoom] No status/question change - skipping audio trigger (likely player join)');
-      return;
+    // LIMPEZA DE FILA: Ao mudar de status, interrompe qualquer áudio em andamento
+    if (prevStatus && prevStatus !== currentStatus) {
+      clearQueue();
+      stopSpeaking();
     }
     
     // Only trigger on status changes, not on initial load
@@ -389,23 +391,16 @@ export default function GameRoom() {
         return;
       }
       
-      // Generate unique ID combining round/question ID and text hash for duplicate prevention
-      const audioId = `question_${questionId}_${questionText?.slice(0, 50)}`;
-      
-      // Prevent duplicate TTS synthesis on re-renders
-      if (lastPlayedIdRef.current === audioId) {
-        console.log('[GameRoom] lastPlayedIdRef already has this audio ID - skipping TTS');
-        return;
-      }
-      
-      // Atualiza a ref da trava de execução única
+      // ATUALIZAÇÃO ATÔMICA: Atualiza a ref IMEDIATAMENTE antes de qualquer await ou delay
       lastAudioTriggerKey.current = currentKey;
       
       // Mark this question as narrated
       if (questionId) {
         hasNarratedQuestionRef.current = questionId;
       }
-      lastPlayedIdRef.current = audioId;
+      lastPlayedIdRef.current = `question_${questionId}_${questionText?.slice(0, 50)}`;
+      
+      console.log('[GameRoom] Triggering audio for key:', currentKey);
       
       // Play local SFX instead of TTS bordão (saves ElevenLabs credits)
       playReveal();
@@ -424,7 +419,8 @@ export default function GameRoom() {
       stopSpeaking();
     }
     
-  }, [gameState.room?.current_status, gameState.currentQuestion, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal, lastStateChange]);
+  // FILTRO DE ESTADO: Apenas status e questionId como dependências, sem votes/players
+  }, [currentStatus, currentQuestionId, prevStatus, personaMuted, canPlayAudio, speakPersona, clearQueue, stopSpeaking, playReveal, gameState.currentQuestion]);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
