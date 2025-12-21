@@ -247,11 +247,8 @@ export default function GameRoom() {
   const [bribePhrase, setBribePhrase] = useState<string | null>(null);
   const bribeTriggeredRef = useRef<string | null>(null);
 
-  // Preload sounds when component mounts
-  useEffect(() => {
-    preloadSounds();
-  }, [preloadSounds]);
-
+  // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
+  // Sounds will be generated on-demand when needed.
   // Play vote notification sound for host when new votes come in
   useEffect(() => {
     const currentVoteCount = gameState.votes.filter(
