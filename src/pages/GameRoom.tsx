@@ -149,6 +149,7 @@ export default function GameRoom() {
   const isPresencialMode = gameMode === 'presencial';
   const isOnlineMode = !isPresencialMode;
   const canPlayAudio = isPresencialMode ? isRoomHost : true;
+  const dialogGameMode: 'presencial' | 'online' = isPresencialMode ? 'presencial' : 'online';
   
   // Log mode for debugging
   useEffect(() => {
