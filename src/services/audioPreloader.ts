@@ -101,6 +101,7 @@ export async function preloadCommonPhrases(onProgress?: ProgressCallback): Promi
             text: phrase.text,
             personaId: phrase.personaId,
             moment: phrase.moment,
+            cacheOnly: true,
           });
           loaded++;
           onProgress?.({
@@ -130,6 +131,7 @@ export async function preloadCommonPhrases(onProgress?: ProgressCallback): Promi
             text: phrase.text,
             personaId: phrase.personaId,
             moment: phrase.moment,
+            cacheOnly: true,
           });
           loaded++;
           onProgress?.({
