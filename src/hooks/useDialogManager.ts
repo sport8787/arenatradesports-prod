@@ -3,6 +3,7 @@ import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/person
 import { getRandomHorusPhrase } from '@/data/horusPhrases';
 import { getCachedAudio, clearAudioMemoryCache } from '@/services/audioCacheService';
 import { playGlobalAudio, stopGlobalAudio } from '@/services/globalAudioContext';
+import { recordEnqueue, recordExecute, recordBlocked } from '@/services/audioDebugService';
 
 interface DialogState {
   activePersona: PersonaId | null;
@@ -187,6 +188,9 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
     const audioUrl = await generateTTS(textToSpeak, config.persona, item.moment);
 
+    // Record execution for debug panel
+    recordExecute(item.moment);
+
     if (audioUrl) {
       // If we have a callback for audio sync, notify it
       if (onAudioGenerated) {
@@ -223,12 +227,16 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
         if (lastQuestionReadKeyRef.current === key && ageMs < QUESTION_READ_DEDUPE_WINDOW_MS) {
           console.log('[DialogManager] ⛔ Duplicate question_read blocked', { ageMs });
+          recordBlocked(moment, `duplicate within ${ageMs}ms`);
           return;
         }
 
         lastQuestionReadKeyRef.current = key;
         lastQuestionReadAtRef.current = now;
       }
+
+      // Record enqueue for debug panel
+      recordEnqueue(moment, dynamicText || '[no text]', 'DialogManager.speak');
 
       queueRef.current.push({ moment, dynamicText, onComplete });
       if (!isProcessingRef.current) processQueue();
