@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
 import { useAudioSync } from '@/hooks/useAudioSync';
 import { useMycroftVerdict, VerdictReport } from '@/hooks/useMycroftVerdict';
-import { useAtomicNarrationTrigger } from '@/hooks/useAtomicNarrationTrigger';
+// HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId do useGameState
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -50,6 +50,12 @@ import ConnectionIndicator from '@/components/game/ConnectionIndicator';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { 
+  playHorus2Audio, 
+  playMycroftConfirmation, 
+  stopHorus2Audio,
+  hasLocalAudioForMoment
+} from '@/services/horus2Engine';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -110,7 +116,7 @@ export default function GameRoom() {
   const navigate = useNavigate();
   const sessionId = getOrCreateSessionId();
   
-  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, calculateBribeAmount, checkBribeEligibility, lastStateChange, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, calculateBribeAmount, checkBribeEligibility, lastStateChange, lastNarrationId, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -206,12 +212,7 @@ export default function GameRoom() {
   const coinsUpdatedRef = useRef<string | null>(null);
   const prevVoteCountRef = useRef<number>(0);
   const prevAudioUrlRef = useRef<string | null>(null);
-  // Track if we've already narrated for current question to prevent duplicates
-  const hasNarratedQuestionRef = useRef<string | null>(null);
-  // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
-  const lastPlayedIdRef = useRef<string | null>(null);
-  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas (persistente por sala)
-  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger(roomId || 'room');
+  // HÓRUS 2.0: Refs legados removidos - agora usa lastExecutedNarrationRef no useEffect
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state
@@ -357,104 +358,88 @@ export default function GameRoom() {
     speakPersona,
   ]);
 
-  // Hórus voice triggers - automatic speech based on game moments
-  // UPDATED: Removed round_start TTS (bordões) - now uses local SFX instead
-  // Only question_read uses TTS to save ElevenLabs credits
-  // FIX UX: evita repetição (3x) e cancela leitura imediatamente ao sair de "question"
-  const currentStatus = gameState.room?.current_status;
-  const currentQuestionId = gameState.currentQuestion?.id;
-  const currentQuestionText = gameState.currentQuestion?.question_text;
-
-  // Estado interno do gatilho de áudio (sem depender de players/votos)
-  const audioPrevStatusRef = useRef<string | null>(null);
-  const questionNarrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Mantém referências atuais sem colocar dependências voláteis no useEffect
-  const audioRuntimeRef = useRef({
-    personaMuted,
-    canPlayAudio,
-    speakPersona,
-    clearQueue,
-    stopSpeaking,
-    playReveal,
-    currentStatus,
-    currentQuestionId,
-  });
-  audioRuntimeRef.current = {
-    personaMuted,
-    canPlayAudio,
-    speakPersona,
-    clearQueue,
-    stopSpeaking,
-    playReveal,
-    currentStatus,
-    currentQuestionId,
-  };
-
+  // ============================================
+  // HÓRUS 2.0: Sistema de Áudio Unificado
+  // ============================================
+  // O gatilho ÚNICO é o lastNarrationId do useGameState
+  // Formato: `${status}_${questionId}`
+  // Só atualiza quando status OU questionId mudam
+  // Evita repetição causada por players/votos atualizando
+  // ============================================
+  
+  // Ref para rastrear última narração executada
+  const lastExecutedNarrationRef = useRef<string | null>(null);
+  
+  // HÓRUS 2.0: Efeito único baseado em lastNarrationId
   useEffect(() => {
-    const prevStatusForAudio = audioPrevStatusRef.current;
-    audioPrevStatusRef.current = currentStatus ?? null;
-
-    // Sempre cancela timeout pendente do ciclo anterior
-    if (questionNarrationTimeoutRef.current) {
-      clearTimeout(questionNarrationTimeoutRef.current);
-      questionNarrationTimeoutRef.current = null;
+    // Não faz nada se não tiver ID de narração
+    if (!lastNarrationId) return;
+    
+    // Evita repetição: só executa se o ID mudou
+    if (lastExecutedNarrationRef.current === lastNarrationId) {
+      console.log('[Hórus 2.0] Blocked - already executed:', lastNarrationId);
+      return;
     }
-
-    // Não dispara sem status/pergunta
-    if (!currentStatus || !currentQuestionId) return;
-
-    // Não dispara se estiver mutado / sem permissão
+    
+    // Não dispara se estiver mutado ou sem permissão
     if (personaMuted || !canPlayAudio) return;
-
-    // Dispara leitura apenas ao ENTRAR na fase de pergunta
-    // (lobby/result -> question). Qualquer outro status não deve reler a pergunta.
-    if (currentStatus === 'question' && (prevStatusForAudio === 'lobby' || prevStatusForAudio === 'result')) {
-      // Evita repetição para a mesma pergunta
-      if (hasNarratedQuestionRef.current === currentQuestionId) return;
-
-      // TRAVA ATÔMICA: usa o hook unificado
-      if (!shouldTriggerNarration('question_read', currentQuestionId)) return;
-
-      hasNarratedQuestionRef.current = currentQuestionId;
-      lastPlayedIdRef.current = `question_${currentQuestionId}_${(currentQuestionText ?? '').slice(0, 50)}`;
-
-      console.log('[GameRoom] Triggering question narration:', { currentQuestionId, prevStatusForAudio });
-
-      // SFX local antes da leitura
-      playReveal();
-
-      // Delay curto; se o status mudar antes (ex: host confirma rápido), o cleanup cancela
-      questionNarrationTimeoutRef.current = setTimeout(() => {
-        const rt = audioRuntimeRef.current;
-
-        // Guardas: não ler fora da fase de pergunta
-        if (rt.personaMuted || !rt.canPlayAudio) return;
-        if (rt.currentStatus !== 'question') return;
-        if (rt.currentQuestionId !== currentQuestionId) return;
-        if (!currentQuestionText) return;
-
-        rt.speakPersona('question_read', currentQuestionText);
-      }, 800);
+    
+    // Marca como executado ANTES de disparar (previne race conditions)
+    lastExecutedNarrationRef.current = lastNarrationId;
+    
+    // Parse do ID: formato é `${status}_${questionId}`
+    const [status, questionId] = lastNarrationId.split('_');
+    const questionText = gameState.currentQuestion?.question_text;
+    
+    console.log('[Hórus 2.0] Processing narration:', { status, questionId, lastNarrationId });
+    
+    // Cleanup: para áudio anterior
+    stopHorus2Audio();
+    clearQueue();
+    
+    // Mapeia status para momento do jogo
+    switch (status) {
+      case 'question':
+        // SFX local de abertura
+        playReveal();
+        
+        // Delay curto antes de ler a pergunta
+        setTimeout(() => {
+          // Verifica se ainda estamos na fase de pergunta
+          if (gameState.room?.current_status !== 'question') return;
+          if (!questionText) return;
+          
+          // Usa TTS para ler a pergunta (via cache/API)
+          speakPersona('question_read', questionText);
+        }, 800);
+        break;
+        
+      case 'result':
+        // Áudio de resultado é tratado pelo Mycroft Verdict flow
+        // Não precisa fazer nada aqui
+        break;
+        
+      case 'voting':
+        // Fase de votação - pode tocar bordão
+        if (hasLocalAudioForMoment('taunt')) {
+          playHorus2Audio('taunt');
+        }
+        break;
+        
+      case 'discussion':
+        // Fase de discussão - silêncio
+        break;
+        
+      case 'lobby':
+        // Voltou ao lobby - pode tocar abertura em novo jogo
+        break;
     }
-
+    
+    // Cleanup ao desmontar
     return () => {
-      // LIMPEZA DE FILA: ao sair de "question", interrompe imediatamente (pause) e limpa fila
-      // (isso impede a leitura "vazar" para discussion/voting/result)
-      if (currentStatus === 'question') {
-        const rt = audioRuntimeRef.current;
-        rt.clearQueue();
-        rt.stopSpeaking();
-      }
-
-      if (questionNarrationTimeoutRef.current) {
-        clearTimeout(questionNarrationTimeoutRef.current);
-        questionNarrationTimeoutRef.current = null;
-      }
+      stopHorus2Audio();
     };
-
-  // FILTRO DE ESTADO: observa apenas status e questionId
-  }, [currentStatus, currentQuestionId]);
+  }, [lastNarrationId]); // ÚNICO dependency - não escuta gameState!
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
