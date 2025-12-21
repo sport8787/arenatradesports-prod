@@ -281,6 +281,36 @@ export function useGameState(roomId: string | null) {
     };
   };
 
+  // 1. Função para calcular o valor do Acordo de Ouro (Desistência)
+  const calculateBribeAmount = useCallback(() => {
+    const currentBalance = gameState.myPlayer?.bluffcoins || 0;
+    
+    // Oferece 25% do saldo acumulado ou um mínimo de 200 BluffCoins como "rede de segurança"
+    const percentageAmount = Math.floor(currentBalance * 0.25);
+    const finalOffer = Math.max(percentageAmount, 200);
+    
+    return finalOffer;
+  }, [gameState.myPlayer?.bluffcoins]);
+
+  // 2. Lógica Inteligente de Transição (O Pulo do Gato)
+  const checkBribeEligibility = useCallback(async (playerChoice: 'A' | 'B' | 'C' | 'D') => {
+    if (!gameState.currentQuestion || !roomId) return;
+    
+    const isCorrect = playerChoice === gameState.currentQuestion.correct_option;
+    
+    if (isCorrect) {
+      // Se acertou, o destino é a vitória. Pula o acordo e vai direto para o resultado.
+      console.log("[Lógica] Jogador acertou. Pulando Acordo de Ouro.");
+      await updateRoomStatus('result');
+    } else {
+      // Se errou, ele está blefando. O Hórus entra para tentar comprá-lo.
+      console.log("[Lógica] Jogador errou. Ativando Acordo de Ouro.");
+      // Note: 'suborno' status needs to be added to room_status enum if not exists
+      // For now, we'll go to 'voting' which triggers the bribe flow
+      await updateRoomStatus('voting');
+    }
+  }, [gameState.currentQuestion, roomId, updateRoomStatus]);
+
   return {
     gameState,
     loading,
@@ -294,6 +324,8 @@ export function useGameState(roomId: string | null) {
     updateGameMode,
     shouldSkipBribe,
     getQuestionContext,
+    calculateBribeAmount,
+    checkBribeEligibility,
     lastStateChange,
     refetch: fetchGameState,
     // Connection status
