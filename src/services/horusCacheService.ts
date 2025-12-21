@@ -62,42 +62,42 @@ export async function preCacheHorusPhrases(): Promise<void> {
   let cached = 0;
   let fromStorage = 0;
   let newlyGenerated = 0;
+  let errors = 0;
 
-  // Process in batches of 3 to avoid overwhelming the API
-  const batchSize = 3;
-  for (let i = 0; i < allPhrases.length; i += batchSize) {
-    const batch = allPhrases.slice(i, i + batchSize);
+  // Process ONE at a time to avoid rate limits (ElevenLabs limit: 5 concurrent)
+  for (let i = 0; i < allPhrases.length; i++) {
+    const phrase = allPhrases[i];
     
-    const results = await Promise.allSettled(
-      batch.map(async (phrase) => {
-        try {
-          const result = await getCachedAudio({
-            text: phrase,
-            personaId: 'horus',
-            moment: 'round_start', // Generic moment for caching purposes
-          });
-          
-          if (result) {
-            cached++;
-            if (result.fromCache) {
-              fromStorage++;
-            } else {
-              newlyGenerated++;
-            }
-          }
-          
-          preCacheProgress.cached = cached;
-          return result;
-        } catch (error) {
-          console.warn('[HorusCache] Error pre-caching:', phrase.substring(0, 30), error);
-          return null;
+    try {
+      const result = await getCachedAudio({
+        text: phrase,
+        personaId: 'horus',
+        moment: 'round_start',
+      });
+      
+      if (result) {
+        cached++;
+        if (result.fromCache) {
+          fromStorage++;
+          // Cache hit - no delay needed
+        } else {
+          newlyGenerated++;
+          // API call made - wait 500ms before next request
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-      })
-    );
-
-    // Small delay between batches to be gentle on the API
-    if (i + batchSize < allPhrases.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      preCacheProgress.cached = cached;
+      
+      // Log progress every 10 phrases
+      if ((i + 1) % 10 === 0) {
+        console.log(`[HorusCache] Progress: ${i + 1}/${allPhrases.length} (${fromStorage} from cache, ${newlyGenerated} generated)`);
+      }
+    } catch (error) {
+      errors++;
+      console.warn('[HorusCache] Error pre-caching:', phrase.substring(0, 30), error);
+      // Wait longer on error (likely rate limited)
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 

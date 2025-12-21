@@ -65,120 +65,159 @@ serve(async (req) => {
 
     console.log('🔴 GENERATING TTS for voice:', voice, 'text length:', normalizedText.length, 'chars');
 
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voice}`,
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: normalizedText,
-          model_id: 'eleven_multilingual_v2',
-          output_format: 'mp3_44100_128',
-          voice_settings: {
-            stability: stability ?? 0.5,
-            similarity_boost: similarityBoost ?? 0.75,
-            style: 0.5,
-            use_speaker_boost: true,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status}`);
-    }
-
-    const audioBuffer = await response.arrayBuffer();
-    console.log('TTS generated, size:', audioBuffer.byteLength);
-
-    // If cacheKey provided, upload to audio-cache bucket
-    if (cacheKey && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
+    // Retry logic for rate limiting (429 errors)
+    let lastError: Error | null = null;
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const { error: uploadError } = await supabase.storage
-          .from('audio-cache')
-          .upload(cacheKey, audioBuffer, {
-            contentType: 'audio/mpeg',
-            upsert: true,
-          });
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${voice}`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': ELEVENLABS_API_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: normalizedText,
+              model_id: 'eleven_multilingual_v2',
+              output_format: 'mp3_44100_128',
+              voice_settings: {
+                stability: stability ?? 0.5,
+                similarity_boost: similarityBoost ?? 0.75,
+                style: 0.5,
+                use_speaker_boost: true,
+              },
+            }),
+          }
+        );
 
-        if (uploadError) {
-          console.error('Cache upload error:', uploadError);
-        } else {
+        if (response.status === 429) {
+          const errorText = await response.text();
+          console.warn(`⚠️ Rate limited (attempt ${attempt}/${maxRetries}):`, errorText);
+          
+          if (attempt < maxRetries) {
+            // Exponential backoff: 2s, 4s, 8s
+            const waitTime = Math.pow(2, attempt) * 1000;
+            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          
+          throw new Error('ElevenLabs API error: 429 - Rate limited after retries');
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('ElevenLabs API error:', response.status, errorText);
+          throw new Error(`ElevenLabs API error: ${response.status}`);
+        }
+
+        const audioBuffer = await response.arrayBuffer();
+        console.log('TTS generated, size:', audioBuffer.byteLength);
+
+        // If cacheKey provided, upload to audio-cache bucket
+        if (cacheKey && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          
+          try {
+            const { error: uploadError } = await supabase.storage
+              .from('audio-cache')
+              .upload(cacheKey, audioBuffer, {
+                contentType: 'audio/mpeg',
+                upsert: true,
+              });
+
+            if (uploadError) {
+              console.error('Cache upload error:', uploadError);
+            } else {
+              const { data: { publicUrl } } = supabase.storage
+                .from('audio-cache')
+                .getPublicUrl(cacheKey);
+              
+              console.log('Audio cached at:', publicUrl);
+              
+              return new Response(
+                JSON.stringify({ audioUrl: publicUrl, cached: false }),
+                {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                }
+              );
+            }
+          } catch (cacheError) {
+            console.error('Cache storage error:', cacheError);
+          }
+        }
+
+        // If uploadToStorage is requested (for room sync), upload to game-audio bucket
+        if (uploadToStorage && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          
+          const fileName = `tts/${roomId || 'general'}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('game-audio')
+            .upload(fileName, audioBuffer, {
+              contentType: 'audio/mpeg',
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            throw new Error(`Storage upload error: ${uploadError.message}`);
+          }
+
+          // Get public URL
           const { data: { publicUrl } } = supabase.storage
-            .from('audio-cache')
-            .getPublicUrl(cacheKey);
-          
-          console.log('Audio cached at:', publicUrl);
-          
+            .from('game-audio')
+            .getPublicUrl(fileName);
+
+          console.log('Audio uploaded to storage:', publicUrl);
+
           return new Response(
-            JSON.stringify({ audioUrl: publicUrl, cached: false }),
+            JSON.stringify({ audioUrl: publicUrl, size: audioBuffer.byteLength }),
             {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
             }
           );
         }
-      } catch (cacheError) {
-        console.error('Cache storage error:', cacheError);
-      }
-    }
 
-    // If uploadToStorage is requested (for room sync), upload to game-audio bucket
-    if (uploadToStorage && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
-      const fileName = `tts/${roomId || 'general'}/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('game-audio')
-        .upload(fileName, audioBuffer, {
-          contentType: 'audio/mpeg',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        throw new Error(`Storage upload error: ${uploadError.message}`);
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('game-audio')
-        .getPublicUrl(fileName);
-
-      console.log('Audio uploaded to storage:', publicUrl);
-
-      return new Response(
-        JSON.stringify({ audioUrl: publicUrl, size: audioBuffer.byteLength }),
-        {
+        // Return audio directly as before
+        return new Response(audioBuffer, {
           headers: {
             ...corsHeaders,
-            'Content-Type': 'application/json',
+            'Content-Type': 'audio/mpeg',
           },
+        });
+        
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < maxRetries) {
+          const waitTime = Math.pow(2, attempt) * 1000;
+          console.log(`⏳ Error occurred, waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
-      );
+      }
     }
+    
+    // All retries failed
+    throw lastError || new Error('ElevenLabs API error after retries');
 
-    // Return audio directly as before
-    return new Response(audioBuffer, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'audio/mpeg',
-      },
-    });
   } catch (error) {
     console.error('Error in elevenlabs-tts function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Return specific status for rate limiting
+    const isRateLimited = errorMessage.includes('429');
+    
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: errorMessage, retryAfter: isRateLimited ? 5 : undefined }),
       {
-        status: 500,
+        status: isRateLimited ? 429 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
