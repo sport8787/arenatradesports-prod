@@ -59,12 +59,30 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   const queueRef = useRef<QueueItem[]>([]);
   const isProcessingRef = useRef(false);
 
+  // Track if game has actually started (to prevent TTS calls before gameplay)
+  const gameStartedRef = useRef(false);
+
+  // Mark game as started when first speak call happens for gameplay moments
+  const markGameStarted = useCallback(() => {
+    if (!gameStartedRef.current) {
+      gameStartedRef.current = true;
+      console.log('[DialogManager] 🎮 Game started - TTS calls now enabled');
+    }
+  }, []);
+
   const generateTTS = useCallback(async (
     text: string, 
     personaId: PersonaId, 
     moment?: GameMoment,
     forceRefresh = false
   ): Promise<string | null> => {
+    // CRITICAL: Only allow TTS calls after game has started
+    // This prevents credit consumption during lobby/briefcase phases
+    if (!gameStartedRef.current) {
+      console.log(`[DialogManager] ⛔ TTS BLOCKED: Game not started yet. Text: "${text.substring(0, 40)}..."`);
+      return null;
+    }
+
     try {
       const result = await getCachedAudio({
         text,
@@ -180,9 +198,11 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   }, [generateTTS, canPlayAudio, onAudioGenerated, playAudioLocally]);
 
   const speak = useCallback(async (moment: GameMoment, dynamicText?: string, _priority?: number, onComplete?: () => void) => {
+    // Mark game as started when first gameplay speech is requested
+    markGameStarted();
     queueRef.current.push({ moment, dynamicText, onComplete });
     if (!isProcessingRef.current) processQueue();
-  }, [processQueue]);
+  }, [processQueue, markGameStarted]);
 
   const stopSpeaking = useCallback(() => {
     stopGlobalAudio();

@@ -20,8 +20,9 @@ export interface MycroftVerdictBlocks {
 }
 
 // Pre-cache all Mycroft fixed phrases on app start
+// CRITICAL: Uses cacheOnly=true to NEVER call ElevenLabs during pre-cache
 export async function preCacheMycroftPhrases(): Promise<void> {
-  console.log('[MycroftBlock] Pre-caching Mycroft phrases...');
+  console.log('[MycroftBlock] Pre-caching Mycroft phrases (cache check only, no ElevenLabs calls)...');
   
   const phrasesToCache = [
     ...MYCROFT_INTRO_PHRASES,
@@ -31,10 +32,13 @@ export async function preCacheMycroftPhrases(): Promise<void> {
   let cached = 0;
   for (const phrase of phrasesToCache) {
     try {
+      // CRITICAL: cacheOnly=true means we ONLY check if audio exists in cache
+      // We NEVER call ElevenLabs during pre-cache - zero credit consumption
       const result = await getCachedAudio({
         text: phrase,
         personaId: 'mycroft',
         moment: 'verdict',
+        cacheOnly: true, // ⚠️ NEVER call ElevenLabs, only check cache
       });
       if (result?.fromCache) {
         cached++;
@@ -44,7 +48,7 @@ export async function preCacheMycroftPhrases(): Promise<void> {
     }
   }
   
-  console.log(`[MycroftBlock] Pre-cached ${cached}/${phrasesToCache.length} phrases`);
+  console.log(`[MycroftBlock] Found ${cached}/${phrasesToCache.length} phrases in cache (no ElevenLabs calls made)`);
 }
 
 // Generate the 3 blocks for Mycroft verdict
