@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
@@ -9,6 +9,7 @@ import { useAudioPreloader } from '@/hooks/useAudioPreloader';
 import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
+import { GameOpening } from '@/components/game/GameOpening';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,14 @@ export default function Index() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
+  const [showOpening, setShowOpening] = useState(() => {
+    // Check if we should show opening (first visit after login)
+    const shouldShow = sessionStorage.getItem('showOpening') === 'true';
+    if (shouldShow) {
+      sessionStorage.removeItem('showOpening');
+    }
+    return shouldShow;
+  });
 
   // Audio preloader DISABLED on landing page to prevent any ElevenLabs usage before playing
   const audioPreloader = useAudioPreloader(false);
@@ -197,8 +206,18 @@ export default function Index() {
 
   const displayName = isGuest ? guestNickname : profile?.username;
 
+  // Show cinematic opening (covers everything)
+  if (showOpening) {
+    return <GameOpening onComplete={() => setShowOpening(false)} />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+      className="min-h-screen flex flex-col items-center justify-center p-4"
+    >
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -408,6 +427,6 @@ export default function Index() {
         progressPercent={audioPreloader.progressPercent}
         currentPhrase={audioPreloader.currentPhrase}
       />
-    </div>
+    </motion.div>
   );
 }
