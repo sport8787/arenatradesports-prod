@@ -204,8 +204,8 @@ export default function GameRoom() {
   const hasNarratedQuestionRef = useRef<string | null>(null);
   // Track last played audio ID to prevent duplicate TTS synthesis on re-renders
   const lastPlayedIdRef = useRef<string | null>(null);
-  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas
-  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger();
+  // TRAVA ATÔMICA: Hook unificado para evitar narrações duplicadas (persistente por sala)
+  const { shouldTrigger: shouldTriggerNarration, resetTrigger: resetNarrationTrigger } = useAtomicNarrationTrigger(roomId || 'room');
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
   // Round progression state

@@ -1,31 +1,33 @@
-// Simplified atomic narration trigger hook
-// Prevents duplicate narrations using a key-based lock
+// Simplified atomic narration trigger hook with cross-remount persistence
+// Prevents duplicate narrations using a key-based lock stored in a module-level map.
 
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 
-export function useAtomicNarrationTrigger() {
-  const lastTriggeredKey = useRef<string | null>(null);
+// Persist across component remounts (fixes duplicate triggers when pages remount)
+const GLOBAL_LAST_TRIGGERED_KEY_BY_SCOPE = new Map<string, string | null>();
 
-  const shouldTrigger = useCallback((status: string, questionId?: string) => {
-    // Create unique key for current state
-    const currentKey = `${status}-${questionId || 'no-q'}`;
+export function useAtomicNarrationTrigger(scope: string = 'default') {
+  const shouldTrigger = useCallback(
+    (status: string, questionId?: string) => {
+      const currentKey = `${status}-${questionId || 'no-q'}`;
+      const lastKey = GLOBAL_LAST_TRIGGERED_KEY_BY_SCOPE.get(scope) ?? null;
 
-    // If key matches the last one, block execution
-    if (lastTriggeredKey.current === currentKey) {
-      console.log('[AtomicNarration] Blocked - already triggered:', currentKey);
-      return false;
-    }
+      if (lastKey === currentKey) {
+        console.log('[AtomicNarration] Blocked - already triggered:', { scope, currentKey });
+        return false;
+      }
 
-    // Otherwise, update lock and allow narration
-    lastTriggeredKey.current = currentKey;
-    console.log('[AtomicNarration] Allowed - new key:', currentKey);
-    return true;
-  }, []);
+      GLOBAL_LAST_TRIGGERED_KEY_BY_SCOPE.set(scope, currentKey);
+      console.log('[AtomicNarration] Allowed - new key:', { scope, currentKey });
+      return true;
+    },
+    [scope]
+  );
 
   const resetTrigger = useCallback(() => {
-    lastTriggeredKey.current = null;
-    console.log('[AtomicNarration] Reset trigger state');
-  }, []);
+    GLOBAL_LAST_TRIGGERED_KEY_BY_SCOPE.set(scope, null);
+    console.log('[AtomicNarration] Reset trigger state:', { scope });
+  }, [scope]);
 
   return { shouldTrigger, resetTrigger };
 }
