@@ -68,6 +68,9 @@ export type GameMoment =
   | 'verdict'
   | 'all_in_temptation' // Special moment for All-in vs Maleta decision
   | 'bribe_offer' // Hórus offer after Mycroft verdict
+  | 'bribe_intro' // Frase fixa cacheável: intro do acordo
+  | 'bribe_value' // Valor dinâmico do acordo (curto, ~15-20 créditos)
+  | 'bribe_outro' // Frase fixa cacheável: "Pega ou larga?"
   | 'special_challenge' // Desafios especiais de alto risco
   | 'jury_deliberation' // Quando o júri está votando
   | 'post_vote_bribe' // Oferta após votação, antes do resultado
@@ -102,6 +105,9 @@ export const DIALOG_RULES: DialogConfig[] = [
   { moment: 'voting_start', persona: 'horus', useLiveAI: false },
   { moment: 'verdict', persona: 'mycroft', useLiveAI: true }, // Live AI for analysis
   { moment: 'bribe_offer', persona: 'horus', useLiveAI: false }, // Pre-recorded offer phrases
+  { moment: 'bribe_intro', persona: 'horus', useLiveAI: false }, // Cacheável: "Seu destino já está selado..."
+  { moment: 'bribe_value', persona: 'horus', useLiveAI: false }, // Dinâmico curto: "X BluffCoins"
+  { moment: 'bribe_outro', persona: 'horus', useLiveAI: false }, // Cacheável: "Pega ou larga?"
   { moment: 'special_challenge', persona: 'horus', useLiveAI: false },
   { moment: 'jury_deliberation', persona: 'horus', useLiveAI: false },
   { moment: 'post_vote_bribe', persona: 'horus', useLiveAI: false },

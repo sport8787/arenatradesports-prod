@@ -109,7 +109,7 @@ export default function GameRoom() {
   const navigate = useNavigate();
   const sessionId = getOrCreateSessionId();
   
-  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, lastStateChange, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
+  const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, calculateBribeAmount, checkBribeEligibility, lastStateChange, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
   const { profile, isAuthenticated, loading: authLoading } = useAuth();
@@ -498,12 +498,14 @@ export default function GameRoom() {
           // Check if player got the answer wrong (is bluffing)
           const playerGotCorrect = confirmedAnswer === question.correct_option;
           
-          // Offer only happens from round 3+, when player is BLUFFING, with 25% probability
-          const shouldTriggerOffer = currentRound >= 3 && !playerGotCorrect && Math.random() < 0.25;
-          
-          if (shouldTriggerOffer) {
-            // Offer amount = accumulated prize (player can cash out with what they have)
-            const offerAmount = accumulatedPrize > 0 ? accumulatedPrize : Math.floor(Math.random() * 20001) + 5000;
+          // LÓGICA INTELIGENTE DE TRANSIÇÃO:
+          // Offer only happens when player is BLUFFING (errou a pergunta)
+          // Se acertou, pula direto para resultado sem oferta
+          if (playerGotCorrect) {
+            console.log('[Hórus Offer] Skipped - player answered correctly (not bluffing)');
+          } else if (currentRound >= 3) {
+            // Usar calculateBribeAmount para valor dinâmico (25% do saldo ou mín 200)
+            const offerAmount = calculateBribeAmount();
             setBribeAmount(offerAmount);
             
             // Show offer after a short delay with temptation sound
@@ -512,13 +514,9 @@ export default function GameRoom() {
               playTemptation();
             }, 2500);
             
-            console.log('[Hórus Offer] Triggered at round', currentRound, '- player is bluffing, offer:', offerAmount);
+            console.log('[Hórus Offer] Triggered at round', currentRound, '- player is bluffing, dynamic offer:', offerAmount);
           } else {
-            if (playerGotCorrect) {
-              console.log('[Hórus Offer] Skipped - player answered correctly (not bluffing)');
-            } else {
-              console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+) or 75% chance roll');
-            }
+            console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+)');
           }
         }
       });
@@ -1186,21 +1184,34 @@ export default function GameRoom() {
   };
 
   // Hórus Bribe handlers
-  const handleListenBribeProposal = () => {
+  // ECONOMIA DE ÁUDIO (Estratégia Lego):
+  // - Usar áudio cacheado para frases fixas
+  // - Sintetizar apenas o valor dinâmico
+  // - Isso economiza ~480 créditos por oferta
+  const handleListenBribeProposal = async () => {
     setIsBribeListening(true);
-    // Speak the offer with Hórus voice
-    speakPersona('bribe_offer', undefined, 10, () => {
-      // Speech complete
-    });
-    // Get the phrase that will be spoken for display
-    const phrases = [
-      'Seu destino já foi selado pelo júri. Você confia na sua mentira ou prefere aceitar meu acordo e sair com o que já conquistou?',
-      'Eu tenho um Pacto de Cavalheiros para você. O júri é implacável, mas eu sou generoso.',
-      'Esta é a sua Saída de Emergência. Pegue o prêmio acumulado e saia com dignidade. O que vai ser?',
-      'Não jogue sua sorte ao vento. Aceite a Desistência Honrosa antes que o veredicto seja revelado.',
-      'O júri é implacável, mas eu sou generoso. Considere este Acordo de Ouro antes que seja tarde demais.',
-    ];
-    setBribePhrase(phrases[Math.floor(Math.random() * phrases.length)]);
+    
+    // Frase fixa cacheável: "Seu destino já está selado, mas eu tenho um Acordo de Ouro para você..."
+    const introPhrase = 'Seu destino já está selado, mas eu tenho um Acordo de Ouro para você...';
+    setBribePhrase(introPhrase);
+    
+    // Falar intro (pode ser cacheado)
+    speakPersona('bribe_intro', introPhrase);
+    
+    // Após 3s, falar o valor (dinâmico, mas curto ~15-20 créditos)
+    setTimeout(() => {
+      const valorFormatado = bribeAmount.toLocaleString('pt-BR');
+      const valorPhrase = `${valorFormatado} BluffCoins`;
+      setBribePhrase(`${introPhrase} ${valorPhrase}...`);
+      speakPersona('bribe_value', valorPhrase);
+    }, 3000);
+    
+    // Após 5s, finalizar com frase cacheável
+    setTimeout(() => {
+      const outroPhrase = 'Pega ou larga?';
+      setBribePhrase(`Seu destino já está selado... ${bribeAmount.toLocaleString('pt-BR')} BluffCoins... Pega ou larga?`);
+      speakPersona('bribe_outro', outroPhrase);
+    }, 5000);
   };
 
   const handleAcceptBribe = async () => {
@@ -1208,58 +1219,46 @@ export default function GameRoom() {
     setIsBribeListening(false);
     setBribePhrase(null);
     
-    // Award the offer amount (accumulated prize)
+    // Award the dynamic bribe amount (25% do saldo ou mín 200)
     if (gameState.myPlayer) {
       await updateBluffcoins(gameState.myPlayer.id, bribeAmount);
       playCashRegister();
       toast({ 
         title: '💰 ACORDO ACEITO!', 
-        description: `Você saiu com ${bribeAmount.toLocaleString()} BluffCoins!` 
+        description: `Você saiu com ${bribeAmount.toLocaleString('pt-BR')} BluffCoins!` 
       });
     }
     
-    // Proceed to reveal results
-    const question = gameState.currentQuestion;
-    const playerCorrect = confirmedAnswer === question?.correct_option;
-    const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
-    const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
-    const totalVotes = gameState.votes.length;
-    
-    // Hórus announces the result after bribe
+    // Finaliza a rodada SEM mostrar o erro - jogador aceitou a desistência honrosa
+    // Não mostramos o resultado da votação, apenas avançamos
     setTimeout(() => {
-      if (totalVotes > 0) {
-        if (!playerCorrect && doubtCount === totalVotes) {
-          speakPersona('bluff_fail');
-        } else if (!playerCorrect && believeCount > 0) {
-          speakPersona('bluff_success');
-        } else if (playerCorrect) {
-          speakPersona('correct_answer');
-        }
-      }
-    }, 500);
+      // Avançar para próxima pergunta ao invés de mostrar resultado
+      nextQuestion();
+    }, 1500);
   };
 
-  const handleRejectBribe = () => {
+  const handleRejectBribe = async () => {
     setShowBribeOffer(false);
     setIsBribeListening(false);
     setBribePhrase(null);
     
-    // Hórus comments on rejection
-    const question = gameState.currentQuestion;
-    const playerCorrect = confirmedAnswer === question?.correct_option;
-    const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
-    const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
-    const totalVotes = gameState.votes.length;
+    // Jogador recusou - REVELAR DESTINO
+    // Muda status para 'result' e executa áudio de derrota
+    await updateRoomStatus('result');
     
-    // Announce result immediately after rejection
+    // Hórus anuncia o resultado (derrota, já que só oferece para quem errou)
     setTimeout(() => {
+      const doubtCount = gameState.votes.filter(v => v.vote_type === 'doubt').length;
+      const believeCount = gameState.votes.filter(v => v.vote_type === 'believe').length;
+      const totalVotes = gameState.votes.length;
+      
       if (totalVotes > 0) {
-        if (!playerCorrect && doubtCount === totalVotes) {
+        if (doubtCount === totalVotes) {
+          // Todos votaram BLEFE - eliminação
           speakPersona('bluff_fail');
-        } else if (!playerCorrect && believeCount > 0) {
+        } else if (believeCount > 0) {
+          // Alguns acreditaram - blefe parcial
           speakPersona('bluff_success');
-        } else if (playerCorrect) {
-          speakPersona('correct_answer');
         }
       }
     }, 500);
