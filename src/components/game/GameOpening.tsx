@@ -11,6 +11,8 @@ const HIEROGLYPHS = ['𓂀', '𓃀', '𓆣', '𓅓', '𓊪', '𓋹', '𓌂', '�
 
 export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
   const [stage, setStage] = useState(0);
+  const [showSkipButton, setShowSkipButton] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   // Pre-calculate particle positions to avoid window reference issues
   const particles = useMemo(() => 
@@ -38,9 +40,11 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
 
   useEffect(() => {
     const audio = new Audio('/audio/horus/abertura_completa.mp3');
+    audioRef.current = audio;
     audio.play().catch(console.error);
 
     const timers = [
+      setTimeout(() => setShowSkipButton(true), 3000), // Show skip after 3s
       setTimeout(() => setStage(1), 3000),
       setTimeout(() => setStage(2), 8000),
       setTimeout(() => setStage(3), 12000),
@@ -52,6 +56,13 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
       audio.pause();
     };
   }, [onComplete]);
+
+  const handleSkip = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    onComplete();
+  };
 
   return (
     <motion.div
@@ -455,6 +466,32 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Skip Button */}
+      <AnimatePresence>
+        {showSkipButton && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            onClick={handleSkip}
+            className={cn(
+              "absolute bottom-8 right-8 z-50",
+              "px-6 py-3 rounded-lg",
+              "bg-black/60 backdrop-blur-sm border border-amber-500/30",
+              "text-amber-300/90 text-sm tracking-wider",
+              "hover:bg-amber-500/20 hover:border-amber-500/50 hover:text-amber-200",
+              "transition-all duration-200",
+              "flex items-center gap-2"
+            )}
+            style={{ fontFamily: "'Cinzel', serif" }}
+          >
+            <span>Pular</span>
+            <span className="text-xs opacity-60">→</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
