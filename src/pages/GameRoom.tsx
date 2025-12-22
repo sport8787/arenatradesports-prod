@@ -133,9 +133,10 @@ export default function GameRoom() {
     resetMetrics: resetVerdictMetrics 
   } = useMycroftVerdict();
   
-  // Guest mode check
+  // Guest mode check - usa nickname salvo ou gera um aleatório
   const isGuest = sessionStorage.getItem('guestMode') === 'true';
-  const guestNickname = `Convidado${Math.floor(Math.random() * 9999)}`;
+  const savedGuestNickname = sessionStorage.getItem('guestNickname');
+  const guestNickname = savedGuestNickname || `Convidado${Math.floor(Math.random() * 9999)}`;
   const displayNickname = isGuest ? guestNickname : profile?.username || 'Jogador';
   
   // Question history hook

@@ -46,9 +46,9 @@ export default function Index() {
     const guestMode = sessionStorage.getItem('guestMode');
     if (guestMode === 'true') {
       setIsGuest(true);
-      // Generate random guest name
-      const randomNum = Math.floor(Math.random() * 9999);
-      setGuestNickname(`Convidado${randomNum}`);
+      // Usa nickname salvo ou gera aleatório
+      const savedNickname = sessionStorage.getItem('guestNickname');
+      setGuestNickname(savedNickname || `Convidado${Math.floor(Math.random() * 9999)}`);
     }
   }, []);
 
