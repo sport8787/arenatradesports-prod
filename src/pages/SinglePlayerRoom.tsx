@@ -5,6 +5,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { VoiceMetrics, startForensicsSession } from '@/services/audioForensicsService';
 import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
 // HÓRUS 2.0: useHorusNarration removido - agora usa horus2Engine
 import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
@@ -108,7 +109,7 @@ export default function SinglePlayerRoom() {
   const navigate = useNavigate();
   const { playChips, playSuspense, playFanfare, playReveal, playGameOver, playCashRegister, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
-  const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile } = useAuth();
+  const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile, refetchProfile } = useAuth();
 
   const isGuest = sessionStorage.getItem('guestMode') === 'true';
   const savedGuestNickname = sessionStorage.getItem('guestNickname');
@@ -298,7 +299,7 @@ export default function SinglePlayerRoom() {
     setGamePhase('question');
   };
   
-  // Persist bluffcoins to profile (only for authenticated non-guest users)
+  // Persist bluffcoins to profile using atomic RPC (only for authenticated non-guest users)
   const persistWinnings = async (amount: number, isVictory: boolean = false) => {
     // Don't persist for guests
     if (isGuest) {
@@ -307,15 +308,44 @@ export default function SinglePlayerRoom() {
     }
     if (!profile || amount <= 0) return;
     
-    // Combine bluff_coins update with other stats in a single call to avoid race condition
-    const newBalance = profile.bluff_coins + amount;
-    await updateProfile({ 
-      bluff_coins: newBalance,
-      matches_played: profile.matches_played + 1,
-      wins: isVictory ? profile.wins + 1 : profile.wins
-    });
-    
-    console.log('[SinglePlayerRoom] Persisted winnings:', amount, 'New balance:', newBalance);
+    try {
+      console.log(`[BANK] Processando depósito de: ${amount} BluffCoins...`);
+      
+      // Use atomic RPC function for secure balance update
+      const { error: rpcError } = await supabase.rpc('increment_bluffcoins', {
+        p_user_id: profile.user_id,
+        p_amount: amount
+      });
+      
+      if (rpcError) {
+        console.error('[BANK ERROR] RPC failed:', rpcError);
+        throw rpcError;
+      }
+      
+      // Update matches_played and wins separately
+      await updateProfile({ 
+        matches_played: profile.matches_played + 1,
+        wins: isVictory ? profile.wins + 1 : profile.wins
+      });
+      
+      // Force refetch profile to update UI immediately
+      await refetchProfile?.();
+      
+      const newBalance = profile.bluff_coins + amount;
+      console.log('[BANK] Depósito confirmado! Novo saldo estimado:', newBalance);
+      
+      toast({ 
+        title: 'Depósito Confirmado! 💰', 
+        description: `${amount.toLocaleString()} BluffCoins foram adicionados à sua carteira.` 
+      });
+    } catch (error) {
+      console.error('[BANK ERROR] Falha ao depositar:', error);
+      toast({ 
+        title: 'Erro de Conexão', 
+        description: 'Seu saldo será sincronizado na próxima reconexão.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const selectNextQuestion = async () => {
@@ -381,6 +411,11 @@ export default function SinglePlayerRoom() {
       setAccumulatedPrize(FINAL_ROUND_PRIZE);
       setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
       setShowMoneyRain(true);
+      
+      // Play the special victory audio for 1 million
+      stopHorus2Audio();
+      const victoryAudio = new Audio('/audio/horus/victory_1m.mp3');
+      victoryAudio.play().catch(console.error);
       playFanfare();
       
       // Persist winnings to profile
@@ -1377,7 +1412,7 @@ export default function SinglePlayerRoom() {
         currentRound={currentRound}
         maxRounds={MAX_ROUNDS}
         accumulatedPrize={accumulatedPrize}
-        potentialPrize={PRIZE_LADDER.reduce((a, b) => a + b, 0)}
+        potentialPrize={PRIZE_LADDER[PRIZE_LADDER.length - 1]}
         onConfirm={handleCashOut}
         onCancel={() => setShowCashOutDialog(false)}
       />
