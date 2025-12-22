@@ -45,6 +45,12 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/bordao_5.mp3',
     '/audio/horus/bordao_6.mp3',
     '/audio/horus/bordao_7.mp3',
+    '/audio/horus/bordao_8.mp3',
+    '/audio/horus/bordao_9.mp3',
+    '/audio/horus/bordao_10.mp3',
+    '/audio/horus/bordao_11.mp3',
+    '/audio/horus/bordao_12.mp3',
+    '/audio/horus/bordao_13.mp3',
   ],
   
   // Derrota / Defeat
