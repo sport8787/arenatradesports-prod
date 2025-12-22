@@ -309,16 +309,13 @@ export default function GameRoom() {
   }, [gameState.room?.current_audio_url, gameState.room?.current_status, isRoomHost, playVote]);
 
   // Handler for auto-reveal when all jurors have voted (called from VoteCounter)
-  // Now triggers Mycroft FIRST, then goes to results after Mycroft finishes
+  // Now triggers Mycroft FIRST - the Mycroft callback decides if bribe_offer or result
   const handleAllVoted = async () => {
     if (!isRoomHost) return;
     
-    // Trigger Mycroft verdict first - results will show after he finishes
+    // Trigger Mycroft verdict first - the callback will handle transition to bribe_offer or result
     await triggerMycroftVerdict();
-    
-    // Go to result status after Mycroft starts (he'll announce before Hórus)
-    await updateRoomStatus('result');
-    setTimeout(() => playChips(), 500);
+    // DO NOT go to result here - the Mycroft callback handles the status transition
   };
 
   // Play sounds on status changes and update rankings
@@ -599,7 +596,6 @@ export default function GameRoom() {
         // 2. Not already triggered for this question
         // 3. From round 3+
         // 4. ONLY if player got the answer WRONG (is bluffing)
-        // 5. 25% probability
         if (isRoomHost && bribeTriggeredRef.current !== questionId) {
           bribeTriggeredRef.current = questionId;
           
@@ -611,24 +607,33 @@ export default function GameRoom() {
           // Se acertou, pula direto para resultado sem oferta
           if (playerGotCorrect) {
             console.log('[Hórus Offer] Skipped - player answered correctly (not bluffing)');
-            // Reveal destiny since there's no bribe offer
+            // Reveal destiny since there's no bribe offer - go straight to result
             setDestinyRevealed(true);
+            (async () => {
+              await updateRoomStatus('result');
+              setTimeout(() => playChips(), 500);
+            })();
           } else if (currentRound >= 3) {
             // Usar calculateBribeAmount para valor dinâmico (25% do saldo ou mín 200)
             const offerAmount = calculateBribeAmount();
             setBribeAmount(offerAmount);
             
-            // Show offer after a short delay with temptation sound
-            setTimeout(() => {
-              setShowBribeOffer(true);
+            // CRITICAL: Change room status to bribe_offer so jury sees it too
+            console.log('[Hórus Offer] Transitioning to bribe_offer status - round', currentRound, '- dynamic offer:', offerAmount);
+            setTimeout(async () => {
               playTemptation();
+              setShowBribeOffer(true);
+              // Update room status so all clients see the bribe phase
+              await updateRoomStatus('bribe_offer' as any);
             }, 2500);
-            
-            console.log('[Hórus Offer] Triggered at round', currentRound, '- player is bluffing, dynamic offer:', offerAmount);
           } else {
             console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+)');
-            // No bribe offer in early rounds - reveal destiny
+            // No bribe offer in early rounds - reveal destiny and go to result
             setDestinyRevealed(true);
+            (async () => {
+              await updateRoomStatus('result');
+              setTimeout(() => playChips(), 500);
+            })();
           }
         }
       });
@@ -1188,12 +1193,9 @@ export default function GameRoom() {
   const showResults = async () => {
     if (!isRoomHost) return;
     
-    // Trigger Mycroft verdict FIRST, then go to results
+    // Trigger Mycroft verdict FIRST - the callback will handle transition to bribe_offer or result
     await triggerMycroftVerdict();
-    
-    await updateRoomStatus('result');
-    // Play chips sound when showing results (someone scored)
-    setTimeout(() => playChips(), 500);
+    // DO NOT go to result here - the Mycroft callback handles the status transition
   };
 
   const handleTimerTick = (secondsLeft: number) => {
@@ -1382,10 +1384,11 @@ export default function GameRoom() {
     }
     
     // Finaliza a rodada SEM mostrar o erro - jogador aceitou a desistência honrosa
-    // Não mostramos o resultado da votação, apenas avançamos
-    setTimeout(() => {
+    // Não mostramos o resultado da votação, apenas avançamos para próxima pergunta
+    // First go back to result briefly (to sync all clients) then move to next question
+    setTimeout(async () => {
       // Avançar para próxima pergunta ao invés de mostrar resultado
-      nextQuestion();
+      await nextQuestion();
     }, 1500);
   };
 
@@ -1398,8 +1401,9 @@ export default function GameRoom() {
     setDestinyRevealed(true);
     
     // Jogador recusou - REVELAR DESTINO
-    // Muda status para 'result' e executa áudio de derrota
+    // Muda status para 'result' (sai de bribe_offer) e executa áudio de derrota/vitória
     await updateRoomStatus('result');
+    setTimeout(() => playChips(), 500);
     
     // Hórus anuncia o resultado (derrota/vitória)
     setTimeout(async () => {
@@ -1422,7 +1426,7 @@ export default function GameRoom() {
       }
 
       await playHorus2Audio(moment);
-    }, 500);
+    }, 1000);
   };
 
   // Show loading state while data is being fetched
@@ -1886,6 +1890,98 @@ export default function GameRoom() {
                 </div>
               )}
 
+              {/* BRIBE OFFER - Host negotiates while Jury watches in stand-by */}
+              {gameState.room?.current_status === ('bribe_offer' as any) && gameState.currentQuestion && (
+                <div className="space-y-6">
+                  <QuestionCard
+                    question={gameState.currentQuestion}
+                    showCorrectAnswer={false}
+                    selectedOption={isRoomHost ? (confirmedAnswer || selectedAnswer || undefined) : undefined}
+                    confirmedAnswer={isRoomHost ? (confirmedAnswer || undefined) : undefined}
+                    disabled={true}
+                    autoNarrate={false}
+                  />
+                  
+                  {!isRoomHost && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="space-y-6 p-8 bg-gradient-to-b from-gold/20 via-background to-background border-2 border-gold/50 rounded-xl relative overflow-hidden"
+                    >
+                      {/* Animated background glow */}
+                      <motion.div
+                        animate={{
+                          opacity: [0.3, 0.6, 0.3],
+                          scale: [1, 1.1, 1],
+                        }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(var(--gold)/0.4)_0%,_transparent_70%)]"
+                      />
+                      
+                      <div className="relative z-10 text-center space-y-6">
+                        {/* Animated briefcase */}
+                        <motion.div
+                          animate={{
+                            y: [-5, 5, -5],
+                            rotateY: [0, 10, 0, -10, 0],
+                          }}
+                          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                          className="w-24 h-20 mx-auto bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-lg border-4 border-gold/60 flex items-center justify-center relative"
+                        >
+                          <motion.div
+                            animate={{ opacity: [0, 1, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                            className="absolute inset-0 bg-gradient-to-t from-gold/30 to-transparent rounded-lg"
+                          />
+                          <span className="text-3xl">🤝</span>
+                        </motion.div>
+
+                        <div className="space-y-2">
+                          <motion.h3 
+                            animate={{ 
+                              textShadow: ['0 0 10px hsl(var(--gold))', '0 0 30px hsl(var(--gold))', '0 0 10px hsl(var(--gold))']
+                            }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                            className="font-orbitron text-2xl text-gold"
+                          >
+                            ⏸️ NEGOCIAÇÃO SECRETA
+                          </motion.h3>
+                          <p className="text-lg text-foreground font-medium">
+                            O Hórus está fazendo uma <span className="text-gold">proposta</span> ao host...
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            O tempo parou enquanto o destino é negociado nos bastidores
+                          </p>
+                        </div>
+
+                        {/* Animated waiting dots */}
+                        <div className="flex items-center justify-center gap-3">
+                          <motion.div
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ repeat: Infinity, duration: 1.2 }}
+                            className="w-3 h-3 bg-gold rounded-full"
+                          />
+                          <motion.div
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }}
+                            className="w-3 h-3 bg-gold rounded-full"
+                          />
+                          <motion.div
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }}
+                            className="w-3 h-3 bg-gold rounded-full"
+                          />
+                        </div>
+
+                        <p className="text-xs text-muted-foreground italic">
+                          "Acordos obscuros são feitos longe dos olhos do júri..."
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+
               {/* BRIEFCASE DECISION - Jury sees this while host decides */}
               {gameState.room?.current_status === 'result' && gameState.room?.current_audio_url === 'BRIEFCASE_DECISION' && !isRoomHost && (
                 <motion.div
@@ -2317,9 +2413,9 @@ export default function GameRoom() {
         onClose={() => setShowMycroftVerdict(false)}
       />
 
-      {/* Hórus Bribe Offer - The Temptation */}
+      {/* Hórus Bribe Offer - The Temptation (only for host) */}
       <HorusBribeOffer
-        isVisible={showBribeOffer}
+        isVisible={isRoomHost && (showBribeOffer || gameState.room?.current_status === ('bribe_offer' as any))}
         bribeAmount={bribeAmount}
         onAcceptBribe={handleAcceptBribe}
         onRejectBribe={handleRejectBribe}
