@@ -134,8 +134,8 @@ export default function GameRoom() {
     resetMetrics: resetVerdictMetrics 
   } = useMycroftVerdict();
   
-  // Guest mode check - usa nickname salvo ou gera um aleatório
-  const isGuest = sessionStorage.getItem('guestMode') === 'true';
+  // Guest mode check - só considera convidado se NÃO estiver autenticado
+  const isGuest = !isAuthenticated && sessionStorage.getItem('guestMode') === 'true';
   const savedGuestNickname = sessionStorage.getItem('guestNickname');
   const guestNickname = savedGuestNickname || `Convidado${Math.floor(Math.random() * 9999)}`;
   const displayNickname = isGuest ? guestNickname : profile?.username || 'Jogador';
@@ -828,15 +828,15 @@ export default function GameRoom() {
     } else if ((isRoomHost && playerGotCorrect) || believeVotes > 0) {
       // Round won - accumulate prize (if not eliminated)
       if (currentRound > 0 && currentRound <= MAX_ROUNDS) {
+        // Prêmio NÃO é cumulativo: a rodada define o valor atual (ex.: rodada 14 = 500.000)
         const roundPrize = PRIZE_LADDER[currentRound - 1];
-        const newAccumulated = accumulatedPrize + roundPrize;
-        setAccumulatedPrize(newAccumulated);
+        setAccumulatedPrize(roundPrize);
         
         // Unlock Guaranteed Prize card if host convinced 2+ jury members to vote CLARO
         if (!hasGuaranteedPrize && !playerGotCorrect && believeVotes >= 2) {
           console.log('[BonusCard] Unlocking Guaranteed Prize card - believeVotes:', believeVotes);
           setHasGuaranteedPrize(true);
-          setSafeAmount(newAccumulated);
+          setSafeAmount(roundPrize);
           setNewlyUnlockedCard('guaranteed');
           // Delay showing the unlock animation slightly so results panel shows first
           setTimeout(() => {

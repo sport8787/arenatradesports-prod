@@ -111,7 +111,8 @@ export default function SinglePlayerRoom() {
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
   const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile, refetchProfile } = useAuth();
 
-  const isGuest = sessionStorage.getItem('guestMode') === 'true';
+  // Só considera convidado se NÃO estiver autenticado (evita bloquear salvamento após login)
+  const isGuest = !isAuthenticated && sessionStorage.getItem('guestMode') === 'true';
   const savedGuestNickname = sessionStorage.getItem('guestNickname');
   const [guestNickname] = useState(() => savedGuestNickname || `Convidado${Math.floor(Math.random() * 9999)}`);
   const displayName = isGuest ? guestNickname : profile?.username || 'Jogador';
