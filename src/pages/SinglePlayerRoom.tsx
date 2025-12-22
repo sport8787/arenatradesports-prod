@@ -44,11 +44,7 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
-// Mantém horusLocalAudio para compatibilidade com momentos específicos
-import { 
-  getRandomAudioFile,
-  playHorusAudio 
-} from '@/services/horusLocalAudio';
+// Note: horusLocalAudio imports removed - now using horus2Engine exclusively
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -105,7 +101,8 @@ const generateBriefcasePrize = (): number => {
   return 250000; // 250.000 BC fixo
 };
 
-type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+// IMPORTANT: 'bribe_offer' must come BEFORE 'analyzing' to prevent spoilers
+type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 export default function SinglePlayerRoom() {
   const navigate = useNavigate();
@@ -156,10 +153,11 @@ export default function SinglePlayerRoom() {
   // Voice forensics metrics
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
   
-  // Horus Post-Vote Bribe states
-  const [showHorusBribe, setShowHorusBribe] = useState(false);
+  // Horus Bribe phase states
   const [showWaxSealBreaking, setShowWaxSealBreaking] = useState(false);
   const [showContractTearing, setShowContractTearing] = useState(false);
+  const [isHorusListening, setIsHorusListening] = useState(false);
+  const [horusPhrase, setHorusPhrase] = useState<string | null>(null);
   const [pendingResultData, setPendingResultData] = useState<{
     playerAnsweredCorrectly: boolean;
     votes: BotVote[];
@@ -438,9 +436,23 @@ export default function SinglePlayerRoom() {
   };
 
   const submitAudio = () => {
-    // Skip to AI analysis phase
-    setGamePhase('analyzing');
+    // CRITICAL FIX: Show Horus bribe offer BEFORE analyzing phase
+    // This prevents the "spoiler" where result was shown before the offer
+    setGamePhase('bribe_offer');
     playSuspense();
+    setIsHorusListening(true);
+    setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
+    
+    // Play Horus's bribe audio immediately
+    playHorus2Audio('acordo', undefined, () => {
+      // Audio finished - keep listening state but allow choices
+      setIsHorusListening(false);
+    });
+  };
+  
+  // Called when player makes a decision on the bribe offer
+  const proceedToAnalysis = () => {
+    setGamePhase('analyzing');
     
     // Simulate AI analysis with progress
     let progress = 0;
@@ -457,6 +469,8 @@ export default function SinglePlayerRoom() {
     }, 300);
   };
 
+  // processResults is now called AFTER the bribe decision
+  // The bribe decision happens in the bribe_offer phase, not here
   const processResults = async () => {
     if (!currentQuestion || !confirmedAnswer) return;
 
@@ -470,7 +484,7 @@ export default function SinglePlayerRoom() {
     // Check elimination: wrong answer + all bots voted BLEFE
     const shouldEliminate = !playerAnsweredCorrectly && doubtVotes === 3;
 
-    // Store pending result data
+    // Store pending result data for post-reveal processing
     setPendingResultData({
       playerAnsweredCorrectly,
       votes,
@@ -479,14 +493,13 @@ export default function SinglePlayerRoom() {
       shouldEliminate,
     });
     
-    // CRITICAL LOGIC: Only show Horus offer if player got it WRONG (bluffing)
-    if (!playerAnsweredCorrectly) {
-      // Player is bluffing - show Acordo de Ouro
-      setShowHorusBribe(true);
-      playSuspense();
-    } else {
-      // Player answered correctly - skip offer, go directly to victory reveal
+    // Now we go directly to result handling since bribe was already offered
+    if (playerAnsweredCorrectly) {
+      // Player answered correctly - victory reveal
       handleVictoryReveal(playerAnsweredCorrectly, believeVotes, shouldEliminate);
+    } else {
+      // Player rejected the bribe and got it wrong - show wax seal then result
+      setShowWaxSealBreaking(true);
     }
   };
 
@@ -516,18 +529,15 @@ export default function SinglePlayerRoom() {
   };
 
 
-  // Handle when player listens to Horus proposal - uses local audio
+  // Handle when player listens to Horus proposal - audio already started in submitAudio
   const handleHorusListen = async () => {
-    // Use local acordo audio instead of ElevenLabs
-    const acordoAudio = getRandomAudioFile('acordo');
-    if (acordoAudio) {
-      playHorusAudio(acordoAudio);
-    }
+    // Audio is already playing from submitAudio, this is for the component callback
+    setIsHorusListening(true);
+    setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
   };
 
-  // Handle when player accepts Horus bribe (cash out before seeing result)
+  // Handle when player accepts Horus bribe in bribe_offer phase (cash out before seeing result)
   const handleHorusAcceptBribe = async () => {
-    setShowHorusBribe(false);
     stopHorus2Audio();
     
     // Show contract tearing animation
@@ -559,13 +569,12 @@ export default function SinglePlayerRoom() {
     setGamePhase('victory');
   };
 
-  // Handle when player rejects Horus bribe (see the real result)
+  // Handle when player rejects Horus bribe (proceed to jury analysis)
   const handleHorusRejectBribe = async () => {
-    setShowHorusBribe(false);
     stopHorus2Audio();
     
-    // Show wax seal breaking animation before revealing result
-    setShowWaxSealBreaking(true);
+    // Player rejected the offer - now proceed to analyzing phase
+    proceedToAnalysis();
   };
 
   // Called when wax seal breaking animation completes
@@ -978,6 +987,36 @@ export default function SinglePlayerRoom() {
                 </div>
               )}
 
+              {/* BRIBE OFFER PHASE - Horus makes his offer before jury votes */}
+              {gamePhase === 'bribe_offer' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="space-y-8 py-12"
+                >
+                  <div className="text-center space-y-4">
+                    <motion.div
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        opacity: [0.7, 1, 0.7]
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-gold/30 to-amber-600/20 flex items-center justify-center border-2 border-gold/50"
+                    >
+                      <Coins className="w-10 h-10 text-gold" />
+                    </motion.div>
+                    
+                    <h3 className="font-orbitron text-xl text-gold animate-pulse">
+                      HÓRUS TEM UMA PROPOSTA...
+                    </h3>
+                    
+                    <p className="text-muted-foreground text-sm">
+                      O mestre do jogo quer negociar seu destino
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               {/* ANALYZING PHASE */}
               {gamePhase === 'analyzing' && (
                 <motion.div
@@ -1345,18 +1384,18 @@ export default function SinglePlayerRoom() {
 
       <MoneyRain show={showMoneyRain} amount={accumulatedPrize} />
 
-      {/* Horus Post-Vote Bribe */}
+      {/* Horus Bribe Offer - shown during bribe_offer phase BEFORE results */}
       <HorusPostVoteBribe
-        isVisible={showHorusBribe}
+        isVisible={gamePhase === 'bribe_offer'}
         totalBluffCoins={accumulatedPrize > 0 ? accumulatedPrize : null}
         onAcceptBribe={handleHorusAcceptBribe}
         onRejectBribe={handleHorusRejectBribe}
         onListenProposal={handleHorusListen}
-        isListening={false}
+        isListening={isHorusListening}
         isLoading={false}
-        currentPhrase={null}
+        currentPhrase={horusPhrase}
         isAllIn={currentRound === MAX_ROUNDS}
-        playerGotCorrect={pendingResultData?.playerAnsweredCorrectly ?? false}
+        playerGotCorrect={false}
       />
 
       {/* Wax Seal Breaking Animation - when player rejects Horus offer */}
