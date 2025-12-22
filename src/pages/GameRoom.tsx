@@ -862,7 +862,17 @@ export default function GameRoom() {
         if (currentRound === MAX_ROUNDS) {
           setGameCompleted(true);
           playFanfare();
-          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${newAccumulated.toLocaleString()} BluffCoins!` });
+          
+          // Persist the 1 million prize to authenticated user's profile
+          const FINAL_PRIZE = PRIZE_LADDER[PRIZE_LADDER.length - 1]; // 1,000,000
+          await persistGameResult(FINAL_PRIZE);
+          
+          // Play special victory audio for 1 million
+          stopHorus2Audio();
+          const victoryAudio = new Audio('/audio/horus/victory_1m.mp3');
+          victoryAudio.play().catch(console.error);
+          
+          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${FINAL_PRIZE.toLocaleString()} BluffCoins!` });
         }
       }
     }
