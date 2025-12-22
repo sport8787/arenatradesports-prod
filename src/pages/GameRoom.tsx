@@ -269,6 +269,10 @@ export default function GameRoom() {
   const bribeTriggeredRef = useRef<string | null>(null);
   // CRITICAL: Hide correct answer until Horus bribe decision is made
   const [destinyRevealed, setDestinyRevealed] = useState(false);
+  // Limita ofertas de acordo a 2x por partida e apenas até rodada 8
+  const [bribeOffersCount, setBribeOffersCount] = useState(0);
+  const MAX_BRIBE_OFFERS = 2;
+  const MAX_BRIBE_ROUND = 8;
 
   // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
   // Sounds will be generated on-demand when needed.
@@ -613,13 +617,15 @@ export default function GameRoom() {
               await updateRoomStatus('result');
               setTimeout(() => playChips(), 500);
             })();
-          } else if (currentRound >= 3) {
-            // Usar calculateBribeAmount para valor dinâmico (25% do saldo ou mín 200)
-            const offerAmount = calculateBribeAmount();
+          } else if (currentRound >= 3 && currentRound <= MAX_BRIBE_ROUND && bribeOffersCount < MAX_BRIBE_OFFERS) {
+            // NOVA LÓGICA: Apenas até rodada 8 e máximo 2 ofertas por partida
+            // Usar calculateBribeAmount com prêmio acumulado (50% + variação ±10%)
+            const offerAmount = calculateBribeAmount(accumulatedPrize);
             setBribeAmount(offerAmount);
+            setBribeOffersCount(prev => prev + 1);
             
             // CRITICAL: Change room status to bribe_offer so jury sees it too
-            console.log('[Hórus Offer] Transitioning to bribe_offer status - round', currentRound, '- dynamic offer:', offerAmount);
+            console.log('[Hórus Offer] Transitioning to bribe_offer status - round', currentRound, '- dynamic offer:', offerAmount, '(50% of', accumulatedPrize, ')');
             setTimeout(async () => {
               playTemptation();
               setShowBribeOffer(true);
@@ -627,8 +633,13 @@ export default function GameRoom() {
               await updateRoomStatus('bribe_offer' as any);
             }, 2500);
           } else {
-            console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+)');
-            // No bribe offer in early rounds - reveal destiny and go to result
+            const skipReason = currentRound > MAX_BRIBE_ROUND 
+              ? `round ${currentRound} > ${MAX_BRIBE_ROUND}` 
+              : bribeOffersCount >= MAX_BRIBE_OFFERS 
+                ? `offers exhausted (${bribeOffersCount}/${MAX_BRIBE_OFFERS})`
+                : `round ${currentRound} < 3`;
+            console.log('[Hórus Offer] Skipped -', skipReason);
+            // No bribe offer - reveal destiny and go to result
             setDestinyRevealed(true);
             (async () => {
               await updateRoomStatus('result');
@@ -653,7 +664,14 @@ export default function GameRoom() {
     generateVerdict, 
     recordBluffResult, 
     speakPersona,
-    clearQueue
+    clearQueue,
+    currentRound,
+    accumulatedPrize,
+    bribeOffersCount,
+    calculateBribeAmount,
+    updateRoomStatus,
+    playChips,
+    playTemptation,
   ]);
 
   // Process results ONLY when votes are available (separate effect to handle timing)
@@ -974,6 +992,7 @@ export default function GameRoom() {
     setMycroftUsed(false);
     setDetectorUsed(false);
     setHostEliminated(false);
+    setBribeOffersCount(0); // Reset bribe offers counter for new host
     await resetHistory(); // Reset question pool so new host gets fresh questions
 
     // Show conquest achievement to new host
@@ -1083,6 +1102,7 @@ export default function GameRoom() {
     setGameCompleted(false);
     setHostEliminated(false);
     setDestinyRevealed(false); // Reset destiny reveal state
+    setBribeOffersCount(0); // Reset bribe offers counter for new game
 
     // Use intelligent question selection with history - pass round 1 for first question
     let q = getNextQuestion(1);

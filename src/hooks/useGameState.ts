@@ -348,15 +348,20 @@ export function useGameState(roomId: string | null) {
   };
 
   // 1. Função para calcular o valor do Acordo de Ouro (Desistência)
-  const calculateBribeAmount = useCallback(() => {
-    const currentBalance = gameState.myPlayer?.bluffcoins || 0;
+  // NOVA LÓGICA: 50% do prêmio acumulado + variação aleatória de ±10% ("humor" da IA)
+  const calculateBribeAmount = useCallback((accumulatedPrize: number) => {
+    // Fator de Tentação: 50% do prêmio acumulado
+    const baseOffer = Math.floor(accumulatedPrize * 0.5);
     
-    // Oferece 25% do saldo acumulado ou um mínimo de 200 BluffCoins como "rede de segurança"
-    const percentageAmount = Math.floor(currentBalance * 0.25);
-    const finalOffer = Math.max(percentageAmount, 200);
+    // Variação da IA: ±10% baseado no "humor" do Hórus
+    // Exemplo: Se o prêmio é 8.000, a oferta deve variar entre 3.600 e 4.400
+    const variationFactor = 0.1; // 10%
+    const randomVariation = (Math.random() * 2 - 1) * variationFactor; // -0.1 a +0.1
+    const finalOffer = Math.floor(baseOffer * (1 + randomVariation));
     
-    return finalOffer;
-  }, [gameState.myPlayer?.bluffcoins]);
+    // Mínimo de 100 BluffCoins para garantir que a oferta faça sentido
+    return Math.max(finalOffer, 100);
+  }, []);
 
   // 2. Lógica Inteligente de Transição (O Pulo do Gato)
   const checkBribeEligibility = useCallback(async (playerChoice: 'A' | 'B' | 'C' | 'D') => {
