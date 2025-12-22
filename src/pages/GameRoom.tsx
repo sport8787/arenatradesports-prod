@@ -57,6 +57,7 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
+import { audioQueue } from '@/services/audioQueueManager';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -403,9 +404,8 @@ export default function GameRoom() {
      
      console.log('[Hórus 2.0] Processing narration:', { status, questionId, lastNarrationId });
      
-     // Cleanup: para áudio anterior
-     stopHorus2Audio();
-     clearQueue();
+     // Cleanup: limpa fila de áudio global (uma única fonte de verdade)
+     audioQueue.clearQueue();
     
     // Mapeia status para momento do jogo
     switch (status) {
@@ -503,7 +503,7 @@ export default function GameRoom() {
     
     // Cleanup ao desmontar
     return () => {
-      stopHorus2Audio();
+      audioQueue.clearQueue();
     };
   }, [lastNarrationId]); // ÚNICO dependency - não escuta gameState!
 
@@ -553,8 +553,8 @@ export default function GameRoom() {
     mycroftCompleteRef.current = false;
     setAwaitingMycroftComplete(true);
     
-    // Stop any current audio
-    clearQueue();
+    // Limpa fila de áudio antes de iniciar Mycroft
+    audioQueue.clearQueue();
     
     // Show Mycroft panel immediately
     setShowMycroftVerdict(true);
@@ -2301,6 +2301,7 @@ export default function GameRoom() {
         isVisible={showMycroftVerdict || isVerdictGenerating}
         isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
         isGenerating={isVerdictGenerating}
+        roomStatus={gameState.room?.current_status}
         onClose={() => setShowMycroftVerdict(false)}
       />
 

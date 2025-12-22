@@ -1,12 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, AlertTriangle, Shield, Activity, Clock, Mic, Loader2 } from 'lucide-react';
 import { VerdictReport } from '@/hooks/useMycroftVerdict';
+import { useAudioQueueStatus } from '@/hooks/useAudioQueueStatus';
 
 interface MycroftVerdictPanelProps {
   verdict: VerdictReport | null;
   isVisible: boolean;
   isSpeaking: boolean;
   isGenerating?: boolean;
+  roomStatus?: string; // Para verificar se está em 'discussion'
   onClose?: () => void;
 }
 
@@ -40,9 +42,18 @@ const getRiskBgColor = (level: string) => {
   }
 };
 
-export default function MycroftVerdictPanel({ verdict, isVisible, isSpeaking, isGenerating, onClose }: MycroftVerdictPanelProps) {
+export default function MycroftVerdictPanel({ verdict, isVisible, isSpeaking, isGenerating, roomStatus, onClose }: MycroftVerdictPanelProps) {
+  const { isPlaying: isAudioPlaying } = useAudioQueueStatus();
+  
+  // Só mostra "Gerando Veredito" quando:
+  // 1. isGenerating é true
+  // 2. isVisible é true  
+  // 3. NÃO há áudio tocando (fila vazia)
+  // 4. Status da sala é 'discussion' (opcional, para mais segurança)
+  const shouldShowLoading = isGenerating && isVisible && !isAudioPlaying;
+  
   // Show loading state
-  if (isGenerating && isVisible) {
+  if (shouldShowLoading) {
     return (
       <AnimatePresence>
         <motion.div
