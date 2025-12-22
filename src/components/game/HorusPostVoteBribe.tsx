@@ -30,39 +30,30 @@ export default function HorusPostVoteBribe({
 }: HorusPostVoteBribeProps) {
   const [showChoices, setShowChoices] = useState(false);
   const [glowIntensity, setGlowIntensity] = useState(false);
-  const [autoTriggered, setAutoTriggered] = useState(false);
 
-  // Auto-trigger proposal when visible and player got wrong (bluffing)
+  // Show choices after a delay when visible and listening
   useEffect(() => {
-    if (isVisible && !playerGotCorrect && !autoTriggered && !isListening) {
-      setAutoTriggered(true);
-      // Small delay for dramatic effect
+    if (isVisible && isListening && !showChoices) {
+      setGlowIntensity(true);
       const timer = setTimeout(() => {
-        onListenProposal();
-      }, 800);
+        setShowChoices(true);
+      }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, playerGotCorrect, autoTriggered, isListening, onListenProposal]);
+  }, [isVisible, isListening, showChoices]);
 
-  // Start glow when listening
+  // Start glow when loading
   useEffect(() => {
-    if (isListening && !isLoading) {
+    if (isLoading) {
       setGlowIntensity(true);
-      const timer = setTimeout(() => setShowChoices(true), 2500);
-      return () => clearTimeout(timer);
-    } else if (isLoading) {
-      setGlowIntensity(true);
-    } else {
-      setGlowIntensity(false);
     }
-  }, [isListening, isLoading]);
+  }, [isLoading]);
 
   // Reset state when visibility changes
   useEffect(() => {
     if (!isVisible) {
       setShowChoices(false);
       setGlowIntensity(false);
-      setAutoTriggered(false);
     }
   }, [isVisible]);
 
