@@ -1,4 +1,4 @@
-export type RoomStatus = 'lobby' | 'question' | 'discussion' | 'voting' | 'result';
+export type RoomStatus = 'lobby' | 'question' | 'discussion' | 'voting' | 'bribe_offer' | 'result';
 export type GameMode = 'online' | 'presencial';
 
 export interface Question {

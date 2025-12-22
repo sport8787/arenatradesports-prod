@@ -393,7 +393,13 @@ export type Database = {
       answer_option: "A" | "B" | "C" | "D"
       app_role: "admin" | "user"
       difficulty_level: "Easy" | "Medium" | "Hard"
-      room_status: "lobby" | "question" | "discussion" | "voting" | "result"
+      room_status:
+        | "lobby"
+        | "question"
+        | "discussion"
+        | "voting"
+        | "bribe_offer"
+        | "result"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -524,7 +530,14 @@ export const Constants = {
       answer_option: ["A", "B", "C", "D"],
       app_role: ["admin", "user"],
       difficulty_level: ["Easy", "Medium", "Hard"],
-      room_status: ["lobby", "question", "discussion", "voting", "result"],
+      room_status: [
+        "lobby",
+        "question",
+        "discussion",
+        "voting",
+        "bribe_offer",
+        "result",
+      ],
     },
   },
 } as const
