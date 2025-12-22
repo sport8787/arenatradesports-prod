@@ -267,6 +267,8 @@ export default function GameRoom() {
   const [isBribeListening, setIsBribeListening] = useState(false);
   const [bribePhrase, setBribePhrase] = useState<string | null>(null);
   const bribeTriggeredRef = useRef<string | null>(null);
+  // CRITICAL: Hide correct answer until Horus bribe decision is made
+  const [destinyRevealed, setDestinyRevealed] = useState(false);
 
   // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
   // Sounds will be generated on-demand when needed.
@@ -609,6 +611,8 @@ export default function GameRoom() {
           // Se acertou, pula direto para resultado sem oferta
           if (playerGotCorrect) {
             console.log('[Hórus Offer] Skipped - player answered correctly (not bluffing)');
+            // Reveal destiny since there's no bribe offer
+            setDestinyRevealed(true);
           } else if (currentRound >= 3) {
             // Usar calculateBribeAmount para valor dinâmico (25% do saldo ou mín 200)
             const offerAmount = calculateBribeAmount();
@@ -623,6 +627,8 @@ export default function GameRoom() {
             console.log('[Hórus Offer] Triggered at round', currentRound, '- player is bluffing, dynamic offer:', offerAmount);
           } else {
             console.log('[Hórus Offer] Skipped - round:', currentRound, '(need 3+)');
+            // No bribe offer in early rounds - reveal destiny
+            setDestinyRevealed(true);
           }
         }
       });
@@ -1071,6 +1077,7 @@ export default function GameRoom() {
     setAccumulatedPrize(0);
     setGameCompleted(false);
     setHostEliminated(false);
+    setDestinyRevealed(false); // Reset destiny reveal state
 
     // Use intelligent question selection with history - pass round 1 for first question
     let q = getNextQuestion(1);
@@ -1247,6 +1254,7 @@ export default function GameRoom() {
     setMycroftUsed(false);
     setDetectorUsed(false);
     setNewlyUnlockedCard(null);
+    setDestinyRevealed(false); // Reset destiny reveal for new question
     prevVoteCountRef.current = 0; // Reset vote counter for sound notification
 
     // Show briefcase modal before round 15
@@ -1385,6 +1393,9 @@ export default function GameRoom() {
     setShowBribeOffer(false);
     setIsBribeListening(false);
     setBribePhrase(null);
+    
+    // CRITICAL: Now reveal the destiny since player rejected the offer
+    setDestinyRevealed(true);
     
     // Jogador recusou - REVELAR DESTINO
     // Muda status para 'result' e executa áudio de derrota
@@ -1740,7 +1751,7 @@ export default function GameRoom() {
                     <>
                       <QuestionCard
                         question={gameState.currentQuestion}
-                        showCorrectAnswer={true}
+                        showCorrectAnswer={destinyRevealed}
                         selectedOption={confirmedAnswer || selectedAnswer || undefined}
                         confirmedAnswer={confirmedAnswer || selectedAnswer || undefined}
                         disabled={true}
@@ -1855,7 +1866,7 @@ export default function GameRoom() {
                 <div className="space-y-6">
                   <QuestionCard
                     question={gameState.currentQuestion}
-                    showCorrectAnswer={true}
+                    showCorrectAnswer={destinyRevealed}
                     selectedOption={selectedAnswer || undefined}
                     confirmedAnswer={confirmedAnswer || undefined}
                     disabled={true}
