@@ -122,7 +122,7 @@ export default function GameRoom() {
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, calculateBribeAmount, checkBribeEligibility, lastStateChange, lastNarrationId, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
   const { getOrCreateRanking, updateRankingStats, myRanking } = useRankings();
-  const { profile, isAuthenticated, loading: authLoading } = useAuth();
+  const { profile, isAuthenticated, loading: authLoading, refetchProfile } = useAuth();
   const { 
     metrics: verdictMetrics, 
     isGenerating: isVerdictGenerating,
@@ -274,6 +274,48 @@ export default function GameRoom() {
   const [bribeOffersCount, setBribeOffersCount] = useState(0);
   const MAX_BRIBE_OFFERS = 2;
   const MAX_BRIBE_ROUND = 8;
+
+  // Persist game winnings to authenticated user's profile using atomic RPC
+  const persistGameResult = async (amount: number) => {
+    // Don't persist for guests or unauthenticated users
+    if (isGuest || !isAuthenticated || !profile) {
+      console.log('[BANK] Skipping persistence - guest or unauthenticated');
+      return;
+    }
+    if (amount <= 0) return;
+    
+    try {
+      console.log(`[BANK-MP] Processando depósito de: ${amount} BluffCoins...`);
+      
+      // Use atomic RPC function for secure balance update
+      const { error: rpcError } = await supabase.rpc('increment_bluffcoins', {
+        p_user_id: profile.user_id,
+        p_amount: amount
+      });
+      
+      if (rpcError) {
+        console.error('[BANK-MP ERROR] RPC failed:', rpcError);
+        throw rpcError;
+      }
+      
+      // Force refetch profile to update UI immediately
+      await refetchProfile?.();
+      
+      console.log('[BANK-MP] Depósito confirmado!');
+      
+      toast({ 
+        title: 'Depósito Confirmado! 💰', 
+        description: `${amount.toLocaleString()} BluffCoins foram adicionados à sua carteira.` 
+      });
+    } catch (error) {
+      console.error('[BANK-MP ERROR] Falha ao depositar:', error);
+      toast({ 
+        title: 'Erro de Conexão', 
+        description: 'Seu saldo será sincronizado na próxima reconexão.',
+        variant: 'destructive'
+      });
+    }
+  };
 
   // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
   // Sounds will be generated on-demand when needed.
@@ -1406,6 +1448,10 @@ export default function GameRoom() {
     if (gameState.myPlayer) {
       await updateBluffcoins(gameState.myPlayer.id, bribeAmount);
       playCashRegister();
+      
+      // Persist bribe amount to authenticated user's profile
+      await persistGameResult(bribeAmount);
+      
       toast({ 
         title: '💰 ACORDO ACEITO!', 
         description: `Você saiu com ${bribeAmount.toLocaleString('pt-BR')} BluffCoins!` 
@@ -2349,6 +2395,10 @@ export default function GameRoom() {
         onConfirm={async () => {
           setShowCashOutDialog(false);
           setShowMoneyRain(true);
+          
+          // Persist cash out amount to authenticated user's profile
+          await persistGameResult(accumulatedPrize);
+          
           // Update ranking with cash out prize - ensure ranking exists first
           const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
           let ranking = myRanking;
