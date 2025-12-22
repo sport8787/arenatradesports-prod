@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
 import { getRandomHorusPhrase } from '@/data/horusPhrases';
 import { getCachedAudio, clearAudioMemoryCache } from '@/services/audioCacheService';
-import { playGlobalAudio, stopGlobalAudio } from '@/services/globalAudioContext';
+import { audioQueue } from '@/services/audioQueueManager';
 import { recordEnqueue, recordExecute, recordBlocked } from '@/services/audioDebugService';
 
 interface DialogState {
@@ -111,33 +111,21 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
     }
   }, [isHost, gameMode]);
 
-  // Play audio locally using global audio context
-  const playAudioLocally = useCallback(async (audioUrl: string, onEnded: () => void) => {
-    setState(prev => ({ ...prev, isLoading: false }));
+  // Play audio locally using audio queue manager (centralized)
+  const playAudioLocally = useCallback(async (audioUrl: string, label: string, onEnded: () => void) => {
+    setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }));
     
-    const audio = playGlobalAudio(
+    // Usa fila centralizada - prioridade 8 para diálogos (Mycroft verdict, etc.)
+    audioQueue.addToQueue(
       audioUrl,
+      label,
+      8, // Prioridade alta para verditos
       () => {
-        console.log('[DialogManager] Audio ended naturally');
-        onEnded();
-      },
-      (error) => {
-        console.error('[DialogManager] Audio playback error:', error);
-        setState(prev => ({ ...prev, error: 'Erro ao reproduzir áudio' }));
+        console.log('[DialogManager] Audio ended via queue');
+        setState(prev => ({ ...prev, isSpeaking: false }));
         onEnded();
       }
     );
-
-    audioRef.current = audio;
-    setState(prev => ({ ...prev, isSpeaking: true }));
-
-    // Timeout fallback
-    setTimeout(() => {
-      if (audio && !audio.ended && audio.currentTime === 0) {
-        console.warn('[DialogManager] Audio loading timeout, forcing continue');
-        onEnded();
-      }
-    }, 15000);
   }, []);
 
 
@@ -203,8 +191,8 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
         const estimatedDuration = Math.max(3000, textToSpeak.length * 80);
         setTimeout(finishAndProcessNext, estimatedDuration);
       } else if (canPlayAudio) {
-        // No sync - play locally
-        await playAudioLocally(audioUrl, finishAndProcessNext);
+        // No sync - play via centralized queue
+        await playAudioLocally(audioUrl, `dialog_${item.moment}`, finishAndProcessNext);
       } else {
         // Can't play audio - just finish
         setTimeout(finishAndProcessNext, 500);
@@ -245,7 +233,8 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   );
 
   const stopSpeaking = useCallback(() => {
-    stopGlobalAudio();
+    // Usa fila centralizada para parar
+    audioQueue.clearQueue();
     if (audioRef.current) audioRef.current.pause();
     queueRef.current = [];
     isProcessingRef.current = false;
@@ -260,7 +249,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
   const getActivePersona = useCallback(() => state.activePersona ? PERSONAS[state.activePersona] : null, [state.activePersona]);
 
-  // Play audio received from external source (sync)
+  // Play audio received from external source (sync) - usa fila centralizada
   const playExternalAudio = useCallback((audioUrl: string, text: string, onComplete?: () => void) => {
     if (!canPlayAudio) return;
 
@@ -270,19 +259,16 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
       currentText: text,
     }));
 
-    const audio = playGlobalAudio(
+    // Usa fila centralizada com prioridade 6 (externa/sync)
+    audioQueue.addToQueue(
       audioUrl,
-      () => {
-        setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
-        if (onComplete) onComplete();
-      },
+      `external_${text.substring(0, 20)}`,
+      6,
       () => {
         setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
         if (onComplete) onComplete();
       }
     );
-
-    audioRef.current = audio;
   }, [canPlayAudio]);
 
   return { 

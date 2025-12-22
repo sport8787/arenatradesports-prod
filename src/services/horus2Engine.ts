@@ -1,6 +1,9 @@
 /**
  * Hórus 2.0 Engine - Sistema de Áudio Híbrido
  * 
+ * AGORA USA FILA CENTRALIZADA (audioQueueManager)
+ * Garante que apenas UM áudio toque por vez em toda a aplicação.
+ * 
  * Prioridades:
  * 1. LOCAL: Arquivos MP3 gravados em /public/audio/horus/ (custo zero)
  * 2. CACHE: Cache SHA-256 no Supabase Storage (88.3% eficiência)
@@ -17,7 +20,7 @@ import {
   hasLocalAudio 
 } from './horusLocalAudio';
 import { getCachedAudio } from './audioCacheService';
-import { playGlobalAudio, stopGlobalAudio } from './globalAudioContext';
+import { audioQueue } from './audioQueueManager';
 
 // Callum v3 voice ID (ElevenLabs)
 export const CALLUM_VOICE_ID = 'N2lVS1w4EtoT3dr4eOWO';
@@ -71,10 +74,6 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
   'answer_confirm': 'mycroft',
 };
 
-// Estado interno do engine
-let currentAudio: HTMLAudioElement | null = null;
-let isPlaying = false;
-
 // Estado de abertura - garante que a leitura da pergunta espera a abertura terminar
 let isOpeningPlaying = false;
 let openingEndedCallbacks: Array<() => void> = [];
@@ -118,16 +117,10 @@ function markOpeningEnd(): void {
 }
 
 /**
- * Para qualquer áudio em reprodução
+ * Para qualquer áudio em reprodução (limpa a fila global)
  */
 export function stopHorus2Audio(): void {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-  }
-  stopGlobalAudio();
-  isPlaying = false;
+  audioQueue.clearQueue();
 }
 
 /**
@@ -221,15 +214,20 @@ export async function getHorus2Audio(
  * @param onEnd - Callback quando áudio terminar
  * @param onError - Callback em caso de erro
  */
+/**
+ * Reproduz áudio para um momento do jogo USANDO A FILA CENTRALIZADA
+ * 
+ * @param moment - Momento do jogo
+ * @param dynamicText - Texto dinâmico (opcional)
+ * @param onEnd - Callback quando áudio terminar
+ * @param onError - Callback em caso de erro (ignorado na nova implementação)
+ */
 export async function playHorus2Audio(
   moment: GameMoment | string,
   dynamicText?: string,
   onEnd?: () => void,
-  onError?: (error: Error) => void
+  _onError?: (error: Error) => void
 ): Promise<void> {
-  // Para áudio anterior
-  stopHorus2Audio();
-  
   // Detecta se é áudio de abertura
   const isOpeningAudio = moment === 'game_start' || moment === 'round_start';
   
@@ -242,51 +240,38 @@ export async function playHorus2Audio(
       return;
     }
     
-    isPlaying = true;
-    
     // Marca início da abertura
     if (isOpeningAudio) {
       markOpeningStart();
     }
     
-    // Usa playGlobalAudio para consistência com o resto do sistema
-    currentAudio = playGlobalAudio(
+    // ADICIONA À FILA CENTRALIZADA em vez de tocar diretamente
+    // Prioridade: abertura = 10, bordão = 5, outros = 7
+    const priority = isOpeningAudio ? 10 : (moment === 'taunt' ? 5 : 7);
+    
+    audioQueue.addToQueue(
       result.audioUrl,
+      `horus_${moment}`,
+      priority,
       () => {
-        isPlaying = false;
-        currentAudio = null;
-        
         // Marca fim da abertura e executa callbacks pendentes
         if (isOpeningAudio) {
           markOpeningEnd();
         }
-        
         onEnd?.();
-      },
-      (error) => {
-        isPlaying = false;
-        currentAudio = null;
-        
-        // Mesmo com erro, marca fim da abertura para não bloquear
-        if (isOpeningAudio) {
-          markOpeningEnd();
-        }
-        
-        onError?.(error);
       }
     );
     
-    console.log('[Hórus 2.0] Playing audio from', result.source, ':', result.audioUrl, isOpeningAudio ? '(OPENING)' : '');
+    console.log('[Hórus 2.0] Queued audio from', result.source, ':', result.audioUrl, isOpeningAudio ? '(OPENING)' : '', 'priority:', priority);
   } catch (error) {
-    console.error('[Hórus 2.0] Error playing audio:', error);
-    isPlaying = false;
+    console.error('[Hórus 2.0] Error queuing audio:', error);
     
     // Mesmo com erro, marca fim da abertura
     if (isOpeningAudio) {
       markOpeningEnd();
     }
     
-    onError?.(error instanceof Error ? error : new Error(String(error)));
+    onEnd?.();
   }
 }
 
@@ -311,10 +296,10 @@ export async function playRandomBordao(
 }
 
 /**
- * Verifica se está reproduzindo áudio
+ * Verifica se está reproduzindo áudio (usa fila global)
  */
 export function isHorus2Playing(): boolean {
-  return isPlaying;
+  return audioQueue.getIsPlaying();
 }
 
 /**
