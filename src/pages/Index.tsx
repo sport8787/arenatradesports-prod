@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,8 +11,12 @@ import LuxuryCard from '@/components/game/LuxuryCard';
 import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
 import { GameOpening } from '@/components/game/GameOpening';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { z } from 'zod';
+
+const nicknameSchema = z.string().min(3, 'Mínimo 3 caracteres').max(20, 'Máximo 20 caracteres');
 
 interface ActiveRoom {
   roomId: string;
@@ -22,10 +26,13 @@ interface ActiveRoom {
 
 export default function Index() {
   const navigate = useNavigate();
-  const { profile, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { profile, isAuthenticated, loading: authLoading, signOut, updateProfile } = useAuth();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [editNickname, setEditNickname] = useState('');
+  const [savingNickname, setSavingNickname] = useState(false);
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
@@ -182,12 +189,52 @@ export default function Index() {
   const handleSignOut = async () => {
     if (isGuest) {
       sessionStorage.removeItem('guestMode');
+      sessionStorage.removeItem('guestNickname');
       setIsGuest(false);
       navigate('/auth');
     } else {
       await signOut();
       navigate('/auth');
     }
+  };
+
+  const handleStartEditNickname = () => {
+    setEditNickname(isGuest ? guestNickname : profile?.username || '');
+    setIsEditingNickname(true);
+  };
+
+  const handleSaveNickname = async () => {
+    const result = nicknameSchema.safeParse(editNickname);
+    if (!result.success) {
+      toast({ title: 'Erro', description: result.error.errors[0].message, variant: 'destructive' });
+      return;
+    }
+
+    setSavingNickname(true);
+
+    if (isGuest) {
+      // Salva no sessionStorage para convidados
+      sessionStorage.setItem('guestNickname', editNickname);
+      setGuestNickname(editNickname);
+      setIsEditingNickname(false);
+      toast({ title: 'Nickname atualizado!', description: `Agora você é ${editNickname}` });
+    } else {
+      // Atualiza no perfil para usuários logados
+      const { error } = await updateProfile({ username: editNickname });
+      if (error) {
+        toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
+      } else {
+        setIsEditingNickname(false);
+        toast({ title: 'Nickname atualizado!', description: `Agora você é ${editNickname}` });
+      }
+    }
+
+    setSavingNickname(false);
+  };
+
+  const handleCancelEditNickname = () => {
+    setIsEditingNickname(false);
+    setEditNickname('');
   };
 
   // Loading state
@@ -261,13 +308,57 @@ export default function Index() {
                     <User className="w-6 h-6 text-primary-foreground" />
                   )}
                 </div>
-                <div>
-                  <div className="font-orbitron font-bold text-lg text-foreground">
-                    Olá, {displayName}!
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {isGuest ? 'Convidado (não salva moedas)' : profile?.rank_title}
-                  </div>
+                <div className="flex-1">
+                  {isEditingNickname ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editNickname}
+                        onChange={(e) => setEditNickname(e.target.value)}
+                        className="h-8 text-sm bg-background/50 border-border/50"
+                        maxLength={20}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveNickname();
+                          if (e.key === 'Escape') handleCancelEditNickname();
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleSaveNickname}
+                        disabled={savingNickname || editNickname.length < 3}
+                        className="h-8 w-8 text-success hover:text-success hover:bg-success/20"
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleCancelEditNickname}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/20"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="font-orbitron font-bold text-lg text-foreground">
+                          Olá, {displayName}!
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {isGuest ? 'Convidado (não salva moedas)' : profile?.rank_title}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleStartEditNickname}
+                        className="p-1.5 rounded-md hover:bg-primary/20 transition-colors"
+                        title="Editar nickname"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-primary" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <button
