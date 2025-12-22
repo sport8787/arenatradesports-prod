@@ -121,6 +121,7 @@ export default function Index() {
     try {
       const sessionId = getOrCreateSessionId();
       const roomPin = generatePin();
+      const nickname = isGuest ? guestNickname : profile?.username || 'Jogador';
 
       const { data: room, error: roomError } = await supabase
         .from('rooms')
@@ -129,6 +130,21 @@ export default function Index() {
         .single();
 
       if (roomError) throw roomError;
+
+      // Create host player record immediately
+      const { error: playerError } = await supabase.from('players').insert({
+        room_id: room.id,
+        nickname: nickname,
+        session_id: sessionId,
+        is_host: true,
+      });
+
+      if (playerError) {
+        console.error('Error creating host player:', playerError);
+        // Clean up room if player creation fails
+        await supabase.from('rooms').delete().eq('id', room.id);
+        throw playerError;
+      }
 
       navigate(`/room/${room.id}?host=true`);
     } catch (error) {
