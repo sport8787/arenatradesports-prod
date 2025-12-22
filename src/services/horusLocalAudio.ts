@@ -10,6 +10,8 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
   abertura: [
     '/audio/horus/abertura.mp3',
     '/audio/horus/abertura2.mp3',
+    '/audio/horus/abertura3.mp3',
+    '/audio/horus/abertura4.mp3',
   ],
   
   // Acordo / Bribe offer (usado em vez de "suborno")
@@ -20,6 +22,9 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/acordo4.mp3',
     '/audio/horus/acordo5.mp3',
     '/audio/horus/acordo6.mp3',
+    '/audio/horus/acordo7.mp3',
+    '/audio/horus/acordo8.mp3',
+    '/audio/horus/acordo9.mp3',
   ],
   
   // All-in
@@ -58,6 +63,9 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
   erro: [
     '/audio/horus/erro.mp3',
     '/audio/horus/erro2.mp3',
+    '/audio/horus/erro3.mp3',
+    '/audio/horus/erro4.mp3',
+    '/audio/horus/erro5.mp3',
   ],
   
   // Mycroft - para quando jogador confirma resposta
@@ -70,6 +78,8 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
   vitoria: [
     '/audio/horus/vitoria.mp3',
     '/audio/horus/vitoria2.mp3',
+    '/audio/horus/vitoria3.mp3',
+    '/audio/horus/vitoria4.mp3',
   ],
 };
 
