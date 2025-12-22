@@ -58,6 +58,7 @@ import {
   hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
 import { audioQueue } from '@/services/audioQueueManager';
+import { getDynamicBribePhrase } from '@/data/horusPhrases';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -1365,27 +1366,35 @@ export default function GameRoom() {
   };
 
   // Hórus Bribe handlers
-  // ECONOMIA DE ÁUDIO (Estratégia Lego):
-  // - Usar áudio cacheado para frases fixas
-  // - Sintetizar apenas o valor dinâmico
-  // - Isso economiza ~480 créditos por oferta
+  // SISTEMA DE FRASES DINÂMICAS:
+  // - Frases personalizadas baseadas no round, prêmio acumulado e número da oferta
+  // - Usa getDynamicBribePhrase para gerar frases contextuais
+  // - Economiza áudio usando frases pré-gravadas quando possível
   const handleListenBribeProposal = async () => {
     setIsBribeListening(true);
 
-    // HÓRUS 2.0: Áudio gravado (acordo*.mp3) - custo zero
-    const phrase = 'Seu destino já está selado, mas eu tenho um acordo...';
-    setBribePhrase(`${phrase} ${bribeAmount.toLocaleString('pt-BR')} BluffCoins.`);
+    // HÓRUS 2.0: Gera frase dinâmica baseada no contexto
+    const dynamicPhrase = getDynamicBribePhrase({
+      round: currentRound,
+      accumulatedPrize: accumulatedPrize,
+      bribeAmount: bribeAmount,
+      offerNumber: bribeOffersCount,
+    });
+    
+    setBribePhrase(dynamicPhrase);
 
     if (personaMuted || !canPlayAudio) return;
     if (isOnlineMode && !isRoomHost) return;
 
+    // Usa áudio pré-gravado para economia (intro genérico)
+    // A frase completa aparece no texto, mas o áudio usa intro curto
     if (isOnlineMode) {
-      const res = await getHorus2Audio('bribe_offer', phrase);
-      if (res) broadcastAudio(res.audioUrl, phrase, 'horus');
+      const res = await getHorus2Audio('bribe_offer');
+      if (res) broadcastAudio(res.audioUrl, dynamicPhrase, 'horus');
       return;
     }
 
-    await playHorus2Audio('bribe_offer', phrase);
+    await playHorus2Audio('bribe_offer');
   };
 
   const handleAcceptBribe = async () => {

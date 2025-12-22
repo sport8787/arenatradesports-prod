@@ -257,6 +257,158 @@ const BRIBE_OUTRO: HorusPhrase[] = [
   { id: 'bot3', moment: 'bribe_outro', text: '...O que vai ser?', emotion: 'sarcastic' },
 ];
 
+// =============================================
+// FRASES DINÂMICAS DE SUBORNO BASEADAS NO CONTEXTO
+// =============================================
+
+// Tipo para contexto do suborno
+export interface BribeContext {
+  round: number;           // Round atual (3-8)
+  accumulatedPrize: number; // Prêmio acumulado
+  bribeAmount: number;      // Valor da oferta
+  offerNumber: number;      // 1ª ou 2ª oferta
+}
+
+// Classificação do prêmio acumulado
+type PrizeLevel = 'low' | 'medium' | 'high' | 'extreme';
+
+function classifyPrize(prize: number): PrizeLevel {
+  if (prize < 5000) return 'low';
+  if (prize < 20000) return 'medium';
+  if (prize < 50000) return 'high';
+  return 'extreme';
+}
+
+// Frases dinâmicas baseadas no round
+const ROUND_BASED_PHRASES: Record<number, string[]> = {
+  3: [
+    'Ainda é cedo, mas eu já faço minha primeira oferta.',
+    'Rodada três e você já está em apuros? Interessante...',
+    'A jornada mal começou e você já precisa de ajuda.',
+  ],
+  4: [
+    'Quatro rodadas... e a pressão já está subindo.',
+    'Você chegou até aqui. Mas será que aguenta mais?',
+    'A cada rodada, o risco aumenta. Pense bem.',
+  ],
+  5: [
+    'Meio caminho andado. O momento perfeito para uma retirada estratégica.',
+    'Cinco rodadas! Você tem fibra, mas será que tem sorte?',
+    'Na metade do jogo, a tentação é maior.',
+  ],
+  6: [
+    'Rodada seis. O jogo ficou sério.',
+    'Seis batalhas vencidas, mas esta pode ser a última.',
+    'Chegamos no território perigoso. Respire fundo.',
+  ],
+  7: [
+    'Rodada sete! Os grandes caem aqui.',
+    'Sete é o número da sorte... ou será o da queda?',
+    'Tão perto do final, e tão longe da certeza.',
+  ],
+  8: [
+    'Última chance de acordo! Rodada oito é meu limite.',
+    'Esta é minha oferta final. Depois daqui, você está sozinho.',
+    'Oito rodadas de blefe. Você é bom, mas todo mundo cai algum dia.',
+  ],
+};
+
+// Frases baseadas no valor do prêmio acumulado
+const PRIZE_BASED_PHRASES: Record<PrizeLevel, string[]> = {
+  low: [
+    'O prêmio ainda é modesto, mas melhor garantir do que arriscar.',
+    'Não é muito, mas é seu. Aceite e saia tranquilo.',
+    'Pode parecer pouco, mas zero é ainda menos.',
+  ],
+  medium: [
+    'Já acumulou uma quantia respeitável. Vale a pena arriscar?',
+    'Esse prêmio já faz diferença. Pense duas vezes.',
+    'Uma fortuna modesta que pode virar pó em segundos.',
+  ],
+  high: [
+    'Olha esse prêmio! Você realmente quer apostar tudo isso?',
+    'Uma montanha de BluffCoins em jogo. O peso da decisão é enorme.',
+    'Prêmio gordo! Eu, no seu lugar, já teria aceitado há tempo.',
+  ],
+  extreme: [
+    'Uma fortuna absurda! Você é corajoso ou inconsequente?',
+    'Isso é mais BluffCoins do que a maioria jamais verá. Não seja ganancioso.',
+    'O prêmio dos sonhos está em suas mãos. Uma palavra errada e... puff!',
+  ],
+};
+
+// Frases baseadas se é a primeira ou segunda oferta
+const OFFER_NUMBER_PHRASES: Record<number, string[]> = {
+  1: [
+    'Esta é minha primeira oferta. Aproveite enquanto sou generoso.',
+    'O primeiro acordo é sempre o mais gentil.',
+    'Considere isso uma cortesia. A próxima não será tão boa.',
+  ],
+  2: [
+    'Última oferta. Depois disso, você enfrenta o destino sozinho.',
+    'Segunda e última chance. O Hórus não implora.',
+    'Minha paciência tem limite. Esta é sua derradeira oportunidade.',
+  ],
+};
+
+// Função para gerar frase dinâmica do Hórus baseada no contexto
+export function getDynamicBribePhrase(context: BribeContext): string {
+  const prizeLevel = classifyPrize(context.accumulatedPrize);
+  
+  // Seleciona frases de cada categoria
+  const roundPhrases = ROUND_BASED_PHRASES[context.round] || ROUND_BASED_PHRASES[8];
+  const prizePhrases = PRIZE_BASED_PHRASES[prizeLevel];
+  const offerPhrases = OFFER_NUMBER_PHRASES[context.offerNumber] || OFFER_NUMBER_PHRASES[1];
+  
+  // Seleciona uma frase aleatória de cada categoria
+  const roundPhrase = roundPhrases[Math.floor(Math.random() * roundPhrases.length)];
+  const prizePhrase = prizePhrases[Math.floor(Math.random() * prizePhrases.length)];
+  const offerPhrase = offerPhrases[Math.floor(Math.random() * offerPhrases.length)];
+  
+  // Monta a frase final com base no contexto
+  // Escolhe aleatoriamente qual combinação usar para variar
+  const combinations = [
+    `${roundPhrase} ${prizePhrase}`,
+    `${prizePhrase} ${offerPhrase}`,
+    `${roundPhrase} ${offerPhrase}`,
+    roundPhrase,
+    prizePhrase,
+  ];
+  
+  const selectedCombination = combinations[Math.floor(Math.random() * combinations.length)];
+  
+  // Adiciona o valor da oferta de forma dramática
+  const formattedValue = context.bribeAmount.toLocaleString('pt-BR');
+  
+  // Frases de fechamento com o valor
+  const closingPhrases = [
+    `Minha oferta: ${formattedValue} BluffCoins. Pega ou larga?`,
+    `Estou oferecendo ${formattedValue} BluffCoins. Aceita ou arrisca?`,
+    `${formattedValue} BluffCoins na mesa. O que vai ser?`,
+    `A proposta é de ${formattedValue} BluffCoins. Sua escolha.`,
+    `${formattedValue} BluffCoins para sair com dignidade. Decide!`,
+  ];
+  
+  const closingPhrase = closingPhrases[Math.floor(Math.random() * closingPhrases.length)];
+  
+  return `${selectedCombination} ${closingPhrase}`;
+}
+
+// Função para obter frase curta (apenas introdução) - para economia de áudio
+export function getShortBribeIntro(context: BribeContext): string {
+  const prizeLevel = classifyPrize(context.accumulatedPrize);
+  const roundPhrases = ROUND_BASED_PHRASES[context.round] || ROUND_BASED_PHRASES[8];
+  const prizePhrases = PRIZE_BASED_PHRASES[prizeLevel];
+  
+  // Escolhe aleatoriamente entre frase de round ou prêmio
+  const useRoundPhrase = Math.random() > 0.5;
+  const selectedPhrase = useRoundPhrase 
+    ? roundPhrases[Math.floor(Math.random() * roundPhrases.length)]
+    : prizePhrases[Math.floor(Math.random() * prizePhrases.length)];
+  
+  return selectedPhrase;
+}
+
 // All phrases combined
 export const HORUS_PHRASES: HorusPhrase[] = [
   ...ROUND_START,
