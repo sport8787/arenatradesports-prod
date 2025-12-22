@@ -2345,7 +2345,7 @@ export default function GameRoom() {
         currentRound={currentRound}
         maxRounds={MAX_ROUNDS}
         accumulatedPrize={accumulatedPrize}
-        potentialPrize={PRIZE_LADDER.reduce((a, b) => a + b, 0)}
+        potentialPrize={PRIZE_LADDER[PRIZE_LADDER.length - 1]}
         onConfirm={async () => {
           setShowCashOutDialog(false);
           setShowMoneyRain(true);

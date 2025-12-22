@@ -388,6 +388,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_bluffcoins: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       answer_option: "A" | "B" | "C" | "D"
