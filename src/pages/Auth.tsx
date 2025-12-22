@@ -120,8 +120,23 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  const [guestNickname, setGuestNickname] = useState('');
+  const [showGuestNicknameInput, setShowGuestNicknameInput] = useState(false);
+
   const handleGuestMode = () => {
+    // Mostra input de nickname ao invés de entrar direto
+    setShowGuestNicknameInput(true);
+  };
+
+  const handleConfirmGuestNickname = () => {
+    const result = usernameSchema.safeParse(guestNickname);
+    if (!result.success) {
+      toast({ title: 'Erro', description: result.error.errors[0].message, variant: 'destructive' });
+      return;
+    }
+    
     sessionStorage.setItem('guestMode', 'true');
+    sessionStorage.setItem('guestNickname', guestNickname);
     navigate('/');
   };
 
@@ -438,19 +453,64 @@ const Auth = () => {
               </Button>
 
               {/* Guest Mode */}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleGuestMode}
-                disabled={isLoading}
-                className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/20 py-6"
-              >
-                <UserX className="w-5 h-5 mr-2" />
-                Entrar como Convidado
-              </Button>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Modo convidado não salva BluffCoins
-              </p>
+              {showGuestNicknameInput ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3 p-4 bg-muted/20 rounded-lg border border-border/50"
+                >
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1.5 block">Nickname de Convidado</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Seu nome no jogo"
+                        value={guestNickname}
+                        onChange={(e) => setGuestNickname(e.target.value)}
+                        className="pl-10 bg-background/50 border-border/50 focus:border-primary"
+                        maxLength={20}
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">3-20 caracteres</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowGuestNicknameInput(false)}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleConfirmGuestNickname}
+                      disabled={guestNickname.length < 3}
+                      className="flex-1 bg-gradient-to-r from-primary to-primary/80"
+                    >
+                      Entrar
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleGuestMode}
+                    disabled={isLoading}
+                    className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/20 py-6"
+                  >
+                    <UserX className="w-5 h-5 mr-2" />
+                    Entrar como Convidado
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Modo convidado não salva BluffCoins
+                  </p>
+                </>
+              )}
             </>
           )}
         </motion.div>

@@ -114,7 +114,8 @@ export default function SinglePlayerRoom() {
   const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile } = useAuth();
 
   const isGuest = sessionStorage.getItem('guestMode') === 'true';
-  const [guestNickname] = useState(() => `Convidado${Math.floor(Math.random() * 9999)}`);
+  const savedGuestNickname = sessionStorage.getItem('guestNickname');
+  const [guestNickname] = useState(() => savedGuestNickname || `Convidado${Math.floor(Math.random() * 9999)}`);
   const displayName = isGuest ? guestNickname : profile?.username || 'Jogador';
   
   // Use question history hook with user's profile ID
