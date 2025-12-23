@@ -35,8 +35,9 @@ import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import HorusPostVoteBribe from '@/components/game/HorusPostVoteBribe';
 import WaxSealBreaking from '@/components/game/WaxSealBreaking';
 import ContractTearing from '@/components/game/ContractTearing';
+import { HorusTerminal } from '@/components/HorusTerminal';
 import { Input } from '@/components/ui/input';
-import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins } from 'lucide-react';
+import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins, MessageCircle, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { stopGlobalAudio } from '@/services/globalAudioContext';
 // HÓRUS 2.0: Agora usa horus2Engine como sistema principal
@@ -171,7 +172,9 @@ export default function SinglePlayerRoom() {
     shouldEliminate: boolean;
   } | null>(null);
 
-  // HÓRUS 2.0: Hook legado removido, agora usa horus2Engine diretamente
+  // HorusTerminal visibility state
+  const [showHorusTerminal, setShowHorusTerminal] = useState(false);
+  const [lastAction, setLastAction] = useState<string>("Iniciando partida");
 
   // Dialog manager for question_read narration
   const { 
@@ -393,6 +396,10 @@ export default function SinglePlayerRoom() {
     setShowAnswer(true);
     playReveal();
     
+    // Update lastAction for HorusTerminal
+    const isCorrect = selectedAnswer === currentQuestion?.correct_option;
+    setLastAction(isCorrect ? "Acertou a pergunta" : "Errou a pergunta");
+    
     // NOTE: Mycroft audio removed from here - it was playing at wrong time
     // Now we only play audio after jury analysis is complete
     
@@ -518,6 +525,7 @@ export default function SinglePlayerRoom() {
     playSuspense();
     setIsHorusListening(true);
     setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
+    setLastAction("Recebendo proposta do Hórus");
     
     // Play Horus's bribe audio immediately
     playHorus2Audio('acordo', undefined, () => {
@@ -615,7 +623,7 @@ export default function SinglePlayerRoom() {
   // Handle when player accepts Horus bribe in bribe_offer phase (cash out before seeing result)
   const handleHorusAcceptBribe = async () => {
     stopHorus2Audio();
-    
+    setLastAction("Aceitou o acordo do Hórus");
     // Show contract tearing animation
     setShowContractTearing(true);
   };
@@ -648,6 +656,7 @@ export default function SinglePlayerRoom() {
   // Handle when player rejects Horus bribe (proceed to jury analysis)
   const handleHorusRejectBribe = async () => {
     stopHorus2Audio();
+    setLastAction("Rejeitou o acordo - enfrentando o júri");
     
     // Player rejected the offer - now proceed to analyzing phase
     proceedToAnalysis();
@@ -1410,11 +1419,49 @@ export default function SinglePlayerRoom() {
                 ))}
               </div>
             </LuxuryCard>
+
+            {/* Horus Terminal Toggle Button */}
+            {(gamePhase === 'recording' || gamePhase === 'bribe_offer' || gamePhase === 'result' || gamePhase === 'analyzing') && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <GoldButton 
+                  onClick={() => setShowHorusTerminal(!showHorusTerminal)}
+                  className="w-full"
+                  variant={showHorusTerminal ? "primary" : "outline"}
+                >
+                  {showHorusTerminal ? (
+                    <><X className="w-4 h-4 mr-2" /> Fechar Terminal Hórus</>
+                  ) : (
+                    <><MessageCircle className="w-4 h-4 mr-2" /> Falar com Hórus</>
+                  )}
+                </GoldButton>
+              </motion.div>
+            )}
+
+            {/* Horus Terminal */}
+            <AnimatePresence>
+              {showHorusTerminal && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 400 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <HorusTerminal
+                    playerName={displayName}
+                    playerMoney={bluffcoins}
+                    gameMode="Singleplayer_Trader"
+                    lastAction={lastAction}
+                    difficulty="Hard"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
-
-      {/* Overlays */}
       <AnimatePresence>
         {showMycroft && currentQuestion && (
           <MycroftPanel 
