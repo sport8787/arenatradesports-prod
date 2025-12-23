@@ -472,6 +472,14 @@ export default function SinglePlayerRoom() {
   };
 
   const submitAudio = () => {
+    // Only show bribe offer if player has accumulated prize (from round 2 onwards)
+    // Round 1 has no prize to offer, so skip directly to analysis
+    if (currentRound <= 1 || accumulatedPrize <= 0) {
+      // Skip bribe offer - go directly to analysis
+      proceedToAnalysis();
+      return;
+    }
+    
     // CRITICAL FIX: Show Horus bribe offer BEFORE analyzing phase
     // This prevents the "spoiler" where result was shown before the offer
     setGamePhase('bribe_offer');
