@@ -31,16 +31,17 @@ export default function HorusPostVoteBribe({
   const [showChoices, setShowChoices] = useState(false);
   const [glowIntensity, setGlowIntensity] = useState(false);
 
-  // Show choices after a delay when visible and listening
+  // Show choices after a delay when visible - regardless of isListening state
+  // This ensures buttons always appear even if audio fails
   useEffect(() => {
-    if (isVisible && isListening && !showChoices) {
+    if (isVisible && !showChoices) {
       setGlowIntensity(true);
       const timer = setTimeout(() => {
         setShowChoices(true);
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, isListening, showChoices]);
+  }, [isVisible, showChoices]);
 
   // Start glow when loading
   useEffect(() => {
