@@ -36,8 +36,12 @@ export const HorusTerminal = () => {
         {/* Efeito de Glow atrás do botão */}
         <div className="absolute inset-0 bg-cyan-500 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full"></div>
         
+        {/* Anel de pulso animado */}
+        <div className="absolute inset-0 w-32 h-32 rounded-full border-2 border-cyan-400 animate-ping opacity-30"></div>
+        <div className="absolute inset-0 w-32 h-32 rounded-full border border-cyan-500/50 animate-pulse"></div>
+        
         {/* Moldura circular para o Widget */}
-        <div className="w-32 h-32 rounded-full border-2 border-cyan-500/30 flex items-center justify-center bg-black overflow-hidden relative shadow-[0_0_15px_rgba(6,182,212,0.3)] group-hover:border-cyan-400 transition-all">
+        <div className="w-32 h-32 rounded-full border-2 border-cyan-500/50 flex items-center justify-center bg-black overflow-hidden relative shadow-[0_0_20px_rgba(6,182,212,0.4)] group-hover:border-cyan-400 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all duration-300">
           
           {/* O Widget da ElevenLabs preenchendo o círculo */}
           <elevenlabs-convai 
