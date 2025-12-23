@@ -155,7 +155,10 @@ export default function SinglePlayerRoom() {
   // Voice forensics metrics
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
   
-  // Horus Bribe phase states
+  // Horus Bribe phase states - limita a 2 ofertas por partida, só a partir da rodada 3
+  const [bribeOffersCount, setBribeOffersCount] = useState(0);
+  const MAX_BRIBE_OFFERS = 2;
+  const MAX_BRIBE_ROUND = 8; // Só oferece até rodada 8
   const [showWaxSealBreaking, setShowWaxSealBreaking] = useState(false);
   const [showContractTearing, setShowContractTearing] = useState(false);
   const [isHorusListening, setIsHorusListening] = useState(false);
@@ -472,16 +475,45 @@ export default function SinglePlayerRoom() {
   };
 
   const submitAudio = () => {
-    // Only show bribe offer if player has accumulated prize (from round 2 onwards)
-    // Round 1 has no prize to offer, so skip directly to analysis
-    if (currentRound <= 1 || accumulatedPrize <= 0) {
+    // Check if player answered correctly BEFORE showing bribe offer
+    // Bribe only makes sense if player got it WRONG (they need a way out)
+    const playerAnsweredCorrectly = confirmedAnswer === currentQuestion?.correct_option;
+    
+    // Regras do Acordo de Ouro:
+    // 1. Só aparece a partir da rodada 3
+    // 2. Só aparece até a rodada 8
+    // 3. Máximo de 2 ofertas por partida
+    // 4. Só aparece se o jogador ERROU a pergunta
+    const shouldOfferBribe = 
+      !playerAnsweredCorrectly && 
+      currentRound >= 3 && 
+      currentRound <= MAX_BRIBE_ROUND && 
+      bribeOffersCount < MAX_BRIBE_OFFERS &&
+      accumulatedPrize > 0;
+    
+    if (!shouldOfferBribe) {
+      // Log why we skipped
+      const skipReason = playerAnsweredCorrectly 
+        ? 'player answered correctly'
+        : currentRound < 3 
+          ? `round ${currentRound} < 3`
+          : currentRound > MAX_BRIBE_ROUND
+            ? `round ${currentRound} > ${MAX_BRIBE_ROUND}`
+            : bribeOffersCount >= MAX_BRIBE_OFFERS
+              ? `offers exhausted (${bribeOffersCount}/${MAX_BRIBE_OFFERS})`
+              : 'no accumulated prize';
+      console.log('[Hórus Offer] Skipped -', skipReason);
+      
       // Skip bribe offer - go directly to analysis
       proceedToAnalysis();
       return;
     }
     
-    // CRITICAL FIX: Show Horus bribe offer BEFORE analyzing phase
-    // This prevents the "spoiler" where result was shown before the offer
+    // Increment bribe offer counter
+    setBribeOffersCount(prev => prev + 1);
+    console.log(`[Hórus Offer] Showing offer #${bribeOffersCount + 1} at round ${currentRound}`);
+    
+    // Show Horus bribe offer BEFORE analyzing phase
     setGamePhase('bribe_offer');
     playSuspense();
     setIsHorusListening(true);
