@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 
+// Declaração para o TypeScript não reclamar do Web Component
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -10,53 +11,42 @@ declare global {
 
 export const HorusTerminal = () => {
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://elevenlabs.io/convai-widget/index.js';
-    script.async = true;
-    script.type = 'text/javascript';
-    document.body.appendChild(script);
-
-    return () => {
-      // Cleanup
-    };
+    // Carrega o script Beta da ElevenLabs
+    const scriptId = 'elevenlabs-beta-script';
+    
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@beta';
+      script.async = true;
+      script.type = 'text/javascript';
+      document.body.appendChild(script);
+    }
   }, []);
 
   return (
-    <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-black/95 rounded-xl border border-cyan-500/50 shadow-2xl relative overflow-hidden p-6">
+    <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center bg-black/95 rounded-xl border border-cyan-500/50 shadow-2xl relative overflow-hidden p-6">
       
-      {/* Título do Terminal */}
+      {/* Título Decorativo */}
       <div className="z-10 absolute top-4 w-full text-center">
         <span className="text-cyan-400 font-mono text-[10px] tracking-[0.3em] uppercase opacity-70">
-          INTERFACE DE VOZ
+          ● HÓRUS SYSTEM v5.0 (BETA)
         </span>
       </div>
 
-      {/* O "BOTÃO" (Container do Widget) */}
-      <div className="z-10 relative group cursor-pointer">
-        {/* Efeito de Glow atrás do botão */}
-        <div className="absolute inset-0 bg-cyan-500 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full"></div>
-        
-        {/* Moldura circular para o Widget */}
-        <div className="w-32 h-32 rounded-full border-2 border-cyan-500/30 flex items-center justify-center bg-black overflow-hidden relative shadow-[0_0_15px_rgba(6,182,212,0.3)] group-hover:border-cyan-400 transition-all">
-          
-          {/* O Widget da ElevenLabs preenchendo o círculo */}
-          <elevenlabs-convai 
-            agent-id="hjvjhk5x"
-            style={{ width: '120%', height: '120%', marginTop: '10px' }}
-          ></elevenlabs-convai>
-          
-        </div>
+      {/* O WIDGET NATIVO */}
+      {/* O script @beta vai preencher este componente automaticamente */}
+      <div className="z-10 flex-1 flex items-center justify-center w-full">
+        <elevenlabs-convai agent-id="agent_4201kd5w01dzeh1b9y9hhjvjhk5x"></elevenlabs-convai>
       </div>
 
-      {/* Instrução de Ação */}
-      <div className="z-10 mt-6 text-center space-y-2">
-        <p className="text-white font-bold text-sm">
-          Falar com Hórus
-        </p>
+      {/* Instrução */}
+      <div className="z-10 mt-4 text-center">
         <p className="text-cyan-600 text-[10px] font-mono uppercase tracking-wider">
-          Clique na esfera para conectar
+          Powered by ElevenLabs Beta
         </p>
       </div>
+
     </div>
   );
 };
