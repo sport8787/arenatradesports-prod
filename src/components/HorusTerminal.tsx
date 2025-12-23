@@ -10,6 +10,8 @@ declare global {
 
 export const HorusTerminal = () => {
   useEffect(() => {
+    console.log("Hórus Agent ID:", "hjvjhk5x");
+    
     const script = document.createElement('script');
     script.src = 'https://elevenlabs.io/convai-widget/index.js';
     script.async = true;
