@@ -1,67 +1,56 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 
-// Definição das Props que o Hórus precisa ler
-interface HorusTerminalProps {
-  playerName: string;
-  playerMoney: number;
-  gameMode: 'Multiplayer' | 'Singleplayer_Trader' | 'EdTech';
-  lastAction?: string; // Ex: "Errou a pergunta", "Desistiu"
-  difficulty?: 'Hard' | 'Normal';
+// Declaração para o TypeScript aceitar a tag personalizada
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'elevenlabs-convai': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { 'agent-id': string }, HTMLElement>;
+    }
+  }
 }
 
-export const HorusTerminal: React.FC<HorusTerminalProps> = ({
-  playerName,
-  playerMoney,
-  gameMode,
-  lastAction = "Iniciando sistema",
-  difficulty = "Hard"
-}) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
+export const HorusTerminal = () => {
   useEffect(() => {
-    if (iframeRef.current) {
-      const baseUrl = 'https://platform.zaia.app/embed/chat/72399';
-      
-      // Montando o cérebro do Hórus com os dados do jogo
-      const contextData = {
-        userId: playerName, // Usamos o nome como ID para facilitar
-        userData: JSON.stringify({
-          name: playerName,
-          current_money: playerMoney, // O Hórus vai ler isso para zombar ou vender
-          game_mode: gameMode,
-          last_action: lastAction,
-          difficulty: difficulty
-        })
-      };
+    // Script oficial da ElevenLabs
+    const script = document.createElement('script');
+    script.src = 'https://elevenlabs.io/convai-widget/index.js';
+    script.async = true;
+    script.type = 'text/javascript';
+    document.body.appendChild(script);
 
-      const encodedCustomData = encodeURIComponent(JSON.stringify(contextData));
-      const fullUrl = `${baseUrl}?custom=${encodedCustomData}`;
-
-      // Só atualiza se a URL mudar para não recarregar o chat toda hora à toa
-      if (iframeRef.current.src !== fullUrl) {
-        iframeRef.current.src = fullUrl;
-      }
-    }
-  }, [playerName, playerMoney, gameMode, lastAction, difficulty]);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   return (
-    <div className="w-full h-full relative p-1 bg-black rounded-lg border-2 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-      {/* Header Falso para parecer um Terminal */}
-      <div className="absolute top-0 left-0 w-full h-8 bg-cyan-900/50 flex items-center px-4 rounded-t-lg">
-        <span className="text-cyan-400 text-xs font-mono tracking-widest animate-pulse">
-          ● LINK CRIPTOGRAFADO: HÓRUS SYSTEM v4.0
+    <div className="w-full h-full flex flex-col items-center justify-center bg-black/95 rounded-lg border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] relative overflow-hidden p-6">
+      
+      {/* Grid de fundo decorativo */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20"></div>
+
+      {/* Header */}
+      <div className="z-10 w-full flex justify-between items-center mb-8 border-b border-cyan-800 pb-2">
+        <span className="text-cyan-400 font-mono text-sm tracking-[0.2em] uppercase">
+          ⚡ Conexão Neural: Hórus
         </span>
+        <div className="flex gap-2">
+           <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"/>
+           <span className="text-red-500 text-xs font-bold">AO VIVO</span>
+        </div>
       </div>
 
-      {/* O Iframe da Zaia */}
-      <iframe
-        ref={iframeRef}
-        id="horus-iframe"
-        title="Horus AI"
-        className="w-full h-full pt-8 rounded-lg bg-transparent"
-        style={{ border: 'none' }}
-        allow="microphone" // Importante para permitir falar por voz se a Zaia suportar
-      />
+      {/* O Widget da ElevenLabs */}
+      <div className="z-10 transform scale-125">
+        <elevenlabs-convai agent-id="hjvjhk5x"></elevenlabs-convai>
+      </div>
+
+      {/* Footer com instruções */}
+      <div className="z-10 mt-8 text-center">
+        <p className="text-cyan-600 text-xs font-mono mb-2">
+          "Pressione para falar. A mentira tem pernas curtas."
+        </p>
+      </div>
     </div>
   );
 };
