@@ -1420,25 +1420,23 @@ export default function SinglePlayerRoom() {
               </div>
             </LuxuryCard>
 
-            {/* Horus Terminal Toggle Button */}
-            {(gamePhase === 'recording' || gamePhase === 'bribe_offer' || gamePhase === 'result' || gamePhase === 'analyzing') && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+            {/* Horus Terminal Toggle Button - Always visible during game */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <GoldButton 
+                onClick={() => setShowHorusTerminal(!showHorusTerminal)}
+                className="w-full"
+                variant={showHorusTerminal ? "primary" : "outline"}
               >
-                <GoldButton 
-                  onClick={() => setShowHorusTerminal(!showHorusTerminal)}
-                  className="w-full"
-                  variant={showHorusTerminal ? "primary" : "outline"}
-                >
-                  {showHorusTerminal ? (
-                    <><X className="w-4 h-4 mr-2" /> Fechar Terminal Hórus</>
-                  ) : (
-                    <><MessageCircle className="w-4 h-4 mr-2" /> Falar com Hórus</>
-                  )}
-                </GoldButton>
-              </motion.div>
-            )}
+                {showHorusTerminal ? (
+                  <><X className="w-4 h-4 mr-2" /> Fechar Terminal Hórus</>
+                ) : (
+                  <><MessageCircle className="w-4 h-4 mr-2" /> Falar com Hórus</>
+                )}
+              </GoldButton>
+            </motion.div>
 
             {/* Horus Terminal */}
             <AnimatePresence>
