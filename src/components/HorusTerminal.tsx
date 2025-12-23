@@ -37,7 +37,12 @@ export const HorusTerminal = () => {
       {/* O WIDGET NATIVO */}
       {/* O script @beta vai preencher este componente automaticamente */}
       <div className="z-10 flex-1 flex items-center justify-center w-full">
-        <elevenlabs-convai agent-id="agent_4201kd5w01dzeh1b9y9hhjvjhk5x"></elevenlabs-convai>
+        <elevenlabs-convai 
+          agent-id="agent_4201kd5w01dzeh1b9y9hhjvjhk5x"
+          action-text="Hórus System"
+          start-text="Iniciar Link de Voz"
+          end-text="Encerrar Conexão"
+        ></elevenlabs-convai>
       </div>
 
       {/* Instrução */}
