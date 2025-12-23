@@ -1447,13 +1447,7 @@ export default function SinglePlayerRoom() {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <HorusTerminal
-                    playerName={displayName}
-                    playerMoney={bluffcoins}
-                    gameMode="Singleplayer_Trader"
-                    lastAction={lastAction}
-                    difficulty="Hard"
-                  />
+                  <HorusTerminal />
                 </motion.div>
               )}
             </AnimatePresence>
