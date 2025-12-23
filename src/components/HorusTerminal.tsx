@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 
-// Declaração para o TypeScript aceitar a tag personalizada
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -11,7 +10,6 @@ declare global {
 
 export const HorusTerminal = () => {
   useEffect(() => {
-    // Script oficial da ElevenLabs
     const script = document.createElement('script');
     script.src = 'https://elevenlabs.io/convai-widget/index.js';
     script.async = true;
@@ -19,36 +17,44 @@ export const HorusTerminal = () => {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      // Cleanup
     };
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-black/95 rounded-lg border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] relative overflow-hidden p-6">
+    <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-black/95 rounded-xl border border-cyan-500/50 shadow-2xl relative overflow-hidden p-6">
       
-      {/* Grid de fundo decorativo */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20"></div>
-
-      {/* Header */}
-      <div className="z-10 w-full flex justify-between items-center mb-8 border-b border-cyan-800 pb-2">
-        <span className="text-cyan-400 font-mono text-sm tracking-[0.2em] uppercase">
-          ⚡ Conexão Neural: Hórus
+      {/* Título do Terminal */}
+      <div className="z-10 absolute top-4 w-full text-center">
+        <span className="text-cyan-400 font-mono text-[10px] tracking-[0.3em] uppercase opacity-70">
+          INTERFACE DE VOZ
         </span>
-        <div className="flex gap-2">
-           <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"/>
-           <span className="text-red-500 text-xs font-bold">AO VIVO</span>
+      </div>
+
+      {/* O "BOTÃO" (Container do Widget) */}
+      <div className="z-10 relative group cursor-pointer">
+        {/* Efeito de Glow atrás do botão */}
+        <div className="absolute inset-0 bg-cyan-500 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full"></div>
+        
+        {/* Moldura circular para o Widget */}
+        <div className="w-32 h-32 rounded-full border-2 border-cyan-500/30 flex items-center justify-center bg-black overflow-hidden relative shadow-[0_0_15px_rgba(6,182,212,0.3)] group-hover:border-cyan-400 transition-all">
+          
+          {/* O Widget da ElevenLabs preenchendo o círculo */}
+          <elevenlabs-convai 
+            agent-id="hjvjhk5x"
+            style={{ width: '120%', height: '120%', marginTop: '10px' }}
+          ></elevenlabs-convai>
+          
         </div>
       </div>
 
-      {/* O Widget da ElevenLabs */}
-      <div className="z-10 transform scale-125">
-        <elevenlabs-convai agent-id="hjvjhk5x"></elevenlabs-convai>
-      </div>
-
-      {/* Footer com instruções */}
-      <div className="z-10 mt-8 text-center">
-        <p className="text-cyan-600 text-xs font-mono mb-2">
-          "Pressione para falar. A mentira tem pernas curtas."
+      {/* Instrução de Ação */}
+      <div className="z-10 mt-6 text-center space-y-2">
+        <p className="text-white font-bold text-sm">
+          Falar com Hórus
+        </p>
+        <p className="text-cyan-600 text-[10px] font-mono uppercase tracking-wider">
+          Clique na esfera para conectar
         </p>
       </div>
     </div>
