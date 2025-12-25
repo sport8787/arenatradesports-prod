@@ -2492,15 +2492,17 @@ export default function GameRoom() {
         isMuted={personaMuted}
       />
 
-      {/* Mycroft Verdict Panel */}
-      <MycroftVerdictPanel
-        verdict={currentVerdict}
-        isVisible={showMycroftVerdict || isVerdictGenerating}
-        isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
-        isGenerating={isVerdictGenerating}
-        roomStatus={gameState.room?.current_status}
-        onClose={() => setShowMycroftVerdict(false)}
-      />
+      {/* Mycroft Verdict Panel - Only visible to Jury (non-hosts) */}
+      {!isRoomHost && (
+        <MycroftVerdictPanel
+          verdict={currentVerdict}
+          isVisible={showMycroftVerdict || isVerdictGenerating}
+          isSpeaking={dialogState.isSpeaking && dialogState.activePersona === 'mycroft'}
+          isGenerating={isVerdictGenerating}
+          roomStatus={gameState.room?.current_status}
+          onClose={() => setShowMycroftVerdict(false)}
+        />
+      )}
 
       {/* Hórus Bribe Offer - The Temptation (only for host) */}
       <HorusBribeOffer
