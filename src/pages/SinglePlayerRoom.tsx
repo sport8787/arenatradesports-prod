@@ -290,13 +290,21 @@ export default function SinglePlayerRoom() {
   }, [isAuthenticated, authLoading, navigate, isGuest]);
 
   const startGame = async () => {
-    if (!profile) {
+    // Guest users don't have a profile; allow them to play without persistence.
+    const nickname = isGuest ? guestNickname : profile?.username;
+
+    if (!nickname) {
+      toast({ title: 'Erro ao iniciar', description: 'Não foi possível definir seu nickname.', variant: 'destructive' });
+      return;
+    }
+
+    if (!isGuest && !profile) {
       toast({ title: 'Erro ao carregar perfil', variant: 'destructive' });
       return;
     }
 
     // Create/update solo ranking
-    await getOrCreateSoloRanking(profile.username);
+    await getOrCreateSoloRanking(nickname);
 
     // Start first round directly (opening plays on login now)
     setCurrentRound(1);
