@@ -5,17 +5,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
 
+import { safeHash } from '@/lib/hashUtils';
+
 // Simple hash function for generating cache keys
 async function generateHash(text: string, voiceId: string): Promise<string> {
   // CRITICAL: Normalize text before hashing to prevent duplicate cache entries
   const normalizedText = text.trim().toLowerCase();
   const data = `${voiceId}:${normalizedText}`;
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex.substring(0, 32); // Use first 32 chars for shorter filename
+  return safeHash(data);
 }
 
 // Moments that should always be cached (static phrases)
