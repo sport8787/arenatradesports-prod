@@ -14,14 +14,26 @@ export function generateSessionId(): string {
 }
 
 // Get session ID from localStorage or create new
+// Protected against localStorage failures in private/incognito mode on mobile
 export function getOrCreateSessionId(): string {
   const key = 'blefador_session_id';
-  let sessionId = localStorage.getItem(key);
-  if (!sessionId) {
-    sessionId = generateSessionId();
-    localStorage.setItem(key, sessionId);
+  try {
+    let sessionId = localStorage.getItem(key);
+    if (!sessionId) {
+      sessionId = generateSessionId();
+      try {
+        localStorage.setItem(key, sessionId);
+      } catch {
+        // Storage full or blocked - use session-only ID
+        console.warn('[Session] localStorage write failed, using temporary session');
+      }
+    }
+    return sessionId;
+  } catch {
+    // localStorage not available (private mode on some mobile browsers)
+    console.warn('[Session] localStorage not available, generating temporary session ID');
+    return generateSessionId();
   }
-  return sessionId;
 }
 
 // Get avatar colors based on index
