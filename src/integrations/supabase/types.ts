@@ -63,10 +63,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bc_balance: number
           bluff_coins: number
           created_at: string
           id: string
           matches_played: number
+          nt_balance: number
           rank_title: string
           updated_at: string
           user_id: string
@@ -74,10 +76,12 @@ export type Database = {
           wins: number
         }
         Insert: {
+          bc_balance?: number
           bluff_coins?: number
           created_at?: string
           id?: string
           matches_played?: number
+          nt_balance?: number
           rank_title?: string
           updated_at?: string
           user_id: string
@@ -85,10 +89,12 @@ export type Database = {
           wins?: number
         }
         Update: {
+          bc_balance?: number
           bluff_coins?: number
           created_at?: string
           id?: string
           matches_played?: number
+          nt_balance?: number
           rank_title?: string
           updated_at?: string
           user_id?: string
@@ -388,9 +394,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_bc_balance: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
       increment_bluffcoins: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
+      }
+      increment_nt_balance: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
+      spend_nt_balance: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
