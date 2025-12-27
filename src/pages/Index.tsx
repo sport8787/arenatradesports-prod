@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Zap, Gem, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,10 @@ import GoldButton from '@/components/game/GoldButton';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
 import { GameOpening } from '@/components/game/GameOpening';
+import { BalanceHeader } from '@/components/game/BalanceHeader';
+import { FakeLobby } from '@/components/game/FakeLobby';
+import { InsufficientEnergyModal } from '@/components/game/InsufficientEnergyModal';
+import { useEconomy } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -27,6 +31,7 @@ interface ActiveRoom {
 export default function Index() {
   const navigate = useNavigate();
   const { profile, isAuthenticated, loading: authLoading, signOut, updateProfile } = useAuth();
+  const economy = useEconomy();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,6 +41,8 @@ export default function Index() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
+  const [showFakeLobby, setShowFakeLobby] = useState(false);
+  const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
   const [showOpening, setShowOpening] = useState(() => {
     // Check if we should show opening (first visit after login)
     const shouldShow = sessionStorage.getItem('showOpening') === 'true';
@@ -253,6 +260,20 @@ export default function Index() {
     setEditNickname('');
   };
 
+  // Handle "Desafie o Hórus" button click
+  const handleChallengeHorus = () => {
+    // Phase 1 (Aquecimento) is free, no NT required
+    setShowFakeLobby(true);
+  };
+
+  // Handle fake lobby completion - navigate to solo mode with bots
+  const handleLobbyComplete = (bots: { id: string; name: string }[]) => {
+    // Store bots in sessionStorage for the single player room
+    sessionStorage.setItem('horusBots', JSON.stringify(bots));
+    sessionStorage.setItem('gamePhase', '1'); // Aquecimento phase
+    navigate('/single-player?mode=horus');
+  };
+
   // Loading state
   if (authLoading && !isGuest) {
     return (
@@ -274,13 +295,46 @@ export default function Index() {
     return <GameOpening onComplete={() => setShowOpening(false)} />;
   }
 
+  // Show fake lobby
+  if (showFakeLobby) {
+    return (
+      <FakeLobby
+        playerName={displayName || 'Jogador'}
+        onComplete={handleLobbyComplete}
+        duration={5000}
+      />
+    );
+  }
+
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
-      className="min-h-screen flex flex-col items-center justify-center p-4"
-    >
+    <>
+      {/* Balance Header */}
+      {(profile || isGuest) && (
+        <BalanceHeader
+          ntBalance={economy.ntBalance}
+          bcBalance={economy.bcBalance}
+          showScore={false}
+        />
+      )}
+
+      {/* Insufficient Energy Modal */}
+      <InsufficientEnergyModal
+        open={showInsufficientEnergy}
+        onClose={() => setShowInsufficientEnergy(false)}
+        requiredNT={50}
+        currentNT={economy.ntBalance}
+        onBuyTokens={() => {
+          setShowInsufficientEnergy(false);
+          navigate('/mercado-negro');
+        }}
+      />
+
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="min-h-screen flex flex-col items-center justify-center p-4 pt-16"
+      >
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -446,58 +500,70 @@ export default function Index() {
       <LuxuryCard className="w-full max-w-md space-y-6">
         {!showJoinForm ? (
           <>
-            <GoldButton onClick={createRoom} disabled={loading} className="w-full" size="lg">
-              <Sparkles className="w-5 h-5 mr-2 inline" />
-              Criar Mesa
-            </GoldButton>
-
-            <Link to="/single-player" className="block">
-              <GoldButton 
-                className="w-full bg-gradient-to-r from-purple-900/80 via-red-900/60 to-purple-900/80 border-purple-500/50 hover:border-purple-400" 
-                size="lg"
-              >
-                <Bot className="w-5 h-5 mr-2 inline" />
-                DESAFIAR A MÁQUINA (SOLO) 🤖
-              </GoldButton>
-            </Link>
-
+            {/* Main CTA - Desafie o Hórus */}
             <GoldButton 
-              variant="outline" 
-              onClick={() => setShowJoinForm(true)} 
-              className="w-full" 
+              onClick={handleChallengeHorus} 
+              disabled={loading} 
+              className="w-full bg-gradient-to-r from-purple-900/80 via-red-900/60 to-purple-900/80 border-purple-500/50 hover:border-purple-400" 
               size="lg"
             >
-              <Users className="w-5 h-5 mr-2 inline" />
-              Entrar na Mesa
+              <Eye className="w-5 h-5 mr-2 inline" />
+              DESAFIE O HÓRUS 👁️
             </GoldButton>
+
+            {/* Phase indicator */}
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <span className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                Aquecimento Grátis
+              </span>
+              <span>5 Rodadas • +50 BC</span>
+            </div>
+
+            {/* Secondary actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <GoldButton onClick={createRoom} disabled={loading} variant="outline" size="md">
+                <Sparkles className="w-4 h-4 mr-1 inline" />
+                Criar Mesa
+              </GoldButton>
+              <GoldButton 
+                variant="outline" 
+                onClick={() => setShowJoinForm(true)} 
+                size="md"
+              >
+                <Users className="w-4 h-4 mr-1 inline" />
+                Entrar
+              </GoldButton>
+            </div>
 
             <Link to="/como-jogar" className="block">
               <GoldButton 
-                variant="outline" 
-                className="w-full border-gold/30 hover:border-gold/60" 
-                size="lg"
+                variant="ghost" 
+                className="w-full" 
+                size="md"
               >
-                <HelpCircle className="w-5 h-5 mr-2 inline" />
-                COMO JOGAR
+                <HelpCircle className="w-4 h-4 mr-2 inline" />
+                Como Jogar
               </GoldButton>
             </Link>
 
-            <Link to="/mercado-negro" className="block">
-              <GoldButton 
-                className="w-full bg-gradient-to-r from-red-900/80 to-gold-dark/80 border-gold/50 hover:border-gold" 
-                size="lg"
-              >
-                <ShoppingCart className="w-5 h-5 mr-2 inline" />
-                MERCADO NEGRO 🛒
-              </GoldButton>
-            </Link>
-
-            <Link to="/rankings" className="block">
-              <GoldButton variant="ghost" className="w-full">
-                <Trophy className="w-5 h-5 mr-2 inline" />
-                Ver Ranking
-              </GoldButton>
-            </Link>
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/mercado-negro" className="block">
+                <GoldButton 
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1 inline" />
+                  Loja
+                </GoldButton>
+              </Link>
+              <Link to="/rankings" className="block">
+                <GoldButton variant="outline" className="w-full" size="sm">
+                  <Trophy className="w-4 h-4 mr-1 inline" />
+                  Ranking
+                </GoldButton>
+              </Link>
+            </div>
           </>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -535,5 +601,6 @@ export default function Index() {
         currentPhrase={audioPreloader.currentPhrase}
       />
     </motion.div>
+    </>
   );
 }

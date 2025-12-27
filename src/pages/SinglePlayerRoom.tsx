@@ -36,6 +36,9 @@ import HorusPostVoteBribe from '@/components/game/HorusPostVoteBribe';
 import WaxSealBreaking from '@/components/game/WaxSealBreaking';
 import ContractTearing from '@/components/game/ContractTearing';
 import { HorusTerminal } from '@/components/HorusTerminal';
+import { BalanceHeader } from '@/components/game/BalanceHeader';
+import { CoinVaultAnimation } from '@/components/game/CoinVaultAnimation';
+import { useEconomy } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins, MessageCircle, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -111,6 +114,9 @@ export default function SinglePlayerRoom() {
   const { playChips, playSuspense, playFanfare, playReveal, playGameOver, playCashRegister, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
   const { profile, isAuthenticated, loading: authLoading, addBluffCoins, updateProfile, refetchProfile } = useAuth();
+  const economy = useEconomy();
+  const [showCoinVault, setShowCoinVault] = useState(false);
+  const [coinVaultAmount, setCoinVaultAmount] = useState(0);
 
   // Só considera convidado se NÃO estiver autenticado (evita bloquear salvamento após login)
   const isGuest = !isAuthenticated && sessionStorage.getItem('guestMode') === 'true';
@@ -939,8 +945,25 @@ export default function SinglePlayerRoom() {
 
   // Main game UI
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <>
+      {/* Balance Header */}
+      <BalanceHeader
+        ntBalance={economy.ntBalance}
+        bcBalance={economy.bcBalance}
+        score={accumulatedPrize}
+        showScore={true}
+      />
+
+      {/* Coin Vault Animation */}
+      {showCoinVault && (
+        <CoinVaultAnimation
+          amount={coinVaultAmount}
+          onComplete={() => setShowCoinVault(false)}
+        />
+      )}
+
+      <div className="min-h-screen p-4 md:p-8 pt-16">
+        <div className="max-w-4xl mx-auto space-y-6">
         {/* Role Banner */}
         <RoleBanner isHost={true} />
 
@@ -1546,6 +1569,7 @@ export default function SinglePlayerRoom() {
         prizeAmount={briefcasePrize}
         onContinue={handleBriefcaseRevealComplete}
       />
-    </div>
+      </div>
+    </>
   );
 }
