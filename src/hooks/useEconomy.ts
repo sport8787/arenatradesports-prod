@@ -12,14 +12,15 @@ export interface GamePhaseConfig {
   phase: 1 | 2 | 3;
   rounds: 5 | 10 | 15;
   ntCost: number;
-  bcReward: number;
-  bonusReward: number;
+  bcReward: number; // Base reward for winning
+  bonusReward: number; // Bonus for completing all rounds
+  checkpointReward: number; // Reward for reaching checkpoint
 }
 
 export const GAME_PHASES: GamePhaseConfig[] = [
-  { phase: 1, rounds: 5, ntCost: 0, bcReward: 50, bonusReward: 0 },
-  { phase: 2, rounds: 10, ntCost: 50, bcReward: 200, bonusReward: 100 },
-  { phase: 3, rounds: 15, ntCost: 100, bcReward: 1000, bonusReward: 0 },
+  { phase: 1, rounds: 5, ntCost: 0, bcReward: 50, bonusReward: 0, checkpointReward: 0 },
+  { phase: 2, rounds: 10, ntCost: 50, bcReward: 200, bonusReward: 100, checkpointReward: 50 },
+  { phase: 3, rounds: 15, ntCost: 100, bcReward: 1000, bonusReward: 0, checkpointReward: 100 },
 ];
 
 export function useEconomy() {
@@ -159,6 +160,40 @@ export function useEconomy() {
     }
   }, [isAuthenticated, profile]);
 
+  // Start a game phase - deducts NT and returns success
+  const startGamePhase = useCallback(async (phase: 1 | 2 | 3): Promise<boolean> => {
+    const config = GAME_PHASES.find(p => p.phase === phase);
+    if (!config) return false;
+    
+    // Phase 1 is free
+    if (config.ntCost === 0) return true;
+    
+    // Check and deduct NT
+    const success = await spendNT(config.ntCost);
+    return success;
+  }, [spendNT]);
+
+  // Award BC for winning a phase
+  const awardPhaseReward = useCallback(async (phase: 1 | 2 | 3, isFullWin: boolean = true): Promise<boolean> => {
+    const config = GAME_PHASES.find(p => p.phase === phase);
+    if (!config) return false;
+    
+    let totalReward = config.bcReward;
+    if (isFullWin && config.bonusReward > 0) {
+      totalReward += config.bonusReward;
+    }
+    
+    return addBC(totalReward);
+  }, [addBC]);
+
+  // Award checkpoint reward
+  const awardCheckpointReward = useCallback(async (phase: 1 | 2 | 3): Promise<boolean> => {
+    const config = GAME_PHASES.find(p => p.phase === phase);
+    if (!config || config.checkpointReward === 0) return false;
+    
+    return addBC(config.checkpointReward);
+  }, [addBC]);
+
   return {
     ...economy,
     spendNT,
@@ -167,6 +202,9 @@ export function useEconomy() {
     canAffordPhase,
     getPhaseConfig,
     refreshBalances,
+    startGamePhase,
+    awardPhaseReward,
+    awardCheckpointReward,
     GAME_PHASES,
   };
 }

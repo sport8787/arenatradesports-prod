@@ -1,40 +1,82 @@
+// Shadow Players - desafiantes humanizados para o modo "Desafie o Hórus"
+export interface ShadowPlayer {
+  id: string;
+  nickname: string;
+  avatar: string; // Emoji or URL
+  bluffVoteChance: number; // Chance to vote BLEFE when player is lying
+  claroVoteChance: number; // Chance to vote CLARO when player is telling truth
+}
+
+// Pool of human names for Shadow Players
+export const SHADOW_PLAYER_NAMES = [
+  'Ricardo', 'Beatriz', 'Marcos', 'Carolina', 'Felipe',
+  'Juliana', 'André', 'Larissa', 'Thiago', 'Mariana',
+  'Lucas', 'Fernanda', 'Gabriel', 'Amanda', 'Pedro',
+  'Isabela', 'Bruno', 'Camila', 'Rodrigo', 'Letícia',
+  'Gustavo', 'Patrícia', 'Henrique', 'Bianca', 'Vinícius',
+  'Renata', 'Diego', 'Natália', 'Rafael', 'Aline',
+];
+
+// Avatar emojis for Shadow Players
+export const SHADOW_PLAYER_AVATARS = [
+  '👤', '👨', '👩', '🧑', '👱', '👱‍♀️', '🧔', '👩‍🦱', '👨‍🦱', '👩‍🦰',
+  '👨‍🦰', '👩‍🦳', '👨‍🦳', '🧑‍🦱', '🧑‍🦰', '🙂', '😊', '🙃', '😌', '🤔',
+];
+
+// Generate random Shadow Players
+export function generateShadowPlayers(count: number = 3): ShadowPlayer[] {
+  const shuffledNames = [...SHADOW_PLAYER_NAMES].sort(() => Math.random() - 0.5);
+  const shuffledAvatars = [...SHADOW_PLAYER_AVATARS].sort(() => Math.random() - 0.5);
+  
+  return shuffledNames.slice(0, count).map((name, i) => ({
+    id: `shadow-${i}`,
+    nickname: name,
+    avatar: shuffledAvatars[i] || '👤',
+    // Varied voting behavior for realism
+    bluffVoteChance: 0.45 + Math.random() * 0.25, // 45-70% chance to detect lies
+    claroVoteChance: 0.65 + Math.random() * 0.25, // 65-90% chance to believe truths
+  }));
+}
+
+// Legacy Bot interface for backwards compatibility
 export interface Bot {
   id: string;
   nickname: string;
   personality: 'skeptic' | 'naive' | 'balanced';
   description: string;
   avatar: string;
-  bluffVoteChance: number; // Chance to vote BLEFE when player is lying
-  claroVoteChance: number; // Chance to vote CLARO when player is telling truth
+  bluffVoteChance: number;
+  claroVoteChance: number;
 }
 
+// Legacy BOTS array - now uses humanized names
 export const BOTS: Bot[] = [
   {
     id: 'bot-1',
-    nickname: 'O Cético',
+    nickname: 'Ricardo',
     personality: 'skeptic',
-    description: 'Desconfia de tudo. Vota mais em BLEFE.',
-    avatar: '🕵️',
-    bluffVoteChance: 0.75, // 75% chance to vote BLEFE on lies
-    claroVoteChance: 0.60, // 60% chance to vote CLARO on truths
+    description: 'Jogador experiente',
+    avatar: '👨',
+    bluffVoteChance: 0.70,
+    claroVoteChance: 0.65,
   },
   {
     id: 'bot-2',
-    nickname: 'O Ingênuo',
+    nickname: 'Beatriz',
     personality: 'naive',
-    description: 'Acredita em quase tudo. Vota mais em CLARO.',
-    avatar: '😊',
-    bluffVoteChance: 0.40, // 40% chance to vote BLEFE on lies
-    claroVoteChance: 0.90, // 90% chance to vote CLARO on truths
+    description: 'Jogadora casual',
+    avatar: '👩',
+    bluffVoteChance: 0.45,
+    claroVoteChance: 0.85,
   },
   {
     id: 'bot-3',
-    nickname: 'Mycroft V2',
+    nickname: 'Marcos',
     personality: 'balanced',
-    description: 'IA equilibrada. Analisa padrões.',
-    avatar: '🤖',
-    bluffVoteChance: 0.60, // 60% chance to vote BLEFE on lies (as per spec)
-    claroVoteChance: 0.80, // 80% chance to vote CLARO on truths (as per spec)
+    description: 'Jogador estratégico',
+    avatar: '🧔',
+    bluffVoteChance: 0.55,
+    claroVoteChance: 0.75,
   },
 ];
 
@@ -45,42 +87,42 @@ export interface BotVote {
 }
 
 // Calculate bot votes based on whether the player answered correctly
-export function calculateBotVotes(playerAnsweredCorrectly: boolean): BotVote[] {
-  return BOTS.map(bot => {
+export function calculateBotVotes(playerAnsweredCorrectly: boolean, customBots?: ShadowPlayer[]): BotVote[] {
+  const players = customBots || BOTS;
+  
+  return players.map(player => {
     const random = Math.random();
     
     if (playerAnsweredCorrectly) {
       // Player told the truth
-      // Higher claroVoteChance = more likely to vote CLARO
-      const votesClaro = random < bot.claroVoteChance;
+      const votesClaro = random < player.claroVoteChance;
       return {
-        botId: bot.id,
-        botName: bot.nickname,
+        botId: player.id,
+        botName: player.nickname,
         vote: votesClaro ? 'believe' : 'doubt',
       };
     } else {
       // Player lied (wrong answer)
-      // Higher bluffVoteChance = more likely to vote BLEFE
-      const votesBlefe = random < bot.bluffVoteChance;
+      const votesBlefe = random < player.bluffVoteChance;
       return {
-        botId: bot.id,
-        botName: bot.nickname,
+        botId: player.id,
+        botName: player.nickname,
         vote: votesBlefe ? 'doubt' : 'believe',
       };
     }
   });
 }
 
-// AI taunts when catching a bluff
+// AI taunts when catching a bluff - now more human-like
 export const AI_TAUNT_MESSAGES = [
-  'Meus algoritmos detectaram sua hesitação. Tente novamente, humano. 🤖',
-  'Frequência cardíaca elevada. Padrão vocal inconsistente. BLEFE detectado. 📊',
-  'Você hesitou por 0.3 segundos. Isso é tudo que eu precisava saber. ⏱️',
-  'Análise de microexpressões: 94% de probabilidade de mentira. 🔬',
-  'Sua pupila dilatou. Sinal clássico de fabricação narrativa. 👁️',
-  'Processando... Mentira identificada. Previsível, humano. 💾',
-  'Variação de pitch vocal detectada. Não tente enganar uma IA. 🎙️',
-  'Meu treinamento inclui 10 bilhões de mentiras. A sua não foi original. 📚',
+  'Achei que você estava forçando a barra. Blefe na cara! 🎭',
+  'Desculpa, mas não colou essa não. 😏',
+  'Você hesitou demais. Isso me denunciou. 🤔',
+  'Conheço esse tipo de conversa. Blefe! 🕵️',
+  'A voz tremeu um pouquinho ali. Peguei! 👀',
+  'Tentou, mas não convenceu. Blefe! 💭',
+  'Resposta muito ensaiada. Não caí. 🙅',
+  'Minha intuição disse que era mentira. ✨',
 ];
 
 export function getRandomTaunt(): string {

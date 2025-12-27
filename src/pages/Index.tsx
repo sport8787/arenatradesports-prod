@@ -266,10 +266,10 @@ export default function Index() {
     setShowFakeLobby(true);
   };
 
-  // Handle fake lobby completion - navigate to solo mode with bots
-  const handleLobbyComplete = (bots: { id: string; name: string }[]) => {
-    // Store bots in sessionStorage for the single player room
-    sessionStorage.setItem('horusBots', JSON.stringify(bots));
+  // Handle fake lobby completion - navigate to solo mode with shadow players
+  const handleLobbyComplete = (shadowPlayers: { id: string; nickname: string; avatar: string; bluffVoteChance: number; claroVoteChance: number }[]) => {
+    // Store shadow players in sessionStorage for the single player room
+    sessionStorage.setItem('horusShadowPlayers', JSON.stringify(shadowPlayers));
     sessionStorage.setItem('gamePhase', '1'); // Aquecimento phase
     navigate('/single-player?mode=horus');
   };

@@ -1,58 +1,52 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Bot, Loader2 } from 'lucide-react';
+import { Users, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Pool of random bot names
-const BOT_NAMES = [
-  'ShadowMind', 'CryptoHunter', 'NeonBlitz', 'VortexAce',
-  'PhantomX', 'CyberPulse', 'DarkVenus', 'IronWolf',
-  'QuantumZ', 'BlazeMaster', 'FrostByte', 'StormRider',
-  'EchoNova', 'VenomStrike', 'ThunderX', 'SteelNinja',
-  'CosmicRay', 'MidnightAce', 'NovaStar', 'ViperX',
-];
+import { SHADOW_PLAYER_NAMES, SHADOW_PLAYER_AVATARS, ShadowPlayer, generateShadowPlayers } from '@/types/bot';
+import { GamePhaseConfig } from '@/hooks/useEconomy';
 
 interface FakeLobbyProps {
   playerName: string;
-  onComplete: (bots: { id: string; name: string }[]) => void;
+  onComplete: (shadowPlayers: ShadowPlayer[]) => void;
   duration?: number;
+  phaseConfig?: GamePhaseConfig;
 }
 
-export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobbyProps) {
-  const [players, setPlayers] = useState<{ id: string; name: string; isPlayer: boolean }[]>([
-    { id: 'player', name: playerName, isPlayer: true }
+export function FakeLobby({ playerName, onComplete, duration = 5000, phaseConfig }: FakeLobbyProps) {
+  const [players, setPlayers] = useState<{ id: string; name: string; avatar: string; isPlayer: boolean }[]>([
+    { id: 'player', name: playerName, avatar: '🎮', isPlayer: true }
   ]);
   const [status, setStatus] = useState('Procurando jogadores...');
   const [progress, setProgress] = useState(0);
+  const [shadowPlayers, setShadowPlayers] = useState<ShadowPlayer[]>([]);
 
   useEffect(() => {
-    // Shuffle and pick 3 random bot names
-    const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5);
-    const selectedBots = shuffled.slice(0, 3).map((name, i) => ({
-      id: `bot-${i}`,
-      name,
+    // Generate 3 random shadow players
+    const generated = generateShadowPlayers(3);
+    setShadowPlayers(generated);
+
+    // Add shadow players progressively (simulating real matchmaking)
+    const playersToAdd = generated.map((sp, i) => ({
+      id: sp.id,
+      name: sp.nickname,
+      avatar: sp.avatar,
       isPlayer: false,
     }));
 
-    // Add bots progressively
     const intervals: NodeJS.Timeout[] = [];
-    const botsToAdd = [...selectedBots];
 
-    const addBot = (index: number) => {
-      if (index >= botsToAdd.length) return;
+    // Stagger the additions with random delays for realism
+    playersToAdd.forEach((player, index) => {
+      const baseDelay = (duration / 4) * (index + 1);
+      const randomOffset = Math.random() * 500 - 250; // +/- 250ms
+      const delay = Math.max(500, baseDelay + randomOffset);
       
-      const delay = (duration / 4) * (index + 1);
       const timeout = setTimeout(() => {
-        setPlayers(prev => [...prev, botsToAdd[index]]);
-        setStatus(index < 2 ? 'Jogador encontrado!' : 'Mesa completa!');
+        setPlayers(prev => [...prev, player]);
+        setStatus(index < 2 ? `${player.name} entrou na sala!` : 'Mesa completa!');
       }, delay);
       intervals.push(timeout);
-    };
-
-    // Add each bot with delay
-    addBot(0);
-    addBot(1);
-    addBot(2);
+    });
 
     // Progress bar
     const progressInterval = setInterval(() => {
@@ -61,7 +55,7 @@ export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobby
 
     // Complete after duration
     const completeTimeout = setTimeout(() => {
-      onComplete(selectedBots.map(b => ({ id: b.id, name: b.name })));
+      onComplete(generated);
     }, duration);
 
     return () => {
@@ -70,6 +64,16 @@ export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobby
       clearInterval(progressInterval);
     };
   }, [duration, onComplete]);
+
+  const phaseLabel = phaseConfig 
+    ? phaseConfig.phase === 1 
+      ? 'Aquecimento' 
+      : phaseConfig.phase === 2 
+        ? 'Desafio' 
+        : 'Extremo'
+    : 'Aquecimento';
+
+  const roundsLabel = phaseConfig?.rounds || 5;
 
   return (
     <motion.div
@@ -89,8 +93,13 @@ export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobby
             DESAFIE O HÓRUS
           </h2>
           <p className="text-muted-foreground text-sm">
-            Modo Aquecimento • 5 Rodadas
+            Modo {phaseLabel} • {roundsLabel} Rodadas
           </p>
+          {phaseConfig && phaseConfig.bcReward > 0 && (
+            <p className="text-success text-xs mt-1">
+              Prêmio: até {phaseConfig.bcReward.toLocaleString()} BC
+            </p>
+          )}
         </motion.div>
 
         {/* Players List */}
@@ -118,17 +127,17 @@ export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobby
                   )}
                 >
                   <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center",
+                    "w-10 h-10 rounded-full flex items-center justify-center text-lg",
                     player.isPlayer
                       ? "bg-gradient-to-br from-primary to-primary/60"
-                      : "bg-gradient-to-br from-purple-600 to-purple-900"
+                      : "bg-gradient-to-br from-secondary to-secondary/80"
                   )}>
                     {player.isPlayer ? (
                       <span className="text-sm font-bold text-primary-foreground">
                         {player.name.charAt(0).toUpperCase()}
                       </span>
                     ) : (
-                      <Bot className="w-5 h-5 text-purple-200" />
+                      <span>{player.avatar}</span>
                     )}
                   </div>
                   <div className="flex-1">
@@ -136,13 +145,15 @@ export function FakeLobby({ playerName, onComplete, duration = 5000 }: FakeLobby
                       {player.name}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {player.isPlayer ? 'Você' : 'Shadow Player'}
+                      {player.isPlayer ? 'Você' : 'Pronto para jogar'}
                     </div>
                   </div>
                   {!player.isPlayer && (
-                    <div className="text-xs text-purple-400 font-orbitron">
-                      🤖
-                    </div>
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-2 h-2 rounded-full bg-success"
+                    />
                   )}
                 </motion.div>
               ))}
