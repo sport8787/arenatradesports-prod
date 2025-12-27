@@ -13,7 +13,7 @@ import { useDialogManager } from '@/hooks/useDialogManager';
 // HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
-import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt } from '@/types/bot';
+import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt, ShadowPlayer, generateShadowPlayers } from '@/types/bot';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import GoldButton from '@/components/game/GoldButton';
 import QuestionCard from '@/components/game/QuestionCard';
@@ -137,10 +137,14 @@ export default function SinglePlayerRoom() {
   const [bluffcoins, setBluffcoins] = useState(INITIAL_BLUFFCOINS);
   const [bluffFeedback, setBluffFeedback] = useState<{ phrase: string; description: string } | null>(null);
 
-  // Bot votes
+  // Shadow Players (humanized bots)
+  const [shadowPlayers, setShadowPlayers] = useState<ShadowPlayer[]>([]);
   const [botVotes, setBotVotes] = useState<BotVote[]>([]);
   const [analyzingProgress, setAnalyzingProgress] = useState(0);
   const [aiTaunt, setAiTaunt] = useState<string | null>(null);
+  
+  // Game phase for economy
+  const [currentGamePhase, setCurrentGamePhase] = useState<1 | 2 | 3>(1);
 
   // Round progression
   const [currentRound, setCurrentRound] = useState(0);
@@ -294,6 +298,34 @@ export default function SinglePlayerRoom() {
       navigate('/auth');
     }
   }, [isAuthenticated, authLoading, navigate, isGuest]);
+
+  // Load shadow players from sessionStorage (set by FakeLobby)
+  useEffect(() => {
+    const storedPlayers = sessionStorage.getItem('horusShadowPlayers');
+    const storedPhase = sessionStorage.getItem('gamePhase');
+    
+    if (storedPlayers) {
+      try {
+        const parsed = JSON.parse(storedPlayers) as ShadowPlayer[];
+        setShadowPlayers(parsed);
+        sessionStorage.removeItem('horusShadowPlayers');
+      } catch (e) {
+        // Fallback to generated players
+        setShadowPlayers(generateShadowPlayers(3));
+      }
+    } else if (shadowPlayers.length === 0) {
+      // Generate default shadow players if none stored
+      setShadowPlayers(generateShadowPlayers(3));
+    }
+    
+    if (storedPhase) {
+      const phase = parseInt(storedPhase) as 1 | 2 | 3;
+      if (phase >= 1 && phase <= 3) {
+        setCurrentGamePhase(phase);
+      }
+      sessionStorage.removeItem('gamePhase');
+    }
+  }, []);
 
   const startGame = async () => {
     // Guest users don't have a profile; allow them to play without persistence.
@@ -573,7 +605,8 @@ export default function SinglePlayerRoom() {
     if (!currentQuestion || !confirmedAnswer) return;
 
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
-    const votes = calculateBotVotes(playerAnsweredCorrectly);
+    // Use shadow players for voting if available, otherwise fall back to BOTS
+    const votes = calculateBotVotes(playerAnsweredCorrectly, shadowPlayers.length > 0 ? shadowPlayers : undefined);
     setBotVotes(votes);
 
     const believeVotes = votes.filter(v => v.vote === 'believe').length;
@@ -892,33 +925,37 @@ export default function SinglePlayerRoom() {
     );
   }
 
-  // Nickname entry screen
+  // Nickname entry screen - show Shadow Players
   if (gamePhase === 'nickname') {
+    const displayPlayers = shadowPlayers.length > 0 ? shadowPlayers : generateShadowPlayers(3);
+    const phaseConfig = economy.getPhaseConfig(currentGamePhase);
+    const phaseLabel = currentGamePhase === 1 ? 'Aquecimento' : currentGamePhase === 2 ? 'Desafio' : 'Extremo';
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <LuxuryCard className="w-full max-w-md space-y-6 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <BotIcon className="w-8 h-8 text-destructive" />
-            <h2 className="font-orbitron text-2xl text-destructive">MODO SOLO</h2>
+            <Zap className="w-8 h-8 text-primary" />
+            <h2 className="font-orbitron text-2xl text-primary">DESAFIE O HÓRUS</h2>
           </div>
           
-          <p className="text-muted-foreground">
-            Enfrente 3 IAs com personalidades únicas. Sobreviva 15 rodadas para vencer.
-          </p>
+          <div className="text-sm text-muted-foreground">
+            <span className="text-primary font-orbitron">{phaseLabel}</span> • {phaseConfig?.rounds || 5} Rodadas
+          </div>
 
-          {/* Bot display */}
+          {/* Shadow Players display */}
           <div className="flex justify-center gap-4 py-4">
-            {BOTS.map((bot, i) => (
+            {displayPlayers.map((player, i) => (
               <motion.div
-                key={bot.id}
+                key={player.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.2 }}
                 className="flex flex-col items-center gap-2 p-3 rounded-lg bg-secondary/50 border border-border/50"
               >
-                <span className="text-3xl">{bot.avatar}</span>
-                <span className="font-orbitron text-xs text-primary">{bot.nickname}</span>
-                <span className="text-[10px] text-muted-foreground text-center max-w-[80px]">{bot.description}</span>
+                <span className="text-3xl">{player.avatar}</span>
+                <span className="font-orbitron text-xs text-foreground">{player.nickname}</span>
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               </motion.div>
             ))}
           </div>
@@ -928,6 +965,21 @@ export default function SinglePlayerRoom() {
             <p className="font-orbitron text-lg text-primary font-bold">{displayName}</p>
             {isGuest && <p className="text-xs text-destructive/80 mt-1">Modo convidado - moedas não serão salvas</p>}
           </div>
+
+          {/* Phase rewards info */}
+          {phaseConfig && (
+            <div className="py-3 px-4 rounded-lg bg-success/10 border border-success/30">
+              <p className="text-sm text-success font-orbitron">
+                Prêmio ao vencer: {phaseConfig.bcReward.toLocaleString()} BC
+                {phaseConfig.bonusReward > 0 && ` + ${phaseConfig.bonusReward} bônus`}
+              </p>
+              {phaseConfig.ntCost > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Custo: {phaseConfig.ntCost} NT
+                </p>
+              )}
+            </div>
+          )}
           
           <GoldButton onClick={startGame} className="w-full" size="lg">
             <Play className="w-5 h-5 mr-2" />
@@ -978,24 +1030,24 @@ export default function SinglePlayerRoom() {
               <Home className="w-5 h-5 text-primary" />
             </button>
             <div>
-              <h1 className="font-orbitron text-xl text-destructive flex items-center gap-2">
-                <BotIcon className="w-5 h-5" />
-                MODO SOLO
+              <h1 className="font-orbitron text-xl text-primary flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                DESAFIE O HÓRUS
               </h1>
               <p className="text-xs text-muted-foreground">{displayName}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <BluffCoinDisplay amount={bluffcoins} size="md" />
-            {/* Bot avatars */}
+            {/* Shadow Player avatars */}
             <div className="flex -space-x-2">
-              {BOTS.map((bot) => (
+              {(shadowPlayers.length > 0 ? shadowPlayers : BOTS).map((player) => (
                 <div 
-                  key={bot.id}
+                  key={player.id}
                   className="w-8 h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-sm"
-                  title={bot.nickname}
+                  title={player.nickname}
                 >
-                  {bot.avatar}
+                  {player.avatar}
                 </div>
               ))}
             </div>
@@ -1153,11 +1205,11 @@ export default function SinglePlayerRoom() {
                     </motion.div>
                     
                     <h3 className="font-orbitron text-xl text-destructive animate-pulse">
-                      A IA ESTÁ ANALISANDO SEUS DADOS BIOMÉTRICOS...
+                      ANALISANDO VOTOS DOS JOGADORES...
                     </h3>
                     
                     <p className="text-muted-foreground text-sm">
-                      Processando padrões vocais e microexpressões
+                      Aguardando decisão da mesa
                     </p>
                   </div>
 
@@ -1174,21 +1226,22 @@ export default function SinglePlayerRoom() {
                     </p>
                   </div>
 
-                  {/* Bot analysis indicators */}
+                  {/* Shadow Player voting indicators */}
                   <div className="flex justify-center gap-6">
-                    {BOTS.map((bot, i) => (
+                    {(shadowPlayers.length > 0 ? shadowPlayers : BOTS).map((player, i) => (
                       <motion.div
-                        key={bot.id}
+                        key={player.id}
                         initial={{ opacity: 0.5 }}
                         animate={{ opacity: analyzingProgress > (i + 1) * 30 ? 1 : 0.5 }}
                         className="flex flex-col items-center gap-2"
                       >
-                        <div className="text-3xl">{bot.avatar}</div>
+                        <div className="text-3xl">{player.avatar}</div>
+                        <span className="text-xs text-muted-foreground">{player.nickname}</span>
                         <motion.div
                           animate={{ scale: analyzingProgress > (i + 1) * 30 ? [1, 1.2, 1] : 1 }}
                           transition={{ repeat: Infinity, duration: 0.5 }}
                         >
-                          <Zap className={`w-4 h-4 ${analyzingProgress > (i + 1) * 30 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                          <Zap className={`w-4 h-4 ${analyzingProgress > (i + 1) * 30 ? 'text-primary' : 'text-muted-foreground'}`} />
                         </motion.div>
                       </motion.div>
                     ))}
@@ -1209,12 +1262,12 @@ export default function SinglePlayerRoom() {
                     autoNarrate={false}
                   />
 
-                  {/* Bot votes display */}
+                  {/* Votes display */}
                   <div className="space-y-4">
-                    <h3 className="font-orbitron text-lg text-center">Votos da IA</h3>
+                    <h3 className="font-orbitron text-lg text-center">Votos dos Jogadores</h3>
                     <div className="grid grid-cols-3 gap-4">
                       {botVotes.map((vote, i) => {
-                        const bot = BOTS.find(b => b.id === vote.botId);
+                        const player = shadowPlayers.find(p => p.id === vote.botId) || BOTS.find(b => b.id === vote.botId);
                         return (
                           <motion.div
                             key={vote.botId}
@@ -1227,8 +1280,8 @@ export default function SinglePlayerRoom() {
                                 : 'bg-destructive/10 border-destructive/50'
                             }`}
                           >
-                            <span className="text-3xl">{bot?.avatar}</span>
-                            <p className="font-orbitron text-xs mt-2">{bot?.nickname}</p>
+                            <span className="text-3xl">{player?.avatar}</span>
+                            <p className="font-orbitron text-xs mt-2">{vote.botName}</p>
                             <p className={`font-bold text-sm mt-1 ${
                               vote.vote === 'believe' ? 'text-success' : 'text-destructive'
                             }`}>
@@ -1246,7 +1299,7 @@ export default function SinglePlayerRoom() {
                       <p className="text-success font-orbitron">✓ Parabéns! Você Acertou!</p>
                     ) : botVotes.filter(v => v.vote === 'believe').length > 0 ? (
                       <p className="text-gold font-orbitron">
-                        🎭 Blefe bem-sucedido! {botVotes.filter(v => v.vote === 'believe').length} IA(s) acreditaram!
+                        🎭 Blefe bem-sucedido! {botVotes.filter(v => v.vote === 'believe').length} jogador(es) acreditaram!
                       </p>
                     ) : (
                       <p className="text-muted-foreground font-orbitron">Resposta incorreta, mas você sobreviveu!</p>
