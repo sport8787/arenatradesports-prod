@@ -12,8 +12,10 @@ import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
 import { GameOpening } from '@/components/game/GameOpening';
 import { BalanceHeader } from '@/components/game/BalanceHeader';
 import { FakeLobby } from '@/components/game/FakeLobby';
+import { PhaseSelector } from '@/components/game/PhaseSelector';
+import { DailyBonusModal } from '@/components/game/DailyBonusModal';
 import { InsufficientEnergyModal } from '@/components/game/InsufficientEnergyModal';
-import { useEconomy } from '@/hooks/useEconomy';
+import { useEconomy, GAME_PHASES, DAILY_BONUS_AMOUNT } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -42,6 +44,9 @@ export default function Index() {
   const [isGuest, setIsGuest] = useState(false);
   const [guestNickname, setGuestNickname] = useState('');
   const [showFakeLobby, setShowFakeLobby] = useState(false);
+  const [showPhaseSelector, setShowPhaseSelector] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState<1 | 2 | 3>(1);
+  const [showDailyBonus, setShowDailyBonus] = useState(false);
   const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
   const [showOpening, setShowOpening] = useState(() => {
     // Check if we should show opening (first visit after login)
@@ -65,6 +70,17 @@ export default function Index() {
       setGuestNickname(savedNickname || `Convidado${Math.floor(Math.random() * 9999)}`);
     }
   }, []);
+
+  // Check for daily bonus on load
+  useEffect(() => {
+    if (isAuthenticated && !economy.loading && economy.dailyBonusAvailable) {
+      // Small delay to let the page render first
+      const timeout = setTimeout(() => {
+        setShowDailyBonus(true);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isAuthenticated, economy.loading, economy.dailyBonusAvailable]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -260,9 +276,15 @@ export default function Index() {
     setEditNickname('');
   };
 
-  // Handle "Desafie o Hórus" button click
+  // Handle "Desafie o Hórus" button click - show phase selector
   const handleChallengeHorus = () => {
-    // Phase 1 (Aquecimento) is free, no NT required
+    setShowPhaseSelector(true);
+  };
+
+  // Handle phase selection
+  const handlePhaseSelect = (phase: 1 | 2 | 3) => {
+    setSelectedPhase(phase);
+    setShowPhaseSelector(false);
     setShowFakeLobby(true);
   };
 
@@ -270,8 +292,20 @@ export default function Index() {
   const handleLobbyComplete = (shadowPlayers: { id: string; nickname: string; avatar: string; bluffVoteChance: number; claroVoteChance: number }[]) => {
     // Store shadow players in sessionStorage for the single player room
     sessionStorage.setItem('horusShadowPlayers', JSON.stringify(shadowPlayers));
-    sessionStorage.setItem('gamePhase', '1'); // Aquecimento phase
+    sessionStorage.setItem('gamePhase', selectedPhase.toString());
     navigate('/single-player?mode=horus');
+  };
+
+  // Handle daily bonus claim
+  const handleClaimDailyBonus = async () => {
+    const success = await economy.claimDailyBonus();
+    if (success) {
+      toast({ 
+        title: `⚡ +${DAILY_BONUS_AMOUNT} NT`, 
+        description: 'Bônus diário resgatado!' 
+      });
+    }
+    setShowDailyBonus(false);
   };
 
   // Loading state
@@ -295,19 +329,40 @@ export default function Index() {
     return <GameOpening onComplete={() => setShowOpening(false)} />;
   }
 
+  // Show phase selector
+  if (showPhaseSelector) {
+    return (
+      <PhaseSelector
+        phases={GAME_PHASES}
+        ntBalance={economy.ntBalance}
+        onSelectPhase={handlePhaseSelect}
+        onCancel={() => setShowPhaseSelector(false)}
+      />
+    );
+  }
+
   // Show fake lobby
   if (showFakeLobby) {
+    const phaseConfig = economy.getPhaseConfig(selectedPhase);
     return (
       <FakeLobby
         playerName={displayName || 'Jogador'}
         onComplete={handleLobbyComplete}
         duration={5000}
+        phaseConfig={phaseConfig}
       />
     );
   }
 
   return (
     <>
+      {/* Daily Bonus Modal */}
+      <DailyBonusModal
+        open={showDailyBonus}
+        amount={DAILY_BONUS_AMOUNT}
+        onClaim={handleClaimDailyBonus}
+      />
+
       {/* Balance Header */}
       {(profile || isGuest) && (
         <BalanceHeader
@@ -511,12 +566,17 @@ export default function Index() {
               DESAFIE O HÓRUS 👁️
             </GoldButton>
 
-            {/* Phase indicator */}
+            {/* Phase options hint */}
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <span className="px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                Aquecimento Grátis
+                Aquecimento
               </span>
-              <span>5 Rodadas • +50 BC</span>
+              <span className="px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                Desafio
+              </span>
+              <span className="px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400">
+                Extremo
+              </span>
             </div>
 
             {/* Secondary actions */}

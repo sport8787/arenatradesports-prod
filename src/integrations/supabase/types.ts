@@ -67,6 +67,7 @@ export type Database = {
           bluff_coins: number
           created_at: string
           id: string
+          last_daily_bonus: string | null
           matches_played: number
           nt_balance: number
           rank_title: string
@@ -80,6 +81,7 @@ export type Database = {
           bluff_coins?: number
           created_at?: string
           id?: string
+          last_daily_bonus?: string | null
           matches_played?: number
           nt_balance?: number
           rank_title?: string
@@ -93,6 +95,7 @@ export type Database = {
           bluff_coins?: number
           created_at?: string
           id?: string
+          last_daily_bonus?: string | null
           matches_played?: number
           nt_balance?: number
           rank_title?: string
@@ -387,6 +390,10 @@ export type Database = {
     }
     Functions: {
       calculate_rank_title: { Args: { coins: number }; Returns: string }
+      claim_daily_nt_bonus: {
+        Args: { p_amount?: number; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
