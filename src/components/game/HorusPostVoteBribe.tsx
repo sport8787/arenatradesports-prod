@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Sparkles, Volume2, AlertTriangle, Coins, Loader2, Check, X } from 'lucide-react';
+import { Briefcase, Sparkles, Volume2, Coins, Loader2, Check, X } from 'lucide-react';
 import GoldButton from './GoldButton';
 
 interface HorusPostVoteBribeProps {
@@ -30,18 +30,18 @@ export default function HorusPostVoteBribe({
 }: HorusPostVoteBribeProps) {
   const [showChoices, setShowChoices] = useState(false);
   const [glowIntensity, setGlowIntensity] = useState(false);
+  const [hasListened, setHasListened] = useState(false);
 
-  // Show choices after a delay when visible - regardless of isListening state
-  // This ensures buttons always appear even if audio fails
+  // Start listening glow when isListening becomes true
   useEffect(() => {
-    if (isVisible && !showChoices) {
+    if (isListening) {
       setGlowIntensity(true);
-      const timer = setTimeout(() => {
-        setShowChoices(true);
-      }, 2500);
+      setHasListened(true);
+      // Show choices after speech starts
+      const timer = setTimeout(() => setShowChoices(true), 2000);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, showChoices]);
+  }, [isListening]);
 
   // Start glow when loading
   useEffect(() => {
@@ -55,6 +55,7 @@ export default function HorusPostVoteBribe({
     if (!isVisible) {
       setShowChoices(false);
       setGlowIntensity(false);
+      setHasListened(false);
     }
   }, [isVisible]);
 
@@ -232,7 +233,7 @@ export default function HorusPostVoteBribe({
 
               {/* Speech Display */}
               <AnimatePresence>
-                {(currentPhrase || isLoading) && (
+                {(currentPhrase || isLoading) && isListening && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -260,6 +261,23 @@ export default function HorusPostVoteBribe({
 
               {/* Actions */}
               <div className="space-y-3">
+                {/* Initial state - Listen button (like multiplayer HorusBribeOffer) */}
+                {!isListening && !isLoading && !hasListened && (
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <GoldButton
+                      onClick={onListenProposal}
+                      className="w-full"
+                      size="lg"
+                    >
+                      <Volume2 className="w-5 h-5 mr-2" />
+                      Ouvir Acordo
+                    </GoldButton>
+                  </motion.div>
+                )}
+
                 {/* Loading state */}
                 {isLoading && (
                   <div className="text-center py-2">
@@ -273,7 +291,7 @@ export default function HorusPostVoteBribe({
                   </div>
                 )}
 
-                {/* Listening state */}
+                {/* Listening state - before choices appear */}
                 {isListening && !isLoading && !showChoices && (
                   <div className="text-center py-2">
                     <motion.div
@@ -287,7 +305,7 @@ export default function HorusPostVoteBribe({
                   </div>
                 )}
 
-                {/* Choice buttons */}
+                {/* Choice buttons - appear after listening */}
                 {showChoices && !isLoading && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
