@@ -6,6 +6,8 @@ export interface EconomyState {
   ntBalance: number;
   bcBalance: number;
   loading: boolean;
+  lastDailyBonus: string | null;
+  dailyBonusAvailable: boolean;
 }
 
 export interface GamePhaseConfig {
@@ -23,28 +25,50 @@ export const GAME_PHASES: GamePhaseConfig[] = [
   { phase: 3, rounds: 15, ntCost: 100, bcReward: 1000, bonusReward: 0, checkpointReward: 100 },
 ];
 
+export const DAILY_BONUS_AMOUNT = 100;
+
 export function useEconomy() {
   const { profile, isAuthenticated } = useAuth();
   const [economy, setEconomy] = useState<EconomyState>({
     ntBalance: 500,
     bcBalance: 0,
     loading: true,
+    lastDailyBonus: null,
+    dailyBonusAvailable: false,
   });
+
+  // Check if daily bonus is available
+  const checkDailyBonus = useCallback((lastBonusDate: string | null): boolean => {
+    if (!lastBonusDate) return true;
+    
+    const today = new Date().toISOString().split('T')[0];
+    return lastBonusDate !== today;
+  }, []);
 
   // Fetch balances from profile
   useEffect(() => {
     if (profile) {
       // Use type assertion since these columns are new
-      const profileData = profile as typeof profile & { nt_balance?: number; bc_balance?: number };
+      const profileData = profile as typeof profile & { 
+        nt_balance?: number; 
+        bc_balance?: number;
+        last_daily_bonus?: string | null;
+      };
+      
+      const lastBonus = profileData.last_daily_bonus || null;
+      const bonusAvailable = checkDailyBonus(lastBonus);
+      
       setEconomy({
         ntBalance: profileData.nt_balance ?? 500,
         bcBalance: profileData.bc_balance ?? 0,
         loading: false,
+        lastDailyBonus: lastBonus,
+        dailyBonusAvailable: bonusAvailable,
       });
     } else {
       setEconomy(prev => ({ ...prev, loading: false }));
     }
-  }, [profile]);
+  }, [profile, checkDailyBonus]);
 
   // Spend NT tokens (returns true if successful)
   const spendNT = useCallback(async (amount: number): Promise<boolean> => {
@@ -142,21 +166,60 @@ export function useEconomy() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('nt_balance, bc_balance')
+        .select('nt_balance, bc_balance, last_daily_bonus')
         .eq('user_id', profile.user_id)
         .single();
 
       if (error) throw error;
 
       if (data) {
+        const typedData = data as { nt_balance: number; bc_balance: number; last_daily_bonus: string | null };
         setEconomy(prev => ({
           ...prev,
-          ntBalance: (data as { nt_balance: number; bc_balance: number }).nt_balance,
-          bcBalance: (data as { nt_balance: number; bc_balance: number }).bc_balance,
+          ntBalance: typedData.nt_balance,
+          bcBalance: typedData.bc_balance,
+          lastDailyBonus: typedData.last_daily_bonus,
+          dailyBonusAvailable: checkDailyBonus(typedData.last_daily_bonus),
         }));
       }
     } catch (error) {
       console.error('Error refreshing balances:', error);
+    }
+  }, [isAuthenticated, profile, checkDailyBonus]);
+
+  // Claim daily bonus
+  const claimDailyBonus = useCallback(async (): Promise<boolean> => {
+    if (!isAuthenticated || !profile) {
+      // Guest mode - just update local state
+      setEconomy(prev => ({ 
+        ...prev, 
+        ntBalance: prev.ntBalance + DAILY_BONUS_AMOUNT,
+        dailyBonusAvailable: false 
+      }));
+      return true;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('claim_daily_nt_bonus', {
+        p_user_id: profile.user_id,
+        p_amount: DAILY_BONUS_AMOUNT,
+      });
+
+      if (error) throw error;
+
+      if (data === true) {
+        setEconomy(prev => ({ 
+          ...prev, 
+          ntBalance: prev.ntBalance + DAILY_BONUS_AMOUNT,
+          lastDailyBonus: new Date().toISOString().split('T')[0],
+          dailyBonusAvailable: false 
+        }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error claiming daily bonus:', error);
+      return false;
     }
   }, [isAuthenticated, profile]);
 
@@ -205,6 +268,8 @@ export function useEconomy() {
     startGamePhase,
     awardPhaseReward,
     awardCheckpointReward,
+    claimDailyBonus,
     GAME_PHASES,
+    DAILY_BONUS_AMOUNT,
   };
 }
