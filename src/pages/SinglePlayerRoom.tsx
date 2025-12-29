@@ -13,7 +13,9 @@ import { useDialogManager } from '@/hooks/useDialogManager';
 // HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
-import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt, ShadowPlayer, generateShadowPlayers } from '@/types/bot';
+import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt, ShadowPlayer, generateShadowPlayers, analyzeVoiceForVoting, VoiceAnalysisResult } from '@/types/bot';
+import { VotingSimulation } from '@/components/game/VotingSimulation';
+import { VoteReveal } from '@/components/game/VoteReveal';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import GoldButton from '@/components/game/GoldButton';
 import QuestionCard from '@/components/game/QuestionCard';
@@ -106,8 +108,8 @@ const generateBriefcasePrize = (): number => {
   return 250000; // 250.000 BC fixo
 };
 
-// IMPORTANT: 'bribe_offer' must come BEFORE 'analyzing' to prevent spoilers
-type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+// IMPORTANT: 'bribe_offer' must come BEFORE 'voting_simulation' to prevent spoilers
+type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 export default function SinglePlayerRoom() {
   const navigate = useNavigate();
@@ -165,6 +167,8 @@ export default function SinglePlayerRoom() {
   
   // Voice forensics metrics
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
+  const [voiceAnalysis, setVoiceAnalysis] = useState<VoiceAnalysisResult | null>(null);
   
   // Horus Bribe phase states - limita a 2 ofertas por partida, só a partir da rodada 3
   const [bribeOffersCount, setBribeOffersCount] = useState(0);
@@ -462,6 +466,9 @@ export default function SinglePlayerRoom() {
     setBotVotes([]);
     setAiTaunt(null);
     setAnalyzingProgress(0);
+    setHasRecordedAudio(false);
+    setVoiceMetrics(null);
+    setVoiceAnalysis(null);
 
     // Preload audio DISABLED to prevent ElevenLabs credit consumption
     // Audio will only be generated at the exact moment of question display
@@ -558,7 +565,11 @@ export default function SinglePlayerRoom() {
     playChips();
   };
 
-  const submitAudio = () => {
+  const submitAudio = (withAudio: boolean = false) => {
+    // Analyze voice metrics for voting influence
+    const analysis = analyzeVoiceForVoting(voiceMetrics, withAudio && hasRecordedAudio);
+    setVoiceAnalysis(analysis);
+    
     // Check if player answered correctly BEFORE showing bribe offer
     // Bribe only makes sense if player got it WRONG (they need a way out)
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion?.correct_option;
@@ -588,8 +599,8 @@ export default function SinglePlayerRoom() {
               : 'no accumulated prize';
       console.log('[Hórus Offer] Skipped -', skipReason);
       
-      // Skip bribe offer - go directly to analysis
-      proceedToAnalysis();
+      // Skip bribe offer - go to voting simulation
+      startVotingSimulation();
       return;
     }
     
@@ -597,7 +608,7 @@ export default function SinglePlayerRoom() {
     setBribeOffersCount(prev => prev + 1);
     console.log(`[Hórus Offer] Showing offer #${bribeOffersCount + 1} at round ${currentRound}`);
     
-    // Show Horus bribe offer BEFORE analyzing phase
+    // Show Horus bribe offer BEFORE voting phase
     setGamePhase('bribe_offer');
     playSuspense();
     setIsHorusListening(true);
@@ -611,34 +622,49 @@ export default function SinglePlayerRoom() {
     });
   };
   
+  // Start voting simulation with delay
+  const startVotingSimulation = () => {
+    setGamePhase('voting_simulation');
+    playSuspense();
+    setLastAction("Aguardando votos dos desafiantes");
+  };
+  
+  // Called when voting simulation completes - calculate and show votes
+  const handleVotingSimulationComplete = () => {
+    if (!currentQuestion || !confirmedAnswer) return;
+    
+    const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
+    // Use shadow players for voting with voice analysis influence
+    const votes = calculateBotVotes(
+      playerAnsweredCorrectly, 
+      shadowPlayers.length > 0 ? shadowPlayers : undefined,
+      voiceAnalysis || undefined
+    );
+    setBotVotes(votes);
+    
+    // Move to vote reveal phase
+    setGamePhase('vote_reveal');
+  };
+  
+  // Called when vote reveal completes - process results
+  const handleVoteRevealComplete = () => {
+    processResults();
+  };
+  
   // Called when player makes a decision on the bribe offer
   const proceedToAnalysis = () => {
-    setGamePhase('analyzing');
-    
-    // Simulate AI analysis with progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 15 + 5;
-      setAnalyzingProgress(Math.min(progress, 100));
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          processResults();
-        }, 500);
-      }
-    }, 300);
+    // After bribe decision, go to voting simulation
+    startVotingSimulation();
   };
 
-  // processResults is now called AFTER the bribe decision
-  // The bribe decision happens in the bribe_offer phase, not here
+  // processResults is now called AFTER the vote reveal
+  // Votes are already calculated in handleVotingSimulationComplete
   const processResults = async () => {
     if (!currentQuestion || !confirmedAnswer) return;
 
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
-    // Use shadow players for voting if available, otherwise fall back to BOTS
-    const votes = calculateBotVotes(playerAnsweredCorrectly, shadowPlayers.length > 0 ? shadowPlayers : undefined);
-    setBotVotes(votes);
+    // Votes were already set in handleVotingSimulationComplete
+    const votes = botVotes;
 
     const believeVotes = votes.filter(v => v.vote === 'believe').length;
     const doubtVotes = votes.filter(v => v.vote === 'doubt').length;
@@ -655,12 +681,12 @@ export default function SinglePlayerRoom() {
       shouldEliminate,
     });
     
-    // Now we go directly to result handling since bribe was already offered
+    // Now we go directly to result handling since votes are already revealed
     if (playerAnsweredCorrectly) {
       // Player answered correctly - victory reveal
       handleVictoryReveal(playerAnsweredCorrectly, believeVotes, shouldEliminate);
     } else {
-      // Player rejected the bribe and got it wrong - show wax seal then result
+      // Player got it wrong - show wax seal then result
       setShowWaxSealBreaking(true);
     }
   };
@@ -1170,14 +1196,13 @@ export default function SinglePlayerRoom() {
                   />
                   
                   <div className="space-y-4">
-                    <div className="p-4 bg-secondary/50 rounded-lg border border-border/50 text-center">
-                      <p className="text-muted-foreground text-sm mb-2">
-                        🎙️ Grave sua justificativa (para imersão)
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Ou pule direto para a análise da IA
-                      </p>
-                    </div>
+                    <AudioRecorder 
+                      roomId="solo-mode"
+                      onRecordingComplete={(audioUrl, metrics) => {
+                        setVoiceMetrics(metrics);
+                        setHasRecordedAudio(true);
+                      }}
+                    />
 
                     <div className="flex gap-4">
                       <GoldButton 
@@ -1191,13 +1216,35 @@ export default function SinglePlayerRoom() {
                           <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
                         )}
                       </GoldButton>
-                      <GoldButton onClick={submitAudio} className="flex-1">
+                      <GoldButton onClick={() => submitAudio(hasRecordedAudio)} className="flex-1">
                         <Brain className="w-5 h-5 mr-2" />
-                        Enviar para IA
+                        ENVIAR PARA A MESA
                       </GoldButton>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* VOTING SIMULATION PHASE - Shadow Players deliberating */}
+              {gamePhase === 'voting_simulation' && (
+                <LuxuryCard>
+                  <VotingSimulation
+                    shadowPlayers={shadowPlayers.length > 0 ? shadowPlayers : generateShadowPlayers(3)}
+                    onComplete={handleVotingSimulationComplete}
+                  />
+                </LuxuryCard>
+              )}
+
+              {/* VOTE REVEAL PHASE - Dramatic one-by-one reveal */}
+              {gamePhase === 'vote_reveal' && (
+                <LuxuryCard>
+                  <VoteReveal
+                    votes={botVotes}
+                    shadowPlayers={shadowPlayers.length > 0 ? shadowPlayers : generateShadowPlayers(3)}
+                    onComplete={handleVoteRevealComplete}
+                    revealIntervalMs={1200}
+                  />
+                </LuxuryCard>
               )}
 
               {/* BRIBE OFFER PHASE - Horus makes his offer before jury votes */}
