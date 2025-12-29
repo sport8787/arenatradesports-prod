@@ -27,11 +27,15 @@ export function VotingSimulation({
   const [playerStates, setPlayerStates] = useState<Record<string, 'waiting' | 'thinking' | 'decided'>>({});
   const [progress, setProgress] = useState(0);
   const hasCompletedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const totalDelayRef = useRef(delayMs || (5000 + Math.random() * 7000));
   
-  // Random delay between 5-12 seconds
-  const totalDelay = delayMs || (5000 + Math.random() * 7000);
+  // Keep callback ref updated
+  onCompleteRef.current = onComplete;
   
   useEffect(() => {
+    const totalDelay = totalDelayRef.current;
+    
     // Initialize player states
     const initialStates: Record<string, 'waiting' | 'thinking' | 'decided'> = {};
     shadowPlayers.forEach(p => {
@@ -49,34 +53,40 @@ export function VotingSimulation({
       setProgress(prev => Math.min(prev + (100 / (totalDelay / 100)), 100));
     }, 100);
     
+    // Store timeout IDs for cleanup
+    const timeoutIds: NodeJS.Timeout[] = [];
+    
     // Simulate players starting to think at different times
     shadowPlayers.forEach((player, index) => {
       const startThinkingDelay = 500 + Math.random() * 1500;
-      setTimeout(() => {
+      const thinkingTimeout = setTimeout(() => {
         setPlayerStates(prev => ({ ...prev, [player.id]: 'thinking' }));
       }, startThinkingDelay);
+      timeoutIds.push(thinkingTimeout);
       
       // Each player decides at a random time before the total delay
       const decisionTime = (totalDelay * 0.3) + (index * (totalDelay * 0.2)) + Math.random() * 1000;
-      setTimeout(() => {
+      const decisionTimeout = setTimeout(() => {
         setPlayerStates(prev => ({ ...prev, [player.id]: 'decided' }));
       }, decisionTime);
+      timeoutIds.push(decisionTimeout);
     });
     
     // Complete after total delay
     const completeTimeout = setTimeout(() => {
       if (!hasCompletedRef.current) {
         hasCompletedRef.current = true;
-        onComplete();
+        onCompleteRef.current();
       }
     }, totalDelay);
+    timeoutIds.push(completeTimeout);
     
     return () => {
       clearInterval(phraseInterval);
       clearInterval(progressInterval);
-      clearTimeout(completeTimeout);
+      timeoutIds.forEach(id => clearTimeout(id));
     };
-  }, [shadowPlayers, totalDelay, onComplete]);
+  }, [shadowPlayers]);
   
   return (
     <motion.div
