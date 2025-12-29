@@ -86,24 +86,95 @@ export interface BotVote {
   vote: 'believe' | 'doubt';
 }
 
+// Voice analysis results from Mycroft
+export interface VoiceAnalysisResult {
+  conviction: 'high' | 'medium' | 'low';
+  nervousness: 'high' | 'medium' | 'low';
+  skippedAudio: boolean;
+}
+
+// Analyze voice metrics to determine conviction/nervousness
+export function analyzeVoiceForVoting(voiceMetrics: {
+  responseLatencyMs?: number;
+  pitchStability?: 'stable' | 'unstable' | 'micro-tremors';
+  speechRateBPM?: number;
+  peakAmplitude?: number;
+} | null, hasAudio: boolean): VoiceAnalysisResult {
+  // If no audio was recorded
+  if (!hasAudio || !voiceMetrics) {
+    return { conviction: 'low', nervousness: 'medium', skippedAudio: true };
+  }
+  
+  const { responseLatencyMs = 0, pitchStability = 'stable', speechRateBPM = 120, peakAmplitude = 0 } = voiceMetrics;
+  
+  // Analyze conviction based on response time and speech rate
+  let conviction: 'high' | 'medium' | 'low' = 'medium';
+  if (responseLatencyMs < 1000 && speechRateBPM >= 100 && peakAmplitude > 0.3) {
+    conviction = 'high';
+  } else if (responseLatencyMs > 3000 || speechRateBPM < 80 || peakAmplitude < 0.1) {
+    conviction = 'low';
+  }
+  
+  // Analyze nervousness based on pitch stability
+  let nervousness: 'high' | 'medium' | 'low' = 'medium';
+  if (pitchStability === 'unstable' || (responseLatencyMs > 2000 && speechRateBPM > 180)) {
+    nervousness = 'high';
+  } else if (pitchStability === 'stable' && speechRateBPM >= 80 && speechRateBPM <= 150) {
+    nervousness = 'low';
+  }
+  
+  return { conviction, nervousness, skippedAudio: false };
+}
+
 // Calculate bot votes based on whether the player answered correctly
-export function calculateBotVotes(playerAnsweredCorrectly: boolean, customBots?: ShadowPlayer[]): BotVote[] {
+// Now influenced by voice analysis when available
+export function calculateBotVotes(
+  playerAnsweredCorrectly: boolean, 
+  customBots?: ShadowPlayer[],
+  voiceAnalysis?: VoiceAnalysisResult
+): BotVote[] {
   const players = customBots || BOTS;
+  
+  // Calculate vote probability modifiers based on voice analysis
+  let believeModifier = 0; // Positive = more likely to believe, Negative = more likely to doubt
+  
+  if (voiceAnalysis) {
+    // Skipped audio = suspicious
+    if (voiceAnalysis.skippedAudio) {
+      believeModifier -= 0.15;
+    }
+    
+    // High conviction = more believable
+    if (voiceAnalysis.conviction === 'high') {
+      believeModifier += 0.20;
+    } else if (voiceAnalysis.conviction === 'low') {
+      believeModifier -= 0.15;
+    }
+    
+    // High nervousness = suspicious (unless telling truth)
+    if (voiceAnalysis.nervousness === 'high') {
+      believeModifier -= 0.20;
+    } else if (voiceAnalysis.nervousness === 'low') {
+      believeModifier += 0.10;
+    }
+  }
   
   return players.map(player => {
     const random = Math.random();
     
     if (playerAnsweredCorrectly) {
-      // Player told the truth
-      const votesClaro = random < player.claroVoteChance;
+      // Player told the truth - voice analysis makes them more/less convincing
+      const adjustedChance = Math.min(0.95, Math.max(0.1, player.claroVoteChance + believeModifier));
+      const votesClaro = random < adjustedChance;
       return {
         botId: player.id,
         botName: player.nickname,
         vote: votesClaro ? 'believe' : 'doubt',
       };
     } else {
-      // Player lied (wrong answer)
-      const votesBlefe = random < player.bluffVoteChance;
+      // Player lied (wrong answer) - voice analysis affects detection
+      const adjustedChance = Math.min(0.95, Math.max(0.1, player.bluffVoteChance - believeModifier));
+      const votesBlefe = random < adjustedChance;
       return {
         botId: player.id,
         botName: player.nickname,
