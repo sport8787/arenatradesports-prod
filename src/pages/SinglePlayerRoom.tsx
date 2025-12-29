@@ -341,6 +341,36 @@ export default function SinglePlayerRoom() {
       return;
     }
 
+    // Check and deduct NT cost for phase 2/3
+    const phaseConfig = economy.getPhaseConfig(currentGamePhase);
+    if (phaseConfig && phaseConfig.ntCost > 0) {
+      if (economy.ntBalance < phaseConfig.ntCost) {
+        toast({ 
+          title: '⚡ Saldo de NT insuficiente', 
+          description: `Você precisa de ${phaseConfig.ntCost} NT para este desafio.`,
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      // Deduct NT cost
+      const success = await economy.spendNT(phaseConfig.ntCost);
+      if (!success) {
+        toast({ 
+          title: 'Erro ao processar pagamento', 
+          description: 'Tente novamente.',
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      // Show toast for NT consumption
+      toast({ 
+        title: `⚡ -${phaseConfig.ntCost} NT consumidos`, 
+        description: 'Custo de entrada debitado.' 
+      });
+    }
+
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
 
@@ -352,27 +382,23 @@ export default function SinglePlayerRoom() {
     setGamePhase('question');
   };
   
-  // Persist bluffcoins to profile using atomic RPC (only for authenticated non-guest users)
+  // Persist BC to profile using economy hook (only for authenticated non-guest users)
   const persistWinnings = async (amount: number, isVictory: boolean = false) => {
     // Don't persist for guests
     if (isGuest) {
-      toast({ title: 'Modo Convidado', description: 'BluffCoins não foram salvos. Faça login para guardar seu progresso!' });
+      toast({ title: 'Modo Convidado', description: 'BleffCoins não foram salvos. Faça login para guardar seu progresso!' });
       return;
     }
     if (!profile || amount <= 0) return;
     
     try {
-      console.log(`[BANK] Processando depósito de: ${amount} BluffCoins...`);
+      console.log(`[BANK] Processando depósito de: ${amount} BC...`);
       
-      // Use atomic RPC function for secure balance update
-      const { error: rpcError } = await supabase.rpc('increment_bluffcoins', {
-        p_user_id: profile.user_id,
-        p_amount: amount
-      });
+      // Use economy hook for BC update (uses RPC internally)
+      const success = await economy.addBC(amount);
       
-      if (rpcError) {
-        console.error('[BANK ERROR] RPC failed:', rpcError);
-        throw rpcError;
+      if (!success) {
+        throw new Error('Failed to add BC');
       }
       
       // Update matches_played and wins separately
@@ -383,16 +409,21 @@ export default function SinglePlayerRoom() {
       
       // Force refetch profile to update UI immediately
       await refetchProfile?.();
+      await economy.refreshBalances();
       
-      const newBalance = profile.bluff_coins + amount;
-      console.log('[BANK] Depósito confirmado! Novo saldo estimado:', newBalance);
+      console.log('[BANK] Depósito BC confirmado!');
       
+      // Show coin vault animation
+      setCoinVaultAmount(amount);
+      setShowCoinVault(true);
+      
+      // Show toast for BC addition
       toast({ 
-        title: 'Depósito Confirmado! 💰', 
-        description: `${amount.toLocaleString()} BluffCoins foram adicionados à sua carteira.` 
+        title: `💎 +${amount.toLocaleString()} BC adicionados ao seu cofre`, 
+        description: isVictory ? 'Vitória confirmada!' : 'Prêmio salvo!'
       });
     } catch (error) {
-      console.error('[BANK ERROR] Falha ao depositar:', error);
+      console.error('[BANK ERROR] Falha ao depositar BC:', error);
       toast({ 
         title: 'Erro de Conexão', 
         description: 'Seu saldo será sincronizado na próxima reconexão.',
@@ -974,16 +1005,30 @@ export default function SinglePlayerRoom() {
                 {phaseConfig.bonusReward > 0 && ` + ${phaseConfig.bonusReward} bônus`}
               </p>
               {phaseConfig.ntCost > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Custo: {phaseConfig.ntCost} NT
+                <p className={`text-xs mt-1 ${economy.ntBalance >= phaseConfig.ntCost ? 'text-muted-foreground' : 'text-destructive'}`}>
+                  Custo: {phaseConfig.ntCost} NT 
+                  {economy.ntBalance < phaseConfig.ntCost && ' (saldo insuficiente)'}
                 </p>
               )}
             </div>
           )}
+
+          {/* NT Balance display */}
+          <div className="py-2 px-4 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center gap-2">
+            <span className="text-primary">⚡</span>
+            <span className="text-sm text-primary font-orbitron">{economy.ntBalance} NT disponíveis</span>
+          </div>
           
-          <GoldButton onClick={startGame} className="w-full" size="lg">
+          <GoldButton 
+            onClick={startGame} 
+            className="w-full" 
+            size="lg"
+            disabled={phaseConfig && phaseConfig.ntCost > 0 && economy.ntBalance < phaseConfig.ntCost}
+          >
             <Play className="w-5 h-5 mr-2" />
-            INICIAR DESAFIO
+            {phaseConfig && phaseConfig.ntCost > 0 && economy.ntBalance < phaseConfig.ntCost 
+              ? 'NT INSUFICIENTE' 
+              : 'INICIAR DESAFIO'}
           </GoldButton>
           
           <GoldButton variant="ghost" onClick={() => navigate('/')} className="w-full">
