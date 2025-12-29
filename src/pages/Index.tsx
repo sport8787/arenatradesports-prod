@@ -15,6 +15,9 @@ import { FakeLobby } from '@/components/game/FakeLobby';
 import { PhaseSelector } from '@/components/game/PhaseSelector';
 import { DailyBonusModal } from '@/components/game/DailyBonusModal';
 import { InsufficientEnergyModal } from '@/components/game/InsufficientEnergyModal';
+import ProgressToPrize from '@/components/game/ProgressToPrize';
+import UserStats from '@/components/game/UserStats';
+import DifficultyBadges from '@/components/game/DifficultyBadges';
 import { useEconomy, GAME_PHASES, DAILY_BONUS_AMOUNT } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -431,7 +434,7 @@ export default function Index() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6 w-full max-w-md"
+          className="mb-6 w-full max-w-md space-y-4"
         >
           <div className={cn(
             "border rounded-xl p-4",
@@ -517,29 +520,43 @@ export default function Index() {
             
             {/* BluffCoins Balance - only show for authenticated users */}
             {!isGuest && profile && (
-              <>
-                <div className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-primary/20">
-                  <Coins className="w-6 h-6 text-primary" />
-                  <span className="font-orbitron text-2xl font-bold text-primary">
-                    {economy.bcBalance.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-muted-foreground">BluffCoins</span>
-                </div>
-
-                {/* Stats */}
-                <div className="mt-3 flex justify-center gap-6 text-xs text-muted-foreground">
-                  <div className="text-center">
-                    <div className="font-bold text-foreground">{profile.matches_played}</div>
-                    <div>Partidas</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-bold text-foreground">{profile.wins}</div>
-                    <div>Vitórias</div>
-                  </div>
-                </div>
-              </>
+              <motion.div 
+                className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-gold/20"
+                animate={{ 
+                  textShadow: [
+                    '0 0 10px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3)',
+                    '0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3)',
+                    '0 0 10px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3)'
+                  ]
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Coins className="w-6 h-6 text-gold" />
+                <span className="font-orbitron text-2xl font-bold text-gold">
+                  {economy.bcBalance.toLocaleString()}
+                </span>
+                <span className="text-sm text-muted-foreground">BluffCoins</span>
+              </motion.div>
             )}
           </div>
+
+          {/* Progress to Prize - only for authenticated users */}
+          {!isGuest && profile && (
+            <ProgressToPrize currentBC={economy.bcBalance} />
+          )}
+
+          {/* User Stats - only for authenticated users */}
+          {!isGuest && profile && (
+            <UserStats 
+              matchesPlayed={profile.matches_played} 
+              wins={profile.wins}
+            />
+          )}
+
+          {/* Difficulty Badges */}
+          {!isGuest && (
+            <DifficultyBadges />
+          )}
         </motion.div>
       )}
 
