@@ -47,6 +47,7 @@ export default function Index() {
   const [showPhaseSelector, setShowPhaseSelector] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<1 | 2 | 3>(1);
   const [showDailyBonus, setShowDailyBonus] = useState(false);
+  const [isClaimingDailyBonus, setIsClaimingDailyBonus] = useState(false);
   const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
   const [showOpening, setShowOpening] = useState(() => {
     // Check if we should show opening (first visit after login)
@@ -74,6 +75,10 @@ export default function Index() {
   // Check for daily bonus on load
   useEffect(() => {
     if (isAuthenticated && !economy.loading && economy.dailyBonusAvailable) {
+      const today = new Date().toISOString().split('T')[0];
+      const dismissedToday = sessionStorage.getItem('dailyBonusDismissed') === today;
+      if (dismissedToday) return;
+
       // Small delay to let the page render first
       const timeout = setTimeout(() => {
         setShowDailyBonus(true);
@@ -298,13 +303,27 @@ export default function Index() {
 
   // Handle daily bonus claim
   const handleClaimDailyBonus = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    sessionStorage.setItem('dailyBonusDismissed', today);
+
+    // Close immediately so the user never gets stuck on this screen
+    setShowDailyBonus(false);
+    setIsClaimingDailyBonus(true);
+
     const success = await economy.claimDailyBonus();
     if (success) {
-      toast({ 
-        title: `⚡ +${DAILY_BONUS_AMOUNT} NT`, 
-        description: 'Bônus diário resgatado!' 
+      toast({
+        title: `⚡ +${DAILY_BONUS_AMOUNT} NT`,
+        description: 'Bônus diário resgatado!',
       });
     }
+
+    setIsClaimingDailyBonus(false);
+  };
+
+  const handleDismissDailyBonus = () => {
+    const today = new Date().toISOString().split('T')[0];
+    sessionStorage.setItem('dailyBonusDismissed', today);
     setShowDailyBonus(false);
   };
 
@@ -361,6 +380,7 @@ export default function Index() {
         open={showDailyBonus}
         amount={DAILY_BONUS_AMOUNT}
         onClaim={handleClaimDailyBonus}
+        onClose={handleDismissDailyBonus}
       />
 
       {/* Balance Header */}
