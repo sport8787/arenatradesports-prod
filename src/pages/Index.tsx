@@ -521,7 +521,7 @@ export default function Index() {
                 <div className="mt-4 flex items-center justify-center gap-2 py-3 bg-background/50 rounded-lg border border-primary/20">
                   <Coins className="w-6 h-6 text-primary" />
                   <span className="font-orbitron text-2xl font-bold text-primary">
-                    {profile.bluff_coins.toLocaleString()}
+                    {economy.bcBalance.toLocaleString()}
                   </span>
                   <span className="text-sm text-muted-foreground">BluffCoins</span>
                 </div>
