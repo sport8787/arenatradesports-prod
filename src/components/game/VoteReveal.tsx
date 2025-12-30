@@ -20,18 +20,37 @@ export function VoteReveal({
   const [revealedCount, setRevealedCount] = useState(0);
   const { playVote, playChips, playError } = useSoundEffects();
   const hasCompletedRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const completeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+    };
+  }, []);
   
   useEffect(() => {
     if (revealedCount >= votes.length) {
       if (!hasCompletedRef.current) {
         hasCompletedRef.current = true;
         // Small delay after last vote before completing
-        setTimeout(onComplete, 800);
+        completeTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            onComplete();
+          }
+        }, 800);
       }
       return;
     }
     
-    const timeout = setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      
       // Play sound effect for each vote reveal
       const vote = votes[revealedCount];
       if (vote.vote === 'believe') {
@@ -43,8 +62,10 @@ export function VoteReveal({
       setRevealedCount(prev => prev + 1);
     }, revealIntervalMs);
     
-    return () => clearTimeout(timeout);
-  }, [revealedCount, votes.length, revealIntervalMs, onComplete, playVote, playChips, playError]);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [revealedCount, votes.length, revealIntervalMs, onComplete, playVote, playChips, playError, votes]);
   
   return (
     <div className="space-y-6 py-4">

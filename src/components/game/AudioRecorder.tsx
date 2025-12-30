@@ -33,12 +33,15 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
   
   const MAX_DURATION = 60; // 60 seconds max
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       cleanup();
     };
   }, []);
@@ -59,6 +62,8 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
 
   // Real-time waveform visualization + forensics analysis
   const updateWaveform = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
     if (!analyserRef.current || isPaused) {
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
       return;
@@ -77,7 +82,9 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
       newWaveform.push(value);
     }
     
-    setWaveformData(newWaveform);
+    if (isMountedRef.current) {
+      setWaveformData(newWaveform);
+    }
     
     // FORENSICS: Analyze audio frame for metrics
     analyzeAudioFrame(analyserRef.current);
@@ -223,6 +230,8 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
   };
 
   const uploadAudio = async (blob: Blob, metrics: VoiceMetrics) => {
+    if (!isMountedRef.current) return;
+    
     setIsUploading(true);
     try {
       const fileName = `${roomId}/${Date.now()}.webm`;
@@ -235,12 +244,15 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         });
 
       if (error) throw error;
+      if (!isMountedRef.current) return;
 
       const { data: publicUrlData } = supabase.storage
         .from('game-audio')
         .getPublicUrl(fileName);
 
       const url = publicUrlData.publicUrl;
+      
+      if (!isMountedRef.current) return;
       setAudioUrl(url);
 
       // Save URL to room
@@ -249,18 +261,24 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         .update({ current_audio_url: url })
         .eq('id', roomId);
 
+      if (!isMountedRef.current) return;
+      
       // Pass metrics along with audio URL
       onRecordingComplete?.(url, metrics);
       toast({ title: 'Áudio gravado!', description: 'Sua justificativa foi salva.' });
 
     } catch (error) {
       console.error('Error uploading audio:', error);
-      toast({ 
-        title: 'Erro ao salvar áudio', 
-        variant: 'destructive' 
-      });
+      if (isMountedRef.current) {
+        toast({ 
+          title: 'Erro ao salvar áudio', 
+          variant: 'destructive' 
+        });
+      }
     } finally {
-      setIsUploading(false);
+      if (isMountedRef.current) {
+        setIsUploading(false);
+      }
     }
   };
 

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Question } from '@/types/game';
 import { Brain, Zap, CheckCircle2, Volume2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useQuestionNarration } from '@/hooks/useQuestionNarration';
 
 interface QuestionCardProps {
@@ -30,6 +30,15 @@ export default function QuestionCard({
   const [showQuestion, setShowQuestion] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [hasNarrated, setHasNarrated] = useState(false);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Keep callbacks stable to avoid restarting animations/narration every render
   const handleNarrationStart = useCallback(() => {
@@ -85,17 +94,20 @@ export default function QuestionCard({
 
     // Start narration in sync with category display - ONLY if autoNarrate is true
     const narrateTimer = setTimeout(() => {
+      if (!isMountedRef.current) return;
       narrateQuestion(question);
       setHasNarrated(true);
     }, 500);
 
     // Show question text after category intro
     const questionTimer = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setShowQuestion(true);
     }, 1200);
 
     // Show options after question
     const optionsTimer = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setShowOptions(true);
     }, 2000);
 

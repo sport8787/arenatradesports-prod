@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,23 @@ export default function CountdownTimer({
 }: CountdownTimerProps) {
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isUrgent, setIsUrgent] = useState(false);
+  const isMountedRef = useRef(true);
+  const onCompleteRef = useRef(onComplete);
+  const onTickRef = useRef(onTick);
+
+  // Keep refs updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onTickRef.current = onTick;
+  }, [onComplete, onTick]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isActive) {
@@ -27,17 +44,24 @@ export default function CountdownTimer({
     }
 
     const interval = setInterval(() => {
+      if (!isMountedRef.current) {
+        clearInterval(interval);
+        return;
+      }
+
       setSecondsLeft((prev) => {
         const newValue = prev - 1;
         
         if (newValue <= 5 && newValue > 0) {
           setIsUrgent(true);
-          onTick?.(newValue);
+          onTickRef.current?.(newValue);
         }
         
         if (newValue <= 0) {
           clearInterval(interval);
-          onComplete();
+          if (isMountedRef.current) {
+            onCompleteRef.current();
+          }
           return 0;
         }
         
@@ -46,7 +70,7 @@ export default function CountdownTimer({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, duration, onComplete, onTick]);
+  }, [isActive, duration]);
 
   const percentage = (secondsLeft / duration) * 100;
   const circumference = 2 * Math.PI * 45;
