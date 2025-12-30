@@ -285,7 +285,7 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         {isRecording ? (
           <motion.div
             key="recording"

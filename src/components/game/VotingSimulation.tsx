@@ -184,7 +184,7 @@ export function VotingSimulation({
               </span>
               
               {/* Status text */}
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="sync">
                 <motion.span
                   key={state}
                   initial={{ opacity: 0, y: 5 }}

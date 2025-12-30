@@ -82,7 +82,7 @@ export default function CountdownTimer({
         
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             <motion.span
               key={secondsLeft}
               initial={{ scale: 1.5, opacity: 0 }}
