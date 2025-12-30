@@ -450,7 +450,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
 
       {/* Subtitles */}
       <div className="absolute bottom-28 left-0 right-0 text-center z-30">
-        <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
           {stage === 1 && (
             <motion.p
               key="subtitle-1"

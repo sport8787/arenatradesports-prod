@@ -67,7 +67,7 @@ export default function VoteCounter({
       )}
     >
       {/* All voted celebration */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         {allVoted && countdown !== null ? (
           <motion.div
             key="celebration"
