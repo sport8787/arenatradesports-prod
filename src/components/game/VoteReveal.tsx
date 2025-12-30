@@ -59,94 +59,90 @@ export function VoteReveal({
           const isNextToReveal = i === revealedCount;
           
           return (
-            <motion.div
-              key={vote.botId}
+            <div
+              key={`vote-${vote.botId}-${i}`}
               className="relative"
             >
               {/* Unrevealed state - card back */}
-              <AnimatePresence mode="wait">
-                {!isRevealed ? (
-                  <motion.div
-                    key="hidden"
-                    initial={{ rotateY: 0 }}
-                    animate={{ 
-                      rotateY: 0,
-                      scale: isNextToReveal ? [1, 1.02, 1] : 1
-                    }}
-                    transition={{ 
-                      scale: { duration: 0.5, repeat: isNextToReveal ? Infinity : 0 }
-                    }}
-                    className={`p-4 rounded-lg border-2 text-center transition-all duration-300 ${
-                      isNextToReveal 
-                        ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/20' 
-                        : 'bg-secondary/30 border-border/30'
-                    }`}
-                    style={{ perspective: '1000px' }}
+              {!isRevealed ? (
+                <motion.div
+                  initial={{ rotateY: 0 }}
+                  animate={{ 
+                    rotateY: 0,
+                    scale: isNextToReveal ? [1, 1.02, 1] : 1
+                  }}
+                  transition={{ 
+                    scale: { duration: 0.5, repeat: isNextToReveal ? Infinity : 0 }
+                  }}
+                  className={`p-4 rounded-lg border-2 text-center transition-all duration-300 ${
+                    isNextToReveal 
+                      ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/20' 
+                      : 'bg-secondary/30 border-border/30'
+                  }`}
+                  style={{ perspective: '1000px' }}
+                >
+                  <span className="text-3xl opacity-50">{player?.avatar}</span>
+                  <p className="font-orbitron text-xs mt-2 text-muted-foreground">{vote.botName}</p>
+                  <div className="mt-2 h-6 flex items-center justify-center">
+                    {isNextToReveal ? (
+                      <motion.div
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                        className="text-xs text-primary font-semibold"
+                      >
+                        Revelando...
+                      </motion.div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">• • •</div>
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ rotateY: 90, scale: 0.8 }}
+                  animate={{ rotateY: 0, scale: 1 }}
+                  transition={{ 
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 20
+                  }}
+                  className={`p-4 rounded-lg border-2 text-center ${
+                    vote.vote === 'believe' 
+                      ? 'bg-success/10 border-success/50' 
+                      : 'bg-destructive/10 border-destructive/50'
+                  }`}
+                >
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', stiffness: 400 }}
+                    className="text-3xl block"
                   >
-                    <span className="text-3xl opacity-50">{player?.avatar}</span>
-                    <p className="font-orbitron text-xs mt-2 text-muted-foreground">{vote.botName}</p>
-                    <div className="mt-2 h-6 flex items-center justify-center">
-                      {isNextToReveal ? (
-                        <motion.div
-                          animate={{ opacity: [0.5, 1, 0.5] }}
-                          transition={{ duration: 0.8, repeat: Infinity }}
-                          className="text-xs text-primary font-semibold"
-                        >
-                          Revelando...
-                        </motion.div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">• • •</div>
-                      )}
-                    </div>
-                  </motion.div>
-                ) : (
+                    {player?.avatar}
+                  </motion.span>
+                  <p className="font-orbitron text-xs mt-2">{vote.botName}</p>
                   <motion.div
-                    key="revealed"
-                    initial={{ rotateY: 90, scale: 0.8 }}
-                    animate={{ rotateY: 0, scale: 1 }}
-                    transition={{ 
-                      type: 'spring',
-                      stiffness: 300,
-                      damping: 20
-                    }}
-                    className={`p-4 rounded-lg border-2 text-center ${
-                      vote.vote === 'believe' 
-                        ? 'bg-success/10 border-success/50' 
-                        : 'bg-destructive/10 border-destructive/50'
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className={`font-bold text-sm mt-2 flex items-center justify-center gap-1 ${
+                      vote.vote === 'believe' ? 'text-success' : 'text-destructive'
                     }`}
                   >
-                    <motion.span 
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1, type: 'spring', stiffness: 400 }}
-                      className="text-3xl block"
-                    >
-                      {player?.avatar}
-                    </motion.span>
-                    <p className="font-orbitron text-xs mt-2">{vote.botName}</p>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className={`font-bold text-sm mt-2 flex items-center justify-center gap-1 ${
-                        vote.vote === 'believe' ? 'text-success' : 'text-destructive'
-                      }`}
-                    >
-                      {vote.vote === 'believe' ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          CLARO
-                        </>
-                      ) : (
-                        <>
-                          <X className="w-4 h-4" />
-                          BLEFE
-                        </>
-                      )}
-                    </motion.div>
+                    {vote.vote === 'believe' ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        CLARO
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-4 h-4" />
+                        BLEFE
+                      </>
+                    )}
                   </motion.div>
-                )}
-              </AnimatePresence>
+                </motion.div>
+              )}
               
               {/* Impact effect when revealing */}
               {isRevealed && i === revealedCount - 1 && (
@@ -159,7 +155,7 @@ export function VoteReveal({
                   }`}
                 />
               )}
-            </motion.div>
+            </div>
           );
         })}
       </div>

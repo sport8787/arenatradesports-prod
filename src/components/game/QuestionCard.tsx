@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Question } from '@/types/game';
 import { Brain, Zap, CheckCircle2, Volume2 } from 'lucide-react';
@@ -116,116 +116,109 @@ export default function QuestionCard({
       className="space-y-6"
     >
       {/* Header with category animation */}
-      <AnimatePresence mode="wait">
-        {showCategory && (
-          <motion.div
-            key="category"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="flex items-center justify-between"
+      {showCategory && (
+        <motion.div
+          key={`category-${question.id}`}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center justify-between"
+        >
+          <motion.div 
+            className="flex items-center gap-2"
+            initial={{ x: -20 }}
+            animate={{ x: 0 }}
           >
-            <motion.div 
-              className="flex items-center gap-2"
-              initial={{ x: -20 }}
-              animate={{ x: 0 }}
+            <Brain className="w-5 h-5 text-primary" />
+            <motion.span 
+              className="text-sm font-medium text-muted-foreground uppercase tracking-wider"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
             >
-              <Brain className="w-5 h-5 text-primary" />
-              <motion.span 
-                className="text-sm font-medium text-muted-foreground uppercase tracking-wider"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {question.category}
-              </motion.span>
-              
-              {/* Subtle narration indicator - only shows when actively playing */}
-              {isNarrating && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="ml-2"
-                >
-                  <Volume2 className="w-4 h-4 text-primary/60 animate-pulse" />
-                </motion.div>
-              )}
-            </motion.div>
+              {question.category}
+            </motion.span>
             
-            <div className={cn('flex items-center gap-1', getDifficultyColor(question.difficulty))}>
-              <Zap className="w-4 h-4" />
-              <span className="text-sm font-orbitron">{question.difficulty}</span>
-            </div>
+            {/* Subtle narration indicator - only shows when actively playing */}
+            {isNarrating && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="ml-2"
+              >
+                <Volume2 className="w-4 h-4 text-primary/60 animate-pulse" />
+              </motion.div>
+            )}
           </motion.div>
-        )}
-      </AnimatePresence>
+          
+          <div className={cn('flex items-center gap-1', getDifficultyColor(question.difficulty))}>
+            <Zap className="w-4 h-4" />
+            <span className="text-sm font-orbitron">{question.difficulty}</span>
+          </div>
+        </motion.div>
+      )}
 
       {/* Question with reveal animation */}
-      <AnimatePresence>
-        {showQuestion && (
-          <motion.h2
-            key="question"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-2xl font-orbitron font-semibold text-foreground leading-relaxed"
-          >
-            {question.question_text}
-          </motion.h2>
-        )}
-      </AnimatePresence>
+      {showQuestion && (
+        <motion.h2
+          key={`question-text-${question.id}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-2xl font-orbitron font-semibold text-foreground leading-relaxed"
+        >
+          {question.question_text}
+        </motion.h2>
+      )}
 
       {/* Options with staggered reveal */}
-      <AnimatePresence>
-        {showOptions && (
-          <motion.div 
-            key="options"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            {options.map((option, index) => (
-              <motion.button
-                key={option.key}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.15 }}
-                onClick={() => !disabled && !confirmedAnswer && onSelectOption?.(option.key)}
-                disabled={disabled || !!confirmedAnswer}
-                className={cn(
-                  'option-card text-left relative',
-                  isCorrect(option.key) && 'ring-2 ring-success bg-success/10',
-                  isWrong(option.key) && 'ring-2 ring-destructive bg-destructive/10',
-                  selectedOption === option.key && !confirmedAnswer && 'selected',
-                  isPlayerChoice(option.key) && !isCorrect(option.key) && !isWrong(option.key) && 'ring-2 ring-primary',
-                  (disabled || !!confirmedAnswer) && 'cursor-default'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <span className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-orbitron font-bold',
-                    isCorrect(option.key) ? 'bg-success text-success-foreground' : 
-                    isWrong(option.key) ? 'bg-destructive text-destructive-foreground' : 
-                    'bg-primary/20 text-primary'
-                  )}>
-                    {isCorrect(option.key) ? <CheckCircle2 className="w-5 h-5" /> : option.key}
-                  </span>
-                  <span className="text-lg font-medium pt-1">{option.text}</span>
-                </div>
-                {isCorrect(option.key) && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 bg-success text-success-foreground text-xs font-bold px-2 py-1 rounded-full"
-                  >
-                    CORRETA
-                  </motion.div>
-                )}
-              </motion.button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showOptions && (
+        <motion.div 
+          key={`options-${question.id}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          {options.map((option, index) => (
+            <motion.button
+              key={`${question.id}-${option.key}`}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.15 }}
+              onClick={() => !disabled && !confirmedAnswer && onSelectOption?.(option.key)}
+              disabled={disabled || !!confirmedAnswer}
+              className={cn(
+                'option-card text-left relative',
+                isCorrect(option.key) && 'ring-2 ring-success bg-success/10',
+                isWrong(option.key) && 'ring-2 ring-destructive bg-destructive/10',
+                selectedOption === option.key && !confirmedAnswer && 'selected',
+                isPlayerChoice(option.key) && !isCorrect(option.key) && !isWrong(option.key) && 'ring-2 ring-primary',
+                (disabled || !!confirmedAnswer) && 'cursor-default'
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <span className={cn(
+                  'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-orbitron font-bold',
+                  isCorrect(option.key) ? 'bg-success text-success-foreground' : 
+                  isWrong(option.key) ? 'bg-destructive text-destructive-foreground' : 
+                  'bg-primary/20 text-primary'
+                )}>
+                  {isCorrect(option.key) ? <CheckCircle2 className="w-5 h-5" /> : option.key}
+                </span>
+                <span className="text-lg font-medium pt-1">{option.text}</span>
+              </div>
+              {isCorrect(option.key) && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-2 -right-2 bg-success text-success-foreground text-xs font-bold px-2 py-1 rounded-full"
+                >
+                  CORRETA
+                </motion.div>
+              )}
+            </motion.button>
+          ))}
+        </motion.div>
+      )}
     </motion.div>
   );
 }
