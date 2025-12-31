@@ -50,6 +50,8 @@ import {
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
+import { getNarrativeEngine, resetNarrativeEngine, NarrativeChoice } from '@/services/narrativeEngine';
+import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
 import NarrativeOverlay from '@/components/game/NarrativeOverlay';
 import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
@@ -188,6 +190,10 @@ function SinglePlayerRoomContent() {
   const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
   const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
   const [briefcasePrize, setBriefcasePrize] = useState(0);
+  
+  // Narrative Choice checkpoint (rodada 13)
+  const [showNarrativeChoice, setShowNarrativeChoice] = useState(false);
+  const narrativeEngineRef = useRef(getNarrativeEngine(displayName));
   
   // CinematicEvent states
   const [showCinematicEvent, setShowCinematicEvent] = useState(false);
@@ -417,6 +423,10 @@ function SinglePlayerRoomContent() {
 
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
+
+    // Reset NarrativeEngine for new game
+    resetNarrativeEngine();
+    narrativeEngineRef.current = getNarrativeEngine(nickname);
 
     // Start first round directly (opening plays on login now)
     setCurrentRound(1);
@@ -1002,9 +1012,62 @@ function SinglePlayerRoomContent() {
     if (currentRound >= MAX_ROUNDS) return;
     
     const nextRoundNum = currentRound + 1;
+    
+    // Check for narrative checkpoint at round 13
+    const checkpointChoice = narrativeEngineRef.current.getCheckpointChoice(nextRoundNum, accumulatedPrize);
+    if (checkpointChoice) {
+      // Show narrative choice modal before proceeding
+      setShowNarrativeChoice(true);
+      return;
+    }
+    
+    await proceedToNextRound(nextRoundNum);
+  };
+  
+  // Handle narrative choice - player cashes out
+  const handleNarrativeChoiceCashOut = async () => {
+    setShowNarrativeChoice(false);
+    setShowMoneyRain(true);
+    playCashRegister();
+    
+    // Persist winnings to profile
+    await persistWinnings(accumulatedPrize, true);
+    
+    // Update ranking
+    if (myRanking) {
+      updateSoloRankingStats({ 
+        addGame: true, 
+        addWin: true,
+        setBestRound: currentRound,
+        addPoints: accumulatedPrize 
+      });
+    }
+    
+    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    setGamePhase('victory');
+  };
+  
+  // Handle narrative choice - player continues
+  const handleNarrativeChoiceContinue = async () => {
+    setShowNarrativeChoice(false);
+    
+    // Advance NarrativeEngine
+    narrativeEngineRef.current.advanceRound(true);
+    
+    // Play dramatic climax audio
+    playHorus2Audio('all_in');
+    
+    await proceedToNextRound(13);
+  };
+  
+  // Shared logic for proceeding to next round
+  const proceedToNextRound = async (nextRoundNum: number) => {
     setCurrentRound(nextRoundNum);
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
+    
+    // Update NarrativeEngine state
+    narrativeEngineRef.current.advanceRound(true);
     
     // Update psychology state with new round
     setPsychologyState(prev => ({
@@ -1919,6 +1982,15 @@ function SinglePlayerRoomContent() {
         cardType={cinematicCardType}
         duration={cinematicEventType === 'blefe_perfeito' ? 5000 : 4000}
         onComplete={() => setShowCinematicEvent(false)}
+      />
+      
+      {/* Narrative Choice Modal - Checkpoint at round 13 */}
+      <NarrativeChoiceModal
+        isOpen={showNarrativeChoice}
+        playerName={displayName}
+        currentBC={accumulatedPrize}
+        onCashOut={handleNarrativeChoiceCashOut}
+        onContinue={handleNarrativeChoiceContinue}
       />
       </div>
     </>
