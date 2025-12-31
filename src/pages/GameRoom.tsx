@@ -67,6 +67,13 @@ import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
+import { 
+  createInitialPsychologyState, 
+  updatePsychologyState, 
+  checkAndTriggerDialogue,
+  PlayerPsychologyState,
+  DialogueType
+} from '@/services/horusPsychologyService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -302,6 +309,12 @@ function GameRoomContent() {
   const [cinematicSubtitle, setCinematicSubtitle] = useState('');
   const [cinematicAudioPath, setCinematicAudioPath] = useState<string | undefined>(undefined);
   const [cinematicCardType, setCinematicCardType] = useState<'porto_seguro' | 'imunidade'>('porto_seguro');
+  
+  // Psychology dialogue system
+  const [psychologyState, setPsychologyState] = useState<PlayerPsychologyState>(() => 
+    createInitialPsychologyState(displayNickname)
+  );
+  const [psychologyPhrase, setPsychologyPhrase] = useState<string | null>(null);
 
   // Persist game winnings to authenticated user's profile using atomic RPC
   const persistGameResult = async (amount: number) => {
@@ -1353,6 +1366,36 @@ function GameRoomContent() {
     // Increment round
     const nextRoundNum = currentRound + 1;
     setCurrentRound(nextRoundNum);
+    
+    // Update psychology state with new round
+    setPsychologyState(prev => ({
+      ...prev,
+      currentRound: nextRoundNum,
+      currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
+    }));
+    
+    // 20% chance to trigger psychological pressure dialogue (only after round 3)
+    if (nextRoundNum > 3) {
+      setTimeout(async () => {
+        const shouldTrigger = Math.random() < 0.2;
+        if (shouldTrigger) {
+          await checkAndTriggerDialogue(
+            { 
+              ...psychologyState, 
+              currentRound: nextRoundNum, 
+              currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
+              lastDialogueRound: nextRoundNum
+            },
+            (phrase, type) => {
+              if (type === 'pressao') {
+                setPsychologyPhrase(phrase);
+                setTimeout(() => setPsychologyPhrase(null), 5000);
+              }
+            }
+          );
+        }
+      }, 3000);
+    }
 
     // Use intelligent question selection with history - pass next round for difficulty filtering
     let nextQ = getNextQuestion(nextRoundNum);
@@ -1650,6 +1693,22 @@ function GameRoomContent() {
         retryCount={retryCount}
         onReconnect={reconnect}
       />
+
+      {/* Psychology Dialogue Overlay */}
+      {psychologyPhrase && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md"
+        >
+          <div className="bg-card/95 backdrop-blur-sm border border-primary/50 rounded-lg px-6 py-4 shadow-lg shadow-primary/20">
+            <p className="text-foreground font-orbitron text-sm text-center italic">
+              "{psychologyPhrase}"
+            </p>
+            <p className="text-primary text-xs text-center mt-1">— Hórus</p>
+          </div>
+        </motion.div>
+      )}
 
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Role Banner */}
