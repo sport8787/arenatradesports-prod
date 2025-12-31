@@ -7,10 +7,8 @@ import { useSoloRankings } from '@/hooks/useSoloRankings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuestionHistory } from '@/hooks/useQuestionHistory';
-// HÓRUS 2.0: useHorusNarration removido - agora usa horus2Engine
 import { useQuestionAudioPreloader } from '@/hooks/useQuestionAudioPreloader';
 import { useDialogManager } from '@/hooks/useDialogManager';
-// HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import { BOTS, Bot, BotVote, calculateBotVotes, getRandomTaunt, ShadowPlayer, generateShadowPlayers, analyzeVoiceForVoting, VoiceAnalysisResult } from '@/types/bot';
@@ -45,13 +43,17 @@ import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins, MessageCircle, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { stopGlobalAudio } from '@/services/globalAudioContext';
-// HÓRUS 2.0: Agora usa horus2Engine como sistema principal
+// HÓRUS 2.0 + NarrativeEngine
 import { 
   playHorus2Audio, 
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
-// Note: horusLocalAudio imports removed - now using horus2Engine exclusively
+import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
+import NarrativeOverlay from '@/components/game/NarrativeOverlay';
+import PressureEffects from '@/components/game/PressureEffects';
+import NarrativeDisplay from '@/components/game/NarrativeDisplay';
+import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -111,7 +113,16 @@ const generateBriefcasePrize = (): number => {
 // IMPORTANT: 'bribe_offer' must come BEFORE 'voting_simulation' to prevent spoilers
 type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
+// Wrapper component that provides NarrativeContext
 export default function SinglePlayerRoom() {
+  return (
+    <NarrativeProvider enabled={true}>
+      <SinglePlayerRoomContent />
+    </NarrativeProvider>
+  );
+}
+
+function SinglePlayerRoomContent() {
   const navigate = useNavigate();
   const { playChips, playSuspense, playFanfare, playReveal, playGameOver, playCashRegister, playCardUnlock, playShieldActivate, preloadSounds } = useSoundEffects();
   const { myRanking, getOrCreateSoloRanking, updateSoloRankingStats } = useSoloRankings();
@@ -119,6 +130,9 @@ export default function SinglePlayerRoom() {
   const economy = useEconomy();
   const [showCoinVault, setShowCoinVault] = useState(false);
   const [coinVaultAmount, setCoinVaultAmount] = useState(0);
+  
+  // NarrativeEngine integration
+  const narrative = useNarrative();
 
   // Só considera convidado se NÃO estiver autenticado (evita bloquear salvamento após login)
   const isGuest = !isAuthenticated && sessionStorage.getItem('guestMode') === 'true';
@@ -697,8 +711,14 @@ export default function SinglePlayerRoom() {
     believeVotes: number,
     shouldEliminate: boolean
   ) => {
-    // HÓRUS 2.0: Play local victory audio
-    playHorus2Audio('victory');
+    // NarrativeEngine: Advance round with result
+    narrative.advanceRound(playerAnsweredCorrectly);
+    
+    // Get act-specific phrase
+    const actPhrase = getActPhraseText(narrative.currentAct.id, 'correct');
+    
+    // HÓRUS 2.0: Play local victory audio with act phrase
+    playHorus2Audio('victory', actPhrase || undefined);
     
     // Calculate rewards
     let reward = HOST_CORRECT_ANSWER;
@@ -896,8 +916,11 @@ export default function SinglePlayerRoom() {
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
-    // HÓRUS 2.0: Play round transition bordão (always play between rounds)
-    playHorus2Audio('round_transition');
+    // NarrativeEngine: Get act-specific transition phrase
+    const transitionPhrase = getActPhraseText(narrative.currentAct.id, 'transition');
+    
+    // HÓRUS 2.0: Play round transition with act phrase
+    playHorus2Audio('round_transition', transitionPhrase || undefined);
     
     // Show briefcase modal before round 15
     if (nextRoundNum === MAX_ROUNDS) {
@@ -1085,6 +1108,13 @@ export default function SinglePlayerRoom() {
         />
       )}
 
+      {/* NarrativeEngine: Pressure Effects Overlay */}
+      <PressureEffects
+        pressureLevel={narrative.pressureLevel}
+        enableBeeps={narrative.currentAct.enableBeeps && gamePhase === 'question'}
+        enableBomb={narrative.currentAct.enableBombEvent && gamePhase === 'question' && !narrative.state.bombEventTriggered}
+      />
+
       <div className="min-h-screen p-4 md:p-8 pt-16">
         <div className="max-w-4xl mx-auto space-y-6">
         {/* Role Banner */}
@@ -1105,7 +1135,15 @@ export default function SinglePlayerRoom() {
                 <Zap className="w-5 h-5" />
                 DESAFIE O HÓRUS
               </h1>
-              <p className="text-xs text-muted-foreground">{displayName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">{displayName}</p>
+                {/* NarrativeEngine: Show current act */}
+                <NarrativeDisplay
+                  currentAct={narrative.currentAct}
+                  round={currentRound}
+                  silentObserverActive={narrative.state.silentObserverActive}
+                />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
