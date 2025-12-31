@@ -51,10 +51,10 @@ export default function PressureEffects({
       }
     }, 150);
 
-    // Play impact sound
+    // Play bomb impact sound
     try {
-      audioRef.current = new Audio('/audio/horus/erro.mp3');
-      audioRef.current.volume = 0.8;
+      audioRef.current = new Audio('/audio/horus/bomb.mp3');
+      audioRef.current.volume = 0.9;
       audioRef.current.play().catch(() => {});
     } catch (e) {
       console.warn('Could not play bomb audio');
@@ -68,9 +68,9 @@ export default function PressureEffects({
     if (!isMountedRef.current || !enableBeeps) return;
 
     try {
-      beepAudioRef.current = new Audio('/audio/horus/erro2.mp3');
-      beepAudioRef.current.volume = 0.3;
-      beepAudioRef.current.playbackRate = 1.5;
+      beepAudioRef.current = new Audio('/audio/horus/bip.mp3');
+      beepAudioRef.current.volume = 0.3 + Math.random() * 0.15;
+      beepAudioRef.current.playbackRate = 0.9 + Math.random() * 0.3;
       beepAudioRef.current.play().catch(() => {});
     } catch (e) {
       console.warn('Could not play beep audio');
@@ -198,8 +198,8 @@ export function usePressureEffects() {
     }, 150);
 
     try {
-      audioRef.current = new Audio('/audio/horus/erro.mp3');
-      audioRef.current.volume = 0.8;
+      audioRef.current = new Audio('/audio/horus/bomb.mp3');
+      audioRef.current.volume = 0.9;
       audioRef.current.play().catch(() => {});
     } catch (e) {
       console.warn('Could not play bomb audio');
@@ -210,9 +210,9 @@ export function usePressureEffects() {
     if (!isMountedRef.current) return;
 
     try {
-      const audio = new Audio('/audio/horus/erro2.mp3');
-      audio.volume = 0.3;
-      audio.playbackRate = 1.2 + Math.random() * 0.6;
+      const audio = new Audio('/audio/horus/bip.mp3');
+      audio.volume = 0.3 + Math.random() * 0.15;
+      audio.playbackRate = 0.9 + Math.random() * 0.3;
       audio.play().catch(() => {});
     } catch (e) {
       console.warn('Could not play beep audio');
