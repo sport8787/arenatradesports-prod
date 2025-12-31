@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Loader2, ScanEye } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import CountdownTimer from './CountdownTimer';
+import DynamicCountdown from './DynamicCountdown';
+import { useNarrativeOptional } from '@/contexts/NarrativeContext';
 import { BluffCoinCost } from './BluffCoinDisplay';
 import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
@@ -39,6 +40,12 @@ export default function VotingPanel({
 }: VotingPanelProps) {
   const canDoubt = canAffordDoubt && !hasVoted && !disabled;
   const canUseDetector = canAffordDetector && !hasUsedDetector && !hasVoted && !disabled;
+  
+  // Get narrative context for dynamic timer (optional - works without it)
+  const narrative = useNarrativeOptional();
+  const timerDuration = narrative?.timerDuration ?? 60;
+  const timerVisible = narrative?.timerVisible ?? true;
+  const pressureLevel = narrative?.pressureLevel ?? 0;
 
   return (
     <motion.div
@@ -46,11 +53,12 @@ export default function VotingPanel({
       animate={{ opacity: 1, scale: 1 }}
       className="space-y-6"
     >
-      {/* Timer */}
-      {/* Timer - 60 seconds for reading AI analysis */}
+      {/* Dynamic Timer - adapts to narrative act */}
       <div className="flex justify-center">
-        <CountdownTimer
-          duration={60}
+        <DynamicCountdown
+          duration={timerDuration}
+          visible={timerVisible}
+          pressureLevel={pressureLevel}
           isActive={timerActive && !hasVoted}
           onComplete={() => onTimerComplete?.()}
           onTick={onTimerTick}
