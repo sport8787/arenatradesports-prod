@@ -21,6 +21,7 @@ import {
 } from './horusLocalAudio';
 import { getCachedAudio } from './audioCacheService';
 import { audioQueue } from './audioQueueManager';
+import { backgroundMusic } from './backgroundMusicService';
 
 // Callum v3 voice ID (ElevenLabs)
 export const CALLUM_VOICE_ID = 'N2lVS1w4EtoT3dr4eOWO';
@@ -245,6 +246,9 @@ export async function playHorus2Audio(
       markOpeningStart();
     }
     
+    // Duck background music when Hórus speaks
+    backgroundMusic.duck();
+    
     // ADICIONA À FILA CENTRALIZADA em vez de tocar diretamente
     // Prioridade: abertura = 10, bordão = 5, outros = 7
     const priority = isOpeningAudio ? 10 : (moment === 'taunt' ? 5 : 7);
@@ -254,6 +258,9 @@ export async function playHorus2Audio(
       `horus_${moment}`,
       priority,
       () => {
+        // Unduck background music when done
+        backgroundMusic.unduck();
+        
         // Marca fim da abertura e executa callbacks pendentes
         if (isOpeningAudio) {
           markOpeningEnd();
