@@ -4,6 +4,7 @@ import { getRandomHorusPhrase } from '@/data/horusPhrases';
 import { getCachedAudio, clearAudioMemoryCache } from '@/services/audioCacheService';
 import { audioQueue } from '@/services/audioQueueManager';
 import { recordEnqueue, recordExecute, recordBlocked } from '@/services/audioDebugService';
+import { backgroundMusic } from '@/services/backgroundMusicService';
 
 interface DialogState {
   activePersona: PersonaId | null;
@@ -115,6 +116,9 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   const playAudioLocally = useCallback(async (audioUrl: string, label: string, onEnded: () => void) => {
     setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }));
     
+    // Duck background music when narration starts
+    backgroundMusic.duck();
+    
     // Usa fila centralizada - prioridade 8 para diálogos (Mycroft verdict, etc.)
     audioQueue.addToQueue(
       audioUrl,
@@ -123,6 +127,10 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
       () => {
         console.log('[DialogManager] Audio ended via queue');
         setState(prev => ({ ...prev, isSpeaking: false }));
+        
+        // Unduck background music when narration ends
+        backgroundMusic.unduck();
+        
         onEnded();
       }
     );

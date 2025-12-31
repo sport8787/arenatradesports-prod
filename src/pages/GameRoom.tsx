@@ -66,6 +66,7 @@ import NarrativeDisplay from '@/components/game/NarrativeDisplay';
 import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
+import { backgroundMusic } from '@/services/backgroundMusicService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -1403,6 +1404,16 @@ function GameRoomContent() {
         .eq('id', roomId);
       
       return;
+    }
+
+    // Start background music after Round 2 completes (beginning of Round 3)
+    if (nextRoundNum === 3 && !backgroundMusic.getIsPlaying()) {
+      backgroundMusic.start('trial');
+    }
+    
+    // Update background music act for tension evolution
+    if (backgroundMusic.getIsPlaying()) {
+      backgroundMusic.setAct(narrative.currentAct.id);
     }
 
     const hostIndex = Math.max(

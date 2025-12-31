@@ -56,6 +56,7 @@ import NarrativeDisplay from '@/components/game/NarrativeDisplay';
 import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
+import { backgroundMusic } from '@/services/backgroundMusicService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -268,6 +269,8 @@ function SinglePlayerRoomContent() {
       stopSpeakingRef.current();
       stopGlobalAudio();
       stopHorus2Audio();
+      // Stop background music when leaving the game
+      backgroundMusic.stop();
     };
   }, []);
 
@@ -960,6 +963,17 @@ function SinglePlayerRoomContent() {
       
       // HÓRUS 2.0: Play round transition with act phrase
       playHorus2Audio('round_transition', transitionPhrase || undefined);
+    }
+    
+    // Start background music after Round 2 completes (beginning of Round 3)
+    // This marks the transition to Ato II
+    if (nextRoundNum === 3 && !backgroundMusic.getIsPlaying()) {
+      backgroundMusic.start('trial');
+    }
+    
+    // Update background music act for tension evolution
+    if (backgroundMusic.getIsPlaying()) {
+      backgroundMusic.setAct(narrative.currentAct.id);
     }
     
     // Show briefcase modal before round 15
