@@ -675,15 +675,10 @@ function SinglePlayerRoomContent() {
     // Show Horus bribe offer BEFORE voting phase
     setGamePhase('bribe_offer');
     playSuspense();
-    setIsHorusListening(true);
-    setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
+    // CORREÇÃO: Não inicia listening automaticamente - aguarda clique em "Ouvir Acordo"
+    setIsHorusListening(false);
+    setHorusPhrase(null);
     setLastAction("Recebendo proposta do Hórus");
-    
-    // Play Horus's bribe audio immediately
-    playHorus2Audio('acordo', undefined, () => {
-      // Audio finished - keep listening state but allow choices
-      setIsHorusListening(false);
-    });
   };
   
   // Start voting simulation with delay
@@ -821,11 +816,16 @@ function SinglePlayerRoomContent() {
   };
 
 
-  // Handle when player listens to Horus proposal - audio already started in submitAudio
+  // Handle when player clicks "Ouvir Acordo" - starts audio playback
   const handleHorusListen = async () => {
-    // Audio is already playing from submitAudio, this is for the component callback
     setIsHorusListening(true);
     setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
+    
+    // Play Horus's bribe audio when player clicks listen
+    playHorus2Audio('acordo', undefined, () => {
+      // Audio finished - choices will appear automatically via component timer
+      console.log('[Hórus Offer] Audio complete');
+    });
   };
 
   // Handle when player accepts Horus bribe in bribe_offer phase (cash out before seeing result)
