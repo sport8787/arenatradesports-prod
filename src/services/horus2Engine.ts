@@ -1,7 +1,7 @@
 /**
  * Hórus 2.0 Engine - Sistema de Áudio Híbrido
  * 
- * AGORA USA FILA CENTRALIZADA (audioQueueManager)
+ * USA FILA CENTRALIZADA v2.0 (centralAudioQueue)
  * Garante que apenas UM áudio toque por vez em toda a aplicação.
  * 
  * Prioridades:
@@ -20,8 +20,11 @@ import {
   hasLocalAudio 
 } from './horusLocalAudio';
 import { getCachedAudio } from './audioCacheService';
-import { audioQueue } from './audioQueueManager';
-import { backgroundMusic } from './backgroundMusicService';
+import { 
+  centralAudioQueue, 
+  AUDIO_PRIORITY,
+  clearAllAudio 
+} from './centralAudioQueue';
 
 // Callum v3 voice ID (ElevenLabs)
 export const CALLUM_VOICE_ID = 'N2lVS1w4EtoT3dr4eOWO';
@@ -121,7 +124,7 @@ function markOpeningEnd(): void {
  * Para qualquer áudio em reprodução (limpa a fila global)
  */
 export function stopHorus2Audio(): void {
-  audioQueue.clearQueue();
+  clearAllAudio();
 }
 
 /**
@@ -229,8 +232,11 @@ export async function playHorus2Audio(
   onEnd?: () => void,
   _onError?: (error: Error) => void
 ): Promise<void> {
-  // Detecta se é áudio de abertura
+  // Detecta tipo de áudio para definir prioridade
   const isOpeningAudio = moment === 'game_start' || moment === 'round_start';
+  const isQuestionRead = moment === 'question_read';
+  const isBordao = moment === 'taunt' || moment === 'thinking_taunt' || moment === 'waiting';
+  const isBombEvent = moment === 'bomb_event';
   
   try {
     const result = await getHorus2Audio(moment, dynamicText);
@@ -246,30 +252,41 @@ export async function playHorus2Audio(
       markOpeningStart();
     }
     
-    // Duck background music when Hórus speaks
-    backgroundMusic.duck();
+    // Determinar prioridade usando o novo sistema
+    let priority: number = AUDIO_PRIORITY.HORUS_DIALOGUE;
+    let label = `horus_${moment}`;
     
-    // ADICIONA À FILA CENTRALIZADA em vez de tocar diretamente
-    // Prioridade: abertura = 10, bordão = 5, outros = 7
-    const priority = isOpeningAudio ? 10 : (moment === 'taunt' ? 5 : 7);
+    if (isBombEvent) {
+      priority = AUDIO_PRIORITY.BOMB_EVENT;
+      label = 'bomb_event';
+    } else if (isQuestionRead) {
+      priority = AUDIO_PRIORITY.QUESTION_READ;
+      label = 'question_read';
+    } else if (isOpeningAudio) {
+      priority = AUDIO_PRIORITY.NARRATIVE_EVENT;
+      label = 'opening';
+    } else if (isBordao) {
+      priority = AUDIO_PRIORITY.BORDAO;
+      label = 'bordao';
+    }
     
-    audioQueue.addToQueue(
+    centralAudioQueue.enqueue(
       result.audioUrl,
-      `horus_${moment}`,
-      priority,
-      () => {
-        // Unduck background music when done
-        backgroundMusic.unduck();
-        
-        // Marca fim da abertura e executa callbacks pendentes
-        if (isOpeningAudio) {
-          markOpeningEnd();
+      {
+        label,
+        priority,
+        interruptCurrent: isBombEvent,
+        onComplete: () => {
+          // Marca fim da abertura e executa callbacks pendentes
+          if (isOpeningAudio) {
+            markOpeningEnd();
+          }
+          onEnd?.();
         }
-        onEnd?.();
       }
     );
     
-    console.log('[Hórus 2.0] Queued audio from', result.source, ':', result.audioUrl, isOpeningAudio ? '(OPENING)' : '', 'priority:', priority);
+    console.log('[Hórus 2.0] Queued audio from', result.source, ':', result.audioUrl, `(${label}, priority: ${priority})`);
   } catch (error) {
     console.error('[Hórus 2.0] Error queuing audio:', error);
     
@@ -306,7 +323,7 @@ export async function playRandomBordao(
  * Verifica se está reproduzindo áudio (usa fila global)
  */
 export function isHorus2Playing(): boolean {
-  return audioQueue.getIsPlaying();
+  return centralAudioQueue.getIsPlaying();
 }
 
 /**

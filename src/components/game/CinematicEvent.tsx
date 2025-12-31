@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { playHorusAudio } from '@/services/horusLocalAudio';
-import { playHorus2Audio } from '@/services/horus2Engine';
+import { centralAudioQueue, AUDIO_PRIORITY } from '@/services/centralAudioQueue';
 import { Eye, Flame, Trophy, Zap, Skull } from 'lucide-react';
+import horusAvatar from '@/assets/horus-avatar.png';
 
 type CinematicStage = 'intro' | 'dialogue' | 'reward' | 'outro' | 'idle';
 
@@ -70,11 +70,12 @@ const CinematicEvent = ({
       // Stage 2: Dialogue - Show Hórus avatar and speak
       setStage('dialogue');
       
-      // Play audio (local or TTS)
+      // Play audio using centralized queue with proper priority
       if (audioPath) {
-        playHorusAudio(audioPath);
-      } else if (narration) {
-        playHorus2Audio('epic_moment', narration);
+        centralAudioQueue.enqueue(audioPath, {
+          label: 'cinematic_dialogue',
+          priority: AUDIO_PRIORITY.NARRATIVE_EVENT
+        });
       }
       
       // Typewriter effect for narration text
@@ -219,22 +220,22 @@ const CinematicEvent = ({
                   transition={{ duration: 2, repeat: Infinity }}
                 />
                 
-                {/* Avatar container */}
+                {/* Avatar container with real image */}
                 <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-primary/30 via-primary/20 to-transparent border-4 border-primary/60 flex items-center justify-center overflow-hidden">
-                  {/* Hórus eye symbol */}
-                  <motion.div
-                    className="text-6xl"
+                  {/* Real Hórus avatar image */}
+                  <motion.img
+                    src={horusAvatar}
+                    alt="Hórus"
+                    className="w-full h-full object-cover"
                     animate={{ 
-                      textShadow: [
-                        '0 0 10px hsl(var(--primary))',
-                        '0 0 30px hsl(var(--primary))',
-                        '0 0 10px hsl(var(--primary))'
+                      filter: [
+                        'brightness(1) drop-shadow(0 0 10px hsl(var(--primary)))',
+                        'brightness(1.2) drop-shadow(0 0 30px hsl(var(--primary)))',
+                        'brightness(1) drop-shadow(0 0 10px hsl(var(--primary)))'
                       ]
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    👁️
-                  </motion.div>
+                  />
                 </div>
                 
                 {/* Name tag */}
