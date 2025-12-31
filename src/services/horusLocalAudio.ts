@@ -33,10 +33,10 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/all_in_2.mp3',
     '/audio/horus/all_in_3.mp3',
     '/audio/horus/all_in_4.mp3',
-    '/audio/horus/rodada_15.mp3', // NEW: Rodada 15 específica
+    '/audio/horus/rodada_15.mp3',
   ],
   
-  // Bordões / Taunts
+  // Bordões / Taunts (genéricos)
   bordao: [
     '/audio/horus/bordao.mp3',
     '/audio/horus/bordao_1.mp3',
@@ -52,8 +52,13 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/bordao_11.mp3',
     '/audio/horus/bordao_12.mp3',
     '/audio/horus/bordao_13.mp3',
-    '/audio/horus/provocacao_1.mp3', // NEW: Provocação extra
+    '/audio/horus/provocacao_1.mp3',
   ],
+  
+  // Bordões específicos por rodada (rodadas 1-3)
+  bordao_rodada_1: ['/audio/horus/bord_1.mp3'],
+  bordao_rodada_2: ['/audio/horus/bord_2.mp3'],
+  bordao_rodada_3: ['/audio/horus/bord_3.mp3'],
   
   // Derrota / Defeat
   derrota: [
@@ -74,7 +79,7 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/erro3.mp3',
     '/audio/horus/erro4.mp3',
     '/audio/horus/erro5.mp3',
-    '/audio/horus/erro_critico_1.mp3', // NEW: Erro crítico para Ato IV
+    '/audio/horus/erro_critico_1.mp3',
   ],
   
   // Mycroft - para quando jogador confirma resposta
@@ -91,26 +96,36 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/vitoria4.mp3',
   ],
   
-  // NEW: Blefe Perfeito (quando engana todos)
+  // Blefe Perfeito (quando engana todos)
   blefe_perfeito: [
+    '/audio/horus/blefe_perfeito.mp3',
     '/audio/horus/blefe_perfeito_2.mp3',
   ],
   
-  // NEW: Eventos Ocultos (Observador Silencioso, etc)
+  // Eventos Ocultos (Observador Silencioso, etc)
   evento_oculto: [
     '/audio/horus/evento_oculto_1.mp3',
     '/audio/horus/evento_oculto_2.mp3',
     '/audio/horus/evento_oculto_3.mp3',
+    '/audio/horus/surpresa.mp3',
   ],
   
-  // NEW: Checkpoints / Marcos narrativos
+  // Checkpoints / Marcos narrativos
   checkpoint: [
+    '/audio/horus/check_point_1.mp3',
     '/audio/horus/check_point_2.mp3',
-    '/audio/horus/rodada_10.mp3', // Marco rodada 10
-    '/audio/horus/tem_porto_seguro.mp3', // Porto seguro desbloqueado
+    '/audio/horus/rodada_8.mp3',
+    '/audio/horus/rodada_10.mp3',
+    '/audio/horus/tem_porto_seguro.mp3',
   ],
   
-  // NEW: Rodada 15 específica (Clímax)
+  // Cartas Bônus
+  carta_bonus: [
+    '/audio/horus/carta_bonus_porto_seguro.mp3',
+    '/audio/horus/carta_bonus_imunidade.mp3',
+  ],
+  
+  // Rodada 15 específica (Clímax)
   climax: [
     '/audio/horus/rodada_15.mp3',
     '/audio/horus/all_in.mp3',
@@ -180,6 +195,23 @@ export function getRandomAudioFile(category: string): string | null {
   const files = HORUS_AUDIO_FILES[category];
   if (!files || files.length === 0) return null;
   return files[Math.floor(Math.random() * files.length)];
+}
+
+// Get audio for specific round (for round-specific bordões)
+export function getRoundSpecificAudio(round: number): string | null {
+  if (round === 1) return HORUS_AUDIO_FILES.bordao_rodada_1[0];
+  if (round === 2) return HORUS_AUDIO_FILES.bordao_rodada_2[0];
+  if (round === 3) return HORUS_AUDIO_FILES.bordao_rodada_3[0];
+  if (round === 8) return '/audio/horus/rodada_8.mp3';
+  if (round === 10) return '/audio/horus/rodada_10.mp3';
+  if (round === 15) return '/audio/horus/rodada_15.mp3';
+  return null;
+}
+
+// Get carta bonus audio
+export function getCartaBonusAudio(tipo: 'porto_seguro' | 'imunidade'): string {
+  if (tipo === 'porto_seguro') return '/audio/horus/carta_bonus_porto_seguro.mp3';
+  return '/audio/horus/carta_bonus_imunidade.mp3';
 }
 
 // Get audio file for a specific game moment
