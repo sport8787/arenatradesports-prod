@@ -57,6 +57,13 @@ import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
+import { 
+  createInitialPsychologyState, 
+  updatePsychologyState, 
+  checkAndTriggerDialogue,
+  PlayerPsychologyState,
+  DialogueType
+} from '@/services/horusPsychologyService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -214,6 +221,12 @@ function SinglePlayerRoomContent() {
   // HorusTerminal visibility state
   const [showHorusTerminal, setShowHorusTerminal] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Iniciando partida");
+  
+  // Psychology dialogue system
+  const [psychologyState, setPsychologyState] = useState<PlayerPsychologyState>(() => 
+    createInitialPsychologyState(profile?.username || 'Jogador')
+  );
+  const [psychologyPhrase, setPsychologyPhrase] = useState<string | null>(null);
 
   // Dialog manager for question_read narration
   const { 
@@ -734,11 +747,28 @@ function SinglePlayerRoomContent() {
     // NarrativeEngine: Advance round with result
     narrative.advanceRound(playerAnsweredCorrectly);
     
+    // Update psychology state
+    setPsychologyState(prev => updatePsychologyState(prev, playerAnsweredCorrectly, false));
+    
     // Get act-specific phrase
     const actPhrase = getActPhraseText(narrative.currentAct.id, 'correct');
     
     // HÓRUS 2.0: Play local victory audio with act phrase
     playHorus2Audio('victory', actPhrase || undefined);
+    
+    // Check for recognition dialogue (3+ consecutive correct)
+    const updatedState = updatePsychologyState(psychologyState, playerAnsweredCorrectly, false);
+    if (updatedState.consecutiveCorrect >= 3) {
+      setTimeout(async () => {
+        await checkAndTriggerDialogue(
+          { ...updatedState, currentRound, currentValue: PRIZE_LADDER[currentRound - 1] || 0 },
+          (phrase, type) => {
+            setPsychologyPhrase(phrase);
+            setTimeout(() => setPsychologyPhrase(null), 4000);
+          }
+        );
+      }, 2000);
+    }
     
     // Calculate rewards
     let reward = HOST_CORRECT_ANSWER;
@@ -837,8 +867,31 @@ function SinglePlayerRoomContent() {
         // HÓRUS 2.0: Play elimination audio
         playHorus2Audio('elimination');
         
+        // Update psychology state for provocation
+        const elimState = { 
+          ...psychologyState, 
+          wasEliminatedByBluff: true, 
+          currentRound, 
+          currentValue: accumulatedPrize 
+        };
+        setPsychologyState(elimState);
+        
+        // Trigger provocation dialogue
+        setTimeout(async () => {
+          await checkAndTriggerDialogue(
+            elimState,
+            (phrase, type) => {
+              if (type === 'provocacao') {
+                setAiTaunt(phrase); // Use the psychology phrase as taunt
+              }
+            }
+          );
+        }, 1500);
+        
         // Show AI taunt and eliminate
-        setAiTaunt(getRandomTaunt());
+        if (!aiTaunt) {
+          setAiTaunt(getRandomTaunt());
+        }
         playGameOver();
         
         // Persist safe amount if any
@@ -952,6 +1005,36 @@ function SinglePlayerRoomContent() {
     setCurrentRound(nextRoundNum);
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
+    
+    // Update psychology state with new round
+    setPsychologyState(prev => ({
+      ...prev,
+      currentRound: nextRoundNum,
+      currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
+    }));
+    
+    // 20% chance to trigger psychological pressure dialogue
+    if (nextRoundNum > 3) {
+      setTimeout(async () => {
+        const shouldTrigger = Math.random() < 0.2;
+        if (shouldTrigger) {
+          await checkAndTriggerDialogue(
+            { 
+              ...psychologyState, 
+              currentRound: nextRoundNum, 
+              currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
+              lastDialogueRound: nextRoundNum // Mark this round to avoid duplicates
+            },
+            (phrase, type) => {
+              if (type === 'pressao') {
+                setPsychologyPhrase(phrase);
+                setTimeout(() => setPsychologyPhrase(null), 5000);
+              }
+            }
+          );
+        }
+      }, 3000);
+    }
     
     // Play round-specific audio for rounds 1-3
     const roundAudio = getRoundSpecificAudio(nextRoundNum);
@@ -1168,6 +1251,25 @@ function SinglePlayerRoomContent() {
         enableBeeps={narrative.currentAct.enableBeeps && gamePhase === 'question'}
         enableBomb={narrative.currentAct.enableBombEvent && gamePhase === 'question' && !narrative.state.bombEventTriggered}
       />
+      
+      {/* Psychology Dialogue Overlay */}
+      <AnimatePresence>
+        {psychologyPhrase && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md"
+          >
+            <div className="bg-card/95 backdrop-blur-sm border border-primary/50 rounded-lg px-6 py-4 shadow-lg shadow-primary/20">
+              <p className="text-foreground font-orbitron text-sm text-center italic">
+                "{psychologyPhrase}"
+              </p>
+              <p className="text-primary text-xs text-center mt-1">— Hórus</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="min-h-screen p-4 md:p-8 pt-16">
         <div className="max-w-4xl mx-auto space-y-6">
