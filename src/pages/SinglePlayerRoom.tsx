@@ -71,6 +71,10 @@ import {
   checkAndTriggerSilentObserver, 
   resetSilentObserver 
 } from '@/services/silentObserverService';
+import { 
+  checkAndTriggerCognitiveRupture, 
+  resetCognitiveRupture 
+} from '@/services/cognitiveRuptureService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -339,14 +343,9 @@ function SinglePlayerRoomContent() {
       playHorus2Audio('question_read', q.question_text);
     }, 800);
     
-    // HÓRUS 2.0: Bordão after 20 seconds if player hasn't answered
-    thinkingTauntTimeoutRef.current = window.setTimeout(() => {
-      // Only play if still in question phase
-      if (gamePhase === 'question' && !confirmedAnswer) {
-        playHorus2Audio('thinking_taunt');
-      }
-    }, 20000);
-  }, [gamePhase, currentQuestionId, confirmedAnswer]);
+    // BORDÕES DESATIVADOS: Hórus só fala em momentos narrativos específicos
+    // Não há mais taunt aleatório após 20 segundos
+  }, [gamePhase, currentQuestionId]);
 
   // Redirect to auth if not authenticated and not guest
   useEffect(() => {
@@ -430,9 +429,10 @@ function SinglePlayerRoomContent() {
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
 
-    // Reset NarrativeEngine and Silent Observer for new game
+    // Reset NarrativeEngine, Silent Observer e Ruptura Cognitiva para nova partida
     resetNarrativeEngine();
     resetSilentObserver();
+    resetCognitiveRupture();
     narrativeEngineRef.current = getNarrativeEngine(nickname);
 
     // Start first round directly (opening plays on login now)
@@ -801,17 +801,8 @@ function SinglePlayerRoomContent() {
           });
         }
       }, 2500);
-    } else if (updatedState.consecutiveCorrect >= 3) {
-      setTimeout(async () => {
-        await checkAndTriggerDialogue(
-          { ...updatedState, currentRound, currentValue: PRIZE_LADDER[currentRound - 1] || 0 },
-          (phrase, type) => {
-            setPsychologyPhrase(phrase);
-            setTimeout(() => setPsychologyPhrase(null), 4000);
-          }
-        );
-      }, 2000);
     }
+    // DIÁLOGOS DE RECONHECIMENTO DESATIVADOS: Hórus só fala no Observador Silencioso (5 acertos)
     
     // Calculate rewards
     let reward = HOST_CORRECT_ANSWER;
@@ -886,6 +877,31 @@ function SinglePlayerRoomContent() {
     if (!pendingResultData) return;
     
     const { playerAnsweredCorrectly, believeVotes, shouldEliminate } = pendingResultData;
+    
+    // Update psychology state for error tracking
+    const updatedPsychState = updatePsychologyState(psychologyState, playerAnsweredCorrectly, !playerAnsweredCorrectly && believeVotes > 0);
+    setPsychologyState(updatedPsychState);
+    
+    // 🧠 RUPTURA COGNITIVA: Dispara após 3 erros consecutivos
+    if (updatedPsychState.consecutiveWrong === 3) {
+      setTimeout(async () => {
+        const result = await checkAndTriggerCognitiveRupture(
+          updatedPsychState.consecutiveWrong,
+          displayName,
+          () => {
+            console.log('[CognitiveRupture] Audio complete, showing cinematic');
+          }
+        );
+        
+        if (result.triggered) {
+          // Show cinematic event with the phrase
+          setCinematicEventType('evento_oculto');
+          setCinematicTitle('');
+          setCinematicSubtitle(result.phrase);
+          setShowCinematicEvent(true);
+        }
+      }, 1500);
+    }
     
     if (shouldEliminate) {
       // Player is about to be eliminated - play the mockery
@@ -1109,28 +1125,8 @@ function SinglePlayerRoomContent() {
       currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
     }));
     
-    // 20% chance to trigger psychological pressure dialogue
-    if (nextRoundNum > 3) {
-      setTimeout(async () => {
-        const shouldTrigger = Math.random() < 0.2;
-        if (shouldTrigger) {
-          await checkAndTriggerDialogue(
-            { 
-              ...psychologyState, 
-              currentRound: nextRoundNum, 
-              currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
-              lastDialogueRound: nextRoundNum // Mark this round to avoid duplicates
-            },
-            (phrase, type) => {
-              if (type === 'pressao') {
-                setPsychologyPhrase(phrase);
-                setTimeout(() => setPsychologyPhrase(null), 5000);
-              }
-            }
-          );
-        }
-      }, 3000);
-    }
+    // DIÁLOGOS ALEATÓRIOS DESATIVADOS: Hórus só fala em gatilhos narrativos específicos
+    // Removido: 20% de chance de pressão psicológica aleatória
     
     // Play round-specific audio for rounds 1-3
     const roundAudio = getRoundSpecificAudio(nextRoundNum);

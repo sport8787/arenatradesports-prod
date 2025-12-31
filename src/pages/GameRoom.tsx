@@ -76,6 +76,14 @@ import {
   PlayerPsychologyState,
   DialogueType
 } from '@/services/horusPsychologyService';
+import { 
+  checkAndTriggerSilentObserver, 
+  resetSilentObserver 
+} from '@/services/silentObserverService';
+import { 
+  checkAndTriggerCognitiveRupture, 
+  resetCognitiveRupture 
+} from '@/services/cognitiveRuptureService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -554,20 +562,8 @@ function GameRoomContent() {
       }
 
       case 'discussion': {
-        // IMPORTANTE: no multiplayer, o júri vota durante a "discussion".
-        // Então o bordão precisa acontecer aqui (não só em "voting").
-        if (hasLocalAudioForMoment('taunt')) {
-          setTimeout(async () => {
-            if (gameState.room?.current_status !== 'discussion') return;
-
-            if (isOnlineMode) {
-              const res = await getHorus2Audio('taunt');
-              if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
-            } else {
-              await playHorus2Audio('taunt');
-            }
-          }, 1200);
-        }
+        // BORDÕES DESATIVADOS: Hórus só fala em momentos narrativos específicos
+        // Não há mais bordões aleatórios durante a discussão
         break;
       }
 
@@ -577,17 +573,7 @@ function GameRoomContent() {
         break;
 
       case 'voting':
-        // Fase de votação explícita (fallback) - pode tocar bordão
-        if (hasLocalAudioForMoment('taunt')) {
-          (async () => {
-            if (isOnlineMode) {
-              const res = await getHorus2Audio('taunt');
-              if (res) broadcastAudio(res.audioUrl, 'taunt', 'horus');
-            } else {
-              await playHorus2Audio('taunt');
-            }
-          })();
-        }
+        // BORDÕES DESATIVADOS: Não toca mais bordão na votação
         break;
 
       case 'lobby':
@@ -1441,28 +1427,8 @@ function GameRoomContent() {
       currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
     }));
     
-    // 20% chance to trigger psychological pressure dialogue (only after round 3)
-    if (nextRoundNum > 3) {
-      setTimeout(async () => {
-        const shouldTrigger = Math.random() < 0.2;
-        if (shouldTrigger) {
-          await checkAndTriggerDialogue(
-            { 
-              ...psychologyState, 
-              currentRound: nextRoundNum, 
-              currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
-              lastDialogueRound: nextRoundNum
-            },
-            (phrase, type) => {
-              if (type === 'pressao') {
-                setPsychologyPhrase(phrase);
-                setTimeout(() => setPsychologyPhrase(null), 5000);
-              }
-            }
-          );
-        }
-      }, 3000);
-    }
+    // DIÁLOGOS ALEATÓRIOS DESATIVADOS: Hórus só fala em gatilhos narrativos específicos
+    // Removido: 20% de chance de pressão psicológica aleatória
 
     // Use intelligent question selection with history - pass next round for difficulty filtering
     let nextQ = getNextQuestion(nextRoundNum);
