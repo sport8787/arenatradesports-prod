@@ -59,7 +59,7 @@ import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
 import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
-import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
+import { getCartaBonusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
 import { 
   createInitialPsychologyState, 
@@ -68,6 +68,13 @@ import {
   PlayerPsychologyState,
   DialogueType
 } from '@/services/horusPsychologyService';
+import { 
+  resetPressureState, 
+  setPressureRound, 
+  checkAndTriggerBomb,
+  getPressureConfig 
+} from '@/services/pressureTimerService';
+import PressureTimer from '@/components/game/PressureTimer';
 import { 
   checkAndTriggerSilentObserver, 
   resetSilentObserver 
@@ -431,23 +438,22 @@ function SinglePlayerRoomContent() {
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
 
-    // Reset NarrativeEngine, Silent Observer e Ruptura Cognitiva para nova partida
+    // Reset NarrativeEngine, Silent Observer, Ruptura Cognitiva e Pressure Timer para nova partida
     resetNarrativeEngine();
     resetSilentObserver();
     resetCognitiveRupture();
+    resetPressureState();
     narrativeEngineRef.current = getNarrativeEngine(nickname);
 
     // Start first round directly (opening plays on login now)
     setCurrentRound(1);
+    setPressureRound(1);
     setAccumulatedPrize(0);
     await selectNextQuestion();
     startForensicsSession(); // Start tracking response latency
     
-    // Play round 1 specific audio
-    const round1Audio = getRoundSpecificAudio(1);
-    if (round1Audio) {
-      playHorusAudio(round1Audio);
-    }
+    // ÁUDIO DA RODADA 1 REMOVIDO DAQUI
+    // O áudio agora toca APÓS o jogador responder (handleVictoryReveal ou handleWaxSealBreakingComplete)
     
     setGamePhase('question');
   };
@@ -1118,6 +1124,7 @@ function SinglePlayerRoomContent() {
   // Shared logic for proceeding to next round
   const proceedToNextRound = async (nextRoundNum: number) => {
     setCurrentRound(nextRoundNum);
+    setPressureRound(nextRoundNum); // Atualizar sistema de pressão
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
@@ -1132,19 +1139,7 @@ function SinglePlayerRoomContent() {
     }));
     
     // DIÁLOGOS ALEATÓRIOS DESATIVADOS: Hórus só fala em gatilhos narrativos específicos
-    // Removido: 20% de chance de pressão psicológica aleatória
-    
-    // Play round-specific audio for rounds 1-3
-    const roundAudio = getRoundSpecificAudio(nextRoundNum);
-    if (roundAudio) {
-      playHorusAudio(roundAudio);
-    } else {
-      // NarrativeEngine: Get act-specific transition phrase
-      const transitionPhrase = getActPhraseText(narrative.currentAct.id, 'transition');
-      
-      // HÓRUS 2.0: Play round transition with act phrase
-      playHorus2Audio('round_transition', transitionPhrase || undefined);
-    }
+    // Áudio de transição também removido para evitar sobreposição
     
     // Start background music after Round 2 completes (beginning of Round 3)
     // This marks the transition to Ato II
@@ -1424,6 +1419,45 @@ function SinglePlayerRoomContent() {
               {/* QUESTION PHASE */}
               {gamePhase === 'question' && currentQuestion && (
                 <div className="space-y-6">
+                  {/* Pressure Timer */}
+                  <div className="flex justify-center">
+                    <PressureTimer
+                      round={currentRound}
+                      isActive={gamePhase === 'question' && !confirmedAnswer}
+                      onComplete={() => {
+                        // Timeout: forçar confirmação se nenhuma resposta selecionada
+                        if (!confirmedAnswer && selectedAnswer) {
+                          confirmAnswer();
+                        } else if (!confirmedAnswer && !selectedAnswer) {
+                          // Sem resposta: selecionar aleatória e confirmar
+                          const options: Array<'A' | 'B' | 'C' | 'D'> = ['A', 'B', 'C', 'D'];
+                          const randomAnswer = options[Math.floor(Math.random() * options.length)];
+                          setSelectedAnswer(randomAnswer);
+                          setTimeout(() => {
+                            setConfirmedAnswer(randomAnswer);
+                            setShowAnswer(true);
+                            playReveal();
+                            if (currentRound === MAX_ROUNDS) {
+                              setTimeout(() => processRound15Results(), 1500);
+                            } else {
+                              setGamePhase('recording');
+                            }
+                          }, 100);
+                        }
+                      }}
+                      onTick={(secondsLeft) => {
+                        // Verificar evento de bomba entre rodadas 6-10
+                        // Dispara apenas uma vez, em momento aleatório
+                        if (secondsLeft === Math.floor(getPressureConfig(currentRound).timerDuration * 0.6)) {
+                          const triggered = checkAndTriggerBomb(currentRound);
+                          if (triggered) {
+                            narrative.triggerBomb();
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+
                   {/* Round 15 Special Banner */}
                   {currentRound === MAX_ROUNDS && (
                     <motion.div
