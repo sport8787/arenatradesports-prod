@@ -63,7 +63,9 @@ import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
 import NarrativeOverlay from '@/components/game/NarrativeOverlay';
 import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
+import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
+import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -291,6 +293,14 @@ function GameRoomContent() {
   const [bribeOffersCount, setBribeOffersCount] = useState(0);
   const MAX_BRIBE_OFFERS = 2;
   const MAX_BRIBE_ROUND = 8;
+  
+  // CinematicEvent states
+  const [showCinematicEvent, setShowCinematicEvent] = useState(false);
+  const [cinematicEventType, setCinematicEventType] = useState<'blefe_perfeito' | 'carta_bonus' | 'evento_oculto' | 'climax' | 'epic_moment'>('epic_moment');
+  const [cinematicTitle, setCinematicTitle] = useState('');
+  const [cinematicSubtitle, setCinematicSubtitle] = useState('');
+  const [cinematicAudioPath, setCinematicAudioPath] = useState<string | undefined>(undefined);
+  const [cinematicCardType, setCinematicCardType] = useState<'porto_seguro' | 'imunidade'>('porto_seguro');
 
   // Persist game winnings to authenticated user's profile using atomic RPC
   const persistGameResult = async (amount: number) => {
@@ -855,10 +865,14 @@ function GameRoomContent() {
           setHasGuaranteedPrize(true);
           setSafeAmount(roundPrize);
           setNewlyUnlockedCard('guaranteed');
-          // Delay showing the unlock animation slightly so results panel shows first
+          // Show CinematicEvent for Carta Bônus Porto Seguro
           setTimeout(() => {
-            setShowBonusUnlock(true);
-            playCardUnlock();
+            setCinematicEventType('carta_bonus');
+            setCinematicCardType('porto_seguro');
+            setCinematicTitle('CARTA BÔNUS DESBLOQUEADA!');
+            setCinematicSubtitle('Porto Seguro: Você salvou seu prêmio!');
+            setCinematicAudioPath(getCartaBonusAudio('porto_seguro'));
+            setShowCinematicEvent(true);
           }, 1500);
         }
         
@@ -867,12 +881,27 @@ function GameRoomContent() {
           console.log('[BonusCard] Unlocking Immunity card - believeVotes:', believeVotes);
           setHasImmunityCard(true);
           setNewlyUnlockedCard('immunity');
-          // Show immunity unlock after bonus unlock (if both trigger) or immediately
-          const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 5000 : 1500;
+          // Show CinematicEvent for Carta Imunidade after porto_seguro
+          const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 6000 : 1500;
           setTimeout(() => {
-            setShowImmunityUnlock(true);
-            playShieldActivate();
+            setCinematicEventType('carta_bonus');
+            setCinematicCardType('imunidade');
+            setCinematicTitle('CARTA IMUNIDADE DESBLOQUEADA!');
+            setCinematicSubtitle('Você ganhou uma segunda chance!');
+            setCinematicAudioPath(getCartaBonusAudio('imunidade'));
+            setShowCinematicEvent(true);
           }, delay);
+        }
+        
+        // Check for Blefe Perfeito (all jury voted CLARO on wrong answer)
+        if (!playerGotCorrect && believeVotes === totalJuryVotes && totalJuryVotes > 0 && totalJuryVotes >= 3) {
+          setTimeout(() => {
+            setCinematicEventType('blefe_perfeito');
+            setCinematicTitle('BLEFE PERFEITO!');
+            setCinematicSubtitle('Todos caíram na sua lábia...');
+            setCinematicAudioPath('/audio/horus/blefe_perfeito.mp3');
+            setShowCinematicEvent(true);
+          }, 800);
         }
         
         // Check if game completed (all 15 rounds)
@@ -1192,6 +1221,12 @@ function GameRoomContent() {
     // Register this question as used
     await registerQuestionUsed(q.id);
 
+    // Play round 1 specific audio
+    const round1Audio = getRoundSpecificAudio(1);
+    if (round1Audio) {
+      playHorusAudio(round1Audio);
+    }
+
     // Preload audio DISABLED to prevent ElevenLabs credit consumption
     // Audio will only be generated at the exact moment of question display
 
@@ -1335,6 +1370,12 @@ function GameRoomContent() {
     
     // Register this question as used
     await registerQuestionUsed(nextQ.id);
+
+    // Play round-specific audio for rounds 2-3
+    const roundAudio = getRoundSpecificAudio(nextRoundNum);
+    if (roundAudio) {
+      playHorusAudio(roundAudio);
+    }
 
     // Preload audio DISABLED to prevent ElevenLabs credit consumption
     // Audio will only be generated at the exact moment of question display
@@ -2530,6 +2571,18 @@ function GameRoomContent() {
         onListenProposal={handleListenBribeProposal}
         isListening={isBribeListening}
         currentPhrase={bribePhrase}
+      />
+      
+      {/* CinematicEvent - Epic moments with black bars */}
+      <CinematicEvent
+        show={showCinematicEvent}
+        type={cinematicEventType}
+        title={cinematicTitle}
+        subtitle={cinematicSubtitle}
+        audioPath={cinematicAudioPath}
+        cardType={cinematicCardType}
+        duration={cinematicEventType === 'blefe_perfeito' ? 5000 : 4000}
+        onComplete={() => setShowCinematicEvent(false)}
       />
     </div>
   );

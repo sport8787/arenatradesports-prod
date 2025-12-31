@@ -53,7 +53,9 @@ import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
 import NarrativeOverlay from '@/components/game/NarrativeOverlay';
 import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
+import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
+import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -178,6 +180,14 @@ function SinglePlayerRoomContent() {
   const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
   const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
   const [briefcasePrize, setBriefcasePrize] = useState(0);
+  
+  // CinematicEvent states
+  const [showCinematicEvent, setShowCinematicEvent] = useState(false);
+  const [cinematicEventType, setCinematicEventType] = useState<'blefe_perfeito' | 'carta_bonus' | 'evento_oculto' | 'climax' | 'epic_moment'>('epic_moment');
+  const [cinematicTitle, setCinematicTitle] = useState('');
+  const [cinematicSubtitle, setCinematicSubtitle] = useState('');
+  const [cinematicAudioPath, setCinematicAudioPath] = useState<string | undefined>(undefined);
+  const [cinematicCardType, setCinematicCardType] = useState<'porto_seguro' | 'imunidade'>('porto_seguro');
   
   // Voice forensics metrics
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
@@ -397,6 +407,13 @@ function SinglePlayerRoomContent() {
     setAccumulatedPrize(0);
     await selectNextQuestion();
     startForensicsSession(); // Start tracking response latency
+    
+    // Play round 1 specific audio
+    const round1Audio = getRoundSpecificAudio(1);
+    if (round1Audio) {
+      playHorusAudio(round1Audio);
+    }
+    
     setGamePhase('question');
   };
   
@@ -858,14 +875,21 @@ function SinglePlayerRoomContent() {
       if (believeVotes === 3) {
         reward = HOST_WRONG_FULL_BLUFF;
         toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito!' });
+        
+        // Trigger CinematicEvent for Blefe Perfeito!
+        setCinematicEventType('blefe_perfeito');
+        setCinematicTitle('BLEFE PERFEITO!');
+        setCinematicSubtitle('Todos caíram na sua lábia...');
+        setCinematicAudioPath('/audio/horus/blefe_perfeito.mp3');
+        setShowCinematicEvent(true);
       } else {
         reward = HOST_WRONG_PARTIAL_BLUFF;
         toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
       }
       
-      // Show bluff feedback
+      // Show bluff feedback (only if not showing cinematic)
       const unlockingBonusCard = (!hasGuaranteedPrize && believeVotes >= 2) || (!hasImmunityCard && believeVotes >= 3);
-      if (!unlockingBonusCard) {
+      if (!unlockingBonusCard && believeVotes < 3) {
         const randomPhrase = BLUFF_PHRASES[Math.floor(Math.random() * BLUFF_PHRASES.length)];
         setTimeout(() => {
           playCashRegister();
@@ -881,24 +905,34 @@ function SinglePlayerRoomContent() {
     const roundPrize = PRIZE_LADDER[currentRound - 1];
     setAccumulatedPrize(roundPrize);
 
-    // Check for bonus card unlocks
+    // Check for bonus card unlocks with CinematicEvent
     if (!hasGuaranteedPrize && !playerAnsweredCorrectly && believeVotes >= 2) {
       setHasGuaranteedPrize(true);
       setSafeAmount(roundPrize);
       setNewlyUnlockedCard('guaranteed');
       setTimeout(() => {
-        setShowBonusUnlock(true);
-        playCardUnlock();
+        // Show CinematicEvent for Carta Bônus Porto Seguro
+        setCinematicEventType('carta_bonus');
+        setCinematicCardType('porto_seguro');
+        setCinematicTitle('CARTA BÔNUS DESBLOQUEADA!');
+        setCinematicSubtitle('Porto Seguro: Você salvou seu prêmio!');
+        setCinematicAudioPath(getCartaBonusAudio('porto_seguro'));
+        setShowCinematicEvent(true);
       }, 1500);
     }
 
     if (!hasImmunityCard && !playerAnsweredCorrectly && believeVotes >= 3) {
       setHasImmunityCard(true);
       setNewlyUnlockedCard('immunity');
-      const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 5000 : 1500;
+      const delay = (!hasGuaranteedPrize && believeVotes >= 2) ? 6000 : 1500;
       setTimeout(() => {
-        setShowImmunityUnlock(true);
-        playShieldActivate();
+        // Show CinematicEvent for Carta Bônus Imunidade
+        setCinematicEventType('carta_bonus');
+        setCinematicCardType('imunidade');
+        setCinematicTitle('CARTA IMUNIDADE DESBLOQUEADA!');
+        setCinematicSubtitle('Você ganhou uma segunda chance!');
+        setCinematicAudioPath(getCartaBonusAudio('imunidade'));
+        setShowCinematicEvent(true);
       }, delay);
     }
 
@@ -916,11 +950,17 @@ function SinglePlayerRoomContent() {
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
-    // NarrativeEngine: Get act-specific transition phrase
-    const transitionPhrase = getActPhraseText(narrative.currentAct.id, 'transition');
-    
-    // HÓRUS 2.0: Play round transition with act phrase
-    playHorus2Audio('round_transition', transitionPhrase || undefined);
+    // Play round-specific audio for rounds 1-3
+    const roundAudio = getRoundSpecificAudio(nextRoundNum);
+    if (roundAudio) {
+      playHorusAudio(roundAudio);
+    } else {
+      // NarrativeEngine: Get act-specific transition phrase
+      const transitionPhrase = getActPhraseText(narrative.currentAct.id, 'transition');
+      
+      // HÓRUS 2.0: Play round transition with act phrase
+      playHorus2Audio('round_transition', transitionPhrase || undefined);
+    }
     
     // Show briefcase modal before round 15
     if (nextRoundNum === MAX_ROUNDS) {
@@ -1751,6 +1791,18 @@ function SinglePlayerRoomContent() {
         show={showBriefcaseReveal}
         prizeAmount={briefcasePrize}
         onContinue={handleBriefcaseRevealComplete}
+      />
+      
+      {/* CinematicEvent - Epic moments with black bars */}
+      <CinematicEvent
+        show={showCinematicEvent}
+        type={cinematicEventType}
+        title={cinematicTitle}
+        subtitle={cinematicSubtitle}
+        audioPath={cinematicAudioPath}
+        cardType={cinematicCardType}
+        duration={cinematicEventType === 'blefe_perfeito' ? 5000 : 4000}
+        onComplete={() => setShowCinematicEvent(false)}
       />
       </div>
     </>
