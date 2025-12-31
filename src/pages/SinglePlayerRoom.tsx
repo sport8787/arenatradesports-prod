@@ -35,6 +35,7 @@ import BriefcaseRevealModal from '@/components/game/BriefcaseRevealModal';
 import HorusPostVoteBribe from '@/components/game/HorusPostVoteBribe';
 import WaxSealBreaking from '@/components/game/WaxSealBreaking';
 import ContractTearing from '@/components/game/ContractTearing';
+import { GoldenParticles } from '@/components/game/GoldenParticles';
 import { HorusTerminal } from '@/components/HorusTerminal';
 import { BalanceHeader } from '@/components/game/BalanceHeader';
 import { CoinVaultAnimation } from '@/components/game/CoinVaultAnimation';
@@ -223,6 +224,7 @@ function SinglePlayerRoomContent() {
   const MAX_BRIBE_ROUND = 8; // Só oferece até rodada 8
   const [showWaxSealBreaking, setShowWaxSealBreaking] = useState(false);
   const [showContractTearing, setShowContractTearing] = useState(false);
+  const [showGoldenParticles, setShowGoldenParticles] = useState(false);
   const [isHorusListening, setIsHorusListening] = useState(false);
   const [horusPhrase, setHorusPhrase] = useState<string | null>(null);
   const [pendingResultData, setPendingResultData] = useState<{
@@ -832,8 +834,12 @@ function SinglePlayerRoomContent() {
   const handleHorusAcceptBribe = async () => {
     stopHorus2Audio();
     setLastAction("Aceitou o acordo do Hórus");
-    // Show contract tearing animation
-    setShowContractTearing(true);
+    // Show golden particles first for impact
+    setShowGoldenParticles(true);
+    // Show contract tearing animation after a brief delay
+    setTimeout(() => {
+      setShowContractTearing(true);
+    }, 500);
   };
 
   // Called when contract tearing animation completes
@@ -1979,6 +1985,12 @@ function SinglePlayerRoomContent() {
       <WaxSealBreaking
         isVisible={showWaxSealBreaking}
         onAnimationComplete={handleWaxSealBreakingComplete}
+      />
+
+      {/* Golden Particles - when player accepts Horus agreement */}
+      <GoldenParticles 
+        isActive={showGoldenParticles}
+        onComplete={() => setShowGoldenParticles(false)}
       />
 
       {/* Contract Tearing Animation - when player accepts Horus offer */}
