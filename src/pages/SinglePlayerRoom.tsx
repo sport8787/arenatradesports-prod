@@ -67,6 +67,10 @@ import {
   PlayerPsychologyState,
   DialogueType
 } from '@/services/horusPsychologyService';
+import { 
+  checkAndTriggerSilentObserver, 
+  resetSilentObserver 
+} from '@/services/silentObserverService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -426,8 +430,9 @@ function SinglePlayerRoomContent() {
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
 
-    // Reset NarrativeEngine for new game
+    // Reset NarrativeEngine and Silent Observer for new game
     resetNarrativeEngine();
+    resetSilentObserver();
     narrativeEngineRef.current = getNarrativeEngine(nickname);
 
     // Start first round directly (opening plays on login now)
@@ -770,7 +775,33 @@ function SinglePlayerRoomContent() {
     
     // Check for recognition dialogue (3+ consecutive correct)
     const updatedState = updatePsychologyState(psychologyState, playerAnsweredCorrectly, false);
-    if (updatedState.consecutiveCorrect >= 3) {
+    
+    // 👁️ SILENT OBSERVER EVENT: Check for 5 consecutive correct answers
+    if (updatedState.consecutiveCorrect === 5) {
+      setTimeout(async () => {
+        const result = await checkAndTriggerSilentObserver(
+          updatedState.consecutiveCorrect,
+          displayName,
+          () => {
+            // After audio completes, show the cinematic
+            console.log('[SilentObserver] Audio complete, showing cinematic');
+          }
+        );
+        
+        if (result.triggered) {
+          // Show cinematic event with the phrase
+          setCinematicEventType('evento_oculto');
+          setCinematicTitle('');
+          setCinematicSubtitle(result.phrase);
+          setShowCinematicEvent(true);
+          
+          toast({
+            title: '👁️ O Observador Silencioso',
+            description: 'Algo maior está observando você...',
+          });
+        }
+      }, 2500);
+    } else if (updatedState.consecutiveCorrect >= 3) {
       setTimeout(async () => {
         await checkAndTriggerDialogue(
           { ...updatedState, currentRound, currentValue: PRIZE_LADDER[currentRound - 1] || 0 },
