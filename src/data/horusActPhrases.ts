@@ -214,12 +214,15 @@ export function getActPhrases(act: NarrativeAct): ActPhrase[] {
   return ACT_PHRASES_MAP[act] || [];
 }
 
-// Evento especial: Observador Silencioso
+// Evento especial: Observador Silencioso (5 acertos consecutivos)
+// Estas frases são usadas como fallback - a narração principal é gerada via ElevenLabs
 export const SILENT_OBSERVER_PHRASES = [
-  'Alguém está observando você... há 5 rodadas consecutivas. Impressionante.',
+  'Cinco acertos consecutivos. O Observador Silencioso está de olho em você.',
+  'Alguém está observando você há cinco rodadas. Impressionante.',
   'O Observador Silencioso notou sua sequência. Ele raramente aparece.',
-  'Você atraiu a atenção de algo... maior. Continue assim.',
-  'Cinco acertos seguidos. O Observador está intrigado.',
+  'Você atraiu a atenção de algo maior. Continue assim.',
+  'Cinco em sequência perfeita. O Observador está intrigado.',
+  'Poucos chegam tão longe sem errar. O Observador está assistindo.',
 ];
 
 export function getSilentObserverPhrase(): string {

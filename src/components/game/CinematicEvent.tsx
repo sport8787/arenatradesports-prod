@@ -86,8 +86,11 @@ const CinematicEvent = ({
       // Wait for narration to be read
       await delay(narration ? Math.max(2000, narration.length * 50) : 1500);
 
-      // Stage 3: Reward - Show card or reward animation
-      if (type === 'blefe_perfeito' || type === 'carta_bonus' || reward?.card) {
+      // Stage 3: Reward - Show card or reward animation (skip for evento_oculto unless it has a card reward)
+      if ((type === 'blefe_perfeito' || type === 'carta_bonus' || reward?.card) && type !== 'evento_oculto') {
+        setStage('reward');
+        await delay(3000);
+      } else if (type === 'evento_oculto' && reward?.card) {
         setStage('reward');
         await delay(3000);
       }

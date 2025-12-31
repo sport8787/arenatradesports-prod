@@ -2,11 +2,13 @@ import { useEffect, useCallback } from 'react';
 import { useNarrativeOptional } from '@/contexts/NarrativeContext';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { playHorus2Audio } from '@/services/horus2Engine';
+import { checkAndTriggerSilentObserver } from '@/services/silentObserverService';
 import { toast } from '@/hooks/use-toast';
 
 interface UseNarrativeIntegrationOptions {
   currentRound: number;
-  onSilentObserver?: () => void;
+  playerName?: string;
+  onSilentObserver?: (phrase: string) => void;
 }
 
 /**
@@ -15,11 +17,11 @@ interface UseNarrativeIntegrationOptions {
  * This hook provides:
  * - Automatic Horus phrase selection based on current act
  * - Round advancement with correct/wrong tracking
- * - Hidden event triggers (Silent Observer, etc.)
+ * - Hidden event triggers (Silent Observer with ElevenLabs TTS)
  * - Pressure level and timer configuration
  */
 export function useNarrativeIntegration(options: UseNarrativeIntegrationOptions) {
-  const { currentRound, onSilentObserver } = options;
+  const { currentRound, playerName = 'Jogador', onSilentObserver } = options;
   const narrative = useNarrativeOptional();
 
   // Sync narrative round with game round
@@ -35,7 +37,7 @@ export function useNarrativeIntegration(options: UseNarrativeIntegrationOptions)
   }, [currentRound, narrative]);
 
   // Handle answer result and advance narrative
-  const handleAnswerResult = useCallback((wasCorrect: boolean) => {
+  const handleAnswerResult = useCallback(async (wasCorrect: boolean) => {
     if (!narrative) return;
     
     // Advance the narrative state
@@ -52,16 +54,24 @@ export function useNarrativeIntegration(options: UseNarrativeIntegrationOptions)
       playHorus2Audio(wasCorrect ? 'correct_answer' : 'wrong_answer', phrase);
     }
     
-    // Check for Silent Observer event
-    if (narrative.state.silentObserverActive && narrative.state.consecutiveCorrect === 5) {
-      const observerPhrase = getSilentObserverPhrase();
-      toast({
-        title: '👁️ O Observador Silencioso',
-        description: observerPhrase,
-      });
-      onSilentObserver?.();
+    // Check for Silent Observer event (5 consecutive correct)
+    if (wasCorrect && narrative.state.consecutiveCorrect === 4) {
+      // Will trigger on next state update (becomes 5)
+      setTimeout(async () => {
+        const result = await checkAndTriggerSilentObserver(
+          5,
+          playerName,
+          () => {
+            console.log('[NarrativeIntegration] Silent Observer audio completed');
+          }
+        );
+        
+        if (result.triggered) {
+          onSilentObserver?.(result.phrase);
+        }
+      }, 2500);
     }
-  }, [narrative, onSilentObserver]);
+  }, [narrative, playerName, onSilentObserver]);
 
   // Get act-specific phrase for a trigger
   const getHorusActPhrase = useCallback((trigger: 'correct' | 'wrong' | 'bluff_success' | 'transition' | 'taunt' | 'opening') => {
