@@ -67,7 +67,7 @@ export default function PressureTimer({
     setIsUrgent(false);
   }, [round]);
 
-  // Agendar bips irregulares usando Web Audio API
+  // Agendar bips irregulares usando arquivo de áudio bip.mp3
   useEffect(() => {
     // Limpar timeouts anteriores
     beepTimeoutsRef.current.forEach(clearTimeout);
@@ -79,25 +79,11 @@ export default function PressureTimer({
       if (!isMountedRef.current) return;
       
       try {
-        // Criar beep usando Web Audio API (sem dependência de arquivo)
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800 + Math.random() * 400; // Frequência variável 800-1200Hz
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.15);
-        
-        // Cleanup
-        setTimeout(() => audioContext.close(), 200);
+        // Usar arquivo de áudio bip.mp3
+        const audio = new Audio('/audio/horus/bip.mp3');
+        audio.volume = 0.3 + Math.random() * 0.2; // Volume variável para efeito mais desestabilizador
+        audio.playbackRate = 0.9 + Math.random() * 0.3; // Pitch ligeiramente variável
+        audio.play().catch(console.warn);
       } catch (e) {
         console.error('[PressureTimer] Error playing beep:', e);
       }

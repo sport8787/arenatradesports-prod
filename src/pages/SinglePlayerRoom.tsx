@@ -1138,6 +1138,9 @@ function SinglePlayerRoomContent() {
       currentValue: PRIZE_LADDER[nextRoundNum - 1] || 0,
     }));
     
+    // Get pressure config for this round
+    const pressureConfig = getPressureConfig(nextRoundNum);
+    
     // DIÁLOGOS ALEATÓRIOS DESATIVADOS: Hórus só fala em gatilhos narrativos específicos
     // Áudio de transição também removido para evitar sobreposição
     
@@ -1147,9 +1150,23 @@ function SinglePlayerRoomContent() {
       backgroundMusic.start('trial');
     }
     
-    // Update background music act for tension evolution
+    // Update background music act and pressure for tension evolution
     if (backgroundMusic.getIsPlaying()) {
       backgroundMusic.setAct(narrative.currentAct.id);
+      backgroundMusic.setPressure(pressureConfig.pressureLevel);
+    }
+    
+    // Check for bomb event (Evento de Ruptura) - rodadas 6-10
+    if (pressureConfig.canBomb) {
+      const bombTriggered = checkAndTriggerBomb(nextRoundNum);
+      if (bombTriggered) {
+        // Flash visual will be handled by PressureEffects component
+        toast({
+          title: '💥 RUPTURA COGNITIVA',
+          description: 'Foco, vendedor. O sistema te testando.',
+          variant: 'destructive',
+        });
+      }
     }
     
     // Show briefcase modal before round 15

@@ -1,29 +1,63 @@
-// Background Music Service with Ducking
+// Background Music Service with Ducking and Tension Evolution
 // Manages the game's theme music with automatic volume reduction when narration plays
+// and dynamic tension scaling based on narrative acts
 
 const THEME_AUDIO_PATH = '/audio/horus/tema.mp3';
 
 // Volume levels
-const NORMAL_VOLUME = 0.35; // Base volume for music
-const DUCKED_VOLUME = 0.15; // Volume when someone is speaking (40% reduction)
+const BASE_VOLUME = 0.25; // Base volume for music
+const DUCKED_VOLUME = 0.10; // Volume when someone is speaking
 const FADE_DURATION = 500; // ms for volume transitions
 
-// Volume multipliers per act (tension evolution)
-const ACT_VOLUME_MULTIPLIERS: Record<string, number> = {
-  'initiation': 0.8,  // Ato I: Subtle
-  'trial': 0.9,       // Ato II: Building
-  'ascension': 1.0,   // Ato III: Full
-  'fall': 1.1,        // Ato IV: Intense
-  'climax': 1.2,      // Ato V: Maximum
+// Tension levels per act (volume and playback rate adjustments)
+interface TensionConfig {
+  volumeMultiplier: number;
+  playbackRate: number;
+  description: string;
+}
+
+const ACT_TENSION_CONFIG: Record<string, TensionConfig> = {
+  'initiation': { 
+    volumeMultiplier: 0.7, 
+    playbackRate: 0.95, 
+    description: 'Ato I: Calmo, introdutório' 
+  },
+  'trial': { 
+    volumeMultiplier: 0.85, 
+    playbackRate: 1.0, 
+    description: 'Ato II: Tensão crescente' 
+  },
+  'ascension': { 
+    volumeMultiplier: 1.0, 
+    playbackRate: 1.02, 
+    description: 'Ato III: Intensidade plena' 
+  },
+  'fall': { 
+    volumeMultiplier: 1.15, 
+    playbackRate: 1.05, 
+    description: 'Ato IV: Pressão máxima' 
+  },
+  'climax': { 
+    volumeMultiplier: 1.3, 
+    playbackRate: 1.08, 
+    description: 'Ato V: Clímax final' 
+  },
 };
+
+// Pressure level based volume boost (0-100 pressure level)
+function getPressureVolumeBoost(pressureLevel: number): number {
+  // Adds up to 20% more volume at maximum pressure
+  return 1 + (pressureLevel / 100) * 0.2;
+}
 
 class BackgroundMusicService {
   private audio: HTMLAudioElement | null = null;
   private isPlaying: boolean = false;
   private isDucked: boolean = false;
   private currentAct: string = 'trial';
+  private currentPressure: number = 0;
   private fadeInterval: number | null = null;
-  private targetVolume: number = NORMAL_VOLUME;
+  private targetVolume: number = BASE_VOLUME;
 
   constructor() {
     this.initAudio();
@@ -45,6 +79,10 @@ class BackgroundMusicService {
     this.currentAct = currentAct;
     this.isPlaying = true;
     
+    // Apply initial playback rate based on act
+    const config = ACT_TENSION_CONFIG[this.currentAct] || ACT_TENSION_CONFIG['trial'];
+    this.audio.playbackRate = config.playbackRate;
+    
     // Start at zero and fade in
     this.audio.volume = 0;
     this.audio.play().catch(err => {
@@ -53,7 +91,8 @@ class BackgroundMusicService {
     });
     
     // Fade in to target volume
-    this.fadeToVolume(this.getActVolume());
+    this.fadeToVolume(this.getTargetVolume());
+    console.log(`[BGMusic] Started - ${config.description}`);
   }
 
   // Stop the music with fade out
@@ -64,6 +103,7 @@ class BackgroundMusicService {
       this.audio?.pause();
       if (this.audio) this.audio.currentTime = 0;
       this.isPlaying = false;
+      console.log('[BGMusic] Stopped');
     });
   }
 
@@ -92,25 +132,51 @@ class BackgroundMusicService {
     if (!this.audio || !this.isPlaying || !this.isDucked) return;
     
     this.isDucked = false;
-    this.fadeToVolume(this.getActVolume());
+    this.fadeToVolume(this.getTargetVolume());
   }
 
   // Update the current act (for tension evolution)
   setAct(actId: string) {
     if (this.currentAct === actId) return;
     
+    const oldAct = this.currentAct;
     this.currentAct = actId;
+    
+    const config = ACT_TENSION_CONFIG[actId] || ACT_TENSION_CONFIG['trial'];
+    console.log(`[BGMusic] Act changed: ${oldAct} -> ${actId} (${config.description})`);
+    
+    if (this.audio) {
+      // Smoothly adjust playback rate
+      this.audio.playbackRate = config.playbackRate;
+    }
     
     // If playing and not ducked, adjust volume to new act level
     if (this.isPlaying && !this.isDucked) {
-      this.fadeToVolume(this.getActVolume());
+      this.fadeToVolume(this.getTargetVolume());
     }
   }
 
-  // Get the target volume for current act
-  private getActVolume(): number {
-    const multiplier = ACT_VOLUME_MULTIPLIERS[this.currentAct] || 1.0;
-    return Math.min(NORMAL_VOLUME * multiplier, 0.5); // Cap at 50%
+  // Update pressure level (0-100) for dynamic volume
+  setPressure(level: number) {
+    const clampedLevel = Math.max(0, Math.min(100, level));
+    if (this.currentPressure === clampedLevel) return;
+    
+    this.currentPressure = clampedLevel;
+    
+    // Only adjust volume if playing and not ducked
+    if (this.isPlaying && !this.isDucked) {
+      this.fadeToVolume(this.getTargetVolume());
+    }
+  }
+
+  // Get the target volume based on act and pressure
+  private getTargetVolume(): number {
+    const actConfig = ACT_TENSION_CONFIG[this.currentAct] || ACT_TENSION_CONFIG['trial'];
+    const actVolume = BASE_VOLUME * actConfig.volumeMultiplier;
+    const pressureBoost = getPressureVolumeBoost(this.currentPressure);
+    
+    // Cap at 50% max volume
+    return Math.min(actVolume * pressureBoost, 0.5);
   }
 
   // Smooth volume transition
@@ -185,6 +251,7 @@ export function useBackgroundMusic() {
     duck: () => backgroundMusic.duck(),
     unduck: () => backgroundMusic.unduck(),
     setAct: (actId: string) => backgroundMusic.setAct(actId),
+    setPressure: (level: number) => backgroundMusic.setPressure(level),
     isPlaying: () => backgroundMusic.getIsPlaying(),
     isDucked: () => backgroundMusic.getIsDucked(),
   };

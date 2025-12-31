@@ -107,8 +107,8 @@ export function checkAndTriggerBomb(round: number): boolean {
     pressureState.bombTriggered = true;
     console.log(`[PressureTimer] 💥 EVENTO DE RUPTURA disparado na rodada ${round}!`);
     
-    // Tocar áudio de ruptura via fila centralizada
-    playBombEvent('/audio/horus/erro_critico_1.mp3');
+    // Tocar áudio de bomba via fila centralizada
+    playBombEvent('/audio/horus/bomb.mp3');
     
     return true;
   }
