@@ -92,27 +92,42 @@ export const NARRATIVE_ACTS: Record<NarrativeAct, ActConfig> = {
   },
 };
 
-// Eventos Ocultos
+// Eventos Ocultos - Agora com novos áudios
 export const HIDDEN_EVENTS: HiddenEvent[] = [
   {
     id: 'silent_observer',
     name: 'O Observador Silencioso',
     trigger: (state) => state.consecutiveCorrect >= 5,
     effect: 'Hórus faz uma pausa dramática e menciona que "alguém está observando"',
-    audioFile: '/audio/horus/mycroft.mp3',
+    audioFile: '/audio/horus/evento_oculto_1.mp3', // NEW: Áudio específico
   },
   {
     id: 'doubt_seed',
     name: 'A Semente da Dúvida',
     trigger: (state) => state.consecutiveWrong >= 3,
     effect: 'Hórus questiona se o jogador realmente conhece as técnicas',
+    audioFile: '/audio/horus/evento_oculto_2.mp3', // NEW: Áudio específico
   },
   {
     id: 'perfect_run',
     name: 'Corrida Perfeita',
     trigger: (state) => state.totalCorrect >= 10 && state.totalWrong === 0,
     effect: 'Mycroft intervém com uma análise especial',
-    audioFile: '/audio/horus/mycroft2.mp3',
+    audioFile: '/audio/horus/evento_oculto_3.mp3', // NEW: Áudio específico
+  },
+  {
+    id: 'checkpoint_10',
+    name: 'Marco da Rodada 10',
+    trigger: (state) => state.currentRound === 10,
+    effect: 'Você chegou à rodada 10! A Ascensão está completa.',
+    audioFile: '/audio/horus/rodada_10.mp3', // NEW: Áudio específico
+  },
+  {
+    id: 'porto_seguro',
+    name: 'Porto Seguro Desbloqueado',
+    trigger: (state) => state.consecutiveCorrect >= 2 && state.currentRound >= 3,
+    effect: 'Você desbloqueou o Porto Seguro! Seus ganhos estão protegidos.',
+    audioFile: '/audio/horus/tem_porto_seguro.mp3', // NEW: Áudio específico
   },
 ];
 

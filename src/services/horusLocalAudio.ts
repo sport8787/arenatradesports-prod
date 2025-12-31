@@ -33,6 +33,7 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/all_in_2.mp3',
     '/audio/horus/all_in_3.mp3',
     '/audio/horus/all_in_4.mp3',
+    '/audio/horus/rodada_15.mp3', // NEW: Rodada 15 específica
   ],
   
   // Bordões / Taunts
@@ -51,6 +52,7 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/bordao_11.mp3',
     '/audio/horus/bordao_12.mp3',
     '/audio/horus/bordao_13.mp3',
+    '/audio/horus/provocacao_1.mp3', // NEW: Provocação extra
   ],
   
   // Derrota / Defeat
@@ -72,6 +74,7 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/erro3.mp3',
     '/audio/horus/erro4.mp3',
     '/audio/horus/erro5.mp3',
+    '/audio/horus/erro_critico_1.mp3', // NEW: Erro crítico para Ato IV
   ],
   
   // Mycroft - para quando jogador confirma resposta
@@ -87,6 +90,32 @@ export const HORUS_AUDIO_FILES: Record<string, string[]> = {
     '/audio/horus/vitoria3.mp3',
     '/audio/horus/vitoria4.mp3',
   ],
+  
+  // NEW: Blefe Perfeito (quando engana todos)
+  blefe_perfeito: [
+    '/audio/horus/blefe_perfeito_2.mp3',
+  ],
+  
+  // NEW: Eventos Ocultos (Observador Silencioso, etc)
+  evento_oculto: [
+    '/audio/horus/evento_oculto_1.mp3',
+    '/audio/horus/evento_oculto_2.mp3',
+    '/audio/horus/evento_oculto_3.mp3',
+  ],
+  
+  // NEW: Checkpoints / Marcos narrativos
+  checkpoint: [
+    '/audio/horus/check_point_2.mp3',
+    '/audio/horus/rodada_10.mp3', // Marco rodada 10
+    '/audio/horus/tem_porto_seguro.mp3', // Porto seguro desbloqueado
+  ],
+  
+  // NEW: Rodada 15 específica (Clímax)
+  climax: [
+    '/audio/horus/rodada_15.mp3',
+    '/audio/horus/all_in.mp3',
+    '/audio/horus/all_in_2.mp3',
+  ],
 };
 
 // Mapping from GameMoment to audio category
@@ -96,7 +125,7 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'bribe_intro': 'acordo',
   'post_vote_bribe': 'acordo',
   'all_in': 'all_in',
-  'all_in_temptation': 'all_in',
+  'all_in_temptation': 'climax', // NEW: Usa categoria climax
   'taunt': 'bordao',
   'waiting': 'bordao',
   'round_transition': 'bordao',
@@ -104,14 +133,47 @@ export const MOMENT_TO_AUDIO_CATEGORY: Partial<Record<GameMoment, string>> = {
   'thinking_taunt': 'bordao',
   'bluff_fail': 'derrota',
   'all_in_loss': 'derrota',
-  'elimination': 'derrota',
+  'elimination': 'eliminacao', // FIX: Usa categoria eliminação
   'wrong_answer': 'erro',
   'victory': 'vitoria',
   'cash_out': 'vitoria',
-  'bluff_success': 'vitoria',
+  'bluff_success': 'blefe_perfeito', // NEW: Usa blefe_perfeito quando engana todos
   'correct_answer': 'vitoria',
   'answer_confirm': 'mycroft',
 };
+
+// NEW: Mapping for narrative acts to audio categories
+export const ACT_AUDIO_CATEGORIES: Record<string, string[]> = {
+  'initiation': ['abertura', 'bordao'], // Ato I: neutro
+  'trial': ['bordao', 'erro'], // Ato II: questionador  
+  'ascension': ['vitoria', 'checkpoint'], // Ato III: respeitoso
+  'fall': ['erro', 'bordao'], // Ato IV: tenso
+  'climax': ['climax', 'all_in'], // Ato V: dramático
+};
+
+// NEW: Get audio for hidden events
+export function getEventoOcultoAudio(): string {
+  const files = HORUS_AUDIO_FILES.evento_oculto;
+  return files[Math.floor(Math.random() * files.length)];
+}
+
+// NEW: Get checkpoint audio (for narrative milestones)
+export function getCheckpointAudio(): string {
+  const files = HORUS_AUDIO_FILES.checkpoint;
+  return files[Math.floor(Math.random() * files.length)];
+}
+
+// NEW: Get climax audio (Round 15)
+export function getClimaxAudio(): string {
+  const files = HORUS_AUDIO_FILES.climax;
+  return files[Math.floor(Math.random() * files.length)];
+}
+
+// NEW: Get blefe perfeito audio
+export function getBlefePerceitoAudio(): string {
+  const files = HORUS_AUDIO_FILES.blefe_perfeito;
+  return files[Math.floor(Math.random() * files.length)];
+}
 
 // Get a random audio file for a specific category
 export function getRandomAudioFile(category: string): string | null {
