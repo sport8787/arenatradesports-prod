@@ -60,10 +60,12 @@ import { audioQueue } from '@/services/audioQueueManager';
 import { getDynamicBribePhrase } from '@/data/horusPhrases';
 // NarrativeEngine integration
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
+import { getNarrativeEngine, resetNarrativeEngine, NarrativeChoice } from '@/services/narrativeEngine';
 import NarrativeOverlay from '@/components/game/NarrativeOverlay';
 import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
 import CinematicEvent from '@/components/game/CinematicEvent';
+import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
@@ -315,6 +317,10 @@ function GameRoomContent() {
     createInitialPsychologyState(displayNickname)
   );
   const [psychologyPhrase, setPsychologyPhrase] = useState<string | null>(null);
+  
+  // Narrative Choice checkpoint (rodada 13)
+  const [showNarrativeChoice, setShowNarrativeChoice] = useState(false);
+  const narrativeEngineRef = useRef(getNarrativeEngine(displayNickname));
 
   // Persist game winnings to authenticated user's profile using atomic RPC
   const persistGameResult = async (amount: number) => {
@@ -1365,7 +1371,68 @@ function GameRoomContent() {
 
     // Increment round
     const nextRoundNum = currentRound + 1;
+    
+    // Check for narrative checkpoint at round 13
+    const checkpointChoice = narrativeEngineRef.current.getCheckpointChoice(nextRoundNum, accumulatedPrize);
+    if (checkpointChoice) {
+      // Show narrative choice modal before proceeding
+      setShowNarrativeChoice(true);
+      return;
+    }
+    
+    await proceedToNextQuestion(nextRoundNum);
+  };
+  
+  // Handle narrative choice - player cashes out
+  const handleNarrativeChoiceCashOut = async () => {
+    setShowNarrativeChoice(false);
+    setShowMoneyRain(true);
+    playCashRegister();
+    
+    // Persist winnings to profile
+    await persistGameResult(accumulatedPrize);
+    
+    // Update ranking
+    const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
+    let ranking = myRanking;
+    if (!ranking) {
+      ranking = await getOrCreateRanking(playerNickname);
+    }
+    if (ranking) {
+      await updateRankingStats({ addGame: true, addWin: true, addPoints: accumulatedPrize });
+    }
+    
+    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    setGameCompleted(true);
+    
+    // Return to lobby
+    await supabase
+      .from('rooms')
+      .update({ current_status: 'lobby', current_question_id: null })
+      .eq('id', roomId);
+  };
+  
+  // Handle narrative choice - player continues
+  const handleNarrativeChoiceContinue = async () => {
+    setShowNarrativeChoice(false);
+    
+    // Advance NarrativeEngine
+    narrativeEngineRef.current.advanceRound(true);
+    
+    // Play dramatic climax audio
+    playHorus2Audio('all_in');
+    
+    await proceedToNextQuestion(13);
+  };
+  
+  // Shared logic for proceeding to next question
+  const proceedToNextQuestion = async (nextRoundNum: number) => {
+    if (!roomId) return;
+    
     setCurrentRound(nextRoundNum);
+    
+    // Update NarrativeEngine state
+    narrativeEngineRef.current.advanceRound(true);
     
     // Update psychology state with new round
     setPsychologyState(prev => ({
@@ -2653,6 +2720,15 @@ function GameRoomContent() {
         cardType={cinematicCardType}
         duration={cinematicEventType === 'blefe_perfeito' ? 5000 : 4000}
         onComplete={() => setShowCinematicEvent(false)}
+      />
+      
+      {/* Narrative Choice Modal - Checkpoint at round 13 */}
+      <NarrativeChoiceModal
+        isOpen={showNarrativeChoice}
+        playerName={displayNickname}
+        currentBC={accumulatedPrize}
+        onCashOut={handleNarrativeChoiceCashOut}
+        onContinue={handleNarrativeChoiceContinue}
       />
     </div>
   );
