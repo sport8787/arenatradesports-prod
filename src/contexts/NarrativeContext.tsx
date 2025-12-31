@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useNarrativeEngine } from '@/hooks/useNarrativeEngine';
 import { ActConfig, HiddenEvent, NarrativeState } from '@/services/narrativeEngine';
 import { usePressureEffects } from '@/components/game/PressureEffects';
-import { playHorus2Audio } from '@/services/horus2Engine';
+import { centralAudioQueue, AUDIO_PRIORITY } from '@/services/centralAudioQueue';
 import { toast } from '@/hooks/use-toast';
 
 interface NarrativeContextValue {
@@ -42,51 +42,59 @@ export function NarrativeProvider({
 }: NarrativeProviderProps) {
   const pressureEffects = usePressureEffects();
 
-  // Callback when act changes
+  // Callback when act changes - sem mencionar nomes de eventos
   const handleActChange = (act: ActConfig) => {
     console.log(`[NarrativeProvider] Act changed: ${act.name}`);
     
-    // Play appropriate Horus audio for act transition
+    // Play appropriate Horus audio for act transition via central queue
     if (act.id === 'trial') {
       // Ato II - Hórus começa a questionar
-      playHorus2Audio('taunt');
+      centralAudioQueue.enqueue('/audio/horus/bordao_1.mp3', {
+        label: 'act_transition',
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE
+      });
     } else if (act.id === 'ascension') {
-      // Ato III - Tom respeitoso
-      toast({ title: '📈 A Ascensão', description: 'Hórus está impressionado...' });
+      // Ato III - Tom respeitoso (sem mostrar nome do ato)
+      toast({ description: 'Hórus está impressionado...' });
     } else if (act.id === 'fall') {
-      // Ato IV - Máxima tensão
-      toast({ title: '⚠️ A Queda', description: 'A pressão aumenta...' });
-      playHorus2Audio('taunt');
+      // Ato IV - Máxima tensão (sem mostrar nome do ato)
+      toast({ description: 'A pressão aumenta...' });
+      centralAudioQueue.enqueue('/audio/horus/bordao_2.mp3', {
+        label: 'act_transition',
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE
+      });
     } else if (act.id === 'climax') {
-      // Ato V - Clímax
-      toast({ title: '🎭 O Clímax', description: 'O momento da verdade!' });
+      // Ato V - Clímax (sem mostrar nome do ato)
+      toast({ description: 'O momento da verdade!' });
     }
     
     externalOnActChange?.(act);
   };
 
-  // Callback for hidden events
+  // Callback for hidden events - exibe apenas a frase, sem nome do evento
   const handleHiddenEvent = (event: HiddenEvent) => {
     console.log(`[NarrativeProvider] Hidden event triggered: ${event.name}`);
     
+    // Mostra apenas o efeito/frase, sem o nome do evento
     toast({ 
-      title: `👁️ ${event.name}`, 
       description: event.effect 
     });
     
     if (event.audioFile) {
-      const audio = new Audio(event.audioFile);
-      audio.play().catch(console.error);
+      centralAudioQueue.enqueue(event.audioFile, {
+        label: 'hidden_event',
+        priority: AUDIO_PRIORITY.NARRATIVE_EVENT
+      });
     }
   };
 
-  // Callback for bomb event
+  // Callback for bomb event - sem mencionar "RUPTURA"
   const handleBombEvent = () => {
     console.log('[NarrativeProvider] BOMB EVENT TRIGGERED!');
     pressureEffects.triggerBomb();
     
+    // Exibe apenas a frase, não o nome do evento
     toast({ 
-      title: '💥 RUPTURA!', 
       description: 'Foco. Concentração. Continue.',
       variant: 'destructive'
     });

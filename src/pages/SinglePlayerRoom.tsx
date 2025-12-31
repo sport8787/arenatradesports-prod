@@ -43,12 +43,13 @@ import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins, MessageCircle, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { stopGlobalAudio } from '@/services/globalAudioContext';
-// HÓRUS 2.0 + NarrativeEngine
+// HÓRUS 2.0 + NarrativeEngine + Central Audio Queue
 import { 
   playHorus2Audio, 
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
+import { clearAllAudio } from '@/services/centralAudioQueue';
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
 import { getNarrativeEngine, resetNarrativeEngine, NarrativeChoice } from '@/services/narrativeEngine';
 import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
@@ -273,7 +274,7 @@ function SinglePlayerRoomContent() {
 
   // NOTE: Removed automatic SFX preloading to prevent ElevenLabs credit consumption on room entry
   // Sounds will be generated on-demand when needed.
-  // Cleanup Horus audio on unmount
+  // Cleanup all audio on unmount - uses centralized queue
   useEffect(() => {
     return () => {
       if (questionReadTimeoutRef.current) {
@@ -287,7 +288,8 @@ function SinglePlayerRoomContent() {
       clearQueueRef.current();
       stopSpeakingRef.current();
       stopGlobalAudio();
-      stopHorus2Audio();
+      // Central audio queue cleanup (stops all audio and clears queue)
+      clearAllAudio();
       // Stop background music when leaving the game
       backgroundMusic.stop();
     };
