@@ -23,6 +23,11 @@ export interface NarrativeState {
   silentObserverActive: boolean;
   totalCorrect: number;
   totalWrong: number;
+  // Event tracking
+  blefePerfeitoUnlocked: boolean;
+  cartaBonusUnlocked: boolean;
+  horusRespectUnlocked: boolean;
+  imunidadeUnlocked: boolean;
 }
 
 export interface HiddenEvent {
@@ -31,6 +36,37 @@ export interface HiddenEvent {
   trigger: (state: NarrativeState) => boolean;
   effect: string;
   audioFile?: string;
+  reward?: {
+    card?: 'porto_seguro' | 'imunidade';
+    difficulty?: 'increase' | 'decrease';
+    bluffcoins?: number;
+  };
+}
+
+export interface CardUnlockRitual {
+  title: string;
+  narration: string;
+  animation: 'card_golden_spin' | 'card_platinum_emerge' | 'card_diamond_shatter';
+  soundEffect: string;
+}
+
+export interface NarrativeChoice {
+  type: 'NARRATIVE_CHOICE';
+  dialogue: string;
+  choices: Array<{
+    text: string;
+    action: 'end_game_with_prize' | 'continue_to_final';
+  }>;
+}
+
+export interface HorusDialogueContext {
+  roundNumber: number;
+  playerName: string;
+  currentBC: number;
+  streakCorrect: number;
+  streakWrong: number;
+  perfectBluff: boolean;
+  lastAnswerCorrect: boolean;
 }
 
 // Configuração dos 5 Atos Narrativos
@@ -92,42 +128,187 @@ export const NARRATIVE_ACTS: Record<NarrativeAct, ActConfig> = {
   },
 };
 
-// Eventos Ocultos - Agora com novos áudios
+// ============= DIÁLOGOS POR ATO =============
+
+export const ACT_DIALOGUES = {
+  1: { // Ato I - A Iniciação
+    opening: [
+      "Bem-vindo ao Tribunal do Blefe, [nome]. Vamos ver do que você é feito.",
+      "[nome], você está prestes a entrar em um jogo onde a verdade é moeda de troca.",
+      "O Blefador mais habilidoso vence. Você está pronto, [nome]?",
+    ],
+    correct: [
+      "Hmm, conhecimento básico. Continue.",
+      "Você sabe o óbvio. Vamos ver se sabe o essencial.",
+      "Resposta correta. Não se empolgue ainda.",
+    ],
+    wrong: [
+      "Um tropeço tão cedo? Interessante...",
+      "Erro comum de iniciante. Vamos ver como você se recupera.",
+      "Já começou vacilando, [nome]?",
+    ],
+    bluff_success: [
+      "Seu primeiro blefe. Nada mal para um novato.",
+      "Convenceu os outros... mas não me engana.",
+      "Blefe aceito. Você tem potencial.",
+    ],
+    transition: [
+      "O aquecimento terminou, [nome]. Agora a coisa fica séria.",
+      "Você passou da iniciação. A verdadeira prova começa agora.",
+    ],
+  },
+  2: { // Ato II - A Provação
+    opening: [
+      "A Provação começa, [nome]. É aqui que os fracos desistem.",
+      "Chegou a hora de provar seu valor de verdade.",
+    ],
+    correct: [
+      "Acertou, mas foi sorte ou conhecimento?",
+      "Interessante... você parece saber algo.",
+      "Curioso. Muito curioso essa sua resposta.",
+    ],
+    wrong: [
+      "Aí está o erro que eu esperava.",
+      "A pressão está subindo, [nome]?",
+      "Nervoso? Eu notei a hesitação.",
+    ],
+    bluff_success: [
+      "Seu blefe está melhorando. Tenha cuidado com a confiança excessiva.",
+      "Convenceu os tolos. Mas e os espertos?",
+    ],
+    taunt: [
+      "Você parece nervoso, [nome]. Por quê?",
+      "Essa última resposta... VOCÊ HESITOU. Eu percebi.",
+      "Os desafiantes estão conversando sobre você. Não é bom sinal.",
+    ],
+    transition: [
+      "Você sobreviveu à provação. Mas o caminho fica mais estreito.",
+    ],
+  },
+  3: { // Ato III - A Ascensão
+    opening: [
+      "A Ascensão, [nome]. Poucos chegam aqui.",
+      "Você me impressionou. Não esperava isso de você.",
+    ],
+    correct: [
+      "Impressionante. Você realmente conhece o caminho.",
+      "O Observador está notando sua performance.",
+      "Poucos chegam tão longe com tanta precisão.",
+    ],
+    wrong: [
+      "Até os melhores tropeçam. A questão é: você se levanta?",
+      "Um erro aqui custa caro. Muito caro.",
+    ],
+    bluff_success: [
+      "Blefe de mestre! Você está evoluindo.",
+      "Até eu teria dificuldade em detectar isso.",
+    ],
+    respect: [
+      "[nome]... você está IMPRESSIONANDO.",
+      "Talvez eu tenha subestimado você.",
+      "Habilidade reconhecida. Respeito conquistado.",
+    ],
+    transition: [
+      "A ascensão está completa. Agora vem a queda... ou a glória.",
+    ],
+  },
+  4: { // Ato IV - A Queda
+    opening: [
+      "A Queda, [nome]. É aqui que a maioria desmorona.",
+      "Pressão máxima. Cada segundo conta.",
+    ],
+    correct: [
+      "Acertou sob pressão. Impressionante.",
+      "Sua mente ainda está afiada. Por quanto tempo?",
+    ],
+    wrong: [
+      "O erro mais esperado. A queda começou.",
+      "Eu vi isso chegando. Você não?",
+      "A pressão está te quebrando, [nome]?",
+    ],
+    bluff_success: [
+      "Blefar sob essa pressão? Você tem sangue frio.",
+    ],
+    taunt: [
+      "Você confia na sua memória, [nome]? Deveria?",
+      "Quantos erros você pode cometer antes de quebrar?",
+      "O tempo está passando. A pressão está subindo.",
+    ],
+    transition: [
+      "Se você chegou até aqui, o clímax te aguarda.",
+    ],
+  },
+  5: { // Ato V - O Clímax
+    opening: [
+      "O CLÍMAX, [nome]! Este é o momento da verdade!",
+      "Tudo se resume a isso. All-in ou a Maleta. Escolha.",
+    ],
+    correct: [
+      "VOCÊ CONSEGUIU! Um milhão de BluffCoins!",
+      "Lendário! Você dominou o Tribunal do Blefe!",
+    ],
+    wrong: [
+      "TÃO PERTO! E agora... tão longe.",
+      "A queda de um herói. Trágico, mas previsível.",
+    ],
+    all_in: [
+      "ALL-IN! Tudo ou nada, [nome]!",
+      "Você apostou tudo. Coragem ou loucura?",
+    ],
+    briefcase_choice: [
+      "A Maleta Misteriosa ou o ALL-IN. O que você escolhe, [nome]?",
+      "Certeza vs Incerteza. Sua última decisão.",
+    ],
+    victory: [
+      "[nome], você transcendeu! O Tribunal do Blefe tem um novo mestre!",
+      "UM MILHÃO! Você provou ser o maior blefador!",
+    ],
+    defeat: [
+      "Tão perto da glória... e agora, nada.",
+      "O Tribunal do Blefe não perdoa erros no fim.",
+    ],
+  },
+};
+
+// Eventos Ocultos - Com tracking de unlock
 export const HIDDEN_EVENTS: HiddenEvent[] = [
   {
     id: 'silent_observer',
     name: 'O Observador Silencioso',
-    trigger: (state) => state.consecutiveCorrect >= 5,
+    trigger: (state) => state.consecutiveCorrect >= 5 && !state.horusRespectUnlocked,
     effect: 'Hórus faz uma pausa dramática e menciona que "alguém está observando"',
-    audioFile: '/audio/horus/evento_oculto_1.mp3', // NEW: Áudio específico
+    audioFile: '/audio/horus/evento_oculto_1.mp3',
+    reward: { difficulty: 'increase' },
   },
   {
     id: 'doubt_seed',
     name: 'A Semente da Dúvida',
     trigger: (state) => state.consecutiveWrong >= 3,
     effect: 'Hórus questiona se o jogador realmente conhece as técnicas',
-    audioFile: '/audio/horus/evento_oculto_2.mp3', // NEW: Áudio específico
+    audioFile: '/audio/horus/evento_oculto_2.mp3',
   },
   {
     id: 'perfect_run',
     name: 'Corrida Perfeita',
     trigger: (state) => state.totalCorrect >= 10 && state.totalWrong === 0,
     effect: 'Mycroft intervém com uma análise especial',
-    audioFile: '/audio/horus/evento_oculto_3.mp3', // NEW: Áudio específico
+    audioFile: '/audio/horus/evento_oculto_3.mp3',
+    reward: { bluffcoins: 500 },
   },
   {
     id: 'checkpoint_10',
     name: 'Marco da Rodada 10',
     trigger: (state) => state.currentRound === 10,
     effect: 'Você chegou à rodada 10! A Ascensão está completa.',
-    audioFile: '/audio/horus/rodada_10.mp3', // NEW: Áudio específico
+    audioFile: '/audio/horus/rodada_10.mp3',
   },
   {
-    id: 'porto_seguro',
-    name: 'Porto Seguro Desbloqueado',
-    trigger: (state) => state.consecutiveCorrect >= 2 && state.currentRound >= 3,
-    effect: 'Você desbloqueou o Porto Seguro! Seus ganhos estão protegidos.',
-    audioFile: '/audio/horus/tem_porto_seguro.mp3', // NEW: Áudio específico
+    id: 'blefe_perfeito',
+    name: 'Blefe Perfeito',
+    trigger: (state) => state.blefePerfeitoUnlocked && !state.imunidadeUnlocked,
+    effect: 'IMPOSSÍVEL! Você cometeu um BLEFE PERFEITO!',
+    audioFile: '/audio/horus/blefe_perfeito.mp3',
+    reward: { card: 'imunidade' },
   },
 ];
 
@@ -164,6 +345,231 @@ export const HORUS_PHRASES_BY_TONE: Record<ActConfig['horusTone'], string[]> = {
     'All-In ou Maleta? Sua escolha definirá tudo.',
   ],
 };
+
+// ============= RITUAIS DE DESBLOQUEIO DE CARTA =============
+
+export const CARD_UNLOCK_RITUALS: Record<'porto_seguro' | 'imunidade', CardUnlockRitual> = {
+  porto_seguro: {
+    title: "CARTA BÔNUS DESBLOQUEADA",
+    narration: `Parabéns! Você provou ser um ótimo Blefador e acaba de liberar uma conquista épica! A Carta Porto Seguro agora é sua.`,
+    animation: 'card_golden_spin',
+    soundEffect: '/audio/horus/carta_bonus_porto_seguro.mp3',
+  },
+  imunidade: {
+    title: "CONQUISTA RARA DESBLOQUEADA",
+    narration: `Você transcendeu. O Blefe Perfeito é uma arte. E você a dominou. Carta Imunidade concedida.`,
+    animation: 'card_platinum_emerge',
+    soundEffect: '/audio/horus/carta_bonus_imunidade.mp3',
+  },
+};
+
+// ============= CLASSE PRINCIPAL =============
+
+export class NarrativeEngine {
+  private state: NarrativeState;
+  private playerName: string;
+  private triggeredEvents: Set<string> = new Set();
+
+  constructor(playerName: string = 'Jogador') {
+    this.playerName = playerName;
+    this.state = createInitialNarrativeState();
+  }
+
+  // Getters
+  getState(): NarrativeState {
+    return { ...this.state };
+  }
+
+  getPlayerName(): string {
+    return this.playerName;
+  }
+
+  setPlayerName(name: string): void {
+    this.playerName = name;
+  }
+
+  // Determina qual Ato narrativo estamos
+  getCurrentActNumber(roundNumber: number): number {
+    if (roundNumber <= 3) return 1; // A Iniciação
+    if (roundNumber <= 7) return 2; // A Provação
+    if (roundNumber <= 10) return 3; // O Domínio/Ascensão
+    if (roundNumber <= 12) return 4; // A Queda
+    return 5; // O Clímax
+  }
+
+  // Diálogos contextuais do Hórus
+  getHorusDialogue(context: HorusDialogueContext): string {
+    const act = this.getCurrentActNumber(context.roundNumber);
+    const dialogues = ACT_DIALOGUES[act as keyof typeof ACT_DIALOGUES];
+    
+    if (!dialogues) return '';
+
+    let category: keyof typeof dialogues;
+    
+    // Determina a categoria do diálogo
+    if (context.perfectBluff) {
+      category = 'bluff_success' as keyof typeof dialogues;
+    } else if (context.lastAnswerCorrect) {
+      category = 'correct' as keyof typeof dialogues;
+    } else {
+      category = 'wrong' as keyof typeof dialogues;
+    }
+
+    const phrases = dialogues[category] as string[] | undefined;
+    if (!phrases || phrases.length === 0) return '';
+
+    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+    return this.replacePlaceholders(phrase, context);
+  }
+
+  // Substitui placeholders nos diálogos
+  private replacePlaceholders(text: string, context: Partial<HorusDialogueContext>): string {
+    return text
+      .replace(/\[nome\]/gi, context.playerName || this.playerName)
+      .replace(/\[NOME\]/g, (context.playerName || this.playerName).toUpperCase())
+      .replace(/\[BC\]/g, context.currentBC?.toLocaleString() || '???');
+  }
+
+  // Verifica se deve disparar evento oculto
+  checkHiddenEvents(context: HorusDialogueContext): HiddenEvent | null {
+    // Evento: 5 acertos seguidos - Respeito do Hórus
+    if (context.streakCorrect >= 5 && !this.state.horusRespectUnlocked) {
+      this.state.horusRespectUnlocked = true;
+      this.triggeredEvents.add('silent_observer');
+      
+      return {
+        id: 'observador_silencioso',
+        name: 'O Observador Silencioso',
+        trigger: () => true,
+        effect: `${this.playerName}, eu estava OBSERVANDO você...`,
+        audioFile: '/audio/horus/evento_oculto_1.mp3',
+        reward: { difficulty: 'increase' },
+      };
+    }
+
+    // Evento: Blefe perfeito (3 CLAROS após erro)
+    if (context.perfectBluff && !this.state.blefePerfeitoUnlocked) {
+      this.state.blefePerfeitoUnlocked = true;
+      this.triggeredEvents.add('blefe_perfeito');
+      
+      return {
+        id: 'blefe_perfeito',
+        name: 'Blefe Perfeito',
+        trigger: () => true,
+        effect: `IMPOSSÍVEL! Você cometeu um BLEFE PERFEITO!`,
+        audioFile: '/audio/horus/blefe_perfeito.mp3',
+        reward: { card: 'imunidade' },
+      };
+    }
+
+    return null;
+  }
+
+  // Ritual de liberação de Carta Bônus
+  getCardUnlockRitual(cardType: 'porto_seguro' | 'imunidade'): CardUnlockRitual & { personalizedNarration: string } {
+    const ritual = CARD_UNLOCK_RITUALS[cardType];
+    const personalizedNarration = this.replacePlaceholders(
+      `Parabéns, [nome]! ${ritual.narration}`,
+      { playerName: this.playerName }
+    );
+
+    if (cardType === 'porto_seguro') {
+      this.state.cartaBonusUnlocked = true;
+    } else if (cardType === 'imunidade') {
+      this.state.imunidadeUnlocked = true;
+    }
+
+    return {
+      ...ritual,
+      personalizedNarration,
+    };
+  }
+
+  // Checkpoint com escolha narrativa (rodada 13)
+  getCheckpointChoice(roundNumber: number, currentBC: number): NarrativeChoice | null {
+    if (roundNumber !== 13) return null;
+
+    return {
+      type: 'NARRATIVE_CHOICE',
+      dialogue: this.replacePlaceholders(
+        `[nome], você tem ${currentBC.toLocaleString()} BluffCoins.\n\nVocê pode PARAR AGORA e sair vitorioso.\n\nOu pode ARRISCAR TUDO pelas próximas rodadas.\n\nO que você escolhe?`,
+        { playerName: this.playerName, currentBC }
+      ),
+      choices: [
+        {
+          text: 'PARAR E SAIR VITORIOSO',
+          action: 'end_game_with_prize',
+        },
+        {
+          text: 'ARRISCAR TUDO',
+          action: 'continue_to_final',
+        },
+      ],
+    };
+  }
+
+  // Atualiza estado após resposta
+  advanceRound(wasCorrect: boolean, wasPerfectBluff: boolean = false): void {
+    this.state = updateNarrativeState(this.state, wasCorrect);
+    
+    if (wasPerfectBluff) {
+      this.state.blefePerfeitoUnlocked = true;
+    }
+  }
+
+  // Obtém diálogo de abertura do ato
+  getActOpeningDialogue(): string {
+    const act = this.getCurrentActNumber(this.state.currentRound);
+    const dialogues = ACT_DIALOGUES[act as keyof typeof ACT_DIALOGUES];
+    
+    if (!dialogues?.opening) return '';
+
+    const phrase = dialogues.opening[Math.floor(Math.random() * dialogues.opening.length)];
+    return this.replacePlaceholders(phrase, { playerName: this.playerName });
+  }
+
+  // Obtém diálogo de transição
+  getTransitionDialogue(): string {
+    const act = this.getCurrentActNumber(this.state.currentRound);
+    const dialogues = ACT_DIALOGUES[act as keyof typeof ACT_DIALOGUES] as any;
+    
+    if (!dialogues?.transition) return '';
+
+    const transitions = dialogues.transition as string[];
+    const phrase = transitions[Math.floor(Math.random() * transitions.length)];
+    return this.replacePlaceholders(phrase, { playerName: this.playerName });
+  }
+
+  // Obtém diálogo de provocação
+  getTauntDialogue(): string {
+    const act = this.getCurrentActNumber(this.state.currentRound);
+    const dialogues = ACT_DIALOGUES[act as keyof typeof ACT_DIALOGUES] as any;
+    
+    if (!dialogues?.taunt) {
+      // Fallback to generic taunts
+      const genericTaunts = [
+        `[nome], você parece nervoso. Por quê?`,
+        `Essa última resposta... VOCÊ HESITOU. Eu percebi.`,
+        `Você confia na sua memória, [nome]? Deveria?`,
+      ];
+      return this.replacePlaceholders(
+        genericTaunts[Math.floor(Math.random() * genericTaunts.length)],
+        { playerName: this.playerName }
+      );
+    }
+
+    const phrase = dialogues.taunt[Math.floor(Math.random() * dialogues.taunt.length)];
+    return this.replacePlaceholders(phrase, { playerName: this.playerName });
+  }
+
+  // Reseta o engine
+  reset(): void {
+    this.state = createInitialNarrativeState();
+    this.triggeredEvents.clear();
+  }
+}
+
+// ============= FUNÇÕES UTILITÁRIAS =============
 
 // Determina o ato atual baseado na rodada
 export function getCurrentAct(round: number): ActConfig {
@@ -215,7 +621,7 @@ export function getHorusPhrase(tone: ActConfig['horusTone']): string {
   return phrases[Math.floor(Math.random() * phrases.length)];
 }
 
-// Verifica eventos ocultos
+// Verifica eventos ocultos (versão funcional)
 export function checkHiddenEvents(state: NarrativeState): HiddenEvent | null {
   for (const event of HIDDEN_EVENTS) {
     if (event.trigger(state)) {
@@ -236,6 +642,10 @@ export function createInitialNarrativeState(): NarrativeState {
     silentObserverActive: false,
     totalCorrect: 0,
     totalWrong: 0,
+    blefePerfeitoUnlocked: false,
+    cartaBonusUnlocked: false,
+    horusRespectUnlocked: false,
+    imunidadeUnlocked: false,
   };
 }
 
@@ -271,5 +681,29 @@ export function logNarrativeState(state: NarrativeState): void {
     pressure: act.pressureLevel,
     consecutiveCorrect: state.consecutiveCorrect,
     silentObserver: state.silentObserverActive,
+    events: {
+      blefePerfeitoUnlocked: state.blefePerfeitoUnlocked,
+      cartaBonusUnlocked: state.cartaBonusUnlocked,
+      horusRespectUnlocked: state.horusRespectUnlocked,
+    },
   });
 }
+
+// Singleton instance para uso global
+let narrativeEngineInstance: NarrativeEngine | null = null;
+
+export function getNarrativeEngine(playerName?: string): NarrativeEngine {
+  if (!narrativeEngineInstance) {
+    narrativeEngineInstance = new NarrativeEngine(playerName);
+  } else if (playerName) {
+    narrativeEngineInstance.setPlayerName(playerName);
+  }
+  return narrativeEngineInstance;
+}
+
+export function resetNarrativeEngine(): void {
+  narrativeEngineInstance?.reset();
+  narrativeEngineInstance = null;
+}
+
+export default NarrativeEngine;
