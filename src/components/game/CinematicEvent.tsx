@@ -1,273 +1,417 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playHorusAudio } from '@/services/horusLocalAudio';
+import { playHorus2Audio } from '@/services/horus2Engine';
+import { Eye, Flame, Trophy, Zap, Skull } from 'lucide-react';
+
+type CinematicStage = 'intro' | 'dialogue' | 'reward' | 'outro' | 'idle';
 
 interface CinematicEventProps {
   show: boolean;
   type: 'epic_moment' | 'blefe_perfeito' | 'carta_bonus' | 'evento_oculto' | 'climax';
   title?: string;
   subtitle?: string;
+  narration?: string; // Text for Hórus to speak
   audioPath?: string;
   onComplete?: () => void;
   duration?: number;
   cardType?: 'porto_seguro' | 'imunidade';
+  reward?: {
+    card?: 'porto_seguro' | 'imunidade';
+    bluffcoins?: number;
+  };
 }
+
+// Utility delay function
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const CinematicEvent = ({
   show,
   type,
   title,
   subtitle,
+  narration,
   audioPath,
   onComplete,
-  duration = 4000,
-  cardType = 'porto_seguro'
+  duration = 5000,
+  cardType = 'porto_seguro',
+  reward
 }: CinematicEventProps) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showCard, setShowCard] = useState(false);
+  const [stage, setStage] = useState<CinematicStage>('idle');
+  const [displayedText, setDisplayedText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
+  // Typewriter effect for narration
+  const typewriterEffect = useCallback(async (text: string) => {
+    setIsTyping(true);
+    setDisplayedText('');
+    
+    for (let i = 0; i <= text.length; i++) {
+      setDisplayedText(text.substring(0, i));
+      await delay(30); // 30ms per character
+    }
+    
+    setIsTyping(false);
+  }, []);
+
+  // Main sequence effect
   useEffect(() => {
-    if (show) {
-      setIsVisible(true);
+    if (!show) {
+      setStage('idle');
+      setDisplayedText('');
+      return;
+    }
+
+    const runSequence = async () => {
+      // Stage 1: Intro - Fade to black with cinematic bars
+      setStage('intro');
+      await delay(800);
+
+      // Stage 2: Dialogue - Show Hórus avatar and speak
+      setStage('dialogue');
       
-      // Play audio if provided
+      // Play audio (local or TTS)
       if (audioPath) {
         playHorusAudio(audioPath);
+      } else if (narration) {
+        playHorus2Audio('epic_moment', narration);
       }
       
-      // Show card animation after black bars appear
-      if (type === 'blefe_perfeito' || type === 'carta_bonus') {
-        setTimeout(() => setShowCard(true), 600);
+      // Typewriter effect for narration text
+      if (narration || subtitle) {
+        await typewriterEffect(narration || subtitle || '');
       }
       
-      // Auto-dismiss after duration
-      const timer = setTimeout(() => {
-        setShowCard(false);
-        setTimeout(() => {
-          setIsVisible(false);
-          onComplete?.();
-        }, 500);
-      }, duration);
-      
-      return () => clearTimeout(timer);
-    } else {
-      setIsVisible(false);
-      setShowCard(false);
-    }
-  }, [show, audioPath, duration, type, onComplete]);
+      // Wait for narration to be read
+      await delay(narration ? Math.max(2000, narration.length * 50) : 1500);
+
+      // Stage 3: Reward - Show card or reward animation
+      if (type === 'blefe_perfeito' || type === 'carta_bonus' || reward?.card) {
+        setStage('reward');
+        await delay(3000);
+      }
+
+      // Stage 4: Outro - Fade out
+      setStage('outro');
+      await delay(800);
+
+      // Complete
+      setStage('idle');
+      onComplete?.();
+    };
+
+    runSequence();
+  }, [show, audioPath, narration, subtitle, type, reward, typewriterEffect, onComplete]);
 
   const getCardImage = () => {
+    const effectiveCardType = reward?.card || cardType;
     if (type === 'blefe_perfeito') {
       return '/carta_blefe.png';
     }
-    if (type === 'carta_bonus') {
-      return cardType === 'imunidade' ? '/carta_blefe.png' : '/carta_claro.png';
-    }
-    return '/carta_claro.png';
+    return effectiveCardType === 'imunidade' ? '/carta_blefe.png' : '/carta_claro.png';
   };
 
   const getCardGlow = () => {
-    if (type === 'blefe_perfeito') return 'shadow-[0_0_60px_rgba(255,215,0,0.8)]';
-    if (type === 'carta_bonus') {
-      return cardType === 'imunidade' 
-        ? 'shadow-[0_0_60px_rgba(147,51,234,0.8)]' 
-        : 'shadow-[0_0_60px_rgba(34,197,94,0.8)]';
-    }
-    return 'shadow-[0_0_40px_rgba(255,215,0,0.6)]';
+    const effectiveCardType = reward?.card || cardType;
+    if (type === 'blefe_perfeito') return 'shadow-[0_0_80px_rgba(255,215,0,0.9)]';
+    return effectiveCardType === 'imunidade' 
+      ? 'shadow-[0_0_80px_rgba(147,51,234,0.9)]' 
+      : 'shadow-[0_0_80px_rgba(34,197,94,0.9)]';
   };
 
+  const getTypeIcon = () => {
+    switch (type) {
+      case 'blefe_perfeito': return <Trophy className="w-8 h-8 text-yellow-400" />;
+      case 'carta_bonus': return <Zap className="w-8 h-8 text-primary" />;
+      case 'evento_oculto': return <Eye className="w-8 h-8 text-purple-400" />;
+      case 'climax': return <Flame className="w-8 h-8 text-red-500" />;
+      default: return <Skull className="w-8 h-8 text-amber-400" />;
+    }
+  };
+
+  if (stage === 'idle') return null;
+
   return (
-    <AnimatePresence>
-      {isVisible && (
+    <div className="fixed inset-0 z-[100]">
+      {/* Cinematic Black Bars */}
+      <motion.div
+        className="absolute top-0 left-0 right-0 bg-black z-10"
+        initial={{ height: 0 }}
+        animate={{ 
+          height: stage === 'outro' ? 0 : '12%' 
+        }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      />
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 bg-black z-10"
+        initial={{ height: 0 }}
+        animate={{ 
+          height: stage === 'outro' ? 0 : '12%' 
+        }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      />
+
+      {/* Dark overlay */}
+      <motion.div 
+        className="absolute inset-0 bg-black/90"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: stage === 'outro' ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      />
+
+      {/* Atmospheric background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="fixed inset-0 z-[100] pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Dark overlay */}
-          <motion.div 
-            className="absolute inset-0 bg-black/80"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          />
-          
-          {/* Top cinematic bar */}
-          <motion.div
-            className="absolute top-0 left-0 right-0 bg-black"
-            initial={{ height: 0 }}
-            animate={{ height: '12%' }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          />
-          
-          {/* Bottom cinematic bar */}
-          <motion.div
-            className="absolute bottom-0 left-0 right-0 bg-black"
-            initial={{ height: 0 }}
-            animate={{ height: '12%' }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          />
-          
-          {/* Content container */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {/* Spinning Card Animation for Blefe Perfeito / Carta Bonus */}
-            {(type === 'blefe_perfeito' || type === 'carta_bonus') && (
-              <AnimatePresence>
-                {showCard && (
-                  <motion.div
-                    className="relative"
-                    initial={{ 
-                      scale: 0, 
-                      rotateY: 0,
-                      opacity: 0 
-                    }}
-                    animate={{ 
-                      scale: [0, 1.2, 1],
-                      rotateY: [0, 360, 720, 1080],
-                      opacity: 1
-                    }}
-                    exit={{ 
-                      scale: 0,
-                      opacity: 0,
-                      rotateY: 1440
-                    }}
-                    transition={{ 
-                      duration: 2,
-                      ease: 'easeOut',
-                      rotateY: { duration: 2.5, ease: 'easeInOut' }
-                    }}
-                    style={{ perspective: 1000 }}
-                  >
-                    {/* Golden glow behind card */}
-                    <motion.div
-                      className="absolute inset-0 rounded-xl blur-xl"
-                      style={{
-                        background: type === 'blefe_perfeito' 
-                          ? 'radial-gradient(circle, rgba(255,215,0,0.6) 0%, transparent 70%)'
-                          : cardType === 'imunidade'
-                            ? 'radial-gradient(circle, rgba(147,51,234,0.6) 0%, transparent 70%)'
-                            : 'radial-gradient(circle, rgba(34,197,94,0.6) 0%, transparent 70%)'
-                      }}
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.6, 1, 0.6]
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: 'easeInOut'
-                      }}
-                    />
-                    
-                    {/* Card image */}
-                    <motion.img
-                      src={getCardImage()}
-                      alt="Carta Bônus"
-                      className={`w-48 h-72 object-cover rounded-xl ${getCardGlow()}`}
-                      style={{ transformStyle: 'preserve-3d' }}
-                    />
-                    
-                    {/* Sparkle particles */}
-                    {[...Array(12)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                        style={{
-                          top: '50%',
-                          left: '50%',
-                        }}
-                        animate={{
-                          x: [0, Math.cos(i * 30 * Math.PI / 180) * 120],
-                          y: [0, Math.sin(i * 30 * Math.PI / 180) * 120],
-                          opacity: [1, 0],
-                          scale: [1, 0]
-                        }}
-                        transition={{
-                          duration: 1,
-                          delay: 0.5,
-                          ease: 'easeOut'
-                        }}
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            )}
-            
-            {/* Title text */}
-            {title && (
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%]"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, transparent 50%)',
+          }}
+          animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+        />
+      </div>
+
+      {/* Content container - centered between black bars */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6" style={{ top: '12%', bottom: '12%' }}>
+        
+        <AnimatePresence mode="wait">
+          {/* ===== INTRO STAGE ===== */}
+          {stage === 'intro' && (
+            <motion.div
+              key="intro"
+              className="flex flex-col items-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Pulsing type icon */}
               <motion.div
-                className="text-center mt-8"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ delay: 0.8, duration: 0.5 }}
+                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1, repeat: Infinity }}
               >
-                <h2 className="text-3xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 drop-shadow-[0_0_20px_rgba(255,215,0,0.5)]">
-                  {title}
-                </h2>
-                {subtitle && (
-                  <p className="text-lg md:text-xl text-amber-200/80 mt-2 italic">
-                    {subtitle}
-                  </p>
-                )}
+                {getTypeIcon()}
               </motion.div>
-            )}
-            
-            {/* Epic moment visual for evento_oculto */}
-            {type === 'evento_oculto' && (
+            </motion.div>
+          )}
+
+          {/* ===== DIALOGUE STAGE ===== */}
+          {stage === 'dialogue' && (
+            <motion.div
+              key="dialogue"
+              className="flex flex-col items-center gap-8 max-w-2xl"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.5 }}
+            >
+              {/* Hórus Avatar */}
+              <motion.div
+                className="relative"
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', damping: 15 }}
+              >
+                {/* Avatar glow */}
+                <motion.div
+                  className="absolute inset-0 rounded-full blur-2xl"
+                  style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.6) 0%, transparent 70%)' }}
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+                
+                {/* Avatar container */}
+                <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-primary/30 via-primary/20 to-transparent border-4 border-primary/60 flex items-center justify-center overflow-hidden">
+                  {/* Hórus eye symbol */}
+                  <motion.div
+                    className="text-6xl"
+                    animate={{ 
+                      textShadow: [
+                        '0 0 10px hsl(var(--primary))',
+                        '0 0 30px hsl(var(--primary))',
+                        '0 0 10px hsl(var(--primary))'
+                      ]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    👁️
+                  </motion.div>
+                </div>
+                
+                {/* Name tag */}
+                <motion.div
+                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1 bg-background/90 rounded-full border border-primary/50"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <span className="font-orbitron text-sm text-primary font-bold">HÓRUS</span>
+                </motion.div>
+              </motion.div>
+
+              {/* Dialogue text box */}
+              <motion.div
+                className="relative bg-card/95 backdrop-blur-lg rounded-xl p-6 border border-primary/30 shadow-2xl max-w-lg"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {/* Speech bubble pointer */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-card/95 border-l border-t border-primary/30 rotate-45" />
+                
+                {/* Text content */}
+                <p className="text-lg md:text-xl text-foreground leading-relaxed text-center relative z-10">
+                  {displayedText}
+                  {isTyping && (
+                    <motion.span
+                      className="inline-block w-0.5 h-5 bg-primary ml-1"
+                      animate={{ opacity: [1, 0, 1] }}
+                      transition={{ duration: 0.5, repeat: Infinity }}
+                    />
+                  )}
+                </p>
+              </motion.div>
+
+              {/* Title below dialogue */}
+              {title && (
+                <motion.h2
+                  className="text-2xl md:text-4xl font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-300 to-primary"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  style={{ textShadow: '0 0 30px hsl(var(--primary) / 0.5)' }}
+                >
+                  {title}
+                </motion.h2>
+              )}
+            </motion.div>
+          )}
+
+          {/* ===== REWARD STAGE ===== */}
+          {stage === 'reward' && (
+            <motion.div
+              key="reward"
+              className="flex flex-col items-center gap-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Reward card with spring animation */}
               <motion.div
                 className="relative"
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
-                exit={{ scale: 0, rotate: 180 }}
-                transition={{ duration: 0.8, type: 'spring' }}
+                transition={{ type: 'spring', duration: 0.8, bounce: 0.4 }}
               >
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-600 via-violet-500 to-purple-800 flex items-center justify-center shadow-[0_0_60px_rgba(147,51,234,0.8)]">
-                  <motion.span
-                    className="text-6xl"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                  >
-                    👁️
-                  </motion.span>
-                </div>
-              </motion.div>
-            )}
-            
-            {/* Climax visual */}
-            {type === 'climax' && (
-              <motion.div
-                className="relative"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
+                {/* Card glow effect */}
                 <motion.div
-                  className="text-8xl"
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    textShadow: [
-                      '0 0 20px rgba(255,0,0,0.5)',
-                      '0 0 60px rgba(255,0,0,0.8)',
-                      '0 0 20px rgba(255,0,0,0.5)'
-                    ]
+                  className="absolute inset-0 rounded-xl blur-2xl"
+                  style={{
+                    background: type === 'blefe_perfeito' 
+                      ? 'radial-gradient(circle, rgba(255,215,0,0.7) 0%, transparent 70%)'
+                      : (reward?.card || cardType) === 'imunidade'
+                        ? 'radial-gradient(circle, rgba(147,51,234,0.7) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(34,197,94,0.7) 0%, transparent 70%)'
                   }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
+                  animate={{
+                    scale: [1, 1.4, 1],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                />
+                
+                {/* Card image with 3D spin */}
+                <motion.div
+                  className="relative"
+                  animate={{ 
+                    rotateY: [0, 360, 720],
+                  }}
+                  transition={{
+                    duration: 2,
+                    ease: 'easeInOut'
+                  }}
+                  style={{ perspective: 1000 }}
                 >
-                  🎰
+                  <img
+                    src={getCardImage()}
+                    alt="Carta Bônus"
+                    className={`w-52 h-80 object-cover rounded-xl ${getCardGlow()}`}
+                    style={{ transformStyle: 'preserve-3d' }}
+                  />
                 </motion.div>
+
+                {/* Sparkle particles */}
+                {[...Array(16)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-2 h-2 rounded-full"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      background: type === 'blefe_perfeito' 
+                        ? '#FFD700' 
+                        : (reward?.card || cardType) === 'imunidade' 
+                          ? '#9333EA' 
+                          : '#22C55E'
+                    }}
+                    animate={{
+                      x: [0, Math.cos(i * 22.5 * Math.PI / 180) * 150],
+                      y: [0, Math.sin(i * 22.5 * Math.PI / 180) * 150],
+                      opacity: [1, 0],
+                      scale: [1, 0]
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      delay: 0.3,
+                      ease: 'easeOut'
+                    }}
+                  />
+                ))}
               </motion.div>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+
+              {/* Reward title */}
+              <motion.h2
+                className="text-3xl md:text-5xl font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4, type: 'spring' }}
+                style={{ textShadow: '0 0 40px rgba(255,215,0,0.6)' }}
+              >
+                {title || 'CONQUISTA DESBLOQUEADA!'}
+              </motion.h2>
+
+              {/* BluffCoins reward */}
+              {reward?.bluffcoins && (
+                <motion.div
+                  className="flex items-center gap-2 px-6 py-3 bg-primary/20 rounded-full border border-primary/50"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <span className="text-2xl">💰</span>
+                  <span className="font-orbitron text-2xl text-primary font-bold">
+                    +{reward.bluffcoins.toLocaleString()} BC
+                  </span>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ===== OUTRO STAGE ===== */}
+          {stage === 'outro' && (
+            <motion.div
+              key="outro"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 };
 
