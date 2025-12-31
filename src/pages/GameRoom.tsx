@@ -11,7 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDialogManager } from '@/hooks/useDialogManager';
 import { useAudioSync } from '@/hooks/useAudioSync';
 import { useMycroftVerdict, VerdictReport } from '@/hooks/useMycroftVerdict';
-// HÓRUS 2.0: useAtomicNarrationTrigger removido - agora usa lastNarrationId do useGameState
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Question } from '@/types/game';
 import LuxuryCard from '@/components/game/LuxuryCard';
@@ -59,6 +58,12 @@ import {
 } from '@/services/horus2Engine';
 import { audioQueue } from '@/services/audioQueueManager';
 import { getDynamicBribePhrase } from '@/data/horusPhrases';
+// NarrativeEngine integration
+import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
+import NarrativeOverlay from '@/components/game/NarrativeOverlay';
+import PressureEffects from '@/components/game/PressureEffects';
+import NarrativeDisplay from '@/components/game/NarrativeDisplay';
+import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -114,10 +119,22 @@ const generateBriefcasePrize = (): number => {
   return 250000; // 250.000 BC fixo
 };
 
+// Wrapper component that provides NarrativeContext
 export default function GameRoom() {
+  return (
+    <NarrativeProvider enabled={true}>
+      <GameRoomContent />
+    </NarrativeProvider>
+  );
+}
+
+function GameRoomContent() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const sessionId = getOrCreateSessionId();
+  
+  // NarrativeEngine integration
+  const narrative = useNarrative();
   
   const { gameState, loading, updateRoomStatus, submitVote, updateBluffcoins, resetBluffcoins, hasEnoughCoins, updateGameMode, shouldSkipBribe, getQuestionContext, calculateBribeAmount, checkBribeEligibility, lastStateChange, lastNarrationId, isConnected, isReconnecting, retryCount, reconnect } = useGameState(roomId || null);
   const { playChips, playSuspense, playFanfare, playReveal, playTick, playTimeUp, playVote, playCoinDrop, playGameOver, playCashRegister, playScanner, playDataBeep, playTyping, playCardUnlock, playShieldActivate, playTemptation, preloadSounds } = useSoundEffects();
