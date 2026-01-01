@@ -216,6 +216,57 @@ export default function PressureTimer({
     };
   }, [enableScreenShake, heartbeatDuration, round]);
 
+  // Vignette effect - tunnel vision that increases with pressure
+  const vignetteIntensity = round >= 8 ? Math.min((config.pressureLevel - 40) / 60, 1) : 0;
+  
+  useEffect(() => {
+    if (vignetteIntensity <= 0 || !isActive) {
+      // Remove vignette
+      const existingVignette = document.getElementById('pressure-vignette');
+      if (existingVignette) existingVignette.remove();
+      return;
+    }
+    
+    // Create or update vignette overlay
+    let vignette = document.getElementById('pressure-vignette') as HTMLDivElement;
+    if (!vignette) {
+      vignette = document.createElement('div');
+      vignette.id = 'pressure-vignette';
+      vignette.style.cssText = `
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        transition: all 0.5s ease-out;
+      `;
+      document.body.appendChild(vignette);
+    }
+    
+    // Calculate vignette based on pressure and urgency
+    const baseOpacity = vignetteIntensity * 0.6;
+    const urgentBoost = isUrgent ? 0.15 : 0;
+    const opacity = Math.min(baseOpacity + urgentBoost, 0.8);
+    const spread = 45 - (vignetteIntensity * 20); // Tunnel closes as pressure increases
+    
+    vignette.style.background = `radial-gradient(ellipse at center, 
+      transparent 0%, 
+      transparent ${spread}%, 
+      rgba(0, 0, 0, ${opacity * 0.5}) ${spread + 15}%, 
+      rgba(0, 0, 0, ${opacity}) 100%)`;
+    
+    // Pulse effect when urgent
+    if (isUrgent) {
+      vignette.style.animation = 'vignette-pulse 0.5s ease-in-out infinite';
+    } else {
+      vignette.style.animation = '';
+    }
+    
+    return () => {
+      const existingVignette = document.getElementById('pressure-vignette');
+      if (existingVignette) existingVignette.remove();
+    };
+  }, [vignetteIntensity, isUrgent, isActive]);
+
   // Timer invisível na rodada 15
   if (!config.timerVisible) {
     return (
