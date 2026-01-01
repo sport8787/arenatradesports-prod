@@ -167,6 +167,55 @@ export default function PressureTimer({
   const heartbeatBpm = 60 + (config.pressureLevel * 1.2);
   const heartbeatDuration = 60 / heartbeatBpm;
 
+  // Screen shake effect for high pressure rounds (10-15)
+  const enableScreenShake = round >= 10 && isActive;
+  
+  useEffect(() => {
+    if (!enableScreenShake) return;
+    
+    // Create subtle screen shake synchronized with heartbeat
+    const shakeIntensity = Math.min((round - 9) * 0.3, 1.5); // 0.3 to 1.5 pixels
+    const shakeDuration = heartbeatDuration * 1000;
+    
+    const applyShake = () => {
+      if (!isMountedRef.current || !enableScreenShake) return;
+      
+      const main = document.querySelector('main') || document.body;
+      
+      // Quick shake on heartbeat "thump"
+      main.style.transition = 'transform 50ms ease-out';
+      main.style.transform = `translate(${(Math.random() - 0.5) * shakeIntensity * 2}px, ${(Math.random() - 0.5) * shakeIntensity}px)`;
+      
+      // Return to normal
+      setTimeout(() => {
+        if (!isMountedRef.current) return;
+        main.style.transform = 'translate(0, 0)';
+      }, 80);
+      
+      // Second smaller shake for the second "beat"
+      setTimeout(() => {
+        if (!isMountedRef.current || !enableScreenShake) return;
+        main.style.transform = `translate(${(Math.random() - 0.5) * shakeIntensity}px, ${(Math.random() - 0.5) * shakeIntensity * 0.5}px)`;
+        
+        setTimeout(() => {
+          if (!isMountedRef.current) return;
+          main.style.transform = 'translate(0, 0)';
+        }, 60);
+      }, shakeDuration * 0.35);
+    };
+    
+    // Run shake on heartbeat interval
+    const shakeInterval = setInterval(applyShake, shakeDuration);
+    applyShake(); // Initial shake
+    
+    return () => {
+      clearInterval(shakeInterval);
+      const main = document.querySelector('main') || document.body;
+      main.style.transform = '';
+      main.style.transition = '';
+    };
+  }, [enableScreenShake, heartbeatDuration, round]);
+
   // Timer invisível na rodada 15
   if (!config.timerVisible) {
     return (
