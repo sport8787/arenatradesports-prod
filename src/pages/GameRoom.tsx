@@ -57,6 +57,14 @@ import {
   hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
 import { audioQueue } from '@/services/audioQueueManager';
+import { clearAllAudio } from '@/services/centralAudioQueue';
+import { 
+  resetPressureState, 
+  setPressureRound, 
+  checkAndTriggerBomb,
+  getPressureConfig 
+} from '@/services/pressureTimerService';
+import PressureTimer from '@/components/game/PressureTimer';
 import { getDynamicBribePhrase } from '@/data/horusPhrases';
 // NarrativeEngine integration
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
@@ -584,6 +592,8 @@ function GameRoomContent() {
     // Cleanup ao desmontar
     return () => {
       audioQueue.clearQueue();
+      clearAllAudio(); // Central audio queue cleanup (stops all audio and clears queue)
+      backgroundMusic.stop(); // Stop background music when leaving
     };
   }, [lastNarrationId]); // ÚNICO dependency - não escuta gameState!
 
@@ -1208,6 +1218,10 @@ function GameRoomContent() {
     setHostEliminated(false);
     setDestinyRevealed(false); // Reset destiny reveal state
     setBribeOffersCount(0); // Reset bribe offers counter for new game
+    
+    // Reset pressure timer state for new game
+    resetPressureState();
+    setPressureRound(1);
 
     // Use intelligent question selection with history - pass round 1 for first question
     let q = getNextQuestion(1);
@@ -1416,6 +1430,7 @@ function GameRoomContent() {
     if (!roomId) return;
     
     setCurrentRound(nextRoundNum);
+    setPressureRound(nextRoundNum);
     
     // Update NarrativeEngine state
     narrativeEngineRef.current.advanceRound(true);
@@ -1891,6 +1906,56 @@ function GameRoomContent() {
               {/* QUESTION */}
               {gameState.room?.current_status === 'question' && gameState.currentQuestion && (
                 <div className="space-y-6">
+                  {/* Pressure Timer - Dynamic timer with pressure effects */}
+                  {isCurrentPlayer && (
+                    <div className="flex justify-center">
+                      <PressureTimer
+                        round={currentRound}
+                        isActive={gameState.room?.current_status === 'question' && !confirmedAnswer}
+                        onComplete={() => {
+                          // Timeout: forçar confirmação se nenhuma resposta selecionada
+                          if (!confirmedAnswer && selectedAnswer) {
+                            confirmAnswer();
+                          } else if (!confirmedAnswer && !selectedAnswer) {
+                            // Sem resposta: selecionar aleatória e confirmar
+                            const options: Array<'A' | 'B' | 'C' | 'D'> = ['A', 'B', 'C', 'D'];
+                            const randomAnswer = options[Math.floor(Math.random() * options.length)];
+                            setSelectedAnswer(randomAnswer);
+                            setTimeout(() => {
+                              setConfirmedAnswer(randomAnswer);
+                              setShowAnswer(true);
+                              playReveal();
+                              if (currentRound === MAX_ROUNDS) {
+                                // Handle round 15 results
+                                setTimeout(() => {
+                                  const playerAnsweredCorrectly = randomAnswer === gameState.currentQuestion?.correct_option;
+                                  if (playerAnsweredCorrectly) {
+                                    setShowMoneyRain(true);
+                                    playFanfare();
+                                  } else {
+                                    setHostEliminated(true);
+                                  }
+                                }, 1500);
+                              } else {
+                                updateRoomStatus('discussion');
+                              }
+                            }, 100);
+                          }
+                        }}
+                        onTick={(secondsLeft) => {
+                          // Verificar evento de bomba entre rodadas 6-10
+                          // Dispara apenas uma vez, em momento aleatório
+                          if (secondsLeft === Math.floor(getPressureConfig(currentRound).timerDuration * 0.6)) {
+                            const triggered = checkAndTriggerBomb(currentRound);
+                            if (triggered) {
+                              narrative.triggerBomb();
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <QuestionCard
                     question={gameState.currentQuestion}
                     showCorrectAnswer={showAnswer}
