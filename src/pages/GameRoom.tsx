@@ -56,7 +56,6 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
-import { audioQueue } from '@/services/audioQueueManager';
 import { clearAllAudio } from '@/services/centralAudioQueue';
 import { 
   resetPressureState, 
@@ -515,7 +514,7 @@ function GameRoomContent() {
      console.log('[Hórus 2.0] Processing narration:', { status, questionId, lastNarrationId });
      
      // Cleanup: limpa fila de áudio global (uma única fonte de verdade)
-     audioQueue.clearQueue();
+     clearAllAudio();
     
     // Mapeia status para momento do jogo
     switch (status) {
@@ -589,13 +588,16 @@ function GameRoomContent() {
         break;
     }
     
-    // Cleanup ao desmontar
-    return () => {
-      audioQueue.clearQueue();
-      clearAllAudio(); // Central audio queue cleanup (stops all audio and clears queue)
-      backgroundMusic.stop(); // Stop background music when leaving
-    };
+    // Note: Cleanup is handled in a separate useEffect (component unmount only)
   }, [lastNarrationId]); // ÚNICO dependency - não escuta gameState!
+  
+  // Cleanup ONLY on component unmount (not on every narration change)
+  useEffect(() => {
+    return () => {
+      clearAllAudio(); // Central audio queue cleanup
+      backgroundMusic.stop(); // Stop background music when leaving the game
+    };
+  }, []);
 
   // NOTE: Hórus result announcements are now handled in triggerMycroftVerdict callback
   // to ensure proper audio queue sequencing (Mycroft first, then Hórus)
@@ -644,7 +646,7 @@ function GameRoomContent() {
     setAwaitingMycroftComplete(true);
     
     // Limpa fila de áudio antes de iniciar Mycroft
-    audioQueue.clearQueue();
+    clearAllAudio();
     
     // Show Mycroft panel immediately
     setShowMycroftVerdict(true);
@@ -705,13 +707,13 @@ function GameRoomContent() {
             })();
           } else if (currentRound >= 3 && currentRound <= MAX_BRIBE_ROUND && bribeOffersCount < MAX_BRIBE_OFFERS) {
             // NOVA LÓGICA: Apenas até rodada 8 e máximo 2 ofertas por partida
-            // Usar calculateBribeAmount com prêmio acumulado (50% + variação ±10%)
-            const offerAmount = calculateBribeAmount(accumulatedPrize);
+            // Usar calculateBribeAmount com rodada atual (ofertas entre 1.000 e 5.000 BC)
+            const offerAmount = calculateBribeAmount(accumulatedPrize, currentRound);
             setBribeAmount(offerAmount);
             setBribeOffersCount(prev => prev + 1);
             
             // CRITICAL: Change room status to bribe_offer so jury sees it too
-            console.log('[Hórus Offer] Transitioning to bribe_offer status - round', currentRound, '- dynamic offer:', offerAmount, '(50% of', accumulatedPrize, ')');
+            console.log('[Hórus Offer] Transitioning to bribe_offer status - round', currentRound, '- offer:', offerAmount, 'BC');
             setTimeout(async () => {
               playTemptation();
               setShowBribeOffer(true);
@@ -1530,6 +1532,9 @@ function GameRoomContent() {
     setBriefcasePrize(prize);
     setAccumulatedPrize(prize);
     playCashRegister();
+    
+    // CRITICAL: Persist bluffcoins to player's wallet
+    await persistGameResult(prize);
     
     // Clear briefcase decision marker
     await supabase

@@ -158,8 +158,14 @@ export default function PressureTimer({
     if (!isActive || round < 8) return;
     
     if (secondsLeft <= 5 && secondsLeft > 0) {
-      // Heartbeat vibration pattern
-      triggerVibration([100, 100, 100]);
+      // Heartbeat vibration pattern - stronger for urgent situations
+      try {
+        if ('vibrate' in navigator) {
+          navigator.vibrate([100, 50, 100, 50, 100]);
+        }
+      } catch (e) {
+        // Vibration not supported
+      }
     }
   }, [secondsLeft, isActive, round]);
 
