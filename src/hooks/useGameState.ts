@@ -348,19 +348,25 @@ export function useGameState(roomId: string | null) {
   };
 
   // 1. Função para calcular o valor do Acordo de Ouro (Desistência)
-  // NOVA LÓGICA: 50% do prêmio acumulado + variação aleatória de ±10% ("humor" da IA)
-  const calculateBribeAmount = useCallback((accumulatedPrize: number) => {
-    // Fator de Tentação: 50% do prêmio acumulado
-    const baseOffer = Math.floor(accumulatedPrize * 0.5);
+  // CORRIGIDO: Oferece valor REAL em BluffCoins (não confundir com score do prêmio)
+  // Faixa: 1.000 a 5.000 BC baseado na rodada (rodadas mais altas = ofertas maiores)
+  const calculateBribeAmount = useCallback((accumulatedPrize: number, round: number = 5) => {
+    // Base: 1.000 BC
+    // Incremento por rodada: +500 BC por rodada acima de 3
+    // Rodada 3: 1.000 BC
+    // Rodada 5: 2.000 BC
+    // Rodada 8: 3.500 BC
+    const baseOffer = 1000;
+    const roundBonus = Math.max(0, round - 3) * 500;
+    const baseAmount = baseOffer + roundBonus;
     
-    // Variação da IA: ±10% baseado no "humor" do Hórus
-    // Exemplo: Se o prêmio é 8.000, a oferta deve variar entre 3.600 e 4.400
-    const variationFactor = 0.1; // 10%
-    const randomVariation = (Math.random() * 2 - 1) * variationFactor; // -0.1 a +0.1
-    const finalOffer = Math.floor(baseOffer * (1 + randomVariation));
+    // Variação da IA: ±20% baseado no "humor" do Hórus
+    const variationFactor = 0.2;
+    const randomVariation = (Math.random() * 2 - 1) * variationFactor;
+    const finalOffer = Math.floor(baseAmount * (1 + randomVariation));
     
-    // Mínimo de 100 BluffCoins para garantir que a oferta faça sentido
-    return Math.max(finalOffer, 100);
+    // Limita entre 1.000 e 5.000 BC
+    return Math.min(Math.max(finalOffer, 1000), 5000);
   }, []);
 
   // 2. Lógica Inteligente de Transição (O Pulo do Gato)
