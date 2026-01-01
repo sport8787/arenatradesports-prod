@@ -314,3 +314,13 @@
   background: hsl(142 100% 50% / 0.3);
   border-radius: 2px;
 }
+
+/* Pressure Vignette Animation */
+@keyframes vignette-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
