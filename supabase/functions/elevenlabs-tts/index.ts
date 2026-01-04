@@ -114,6 +114,38 @@ serve(async (req) => {
             );
           }
           
+          // Check for 401 Unauthorized (invalid API key or unusual activity detected)
+          if (response.status === 401) {
+            console.error('🚨 API KEY INVALID or UNUSUAL ACTIVITY - TTS disabled');
+            return new Response(
+              JSON.stringify({ 
+                error: 'API_KEY_INVALID', 
+                message: 'Chave API ElevenLabs inválida ou atividade incomum detectada.',
+                skipTTS: true 
+              }),
+              {
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+          
+          // Check for 403 Forbidden
+          if (response.status === 403) {
+            console.error('🚨 API KEY FORBIDDEN - TTS disabled');
+            return new Response(
+              JSON.stringify({ 
+                error: 'API_KEY_FORBIDDEN', 
+                message: 'Acesso negado pela ElevenLabs.',
+                skipTTS: true 
+              }),
+              {
+                status: 403,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+          
           if (response.status === 429) {
             console.warn(`⚠️ Rate limited (attempt ${attempt}/${maxRetries})`);
             
