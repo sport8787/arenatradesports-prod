@@ -108,6 +108,9 @@ const sessionRequestLog = new Set<string>();
 let lastSynthesizedText: string | null = null;
 let lastSynthesizedHash: string | null = null;
 
+// QUOTA EXHAUSTED FLAG: Once quota is exceeded, stop all TTS attempts
+let quotaExhausted = false;
+
 // Debug statistics
 let cacheHits = 0;
 let cacheMisses = 0;
@@ -225,6 +228,12 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     }
   }
 
+  // QUOTA EXHAUSTED: Skip all TTS attempts once quota is depleted
+  if (quotaExhausted) {
+    console.log(`[AudioCache] 🚫 QUOTA ESGOTADA: Pulando TTS para "${normalizedText.substring(0, 40)}..."`);
+    return null;
+  }
+
   // CACHE-ONLY MODE: never call ElevenLabs (used by preloaders and silent-debug to avoid credit burn)
   if (effectiveCacheOnly) {
     const reason = cacheOnly ? 'cacheOnly=true' : 'modo silencioso (debug)';
@@ -266,11 +275,20 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
       }
     );
 
+    const contentType = response.headers.get('content-type');
+    
+    // Check for quota exceeded error
     if (!response.ok) {
+      if (contentType?.includes('application/json')) {
+        const errorData = await response.json();
+        if (errorData.error === 'QUOTA_EXCEEDED' || errorData.skipTTS) {
+          console.error('🚨 COTA ELEVENLABS ESGOTADA! Desativando TTS para esta sessão.');
+          quotaExhausted = true;
+          return null;
+        }
+      }
       throw new Error(`TTS error: ${response.status}`);
     }
-
-    const contentType = response.headers.get('content-type');
     
     // If response is JSON, it contains the cached URL
     if (contentType?.includes('application/json')) {
@@ -351,11 +369,17 @@ export function clearAudioMemoryCache(): void {
   sessionRequestLog.clear();
   lastSynthesizedText = null;
   lastSynthesizedHash = null;
+  quotaExhausted = false; // Reset quota flag on clear
   cacheHits = 0;
   cacheMisses = 0;
   blockedDuplicates = 0;
   estimatedCreditsSaved = 0;
-  console.log('[AudioCache] Memory cache, session log, and re-render lock cleared');
+  console.log('[AudioCache] Memory cache, session log, re-render lock, and quota flag cleared');
+}
+
+// Check if quota is exhausted
+export function isQuotaExhausted(): boolean {
+  return quotaExhausted;
 }
 
 // Pre-cache common phrases for faster first-time playback
