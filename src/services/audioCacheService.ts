@@ -277,17 +277,20 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
 
     const contentType = response.headers.get('content-type');
     
-    // Check for quota exceeded error
+    // Check for quota exceeded or API key errors - disable TTS for the session
     if (!response.ok) {
       if (contentType?.includes('application/json')) {
         const errorData = await response.json();
-        if (errorData.error === 'QUOTA_EXCEEDED' || errorData.skipTTS) {
-          console.error('🚨 COTA ELEVENLABS ESGOTADA! Desativando TTS para esta sessão.');
+        // Handle ALL cases where TTS should be disabled (quota, invalid key, unusual activity, etc.)
+        if (errorData.skipTTS || errorData.error === 'QUOTA_EXCEEDED' || errorData.error === 'API_KEY_INVALID' || errorData.error === 'API_KEY_FORBIDDEN') {
+          console.error(`🚨 TTS DESATIVADO: ${errorData.error || 'Erro desconhecido'} - ${errorData.message || ''}`);
           quotaExhausted = true;
           return null;
         }
       }
-      throw new Error(`TTS error: ${response.status}`);
+      console.error(`[AudioCache] TTS error: ${response.status}`);
+      // Don't throw, just return null to avoid breaking the app
+      return null;
     }
     
     // If response is JSON, it contains the cached URL
