@@ -1,10 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
 import { getRandomHorusPhrase } from '@/data/horusPhrases';
-import { getCachedAudio, clearAudioMemoryCache } from '@/services/audioCacheService';
-import { audioQueue } from '@/services/audioQueueManager';
+import { getCachedAudio } from '@/services/audioCacheService';
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from '@/services/centralAudioQueue';
 import { recordEnqueue, recordExecute, recordBlocked } from '@/services/audioDebugService';
-import { backgroundMusic } from '@/services/backgroundMusicService';
 
 interface DialogState {
   activePersona: PersonaId | null;
@@ -112,28 +111,25 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
     }
   }, [isHost, gameMode]);
 
-  // Play audio locally using audio queue manager (centralized)
-  const playAudioLocally = useCallback(async (audioUrl: string, label: string, onEnded: () => void) => {
+  // Play audio locally using CENTRAL audio queue (single source of truth)
+  const playAudioLocally = useCallback(async (audioUrl: string, label: string, priority: number, onEnded: () => void) => {
     setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }));
     
-    // Duck background music when narration starts
-    backgroundMusic.duck();
-    
-    // Usa fila centralizada - prioridade 8 para diálogos (Mycroft verdict, etc.)
-    audioQueue.addToQueue(
-      audioUrl,
+    // Usa CENTRAL fila - ducking de música é automático
+    centralAudioQueue.enqueue(audioUrl, {
       label,
-      8, // Prioridade alta para verditos
-      () => {
-        console.log('[DialogManager] Audio ended via queue');
+      priority,
+      onComplete: () => {
+        console.log('[DialogManager] Audio ended via centralQueue');
         setState(prev => ({ ...prev, isSpeaking: false }));
-        
-        // Unduck background music when narration ends
-        backgroundMusic.unduck();
-        
+        onEnded();
+      },
+      onError: (error) => {
+        console.error('[DialogManager] Audio error:', error);
+        setState(prev => ({ ...prev, isSpeaking: false }));
         onEnded();
       }
-    );
+    });
   }, []);
 
 
@@ -199,8 +195,13 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
         const estimatedDuration = Math.max(3000, textToSpeak.length * 80);
         setTimeout(finishAndProcessNext, estimatedDuration);
       } else if (canPlayAudio) {
-        // No sync - play via centralized queue
-        await playAudioLocally(audioUrl, `dialog_${item.moment}`, finishAndProcessNext);
+        // Determinar prioridade baseada no momento
+        const priority = item.moment === 'verdict' ? AUDIO_PRIORITY.MYCROFT 
+          : item.moment === 'question_read' ? AUDIO_PRIORITY.QUESTION_READ
+          : AUDIO_PRIORITY.HORUS_DIALOGUE;
+        
+        // No sync - play via CENTRAL queue
+        await playAudioLocally(audioUrl, `dialog_${item.moment}`, priority, finishAndProcessNext);
       } else {
         // Can't play audio - just finish
         setTimeout(finishAndProcessNext, 500);
@@ -241,8 +242,8 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   );
 
   const stopSpeaking = useCallback(() => {
-    // Usa fila centralizada para parar
-    audioQueue.clearQueue();
+    // Usa CENTRAL fila para parar
+    clearAllAudio();
     if (audioRef.current) audioRef.current.pause();
     queueRef.current = [];
     isProcessingRef.current = false;
@@ -257,7 +258,7 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
 
   const getActivePersona = useCallback(() => state.activePersona ? PERSONAS[state.activePersona] : null, [state.activePersona]);
 
-  // Play audio received from external source (sync) - usa fila centralizada
+  // Play audio received from external source (sync) - usa CENTRAL fila
   const playExternalAudio = useCallback((audioUrl: string, text: string, onComplete?: () => void) => {
     if (!canPlayAudio) return;
 
@@ -267,16 +268,15 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
       currentText: text,
     }));
 
-    // Usa fila centralizada com prioridade 6 (externa/sync)
-    audioQueue.addToQueue(
-      audioUrl,
-      `external_${text.substring(0, 20)}`,
-      6,
-      () => {
+    // Usa CENTRAL fila
+    centralAudioQueue.enqueue(audioUrl, {
+      label: `external_${text.substring(0, 20)}`,
+      priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+      onComplete: () => {
         setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
         if (onComplete) onComplete();
       }
-    );
+    });
   }, [canPlayAudio]);
 
   return { 
