@@ -94,24 +94,39 @@ serve(async (req) => {
           }
         );
 
-        if (response.status === 429) {
-          const errorText = await response.text();
-          console.warn(`⚠️ Rate limited (attempt ${attempt}/${maxRetries}):`, errorText);
-          
-          if (attempt < maxRetries) {
-            // Exponential backoff: 2s, 4s, 8s
-            const waitTime = Math.pow(2, attempt) * 1000;
-            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            continue;
-          }
-          
-          throw new Error('ElevenLabs API error: 429 - Rate limited after retries');
-        }
-
         if (!response.ok) {
           const errorText = await response.text();
           console.error('ElevenLabs API error:', response.status, errorText);
+          
+          // Check for quota exceeded
+          if (errorText.includes('quota_exceeded')) {
+            console.error('🚨 QUOTA EXCEEDED - No more ElevenLabs credits');
+            return new Response(
+              JSON.stringify({ 
+                error: 'QUOTA_EXCEEDED', 
+                message: 'Créditos do ElevenLabs esgotados. Use áudios locais.',
+                skipTTS: true 
+              }),
+              {
+                status: 402, // Payment Required
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+          
+          if (response.status === 429) {
+            console.warn(`⚠️ Rate limited (attempt ${attempt}/${maxRetries})`);
+            
+            if (attempt < maxRetries) {
+              const waitTime = Math.pow(2, attempt) * 1000;
+              console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            }
+            
+            throw new Error('ElevenLabs API error: 429 - Rate limited after retries');
+          }
+          
           throw new Error(`ElevenLabs API error: ${response.status}`);
         }
 
