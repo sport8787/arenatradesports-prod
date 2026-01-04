@@ -8,7 +8,7 @@
 // - [CLOSING] = From cache (Supabase Storage)
 
 import { getCachedAudio, getRandomMycroftBehavior, getRandomMycroftIntro, MYCROFT_BEHAVIOR_POOL, MYCROFT_INTRO_PHRASES } from './audioCacheService';
-import { playGlobalAudio, stopGlobalAudio } from './globalAudioContext';
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from './centralAudioQueue';
 
 // HARD LIMIT: Maximum characters for dynamic fact (matches edge function)
 const MAX_DYNAMIC_CHARS = 150;
@@ -96,13 +96,13 @@ export function validateFactLength(fact: string): { isValid: boolean; length: nu
   };
 }
 
-// Play Mycroft verdict in 3 sequential audio blocks
+// Play Mycroft verdict in 3 sequential audio blocks via CENTRAL QUEUE
 export async function playMycroftVerdictBlocks(
   blocks: MycroftVerdictBlocks,
   onComplete?: () => void,
   onBlockStart?: (blockName: 'intro' | 'fact' | 'behavior') => void
 ): Promise<void> {
-  console.log('[MycroftBlock] Playing verdict in 3 blocks:', blocks);
+  console.log('[MycroftBlock] Playing verdict in 3 blocks via centralQueue:', blocks);
   
   const playBlock = async (
     text: string, 
@@ -125,15 +125,17 @@ export async function playMycroftVerdictBlocks(
       
       console.log(`[MycroftBlock] Playing ${blockName}: ${result.fromCache ? '🟢 CACHE' : '🔴 API'}`);
       
-      playGlobalAudio(
-        result.audioUrl,
-        () => {
-          setTimeout(resolve, 200); // Small gap between blocks
+      // Usa CENTRAL queue para evitar sobreposição
+      centralAudioQueue.enqueue(result.audioUrl, {
+        label: `mycroft_${blockName}`,
+        priority: AUDIO_PRIORITY.MYCROFT,
+        onComplete: () => {
+          setTimeout(resolve, 150); // Small gap between blocks
         },
-        () => {
+        onError: () => {
           resolve(); // Continue even on error
         }
-      );
+      });
     });
   };
   
@@ -153,5 +155,5 @@ export function getFullVerdictText(blocks: MycroftVerdictBlocks): string {
 
 // Stop any playing Mycroft audio
 export function stopMycroftAudio(): void {
-  stopGlobalAudio();
+  clearAllAudio();
 }

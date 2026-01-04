@@ -43,7 +43,6 @@ import { useEconomy } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
 import { Play, Bot as BotIcon, Loader2, Home, Lock, Unlock, Trophy, Cpu, Brain, Zap, Skull, Flame, Coins, MessageCircle, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { stopGlobalAudio } from '@/services/globalAudioContext';
 // HÓRUS 2.0 + NarrativeEngine + Central Audio Queue
 import { 
   playHorus2Audio, 
@@ -304,7 +303,6 @@ function SinglePlayerRoomContent() {
       }
       clearQueueRef.current();
       stopSpeakingRef.current();
-      stopGlobalAudio();
       // Central audio queue cleanup (stops all audio and clears queue)
       clearAllAudio();
       // Stop background music when leaving the game
@@ -328,7 +326,7 @@ function SinglePlayerRoomContent() {
     if (gamePhase !== 'question') {
       clearQueueRef.current();
       stopSpeakingRef.current();
-      stopGlobalAudio();
+      clearAllAudio();
       questionStartTimeRef.current = null;
       return;
     }

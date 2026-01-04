@@ -4,8 +4,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Question } from '@/types/game';
 import { getCachedAudio } from '@/services/audioCacheService';
-import { playGlobalAudio, stopGlobalAudio } from '@/services/globalAudioContext';
-import { PERSONAS } from '@/types/personas';
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from '@/services/centralAudioQueue';
 
 interface UseQuestionNarrationOptions {
   enabled?: boolean;
@@ -27,14 +26,13 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
   const [isNarrating, setIsNarrating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortRef.current = true;
-      stopGlobalAudio();
+      clearAllAudio();
     };
   }, []);
 
@@ -53,7 +51,6 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
       console.log('[QuestionNarration] Fetching audio for question:', question.id);
 
       // Use getCachedAudio - this will check cache first, then generate if needed
-      // The hash is based on text + voiceId, so identical questions will share cache
       const result = await getCachedAudio({
         text: fullText,
         personaId: 'horus',
@@ -75,21 +72,22 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
       setIsNarrating(true);
       onNarrationStart?.();
 
-      // Play using global audio context
-      audioRef.current = playGlobalAudio(
-        result.audioUrl,
-        () => {
+      // Play using CENTRAL audio queue
+      centralAudioQueue.enqueue(result.audioUrl, {
+        label: `question_${question.id}`,
+        priority: AUDIO_PRIORITY.QUESTION_READ,
+        onComplete: () => {
           console.log('[QuestionNarration] Narration complete');
           setIsNarrating(false);
           onNarrationEnd?.();
         },
-        (err) => {
+        onError: (err) => {
           console.error('[QuestionNarration] Playback error:', err);
           setIsNarrating(false);
           setError('Erro ao reproduzir áudio');
           onNarrationEnd?.();
         }
-      );
+      });
     } catch (err) {
       console.error('[QuestionNarration] Error:', err);
       setIsLoading(false);
@@ -99,7 +97,7 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
 
   const stopNarration = useCallback(() => {
     abortRef.current = true;
-    stopGlobalAudio();
+    clearAllAudio();
     setIsNarrating(false);
     setIsLoading(false);
   }, []);

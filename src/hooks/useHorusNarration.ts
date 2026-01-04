@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getCachedAudio } from '@/services/audioCacheService';
-import { playGlobalAudio, stopGlobalAudio } from '@/services/globalAudioContext';
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from '@/services/centralAudioQueue';
 import { GameMoment } from '@/types/personas';
 
 // Fixed phrases that should always be cached (used in climax moments)
@@ -52,17 +52,13 @@ export function useHorusNarration(options: UseHorusNarrationOptions = {}): UseHo
   const [isLoading, setIsLoading] = useState(false);
   const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef(false);
-  
-  // Track if narration has been explicitly triggered (to prevent pre-game TTS calls)
-  const narrationTriggeredRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortRef.current = true;
-      stopGlobalAudio();
+      clearAllAudio();
     };
   }, []);
 
@@ -112,21 +108,23 @@ export function useHorusNarration(options: UseHorusNarrationOptions = {}): UseHo
       setIsNarrating(true);
       onNarrationStart?.();
 
-      audioRef.current = playGlobalAudio(
-        result.audioUrl,
-        () => {
+      // Use CENTRAL queue
+      centralAudioQueue.enqueue(result.audioUrl, {
+        label: `horus_${moment}`,
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        onComplete: () => {
           console.log('[HorusNarration] Narration complete');
           setIsNarrating(false);
           setCurrentPhrase(null);
           onNarrationEnd?.();
         },
-        (err) => {
+        onError: (err) => {
           console.error('[HorusNarration] Playback error:', err);
           setIsNarrating(false);
           setError('Erro ao reproduzir áudio');
           onNarrationEnd?.();
         }
-      );
+      });
     } catch (err) {
       console.error('[HorusNarration] Error:', err);
       setIsLoading(false);
@@ -166,20 +164,22 @@ export function useHorusNarration(options: UseHorusNarrationOptions = {}): UseHo
       setIsNarrating(true);
       onNarrationStart?.();
 
-      audioRef.current = playGlobalAudio(
-        result.audioUrl,
-        () => {
+      // Use CENTRAL queue
+      centralAudioQueue.enqueue(result.audioUrl, {
+        label: `horus_custom`,
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        onComplete: () => {
           setIsNarrating(false);
           setCurrentPhrase(null);
           onNarrationEnd?.();
         },
-        (err) => {
+        onError: (err) => {
           console.error('[HorusNarration] Playback error:', err);
           setIsNarrating(false);
           setError('Erro ao reproduzir áudio');
           onNarrationEnd?.();
         }
-      );
+      });
     } catch (err) {
       console.error('[HorusNarration] Error:', err);
       setIsLoading(false);
@@ -190,7 +190,7 @@ export function useHorusNarration(options: UseHorusNarrationOptions = {}): UseHo
 
   const stopNarration = useCallback(() => {
     abortRef.current = true;
-    stopGlobalAudio();
+    clearAllAudio();
     setIsNarrating(false);
     setIsLoading(false);
     setCurrentPhrase(null);
