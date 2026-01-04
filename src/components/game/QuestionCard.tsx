@@ -125,7 +125,7 @@ export default function QuestionCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-3 md:space-y-6"
     >
       {/* Header with category animation */}
       {showCategory && (
@@ -140,9 +140,9 @@ export default function QuestionCard({
             initial={{ x: -20 }}
             animate={{ x: 0 }}
           >
-            <Brain className="w-5 h-5 text-primary" />
+            <Brain className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             <motion.span 
-              className="text-sm font-medium text-muted-foreground uppercase tracking-wider"
+              className="text-xs md:text-sm font-medium text-muted-foreground uppercase tracking-wider"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -157,14 +157,14 @@ export default function QuestionCard({
                 animate={{ opacity: 1, scale: 1 }}
                 className="ml-2"
               >
-                <Volume2 className="w-4 h-4 text-primary/60 animate-pulse" />
+                <Volume2 className="w-3 h-3 md:w-4 md:h-4 text-primary/60 animate-pulse" />
               </motion.div>
             )}
           </motion.div>
           
           <div className={cn('flex items-center gap-1', getDifficultyColor(question.difficulty))}>
-            <Zap className="w-4 h-4" />
-            <span className="text-sm font-orbitron">{question.difficulty}</span>
+            <Zap className="w-3 h-3 md:w-4 md:h-4" />
+            <span className="text-xs md:text-sm font-orbitron">{question.difficulty}</span>
           </div>
         </motion.div>
       )}
@@ -176,7 +176,7 @@ export default function QuestionCard({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-2xl font-orbitron font-semibold text-foreground leading-relaxed"
+          className="text-base md:text-2xl font-orbitron font-semibold text-foreground leading-snug md:leading-relaxed"
         >
           {question.question_text}
         </motion.h2>
@@ -188,7 +188,7 @@ export default function QuestionCard({
           key={`options-${question.id}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4"
         >
           {options.map((option, index) => (
             <motion.button
@@ -199,7 +199,7 @@ export default function QuestionCard({
               onClick={() => !disabled && !confirmedAnswer && onSelectOption?.(option.key)}
               disabled={disabled || !!confirmedAnswer}
               className={cn(
-                'option-card text-left relative',
+                'option-card text-left relative py-2 px-3 md:py-3 md:px-4',
                 isCorrect(option.key) && 'ring-2 ring-success bg-success/10',
                 isWrong(option.key) && 'ring-2 ring-destructive bg-destructive/10',
                 selectedOption === option.key && !confirmedAnswer && 'selected',
@@ -207,22 +207,22 @@ export default function QuestionCard({
                 (disabled || !!confirmedAnswer) && 'cursor-default'
               )}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 <span className={cn(
-                  'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-orbitron font-bold',
+                  'flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-orbitron font-bold text-xs md:text-sm',
                   isCorrect(option.key) ? 'bg-success text-success-foreground' : 
                   isWrong(option.key) ? 'bg-destructive text-destructive-foreground' : 
                   'bg-primary/20 text-primary'
                 )}>
-                  {isCorrect(option.key) ? <CheckCircle2 className="w-5 h-5" /> : option.key}
+                  {isCorrect(option.key) ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" /> : option.key}
                 </span>
-                <span className="text-lg font-medium pt-1">{option.text}</span>
+                <span className="text-sm md:text-lg font-medium">{option.text}</span>
               </div>
               {isCorrect(option.key) && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-2 -right-2 bg-success text-success-foreground text-xs font-bold px-2 py-1 rounded-full"
+                  className="absolute -top-2 -right-2 bg-success text-success-foreground text-[10px] md:text-xs font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded-full"
                 >
                   CORRETA
                 </motion.div>
