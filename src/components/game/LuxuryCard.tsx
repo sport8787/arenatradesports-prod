@@ -18,7 +18,7 @@ export default function LuxuryCard({ children, className, animate = true }: Luxu
 
   return (
     <Component
-      className={cn('luxury-card p-6', className)}
+      className={cn('luxury-card p-3 md:p-6', className)}
       {...animationProps}
     >
       {children}

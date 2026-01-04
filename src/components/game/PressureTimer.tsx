@@ -280,7 +280,7 @@ export default function PressureTimer({
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
-          'flex flex-col items-center gap-2',
+          'flex flex-col items-center gap-1',
           className
         )}
       >
@@ -295,9 +295,9 @@ export default function PressureTimer({
             ease: 'easeInOut',
             times: [0, 0.15, 0.3, 0.45, 1],
           }}
-          className="mb-2"
+          className="mb-1"
         >
-          <Heart className="w-8 h-8 text-red-500 fill-red-500" />
+          <Heart className="w-6 h-6 md:w-8 md:h-8 text-red-500 fill-red-500" />
         </motion.div>
         
         <motion.div
@@ -306,11 +306,11 @@ export default function PressureTimer({
             scale: [1, 1.05, 1]
           }}
           transition={{ repeat: Infinity, duration: 2 }}
-          className="relative w-24 h-24 rounded-full bg-destructive/20 border-2 border-destructive/50 flex items-center justify-center"
+          className="relative w-16 h-16 md:w-24 md:h-24 rounded-full bg-destructive/20 border-2 border-destructive/50 flex items-center justify-center"
         >
-          <EyeOff className="w-10 h-10 text-destructive/70" />
+          <EyeOff className="w-7 h-7 md:w-10 md:h-10 text-destructive/70" />
         </motion.div>
-        <p className="text-xs text-destructive/70 font-orbitron animate-pulse">
+        <p className="text-[10px] md:text-xs text-destructive/70 font-orbitron animate-pulse">
           TEMPO OCULTO
         </p>
       </motion.div>
@@ -335,13 +335,13 @@ export default function PressureTimer({
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       className={cn(
-        'relative flex flex-col items-center gap-2',
+        'relative flex flex-col items-center gap-1',
         className
       )}
     >
       {/* Heartbeat indicator for high pressure rounds (8+) */}
       {round >= 8 && (
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-1.5 mb-0.5">
           <motion.div
             animate={{
               scale: [1, 1.15 + (config.pressureLevel / 200), 1, 1.1 + (config.pressureLevel / 250), 1],
@@ -356,7 +356,7 @@ export default function PressureTimer({
           >
             <Heart 
               className={cn(
-                'w-5 h-5 fill-current',
+                'w-4 h-4 md:w-5 md:h-5 fill-current',
                 config.pressureLevel >= 80 ? 'text-red-500' :
                 config.pressureLevel >= 60 ? 'text-red-400' :
                 'text-red-300'
@@ -379,7 +379,7 @@ export default function PressureTimer({
               >
                 <Heart 
                   className={cn(
-                    'w-5 h-5 fill-current',
+                    'w-4 h-4 md:w-5 md:h-5 fill-current',
                     config.pressureLevel >= 80 ? 'text-red-500' : 'text-red-400'
                   )} 
                   strokeWidth={0}
@@ -389,7 +389,7 @@ export default function PressureTimer({
           </motion.div>
           {config.pressureLevel >= 50 && (
             <span className={cn(
-              'text-xs font-mono tabular-nums',
+              'text-[10px] md:text-xs font-mono tabular-nums',
               config.pressureLevel >= 80 ? 'text-red-500' : 'text-red-400'
             )}>
               {Math.round(heartbeatBpm)}
@@ -407,9 +407,9 @@ export default function PressureTimer({
         />
       )}
       
-      {/* Círculo do timer */}
-      <div className="relative w-24 h-24">
-        <svg className="w-full h-full -rotate-90">
+      {/* Círculo do timer - COMPACTO MOBILE */}
+      <div className="relative w-16 h-16 md:w-24 md:h-24">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
           {/* Track */}
           <circle
             cx="48"
@@ -443,7 +443,7 @@ export default function PressureTimer({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               className={cn(
-                'font-orbitron text-3xl font-bold',
+                'font-orbitron text-xl md:text-3xl font-bold',
                 isUrgent ? 'text-destructive' : 'text-foreground'
               )}
             >
@@ -463,8 +463,8 @@ export default function PressureTimer({
       </div>
       
       {/* Label */}
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Clock className="w-3 h-3" />
+      <div className="flex items-center gap-1 text-[10px] md:text-xs text-muted-foreground">
+        <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />
         <span>
           {config.enableBeeps ? 'PRESSÃO MÁXIMA' : 'TEMPO RESTANTE'}
         </span>

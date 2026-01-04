@@ -1379,28 +1379,28 @@ function SinglePlayerRoomContent() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen p-4 md:p-8 pt-16">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="min-h-screen p-2 md:p-8 pt-12 md:pt-16">
+        <div className="max-w-4xl mx-auto space-y-3 md:space-y-6">
         {/* Role Banner */}
         <RoleBanner isHost={true} />
 
-        {/* Header */}
+        {/* Header - COMPACTO MOBILE */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button 
               onClick={() => navigate('/')} 
-              className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+              className="p-1.5 md:p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
               title="Voltar ao Início"
             >
-              <Home className="w-5 h-5 text-primary" />
+              <Home className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </button>
             <div>
-              <h1 className="font-orbitron text-xl text-primary flex items-center gap-2">
-                <Zap className="w-5 h-5" />
+              <h1 className="font-orbitron text-sm md:text-xl text-primary flex items-center gap-1.5 md:gap-2">
+                <Zap className="w-4 h-4 md:w-5 md:h-5" />
                 DESAFIE O HÓRUS
               </h1>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">{displayName}</p>
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <p className="text-[10px] md:text-xs text-muted-foreground">{displayName}</p>
                 {/* NarrativeEngine: Show current act */}
                 <NarrativeDisplay
                   currentAct={narrative.currentAct}
@@ -1410,14 +1410,14 @@ function SinglePlayerRoomContent() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <BluffCoinDisplay amount={bluffcoins} size="md" />
+          <div className="flex items-center gap-2 md:gap-4">
+            <BluffCoinDisplay amount={bluffcoins} size="sm" />
             {/* Shadow Player avatars */}
-            <div className="flex -space-x-2">
+            <div className="flex -space-x-1.5 md:-space-x-2">
               {(shadowPlayers.length > 0 ? shadowPlayers : BOTS).map((player) => (
                 <div 
                   key={player.id}
-                  className="w-8 h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-sm"
+                  className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-[10px] md:text-sm"
                   title={player.nickname}
                 >
                   {player.avatar}
@@ -1433,7 +1433,7 @@ function SinglePlayerRoomContent() {
             <LuxuryCard>
               {/* QUESTION PHASE */}
               {gamePhase === 'question' && currentQuestion && (
-                <div className="space-y-6">
+                <div className="space-y-3 md:space-y-6">
                   {/* Pressure Timer */}
                   <div className="flex justify-center">
                     <PressureTimer
@@ -1501,7 +1501,7 @@ function SinglePlayerRoomContent() {
                     autoNarrate={false}
                   />
                   
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     <GoldButton 
                       onClick={confirmAnswer} 
                       disabled={!selectedAnswer || !!confirmedAnswer}

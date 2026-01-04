@@ -1763,31 +1763,31 @@ function GameRoomContent() {
         </motion.div>
       )}
 
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-3 md:space-y-6 px-2 md:px-0">
         {/* Role Banner */}
         <RoleBanner isHost={isRoomHost} />
 
-        {/* Header */}
+        {/* Header - COMPACTO MOBILE */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button 
               onClick={() => navigate('/')} 
-              className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+              className="p-1.5 md:p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
               title="Voltar ao Início"
             >
-              <Home className="w-5 h-5 text-primary" />
+              <Home className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </button>
             <div>
-              <h1 className="font-orbitron text-xl text-primary">O BLEFADOR</h1>
-              <button onClick={copyPin} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <span className="font-orbitron text-sm">PIN: {gameState.room?.pin}</span>
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              <h1 className="font-orbitron text-sm md:text-xl text-primary">O BLEFADOR</h1>
+              <button onClick={copyPin} className="flex items-center gap-1.5 md:gap-2 text-muted-foreground hover:text-foreground">
+                <span className="font-orbitron text-[10px] md:text-sm">PIN: {gameState.room?.pin}</span>
+                {copied ? <Check className="w-3 h-3 md:w-4 md:h-4" /> : <Copy className="w-3 h-3 md:w-4 md:h-4" />}
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* BluffCoins Display */}
-            <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="md" />
+            <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="sm" />
             {/* Audio sync indicator for online mode */}
             {isOnlineMode && (
               <div 
@@ -1798,12 +1798,12 @@ function GameRoomContent() {
             {/* Audio indicator based on game mode */}
             <div title={canPlayAudio ? "Áudio ativo" : "Áudio desativado (modo presencial)"}>
               {canPlayAudio ? (
-                <Volume2 className="w-5 h-5 text-mycroft-green animate-pulse" />
+                <Volume2 className="w-4 h-4 md:w-5 md:h-5 text-mycroft-green animate-pulse" />
               ) : (
-                <VolumeX className="w-5 h-5 text-muted-foreground" />
+                <VolumeX className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               )}
             </div>
-            <div className="flex -space-x-2">
+            <div className="flex -space-x-1.5 md:-space-x-2">
               {gameState.players.slice(0, 4).map((p, i) => (
                 <PlayerAvatar key={p.id} player={p} index={i} size="sm" showScore={false} />
               ))}
@@ -1811,7 +1811,7 @@ function GameRoomContent() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-3 md:gap-6">
           {/* Main Content */}
           <div className="md:col-span-2">
             <LuxuryCard>
@@ -1910,7 +1910,7 @@ function GameRoomContent() {
 
               {/* QUESTION */}
               {gameState.room?.current_status === 'question' && gameState.currentQuestion && (
-                <div className="space-y-6">
+                <div className="space-y-3 md:space-y-6">
                   {/* Pressure Timer - Dynamic timer with pressure effects */}
                   {isCurrentPlayer && (
                     <div className="flex justify-center">
