@@ -1,11 +1,12 @@
 // Audio Cache Service - Manages ElevenLabs TTS caching via Supabase Storage
 // Reduces credit consumption by caching frequently used phrases
 // OPTIMIZED: Added session-level deduplication, text normalization, and debug logging
+// + Web Speech API fallback when ElevenLabs fails
 
 import { supabase } from '@/integrations/supabase/client';
 import { PersonaId, PERSONAS, GameMoment, getDialogConfig } from '@/types/personas';
-
 import { safeHash } from '@/lib/hashUtils';
+import { speakWithFallback, isWebSpeechSupported } from './webSpeechFallbackService';
 
 // Simple hash function for generating cache keys
 async function generateHash(text: string, voiceId: string): Promise<string> {
@@ -318,6 +319,14 @@ export async function getCachedAudio(options: GetCachedAudioOptions): Promise<Ca
     return { audioUrl, fromCache: false };
   } catch (error) {
     console.error('[AudioCache] Error generating audio:', error);
+    
+    // Web Speech fallback is available - signal to caller
+    if (isWebSpeechSupported()) {
+      console.log('[AudioCache] 🔄 Web Speech fallback disponível');
+      // Return special marker to indicate fallback should be used
+      return { audioUrl: `webspeech://${normalizedText}`, fromCache: false };
+    }
+    
     return null;
   }
 }
