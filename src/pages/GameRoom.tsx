@@ -547,10 +547,52 @@ function GameRoomContent() {
             console.log('[GameRoom] Playing opening audio for first round');
 
             if (isOnlineMode) {
-              // No sync não há onended; usa duração fixa (~15s) para evitar sobreposição
-              const OPENING_WAIT_MS = 15000;
+              // No sync não há onended; usa duração real do áudio (metadata) com fallback
               broadcastAudio(opening, 'game_start', 'horus');
-              setTimeout(playQuestionRead, OPENING_WAIT_MS);
+
+              const getDurationMs = (url: string, timeoutMs = 2500): Promise<number | null> => {
+                return new Promise((resolve) => {
+                  const audio = new Audio();
+                  audio.preload = 'metadata';
+                  audio.src = url;
+
+                  const timeout = window.setTimeout(() => resolve(null), timeoutMs);
+
+                  const cleanup = () => {
+                    window.clearTimeout(timeout);
+                    audio.removeEventListener('loadedmetadata', onLoaded);
+                    audio.removeEventListener('error', onError);
+                    // Drop reference to help GC
+                    audio.src = '';
+                  };
+
+                  const onLoaded = () => {
+                    cleanup();
+                    const duration = audio.duration;
+                    if (Number.isFinite(duration) && duration > 0) {
+                      resolve(duration * 1000);
+                      return;
+                    }
+                    resolve(null);
+                  };
+
+                  const onError = () => {
+                    cleanup();
+                    resolve(null);
+                  };
+
+                  audio.addEventListener('loadedmetadata', onLoaded, { once: true });
+                  audio.addEventListener('error', onError, { once: true });
+                  audio.load();
+                });
+              };
+
+              (async () => {
+                const fallbackMs = 15000;
+                const durationMs = await getDurationMs(opening);
+                const waitMs = Math.ceil((durationMs ?? fallbackMs) + 400);
+                setTimeout(playQuestionRead, waitMs);
+              })();
             } else {
               // Offline: sincroniza com o término real do áudio
               playHorus2Audio('game_start', undefined, () => {
