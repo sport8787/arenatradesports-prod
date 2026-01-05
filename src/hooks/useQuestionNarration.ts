@@ -1,10 +1,12 @@
 // Hook for managing question narration with audio caching
 // Questions are cached globally - once synthesized, available to all players
+// + Web Speech API fallback when ElevenLabs fails
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Question } from '@/types/game';
 import { getCachedAudio } from '@/services/audioCacheService';
 import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from '@/services/centralAudioQueue';
+import { speakWithQueue, isWebSpeechSupported } from '@/services/webSpeechFallbackService';
 
 interface UseQuestionNarrationOptions {
   enabled?: boolean;
@@ -18,6 +20,7 @@ interface UseQuestionNarrationReturn {
   narrateQuestion: (question: Question) => Promise<void>;
   stopNarration: () => void;
   error: string | null;
+  usedFallback: boolean;
 }
 
 export function useQuestionNarration(options: UseQuestionNarrationOptions = {}): UseQuestionNarrationReturn {
@@ -26,6 +29,7 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
   const [isNarrating, setIsNarrating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usedFallback, setUsedFallback] = useState(false);
   const abortRef = useRef(false);
 
   // Cleanup on unmount
@@ -42,6 +46,7 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
     abortRef.current = false;
     setIsLoading(true);
     setError(null);
+    setUsedFallback(false);
 
     try {
       // Build the full narration text including category
@@ -62,7 +67,50 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
         return;
       }
 
+      // Check if we got a Web Speech fallback marker
+      if (result?.audioUrl.startsWith('webspeech://')) {
+        console.log('[QuestionNarration] 🔄 Using Web Speech fallback');
+        setIsLoading(false);
+        setIsNarrating(true);
+        setUsedFallback(true);
+        onNarrationStart?.();
+
+        await speakWithQueue(
+          fullText,
+          'horus',
+          AUDIO_PRIORITY.QUESTION_READ,
+          `question_${question.id}_fallback`,
+          () => {
+            console.log('[QuestionNarration] Fallback narration complete');
+            setIsNarrating(false);
+            onNarrationEnd?.();
+          }
+        );
+        return;
+      }
+
       if (!result) {
+        // No audio and no fallback available
+        if (isWebSpeechSupported()) {
+          console.log('[QuestionNarration] 🔄 Direct Web Speech fallback');
+          setIsLoading(false);
+          setIsNarrating(true);
+          setUsedFallback(true);
+          onNarrationStart?.();
+
+          await speakWithQueue(
+            fullText,
+            'horus',
+            AUDIO_PRIORITY.QUESTION_READ,
+            `question_${question.id}_fallback`,
+            () => {
+              setIsNarrating(false);
+              onNarrationEnd?.();
+            }
+          );
+          return;
+        }
+        
         throw new Error('Failed to get audio for question');
       }
 
@@ -108,5 +156,6 @@ export function useQuestionNarration(options: UseQuestionNarrationOptions = {}):
     narrateQuestion,
     stopNarration,
     error,
+    usedFallback,
   };
 }
