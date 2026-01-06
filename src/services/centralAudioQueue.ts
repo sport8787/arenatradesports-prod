@@ -36,6 +36,7 @@ interface QueuedAudioItem {
   onComplete?: () => void;
   onError?: (error: Error) => void;
   addedAt: number;
+  source: 'queue' | 'horus' | 'dialog'; // ✅ Rastrear fonte
 }
 
 type AudioQueueListener = (state: { isPlaying: boolean; currentLabel: string | null; queueLength: number }) => void;
@@ -51,6 +52,50 @@ class CentralAudioQueue {
   // Controle de bordões - máximo 1 a cada 30 segundos
   private lastBordaoTime: number = 0;
   private readonly BORDAO_COOLDOWN = 30000; // 30 segundos
+  
+  // ✅ NOVO: Flag para pausar enquanto outro sistema toca
+  private isPaused: boolean = false;
+  private currentSource: 'queue' | 'horus' | 'dialog' | null = null;
+  
+  // ✅ NOVO: Controle da rodada atual (para bloquear bord_1 na rodada 1)
+  private currentRound: number = 0;
+
+  /**
+   * ✅ NOVO: Define a rodada atual (para bloquear bord_1 na rodada 1)
+   */
+  setCurrentRound(round: number): void {
+    this.currentRound = round;
+    console.log(`[CentralAudioQueue] 🔢 Round set to: ${round}`);
+  }
+
+  /**
+   * ✅ NOVO: Notificar que outro sistema vai tocar
+   */
+  pauseFor(source: 'horus' | 'dialog'): void {
+    console.log(`[CentralAudioQueue] ⏸️ Pausing for ${source}`);
+    
+    // Para áudio atual se for de fonte diferente
+    if (this.currentAudio && this.currentSource !== source) {
+      this.currentAudio.pause();
+      this.isPaused = true;
+    }
+  }
+
+  /**
+   * ✅ NOVO: Retomar após outro sistema terminar
+   */
+  resume(): void {
+    console.log('[CentralAudioQueue] ▶️ Resuming');
+    this.isPaused = false;
+    
+    // Se tinha áudio pausado, continua
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play().catch(console.error);
+    } else {
+      // Senão, processa fila
+      this.processNext();
+    }
+  }
 
   /**
    * Adiciona áudio à fila com prioridade
@@ -64,6 +109,7 @@ class CentralAudioQueue {
       onComplete?: () => void;
       onError?: (error: Error) => void;
       interruptCurrent?: boolean; // Para eventos de bomba
+      source?: 'queue' | 'horus' | 'dialog'; // ✅ NOVO: fonte do áudio
     } = {}
   ): string {
     const {
@@ -71,10 +117,18 @@ class CentralAudioQueue {
       priority = AUDIO_PRIORITY.GENERIC,
       onComplete,
       onError,
-      interruptCurrent = false
+      interruptCurrent = false,
+      source = 'queue'
     } = options;
     
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // ✅ NOVO: Bloquear bord_1.mp3 na primeira rodada
+    if (audioUrl.includes('bord_1.mp3') && this.currentRound <= 1) {
+      console.log(`[CentralAudioQueue] ⛔ bord_1.mp3 bloqueado na rodada ${this.currentRound}`);
+      onComplete?.();
+      return id;
+    }
     
     // Limitar bordões
     if (priority === AUDIO_PRIORITY.BORDAO) {
@@ -94,10 +148,11 @@ class CentralAudioQueue {
       priority,
       onComplete,
       onError,
-      addedAt: Date.now()
+      addedAt: Date.now(),
+      source
     };
     
-    console.log(`[CentralAudioQueue] ➕ Enqueue: ${label} (priority: ${priority})`);
+    console.log(`[CentralAudioQueue] ➕ Enqueue: ${label} (priority: ${priority}, source: ${source})`);
     
     // Interromper áudio atual se for evento de bomba
     if (interruptCurrent && this.isPlaying && this.currentAudio) {
@@ -122,8 +177,8 @@ class CentralAudioQueue {
     
     this.notifyListeners();
     
-    // Processar se não estiver tocando
-    if (!this.isPlaying) {
+    // ✅ MODIFICADO: Não processar se pausado
+    if (!this.isPlaying && !this.isPaused) {
       this.processNext();
     }
     
@@ -131,9 +186,42 @@ class CentralAudioQueue {
   }
 
   /**
+   * ✅ NOVO: Método para outros sistemas enfileirarem com controle de fonte
+   */
+  enqueueExternal(
+    audioUrl: string,
+    source: 'horus' | 'dialog',
+    priority: number = AUDIO_PRIORITY.HORUS_DIALOGUE,
+    onComplete?: () => void
+  ): string {
+    // Pausar fila atual
+    this.pauseFor(source);
+    
+    // Criar item com alta prioridade
+    const id = this.enqueue(audioUrl, {
+      priority,
+      label: source,
+      source,
+      onComplete: () => {
+        onComplete?.();
+        this.resume(); // Retoma fila após terminar
+      }
+    });
+    
+    this.currentSource = source;
+    return id;
+  }
+
+  /**
    * Processa o próximo item da fila
    */
   private async processNext(): Promise<void> {
+    // ✅ MODIFICADO: Não processar se pausado
+    if (this.isPaused) {
+      console.log('[CentralAudioQueue] ⏸️ Paused - not processing');
+      return;
+    }
+    
     if (this.isPlaying || this.queue.length === 0) {
       // Se fila vazia, restaurar música
       if (this.queue.length === 0 && this.isMusicDucked) {
@@ -157,7 +245,10 @@ class CentralAudioQueue {
     
     this.notifyListeners();
 
-    console.log(`[CentralAudioQueue] ▶️ Playing: ${item.label} (priority: ${item.priority})`);
+    // ✅ NOVO: Rastrear fonte atual
+    this.currentSource = item.source;
+    
+    console.log(`[CentralAudioQueue] ▶️ Playing: ${item.label} (priority: ${item.priority}, source: ${item.source})`);
 
     try {
       await this.playAudio(item);
@@ -172,6 +263,7 @@ class CentralAudioQueue {
     this.isPlaying = false;
     this.currentItem = null;
     this.currentAudio = null;
+    this.currentSource = null; // ✅ NOVO: Limpar fonte
     this.notifyListeners();
 
     // Delay pequeno antes do próximo
@@ -397,4 +489,9 @@ export function playBombEvent(audioUrl: string, onComplete?: () => void): string
 
 export function clearAllAudio(): void {
   centralAudioQueue.clearQueue();
+}
+
+// ✅ NOVO: Função helper para definir a rodada atual
+export function setAudioQueueRound(round: number): void {
+  centralAudioQueue.setCurrentRound(round);
 }

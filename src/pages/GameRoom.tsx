@@ -56,7 +56,7 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment,
 } from '@/services/horus2Engine';
-import { clearAllAudio } from '@/services/centralAudioQueue';
+import { clearAllAudio, setAudioQueueRound } from '@/services/centralAudioQueue';
 import { 
   resetPressureState, 
   setPressureRound, 
@@ -1257,6 +1257,7 @@ function GameRoomContent() {
 
     // Reset game progression state
     setCurrentRound(1);
+    setAudioQueueRound(1); // ✅ Informa a fila de áudio sobre a rodada atual
     setAccumulatedPrize(0);
     setGameCompleted(false);
     setHostEliminated(false);
@@ -1474,6 +1475,7 @@ function GameRoomContent() {
     if (!roomId) return;
     
     setCurrentRound(nextRoundNum);
+    setAudioQueueRound(nextRoundNum); // ✅ Informa a fila de áudio sobre a rodada atual
     setPressureRound(nextRoundNum);
     
     // Update NarrativeEngine state
