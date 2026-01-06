@@ -49,7 +49,7 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
-import { clearAllAudio } from '@/services/centralAudioQueue';
+import { clearAllAudio, setAudioQueueRound } from '@/services/centralAudioQueue';
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
 import { getNarrativeEngine, resetNarrativeEngine, NarrativeChoice } from '@/services/narrativeEngine';
 import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
@@ -445,6 +445,7 @@ function SinglePlayerRoomContent() {
 
     // Start first round directly (opening plays on login now)
     setCurrentRound(1);
+    setAudioQueueRound(1); // ✅ Informa a fila de áudio sobre a rodada atual
     setPressureRound(1);
     setAccumulatedPrize(0);
     await selectNextQuestion();
@@ -1122,6 +1123,7 @@ function SinglePlayerRoomContent() {
   // Shared logic for proceeding to next round
   const proceedToNextRound = async (nextRoundNum: number) => {
     setCurrentRound(nextRoundNum);
+    setAudioQueueRound(nextRoundNum); // ✅ Informa a fila de áudio sobre a rodada atual
     setPressureRound(nextRoundNum); // Atualizar sistema de pressão
     await selectNextQuestion();
     setNewlyUnlockedCard(null);

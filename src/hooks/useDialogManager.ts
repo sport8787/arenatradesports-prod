@@ -115,20 +115,11 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
   const playAudioLocally = useCallback(async (audioUrl: string, label: string, priority: number, onEnded: () => void) => {
     setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }));
     
-    // Usa CENTRAL fila - ducking de música é automático
-    centralAudioQueue.enqueue(audioUrl, {
-      label,
-      priority,
-      onComplete: () => {
-        console.log('[DialogManager] Audio ended via centralQueue');
-        setState(prev => ({ ...prev, isSpeaking: false }));
-        onEnded();
-      },
-      onError: (error) => {
-        console.error('[DialogManager] Audio error:', error);
-        setState(prev => ({ ...prev, isSpeaking: false }));
-        onEnded();
-      }
+    // ✅ USAR enqueueExternal para integração com fila central
+    centralAudioQueue.enqueueExternal(audioUrl, 'dialog', priority, () => {
+      console.log('[DialogManager] Audio ended via centralQueue');
+      setState(prev => ({ ...prev, isSpeaking: false }));
+      onEnded();
     });
   }, []);
 
@@ -268,14 +259,10 @@ export function useDialogManager(options: UseDialogManagerOptions = {}): UseDial
       currentText: text,
     }));
 
-    // Usa CENTRAL fila
-    centralAudioQueue.enqueue(audioUrl, {
-      label: `external_${text.substring(0, 20)}`,
-      priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
-      onComplete: () => {
-        setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
-        if (onComplete) onComplete();
-      }
+    // ✅ USAR enqueueExternal para integração com fila central
+    centralAudioQueue.enqueueExternal(audioUrl, 'dialog', AUDIO_PRIORITY.HORUS_DIALOGUE, () => {
+      setState(prev => ({ ...prev, isSpeaking: false, currentText: null }));
+      if (onComplete) onComplete();
     });
   }, [canPlayAudio]);
 

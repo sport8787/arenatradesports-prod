@@ -270,19 +270,17 @@ export async function playHorus2Audio(
       label = 'bordao';
     }
     
-    centralAudioQueue.enqueue(
+    // ✅ USAR enqueueExternal para integração com fila central
+    centralAudioQueue.enqueueExternal(
       result.audioUrl,
-      {
-        label,
-        priority,
-        interruptCurrent: isBombEvent,
-        onComplete: () => {
-          // Marca fim da abertura e executa callbacks pendentes
-          if (isOpeningAudio) {
-            markOpeningEnd();
-          }
-          onEnd?.();
+      'horus',
+      priority,
+      () => {
+        // Marca fim da abertura e executa callbacks pendentes
+        if (isOpeningAudio) {
+          markOpeningEnd();
         }
+        onEnd?.();
       }
     );
     
