@@ -60,6 +60,11 @@ class CentralAudioQueue {
   // ✅ NOVO: Controle da rodada atual (para bloquear bord_1 na rodada 1)
   private currentRound: number = 0;
 
+  // ✅ FIX: Dedupe de question_read - evita leitura duplicada da mesma pergunta
+  private lastQuestionReadLabel: string | null = null;
+  private lastQuestionReadTime: number = 0;
+  private readonly QUESTION_READ_DEDUPE_MS = 8000; // 8 segundos de janela
+
   /**
    * ✅ NOVO: Define a rodada atual (para bloquear bord_1 na rodada 1)
    */
@@ -130,8 +135,36 @@ class CentralAudioQueue {
     } = options;
     
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = Date.now();
     
-    // ✅ NOVO: Bloquear bord_1.mp3 na primeira rodada
+    // ✅ FIX: Dedupe de QUESTION_READ - bloqueia leituras duplicadas da mesma pergunta
+    if (priority === AUDIO_PRIORITY.QUESTION_READ) {
+      const dedupeKey = label || audioUrl;
+      const timeSinceLast = now - this.lastQuestionReadTime;
+      
+      // Se mesmo label/URL dentro da janela de dedupe, ignora
+      if (this.lastQuestionReadLabel === dedupeKey && timeSinceLast < this.QUESTION_READ_DEDUPE_MS) {
+        console.log(`[CentralAudioQueue] ⛔ QUESTION_READ duplicado bloqueado: "${dedupeKey}" (${timeSinceLast}ms atrás)`);
+        onComplete?.();
+        return id;
+      }
+      
+      // Também verifica se já está na fila ou tocando
+      const isInQueue = this.queue.some(q => q.priority === AUDIO_PRIORITY.QUESTION_READ);
+      const isCurrentlyPlaying = this.currentItem?.priority === AUDIO_PRIORITY.QUESTION_READ;
+      
+      if (isInQueue || isCurrentlyPlaying) {
+        console.log(`[CentralAudioQueue] ⛔ QUESTION_READ bloqueado - já existe na fila ou tocando`);
+        onComplete?.();
+        return id;
+      }
+      
+      // Atualiza rastreamento
+      this.lastQuestionReadLabel = dedupeKey;
+      this.lastQuestionReadTime = now;
+    }
+    
+    // ✅ Bloquear bord_1.mp3 na primeira rodada
     if (audioUrl.includes('bord_1.mp3') && this.currentRound <= 1) {
       console.log(`[CentralAudioQueue] ⛔ bord_1.mp3 bloqueado na rodada ${this.currentRound}`);
       onComplete?.();
@@ -140,7 +173,6 @@ class CentralAudioQueue {
     
     // Limitar bordões
     if (priority === AUDIO_PRIORITY.BORDAO) {
-      const now = Date.now();
       if (now - this.lastBordaoTime < this.BORDAO_COOLDOWN) {
         console.log(`[CentralAudioQueue] ⏸️ Bordão ignorado (cooldown: ${Math.ceil((this.BORDAO_COOLDOWN - (now - this.lastBordaoTime)) / 1000)}s)`);
         onComplete?.();
