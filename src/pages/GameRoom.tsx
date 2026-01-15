@@ -488,6 +488,9 @@ function GameRoomContent() {
   // Ref para rastrear última narração executada
   const lastExecutedNarrationRef = useRef<string | null>(null);
   
+  // ✅ FIX: Ref para evitar leitura duplicada de pergunta por ID específico
+  const hasReadQuestionRef = useRef<string | null>(null);
+  
   // HÓRUS 2.0: Efeito único baseado em lastNarrationId
   useEffect(() => {
     // Não faz nada se não tiver ID de narração
@@ -524,12 +527,21 @@ function GameRoomContent() {
 
         const isFirstRound = currentRoundRef.current === 1;
 
+        // ✅ FIX: Verificar se já lemos esta pergunta específica
+        if (hasReadQuestionRef.current === questionId) {
+          console.log('[GameRoom] Already read question:', questionId?.substring(0, 8), '- skipping');
+          break;
+        }
+        
+        // Marcar como lida ANTES de agendar o áudio
+        hasReadQuestionRef.current = questionId || null;
+
         // Função que toca a leitura da pergunta
         const playQuestionRead = async () => {
           if (gameState.room?.current_status !== 'question') return;
           if (!questionText) return;
 
-          console.log('[GameRoom] Playing question read audio');
+          console.log('[GameRoom] Playing question read audio for:', questionId?.substring(0, 8));
           
           if (isOnlineMode) {
             const res = await getHorus2Audio('question_read', questionText);
