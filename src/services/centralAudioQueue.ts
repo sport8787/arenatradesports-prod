@@ -87,14 +87,22 @@ class CentralAudioQueue {
   resume(): void {
     console.log('[CentralAudioQueue] ▶️ Resuming');
     this.isPaused = false;
-    
-    // Se tinha áudio pausado, continua
-    if (this.currentAudio && this.currentAudio.paused) {
+
+    // Se tinha áudio pausado POR INTERRUPÇÃO (não finalizado), continua
+    // ⚠️ Importante: não deve dar play novamente se o áudio já terminou (ended=true),
+    // senão a mesma fala pode tocar 2x.
+    if (
+      this.currentAudio &&
+      this.currentAudio.paused &&
+      !this.currentAudio.ended &&
+      this.currentAudio.currentTime > 0
+    ) {
       this.currentAudio.play().catch(console.error);
-    } else {
-      // Senão, processa fila
-      this.processNext();
+      return;
     }
+
+    // Senão, processa fila
+    void this.processNext();
   }
 
   /**
