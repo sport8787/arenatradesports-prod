@@ -48,7 +48,8 @@ export const MOMENT_AUDIO_MAP: Record<string, string> = {
   'wrong_answer': 'erro',
   'bluff_fail': 'erro',
   
-  // Acordo de Ouro / Proposta
+  // Acordo de Ouro / Proposta (✅ FIX: adicionar 'acordo' como chave)
+  'acordo': 'acordo',
   'bribe_offer': 'acordo',
   'bribe_intro': 'acordo',
   'post_vote_bribe': 'acordo',

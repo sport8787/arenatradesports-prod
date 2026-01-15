@@ -266,6 +266,9 @@ function SinglePlayerRoomContent() {
   const questionReadTimeoutRef = useRef<number | null>(null);
   const thinkingTauntTimeoutRef = useRef<number | null>(null);
   const questionStartTimeRef = useRef<number | null>(null);
+  
+  // ✅ FIX: Ref para evitar leitura duplicada de pergunta
+  const hasReadQuestionRef = useRef<string | null>(null);
 
   // Keep latest references without forcing the narration effect to re-run on every render
   const currentQuestionRef = useRef<Question | null>(null);
@@ -333,9 +336,21 @@ function SinglePlayerRoomContent() {
 
     if (!currentQuestionId) return;
     
-    // HÓRUS 2.0: Prevent duplicate narration
+    // ✅ FIX: Verificar se já lemos esta pergunta específica
+    if (hasReadQuestionRef.current === currentQuestionId) {
+      console.log('[QuestionNarration] Already read question:', currentQuestionId.substring(0, 8), '- skipping');
+      return;
+    }
+    
+    // HÓRUS 2.0: Prevent duplicate narration (double-check)
     const narrationId = `question_${currentQuestionId}`;
-    if (lastNarrationIdRef.current === narrationId) return;
+    if (lastNarrationIdRef.current === narrationId) {
+      console.log('[QuestionNarration] Duplicate narration blocked:', narrationId);
+      return;
+    }
+    
+    // ✅ Marcar como lida ANTES de agendar o áudio
+    hasReadQuestionRef.current = currentQuestionId;
     lastNarrationIdRef.current = narrationId;
     
     // Track when question started for timeout detection
@@ -347,6 +362,7 @@ function SinglePlayerRoomContent() {
       const q = currentQuestionRef.current;
       if (!q || q.id !== currentQuestionId) return;
 
+      console.log('[QuestionNarration] Playing audio for question:', currentQuestionId.substring(0, 8));
       playHorus2Audio('question_read', q.question_text);
     }, 800);
     
@@ -540,6 +556,10 @@ function SinglePlayerRoomContent() {
     setHasRecordedAudio(false);
     setVoiceMetrics(null);
     setVoiceAnalysis(null);
+    
+    // ✅ FIX: Resetar controle de leitura de pergunta
+    // Não reseta aqui pois a nova pergunta terá um ID diferente
+    // A verificação é feita por ID, não por flag global
 
     // Preload audio DISABLED to prevent ElevenLabs credit consumption
     // Audio will only be generated at the exact moment of question display
@@ -828,11 +848,16 @@ function SinglePlayerRoomContent() {
     setIsHorusListening(true);
     setHorusPhrase('Seu destino já está selado, mas eu tenho um acordo...');
     
-    // Play Horus's bribe audio when player clicks listen
-    playHorus2Audio('acordo', undefined, () => {
-      // Audio finished - choices will appear automatically via component timer
-      console.log('[Hórus Offer] Audio complete');
-    });
+    // ✅ FIX: Play Horus's bribe audio with better logging and error handling
+    console.log('[Hórus Offer] Starting acordo audio playback...');
+    try {
+      await playHorus2Audio('acordo', undefined, () => {
+        // Audio finished - choices will appear automatically via component timer
+        console.log('[Hórus Offer] Audio complete - acordo finished');
+      });
+    } catch (error) {
+      console.error('[Hórus Offer] Error playing acordo audio:', error);
+    }
   };
 
   // Handle when player accepts Horus bribe in bribe_offer phase (cash out before seeing result)

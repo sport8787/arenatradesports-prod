@@ -49,17 +49,20 @@ export default function Index() {
   const [showDailyBonus, setShowDailyBonus] = useState(false);
   const [isClaimingDailyBonus, setIsClaimingDailyBonus] = useState(false);
   const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
-  const [showOpening, setShowOpening] = useState(() => {
-    // Check if we should show opening (first visit after login)
-    const shouldShow = sessionStorage.getItem('showOpening') === 'true';
-    if (shouldShow) {
-      sessionStorage.removeItem('showOpening');
-    }
-    return shouldShow;
-  });
+  // ✅ FIX: Estado inicial sem lógica de sessionStorage para evitar problemas de hidratação
+  const [showOpening, setShowOpening] = useState(false);
 
   // Audio preloader DISABLED on landing page to prevent any ElevenLabs usage before playing
   const audioPreloader = useAudioPreloader(false);
+
+  // ✅ FIX: Verificar showOpening via useEffect para evitar problemas de estado
+  useEffect(() => {
+    const shouldShow = sessionStorage.getItem('showOpening') === 'true';
+    if (shouldShow) {
+      setShowOpening(true);
+      sessionStorage.removeItem('showOpening');
+    }
+  }, []);
 
   // Check for guest mode
   useEffect(() => {
@@ -295,10 +298,24 @@ export default function Index() {
 
   // Handle fake lobby completion - navigate to solo mode with shadow players
   const handleLobbyComplete = (shadowPlayers: { id: string; nickname: string; avatar: string; bluffVoteChance: number; claroVoteChance: number }[]) => {
-    // Store shadow players in sessionStorage for the single player room
-    sessionStorage.setItem('horusShadowPlayers', JSON.stringify(shadowPlayers));
-    sessionStorage.setItem('gamePhase', selectedPhase.toString());
-    navigate('/single-player?mode=horus');
+    // ✅ FIX: Validação de shadow players
+    if (!shadowPlayers || shadowPlayers.length === 0) {
+      console.error('[FakeLobby] Shadow players não definidos ou vazios');
+      toast({ title: 'Erro ao iniciar jogo', description: 'Não foi possível criar oponentes.', variant: 'destructive' });
+      setShowFakeLobby(false);
+      return;
+    }
+    
+    try {
+      // Store shadow players in sessionStorage for the single player room
+      sessionStorage.setItem('horusShadowPlayers', JSON.stringify(shadowPlayers));
+      sessionStorage.setItem('gamePhase', selectedPhase.toString());
+      navigate('/single-player?mode=horus');
+    } catch (error) {
+      console.error('[FakeLobby] Erro ao salvar shadow players:', error);
+      toast({ title: 'Erro ao iniciar jogo', variant: 'destructive' });
+      setShowFakeLobby(false);
+    }
   };
 
   // Handle daily bonus claim
