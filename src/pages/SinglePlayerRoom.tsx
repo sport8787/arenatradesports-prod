@@ -82,19 +82,24 @@ import {
   checkAndTriggerCognitiveRupture, 
   resetCognitiveRupture 
 } from '@/services/cognitiveRuptureService';
+import { 
+  BC_REWARDS,
+  createRewardsTracker,
+  calculateTotalRewards,
+  getRewardsBreakdown,
+  getSafeHarborCardReward,
+  generateMysteryBriefcaseReward,
+  logRewardsStatus,
+  GameRewardsTracker
+} from '@/services/bcRewardsService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
 
-// BluffCoin rewards
-const HOST_CORRECT_ANSWER = 100;
-const HOST_WRONG_PARTIAL_BLUFF = 200;
-const HOST_WRONG_FULL_BLUFF = 300;
-
 // Game progression constants
 const MAX_ROUNDS_EXTREME = 15; // Modo Extremo
 const INITIAL_BLUFFCOINS = 1000;
-const FINAL_ROUND_PRIZE = 1000000; // Fixed 1M prize for round 15
+const FINAL_ROUND_PRIZE = 1000000; // Fixed 1M prize for round 15 (PONTUAÇÃO, não BC)
 
 // Retorna o número máximo de rodadas baseado na fase do jogo
 const getMaxRoundsForPhase = (phase: 1 | 2 | 3): number => {
@@ -242,6 +247,10 @@ function SinglePlayerRoomContent() {
   const [showBriefcaseModal, setShowBriefcaseModal] = useState(false);
   const [showBriefcaseReveal, setShowBriefcaseReveal] = useState(false);
   const [briefcasePrize, setBriefcasePrize] = useState(0);
+  
+  // BC Rewards Tracker - rastreia todas as recompensas durante a partida
+  const [rewardsTracker, setRewardsTracker] = useState<GameRewardsTracker>(createRewardsTracker);
+  const [usedHorusDealThisRound, setUsedHorusDealThisRound] = useState(false);
   
   // Narrative Choice checkpoint (rodada 13)
   const [showNarrativeChoice, setShowNarrativeChoice] = useState(false);
@@ -633,12 +642,23 @@ function SinglePlayerRoomContent() {
     const victoryMsg = getVictoryMessage(currentGamePhase);
     
     if (playerAnsweredCorrectly) {
+      // Atualiza o tracker de recompensas
+      setRewardsTracker(prev => {
+        const updated = {
+          ...prev,
+          correctAnswers: prev.correctAnswers + 1,
+          completedGame: true,
+          wonFinalRound: currentGamePhase === 3, // Só marca vitória final no modo extremo
+        };
+        logRewardsStatus(updated);
+        return updated;
+      });
+      
       // VICTORY! 
-      // Extreme mode (phase 3) = 1M prize, others = accumulated prize + bonus
+      // Extreme mode (phase 3) = 1M prize (PONTUAÇÃO), others = accumulated prize + bonus
       if (currentGamePhase === 3) {
-        // Extreme mode - 1M prize
+        // Extreme mode - 1M prize (PONTUAÇÃO)
         setAccumulatedPrize(FINAL_ROUND_PRIZE);
-        setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
         setShowMoneyRain(true);
         
         stopHorus2Audio();
@@ -646,7 +666,15 @@ function SinglePlayerRoomContent() {
         victoryAudio.play().catch(console.error);
         playFanfare();
         
-        await persistWinnings(FINAL_ROUND_PRIZE, true);
+        // Calcula BC total acumulado durante a partida + vitória final
+        const updatedTracker = {
+          ...rewardsTracker,
+          correctAnswers: rewardsTracker.correctAnswers + 1,
+          completedGame: true,
+          wonFinalRound: true,
+        };
+        const totalBC = calculateTotalRewards(updatedTracker);
+        await persistWinnings(totalBC, true);
         
         if (myRanking) {
           updateSoloRankingStats({ 
@@ -660,19 +688,23 @@ function SinglePlayerRoomContent() {
         toast({ title: victoryMsg.title, description: victoryMsg.description });
       } else {
         // Quick (5) or Standard (10) mode - give phase reward
-        const phaseReward = phaseConfig?.bcReward || 0;
-        const bonusReward = phaseConfig?.bonusReward || 0;
-        const totalReward = PRIZE_LADDER[currentRound - 1] + bonusReward;
+        const totalReward = PRIZE_LADDER[currentRound - 1];
         
         setAccumulatedPrize(totalReward);
-        setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
         setShowMoneyRain(true);
         
         stopHorus2Audio();
         playHorus2Audio('victory');
         playFanfare();
         
-        await persistWinnings(totalReward, true);
+        // Calcula BC total acumulado durante a partida
+        const updatedTracker = {
+          ...rewardsTracker,
+          correctAnswers: rewardsTracker.correctAnswers + 1,
+          completedGame: true,
+        };
+        const totalBC = calculateTotalRewards(updatedTracker);
+        await persistWinnings(totalBC, true);
         
         if (myRanking) {
           updateSoloRankingStats({ 
@@ -894,13 +926,27 @@ function SinglePlayerRoomContent() {
     }
     // DIÁLOGOS DE RECONHECIMENTO DESATIVADOS: Hórus só fala no Observador Silencioso (5 acertos)
     
-    // Calculate rewards
-    let reward = HOST_CORRECT_ANSWER;
-    toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
-
-    setBluffcoins(prev => prev + reward);
+    // Atualiza o tracker de recompensas - resposta correta
+    setRewardsTracker(prev => {
+      const updated = { ...prev, correctAnswers: prev.correctAnswers + 1 };
+      logRewardsStatus(updated);
+      return updated;
+    });
     
-    // Prize is NOT cumulative - it REPLACES the previous value
+    // Se usou acordo Hórus E venceu, adiciona bônus
+    if (usedHorusDealThisRound) {
+      setRewardsTracker(prev => ({
+        ...prev,
+        horusDealWins: prev.horusDealWins + 1
+      }));
+      setUsedHorusDealThisRound(false);
+      toast({ title: `+${BC_REWARDS.HORUS_DEAL_WIN} BC`, description: 'Bônus Acordo Hórus!' });
+    }
+    
+    // Feedback de BC por resposta correta
+    toast({ title: `+${BC_REWARDS.CORRECT_ANSWER} BC`, description: 'Resposta correta!' });
+    
+    // Prize is NOT cumulative - it REPLACES the previous value (PONTUAÇÃO)
     const roundPrize = PRIZE_LADDER[currentRound - 1];
     setAccumulatedPrize(roundPrize);
 
@@ -1080,21 +1126,40 @@ function SinglePlayerRoomContent() {
     }
     
     // Calculate rewards (player survived even though they were bluffing)
-    let reward = 0;
-    
     if (playerAnsweredCorrectly) {
-      reward = HOST_CORRECT_ANSWER;
+      // Atualiza tracker - resposta correta
+      setRewardsTracker(prev => {
+        const updated = { ...prev, correctAnswers: prev.correctAnswers + 1 };
+        logRewardsStatus(updated);
+        return updated;
+      });
+      
+      // Se usou acordo Hórus E venceu, adiciona bônus
+      if (usedHorusDealThisRound) {
+        setRewardsTracker(prev => ({
+          ...prev,
+          horusDealWins: prev.horusDealWins + 1
+        }));
+        setUsedHorusDealThisRound(false);
+        toast({ title: `+${BC_REWARDS.HORUS_DEAL_WIN} BC`, description: 'Bônus Acordo Hórus!' });
+      }
+      
       // HÓRUS 2.0: Play victory audio for correct answer
       playHorus2Audio('correct_answer');
-      toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
+      toast({ title: `+${BC_REWARDS.CORRECT_ANSWER} BC`, description: 'Resposta correta!' });
     } else if (believeVotes > 0) {
       // Bluff successful
       // HÓRUS 2.0: Play bluff success audio
       playHorus2Audio('bluff_success');
       
       if (believeVotes === 3) {
-        reward = HOST_WRONG_FULL_BLUFF;
-        toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito!' });
+        // BLEFE PERFEITO - 120 BC
+        setRewardsTracker(prev => {
+          const updated = { ...prev, perfectBluffs: prev.perfectBluffs + 1 };
+          logRewardsStatus(updated);
+          return updated;
+        });
+        toast({ title: `+${BC_REWARDS.PERFECT_BLUFF} BC`, description: 'Blefe perfeito!' });
         
         // Trigger CinematicEvent for Blefe Perfeito!
         setCinematicEventType('blefe_perfeito');
@@ -1102,9 +1167,14 @@ function SinglePlayerRoomContent() {
         setCinematicSubtitle('Todos caíram na sua lábia...');
         setCinematicAudioPath('/audio/horus/blefe_perfeito.mp3');
         setShowCinematicEvent(true);
-      } else {
-        reward = HOST_WRONG_PARTIAL_BLUFF;
-        toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+      } else if (believeVotes === 2) {
+        // BLEFE BOM - 60 BC
+        setRewardsTracker(prev => {
+          const updated = { ...prev, goodBluffs: prev.goodBluffs + 1 };
+          logRewardsStatus(updated);
+          return updated;
+        });
+        toast({ title: `+${BC_REWARDS.GOOD_BLUFF} BC`, description: 'Blefe bom!' });
       }
       
       // Show bluff feedback (only if not showing cinematic)
@@ -1118,10 +1188,8 @@ function SinglePlayerRoomContent() {
         }, 1200);
       }
     }
-
-    setBluffcoins(prev => prev + reward);
     
-    // Prize is NOT cumulative - it REPLACES the previous value
+    // Prize is NOT cumulative - it REPLACES the previous value (PONTUAÇÃO)
     const roundPrize = PRIZE_LADDER[currentRound - 1];
     setAccumulatedPrize(roundPrize);
 
