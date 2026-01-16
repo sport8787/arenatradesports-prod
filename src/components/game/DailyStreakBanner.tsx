@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Gift, X, Check } from 'lucide-react';
+import { Flame, Gift, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { BC_REWARDS } from '@/services/bcRewardsService';
+import { GoldenParticles } from './GoldenParticles';
 
 interface DailyStreakBannerProps {
   currentStreak: number;
@@ -20,6 +21,7 @@ export default function DailyStreakBanner({
   const { profile } = useAuth();
   const [claiming, setClaiming] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
   const canClaim = lastStreakDate !== today;
@@ -54,6 +56,9 @@ export default function DailyStreakBanner({
       const bonusAmount = typeof data === 'number' ? data : 0;
       
       if (bonusAmount > 0) {
+        // Trigger celebration particles
+        setShowParticles(true);
+        
         toast({
           title: `🔥 Streak Dia ${nextStreakDay}!`,
           description: `+${bonusAmount} BC adicionados à sua carteira!`,
@@ -82,10 +87,17 @@ export default function DailyStreakBanner({
   if (!canClaim || dismissed || !profile) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+    <>
+      {/* Golden Particles Celebration */}
+      <GoldenParticles 
+        isActive={showParticles} 
+        onComplete={() => setShowParticles(false)} 
+      />
+      
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         className="relative overflow-hidden rounded-xl border border-orange-500/50 bg-gradient-to-r from-orange-500/20 via-amber-500/20 to-orange-500/20"
       >
@@ -182,7 +194,8 @@ export default function DailyStreakBanner({
             );
           })}
         </div>
-      </motion.div>
-    </AnimatePresence>
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
