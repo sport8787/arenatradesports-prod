@@ -7,9 +7,14 @@ export interface Profile {
   user_id: string;
   username: string;
   bluff_coins: number;
+  bc_balance: number;
+  nt_balance: number;
   matches_played: number;
   wins: number;
   rank_title: string;
+  daily_streak_count: number;
+  last_streak_date: string | null;
+  last_daily_bonus: string | null;
   created_at: string;
   updated_at: string;
 }
