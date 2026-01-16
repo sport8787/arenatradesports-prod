@@ -66,8 +66,10 @@ export type Database = {
           bc_balance: number
           bluff_coins: number
           created_at: string
+          daily_streak_count: number
           id: string
           last_daily_bonus: string | null
+          last_streak_date: string | null
           matches_played: number
           nt_balance: number
           rank_title: string
@@ -80,8 +82,10 @@ export type Database = {
           bc_balance?: number
           bluff_coins?: number
           created_at?: string
+          daily_streak_count?: number
           id?: string
           last_daily_bonus?: string | null
+          last_streak_date?: string | null
           matches_played?: number
           nt_balance?: number
           rank_title?: string
@@ -94,8 +98,10 @@ export type Database = {
           bc_balance?: number
           bluff_coins?: number
           created_at?: string
+          daily_streak_count?: number
           id?: string
           last_daily_bonus?: string | null
+          last_streak_date?: string | null
           matches_played?: number
           nt_balance?: number
           rank_title?: string
@@ -394,6 +400,7 @@ export type Database = {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
       }
+      claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
