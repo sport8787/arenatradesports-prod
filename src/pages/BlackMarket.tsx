@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useRankings } from '@/hooks/useRankings';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
@@ -215,6 +215,34 @@ export default function BlackMarket() {
             ))}
           </div>
         </section>
+
+      {/* How to Earn BC Button */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-center"
+        >
+          <Link to="/como-ganhar-bc">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="
+                w-full max-w-md mx-auto
+                px-8 py-4 rounded-xl
+                bg-gradient-to-r from-gold/20 to-amber-500/20
+                border-2 border-gold/50 hover:border-gold
+                text-gold
+                font-orbitron font-bold text-lg
+                flex items-center justify-center gap-3
+                transition-all hover:shadow-lg hover:shadow-gold/20
+              "
+            >
+              <Coins className="w-5 h-5" />
+              COMO CONQUISTAR BLUFFCOINS
+            </motion.button>
+          </Link>
+        </motion.section>
 
         {/* Locked CTA Button */}
         <motion.section

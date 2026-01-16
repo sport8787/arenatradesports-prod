@@ -11,6 +11,7 @@ import GameRoom from "./pages/GameRoom";
 import SinglePlayerRoom from "./pages/SinglePlayerRoom";
 import RankingsPage from "./pages/RankingsPage";
 import BlackMarket from "./pages/BlackMarket";
+import HowToEarnBC from "./pages/HowToEarnBC";
 import HowToPlay from "./pages/HowToPlay";
 import AdminQuestions from "./pages/AdminQuestions";
 import NotFound from "./pages/NotFound";
@@ -59,6 +60,7 @@ const App = () => {
               <Route path="/single-player" element={<SinglePlayerRoom />} />
               <Route path="/rankings" element={<RankingsPage />} />
               <Route path="/mercado-negro" element={<BlackMarket />} />
+              <Route path="/como-ganhar-bc" element={<HowToEarnBC />} />
               <Route path="/como-jogar" element={<HowToPlay />} />
               <Route path="/admin/questions" element={<AdminQuestions />} />
               <Route path="*" element={<NotFound />} />
