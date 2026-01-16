@@ -92,9 +92,45 @@ const HOST_WRONG_PARTIAL_BLUFF = 200;
 const HOST_WRONG_FULL_BLUFF = 300;
 
 // Game progression constants
-const MAX_ROUNDS = 15;
+const MAX_ROUNDS_EXTREME = 15; // Modo Extremo
 const INITIAL_BLUFFCOINS = 1000;
 const FINAL_ROUND_PRIZE = 1000000; // Fixed 1M prize for round 15
+
+// Retorna o número máximo de rodadas baseado na fase do jogo
+const getMaxRoundsForPhase = (phase: 1 | 2 | 3): number => {
+  switch (phase) {
+    case 1: return 5;  // Aquecimento
+    case 2: return 10; // Desafio
+    case 3: return MAX_ROUNDS_EXTREME; // Extremo
+    default: return MAX_ROUNDS_EXTREME;
+  }
+};
+
+// Mensagens de vitória por fase
+const getVictoryMessage = (phase: 1 | 2 | 3): { title: string; description: string } => {
+  switch (phase) {
+    case 1:
+      return {
+        title: '🎉 AQUECIMENTO COMPLETO!',
+        description: 'Parabéns! Você completou o desafio de aquecimento com sucesso!'
+      };
+    case 2:
+      return {
+        title: '🏆 DESAFIO CONQUISTADO!',
+        description: 'Incrível! Você dominou o desafio e provou seu valor!'
+      };
+    case 3:
+      return {
+        title: '👑 VITÓRIA TOTAL!',
+        description: 'Você completou todas as 15 rodadas contra a IA!'
+      };
+    default:
+      return {
+        title: '🎉 VITÓRIA!',
+        description: 'Parabéns pela conquista!'
+      };
+  }
+};
 
 // Bluff feedback phrases
 const BLUFF_PHRASES = [
@@ -578,45 +614,78 @@ function SinglePlayerRoomContent() {
     // NOTE: Mycroft audio removed from here - it was playing at wrong time
     // Now we only play audio after jury analysis is complete
     
-    // Round 15: Skip recording/voting, go directly to results
-    if (currentRound === MAX_ROUNDS) {
-      setTimeout(() => processRound15Results(), 1500);
+    // Final round: Skip recording/voting, go directly to results
+    const maxRounds = getMaxRoundsForPhase(currentGamePhase);
+    if (currentRound === maxRounds) {
+      setTimeout(() => processFinalRoundResults(), 1500);
     } else {
       setGamePhase('recording');
     }
   };
 
-  // Special Round 15 processing (no bluff, pure trivia)
-  const processRound15Results = async () => {
+  // Final round processing (no bluff for extreme mode, instant victory for quick/standard modes)
+  const processFinalRoundResults = async () => {
     if (!currentQuestion || !confirmedAnswer) return;
     
     const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
+    const maxRounds = getMaxRoundsForPhase(currentGamePhase);
+    const phaseConfig = economy.getPhaseConfig(currentGamePhase);
+    const victoryMsg = getVictoryMessage(currentGamePhase);
     
     if (playerAnsweredCorrectly) {
-      // VICTORY! Win exactly 1,000,000 BC
-      setAccumulatedPrize(FINAL_ROUND_PRIZE);
-      setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
-      setShowMoneyRain(true);
-      
-      // Play the special victory audio for 1 million
-      stopHorus2Audio();
-      const victoryAudio = new Audio('/audio/horus/victory_1m.mp3');
-      victoryAudio.play().catch(console.error);
-      playFanfare();
-      
-      // Persist winnings to profile
-      await persistWinnings(FINAL_ROUND_PRIZE, true);
-      
-      if (myRanking) {
-        updateSoloRankingStats({ 
-          addGame: true, 
-          addWin: true,
-          setBestRound: 15,
-          addPoints: FINAL_ROUND_PRIZE
-        });
+      // VICTORY! 
+      // Extreme mode (phase 3) = 1M prize, others = accumulated prize + bonus
+      if (currentGamePhase === 3) {
+        // Extreme mode - 1M prize
+        setAccumulatedPrize(FINAL_ROUND_PRIZE);
+        setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
+        setShowMoneyRain(true);
+        
+        stopHorus2Audio();
+        const victoryAudio = new Audio('/audio/horus/victory_1m.mp3');
+        victoryAudio.play().catch(console.error);
+        playFanfare();
+        
+        await persistWinnings(FINAL_ROUND_PRIZE, true);
+        
+        if (myRanking) {
+          updateSoloRankingStats({ 
+            addGame: true, 
+            addWin: true,
+            setBestRound: maxRounds,
+            addPoints: FINAL_ROUND_PRIZE
+          });
+        }
+        
+        toast({ title: victoryMsg.title, description: victoryMsg.description });
+      } else {
+        // Quick (5) or Standard (10) mode - give phase reward
+        const phaseReward = phaseConfig?.bcReward || 0;
+        const bonusReward = phaseConfig?.bonusReward || 0;
+        const totalReward = PRIZE_LADDER[currentRound - 1] + bonusReward;
+        
+        setAccumulatedPrize(totalReward);
+        setBluffcoins(prev => prev + HOST_CORRECT_ANSWER);
+        setShowMoneyRain(true);
+        
+        stopHorus2Audio();
+        playHorus2Audio('victory');
+        playFanfare();
+        
+        await persistWinnings(totalReward, true);
+        
+        if (myRanking) {
+          updateSoloRankingStats({ 
+            addGame: true, 
+            addWin: true,
+            setBestRound: maxRounds,
+            addPoints: totalReward
+          });
+        }
+        
+        toast({ title: victoryMsg.title, description: victoryMsg.description });
       }
       
-      toast({ title: '🏆 1 MILHÃO!', description: 'Você conquistou o prêmio máximo!' });
       setGamePhase('victory');
     } else {
       // ELIMINATION - lose all or fall to safe amount
@@ -624,7 +693,6 @@ function SinglePlayerRoomContent() {
       
       const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
       
-      // Persist safe amount if any
       if (finalPrize > 0) {
         await persistWinnings(finalPrize, false);
       }
@@ -632,7 +700,7 @@ function SinglePlayerRoomContent() {
       if (myRanking) {
         updateSoloRankingStats({ 
           addGame: true, 
-          setBestRound: 15,
+          setBestRound: maxRounds,
           addPoints: finalPrize
         });
       }
@@ -940,8 +1008,9 @@ function SinglePlayerRoomContent() {
     }
     
     if (shouldEliminate) {
+      const maxRounds = getMaxRoundsForPhase(currentGamePhase);
       // Player is about to be eliminated - play the mockery
-      if (currentRound === MAX_ROUNDS) {
+      if (currentRound === maxRounds) {
         // HÓRUS 2.0: All-in loss audio
         playHorus2Audio('all_in_loss');
         
@@ -1094,7 +1163,8 @@ function SinglePlayerRoomContent() {
   };
 
   const nextRound = async () => {
-    if (currentRound >= MAX_ROUNDS) return;
+    const maxRounds = getMaxRoundsForPhase(currentGamePhase);
+    if (currentRound >= maxRounds) return;
     
     const nextRoundNum = currentRound + 1;
     
@@ -1194,8 +1264,9 @@ function SinglePlayerRoomContent() {
       }
     }
     
-    // Show briefcase modal before round 15
-    if (nextRoundNum === MAX_ROUNDS) {
+    // Show briefcase modal before round 15 (only in Extreme mode)
+    const maxRounds = getMaxRoundsForPhase(currentGamePhase);
+    if (nextRoundNum === maxRounds && currentGamePhase === 3) {
       setShowBriefcaseModal(true);
     } else {
       startForensicsSession();
@@ -1479,8 +1550,9 @@ function SinglePlayerRoomContent() {
                             setConfirmedAnswer(randomAnswer);
                             setShowAnswer(true);
                             playReveal();
-                            if (currentRound === MAX_ROUNDS) {
-                              setTimeout(() => processRound15Results(), 1500);
+                            const maxRounds = getMaxRoundsForPhase(currentGamePhase);
+                            if (currentRound === maxRounds) {
+                              setTimeout(() => processFinalRoundResults(), 1500);
                             } else {
                               setGamePhase('recording');
                             }
@@ -1500,8 +1572,8 @@ function SinglePlayerRoomContent() {
                     />
                   </div>
 
-                  {/* Round 15 Special Banner */}
-                  {currentRound === MAX_ROUNDS && (
+                  {/* Final Round Special Banner - Only for Extreme mode */}
+                  {currentRound === getMaxRoundsForPhase(currentGamePhase) && currentGamePhase === 3 && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -1538,7 +1610,7 @@ function SinglePlayerRoomContent() {
                       {confirmedAnswer ? (
                         <><Unlock className="w-5 h-5 mr-2" /> Resposta Revelada</>
                       ) : selectedAnswer ? (
-                        currentRound === MAX_ROUNDS ? (
+                        currentRound === getMaxRoundsForPhase(currentGamePhase) && currentGamePhase === 3 ? (
                           <><Flame className="w-5 h-5 mr-2" /> CONFIRMAR - VALE 1 MILHÃO!</>
                         ) : (
                           <><Unlock className="w-5 h-5 mr-2" /> Confirmar e Revelar Resposta</>
@@ -1880,7 +1952,7 @@ function SinglePlayerRoomContent() {
                   </motion.div>
                   
                   <h2 className="font-orbitron text-3xl text-gold">
-                    {currentRound === MAX_ROUNDS ? 'VITÓRIA TOTAL!' : 'CASH OUT!'}
+                    {getVictoryMessage(currentGamePhase).title}
                   </h2>
                   
                   <p className="text-2xl font-orbitron text-gold">
@@ -1888,10 +1960,7 @@ function SinglePlayerRoomContent() {
                   </p>
                   
                   <p className="text-muted-foreground">
-                    {currentRound === MAX_ROUNDS 
-                      ? 'Você completou todas as 15 rodadas contra a IA!'
-                      : `Você saiu com lucro na rodada ${currentRound}!`
-                    }
+                    {getVictoryMessage(currentGamePhase).description}
                   </p>
 
                   <div className="flex flex-col gap-3 pt-4">
@@ -2034,7 +2103,7 @@ function SinglePlayerRoomContent() {
       <CashOutDialog
         show={showCashOutDialog}
         currentRound={currentRound}
-        maxRounds={MAX_ROUNDS}
+        maxRounds={getMaxRoundsForPhase(currentGamePhase)}
         accumulatedPrize={accumulatedPrize}
         potentialPrize={PRIZE_LADDER[PRIZE_LADDER.length - 1]}
         onConfirm={handleCashOut}
@@ -2053,7 +2122,7 @@ function SinglePlayerRoomContent() {
         isListening={isHorusListening}
         isLoading={false}
         currentPhrase={horusPhrase}
-        isAllIn={currentRound === MAX_ROUNDS}
+        isAllIn={currentRound === getMaxRoundsForPhase(currentGamePhase) && currentGamePhase === 3}
         playerGotCorrect={false}
       />
 
