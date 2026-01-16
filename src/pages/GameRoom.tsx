@@ -91,19 +91,19 @@ import {
   checkAndTriggerCognitiveRupture, 
   resetCognitiveRupture 
 } from '@/services/cognitiveRuptureService';
+import { 
+  BC_REWARDS, 
+  createRewardsTracker, 
+  calculateTotalRewards, 
+  getSafeHarborCardReward,
+  generateMysteryBriefcaseReward,
+  GameRewardsTracker 
+} from '@/services/bcRewardsService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
 const DOUBT_COST = 100;
 const DETECTOR_COST = 150;
-
-// BluffCoin rewards - Host
-const HOST_CORRECT_ANSWER = 100;
-const HOST_WRONG_PARTIAL_BLUFF = 200; // At least 1 jury voted CLARO
-const HOST_WRONG_FULL_BLUFF = 300;    // All jury voted CLARO
-
-// BluffCoin rewards - Jury
-const JURY_CORRECT_READING = 50;
 
 // Game progression constants
 const MAX_ROUNDS = 15;
@@ -336,6 +336,9 @@ function GameRoomContent() {
   // Narrative Choice checkpoint (rodada 13)
   const [showNarrativeChoice, setShowNarrativeChoice] = useState(false);
   const narrativeEngineRef = useRef(getNarrativeEngine(displayNickname));
+  
+  // BC Rewards tracker - rastreia todas as recompensas durante a partida
+  const [rewardsTracker, setRewardsTracker] = useState<GameRewardsTracker>(createRewardsTracker);
 
   // Persist game winnings to authenticated user's profile using atomic RPC
   const persistGameResult = async (amount: number) => {
@@ -978,19 +981,28 @@ function GameRoomContent() {
         
         // Check if game completed (all 15 rounds)
         if (currentRound === MAX_ROUNDS) {
+          // Mark final victory in rewardsTracker
+          const finalTracker = {
+            ...rewardsTracker,
+            completedGame: true,
+            wonFinalRound: true,
+            correctAnswers: rewardsTracker.correctAnswers + (playerGotCorrect ? 1 : 0)
+          };
+          setRewardsTracker(finalTracker);
+          
           setGameCompleted(true);
           playFanfare();
           
-          // Persist the 1 million prize to authenticated user's profile
-          const FINAL_PRIZE = PRIZE_LADDER[PRIZE_LADDER.length - 1]; // 1,000,000
-          await persistGameResult(FINAL_PRIZE);
+          // Calculate and persist total BC rewards
+          const totalBC = calculateTotalRewards(finalTracker);
+          await persistGameResult(totalBC);
           
           // Play special victory audio for 1 million
           stopHorus2Audio();
           const victoryAudio = new Audio('/audio/horus/victory_1m.mp3');
           victoryAudio.play().catch(console.error);
           
-          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${FINAL_PRIZE.toLocaleString()} BluffCoins!` });
+          toast({ title: '🏆 VITÓRIA TOTAL!', description: `Você conquistou ${totalBC.toLocaleString()} BC!` });
         }
       }
     }
@@ -1000,30 +1012,31 @@ function GameRoomContent() {
       const hostPlayer = gameState.players.find(p => p.session_id === gameState.room?.host_id);
       
       if (hostPlayer) {
-        // HOST REWARDS
+        // HOST REWARDS - usando BC_REWARDS centralizados
         if (playerGotCorrect) {
-          await updateBluffcoins(hostPlayer.id, HOST_CORRECT_ANSWER);
+          await updateBluffcoins(hostPlayer.id, BC_REWARDS.CORRECT_ANSWER);
         }
         
         // Bluff rewards (only for WRONG answers where jury believed)
         if (!playerGotCorrect && believeVotes > 0) {
           if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
-            await updateBluffcoins(hostPlayer.id, HOST_WRONG_FULL_BLUFF);
-          } else {
-            await updateBluffcoins(hostPlayer.id, HOST_WRONG_PARTIAL_BLUFF);
+            // Blefe perfeito - todos acreditaram
+            await updateBluffcoins(hostPlayer.id, BC_REWARDS.PERFECT_BLUFF);
+          } else if (believeVotes >= 2) {
+            // Blefe bom - 2 desafiantes
+            await updateBluffcoins(hostPlayer.id, BC_REWARDS.GOOD_BLUFF);
           }
         }
       }
       
       // JURY REWARDS + DETECTIVE SCORE UPDATES - Host updates all jury members
       for (const vote of juryVotes) {
-        const correctReading = 
+        const correctReadingVote = 
           (!playerGotCorrect && vote.vote_type === 'doubt') || 
           (playerGotCorrect && vote.vote_type === 'believe');
         
-        if (correctReading) {
-          await updateBluffcoins(vote.player_id, JURY_CORRECT_READING);
-          
+        if (correctReadingVote) {
+          // Desafiante certeiro recebe recompensa no final da partida
           // Update detective score for correct reading (+1 point)
           const juryPlayer = gameState.players.find(p => p.id === vote.player_id);
           if (juryPlayer) {
@@ -1041,10 +1054,14 @@ function GameRoomContent() {
       const myVote = gameState.votes.find(v => v.player_id === gameState.myPlayer?.id);
       
       if (isCurrentPlayer) {
-        // Host ranking updates and toasts - points match BluffCoins earned
+        // Host ranking updates and toasts - usando BC_REWARDS
+        // Atualiza o rewardsTracker para cálculo no final do jogo
         if (playerGotCorrect) {
-          await updateRankingStats({ addPoints: HOST_CORRECT_ANSWER });
-          toast({ title: `+${HOST_CORRECT_ANSWER} BluffCoins`, description: 'Resposta correta!' });
+          setRewardsTracker(prev => ({
+            ...prev,
+            correctAnswers: prev.correctAnswers + 1
+          }));
+          toast({ title: `+${BC_REWARDS.CORRECT_ANSWER} BC`, description: 'Resposta correta!' });
         }
         if (!playerGotCorrect && believeVotes > 0) {
           // Check if a bonus card is being unlocked - if so, skip bluff feedback
@@ -1066,27 +1083,46 @@ function GameRoomContent() {
           }
           
           if (believeVotes === totalJuryVotes && totalJuryVotes > 0) {
-            await updateRankingStats({ addPoints: HOST_WRONG_FULL_BLUFF, addSuccessfulBluff: true });
-            toast({ title: `+${HOST_WRONG_FULL_BLUFF} BluffCoins`, description: 'Blefe perfeito! Todos acreditaram!' });
-          } else {
-            await updateRankingStats({ addPoints: HOST_WRONG_PARTIAL_BLUFF, addSuccessfulBluff: true });
-            toast({ title: `+${HOST_WRONG_PARTIAL_BLUFF} BluffCoins`, description: 'Blefe parcial!' });
+            setRewardsTracker(prev => ({
+              ...prev,
+              perfectBluffs: prev.perfectBluffs + 1
+            }));
+            toast({ title: `+${BC_REWARDS.PERFECT_BLUFF} BC`, description: 'Blefe perfeito! Todos acreditaram!' });
+          } else if (believeVotes >= 2) {
+            setRewardsTracker(prev => ({
+              ...prev,
+              goodBluffs: prev.goodBluffs + 1
+            }));
+            toast({ title: `+${BC_REWARDS.GOOD_BLUFF} BC`, description: 'Blefe bom!' });
+          }
+          
+          // Track cartas bônus
+          if (!hasGuaranteedPrize && believeVotes >= 2) {
+            setRewardsTracker(prev => ({
+              ...prev,
+              safeHarborUnlocked: true,
+              safeHarborRound: currentRound
+            }));
+          }
+          if (!hasImmunityCard && believeVotes >= 3) {
+            setRewardsTracker(prev => ({
+              ...prev,
+              immunityUnlocked: true
+            }));
           }
         }
       } else if (myVote) {
-        // Jury ranking updates and toasts - points match BluffCoins earned
-        const correctReading = 
+        // Jury ranking updates and toasts
+        const correctReadingJury = 
           (!playerGotCorrect && myVote.vote_type === 'doubt') || 
           (playerGotCorrect && myVote.vote_type === 'believe');
         
-        if (correctReading) {
-          await updateRankingStats({
-            addPoints: JURY_CORRECT_READING,
-            addBluffDetected: myVote.vote_type === 'doubt',
-          });
-          toast({ title: `+${JURY_CORRECT_READING} BluffCoins`, description: 'Leitura correta!' });
-        } else {
-          await updateRankingStats({ addTimesFooled: true });
+        if (correctReadingJury) {
+          setRewardsTracker(prev => ({
+            ...prev,
+            challengerCorrectVotes: prev.challengerCorrectVotes + 1
+          }));
+          toast({ title: `+1 voto correto`, description: 'Leitura correta!' });
         }
       }
     }
@@ -1164,6 +1200,7 @@ function GameRoomContent() {
     setDetectorUsed(false);
     setHostEliminated(false);
     setBribeOffersCount(0); // Reset bribe offers counter for new host
+    setRewardsTracker(createRewardsTracker()); // Reset BC rewards tracker
     await resetHistory(); // Reset question pool so new host gets fresh questions
 
     // Show conquest achievement to new host
@@ -1275,6 +1312,7 @@ function GameRoomContent() {
     setHostEliminated(false);
     setDestinyRevealed(false); // Reset destiny reveal state
     setBribeOffersCount(0); // Reset bribe offers counter for new game
+    setRewardsTracker(createRewardsTracker()); // Reset BC rewards tracker
     
     // Reset pressure timer state for new game
     resetPressureState();
