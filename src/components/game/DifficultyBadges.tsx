@@ -19,7 +19,7 @@ export default function DifficultyBadges() {
       difficulty: 1, 
       icon: '⚡',
       reward: '100 BC',
-      time: '3-5 min',
+      time: '5 perguntas',
       colorClass: 'text-emerald-400 border-emerald-500/50',
       bgClass: 'from-emerald-500/20 to-emerald-500/5'
     },
@@ -29,7 +29,7 @@ export default function DifficultyBadges() {
       difficulty: 2, 
       icon: '🎯',
       reward: '500 BC',
-      time: '8-12 min',
+      time: '10 perguntas',
       colorClass: 'text-amber-400 border-amber-500/50',
       bgClass: 'from-amber-500/20 to-amber-500/5'
     },
@@ -38,8 +38,8 @@ export default function DifficultyBadges() {
       label: 'Extremo', 
       difficulty: 3, 
       icon: '💀',
-      reward: '2.000 BC',
-      time: '15-20 min',
+      reward: '1M BC',
+      time: '15 perguntas',
       colorClass: 'text-red-400 border-red-500/50',
       bgClass: 'from-red-500/20 to-red-500/5'
     }
