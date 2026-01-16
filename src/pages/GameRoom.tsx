@@ -46,6 +46,8 @@ import PersonaIndicator from '@/components/game/PersonaIndicator';
 import GameModeSelector from '@/components/game/GameModeSelector';
 import HorusBribeOffer from '@/components/game/HorusBribeOffer';
 import ConnectionIndicator from '@/components/game/ConnectionIndicator';
+import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
+import DailyStreakBanner from '@/components/game/DailyStreakBanner';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -336,6 +338,9 @@ function GameRoomContent() {
   // Narrative Choice checkpoint (rodada 13)
   const [showNarrativeChoice, setShowNarrativeChoice] = useState(false);
   const narrativeEngineRef = useRef(getNarrativeEngine(displayNickname));
+  
+  // Rewards Summary Panel state
+  const [showRewardsSummary, setShowRewardsSummary] = useState(false);
   
   // BC Rewards tracker - rastreia todas as recompensas durante a partida
   const [rewardsTracker, setRewardsTracker] = useState<GameRewardsTracker>(createRewardsTracker);
@@ -2499,6 +2504,20 @@ function GameRoomContent() {
                           FIM DE JOGO
                         </p>
                         
+                        {/* Rewards Summary */}
+                        <div className="bg-secondary/30 rounded-lg p-4 border border-border/50">
+                          <p className="text-sm text-muted-foreground">BC Conquistados</p>
+                          <p className="font-orbitron text-2xl text-gold font-bold">
+                            {calculateTotalRewards(rewardsTracker)} BC
+                          </p>
+                          <button
+                            onClick={() => setShowRewardsSummary(true)}
+                            className="text-xs text-gold hover:underline mt-1"
+                          >
+                            Ver Resumo →
+                          </button>
+                        </div>
+                        
                         <div className="flex flex-col gap-3 pt-4">
                           <GoldButton 
                             onClick={() => {
@@ -2553,6 +2572,12 @@ function GameRoomContent() {
                             {accumulatedPrize.toLocaleString()}
                           </p>
                           <p className="text-xs text-gold/70">BluffCoins</p>
+                          <button
+                            onClick={() => setShowRewardsSummary(true)}
+                            className="text-xs text-gold hover:underline mt-2"
+                          >
+                            Ver Resumo de Recompensas →
+                          </button>
                         </div>
                         
                         <div className="flex flex-col gap-3 pt-4">
@@ -2860,6 +2885,31 @@ function GameRoomContent() {
         onCashOut={handleNarrativeChoiceCashOut}
         onContinue={handleNarrativeChoiceContinue}
       />
+      
+      {/* Rewards Summary Panel */}
+      <RewardsSummaryPanel
+        isOpen={showRewardsSummary}
+        onClose={() => setShowRewardsSummary(false)}
+        tracker={rewardsTracker}
+        gamePhase="Modo Multiplayer"
+      />
+      
+      {/* Daily Streak Banner - Show on lobby for authenticated users */}
+      {isAuthenticated && profile && gameState.room?.current_status === 'lobby' && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto">
+          <DailyStreakBanner
+            currentStreak={profile.daily_streak_count || 0}
+            lastStreakDate={profile.last_streak_date || null}
+            onClaimed={(bonus, newStreak) => {
+              refetchProfile?.();
+              toast({
+                title: '🔥 Streak Coletado!',
+                description: `+${bonus} BC • Dia ${newStreak}`,
+              });
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
