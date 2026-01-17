@@ -91,10 +91,10 @@ export default function PressureTimer({
       if (!isMountedRef.current) return;
       
       try {
-        // Usar arquivo de áudio bip.mp3
-        const audio = new Audio('/audio/horus/bip.mp3');
-        audio.volume = 0.3 + Math.random() * 0.2; // Volume variável para efeito mais desestabilizador
-        audio.playbackRate = 0.9 + Math.random() * 0.3; // Pitch ligeiramente variável
+        // Usar arquivo de áudio tic_tac.mp3
+        const audio = new Audio('/audio/horus/tic_tac.mp3');
+        audio.volume = 0.4 + Math.random() * 0.2; // Volume variável para efeito mais desestabilizador
+        audio.playbackRate = 0.95 + Math.random() * 0.15; // Pitch ligeiramente variável
         audio.play().catch(console.warn);
         
         // Vibrate on mobile synchronized with beep

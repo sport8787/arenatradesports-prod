@@ -54,8 +54,23 @@ export function useNarrativeIntegration(options: UseNarrativeIntegrationOptions)
       playHorus2Audio(wasCorrect ? 'correct_answer' : 'wrong_answer', phrase);
     }
     
-    // Silent Observer is now handled exclusively in SinglePlayerRoom.tsx
-    // to avoid duplicate audio triggers
+    // Check for Silent Observer event (5 consecutive correct) - only once
+    if (wasCorrect && narrative.state.consecutiveCorrect === 4) {
+      // Will trigger on next state update (becomes 5)
+      setTimeout(async () => {
+        const result = await checkAndTriggerSilentObserver(
+          5,
+          playerName,
+          () => {
+            console.log('[NarrativeIntegration] Silent Observer audio completed');
+          }
+        );
+        
+        if (result.triggered) {
+          onSilentObserver?.(result.phrase);
+        }
+      }, 2500);
+    }
   }, [narrative, playerName, onSilentObserver]);
 
   // Get act-specific phrase for a trigger
