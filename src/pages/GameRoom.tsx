@@ -47,6 +47,7 @@ import GameModeSelector from '@/components/game/GameModeSelector';
 import HorusBribeOffer from '@/components/game/HorusBribeOffer';
 import ConnectionIndicator from '@/components/game/ConnectionIndicator';
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
+import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import DailyStreakBanner from '@/components/game/DailyStreakBanner';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
@@ -2504,19 +2505,11 @@ function GameRoomContent() {
                           FIM DE JOGO
                         </p>
                         
-                        {/* Rewards Summary */}
-                        <div className="bg-secondary/30 rounded-lg p-4 border border-border/50">
-                          <p className="text-sm text-muted-foreground">BC Conquistados</p>
-                          <p className="font-orbitron text-2xl text-gold font-bold">
-                            {calculateTotalRewards(rewardsTracker)} BC
-                          </p>
-                          <button
-                            onClick={() => setShowRewardsSummary(true)}
-                            className="text-xs text-gold hover:underline mt-1"
-                          >
-                            Ver Resumo →
-                          </button>
-                        </div>
+                        {/* BC Rewards Breakdown - shows all rewards earned */}
+                        <RewardsBreakdownInline 
+                          tracker={rewardsTracker} 
+                          showSavedConfirmation={!!profile}
+                        />
                         
                         <div className="flex flex-col gap-3 pt-4">
                           <GoldButton 
@@ -2566,19 +2559,11 @@ function GameRoomContent() {
                         <p className="text-muted-foreground">
                           Você completou todas as 15 rodadas!
                         </p>
-                        <div className="bg-gold/20 rounded-lg p-4 border border-gold/30">
-                          <p className="text-sm text-muted-foreground">Prêmio Total</p>
-                          <p className="font-orbitron text-4xl text-gold font-bold">
-                            {accumulatedPrize.toLocaleString()}
-                          </p>
-                          <p className="text-xs text-gold/70">BluffCoins</p>
-                          <button
-                            onClick={() => setShowRewardsSummary(true)}
-                            className="text-xs text-gold hover:underline mt-2"
-                          >
-                            Ver Resumo de Recompensas →
-                          </button>
-                        </div>
+                        {/* BC Rewards Breakdown - shows all rewards earned */}
+                        <RewardsBreakdownInline 
+                          tracker={rewardsTracker} 
+                          showSavedConfirmation={!!profile}
+                        />
                         
                         <div className="flex flex-col gap-3 pt-4">
                           <GoldButton 
