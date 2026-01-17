@@ -93,6 +93,7 @@ import {
   GameRewardsTracker
 } from '@/services/bcRewardsService';
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
+import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -2015,21 +2016,11 @@ function SinglePlayerRoomContent() {
                       )}
                     </p>
 
-                    {/* BC Earned Summary */}
-                    {calculateTotalRewards(rewardsTracker) > 0 && (
-                      <motion.button
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.5 }}
-                        onClick={() => setShowRewardsSummary(true)}
-                        className="mx-auto px-4 py-2 rounded-lg bg-gold/20 border border-gold/50 hover:bg-gold/30 transition-colors flex items-center gap-2"
-                      >
-                        <Coins className="w-4 h-4 text-gold" />
-                        <span className="text-gold font-medium">
-                          Ver Resumo: +{calculateTotalRewards(rewardsTracker)} BC
-                        </span>
-                      </motion.button>
-                    )}
+                    {/* BC Rewards Breakdown - shows all rewards earned */}
+                    <RewardsBreakdownInline 
+                      tracker={rewardsTracker} 
+                      showSavedConfirmation={!isGuest && !!profile}
+                    />
                     
                     <div className="flex flex-col gap-3 pt-4">
                       <GoldButton 
@@ -2087,19 +2078,11 @@ function SinglePlayerRoomContent() {
                     {getVictoryMessage(currentGamePhase).description}
                   </p>
 
-                  {/* BC Earned Summary */}
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    onClick={() => setShowRewardsSummary(true)}
-                    className="mx-auto px-4 py-2 rounded-lg bg-gold/20 border border-gold/50 hover:bg-gold/30 transition-colors flex items-center gap-2"
-                  >
-                    <Coins className="w-4 h-4 text-gold" />
-                    <span className="text-gold font-medium">
-                      Ver Resumo: +{calculateTotalRewards(rewardsTracker)} BC
-                    </span>
-                  </motion.button>
+                  {/* BC Rewards Breakdown - shows all rewards earned */}
+                  <RewardsBreakdownInline 
+                    tracker={rewardsTracker} 
+                    showSavedConfirmation={!isGuest && !!profile}
+                  />
 
                   <div className="flex flex-col gap-3 pt-4">
                     <GoldButton 
