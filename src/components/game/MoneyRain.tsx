@@ -49,10 +49,14 @@ export default function MoneyRain({ show, amount, playerName, onComplete }: Mone
       }
       setBills(newBills);
 
-      // Narrate congratulations via ElevenLabs
+      // Play applause and narrate congratulations via ElevenLabs
       if (!hasNarratedRef.current) {
         hasNarratedRef.current = true;
-        narrateCongratulations(congratsText);
+        playApplause();
+        // Delay narration slightly so applause starts first
+        setTimeout(() => {
+          narrateCongratulations(congratsText);
+        }, 500);
       }
 
       // Trigger onComplete after animation
@@ -66,6 +70,33 @@ export default function MoneyRain({ show, amount, playerName, onComplete }: Mone
       hasNarratedRef.current = false;
     }
   }, [show, amount, onComplete, congratsText]);
+
+  const playApplause = async () => {
+    try {
+      console.log('[MoneyRain] Generating applause SFX');
+      const { data, error } = await supabase.functions.invoke('generate-sfx', {
+        body: {
+          prompt: 'Crowd applause and cheering celebration victory',
+          duration: 5,
+          cacheKey: 'sfx_applause_celebration.mp3',
+        },
+      });
+
+      if (error) {
+        console.error('[MoneyRain] Applause SFX error:', error);
+        return;
+      }
+
+      if (data?.audioUrl) {
+        console.log('[MoneyRain] Playing applause audio');
+        const audio = new Audio(data.audioUrl);
+        audio.volume = 0.4; // Lower volume so narration is clear
+        audio.play().catch(console.error);
+      }
+    } catch (err) {
+      console.error('[MoneyRain] Failed to play applause:', err);
+    }
+  };
 
   const narrateCongratulations = async (text: string) => {
     try {
