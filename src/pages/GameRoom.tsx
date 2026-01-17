@@ -991,7 +991,7 @@ function GameRoomContent() {
           // Mark final victory in rewardsTracker
           const finalTracker = {
             ...rewardsTracker,
-            completedGame: true,
+            wonGame: true, // Vitória!
             wonFinalRound: true,
             correctAnswers: rewardsTracker.correctAnswers + (playerGotCorrect ? 1 : 0)
           };
@@ -1512,10 +1512,10 @@ function GameRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Marcar partida como completa e calcular BC baseado no tracker
+    // Cash out = partida vencida (saída estratégica)
     const cashOutTracker = {
       ...rewardsTracker,
-      completedGame: true,
+      wonGame: true, // Cash out conta como vitória
     };
     setRewardsTracker(cashOutTracker);
     const totalBC = calculateTotalRewards(cashOutTracker);
@@ -2778,10 +2778,10 @@ function GameRoomContent() {
           setShowCashOutDialog(false);
           setShowMoneyRain(true);
           
-          // Marcar partida como completa e calcular BC baseado no tracker
+          // Cash out = partida vencida (saída estratégica)
           const cashOutTracker = {
             ...rewardsTracker,
-            completedGame: true,
+            wonGame: true, // Cash out conta como vitória
           };
           setRewardsTracker(cashOutTracker);
           const totalBC = calculateTotalRewards(cashOutTracker);

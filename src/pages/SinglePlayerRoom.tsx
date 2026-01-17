@@ -657,7 +657,7 @@ function SinglePlayerRoomContent() {
         const updated = {
           ...prev,
           correctAnswers: prev.correctAnswers + 1,
-          completedGame: true,
+          wonGame: true, // Venceu a partida!
           wonFinalRound: currentGamePhase === 3, // Só marca vitória final no modo extremo
         };
         logRewardsStatus(updated);
@@ -680,7 +680,7 @@ function SinglePlayerRoomContent() {
         const updatedTracker = {
           ...rewardsTracker,
           correctAnswers: rewardsTracker.correctAnswers + 1,
-          completedGame: true,
+          wonGame: true,
           wonFinalRound: true,
         };
         const totalBC = calculateTotalRewards(updatedTracker);
@@ -711,7 +711,7 @@ function SinglePlayerRoomContent() {
         const updatedTracker = {
           ...rewardsTracker,
           correctAnswers: rewardsTracker.correctAnswers + 1,
-          completedGame: true,
+          wonGame: true, // Venceu a partida!
         };
         const totalBC = calculateTotalRewards(updatedTracker);
         await persistWinnings(totalBC, true);
@@ -733,13 +733,10 @@ function SinglePlayerRoomContent() {
       // ELIMINATION - save BC earned so far (from tracker)
       playGameOver();
       
-      // Marcar partida como completa e calcular BC reais ganhos
-      const updatedTracker = {
-        ...rewardsTracker,
-        completedGame: true, // Partida foi completada (mesmo com eliminação)
-      };
-      setRewardsTracker(updatedTracker);
-      const totalBCEarned = calculateTotalRewards(updatedTracker);
+      // Eliminado - NÃO marca wonGame, só calcula BC já ganhos (respostas corretas, blefes, etc)
+      // O bônus de "Partida Completa" NÃO é dado na eliminação
+      setRewardsTracker(prev => ({ ...prev })); // Mantém tracker atual sem wonGame
+      const totalBCEarned = calculateTotalRewards(rewardsTracker);
       
       if (totalBCEarned > 0) {
         await persistWinnings(totalBCEarned, false);
@@ -819,7 +816,7 @@ function SinglePlayerRoomContent() {
     // O Hórus oferece ~50% do que o jogador PODERIA ganhar se continuar
     const currentTrackerBC = calculateTotalRewards({
       ...rewardsTracker,
-      completedGame: true, // Simula como se terminasse agora
+      wonGame: true, // Simula como se vencesse agora (para calcular oferta justa)
     });
     // Oferta do Hórus: 50-80% do BC acumulado, mínimo de 30 BC
     const offerPercentage = 0.5 + (Math.random() * 0.3);
@@ -1036,10 +1033,10 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Marcar partida como completa no tracker e salvar BC do acordo
+    // Aceitar acordo Hórus = partida vencida (cash out estratégico)
     const updatedTracker = {
       ...rewardsTracker,
-      completedGame: true,
+      wonGame: true, // Acordo Hórus conta como vitória
     };
     setRewardsTracker(updatedTracker);
     
@@ -1155,13 +1152,9 @@ function SinglePlayerRoomContent() {
         }
         playGameOver();
         
-        // Marcar partida como completa e calcular BC reais ganhos
-        const elimTracker = {
-          ...rewardsTracker,
-          completedGame: true,
-        };
-        setRewardsTracker(elimTracker);
-        const totalBCOnElim = calculateTotalRewards(elimTracker);
+        // Eliminado - NÃO marca wonGame, só calcula BC já ganhos
+        // O bônus de "Partida Completa" NÃO é dado na eliminação
+        const totalBCOnElim = calculateTotalRewards(rewardsTracker);
         
         if (totalBCOnElim > 0) {
           await persistWinnings(totalBCOnElim, false);
@@ -1337,10 +1330,10 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Marcar partida como completa e calcular BC
+    // Cash out = partida vencida (saída estratégica)
     const cashOutTracker = {
       ...rewardsTracker,
-      completedGame: true,
+      wonGame: true, // Cash out conta como vitória
     };
     setRewardsTracker(cashOutTracker);
     const totalBC = calculateTotalRewards(cashOutTracker);
@@ -1478,10 +1471,10 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Marcar partida como completa e calcular BC baseado no tracker
+    // Cash out = partida vencida (saída estratégica)
     const cashOutTracker = {
       ...rewardsTracker,
-      completedGame: true,
+      wonGame: true, // Cash out conta como vitória
     };
     setRewardsTracker(cashOutTracker);
     const totalBC = calculateTotalRewards(cashOutTracker);
