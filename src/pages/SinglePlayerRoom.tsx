@@ -56,6 +56,7 @@ import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
 import NarrativeOverlay from '@/components/game/NarrativeOverlay';
 import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
+import RoundBackground from '@/components/game/RoundBackground';
 import CinematicEvent from '@/components/game/CinematicEvent';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getCartaBonusAudio } from '@/services/horusLocalAudio';
@@ -1617,7 +1618,10 @@ function SinglePlayerRoomContent() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen p-2 md:p-8 pt-12 md:pt-16">
+      {/* Dynamic Round Background */}
+      <RoundBackground round={currentRound} />
+      
+      <div className="min-h-screen p-2 md:p-8 pt-12 md:pt-16 relative z-10">
         <div className="max-w-4xl mx-auto space-y-3 md:space-y-6">
         {/* Role Banner */}
         <RoleBanner isHost={true} />

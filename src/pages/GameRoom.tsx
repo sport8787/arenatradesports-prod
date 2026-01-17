@@ -50,6 +50,7 @@ import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import LiveBCCounter from '@/components/game/LiveBCCounter';
 import DailyStreakBanner from '@/components/game/DailyStreakBanner';
+import RoundBackground from '@/components/game/RoundBackground';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -1870,7 +1871,11 @@ function GameRoomContent() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <>
+      {/* Dynamic Round Background */}
+      <RoundBackground round={currentRound} />
+      
+    <div className="min-h-screen p-4 md:p-8 relative z-10">
       {/* Connection status indicator */}
       <ConnectionIndicator
         isConnected={isConnected}
@@ -2944,5 +2949,6 @@ function GameRoomContent() {
         </div>
       )}
     </div>
+    </>
   );
 }
