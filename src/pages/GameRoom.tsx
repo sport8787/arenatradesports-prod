@@ -2698,6 +2698,7 @@ function GameRoomContent() {
                 isHost={isRoomHost}
                 hasImmunityCard={hasImmunityCard}
                 immunityCardUsed={immunityCardUsed}
+                maxRounds={MAX_ROUNDS}
               />
             )}
             

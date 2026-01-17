@@ -16,6 +16,7 @@ interface RoundProgressProps {
   isHost: boolean;
   hasImmunityCard?: boolean;
   immunityCardUsed?: boolean;
+  maxRounds?: number; // Dynamic max rounds based on game phase
 }
 
 const formatPrize = (amount: number) => {
@@ -32,10 +33,11 @@ export default function RoundProgress({
   isHost,
   hasImmunityCard = false,
   immunityCardUsed = false,
+  maxRounds = 15, // Default to 15 for backwards compatibility
 }: RoundProgressProps) {
   const nextRound = currentRound + 1;
-  const nextPrize = nextRound <= 15 ? PRIZE_LADDER[nextRound - 1] : null;
-  const isFinalRound = currentRound === 15;
+  const nextPrize = nextRound <= maxRounds ? PRIZE_LADDER[nextRound - 1] : null;
+  const isFinalRound = currentRound === maxRounds;
 
   return (
     <div className="space-y-3">
@@ -56,7 +58,7 @@ export default function RoundProgress({
               "font-orbitron text-sm",
               isFinalRound ? "text-gold" : "text-foreground"
             )}>
-              {currentRound}/15
+              {currentRound}/{maxRounds}
             </p>
           </div>
         </div>
@@ -103,13 +105,13 @@ export default function RoundProgress({
       </div>
 
       {/* Next Prize Indicator */}
-      {nextPrize && currentRound < 15 && (
+      {nextPrize && currentRound < maxRounds && (
         <motion.div 
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           className={cn(
             "flex items-center justify-between p-3 rounded-lg border",
-            nextRound === 15 
+            nextRound === maxRounds 
               ? "bg-gradient-to-r from-gold/10 via-amber-500/10 to-gold/10 border-gold/30"
               : "bg-secondary/30 border-border/50"
           )}
@@ -117,17 +119,17 @@ export default function RoundProgress({
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-              nextRound === 15 ? "bg-gold text-background" : "bg-primary/20 text-primary"
+              nextRound === maxRounds ? "bg-gold text-background" : "bg-primary/20 text-primary"
             )}>
               {nextRound}
             </div>
             <span className="text-xs text-muted-foreground">Próximo Prêmio</span>
           </div>
           <div className="flex items-center gap-1">
-            {nextRound === 15 && <Trophy className="w-4 h-4 text-gold" />}
+            {nextRound === maxRounds && <Trophy className="w-4 h-4 text-gold" />}
             <span className={cn(
               "font-orbitron font-bold",
-              nextRound === 15 ? "text-gold text-lg" : "text-primary"
+              nextRound === maxRounds ? "text-gold text-lg" : "text-primary"
             )}>
               +{formatPrize(nextPrize)}
             </span>
@@ -135,14 +137,15 @@ export default function RoundProgress({
         </motion.div>
       )}
 
-      {/* Prize Ladder (compact) */}
+      {/* Prize Ladder (compact) - only show rounds up to maxRounds */}
       <div className="bg-secondary/30 rounded-lg p-2 border border-border/30">
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
-          {PRIZE_LADDER.map((prize, index) => {
+          {PRIZE_LADDER.slice(0, maxRounds).map((prize, index) => {
             const round = index + 1;
             const isCompleted = round < currentRound;
             const isCurrent = round === currentRound;
             const isProtected = hasGuaranteedPrize && prize <= safeAmount;
+            const isFinal = round === maxRounds;
             
             return (
               <div
@@ -151,18 +154,18 @@ export default function RoundProgress({
                   "flex-shrink-0 flex flex-col items-center px-1.5 py-1 rounded transition-all",
                   isCompleted && "opacity-50",
                   isCurrent && "bg-primary/20 ring-1 ring-primary",
-                  round === 15 && !isCompleted && "bg-gold/10"
+                  isFinal && !isCompleted && "bg-gold/10"
                 )}
               >
                 <span className={cn(
                   "text-[8px] font-bold",
-                  isCurrent ? "text-primary" : round === 15 ? "text-gold" : "text-muted-foreground"
+                  isCurrent ? "text-primary" : isFinal ? "text-gold" : "text-muted-foreground"
                 )}>
                   {round}
                 </span>
                 <span className={cn(
                   "text-[9px] font-orbitron whitespace-nowrap",
-                  isCurrent ? "text-foreground" : round === 15 ? "text-gold" : "text-muted-foreground"
+                  isCurrent ? "text-foreground" : isFinal ? "text-gold" : "text-muted-foreground"
                 )}>
                   {formatPrize(prize)}
                 </span>
