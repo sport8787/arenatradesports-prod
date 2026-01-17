@@ -71,30 +71,22 @@ export default function MoneyRain({ show, amount, playerName, onComplete }: Mone
     }
   }, [show, amount, onComplete, congratsText]);
 
-  const playApplause = async () => {
+  const playApplause = () => {
     try {
-      console.log('[MoneyRain] Generating applause SFX');
-      const { data, error } = await supabase.functions.invoke('generate-sfx', {
-        body: {
-          prompt: 'Crowd applause and cheering celebration victory',
-          duration: 5,
-          cacheKey: 'sfx_applause_celebration.mp3',
-        },
-      });
-
-      if (error) {
-        console.error('[MoneyRain] Applause SFX error:', error);
-        return;
-      }
-
-      if (data?.audioUrl) {
-        console.log('[MoneyRain] Playing applause audio');
-        const audio = new Audio(data.audioUrl);
-        audio.volume = 0.4; // Lower volume so narration is clear
-        audio.play().catch(console.error);
-      }
+      console.log('[MoneyRain] Playing victory audio');
+      // Use local victory audio files as celebration sound
+      const victoryAudios = [
+        '/audio/horus/vitoria.mp3',
+        '/audio/horus/vitoria2.mp3',
+        '/audio/horus/vitoria3.mp3',
+        '/audio/horus/vitoria4.mp3',
+      ];
+      const randomAudio = victoryAudios[Math.floor(Math.random() * victoryAudios.length)];
+      const audio = new Audio(randomAudio);
+      audio.volume = 0.5;
+      audio.play().catch(console.error);
     } catch (err) {
-      console.error('[MoneyRain] Failed to play applause:', err);
+      console.error('[MoneyRain] Failed to play victory audio:', err);
     }
   };
 

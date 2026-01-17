@@ -2298,7 +2298,7 @@ function SinglePlayerRoomContent() {
         onCancel={() => setShowCashOutDialog(false)}
       />
 
-      <MoneyRain show={showMoneyRain} amount={accumulatedPrize} playerName={displayName} />
+      <MoneyRain show={showMoneyRain} amount={calculateTotalRewards(rewardsTracker)} playerName={displayName} />
 
       {/* Horus Bribe Offer - shown during bribe_offer phase BEFORE results */}
       <HorusPostVoteBribe
