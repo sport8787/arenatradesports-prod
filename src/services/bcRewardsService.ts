@@ -71,7 +71,7 @@ export interface GameRewardsTracker {
   immunityUnlocked: boolean;     // Carta Imunidade desbloqueada
   mysteryBriefcaseOpened: boolean; // Maleta misteriosa aberta
   mysteryBriefcaseValue: number;   // Valor da maleta
-  completedGame: boolean;        // Completou a partida
+  wonGame: boolean;              // Venceu a partida (completou todas as rodadas OU cash out)
   wonFinalRound: boolean;        // Venceu rodada 15 (modo extremo)
   challengerCorrectVotes: number; // Votos corretos do desafiante (para modo multiplayer)
 }
@@ -87,7 +87,7 @@ export const createRewardsTracker = (): GameRewardsTracker => ({
   immunityUnlocked: false,
   mysteryBriefcaseOpened: false,
   mysteryBriefcaseValue: 0,
-  completedGame: false,
+  wonGame: false,
   wonFinalRound: false,
   challengerCorrectVotes: 0,
 });
@@ -96,8 +96,8 @@ export const createRewardsTracker = (): GameRewardsTracker => ({
 export const calculateTotalRewards = (tracker: GameRewardsTracker): number => {
   let total = 0;
   
-  // Base - Completar partida
-  if (tracker.completedGame) {
+  // Base - Completar partida (só se VENCEU, não se foi eliminado)
+  if (tracker.wonGame) {
     total += BC_REWARDS.COMPLETE_GAME;
   }
   
@@ -146,8 +146,8 @@ export const calculateTotalRewards = (tracker: GameRewardsTracker): number => {
 export const getRewardsBreakdown = (tracker: GameRewardsTracker): { label: string; amount: number }[] => {
   const breakdown: { label: string; amount: number }[] = [];
   
-  // Base - Completar partida
-  if (tracker.completedGame) {
+  // Base - Completar partida (só se VENCEU)
+  if (tracker.wonGame) {
     breakdown.push({ label: 'Partida Completa', amount: BC_REWARDS.COMPLETE_GAME });
   }
   
