@@ -1,10 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { DollarSign, Banknote } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { centralAudioQueue, AUDIO_PRIORITY } from '@/services/centralAudioQueue';
 
 interface MoneyRainProps {
   show: boolean;
   amount: number;
+  playerName?: string;
   onComplete?: () => void;
 }
 
@@ -18,8 +21,14 @@ interface MoneyBill {
   type: 'bill' | 'coin';
 }
 
-export default function MoneyRain({ show, amount, onComplete }: MoneyRainProps) {
+export default function MoneyRain({ show, amount, playerName, onComplete }: MoneyRainProps) {
   const [bills, setBills] = useState<MoneyBill[]>([]);
+  const hasNarratedRef = useRef(false);
+
+  // Generate congratulation text
+  const congratsText = playerName 
+    ? `Parabéns, ${playerName}! Você completou o desafio!`
+    : 'Parabéns! Você completou o desafio!';
 
   useEffect(() => {
     if (show) {
@@ -40,6 +49,12 @@ export default function MoneyRain({ show, amount, onComplete }: MoneyRainProps) 
       }
       setBills(newBills);
 
+      // Narrate congratulations via ElevenLabs
+      if (!hasNarratedRef.current) {
+        hasNarratedRef.current = true;
+        narrateCongratulations(congratsText);
+      }
+
       // Trigger onComplete after animation
       const timeout = setTimeout(() => {
         onComplete?.();
@@ -48,8 +63,39 @@ export default function MoneyRain({ show, amount, onComplete }: MoneyRainProps) 
       return () => clearTimeout(timeout);
     } else {
       setBills([]);
+      hasNarratedRef.current = false;
     }
-  }, [show, amount, onComplete]);
+  }, [show, amount, onComplete, congratsText]);
+
+  const narrateCongratulations = async (text: string) => {
+    try {
+      console.log('[MoneyRain] Requesting TTS for:', text);
+      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
+        body: {
+          text,
+          voiceId: 'JBFqnCBsd6RMkjVDRZzb', // George voice for Horus
+          stability: 0.5,
+          similarityBoost: 0.75,
+          style: 0.6,
+        },
+      });
+
+      if (error) {
+        console.error('[MoneyRain] TTS error:', error);
+        return;
+      }
+
+      if (data?.audioUrl) {
+        console.log('[MoneyRain] Playing congratulations audio');
+        centralAudioQueue.enqueue(data.audioUrl, {
+          label: 'horus_congratulations',
+          priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        });
+      }
+    } catch (err) {
+      console.error('[MoneyRain] Failed to narrate:', err);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -88,7 +134,7 @@ export default function MoneyRain({ show, amount, onComplete }: MoneyRainProps) 
                 💰
               </motion.div>
               <motion.h2
-                className="font-orbitron text-4xl md:text-5xl font-black text-green-400 mb-2"
+                className="font-orbitron text-2xl md:text-3xl font-black text-green-400 mb-2 max-w-lg mx-auto"
                 style={{
                   textShadow: '0 0 30px rgba(34, 197, 94, 0.5), 0 0 60px rgba(34, 197, 94, 0.3)'
                 }}
@@ -96,7 +142,7 @@ export default function MoneyRain({ show, amount, onComplete }: MoneyRainProps) 
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                CASH OUT!
+                {congratsText}
               </motion.h2>
               <motion.p
                 className="text-2xl md:text-3xl font-bold text-white"

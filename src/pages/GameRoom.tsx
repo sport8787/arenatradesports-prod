@@ -2809,12 +2809,13 @@ function GameRoomContent() {
       <MoneyRain
         show={showMoneyRain}
         amount={calculateTotalRewards(rewardsTracker)}
+        playerName={displayNickname}
         onComplete={() => {
           setShowMoneyRain(false);
           setGameCompleted(true);
           toast({ 
-            title: '💰 CASH OUT!', 
-            description: `Você saiu com ${calculateTotalRewards(rewardsTracker)} BC!` 
+            title: '🎉 Parabéns!', 
+            description: `Você completou o desafio com ${calculateTotalRewards(rewardsTracker)} BC!` 
           });
         }}
       />
