@@ -1494,7 +1494,7 @@ function SinglePlayerRoomContent() {
       });
     }
     
-    toast({ title: '💰 CASH OUT!', description: `Você saiu com ${totalBC} BC!` });
+    toast({ title: '🎉 Parabéns!', description: `Você completou o desafio com ${totalBC} BC!` });
     setShowCashOutDialog(false);
     setGamePhase('victory');
   };
@@ -2298,7 +2298,7 @@ function SinglePlayerRoomContent() {
         onCancel={() => setShowCashOutDialog(false)}
       />
 
-      <MoneyRain show={showMoneyRain} amount={accumulatedPrize} />
+      <MoneyRain show={showMoneyRain} amount={accumulatedPrize} playerName={displayName} />
 
       {/* Horus Bribe Offer - shown during bribe_offer phase BEFORE results */}
       <HorusPostVoteBribe
