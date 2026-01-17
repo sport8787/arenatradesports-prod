@@ -958,6 +958,12 @@ function SinglePlayerRoomContent() {
       return updated;
     });
     
+    // 💰 SALVAR BC POR ACERTO IMEDIATAMENTE
+    if (!isGuest && profile) {
+      economy.addBC(BC_REWARDS.CORRECT_ANSWER);
+      console.log(`[BC] +${BC_REWARDS.CORRECT_ANSWER} BC por resposta correta salvo!`);
+    }
+    
     // Se usou acordo Hórus E venceu, adiciona bônus
     if (usedHorusDealThisRound) {
       setRewardsTracker(prev => ({
@@ -965,6 +971,13 @@ function SinglePlayerRoomContent() {
         horusDealWins: prev.horusDealWins + 1
       }));
       setUsedHorusDealThisRound(false);
+      
+      // 💰 SALVAR BÔNUS HÓRUS IMEDIATAMENTE
+      if (!isGuest && profile) {
+        economy.addBC(BC_REWARDS.HORUS_DEAL_WIN);
+        console.log(`[BC] +${BC_REWARDS.HORUS_DEAL_WIN} BC bônus Hórus salvo!`);
+      }
+      
       toast({ title: `+${BC_REWARDS.HORUS_DEAL_WIN} BC`, description: 'Bônus Acordo Hórus!' });
     }
     
@@ -1174,6 +1187,12 @@ function SinglePlayerRoomContent() {
         return updated;
       });
       
+      // 💰 SALVAR BC POR ACERTO IMEDIATAMENTE
+      if (!isGuest && profile) {
+        economy.addBC(BC_REWARDS.CORRECT_ANSWER);
+        console.log(`[BC] +${BC_REWARDS.CORRECT_ANSWER} BC por resposta correta salvo!`);
+      }
+      
       // Se usou acordo Hórus E venceu, adiciona bônus
       if (usedHorusDealThisRound) {
         setRewardsTracker(prev => ({
@@ -1181,6 +1200,13 @@ function SinglePlayerRoomContent() {
           horusDealWins: prev.horusDealWins + 1
         }));
         setUsedHorusDealThisRound(false);
+        
+        // 💰 SALVAR BÔNUS HÓRUS IMEDIATAMENTE
+        if (!isGuest && profile) {
+          economy.addBC(BC_REWARDS.HORUS_DEAL_WIN);
+          console.log(`[BC] +${BC_REWARDS.HORUS_DEAL_WIN} BC bônus Hórus salvo!`);
+        }
+        
         toast({ title: `+${BC_REWARDS.HORUS_DEAL_WIN} BC`, description: 'Bônus Acordo Hórus!' });
       }
       
@@ -1199,6 +1225,13 @@ function SinglePlayerRoomContent() {
           logRewardsStatus(updated);
           return updated;
         });
+        
+        // 💰 SALVAR BLEFE PERFEITO IMEDIATAMENTE
+        if (!isGuest && profile) {
+          economy.addBC(BC_REWARDS.PERFECT_BLUFF);
+          console.log(`[BC] +${BC_REWARDS.PERFECT_BLUFF} BC blefe perfeito salvo!`);
+        }
+        
         toast({ title: `+${BC_REWARDS.PERFECT_BLUFF} BC`, description: 'Blefe perfeito!' });
         
         // Trigger CinematicEvent for Blefe Perfeito!
@@ -1214,6 +1247,13 @@ function SinglePlayerRoomContent() {
           logRewardsStatus(updated);
           return updated;
         });
+        
+        // 💰 SALVAR BLEFE BOM IMEDIATAMENTE
+        if (!isGuest && profile) {
+          economy.addBC(BC_REWARDS.GOOD_BLUFF);
+          console.log(`[BC] +${BC_REWARDS.GOOD_BLUFF} BC blefe bom salvo!`);
+        }
+        
         toast({ title: `+${BC_REWARDS.GOOD_BLUFF} BC`, description: 'Blefe bom!' });
       }
       
@@ -1293,8 +1333,18 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Persist winnings to profile
-    await persistWinnings(accumulatedPrize, true);
+    // Marcar partida como completa e calcular BC
+    const cashOutTracker = {
+      ...rewardsTracker,
+      completedGame: true,
+    };
+    setRewardsTracker(cashOutTracker);
+    const totalBC = calculateTotalRewards(cashOutTracker);
+    
+    // Persist BC rewards (não o score do jogo)
+    if (totalBC > 0) {
+      await persistWinnings(totalBC, true);
+    }
     
     // Update ranking
     if (myRanking) {
@@ -1302,11 +1352,11 @@ function SinglePlayerRoomContent() {
         addGame: true, 
         addWin: true,
         setBestRound: currentRound,
-        addPoints: accumulatedPrize 
+        addPoints: totalBC 
       });
     }
     
-    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${totalBC} BC!` });
     setGamePhase('victory');
   };
   
@@ -1424,8 +1474,18 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Persist winnings to profile
-    await persistWinnings(accumulatedPrize, true);
+    // Marcar partida como completa e calcular BC baseado no tracker
+    const cashOutTracker = {
+      ...rewardsTracker,
+      completedGame: true,
+    };
+    setRewardsTracker(cashOutTracker);
+    const totalBC = calculateTotalRewards(cashOutTracker);
+    
+    // Persist BC rewards (não o score do jogo)
+    if (totalBC > 0) {
+      await persistWinnings(totalBC, true);
+    }
     
     // Update ranking
     if (myRanking) {
@@ -1433,11 +1493,11 @@ function SinglePlayerRoomContent() {
         addGame: true, 
         addWin: true,
         setBestRound: currentRound,
-        addPoints: accumulatedPrize 
+        addPoints: totalBC 
       });
     }
     
-    toast({ title: '💰 CASH OUT!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    toast({ title: '💰 CASH OUT!', description: `Você saiu com ${totalBC} BC!` });
     setShowCashOutDialog(false);
     setGamePhase('victory');
   };
