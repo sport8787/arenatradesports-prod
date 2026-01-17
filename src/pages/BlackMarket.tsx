@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock, Vault, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useRankings } from '@/hooks/useRankings';
+import { useEconomy } from '@/hooks/useEconomy';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 
@@ -10,7 +10,6 @@ import prizePix from '@/assets/prize-pix.jpg';
 import prizeMaleta from '@/assets/prize-maleta.jpg';
 import prizePs5 from '@/assets/prize-ps5.jpg';
 import prizeIphone from '@/assets/prize-iphone.jpg';
-import prizeSmartwatch from '@/assets/prize-smartwatch.jpg';
 
 interface PrizeCard {
   id: number;
@@ -25,32 +24,32 @@ interface PrizeCard {
 const prizes: PrizeCard[] = [
   {
     id: 1,
+    name: 'PIX R$ 50',
+    price: '50k BC',
+    priceValue: 50000,
+    image: prizePix,
+    description: 'Dinheiro direto na sua conta',
+  },
+  {
+    id: 2,
     name: 'GiftCard R$ 500',
-    price: '100k Coins',
+    price: '100k BC',
     priceValue: 100000,
     image: prizeGiftcard,
     description: 'Use em qualquer loja online',
   },
   {
-    id: 2,
+    id: 3,
     name: 'Pix de R$ 1.000',
-    price: '200k Coins',
+    price: '200k BC',
     priceValue: 200000,
     image: prizePix,
     description: 'Dinheiro direto na sua conta',
   },
   {
-    id: 3,
-    name: 'Smartwatch Premium',
-    price: '400k Coins',
-    priceValue: 400000,
-    image: prizeSmartwatch,
-    description: 'Tecnologia no seu pulso',
-  },
-  {
     id: 4,
     name: 'Maleta Física Oficial',
-    price: '500k Coins',
+    price: '500k BC',
     priceValue: 500000,
     image: prizeMaleta,
     description: 'Edição limitada do jogo',
@@ -58,7 +57,7 @@ const prizes: PrizeCard[] = [
   {
     id: 5,
     name: 'PlayStation 5',
-    price: '800k Coins',
+    price: '800k BC',
     priceValue: 800000,
     image: prizePs5,
     description: 'Console de última geração',
@@ -66,16 +65,16 @@ const prizes: PrizeCard[] = [
   {
     id: 6,
     name: 'iPhone 16 Pro',
-    price: '1M Coins',
+    price: '1M BC',
     priceValue: 1000000,
-    image: prizeIphone,
+    image: prizePix,
     description: 'O smartphone mais avançado',
   },
 ];
 
 export default function BlackMarket() {
-  const { myRanking } = useRankings();
-  const userCoins = myRanking?.total_points || 0;
+  const { bcBalance } = useEconomy();
+  const userCoins = bcBalance;
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
