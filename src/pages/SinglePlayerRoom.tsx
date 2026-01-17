@@ -2136,7 +2136,7 @@ function SinglePlayerRoomContent() {
                   </h2>
                   
                   <p className="text-2xl font-orbitron text-gold">
-                    {accumulatedPrize.toLocaleString()} BluffCoins
+                    {calculateTotalRewards(rewardsTracker).toLocaleString()} BluffCoins
                   </p>
                   
                   <p className="text-muted-foreground">
