@@ -12,10 +12,11 @@ interface ProgressToPrizeProps {
 
 export default function ProgressToPrize({ currentBC }: ProgressToPrizeProps) {
   const prizes: Prize[] = [
-    { name: "Pix R$ 50", value: 10000, icon: "💸" },
-    { name: "Pix R$ 100", value: 20000, icon: "💰" },
-    { name: "iPhone 15", value: 150000, icon: "📱" },
-    { name: "Notebook", value: 300000, icon: "💻" }
+    { name: "Pix R$ 50", value: 50000, icon: "💸" },
+    { name: "GiftCard R$ 500", value: 100000, icon: "🎁" },
+    { name: "Pix R$ 1.000", value: 200000, icon: "💰" },
+    { name: "PlayStation 5", value: 800000, icon: "🎮" },
+    { name: "iPhone 16 Pro", value: 1000000, icon: "📱" }
   ];
 
   const nextPrize = prizes.find(p => p.value > currentBC) || prizes[prizes.length - 1];
