@@ -275,7 +275,8 @@ export const HIDDEN_EVENTS: HiddenEvent[] = [
   {
     id: 'silent_observer',
     name: 'O Observador Silencioso',
-    trigger: (state) => state.consecutiveCorrect >= 5 && !state.horusRespectUnlocked,
+    // Dispara apenas UMA vez, exatamente quando o jogador atinge 5 acertos consecutivos
+    trigger: (state) => state.consecutiveCorrect === 5,
     effect: 'Hórus faz uma pausa dramática e menciona que "alguém está observando"',
     audioFile: '/audio/horus/evento_oculto_1.mp3',
     reward: { difficulty: 'increase' },

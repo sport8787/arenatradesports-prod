@@ -74,16 +74,21 @@ export function NarrativeProvider({
   // Callback for hidden events - exibe apenas a frase, sem nome do evento
   const handleHiddenEvent = (event: HiddenEvent) => {
     console.log(`[NarrativeProvider] Hidden event triggered: ${event.name}`);
-    
+
     // Mostra apenas o efeito/frase, sem o nome do evento
-    toast({ 
-      description: event.effect 
+    toast({
+      description: event.effect,
     });
-    
+
+    // IMPORTANT: o Observador Silencioso (5 acertos) tem narração dinâmica via silentObserverService
+    // em telas que fazem esse controle (ex: SinglePlayerRoom). Aqui evitamos enfileirar o áudio local
+    // para não repetir / duplicar a reprodução.
+    if (event.id === 'silent_observer') return;
+
     if (event.audioFile) {
       centralAudioQueue.enqueue(event.audioFile, {
         label: 'hidden_event',
-        priority: AUDIO_PRIORITY.NARRATIVE_EVENT
+        priority: AUDIO_PRIORITY.NARRATIVE_EVENT,
       });
     }
   };
