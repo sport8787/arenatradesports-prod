@@ -619,12 +619,13 @@ function SinglePlayerRoomContent() {
 
   const confirmAnswer = () => {
     if (!selectedAnswer) return;
-    setConfirmedAnswer(selectedAnswer);
+    const theAnswer = selectedAnswer; // Capture the answer immediately
+    setConfirmedAnswer(theAnswer);
     setShowAnswer(true);
     playReveal();
     
     // Update lastAction for HorusTerminal
-    const isCorrect = selectedAnswer === currentQuestion?.correct_option;
+    const isCorrect = theAnswer === currentQuestion?.correct_option;
     setLastAction(isCorrect ? "Acertou a pergunta" : "Errou a pergunta");
     
     // NOTE: Mycroft audio removed from here - it was playing at wrong time
@@ -633,17 +634,19 @@ function SinglePlayerRoomContent() {
     // Final round: Skip recording/voting, go directly to results
     const maxRounds = getMaxRoundsForPhase(currentGamePhase);
     if (currentRound === maxRounds) {
-      setTimeout(() => processFinalRoundResults(), 1500);
+      // Pass the answer directly to avoid stale closure issues
+      setTimeout(() => processFinalRoundResults(theAnswer), 1500);
     } else {
       setGamePhase('recording');
     }
   };
 
   // Final round processing (no bluff for extreme mode, instant victory for quick/standard modes)
-  const processFinalRoundResults = async () => {
-    if (!currentQuestion || !confirmedAnswer) return;
+  const processFinalRoundResults = async (passedAnswer?: 'A' | 'B' | 'C' | 'D') => {
+    const theAnswer = passedAnswer || confirmedAnswer;
+    if (!currentQuestion || !theAnswer) return;
     
-    const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
+    const playerAnsweredCorrectly = theAnswer === currentQuestion.correct_option;
     const maxRounds = getMaxRoundsForPhase(currentGamePhase);
     const phaseConfig = economy.getPhaseConfig(currentGamePhase);
     const victoryMsg = getVictoryMessage(currentGamePhase);
@@ -1728,7 +1731,8 @@ function SinglePlayerRoomContent() {
                             playReveal();
                             const maxRounds = getMaxRoundsForPhase(currentGamePhase);
                             if (currentRound === maxRounds) {
-                              setTimeout(() => processFinalRoundResults(), 1500);
+                              // Pass the answer directly to avoid stale closure issues
+                              setTimeout(() => processFinalRoundResults(randomAnswer), 1500);
                             } else {
                               setGamePhase('recording');
                             }
@@ -2194,6 +2198,7 @@ function SinglePlayerRoomContent() {
               isHost={true}
               hasImmunityCard={hasImmunityCard}
               immunityCardUsed={immunityCardUsed}
+              maxRounds={getMaxRoundsForPhase(currentGamePhase)}
             />
 
             {/* Bonus Cards Panel */}
