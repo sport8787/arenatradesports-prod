@@ -49,7 +49,7 @@ import {
   stopHorus2Audio,
   hasLocalAudioForMoment
 } from '@/services/horus2Engine';
-import { clearAllAudio, setAudioQueueRound } from '@/services/centralAudioQueue';
+import { clearAllAudio, setAudioQueueRound, resetNarrativeAudioLock } from '@/services/centralAudioQueue';
 import { NarrativeProvider, useNarrative } from '@/contexts/NarrativeContext';
 import { getNarrativeEngine, resetNarrativeEngine, NarrativeChoice } from '@/services/narrativeEngine';
 import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
@@ -504,11 +504,12 @@ function SinglePlayerRoomContent() {
     // Create/update solo ranking
     await getOrCreateSoloRanking(nickname);
 
-    // Reset NarrativeEngine, Silent Observer, Ruptura Cognitiva e Pressure Timer para nova partida
+    // Reset NarrativeEngine, Silent Observer, Ruptura Cognitiva, Pressure Timer e Audio Lock para nova partida
     resetNarrativeEngine();
     resetSilentObserver();
     resetCognitiveRupture();
     resetPressureState();
+    resetNarrativeAudioLock(); // ✅ NOVO: Reseta lock global de eventos narrativos
     narrativeEngineRef.current = getNarrativeEngine(nickname);
 
     // Start first round directly (opening plays on login now)
@@ -922,34 +923,8 @@ function SinglePlayerRoomContent() {
     playHorus2Audio('victory', actPhrase || undefined);
     
     // Check for recognition dialogue (3+ consecutive correct)
-    const updatedState = updatePsychologyState(psychologyState, playerAnsweredCorrectly, false);
-    
-    // 👁️ SILENT OBSERVER EVENT: Check for 5 consecutive correct answers
-    if (updatedState.consecutiveCorrect === 5) {
-      setTimeout(async () => {
-        const result = await checkAndTriggerSilentObserver(
-          updatedState.consecutiveCorrect,
-          displayName,
-          () => {
-            // After audio completes, show the cinematic
-            console.log('[SilentObserver] Audio complete, showing cinematic');
-          }
-        );
-        
-        if (result.triggered) {
-          // Show cinematic event with the phrase
-          setCinematicEventType('evento_oculto');
-          setCinematicTitle('');
-          setCinematicSubtitle(result.phrase);
-          setShowCinematicEvent(true);
-          
-          toast({
-            title: '👁️ O Observador Silencioso',
-            description: 'Algo maior está observando você...',
-          });
-        }
-      }, 2500);
-    }
+    // Nota: O Observador Silencioso (5 acertos) agora é 100% gerenciado pelo NarrativeProvider
+    // via o hook useNarrativeEngine + NarrativeContext, evitando triggers manuais duplicados.
     // DIÁLOGOS DE RECONHECIMENTO DESATIVADOS: Hórus só fala no Observador Silencioso (5 acertos)
     
     // Atualiza o tracker de recompensas - resposta correta

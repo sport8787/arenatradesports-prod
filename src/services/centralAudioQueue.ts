@@ -65,6 +65,18 @@ class CentralAudioQueue {
   private lastQuestionReadTime: number = 0;
   private readonly QUESTION_READ_DEDUPE_MS = 8000; // 8 segundos de janela
 
+  // ✅ NOVO: Lock global por partida para eventos narrativos (impede repetição por label)
+  private narrativeEventLock: Map<string, number> = new Map(); // label -> round que disparou
+  private readonly NARRATIVE_EVENT_LABELS = ['silent_observer', 'silent_observer_fallback', 'hidden_event'];
+
+  /**
+   * ✅ NOVO: Reseta o lock de eventos narrativos (chamar ao iniciar nova partida)
+   */
+  resetNarrativeEventLock(): void {
+    this.narrativeEventLock.clear();
+    console.log('[CentralAudioQueue] 🔓 Narrative event lock reset');
+  }
+
   /**
    * ✅ NOVO: Define a rodada atual (para bloquear bord_1 na rodada 1)
    */
@@ -179,6 +191,19 @@ class CentralAudioQueue {
         return id;
       }
       this.lastBordaoTime = now;
+    }
+
+    // ✅ NOVO: Lock global para eventos narrativos (bloqueia repetição por label na mesma partida)
+    if (priority === AUDIO_PRIORITY.NARRATIVE_EVENT || this.NARRATIVE_EVENT_LABELS.includes(label)) {
+      const lockedRound = this.narrativeEventLock.get(label);
+      if (lockedRound !== undefined) {
+        console.log(`[CentralAudioQueue] 🔒 Evento narrativo "${label}" bloqueado (já disparou na rodada ${lockedRound})`);
+        onComplete?.();
+        return id;
+      }
+      // Registra o lock para esta label
+      this.narrativeEventLock.set(label, this.currentRound);
+      console.log(`[CentralAudioQueue] 🔐 Evento narrativo "${label}" registrado para rodada ${this.currentRound}`);
     }
     
     const item: QueuedAudioItem = {
@@ -534,4 +559,9 @@ export function clearAllAudio(): void {
 // ✅ NOVO: Função helper para definir a rodada atual
 export function setAudioQueueRound(round: number): void {
   centralAudioQueue.setCurrentRound(round);
+}
+
+// ✅ NOVO: Função helper para resetar lock de eventos narrativos (chamar ao iniciar nova partida)
+export function resetNarrativeAudioLock(): void {
+  centralAudioQueue.resetNarrativeEventLock();
 }
