@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Coins } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Coins, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEconomy } from '@/hooks/useEconomy';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import prizeGiftcard from '@/assets/prize-giftcard.jpg';
 import prizePix from '@/assets/prize-pix.jpg';
+import prizePix50 from '@/assets/prize-pix-50.jpg';
 import prizeMaleta from '@/assets/prize-maleta.jpg';
 import prizePs5 from '@/assets/prize-ps5.jpg';
 import prizeIphone from '@/assets/prize-iphone.jpg';
@@ -27,7 +29,7 @@ const prizes: PrizeCard[] = [
     name: 'PIX R$ 50',
     price: '50k BC',
     priceValue: 50000,
-    image: prizePix,
+    image: prizePix50,
     description: 'Dinheiro direto na sua conta',
   },
   {
@@ -67,13 +69,13 @@ const prizes: PrizeCard[] = [
     name: 'iPhone 16 Pro',
     price: '1M BC',
     priceValue: 1000000,
-    image: prizePix,
+    image: prizeIphone,
     description: 'O smartphone mais avançado',
   },
 ];
 
 export default function BlackMarket() {
-  const { bcBalance } = useEconomy();
+  const { bcBalance, loading } = useEconomy();
   const userCoins = bcBalance;
 
   const formatCoins = (amount: number) => {
@@ -109,8 +111,15 @@ export default function BlackMarket() {
             MERCADO NEGRO
           </h1>
           
-          <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border">
-            <BluffCoinDisplay amount={userCoins} size="sm" showChange={false} />
+          <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border min-w-[80px] justify-center">
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-gold" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+            ) : (
+              <BluffCoinDisplay amount={userCoins} size="sm" showChange={false} />
+            )}
           </div>
         </div>
       </header>
