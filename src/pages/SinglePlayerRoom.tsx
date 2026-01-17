@@ -1616,10 +1616,10 @@ function SinglePlayerRoomContent() {
         />
       )}
 
-      {/* NarrativeEngine: Pressure Effects Overlay */}
+      {/* NarrativeEngine: Pressure Effects Overlay - beeps disabled to avoid duplicate sounds with PressureTimer */}
       <PressureEffects
         pressureLevel={narrative.pressureLevel}
-        enableBeeps={narrative.currentAct.enableBeeps && gamePhase === 'question'}
+        enableBeeps={false}
         enableBomb={narrative.currentAct.enableBombEvent && gamePhase === 'question' && !narrative.state.bombEventTriggered}
       />
       
