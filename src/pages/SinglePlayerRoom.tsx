@@ -94,6 +94,7 @@ import {
 } from '@/services/bcRewardsService';
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
+import LiveBCCounter from '@/components/game/LiveBCCounter';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -1696,6 +1697,13 @@ function SinglePlayerRoomContent() {
         <div className="grid md:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="md:col-span-2">
+            {/* Live BC Counter - shows during active game phases */}
+            {(gamePhase === 'question' || gamePhase === 'recording' || gamePhase === 'voting_simulation' || gamePhase === 'result' || gamePhase === 'bribe_offer') && (
+              <div className="flex justify-end mb-3">
+                <LiveBCCounter tracker={rewardsTracker} />
+              </div>
+            )}
+            
             <LuxuryCard>
               {/* QUESTION PHASE */}
               {gamePhase === 'question' && currentQuestion && (

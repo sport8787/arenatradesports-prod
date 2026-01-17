@@ -48,6 +48,7 @@ import HorusBribeOffer from '@/components/game/HorusBribeOffer';
 import ConnectionIndicator from '@/components/game/ConnectionIndicator';
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
+import LiveBCCounter from '@/components/game/LiveBCCounter';
 import DailyStreakBanner from '@/components/game/DailyStreakBanner';
 import { GameMode } from '@/types/game';
 import { Play, Copy, Check, Bot, Loader2, Volume2, VolumeX, Home, Lock, Unlock, Trophy, Banknote, MessageCircle, Link } from 'lucide-react';
@@ -1067,6 +1068,13 @@ function GameRoomContent() {
             ...prev,
             correctAnswers: prev.correctAnswers + 1
           }));
+          
+          // 💰 SALVAR BC POR ACERTO IMEDIATAMENTE
+          if (!isGuest && isAuthenticated && profile) {
+            await persistGameResult(BC_REWARDS.CORRECT_ANSWER);
+            console.log(`[BC-MP] +${BC_REWARDS.CORRECT_ANSWER} BC por resposta correta salvo!`);
+          }
+          
           toast({ title: `+${BC_REWARDS.CORRECT_ANSWER} BC`, description: 'Resposta correta!' });
         }
         if (!playerGotCorrect && believeVotes > 0) {
@@ -1093,12 +1101,26 @@ function GameRoomContent() {
               ...prev,
               perfectBluffs: prev.perfectBluffs + 1
             }));
+            
+            // 💰 SALVAR BLEFE PERFEITO IMEDIATAMENTE
+            if (!isGuest && isAuthenticated && profile) {
+              await persistGameResult(BC_REWARDS.PERFECT_BLUFF);
+              console.log(`[BC-MP] +${BC_REWARDS.PERFECT_BLUFF} BC blefe perfeito salvo!`);
+            }
+            
             toast({ title: `+${BC_REWARDS.PERFECT_BLUFF} BC`, description: 'Blefe perfeito! Todos acreditaram!' });
           } else if (believeVotes >= 2) {
             setRewardsTracker(prev => ({
               ...prev,
               goodBluffs: prev.goodBluffs + 1
             }));
+            
+            // 💰 SALVAR BLEFE BOM IMEDIATAMENTE
+            if (!isGuest && isAuthenticated && profile) {
+              await persistGameResult(BC_REWARDS.GOOD_BLUFF);
+              console.log(`[BC-MP] +${BC_REWARDS.GOOD_BLUFF} BC blefe bom salvo!`);
+            }
+            
             toast({ title: `+${BC_REWARDS.GOOD_BLUFF} BC`, description: 'Blefe bom!' });
           }
           
@@ -1490,8 +1512,18 @@ function GameRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Persist winnings to profile
-    await persistGameResult(accumulatedPrize);
+    // Marcar partida como completa e calcular BC baseado no tracker
+    const cashOutTracker = {
+      ...rewardsTracker,
+      completedGame: true,
+    };
+    setRewardsTracker(cashOutTracker);
+    const totalBC = calculateTotalRewards(cashOutTracker);
+    
+    // Persist BC rewards (não o score do jogo)
+    if (totalBC > 0) {
+      await persistGameResult(totalBC);
+    }
     
     // Update ranking
     const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
@@ -1500,10 +1532,10 @@ function GameRoomContent() {
       ranking = await getOrCreateRanking(playerNickname);
     }
     if (ranking) {
-      await updateRankingStats({ addGame: true, addWin: true, addPoints: accumulatedPrize });
+      await updateRankingStats({ addGame: true, addWin: true, addPoints: totalBC });
     }
     
-    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    toast({ title: '🏆 VITÓRIA ESTRATÉGICA!', description: `Você saiu com ${totalBC} BC!` });
     setGameCompleted(true);
     
     // Return to lobby
@@ -2011,6 +2043,10 @@ function GameRoomContent() {
               {/* QUESTION */}
               {gameState.room?.current_status === 'question' && gameState.currentQuestion && (
                 <div className="space-y-3 md:space-y-6">
+                  {/* Live BC Counter - shows BC earned during game */}
+                  <div className="flex justify-end">
+                    <LiveBCCounter tracker={rewardsTracker} />
+                  </div>
                   {/* Pressure Timer - Dynamic timer with pressure effects */}
                   {isCurrentPlayer && (
                     <div className="flex justify-center">
@@ -2741,8 +2777,18 @@ function GameRoomContent() {
           setShowCashOutDialog(false);
           setShowMoneyRain(true);
           
-          // Persist cash out amount to authenticated user's profile
-          await persistGameResult(accumulatedPrize);
+          // Marcar partida como completa e calcular BC baseado no tracker
+          const cashOutTracker = {
+            ...rewardsTracker,
+            completedGame: true,
+          };
+          setRewardsTracker(cashOutTracker);
+          const totalBC = calculateTotalRewards(cashOutTracker);
+          
+          // Persist BC rewards (não o score do jogo)
+          if (totalBC > 0) {
+            await persistGameResult(totalBC);
+          }
           
           // Update ranking with cash out prize - ensure ranking exists first
           const playerNickname = gameState?.players?.find(p => p.session_id === getOrCreateSessionId())?.nickname || 'Jogador';
@@ -2751,7 +2797,7 @@ function GameRoomContent() {
             ranking = await getOrCreateRanking(playerNickname);
           }
           if (ranking) {
-            await updateRankingStats({ addPoints: accumulatedPrize, addGame: true }, ranking);
+            await updateRankingStats({ addPoints: totalBC, addGame: true }, ranking);
           }
           playChips();
         }}
@@ -2761,13 +2807,13 @@ function GameRoomContent() {
       {/* Money Rain Animation */}
       <MoneyRain
         show={showMoneyRain}
-        amount={accumulatedPrize}
+        amount={calculateTotalRewards(rewardsTracker)}
         onComplete={() => {
           setShowMoneyRain(false);
           setGameCompleted(true);
           toast({ 
             title: '💰 CASH OUT!', 
-            description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` 
+            description: `Você saiu com ${calculateTotalRewards(rewardsTracker)} BC!` 
           });
         }}
       />
