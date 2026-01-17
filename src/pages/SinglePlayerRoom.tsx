@@ -292,6 +292,9 @@ function SinglePlayerRoomContent() {
   const [showHorusTerminal, setShowHorusTerminal] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Iniciando partida");
   
+  // Horus bribe amount - calculated based on BC rewards table
+  const [horusBribeAmount, setHorusBribeAmount] = useState(0);
+  
   // Psychology dialogue system
   const [psychologyState, setPsychologyState] = useState<PlayerPsychologyState>(() => 
     createInitialPsychologyState(profile?.username || 'Jogador')
@@ -722,20 +725,26 @@ function SinglePlayerRoomContent() {
       
       setGamePhase('victory');
     } else {
-      // ELIMINATION - lose all or fall to safe amount
+      // ELIMINATION - save BC earned so far (from tracker)
       playGameOver();
       
-      const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
+      // Marcar partida como completa e calcular BC reais ganhos
+      const updatedTracker = {
+        ...rewardsTracker,
+        completedGame: true, // Partida foi completada (mesmo com eliminação)
+      };
+      setRewardsTracker(updatedTracker);
+      const totalBCEarned = calculateTotalRewards(updatedTracker);
       
-      if (finalPrize > 0) {
-        await persistWinnings(finalPrize, false);
+      if (totalBCEarned > 0) {
+        await persistWinnings(totalBCEarned, false);
       }
       
       if (myRanking) {
         updateSoloRankingStats({ 
           addGame: true, 
           setBestRound: maxRounds,
-          addPoints: finalPrize
+          addPoints: totalBCEarned
         });
       }
       
@@ -799,7 +808,20 @@ function SinglePlayerRoomContent() {
     
     // Increment bribe offer counter
     setBribeOffersCount(prev => prev + 1);
-    console.log(`[Hórus Offer] Showing offer #${bribeOffersCount + 1} at round ${currentRound}`);
+    
+    // Calcular oferta do Hórus usando tabela de BC
+    // Base: 60 BC (completar partida) + recompensas já acumuladas
+    // O Hórus oferece ~50% do que o jogador PODERIA ganhar se continuar
+    const currentTrackerBC = calculateTotalRewards({
+      ...rewardsTracker,
+      completedGame: true, // Simula como se terminasse agora
+    });
+    // Oferta do Hórus: 50-80% do BC acumulado, mínimo de 30 BC
+    const offerPercentage = 0.5 + (Math.random() * 0.3);
+    const calculatedOffer = Math.max(30, Math.floor(currentTrackerBC * offerPercentage));
+    setHorusBribeAmount(calculatedOffer);
+    
+    console.log(`[Hórus Offer] Showing offer #${bribeOffersCount + 1} at round ${currentRound} - ${calculatedOffer} BC`);
     
     // Show Horus bribe offer BEFORE voting phase
     setGamePhase('bribe_offer');
@@ -996,8 +1018,17 @@ function SinglePlayerRoomContent() {
     setShowMoneyRain(true);
     playCashRegister();
     
-    // Persist winnings to profile
-    await persistWinnings(accumulatedPrize, true);
+    // Marcar partida como completa no tracker e salvar BC do acordo
+    const updatedTracker = {
+      ...rewardsTracker,
+      completedGame: true,
+    };
+    setRewardsTracker(updatedTracker);
+    
+    // Persist BC from Horus bribe offer to profile
+    if (horusBribeAmount > 0) {
+      await persistWinnings(horusBribeAmount, true);
+    }
     
     // Update ranking
     if (myRanking) {
@@ -1005,11 +1036,11 @@ function SinglePlayerRoomContent() {
         addGame: true, 
         addWin: true,
         setBestRound: currentRound,
-        addPoints: accumulatedPrize 
+        addPoints: horusBribeAmount 
       });
     }
     
-    toast({ title: '💰 ACORDO DE OURO ACEITO!', description: `Você saiu com ${accumulatedPrize.toLocaleString()} BluffCoins!` });
+    toast({ title: '💰 ACORDO DE OURO ACEITO!', description: `Você saiu com ${horusBribeAmount} BC!` });
     setGamePhase('victory');
   };
 
@@ -1106,10 +1137,16 @@ function SinglePlayerRoomContent() {
         }
         playGameOver();
         
-        // Persist safe amount if any
-        const finalPrize = hasGuaranteedPrize ? safeAmount : 0;
-        if (finalPrize > 0) {
-          await persistWinnings(finalPrize, false);
+        // Marcar partida como completa e calcular BC reais ganhos
+        const elimTracker = {
+          ...rewardsTracker,
+          completedGame: true,
+        };
+        setRewardsTracker(elimTracker);
+        const totalBCOnElim = calculateTotalRewards(elimTracker);
+        
+        if (totalBCOnElim > 0) {
+          await persistWinnings(totalBCOnElim, false);
         }
         
         // Update ranking
@@ -1117,7 +1154,7 @@ function SinglePlayerRoomContent() {
           updateSoloRankingStats({ 
             addGame: true, 
             setBestRound: currentRound,
-            addPoints: finalPrize
+            addPoints: totalBCOnElim
           });
         }
         
@@ -2217,7 +2254,7 @@ function SinglePlayerRoomContent() {
       {/* Horus Bribe Offer - shown during bribe_offer phase BEFORE results */}
       <HorusPostVoteBribe
         isVisible={gamePhase === 'bribe_offer'}
-        totalBluffCoins={accumulatedPrize > 0 ? accumulatedPrize : null}
+        totalBluffCoins={horusBribeAmount > 0 ? horusBribeAmount : null}
         onAcceptBribe={handleHorusAcceptBribe}
         onRejectBribe={handleHorusRejectBribe}
         onListenProposal={handleHorusListen}
