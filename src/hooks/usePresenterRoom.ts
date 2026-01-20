@@ -14,6 +14,7 @@ export type PresenterEventType =
   | 'reveal_answer'
   | 'start_voting'
   | 'end_voting'
+  | 'enable_justification'
   | 'play_audio'
   | 'player_joined'
   | 'player_left'
@@ -52,6 +53,7 @@ interface RoomState {
   timerDuration: number;
   showingAnswer: boolean;
   votingActive: boolean;
+  justificationEnabled: boolean;
   players: Player[];
   isGameStarted: boolean;
   juryVotes: JuryVote[];
@@ -66,6 +68,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     timerDuration: 0,
     showingAnswer: false,
     votingActive: false,
+    justificationEnabled: false,
     players: [],
     isGameStarted: false,
     juryVotes: []
@@ -167,6 +170,14 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     });
   }, [broadcastEvent]);
 
+  const enableJustification = useCallback(async () => {
+    setRoomState(prev => ({ ...prev, justificationEnabled: true }));
+    await broadcastEvent({
+      type: 'enable_justification',
+      timestamp: Date.now()
+    });
+  }, [broadcastEvent]);
+
   const playAudio = useCallback(async (audioId: string, audioFile: string) => {
     await broadcastEvent({
       type: 'play_audio',
@@ -186,6 +197,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       currentQuestion: null,
       showingAnswer: false,
       votingActive: false,
+      justificationEnabled: false,
       timerActive: false,
       juryVotes: []
     }));
@@ -295,13 +307,17 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
             case 'end_voting':
               setRoomState(prev => ({ ...prev, votingActive: false }));
               break;
+            case 'enable_justification':
+              setRoomState(prev => ({ ...prev, justificationEnabled: true }));
+              break;
             case 'next_round':
               setRoomState(prev => ({
                 ...prev,
                 currentRound: event.data?.round as number,
                 currentQuestion: null,
                 showingAnswer: false,
-                votingActive: false
+                votingActive: false,
+                justificationEnabled: false
               }));
               break;
             case 'game_start':
@@ -339,6 +355,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     revealAnswer,
     startVoting,
     endVoting,
+    enableJustification,
     playAudio,
     nextRound,
     startGame,

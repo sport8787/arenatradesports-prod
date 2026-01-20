@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
 import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
+import { processRecordedAudio, MycroftAnalysisResult } from '@/services/presenterAudioService';
 
 type PlayerRole = 'player' | 'jury';
 
@@ -44,6 +45,8 @@ export default function PlayerScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const [mycroftAnalysis, setMycroftAnalysis] = useState<MycroftAnalysisResult | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -493,18 +496,60 @@ export default function PlayerScreen() {
                       <Check className="w-8 h-8 text-success mx-auto mb-2" />
                       <p className="font-medium text-success">Resposta Enviada!</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Agora convença o júri sobre sua escolha!
+                        {roomState.justificationEnabled 
+                          ? 'Grave sua justificativa para o júri!' 
+                          : 'Aguarde o apresentador liberar a gravação...'}
                       </p>
                     </div>
                     
-                    {/* Gravador de Justificativa Real */}
-                    <PresenterModeRecorder
-                      onRecordingComplete={(blob, durationMs) => {
-                        setRecordedAudioBlob(blob);
-                        console.log('[PlayerScreen] Audio recorded:', durationMs, 'ms');
-                        // O blob pode ser enviado para análise de IA posteriormente
-                      }}
-                    />
+                    {/* Gravador de Justificativa - só aparece quando liberado */}
+                    {roomState.justificationEnabled && (
+                      <>
+                        <PresenterModeRecorder
+                          onRecordingComplete={async (blob, durationMs) => {
+                            setRecordedAudioBlob(blob);
+                            setIsProcessingAudio(true);
+                            
+                            try {
+                              const result = await processRecordedAudio(
+                                blob,
+                                durationMs,
+                                roomId || '',
+                                playerId,
+                                roomState.currentRound,
+                                roomState.currentQuestion?.question_text || '',
+                                roomState.currentQuestion?.correct_option || '',
+                                selectedAnswer || ''
+                              );
+                              
+                              if (result.analysis) {
+                                setMycroftAnalysis(result.analysis);
+                                toast({
+                                  title: '🔬 Análise Vocal Concluída',
+                                  description: 'Mycroft processou sua justificativa.'
+                                });
+                              }
+                            } catch (err) {
+                              console.error('[PlayerScreen] Audio processing error:', err);
+                            } finally {
+                              setIsProcessingAudio(false);
+                            }
+                          }}
+                          disabled={isProcessingAudio}
+                        />
+                        
+                        {isProcessingAudio && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex items-center gap-2 p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl"
+                          >
+                            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                            <span className="text-sm text-purple-300">Mycroft analisando voz...</span>
+                          </motion.div>
+                        )}
+                      </>
+                    )}
                   </motion.div>
                 )}
               </div>
