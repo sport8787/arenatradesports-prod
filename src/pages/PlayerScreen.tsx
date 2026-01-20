@@ -137,17 +137,17 @@ export default function PlayerScreen() {
           }, delay);
         }
 
-        // Receive Mycroft analysis for jury members
-        if (event.type === 'mycroft_analysis' && event.data && role === 'jury') {
-          console.log('[PlayerScreen] 🔬 Mycroft analysis received for jury:', event.data);
+        // Receive Mycroft analysis ONLY when presenter releases it (release_mycroft event)
+        if (event.type === 'release_mycroft' && event.data && role === 'jury') {
+          console.log('[PlayerScreen] 🔬 Mycroft analysis RELEASED by presenter:', event.data);
           setMycroftAnalysis({
             verdict: event.data.verdict as string,
             confidence: event.data.confidence as number,
             forensicDetails: event.data.forensicDetails as string
           });
           toast({
-            title: '🔬 Análise Forense Disponível',
-            description: 'Mycroft analisou a voz do jogador!'
+            title: '🔬 Análise Forense do Mycroft',
+            description: 'O apresentador liberou a análise de voz!'
           });
         }
       })
@@ -543,7 +543,8 @@ export default function PlayerScreen() {
                               if (result.analysis) {
                                 setMycroftAnalysis(result.analysis);
                                 
-                                // Broadcast voice metrics to presenter
+                                // Broadcast voice metrics AND Mycroft analysis TO PRESENTER ONLY
+                                // The presenter will decide when to release the analysis to the jury
                                 if (channelRef.current) {
                                   await channelRef.current.send({
                                     type: 'broadcast',
@@ -559,7 +560,7 @@ export default function PlayerScreen() {
                                   });
                                   console.log('[PlayerScreen] 📊 Voice metrics sent to presenter');
                                   
-                                  // Broadcast analysis to jury members
+                                  // Send Mycroft analysis to PRESENTER (not directly to jury)
                                   await channelRef.current.send({
                                     type: 'broadcast',
                                     event: 'presenter_control',
@@ -574,12 +575,12 @@ export default function PlayerScreen() {
                                       timestamp: Date.now()
                                     }
                                   });
-                                  console.log('[PlayerScreen] 📡 Mycroft analysis broadcasted to jury');
+                                  console.log('[PlayerScreen] 📡 Mycroft analysis sent to PRESENTER (awaiting release)');
                                 }
                                 
                                 toast({
-                                  title: '🔬 Análise Enviada ao Júri',
-                                  description: 'Mycroft compartilhou a análise com o júri!'
+                                  title: '🔬 Análise Pronta',
+                                  description: 'Aguarde o apresentador liberar para o júri'
                                 });
                               }
                             } catch (err) {

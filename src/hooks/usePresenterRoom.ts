@@ -24,7 +24,8 @@ export type PresenterEventType =
   | 'show_scores'
   | 'jury_vote'
   | 'mycroft_analysis'
-  | 'voice_metrics'; // Voice metrics for presenter
+  | 'voice_metrics'
+  | 'release_mycroft'; // Presenter releases Mycroft analysis to jury
 
 interface PresenterEvent {
   type: PresenterEventType;
@@ -47,6 +48,13 @@ interface JuryVote {
   timestamp: number;
 }
 
+interface MycroftPendingAnalysis {
+  verdict: string;
+  confidence: number;
+  forensicDetails: string;
+  metrics?: Record<string, unknown>;
+}
+
 interface RoomState {
   currentQuestion: Question | null;
   currentRound: number;
@@ -59,6 +67,8 @@ interface RoomState {
   players: Player[];
   isGameStarted: boolean;
   juryVotes: JuryVote[];
+  pendingMycroftAnalysis: MycroftPendingAnalysis | null;
+  mycroftReleased: boolean;
 }
 
 export function usePresenterRoom(roomId: string | undefined, isPresenter: boolean = false) {
@@ -73,7 +83,9 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     justificationEnabled: false,
     players: [],
     isGameStarted: false,
-    juryVotes: []
+    juryVotes: [],
+    pendingMycroftAnalysis: null,
+    mycroftReleased: false
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +213,9 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       votingActive: false,
       justificationEnabled: false,
       timerActive: false,
-      juryVotes: []
+      juryVotes: [],
+      pendingMycroftAnalysis: null,
+      mycroftReleased: false
     }));
     await broadcastEvent({
       type: 'next_round',
@@ -209,6 +223,32 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       timestamp: Date.now()
     });
   }, [broadcastEvent, roomState.currentRound]);
+
+  // Store Mycroft analysis received from player (presenter only)
+  const storePendingMycroft = useCallback((analysis: MycroftPendingAnalysis) => {
+    setRoomState(prev => ({
+      ...prev,
+      pendingMycroftAnalysis: analysis,
+      mycroftReleased: false
+    }));
+  }, []);
+
+  // Release Mycroft analysis to jury
+  const releaseMycroft = useCallback(async () => {
+    if (!roomState.pendingMycroftAnalysis) return;
+    
+    setRoomState(prev => ({ ...prev, mycroftReleased: true }));
+    await broadcastEvent({
+      type: 'release_mycroft',
+      data: {
+        verdict: roomState.pendingMycroftAnalysis.verdict,
+        confidence: roomState.pendingMycroftAnalysis.confidence,
+        forensicDetails: roomState.pendingMycroftAnalysis.forensicDetails,
+        metrics: roomState.pendingMycroftAnalysis.metrics
+      },
+      timestamp: Date.now()
+    });
+  }, [broadcastEvent, roomState.pendingMycroftAnalysis]);
 
   const startGame = useCallback(async (question?: Question) => {
     setRoomState(prev => ({ 
@@ -334,7 +374,21 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
                 currentQuestion: null,
                 showingAnswer: false,
                 votingActive: false,
-                justificationEnabled: false
+                justificationEnabled: false,
+                pendingMycroftAnalysis: null,
+                mycroftReleased: false
+              }));
+              break;
+            case 'release_mycroft':
+              setRoomState(prev => ({ 
+                ...prev, 
+                mycroftReleased: true,
+                pendingMycroftAnalysis: {
+                  verdict: event.data?.verdict as string,
+                  confidence: event.data?.confidence as number,
+                  forensicDetails: event.data?.forensicDetails as string,
+                  metrics: event.data?.metrics as Record<string, unknown>
+                }
               }));
               break;
             case 'game_start':
@@ -389,6 +443,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     nextRound,
     startGame,
     showScores,
-    loadPlayers
+    loadPlayers,
+    storePendingMycroft,
+    releaseMycroft
   };
 }
