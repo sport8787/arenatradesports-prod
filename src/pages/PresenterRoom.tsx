@@ -421,7 +421,18 @@ export default function PresenterRoom() {
           </div>
 
           {!roomState.isGameStarted ? (
-            <GoldButton onClick={startGame} size="sm">
+            <GoldButton 
+              onClick={() => {
+                const question = questions[selectedQuestionIndex];
+                if (question) {
+                  startGame(question);
+                  startTimer('response', 30);
+                } else {
+                  startGame();
+                }
+              }} 
+              size="sm"
+            >
               <Play className="w-4 h-4 mr-2" />
               Iniciar Jogo
             </GoldButton>
@@ -516,14 +527,14 @@ export default function PresenterRoom() {
                   <GoldButton
                     onClick={() => {
                       handleShowQuestion();
-                      startTimer('response', 15);
+                      startTimer('response', 30);
                     }}
                     disabled={roomState.currentQuestion !== null}
                     className="w-full text-xs py-2"
                     size="sm"
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    Iniciar Resposta (15s)
+                    Iniciar Resposta (30s)
                   </GoldButton>
                 </div>
                 
@@ -558,7 +569,7 @@ export default function PresenterRoom() {
                     variant="outline"
                     onClick={() => {
                       startVoting();
-                      startTimer('voting', 10);
+                      startTimer('voting', 30);
                     }}
                     disabled={!roomState.currentQuestion || roomState.votingActive}
                     className={cn(
@@ -568,7 +579,7 @@ export default function PresenterRoom() {
                     size="sm"
                   >
                     <Users className="w-3 h-3 mr-1" />
-                    Iniciar Votação (10s)
+                    Iniciar Votação (30s)
                   </Button>
                 </div>
 
