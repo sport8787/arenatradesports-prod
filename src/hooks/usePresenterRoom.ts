@@ -257,7 +257,16 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
 
   // Setup realtime channel
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId) {
+      setLoading(false);
+      return;
+    }
+
+    // Timeout de segurança: mesmo que a subscrição demore, libera o loading
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+      console.log('[PresenterRoom] Loading timeout - releasing UI');
+    }, 3000);
 
     const channel = supabase.channel(`presenter:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
@@ -343,15 +352,22 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
         loadPlayers();
       })
       .subscribe((status) => {
+        console.log('[PresenterRoom] Channel status:', status);
         if (status === 'SUBSCRIBED') {
+          clearTimeout(loadingTimeout);
           setLoading(false);
           loadPlayers();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          clearTimeout(loadingTimeout);
+          setLoading(false);
+          setError('Erro ao conectar à sala');
         }
       });
 
     channelRef.current = channel;
 
     return () => {
+      clearTimeout(loadingTimeout);
       supabase.removeChannel(channel);
     };
   }, [roomId, isPresenter, loadPlayers]);
