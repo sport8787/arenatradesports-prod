@@ -386,7 +386,7 @@ export default function PlayerScreen() {
               </h2>
             </div>
 
-            {/* Options (for players - Jogador Principal vê resposta correta) */}
+            {/* Options (for players - Jogador Principal) */}
             {role === 'player' && !roomState.showingAnswer && (
               <div className="space-y-3">
                 {/* Banner indicando que é o Jogador Principal */}
@@ -398,7 +398,11 @@ export default function PlayerScreen() {
                   <span className="text-xl">🎯</span>
                   <div>
                     <p className="text-sm font-semibold text-gold">Você é o Jogador Principal</p>
-                    <p className="text-xs text-muted-foreground">A resposta correta está destacada. Convença o júri!</p>
+                    <p className="text-xs text-muted-foreground">
+                      {hasAnswered 
+                        ? "A resposta correta está destacada. Convença o júri!" 
+                        : "Selecione sua resposta abaixo"}
+                    </p>
                   </div>
                 </motion.div>
 
@@ -406,6 +410,8 @@ export default function PlayerScreen() {
                   const optionKey = `option_${option.toLowerCase()}` as keyof typeof roomState.currentQuestion;
                   const optionText = roomState.currentQuestion?.[optionKey];
                   const isCorrect = roomState.currentQuestion?.correct_option === option;
+                  // Só mostra a resposta correta APÓS o jogador confirmar
+                  const showCorrectHighlight = hasAnswered && isCorrect;
                   
                   return (
                     <motion.button
@@ -418,21 +424,21 @@ export default function PlayerScreen() {
                         "border-2",
                         selectedAnswer === option
                           ? "border-gold bg-gold/20"
-                          : isCorrect
+                          : showCorrectHighlight
                           ? "border-emerald-500/50 bg-emerald-900/20"
                           : "border-border/50 bg-background/30 hover:border-gold/50",
-                        hasAnswered && "opacity-60 cursor-not-allowed"
+                        hasAnswered && "opacity-80"
                       )}
                     >
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "font-bold mr-2",
-                          isCorrect ? "text-emerald-400" : "text-gold"
+                          showCorrectHighlight ? "text-emerald-400" : "text-gold"
                         )}>
                           {option}.
                         </span>
                         <span className="flex-1">{optionText}</span>
-                        {isCorrect && (
+                        {showCorrectHighlight && (
                           <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/30">
                             ✓ Correta
                           </span>
@@ -456,66 +462,120 @@ export default function PlayerScreen() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="text-center p-4 rounded-xl bg-success/20 border border-success"
+                    className="text-center p-4 rounded-xl bg-success/20 border border-success mt-4"
                   >
                     <Check className="w-8 h-8 text-success mx-auto mb-2" />
                     <p className="font-medium text-success">Resposta Enviada!</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Aguarde o resultado...
+                      Agora convença o júri sobre sua escolha!
                     </p>
                   </motion.div>
                 )}
               </div>
             )}
 
-            {/* Voting (for jury) */}
-            {role === 'jury' && roomState.votingActive && !roomState.showingAnswer && (
+            {/* Options display for jury - mostra alternativas mas NÃO mostra qual é correta */}
+            {role === 'jury' && !roomState.showingAnswer && (
               <div className="space-y-4">
-                <p className="text-center text-muted-foreground">
-                  O jogador está mentindo ou falando a verdade?
-                </p>
-                
-                {!hasVoted ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleVote('believe')}
-                      className="p-6 rounded-xl bg-success/20 border-2 border-success/50 hover:border-success transition-all"
-                    >
-                      <ThumbsUp className="w-10 h-10 text-success mx-auto mb-2" />
-                      <p className="font-bold text-success">Acreditar</p>
-                    </motion.button>
-                    
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleVote('doubt')}
-                      className="p-6 rounded-xl bg-destructive/20 border-2 border-destructive/50 hover:border-destructive transition-all"
-                    >
-                      <ThumbsDown className="w-10 h-10 text-destructive mx-auto mb-2" />
-                      <p className="font-bold text-destructive">Duvidar</p>
-                    </motion.button>
-                  </div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={cn(
-                      "text-center p-4 rounded-xl border-2",
-                      vote === 'believe' 
-                        ? "bg-success/20 border-success" 
-                        : "bg-destructive/20 border-destructive"
-                    )}
-                  >
-                    {vote === 'believe' ? (
-                      <ThumbsUp className="w-8 h-8 text-success mx-auto mb-2" />
-                    ) : (
-                      <ThumbsDown className="w-8 h-8 text-destructive mx-auto mb-2" />
-                    )}
-                    <p className="font-medium">
-                      Você {vote === 'believe' ? 'acreditou' : 'duvidou'}!
+                {/* Banner indicando que é Júri */}
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl mb-4"
+                >
+                  <span className="text-xl">👨‍⚖️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-purple-300">Você é do Júri</p>
+                    <p className="text-xs text-muted-foreground">
+                      Observe as alternativas e avalie se o jogador está blefando
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Aguarde o resultado...
+                  </div>
+                </motion.div>
+
+                {/* Mostra as alternativas para o júri (sem destacar a correta) */}
+                {['A', 'B', 'C', 'D'].map((option) => {
+                  const optionKey = `option_${option.toLowerCase()}` as keyof typeof roomState.currentQuestion;
+                  const optionText = roomState.currentQuestion?.[optionKey];
+                  
+                  return (
+                    <div
+                      key={option}
+                      className="w-full p-4 rounded-xl text-left border-2 border-border/50 bg-background/30"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold mr-2 text-muted-foreground">
+                          {option}.
+                        </span>
+                        <span className="flex-1">{optionText}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Área de votação */}
+                {roomState.votingActive && (
+                  <div className="space-y-4 mt-6">
+                    <p className="text-center text-muted-foreground font-medium">
+                      O jogador está mentindo ou falando a verdade?
+                    </p>
+                    
+                    {!hasVoted ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleVote('believe')}
+                          className="p-6 rounded-xl bg-success/20 border-2 border-success/50 hover:border-success transition-all"
+                        >
+                          <ThumbsUp className="w-10 h-10 text-success mx-auto mb-2" />
+                          <p className="font-bold text-success">Acreditar</p>
+                        </motion.button>
+                        
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleVote('doubt')}
+                          className="p-6 rounded-xl bg-destructive/20 border-2 border-destructive/50 hover:border-destructive transition-all"
+                        >
+                          <ThumbsDown className="w-10 h-10 text-destructive mx-auto mb-2" />
+                          <p className="font-bold text-destructive">Duvidar</p>
+                        </motion.button>
+                      </div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={cn(
+                          "text-center p-4 rounded-xl border-2",
+                          vote === 'believe' 
+                            ? "bg-success/20 border-success" 
+                            : "bg-destructive/20 border-destructive"
+                        )}
+                      >
+                        {vote === 'believe' ? (
+                          <ThumbsUp className="w-8 h-8 text-success mx-auto mb-2" />
+                        ) : (
+                          <ThumbsDown className="w-8 h-8 text-destructive mx-auto mb-2" />
+                        )}
+                        <p className="font-medium">
+                          Você {vote === 'believe' ? 'acreditou' : 'duvidou'}!
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Aguarde o resultado...
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {/* Aguardando votação abrir */}
+                {!roomState.votingActive && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center p-4 rounded-xl bg-muted/20 border border-border/50 mt-4"
+                  >
+                    <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Aguarde o jogador principal responder...
                     </p>
                   </motion.div>
                 )}
