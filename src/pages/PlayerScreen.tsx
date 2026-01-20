@@ -540,8 +540,23 @@ export default function PlayerScreen() {
                               if (result.analysis) {
                                 setMycroftAnalysis(result.analysis);
                                 
-                                // Broadcast analysis to jury members
+                                // Broadcast voice metrics to presenter
                                 if (channelRef.current) {
+                                  await channelRef.current.send({
+                                    type: 'broadcast',
+                                    event: 'presenter_control',
+                                    payload: {
+                                      type: 'voice_metrics',
+                                      data: {
+                                        metrics: result.metrics,
+                                        playerName: nickname
+                                      },
+                                      timestamp: Date.now()
+                                    }
+                                  });
+                                  console.log('[PlayerScreen] 📊 Voice metrics sent to presenter');
+                                  
+                                  // Broadcast analysis to jury members
                                   await channelRef.current.send({
                                     type: 'broadcast',
                                     event: 'presenter_control',
