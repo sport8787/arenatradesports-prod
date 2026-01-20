@@ -14,6 +14,7 @@ import BlackMarket from "./pages/BlackMarket";
 import HowToEarnBC from "./pages/HowToEarnBC";
 import HowToPlay from "./pages/HowToPlay";
 import AdminQuestions from "./pages/AdminQuestions";
+import AdminFounderCases from "./pages/AdminFounderCases";
 import PresenterRoom from "./pages/PresenterRoom";
 import PlayerScreen from "./pages/PlayerScreen";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,7 @@ const App = () => {
               <Route path="/como-ganhar-bc" element={<HowToEarnBC />} />
               <Route path="/como-jogar" element={<HowToPlay />} />
               <Route path="/admin/questions" element={<AdminQuestions />} />
+              <Route path="/admin/founder-cases" element={<AdminFounderCases />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
