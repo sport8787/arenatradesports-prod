@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight, Briefcase } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { useAudioPreloader } from '@/hooks/useAudioPreloader';
+import { useFounderCase } from '@/hooks/useFounderCase';
 import GoldButton from '@/components/game/GoldButton';
 import AudioPreloadIndicator from '@/components/game/AudioPreloadIndicator';
 import { GameOpening } from '@/components/game/GameOpening';
@@ -14,6 +15,7 @@ import { FakeLobby } from '@/components/game/FakeLobby';
 import { PhaseSelector } from '@/components/game/PhaseSelector';
 import { DailyBonusModal } from '@/components/game/DailyBonusModal';
 import { InsufficientEnergyModal } from '@/components/game/InsufficientEnergyModal';
+import { FounderCaseModal } from '@/components/game/FounderCaseModal';
 import ProgressToPrize from '@/components/game/ProgressToPrize';
 import { useEconomy, GAME_PHASES, DAILY_BONUS_AMOUNT } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
@@ -34,6 +36,7 @@ export default function Index() {
   const navigate = useNavigate();
   const { profile, isAuthenticated, loading: authLoading, signOut, updateProfile } = useAuth();
   const economy = useEconomy();
+  const founderCase = useFounderCase();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,6 +52,7 @@ export default function Index() {
   const [showDailyBonus, setShowDailyBonus] = useState(false);
   const [isClaimingDailyBonus, setIsClaimingDailyBonus] = useState(false);
   const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
+  const [showFounderCaseModal, setShowFounderCaseModal] = useState(false);
   // ✅ FIX: Estado inicial sem lógica de sessionStorage para evitar problemas de hidratação
   const [showOpening, setShowOpening] = useState(false);
 
@@ -578,6 +582,116 @@ export default function Index() {
             <span className="text-sm font-medium text-foreground">Entrar</span>
           </button>
         </motion.div>
+
+        {/* ========== MODO APRESENTADOR ========== */}
+        <motion.button
+          onClick={() => {
+            if (founderCase.hasFounderCase) {
+              // Criar sala de apresentador
+              const createPresenterRoom = async () => {
+                setLoading(true);
+                try {
+                  const sessionId = getOrCreateSessionId();
+                  const roomPin = generatePin();
+                  const nickname = isGuest ? guestNickname : profile?.username || 'Apresentador';
+
+                  const { data: room, error: roomError } = await supabase
+                    .from('rooms')
+                    .insert({ 
+                      pin: roomPin, 
+                      host_id: sessionId,
+                      mode: 'presenter'
+                    })
+                    .select()
+                    .single();
+
+                  if (roomError) throw roomError;
+
+                  // Criar registro do apresentador
+                  const { error: playerError } = await supabase.from('players').insert({
+                    room_id: room.id,
+                    nickname: nickname,
+                    session_id: sessionId,
+                    is_host: true,
+                    role: 'presenter'
+                  });
+
+                  if (playerError) {
+                    await supabase.from('rooms').delete().eq('id', room.id);
+                    throw playerError;
+                  }
+
+                  navigate(`/presenter-room/${room.id}`);
+                } catch (error) {
+                  console.error(error);
+                  toast({ title: 'Erro ao criar sala', variant: 'destructive' });
+                } finally {
+                  setLoading(false);
+                }
+              };
+              createPresenterRoom();
+            } else {
+              setShowFounderCaseModal(true);
+            }
+          }}
+          disabled={loading || founderCase.loading}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="
+            w-full mt-3 relative overflow-hidden
+            bg-gradient-to-r from-purple-900/60 via-blue-900/60 to-purple-900/60
+            border-2 border-gold/40 hover:border-gold
+            rounded-xl p-4
+            flex items-center gap-3
+            transition-all duration-300
+            hover:shadow-[0_6px_20px_rgba(212,175,55,0.3)]
+            disabled:opacity-50 disabled:cursor-not-allowed
+            group
+          "
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          
+          <motion.div
+            animate={{ rotate: founderCase.hasFounderCase ? [0, -5, 5, 0] : 0 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center"
+          >
+            <Briefcase className="w-5 h-5 text-gold" />
+          </motion.div>
+          
+          <div className="flex-1 text-left">
+            <h3 className="font-orbitron text-sm font-bold text-gold uppercase tracking-wide">
+              Modo Apresentador
+            </h3>
+            <p className="text-xs text-foreground/70">
+              {founderCase.hasFounderCase ? 'Controle o jogo ao vivo' : 'Requer Maleta Fundador'}
+            </p>
+          </div>
+          
+          {founderCase.hasFounderCase ? (
+            <span className="text-xs bg-success/20 text-success px-2 py-1 rounded-full border border-success/30">
+              ✓ Ativo
+            </span>
+          ) : (
+            <ChevronRight className="w-5 h-5 text-gold/60" />
+          )}
+        </motion.button>
+
+        {/* Founder Case Modal */}
+        <FounderCaseModal
+          open={showFounderCaseModal}
+          onClose={() => setShowFounderCaseModal(false)}
+          onValidate={(success) => {
+            setShowFounderCaseModal(false);
+            if (success) {
+              toast({ title: '🎉 Maleta Fundador ativada!', description: 'Agora você pode usar o Modo Apresentador.' });
+            }
+          }}
+          validateCode={founderCase.validateCaseCode}
+        />
 
         {/* Join Form Modal */}
         {showJoinForm && (
