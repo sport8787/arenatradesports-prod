@@ -2,13 +2,13 @@
  * Tela do Apresentador - Painel de Controle do Modo Apresentador
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Pause, SkipForward, Volume2, VolumeX, Users, 
   MessageCircle, Eye, EyeOff, Timer, Check, Mic, 
-  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy
+  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy, Square
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom } from '@/hooks/usePresenterRoom';
@@ -22,14 +22,118 @@ import RoundBackground from '@/components/game/RoundBackground';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-// Tipos de áudio do Hórus disponíveis
-const HORUS_AUDIO_OPTIONS = [
-  { id: 'read_question', label: 'Ler Pergunta', icon: '📖' },
-  { id: 'provoke', label: 'Provocar Jogador', icon: '😈' },
-  { id: 'offer_deal', label: 'Oferecer Acordo', icon: '🤝' },
-  { id: 'comment_answer', label: 'Comentar Resposta', icon: '💬' },
-  { id: 'tension', label: 'Criar Tensão', icon: '⚡' },
-  { id: 'celebrate', label: 'Celebrar', icon: '🎉' },
+// Categorias de áudio do Hórus com arquivos locais
+const HORUS_AUDIO_CATEGORIES = [
+  {
+    category: 'Abertura',
+    icon: '🎬',
+    audios: [
+      { id: 'abertura', label: 'Abertura 1', file: '/audio/horus/abertura.mp3' },
+      { id: 'abertura2', label: 'Abertura 2', file: '/audio/horus/abertura2.mp3' },
+      { id: 'abertura3', label: 'Abertura 3', file: '/audio/horus/abertura3.mp3' },
+      { id: 'abertura4', label: 'Abertura 4', file: '/audio/horus/abertura4.mp3' },
+      { id: 'abertura_completa', label: 'Completa', file: '/audio/horus/abertura_completa.mp3' },
+    ]
+  },
+  {
+    category: 'Acordos',
+    icon: '🤝',
+    audios: [
+      { id: 'acordo', label: 'Acordo 1', file: '/audio/horus/acordo.mp3' },
+      { id: 'acordo2', label: 'Acordo 2', file: '/audio/horus/acordo2.mp3' },
+      { id: 'acordo3', label: 'Acordo 3', file: '/audio/horus/acordo3.mp3' },
+      { id: 'acordo4', label: 'Acordo 4', file: '/audio/horus/acordo4.mp3' },
+      { id: 'acordo5', label: 'Acordo 5', file: '/audio/horus/acordo5.mp3' },
+    ]
+  },
+  {
+    category: 'All-In',
+    icon: '🎰',
+    audios: [
+      { id: 'all_in', label: 'All-In 1', file: '/audio/horus/all_in.mp3' },
+      { id: 'all_in_2', label: 'All-In 2', file: '/audio/horus/all_in_2.mp3' },
+      { id: 'all_in_3', label: 'All-In 3', file: '/audio/horus/all_in_3.mp3' },
+      { id: 'all_in_4', label: 'All-In 4', file: '/audio/horus/all_in_4.mp3' },
+    ]
+  },
+  {
+    category: 'Bordões',
+    icon: '💬',
+    audios: [
+      { id: 'bordao_1', label: 'Bordão 1', file: '/audio/horus/bordao_1.mp3' },
+      { id: 'bordao_2', label: 'Bordão 2', file: '/audio/horus/bordao_2.mp3' },
+      { id: 'bordao_3', label: 'Bordão 3', file: '/audio/horus/bordao_3.mp3' },
+      { id: 'bordao_4', label: 'Bordão 4', file: '/audio/horus/bordao_4.mp3' },
+      { id: 'bordao_5', label: 'Bordão 5', file: '/audio/horus/bordao_5.mp3' },
+      { id: 'bordao_6', label: 'Bordão 6', file: '/audio/horus/bordao_6.mp3' },
+      { id: 'provocacao_1', label: 'Provocação', file: '/audio/horus/provocacao_1.mp3' },
+    ]
+  },
+  {
+    category: 'Resultados',
+    icon: '🏆',
+    audios: [
+      { id: 'vitoria', label: 'Vitória 1', file: '/audio/horus/vitoria.mp3' },
+      { id: 'vitoria2', label: 'Vitória 2', file: '/audio/horus/vitoria2.mp3' },
+      { id: 'vitoria3', label: 'Vitória 3', file: '/audio/horus/vitoria3.mp3' },
+      { id: 'derrota', label: 'Derrota 1', file: '/audio/horus/derrota.mp3' },
+      { id: 'derrota2', label: 'Derrota 2', file: '/audio/horus/derrota2.mp3' },
+      { id: 'eliminacao', label: 'Eliminação', file: '/audio/horus/eliminacao.mp3' },
+    ]
+  },
+  {
+    category: 'Blefe',
+    icon: '🎭',
+    audios: [
+      { id: 'blefe_perfeito', label: 'Blefe Perfeito 1', file: '/audio/horus/blefe_perfeito.mp3' },
+      { id: 'blefe_perfeito_2', label: 'Blefe Perfeito 2', file: '/audio/horus/blefe_perfeito_2.mp3' },
+      { id: 'mycroft', label: 'Mycroft 1', file: '/audio/horus/mycroft.mp3' },
+      { id: 'mycroft2', label: 'Mycroft 2', file: '/audio/horus/mycroft2.mp3' },
+    ]
+  },
+  {
+    category: 'Erros',
+    icon: '❌',
+    audios: [
+      { id: 'erro', label: 'Erro 1', file: '/audio/horus/erro.mp3' },
+      { id: 'erro2', label: 'Erro 2', file: '/audio/horus/erro2.mp3' },
+      { id: 'erro3', label: 'Erro 3', file: '/audio/horus/erro3.mp3' },
+      { id: 'erro_critico_1', label: 'Erro Crítico', file: '/audio/horus/erro_critico_1.mp3' },
+    ]
+  },
+  {
+    category: 'Efeitos',
+    icon: '⚡',
+    audios: [
+      { id: 'tic_tac', label: 'Tic Tac', file: '/audio/horus/tic_tac.mp3' },
+      { id: 'surpresa', label: 'Surpresa', file: '/audio/horus/surpresa.mp3' },
+      { id: 'bomb', label: 'Bomba', file: '/audio/horus/bomb.mp3' },
+      { id: 'bip', label: 'Bip', file: '/audio/horus/bip.mp3' },
+      { id: 'tema', label: 'Tema', file: '/audio/horus/tema.mp3' },
+    ]
+  },
+  {
+    category: 'Rodadas',
+    icon: '🔢',
+    audios: [
+      { id: 'rodada_8', label: 'Rodada 8', file: '/audio/horus/rodada_8.mp3' },
+      { id: 'rodada_10', label: 'Rodada 10', file: '/audio/horus/rodada_10.mp3' },
+      { id: 'rodada_15', label: 'Rodada 15', file: '/audio/horus/rodada_15.mp3' },
+      { id: 'check_point_1', label: 'Checkpoint 1', file: '/audio/horus/check_point_1.mp3' },
+      { id: 'check_point_2', label: 'Checkpoint 2', file: '/audio/horus/check_point_2.mp3' },
+    ]
+  },
+  {
+    category: 'Bônus',
+    icon: '🎁',
+    audios: [
+      { id: 'carta_bonus_imunidade', label: 'Imunidade', file: '/audio/horus/carta_bonus_imunidade.mp3' },
+      { id: 'carta_bonus_porto_seguro', label: 'Porto Seguro', file: '/audio/horus/carta_bonus_porto_seguro.mp3' },
+      { id: 'tem_porto_seguro', label: 'Tem Porto Seguro', file: '/audio/horus/tem_porto_seguro.mp3' },
+      { id: 'evento_oculto_1', label: 'Evento Oculto 1', file: '/audio/horus/evento_oculto_1.mp3' },
+      { id: 'evento_oculto_2', label: 'Evento Oculto 2', file: '/audio/horus/evento_oculto_2.mp3' },
+    ]
+  },
 ];
 
 export default function PresenterRoom() {
@@ -62,6 +166,9 @@ export default function PresenterRoom() {
   const [roomPin, setRoomPin] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [localTimer, setLocalTimer] = useState(0);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Carregar perguntas
   useEffect(() => {
@@ -151,10 +258,56 @@ export default function PresenterRoom() {
     }
   };
 
-  const handlePlayHorusAudio = (audioType: string) => {
-    playAudio(audioType, roomState.currentQuestion?.question_text);
-    toast({ title: `🦅 Hórus: ${audioType}` });
+  const handlePlayLocalAudio = (audioId: string, file: string) => {
+    // Stop currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    if (currentlyPlaying === audioId) {
+      setCurrentlyPlaying(null);
+      return;
+    }
+
+    const audio = new Audio(file);
+    audio.volume = isMuted ? 0 : volume[0] / 100;
+    
+    audio.onended = () => {
+      setCurrentlyPlaying(null);
+      audioRef.current = null;
+    };
+    
+    audio.onerror = () => {
+      toast({ title: 'Erro ao carregar áudio', variant: 'destructive' });
+      setCurrentlyPlaying(null);
+    };
+
+    audioRef.current = audio;
+    setCurrentlyPlaying(audioId);
+    audio.play().catch(() => {
+      toast({ title: 'Erro ao tocar áudio', variant: 'destructive' });
+      setCurrentlyPlaying(null);
+    });
+
+    // Broadcast to players
+    playAudio(audioId, file);
   };
+
+  const stopCurrentAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setCurrentlyPlaying(null);
+    }
+  };
+
+  // Update volume when slider changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume[0] / 100;
+    }
+  }, [volume, isMuted]);
 
   if (loading) {
     return (
@@ -403,6 +556,16 @@ export default function PresenterRoom() {
                   Áudios do Hórus
                 </h3>
                 <div className="flex items-center gap-3">
+                  {currentlyPlaying && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={stopCurrentAudio}
+                    >
+                      <Square className="w-4 h-4 mr-1" />
+                      Parar
+                    </Button>
+                  )}
                   <button
                     onClick={() => setIsMuted(!isMuted)}
                     className="p-2 rounded-lg hover:bg-muted transition-colors"
@@ -420,17 +583,64 @@ export default function PresenterRoom() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {HORUS_AUDIO_OPTIONS.map((option) => (
-                  <Button
-                    key={option.id}
-                    variant="outline"
-                    onClick={() => handlePlayHorusAudio(option.id)}
-                    className="w-full justify-start"
-                  >
-                    <span className="mr-2">{option.icon}</span>
-                    {option.label}
-                  </Button>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {HORUS_AUDIO_CATEGORIES.map((cat) => (
+                  <div key={cat.category} className="border border-border/50 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setExpandedCategory(
+                        expandedCategory === cat.category ? null : cat.category
+                      )}
+                      className={cn(
+                        "w-full flex items-center justify-between p-3 transition-colors",
+                        expandedCategory === cat.category ? "bg-primary/10" : "hover:bg-muted/50"
+                      )}
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <span>{cat.icon}</span>
+                        {cat.category}
+                        <span className="text-xs text-muted-foreground">({cat.audios.length})</span>
+                      </span>
+                      <span className={cn(
+                        "transition-transform",
+                        expandedCategory === cat.category ? "rotate-180" : ""
+                      )}>
+                        ▼
+                      </span>
+                    </button>
+                    
+                    <AnimatePresence>
+                      {expandedCategory === cat.category && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="grid grid-cols-2 gap-1.5 p-2 bg-background/30">
+                            {cat.audios.map((audio) => (
+                              <Button
+                                key={audio.id}
+                                variant={currentlyPlaying === audio.id ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handlePlayLocalAudio(audio.id, audio.file)}
+                                className={cn(
+                                  "w-full justify-start text-xs",
+                                  currentlyPlaying === audio.id && "bg-primary animate-pulse"
+                                )}
+                              >
+                                {currentlyPlaying === audio.id ? (
+                                  <Pause className="w-3 h-3 mr-1.5" />
+                                ) : (
+                                  <Play className="w-3 h-3 mr-1.5" />
+                                )}
+                                {audio.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 ))}
               </div>
             </div>
