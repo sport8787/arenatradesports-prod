@@ -2,15 +2,15 @@
  * Tela do Jogador - Interface simplificada para jogadores no Modo Apresentador
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, Check, HelpCircle, ThumbsUp, ThumbsDown, 
-  Loader2, Home, Users, Trophy, Wifi, WifiOff
+  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { usePresenterRoom } from '@/hooks/usePresenterRoom';
+import { usePresenterRoom, PresenterEventType } from '@/hooks/usePresenterRoom';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Button } from '@/components/ui/button';
 import GoldButton from '@/components/game/GoldButton';
@@ -38,6 +38,10 @@ export default function PlayerScreen() {
   const [localTimer, setLocalTimer] = useState(0);
   const [showScoreboard, setShowScoreboard] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Carregar dados do jogador
   useEffect(() => {
@@ -60,6 +64,80 @@ export default function PlayerScreen() {
 
     loadPlayer();
   }, [roomId]);
+
+  // Listen for audio broadcasts from presenter
+  useEffect(() => {
+    if (!roomId) return;
+
+    const channel = supabase.channel(`presenter:${roomId}`)
+      .on('broadcast', { event: 'presenter_control' }, (payload) => {
+        const event = payload.payload as { type: PresenterEventType; data?: Record<string, unknown>; timestamp: number };
+        
+        if (event.type === 'play_audio' && event.data?.audioFile) {
+          const audioFile = event.data.audioFile as string;
+          const playAt = event.data.playAt as number;
+          
+          // Calculate delay for sync
+          const now = Date.now();
+          const delay = Math.max(0, playAt - now);
+
+          console.log(`[PlayerScreen] 🔊 Audio broadcast received: ${audioFile}, playing in ${delay}ms`);
+
+          setTimeout(() => {
+            if (isMuted) {
+              console.log('[PlayerScreen] Audio muted, skipping playback');
+              return;
+            }
+
+            // Stop any currently playing audio
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current = null;
+            }
+
+            const audio = new Audio(audioFile);
+            audio.volume = 0.8;
+            
+            audio.onplay = () => {
+              setIsPlayingAudio(true);
+            };
+            
+            audio.onended = () => {
+              setIsPlayingAudio(false);
+              audioRef.current = null;
+            };
+            
+            audio.onerror = () => {
+              console.error('[PlayerScreen] Error playing audio');
+              setIsPlayingAudio(false);
+            };
+
+            audioRef.current = audio;
+            audio.play().catch(err => {
+              console.error('[PlayerScreen] Audio play failed:', err);
+              // Show toast to user about audio permissions
+              toast({
+                title: '🔇 Áudio bloqueado',
+                description: 'Toque na tela para ativar o áudio',
+                variant: 'destructive'
+              });
+            });
+          }, delay);
+        }
+      })
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED');
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [roomId, isMuted]);
 
   // Timer local sincronizado
   useEffect(() => {
@@ -198,7 +276,23 @@ export default function PlayerScreen() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                isMuted ? "bg-destructive/20" : "hover:bg-background/50"
+              )}
+            >
+              {isMuted ? (
+                <VolumeX className="w-4 h-4 text-destructive" />
+              ) : (
+                <Volume2 className={cn(
+                  "w-4 h-4",
+                  isPlayingAudio ? "text-gold animate-pulse" : "text-muted-foreground"
+                )} />
+              )}
+            </button>
             {isConnected ? (
               <Wifi className="w-4 h-4 text-success" />
             ) : (
