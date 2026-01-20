@@ -156,10 +156,14 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     });
   }, [broadcastEvent]);
 
-  const playAudio = useCallback(async (audioType: string, text?: string) => {
+  const playAudio = useCallback(async (audioId: string, audioFile: string) => {
     await broadcastEvent({
       type: 'play_audio',
-      data: { audioType, text },
+      data: { 
+        audioId, 
+        audioFile,
+        playAt: Date.now() + 300 // 300ms buffer for sync
+      },
       timestamp: Date.now()
     });
   }, [broadcastEvent]);
