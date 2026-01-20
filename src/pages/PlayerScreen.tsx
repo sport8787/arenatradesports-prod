@@ -75,10 +75,13 @@ export default function PlayerScreen() {
   }, [roomId]);
 
   // Listen for audio broadcasts and Mycroft analysis from presenter
+  // Nota: Usamos o canal existente do usePresenterRoom para evitar duplicação
+  // Este efeito adiciona handlers extras para áudio e análise Mycroft
   useEffect(() => {
     if (!roomId) return;
 
-    const channel = supabase.channel(`presenter:${roomId}`)
+    // Criar canal separado apenas para handlers de áudio (o usePresenterRoom já gerencia o estado)
+    const audioChannel = supabase.channel(`player-audio:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as { type: PresenterEventType; data?: Record<string, unknown>; timestamp: number };
         
@@ -152,10 +155,10 @@ export default function PlayerScreen() {
         setIsConnected(status === 'SUBSCRIBED');
       });
 
-    channelRef.current = channel;
+    channelRef.current = audioChannel;
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(audioChannel);
       if (audioRef.current) {
         audioRef.current.pause();
       }
