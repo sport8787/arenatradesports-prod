@@ -79,7 +79,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       await supabase.from('room_events').insert([{
         room_id: roomId,
         event_type: event.type,
-        event_data: event.data as Record<string, unknown>
+        event_data: event.data ? JSON.parse(JSON.stringify(event.data)) : null
       }]);
     } catch (err) {
       console.error('[PresenterRoom] Error broadcasting event:', err);

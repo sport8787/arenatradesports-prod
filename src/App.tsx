@@ -14,6 +14,8 @@ import BlackMarket from "./pages/BlackMarket";
 import HowToEarnBC from "./pages/HowToEarnBC";
 import HowToPlay from "./pages/HowToPlay";
 import AdminQuestions from "./pages/AdminQuestions";
+import PresenterRoom from "./pages/PresenterRoom";
+import PlayerScreen from "./pages/PlayerScreen";
 import NotFound from "./pages/NotFound";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
@@ -58,6 +60,8 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/room/:roomId" element={<GameRoom />} />
               <Route path="/single-player" element={<SinglePlayerRoom />} />
+              <Route path="/presenter-room/:roomId" element={<PresenterRoom />} />
+              <Route path="/player-screen/:roomId" element={<PlayerScreen />} />
               <Route path="/rankings" element={<RankingsPage />} />
               <Route path="/mercado-negro" element={<BlackMarket />} />
               <Route path="/como-ganhar-bc" element={<HowToEarnBC />} />
