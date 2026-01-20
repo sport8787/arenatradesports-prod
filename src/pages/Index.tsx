@@ -235,7 +235,7 @@ export default function Index() {
 
         if (existingPlayer) {
           // Jogador já existe, navegar direto
-          navigate(`/player/${room.id}`);
+          navigate(`/player-screen/${room.id}`);
         } else {
           // Abrir seletor de papel
           setPendingPresenterRoom({
@@ -290,7 +290,7 @@ export default function Index() {
       setShowRoleSelector(false);
       setShowJoinForm(false);
       setPendingPresenterRoom(null);
-      navigate(`/player/${pendingPresenterRoom.id}`);
+      navigate(`/player-screen/${pendingPresenterRoom.id}`);
     } catch (error) {
       console.error(error);
       toast({ title: 'Erro ao entrar na sala', variant: 'destructive' });
