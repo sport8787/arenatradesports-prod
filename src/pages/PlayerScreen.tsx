@@ -336,12 +336,16 @@ export default function PlayerScreen() {
         {/* Role Badge */}
         <div className="flex justify-center mb-4">
           <span className={cn(
-            "px-4 py-1 rounded-full text-sm font-medium",
+            "px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2",
             role === 'jury' 
               ? "bg-purple-900/50 text-purple-300 border border-purple-500/50"
-              : "bg-primary/20 text-primary border border-primary/50"
+              : "bg-gold/20 text-gold border border-gold/50"
           )}>
-            {role === 'jury' ? '👨‍⚖️ Jurado' : '🎮 Jogador'}
+            {role === 'jury' ? (
+              <>👨‍⚖️ Jurado</>
+            ) : (
+              <>🎯 Jogador Principal</>
+            )}
           </span>
         </div>
 
@@ -382,12 +386,26 @@ export default function PlayerScreen() {
               </h2>
             </div>
 
-            {/* Options (for players) */}
+            {/* Options (for players - Jogador Principal vê resposta correta) */}
             {role === 'player' && !roomState.showingAnswer && (
               <div className="space-y-3">
+                {/* Banner indicando que é o Jogador Principal */}
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 p-3 bg-gold/10 border border-gold/30 rounded-xl mb-4"
+                >
+                  <span className="text-xl">🎯</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gold">Você é o Jogador Principal</p>
+                    <p className="text-xs text-muted-foreground">A resposta correta está destacada. Convença o júri!</p>
+                  </div>
+                </motion.div>
+
                 {['A', 'B', 'C', 'D'].map((option) => {
                   const optionKey = `option_${option.toLowerCase()}` as keyof typeof roomState.currentQuestion;
                   const optionText = roomState.currentQuestion?.[optionKey];
+                  const isCorrect = roomState.currentQuestion?.correct_option === option;
                   
                   return (
                     <motion.button
@@ -396,16 +414,30 @@ export default function PlayerScreen() {
                       onClick={() => handleSelectAnswer(option)}
                       disabled={hasAnswered}
                       className={cn(
-                        "w-full p-4 rounded-xl text-left transition-all",
+                        "w-full p-4 rounded-xl text-left transition-all relative",
                         "border-2",
                         selectedAnswer === option
                           ? "border-gold bg-gold/20"
+                          : isCorrect
+                          ? "border-emerald-500/50 bg-emerald-900/20"
                           : "border-border/50 bg-background/30 hover:border-gold/50",
                         hasAnswered && "opacity-60 cursor-not-allowed"
                       )}
                     >
-                      <span className="font-bold text-gold mr-2">{option}.</span>
-                      {optionText}
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "font-bold mr-2",
+                          isCorrect ? "text-emerald-400" : "text-gold"
+                        )}>
+                          {option}.
+                        </span>
+                        <span className="flex-1">{optionText}</span>
+                        {isCorrect && (
+                          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/30">
+                            ✓ Correta
+                          </span>
+                        )}
+                      </div>
                     </motion.button>
                   );
                 })}
