@@ -2,11 +2,11 @@
  * Tela do Jogador - Interface simplificada para jogadores no Modo Apresentador
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Clock, Check, HelpCircle, ThumbsUp, ThumbsDown, 
+  Clock, Check, HelpCircle, 
   Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,8 @@ import GoldButton from '@/components/game/GoldButton';
 import RoundBackground from '@/components/game/RoundBackground';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import cartaClaro from '@/assets/carta_claro.png';
+import cartaBlefe from '@/assets/carta_blefe.png';
 
 type PlayerRole = 'player' | 'jury';
 
@@ -512,54 +514,77 @@ export default function PlayerScreen() {
                   );
                 })}
 
-                {/* Área de votação */}
+                {/* Área de votação com cards visuais */}
                 {roomState.votingActive && (
                   <div className="space-y-4 mt-6">
                     <p className="text-center text-muted-foreground font-medium">
                       O jogador está mentindo ou falando a verdade?
                     </p>
                     
-                    {!hasVoted ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleVote('believe')}
-                          className="p-6 rounded-xl bg-success/20 border-2 border-success/50 hover:border-success transition-all"
-                        >
-                          <ThumbsUp className="w-10 h-10 text-success mx-auto mb-2" />
-                          <p className="font-bold text-success">Acreditar</p>
-                        </motion.button>
-                        
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleVote('doubt')}
-                          className="p-6 rounded-xl bg-destructive/20 border-2 border-destructive/50 hover:border-destructive transition-all"
-                        >
-                          <ThumbsDown className="w-10 h-10 text-destructive mx-auto mb-2" />
-                          <p className="font-bold text-destructive">Duvidar</p>
-                        </motion.button>
-                      </div>
-                    ) : (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                    <div className="flex justify-center gap-6">
+                      {/* Card CLARO */}
+                      <motion.button
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ scale: hasVoted ? 1 : 1.05, y: hasVoted ? 0 : -10 }}
+                        whileTap={{ scale: hasVoted ? 1 : 0.95 }}
+                        onClick={() => !hasVoted && handleVote('believe')}
+                        disabled={hasVoted}
                         className={cn(
-                          "text-center p-4 rounded-xl border-2",
-                          vote === 'believe' 
-                            ? "bg-success/20 border-success" 
-                            : "bg-destructive/20 border-destructive"
+                          'relative transition-all duration-300',
+                          hasVoted && vote !== 'believe' && 'opacity-30 scale-90',
+                          hasVoted && vote === 'believe' && 'ring-4 ring-success ring-offset-4 ring-offset-background rounded-2xl'
                         )}
                       >
-                        {vote === 'believe' ? (
-                          <ThumbsUp className="w-8 h-8 text-success mx-auto mb-2" />
-                        ) : (
-                          <ThumbsDown className="w-8 h-8 text-destructive mx-auto mb-2" />
+                        <img 
+                          src={cartaClaro} 
+                          alt="CLARO - Acreditar" 
+                          className="w-32 h-48 object-cover rounded-xl shadow-lg"
+                        />
+                        {hasVoted && vote === 'believe' && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl">
+                            <Loader2 className="w-8 h-8 animate-spin text-success" />
+                          </div>
                         )}
-                        <p className="font-medium">
-                          Você {vote === 'believe' ? 'acreditou' : 'duvidou'}!
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Aguarde o resultado...
+                        <p className="text-xs text-center mt-2 text-success font-medium">Acreditar</p>
+                      </motion.button>
+
+                      {/* Card BLEFE */}
+                      <motion.button
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ scale: hasVoted ? 1 : 1.05, y: hasVoted ? 0 : -10 }}
+                        whileTap={{ scale: hasVoted ? 1 : 0.95 }}
+                        onClick={() => !hasVoted && handleVote('doubt')}
+                        disabled={hasVoted}
+                        className={cn(
+                          'relative transition-all duration-300',
+                          hasVoted && vote !== 'doubt' && 'opacity-30 scale-90',
+                          hasVoted && vote === 'doubt' && 'ring-4 ring-destructive ring-offset-4 ring-offset-background rounded-2xl'
+                        )}
+                      >
+                        <img 
+                          src={cartaBlefe} 
+                          alt="BLEFE - Duvidar" 
+                          className="w-32 h-48 object-cover rounded-xl shadow-lg"
+                        />
+                        {hasVoted && vote === 'doubt' && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl">
+                            <Loader2 className="w-8 h-8 animate-spin text-destructive" />
+                          </div>
+                        )}
+                        <p className="text-xs text-center mt-2 text-destructive font-medium">Duvidar</p>
+                      </motion.button>
+                    </div>
+
+                    {hasVoted && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center mt-4"
+                      >
+                        <p className="text-sm text-muted-foreground">
+                          Voto registrado! Aguarde o resultado...
                         </p>
                       </motion.div>
                     )}
