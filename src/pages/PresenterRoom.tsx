@@ -151,6 +151,7 @@ export default function PresenterRoom() {
     revealAnswer,
     startVoting,
     endVoting,
+    enableJustification,
     playAudio,
     nextRound,
     startGame,
@@ -457,96 +458,171 @@ export default function PresenterRoom() {
               )}
             </div>
 
-            {/* Control Buttons */}
-            <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">
-              <h3 className="font-semibold mb-3">Controles</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <GoldButton
-                  onClick={handleShowQuestion}
-                  disabled={roomState.currentQuestion !== null}
-                  className="w-full"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Mostrar
-                </GoldButton>
-                
-                <Button
-                  variant="outline"
-                  onClick={hideQuestion}
-                  disabled={roomState.currentQuestion === null}
-                  className="w-full"
-                >
-                  <EyeOff className="w-4 h-4 mr-2" />
-                  Esconder
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={revealAnswer}
-                  disabled={!roomState.currentQuestion || roomState.showingAnswer}
-                  className="w-full"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Revelar
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={nextRound}
-                  className="w-full"
-                >
-                  <SkipForward className="w-4 h-4 mr-2" />
-                  Próxima
-                </Button>
-              </div>
-            </div>
-
-            {/* Timer Controls */}
+            {/* Control Buttons - Game Flow */}
             <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">Cronômetro</h3>
-                {roomState.timerActive && (
-                  <div className="flex items-center gap-2">
-                    <Timer className="w-4 h-4 text-gold animate-pulse" />
-                    <span className="font-orbitron text-2xl font-bold text-gold">
-                      {localTimer}s
-                    </span>
-                  </div>
-                )}
+                <h3 className="font-semibold">Fluxo do Jogo</h3>
+                <div className="text-xs text-muted-foreground">
+                  Siga a ordem: 1 → 2 → 3 → 4 → 5
+                </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-3">
-                <Button
-                  onClick={() => startTimer('response', 15)}
-                  disabled={roomState.timerActive}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Timer className="w-4 h-4 mr-2" />
-                  Resposta (15s)
-                </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                {/* Step 1: Show Question + Start Response Timer */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-gold/20 text-gold text-[10px] font-bold flex items-center justify-center">1</span>
+                    Exibir Pergunta
+                  </span>
+                  <GoldButton
+                    onClick={() => {
+                      handleShowQuestion();
+                      startTimer('response', 15);
+                    }}
+                    disabled={roomState.currentQuestion !== null}
+                    className="w-full text-xs py-2"
+                    size="sm"
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    Iniciar Resposta (15s)
+                  </GoldButton>
+                </div>
                 
-                <Button
-                  onClick={() => startTimer('voting', 10)}
-                  disabled={roomState.timerActive}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Timer className="w-4 h-4 mr-2" />
-                  Votação (10s)
-                </Button>
+                {/* Step 2: Enable Justification */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold flex items-center justify-center">2</span>
+                    Justificativa
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={enableJustification}
+                    disabled={!roomState.currentQuestion || roomState.justificationEnabled}
+                    className={cn(
+                      "w-full text-xs py-2",
+                      roomState.justificationEnabled && "border-purple-500/50 bg-purple-500/10"
+                    )}
+                    size="sm"
+                  >
+                    <Mic className="w-3 h-3 mr-1" />
+                    Liberar Gravação
+                  </Button>
+                </div>
 
+                {/* Step 3: Start Voting */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold flex items-center justify-center">3</span>
+                    Votação do Júri
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      startVoting();
+                      startTimer('voting', 10);
+                    }}
+                    disabled={!roomState.currentQuestion || roomState.votingActive}
+                    className={cn(
+                      "w-full text-xs py-2",
+                      roomState.votingActive && "border-blue-500/50 bg-blue-500/10"
+                    )}
+                    size="sm"
+                  >
+                    <Users className="w-3 h-3 mr-1" />
+                    Iniciar Votação (10s)
+                  </Button>
+                </div>
+
+                {/* Step 4: Reveal Answer */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-success/20 text-success text-[10px] font-bold flex items-center justify-center">4</span>
+                    Revelar Resposta
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={revealAnswer}
+                    disabled={!roomState.currentQuestion || roomState.showingAnswer}
+                    className={cn(
+                      "w-full text-xs py-2",
+                      roomState.showingAnswer && "border-success/50 bg-success/10"
+                    )}
+                    size="sm"
+                  >
+                    <Check className="w-3 h-3 mr-1" />
+                    Revelar Resposta
+                  </Button>
+                </div>
+
+                {/* Step 5: Next Round */}
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold flex items-center justify-center">5</span>
+                    Próxima Rodada
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      nextRound();
+                      setSelectedQuestionIndex(prev => Math.min(prev + 1, questions.length - 1));
+                    }}
+                    className="w-full text-xs py-2"
+                    size="sm"
+                  >
+                    <SkipForward className="w-3 h-3 mr-1" />
+                    Próxima Rodada
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Secondary controls */}
+              <div className="flex gap-2 mt-3 pt-3 border-t border-border/30">
                 <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={hideQuestion}
+                  disabled={roomState.currentQuestion === null}
+                  className="text-xs"
+                >
+                  <EyeOff className="w-3 h-3 mr-1" />
+                  Esconder
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={endVoting}
+                  disabled={!roomState.votingActive}
+                  className="text-xs"
+                >
+                  Encerrar Votação
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={stopTimer}
                   disabled={!roomState.timerActive}
-                  variant="destructive"
-                  className="w-full"
+                  className="text-xs text-destructive"
                 >
-                  <Pause className="w-4 h-4 mr-2" />
-                  Parar
+                  <Pause className="w-3 h-3 mr-1" />
+                  Parar Timer
                 </Button>
               </div>
             </div>
+
+            {/* Timer Display */}
+            {roomState.timerActive && (
+              <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-gold/50">
+                <div className="flex items-center justify-center gap-3">
+                  <Timer className="w-6 h-6 text-gold animate-pulse" />
+                  <span className="font-orbitron text-4xl font-bold text-gold">
+                    {localTimer}s
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {roomState.timerType === 'response' ? 'Tempo de Resposta' : 'Tempo de Votação'}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Horus Audio Controls */}
             <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">
