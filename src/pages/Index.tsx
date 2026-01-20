@@ -16,6 +16,7 @@ import { PhaseSelector } from '@/components/game/PhaseSelector';
 import { DailyBonusModal } from '@/components/game/DailyBonusModal';
 import { InsufficientEnergyModal } from '@/components/game/InsufficientEnergyModal';
 import { FounderCaseModal } from '@/components/game/FounderCaseModal';
+import { PresenterRoleSelector } from '@/components/game/PresenterRoleSelector';
 import ProgressToPrize from '@/components/game/ProgressToPrize';
 import { useEconomy, GAME_PHASES, DAILY_BONUS_AMOUNT } from '@/hooks/useEconomy';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,8 @@ export default function Index() {
   const [isClaimingDailyBonus, setIsClaimingDailyBonus] = useState(false);
   const [showInsufficientEnergy, setShowInsufficientEnergy] = useState(false);
   const [showFounderCaseModal, setShowFounderCaseModal] = useState(false);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [pendingPresenterRoom, setPendingPresenterRoom] = useState<{ id: string; playerSlotTaken: boolean; currentPlayerName?: string } | null>(null);
   // ✅ FIX: Estado inicial sem lógica de sessionStorage para evitar problemas de hidratação
   const [showOpening, setShowOpening] = useState(false);
 
@@ -206,6 +209,7 @@ export default function Index() {
 
       if (error || !room) {
         toast({ title: 'Sala não encontrada', variant: 'destructive' });
+        setLoading(false);
         return;
       }
 
@@ -214,11 +218,38 @@ export default function Index() {
       // Check if player already exists in this room
       const { data: existingPlayer } = await supabase
         .from('players')
-        .select('id')
+        .select('id, role')
         .eq('room_id', room.id)
         .eq('session_id', sessionId)
         .maybeSingle();
 
+      // Se é sala de modo apresentador, mostrar seletor de papel
+      if (room.mode === 'presenter') {
+        // Verificar se já existe um jogador principal
+        const { data: mainPlayer } = await supabase
+          .from('players')
+          .select('nickname')
+          .eq('room_id', room.id)
+          .eq('role', 'player')
+          .maybeSingle();
+
+        if (existingPlayer) {
+          // Jogador já existe, navegar direto
+          navigate(`/player/${room.id}`);
+        } else {
+          // Abrir seletor de papel
+          setPendingPresenterRoom({
+            id: room.id,
+            playerSlotTaken: !!mainPlayer,
+            currentPlayerName: mainPlayer?.nickname
+          });
+          setShowRoleSelector(true);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Modo normal - entrar como jogador comum
       if (!existingPlayer) {
         await supabase.from('players').insert({
           room_id: room.id,
@@ -229,6 +260,37 @@ export default function Index() {
       }
 
       navigate(`/room/${room.id}`);
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Erro ao entrar na sala', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para confirmar papel no Modo Apresentador
+  const handleRoleSelect = async (role: 'player' | 'jury') => {
+    if (!pendingPresenterRoom) return;
+
+    const nickname = isGuest ? guestNickname : profile?.username;
+    if (!nickname) return;
+
+    setLoading(true);
+    try {
+      const sessionId = getOrCreateSessionId();
+
+      await supabase.from('players').insert({
+        room_id: pendingPresenterRoom.id,
+        nickname: nickname,
+        session_id: sessionId,
+        is_host: false,
+        role: role
+      });
+
+      setShowRoleSelector(false);
+      setShowJoinForm(false);
+      setPendingPresenterRoom(null);
+      navigate(`/player/${pendingPresenterRoom.id}`);
     } catch (error) {
       console.error(error);
       toast({ title: 'Erro ao entrar na sala', variant: 'destructive' });
@@ -691,6 +753,18 @@ export default function Index() {
             }
           }}
           validateCode={founderCase.validateCaseCode}
+        />
+
+        {/* Presenter Role Selector Modal */}
+        <PresenterRoleSelector
+          open={showRoleSelector}
+          onSelect={handleRoleSelect}
+          onClose={() => {
+            setShowRoleSelector(false);
+            setPendingPresenterRoom(null);
+          }}
+          playerSlotTaken={pendingPresenterRoom?.playerSlotTaken}
+          currentPlayerName={pendingPresenterRoom?.currentPlayerName}
         />
 
         {/* Join Form Modal */}
