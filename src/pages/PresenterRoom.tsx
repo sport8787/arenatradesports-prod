@@ -19,8 +19,10 @@ import { Slider } from '@/components/ui/slider';
 import GoldButton from '@/components/game/GoldButton';
 import QuestionCard from '@/components/game/QuestionCard';
 import RoundBackground from '@/components/game/RoundBackground';
+import VoiceMetricsPanel from '@/components/game/VoiceMetricsPanel';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import type { VoiceMetrics } from '@/services/audioForensicsService';
 
 // Categorias de áudio do Hórus com arquivos locais
 const HORUS_AUDIO_CATEGORIES = [
@@ -169,7 +171,44 @@ export default function PresenterRoom() {
   const [localTimer, setLocalTimer] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [playerVoiceMetrics, setPlayerVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  const [metricsPlayerName, setMetricsPlayerName] = useState<string>('Jogador');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Listen for voice metrics from players
+  useEffect(() => {
+    if (!roomId) return;
+
+    const channel = supabase.channel(`presenter-metrics:${roomId}`)
+      .on('broadcast', { event: 'presenter_control' }, (payload) => {
+        const event = payload.payload as { type: string; data?: Record<string, unknown> };
+        
+        if (event.type === 'voice_metrics' && event.data) {
+          const { metrics, playerName } = event.data as { 
+            metrics: VoiceMetrics; 
+            playerName: string 
+          };
+          setIsAnalyzing(false);
+          setPlayerVoiceMetrics(metrics);
+          setMetricsPlayerName(playerName || 'Jogador');
+          toast({ title: '📊 Métricas vocais recebidas' });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  // Reset metrics on new round
+  useEffect(() => {
+    if (roomState.currentRound) {
+      setPlayerVoiceMetrics(null);
+      setIsAnalyzing(false);
+    }
+  }, [roomState.currentRound]);
 
   // Carregar perguntas
   useEffect(() => {
@@ -724,6 +763,13 @@ export default function PresenterRoom() {
 
           {/* Players Panel */}
           <div className="space-y-4">
+            {/* Voice Metrics Panel */}
+            <VoiceMetricsPanel 
+              metrics={playerVoiceMetrics}
+              playerName={metricsPlayerName}
+              isLoading={isAnalyzing}
+            />
+
             <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold flex items-center gap-2">

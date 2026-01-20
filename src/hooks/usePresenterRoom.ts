@@ -23,7 +23,8 @@ export type PresenterEventType =
   | 'next_round'
   | 'show_scores'
   | 'jury_vote'
-  | 'mycroft_analysis'; // Analysis result for jury
+  | 'mycroft_analysis'
+  | 'voice_metrics'; // Voice metrics for presenter
 
 interface PresenterEvent {
   type: PresenterEventType;
