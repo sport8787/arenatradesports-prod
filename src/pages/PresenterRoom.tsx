@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Pause, SkipForward, Volume2, VolumeX, Users, 
   MessageCircle, Eye, EyeOff, Timer, Check, Mic, 
-  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy, Square
+  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy, Square, Brain
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom } from '@/hooks/usePresenterRoom';
@@ -158,7 +158,9 @@ export default function PresenterRoom() {
     nextRound,
     startGame,
     showScores,
-    loadPlayers
+    loadPlayers,
+    storePendingMycroft,
+    releaseMycroft
   } = usePresenterRoom(roomId, true);
 
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -176,7 +178,7 @@ export default function PresenterRoom() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Listen for voice metrics from players
+  // Listen for voice metrics AND Mycroft analysis from players
   useEffect(() => {
     if (!roomId) return;
 
@@ -194,13 +196,28 @@ export default function PresenterRoom() {
           setMetricsPlayerName(playerName || 'Jogador');
           toast({ title: '📊 Métricas vocais recebidas' });
         }
+        
+        // Receive Mycroft analysis from player - store for later release
+        if (event.type === 'mycroft_analysis' && event.data) {
+          console.log('[PresenterRoom] 🔬 Mycroft analysis received from player:', event.data);
+          storePendingMycroft({
+            verdict: event.data.verdict as string,
+            confidence: event.data.confidence as number,
+            forensicDetails: event.data.forensicDetails as string,
+            metrics: event.data.metrics as Record<string, unknown>
+          });
+          toast({ 
+            title: '🔬 Análise do Mycroft Pronta!',
+            description: 'Clique em "Liberar Mycroft" para enviar ao júri'
+          });
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomId]);
+  }, [roomId, storePendingMycroft]);
 
   // Reset metrics on new round
   useEffect(() => {
@@ -621,7 +638,7 @@ export default function PresenterRoom() {
               </div>
               
               {/* Secondary controls */}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-border/30">
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/30">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -652,6 +669,57 @@ export default function PresenterRoom() {
                   Parar Timer
                 </Button>
               </div>
+              
+              {/* Mycroft Release Button - Prominent placement */}
+              {roomState.pendingMycroftAnalysis && !roomState.mycroftReleased && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 rounded-xl bg-purple-900/30 border border-purple-500/50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <Brain className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-purple-300">Análise do Mycroft Pronta</p>
+                        <p className="text-xs text-muted-foreground">
+                          Clique para enviar a análise forense ao júri
+                        </p>
+                      </div>
+                    </div>
+                    <GoldButton
+                      onClick={() => {
+                        releaseMycroft();
+                        toast({ 
+                          title: '🔬 Mycroft Liberado!',
+                          description: 'Análise forense enviada para o júri'
+                        });
+                      }}
+                      size="sm"
+                    >
+                      <Brain className="w-4 h-4 mr-2" />
+                      Liberar Mycroft
+                    </GoldButton>
+                  </div>
+                </motion.div>
+              )}
+              
+              {roomState.mycroftReleased && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-4 p-3 rounded-xl bg-success/20 border border-success/50 text-center"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4 text-success" />
+                    <span className="text-sm text-success font-medium">
+                      Análise do Mycroft enviada ao júri
+                    </span>
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Timer Display */}
