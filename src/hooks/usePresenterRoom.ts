@@ -22,7 +22,8 @@ export type PresenterEventType =
   | 'game_end'
   | 'next_round'
   | 'show_scores'
-  | 'jury_vote';
+  | 'jury_vote'
+  | 'mycroft_analysis'; // Analysis result for jury
 
 interface PresenterEvent {
   type: PresenterEventType;

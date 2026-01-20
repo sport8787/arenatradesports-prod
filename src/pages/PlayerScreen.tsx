@@ -74,7 +74,7 @@ export default function PlayerScreen() {
     loadPlayer();
   }, [roomId]);
 
-  // Listen for audio broadcasts from presenter
+  // Listen for audio broadcasts and Mycroft analysis from presenter
   useEffect(() => {
     if (!roomId) return;
 
@@ -133,6 +133,20 @@ export default function PlayerScreen() {
             });
           }, delay);
         }
+
+        // Receive Mycroft analysis for jury members
+        if (event.type === 'mycroft_analysis' && event.data && role === 'jury') {
+          console.log('[PlayerScreen] 🔬 Mycroft analysis received for jury:', event.data);
+          setMycroftAnalysis({
+            verdict: event.data.verdict as string,
+            confidence: event.data.confidence as number,
+            forensicDetails: event.data.forensicDetails as string
+          });
+          toast({
+            title: '🔬 Análise Forense Disponível',
+            description: 'Mycroft analisou a voz do jogador!'
+          });
+        }
       })
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED');
@@ -146,7 +160,7 @@ export default function PlayerScreen() {
         audioRef.current.pause();
       }
     };
-  }, [roomId, isMuted]);
+  }, [roomId, isMuted, role]);
 
   // Timer local sincronizado
   useEffect(() => {
@@ -174,6 +188,7 @@ export default function PlayerScreen() {
     setHasAnswered(false);
     setVote(null);
     setHasVoted(false);
+    setMycroftAnalysis(null); // Clear previous analysis
   }, [roomState.currentQuestion?.id]);
 
   const handleSelectAnswer = (option: string) => {
@@ -524,9 +539,29 @@ export default function PlayerScreen() {
                               
                               if (result.analysis) {
                                 setMycroftAnalysis(result.analysis);
+                                
+                                // Broadcast analysis to jury members
+                                if (channelRef.current) {
+                                  await channelRef.current.send({
+                                    type: 'broadcast',
+                                    event: 'presenter_control',
+                                    payload: {
+                                      type: 'mycroft_analysis',
+                                      data: {
+                                        verdict: result.analysis.verdict,
+                                        confidence: result.analysis.confidence,
+                                        forensicDetails: result.analysis.forensicDetails,
+                                        metrics: result.metrics
+                                      },
+                                      timestamp: Date.now()
+                                    }
+                                  });
+                                  console.log('[PlayerScreen] 📡 Mycroft analysis broadcasted to jury');
+                                }
+                                
                                 toast({
-                                  title: '🔬 Análise Vocal Concluída',
-                                  description: 'Mycroft processou sua justificativa.'
+                                  title: '🔬 Análise Enviada ao Júri',
+                                  description: 'Mycroft compartilhou a análise com o júri!'
                                 });
                               }
                             } catch (err) {
@@ -592,6 +627,44 @@ export default function PlayerScreen() {
                     </div>
                   );
                 })}
+
+                {/* Mycroft Forensic Analysis Panel - ONLY for jury */}
+                {mycroftAnalysis && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="p-4 rounded-xl bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border border-purple-500/50 shadow-lg shadow-purple-500/20"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-purple-500/30 flex items-center justify-center">
+                        <span className="text-lg">🔬</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-purple-300 text-sm">ANÁLISE FORENSE MYCROFT</h4>
+                        <p className="text-xs text-purple-400/80">Biometria vocal detectada</p>
+                      </div>
+                      <div className="ml-auto flex items-center gap-1 px-2 py-1 rounded-full bg-purple-500/20 border border-purple-500/30">
+                        <span className="text-xs text-purple-300 font-mono">
+                          {Math.round(mycroftAnalysis.confidence * 100)}% confiança
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm text-foreground/90 leading-relaxed">
+                        {mycroftAnalysis.verdict}
+                      </p>
+                      
+                      {mycroftAnalysis.forensicDetails && (
+                        <div className="mt-3 p-3 rounded-lg bg-background/30 border border-purple-500/20">
+                          <p className="text-xs text-purple-300/80 font-mono">
+                            {mycroftAnalysis.forensicDetails}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Área de votação com cards visuais */}
                 {roomState.votingActive && (
