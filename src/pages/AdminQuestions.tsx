@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from '@/hooks/use-toast';
 import { 
   Shield, Home, Plus, Upload, Trash2, Edit, Search, 
-  AlertTriangle, CheckCircle, Loader2, X, Copy, FileText
+  AlertTriangle, CheckCircle, Loader2, X, Copy, FileText, Briefcase
 } from 'lucide-react';
 
 type AnswerOption = 'A' | 'B' | 'C' | 'D';
@@ -434,6 +434,16 @@ export default function AdminQuestions() {
           >
             <Copy className="w-4 h-4 mr-2" />
             Detectar Duplicatas
+          </Button>
+
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/admin/founder-cases')} 
+            size="sm"
+            className="border-purple-600/50 text-purple-400 hover:bg-purple-900/20"
+          >
+            <Briefcase className="w-4 h-4 mr-2" />
+            Maletas Fundador
           </Button>
 
           <div className="flex-1 min-w-[200px]">
