@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      founder_cases: {
+        Row: {
+          activated_at: string | null
+          case_code: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          case_code: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          case_code?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           avatar_url: string | null
@@ -23,6 +53,7 @@ export type Database = {
           id: string
           is_host: boolean
           nickname: string
+          role: string | null
           room_id: string
           score: number
           session_id: string
@@ -35,6 +66,7 @@ export type Database = {
           id?: string
           is_host?: boolean
           nickname: string
+          role?: string | null
           room_id: string
           score?: number
           session_id: string
@@ -47,6 +79,7 @@ export type Database = {
           id?: string
           is_host?: boolean
           nickname?: string
+          role?: string | null
           room_id?: string
           score?: number
           session_id?: string
@@ -202,6 +235,38 @@ export type Database = {
         }
         Relationships: []
       }
+      room_events: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          room_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          room_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          room_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_events_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           created_at: string
@@ -212,6 +277,7 @@ export type Database = {
           game_mode: string
           host_id: string
           id: string
+          mode: string | null
           pin: string
         }
         Insert: {
@@ -223,6 +289,7 @@ export type Database = {
           game_mode?: string
           host_id: string
           id?: string
+          mode?: string | null
           pin: string
         }
         Update: {
@@ -234,6 +301,7 @@ export type Database = {
           game_mode?: string
           host_id?: string
           id?: string
+          mode?: string | null
           pin?: string
         }
         Relationships: [
