@@ -720,6 +720,51 @@ export default function PresenterRoom() {
                   </p>
                 </motion.div>
               )}
+              
+              {/* Votos do Júri em tempo real */}
+              {roomState.juryVotes.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-4 space-y-2"
+                >
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    Votos recebidos ({roomState.juryVotes.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {roomState.juryVotes.map((v) => (
+                      <div
+                        key={v.playerId}
+                        className={cn(
+                          "flex items-center justify-between p-2 rounded-lg text-sm",
+                          v.voteType === 'believe' 
+                            ? "bg-success/20 border border-success/30"
+                            : "bg-destructive/20 border border-destructive/30"
+                        )}
+                      >
+                        <span className="font-medium">{v.nickname}</span>
+                        <span className={cn(
+                          "text-xs font-semibold",
+                          v.voteType === 'believe' ? "text-success" : "text-destructive"
+                        )}>
+                          {v.voteType === 'believe' ? '👍 CLARO' : '👎 BLEFE'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Resumo dos votos */}
+                  <div className="flex items-center justify-center gap-4 pt-2 border-t border-border/30 mt-2">
+                    <span className="text-success text-sm font-medium">
+                      👍 {roomState.juryVotes.filter(v => v.voteType === 'believe').length}
+                    </span>
+                    <span className="text-muted-foreground">vs</span>
+                    <span className="text-destructive text-sm font-medium">
+                      👎 {roomState.juryVotes.filter(v => v.voteType === 'doubt').length}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
             </div>
           </div>
         </div>

@@ -20,7 +20,8 @@ export type PresenterEventType =
   | 'game_start'
   | 'game_end'
   | 'next_round'
-  | 'show_scores';
+  | 'show_scores'
+  | 'jury_vote';
 
 interface PresenterEvent {
   type: PresenterEventType;
@@ -36,6 +37,13 @@ interface Player {
   isOnline: boolean;
 }
 
+interface JuryVote {
+  playerId: string;
+  nickname: string;
+  voteType: 'believe' | 'doubt';
+  timestamp: number;
+}
+
 interface RoomState {
   currentQuestion: Question | null;
   currentRound: number;
@@ -46,6 +54,7 @@ interface RoomState {
   votingActive: boolean;
   players: Player[];
   isGameStarted: boolean;
+  juryVotes: JuryVote[];
 }
 
 export function usePresenterRoom(roomId: string | undefined, isPresenter: boolean = false) {
@@ -58,7 +67,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     showingAnswer: false,
     votingActive: false,
     players: [],
-    isGameStarted: false
+    isGameStarted: false,
+    juryVotes: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +151,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
   }, [broadcastEvent, roomState.currentQuestion]);
 
   const startVoting = useCallback(async () => {
-    setRoomState(prev => ({ ...prev, votingActive: true }));
+    // Limpa votos anteriores ao iniciar nova votação
+    setRoomState(prev => ({ ...prev, votingActive: true, juryVotes: [] }));
     await broadcastEvent({
       type: 'start_voting',
       timestamp: Date.now()
@@ -175,7 +186,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       currentQuestion: null,
       showingAnswer: false,
       votingActive: false,
-      timerActive: false
+      timerActive: false,
+      juryVotes: []
     }));
     await broadcastEvent({
       type: 'next_round',
@@ -230,6 +242,21 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     const channel = supabase.channel(`presenter:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as PresenterEvent;
+        
+        // Presenter recebe votos do júri
+        if (isPresenter && event.type === 'jury_vote') {
+          const voteData = event.data as unknown as JuryVote;
+          if (voteData?.playerId && voteData?.voteType) {
+            setRoomState(prev => ({
+              ...prev,
+              juryVotes: [
+                ...prev.juryVotes.filter(v => v.playerId !== voteData.playerId),
+                voteData
+              ]
+            }));
+          }
+          return;
+        }
         
         // Atualizar estado baseado no evento recebido (para jogadores)
         if (!isPresenter) {

@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, Check, HelpCircle, 
-  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX
+  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX, Mic
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom, PresenterEventType } from '@/hooks/usePresenterRoom';
@@ -42,6 +42,8 @@ export default function PlayerScreen() {
   const [isConnected, setIsConnected] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [playerId, setPlayerId] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -61,6 +63,7 @@ export default function PlayerScreen() {
       if (data) {
         setNickname(data.nickname);
         setRole((data.role as PlayerRole) || 'player');
+        setPlayerId(data.id);
       }
     };
 
@@ -184,6 +187,25 @@ export default function PlayerScreen() {
     if (hasVoted || role !== 'jury') return;
     setVote(voteType);
     setHasVoted(true);
+    
+    // Broadcast voto para o apresentador via canal
+    if (channelRef.current && playerId) {
+      await channelRef.current.send({
+        type: 'broadcast',
+        event: 'presenter_control',
+        payload: {
+          type: 'jury_vote',
+          data: {
+            playerId,
+            nickname,
+            voteType,
+            timestamp: Date.now()
+          },
+          timestamp: Date.now()
+        }
+      });
+    }
+    
     toast({ 
       title: voteType === 'believe' ? '👍 Você acreditou!' : '👎 Você duvidou!' 
     });
@@ -464,13 +486,54 @@ export default function PlayerScreen() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="text-center p-4 rounded-xl bg-success/20 border border-success mt-4"
+                    className="space-y-4 mt-4"
                   >
-                    <Check className="w-8 h-8 text-success mx-auto mb-2" />
-                    <p className="font-medium text-success">Resposta Enviada!</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Agora convença o júri sobre sua escolha!
-                    </p>
+                    <div className="text-center p-4 rounded-xl bg-success/20 border border-success">
+                      <Check className="w-8 h-8 text-success mx-auto mb-2" />
+                      <p className="font-medium text-success">Resposta Enviada!</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Agora convença o júri sobre sua escolha!
+                      </p>
+                    </div>
+                    
+                    {/* Botão Gravar Justificativa */}
+                    <motion.button
+                      onClick={() => {
+                        if (isRecording) {
+                          setIsRecording(false);
+                          toast({ title: '⏹️ Gravação finalizada!' });
+                        } else {
+                          setIsRecording(true);
+                          toast({ title: '🎙️ Gravando justificativa...' });
+                        }
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 p-4 rounded-xl font-medium transition-all",
+                        isRecording 
+                          ? "bg-destructive text-destructive-foreground"
+                          : "bg-gradient-to-r from-gold to-yellow-500 text-black"
+                      )}
+                    >
+                      <Mic className={cn(
+                        "w-5 h-5",
+                        isRecording && "animate-pulse"
+                      )} />
+                      {isRecording ? 'Parar Gravação' : '🎙️ Gravar Justificativa'}
+                    </motion.button>
+                    
+                    {isRecording && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex items-center justify-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl"
+                      >
+                        <span className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+                        <span className="text-sm text-destructive font-medium">
+                          Gravando...
+                        </span>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </div>
