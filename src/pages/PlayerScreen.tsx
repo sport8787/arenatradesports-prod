@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, Check, HelpCircle, 
-  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX, Mic
+  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom, PresenterEventType } from '@/hooks/usePresenterRoom';
@@ -19,6 +19,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
+import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
 
 type PlayerRole = 'player' | 'jury';
 
@@ -42,7 +43,7 @@ export default function PlayerScreen() {
   const [isConnected, setIsConnected] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -496,44 +497,14 @@ export default function PlayerScreen() {
                       </p>
                     </div>
                     
-                    {/* Botão Gravar Justificativa */}
-                    <motion.button
-                      onClick={() => {
-                        if (isRecording) {
-                          setIsRecording(false);
-                          toast({ title: '⏹️ Gravação finalizada!' });
-                        } else {
-                          setIsRecording(true);
-                          toast({ title: '🎙️ Gravando justificativa...' });
-                        }
+                    {/* Gravador de Justificativa Real */}
+                    <PresenterModeRecorder
+                      onRecordingComplete={(blob, durationMs) => {
+                        setRecordedAudioBlob(blob);
+                        console.log('[PlayerScreen] Audio recorded:', durationMs, 'ms');
+                        // O blob pode ser enviado para análise de IA posteriormente
                       }}
-                      whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        "w-full flex items-center justify-center gap-2 p-4 rounded-xl font-medium transition-all",
-                        isRecording 
-                          ? "bg-destructive text-destructive-foreground"
-                          : "bg-gradient-to-r from-gold to-yellow-500 text-black"
-                      )}
-                    >
-                      <Mic className={cn(
-                        "w-5 h-5",
-                        isRecording && "animate-pulse"
-                      )} />
-                      {isRecording ? 'Parar Gravação' : '🎙️ Gravar Justificativa'}
-                    </motion.button>
-                    
-                    {isRecording && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex items-center justify-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl"
-                      >
-                        <span className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
-                        <span className="text-sm text-destructive font-medium">
-                          Gravando...
-                        </span>
-                      </motion.div>
-                    )}
+                    />
                   </motion.div>
                 )}
               </div>
