@@ -424,12 +424,7 @@ export default function PresenterRoom() {
             <GoldButton 
               onClick={() => {
                 const question = questions[selectedQuestionIndex];
-                if (question) {
-                  startGame(question);
-                  startTimer('response', 30);
-                } else {
-                  startGame();
-                }
+                startGame(question || undefined);
               }} 
               size="sm"
             >
