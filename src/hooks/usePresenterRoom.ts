@@ -210,10 +210,16 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     });
   }, [broadcastEvent, roomState.currentRound]);
 
-  const startGame = useCallback(async () => {
-    setRoomState(prev => ({ ...prev, isGameStarted: true }));
+  const startGame = useCallback(async (question?: Question) => {
+    setRoomState(prev => ({ 
+      ...prev, 
+      isGameStarted: true,
+      currentQuestion: question || null,
+      showingAnswer: false
+    }));
     await broadcastEvent({
       type: 'game_start',
+      data: question ? { question } : undefined,
       timestamp: Date.now()
     });
   }, [broadcastEvent]);
@@ -323,7 +329,12 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
               }));
               break;
             case 'game_start':
-              setRoomState(prev => ({ ...prev, isGameStarted: true }));
+              setRoomState(prev => ({ 
+                ...prev, 
+                isGameStarted: true,
+                currentQuestion: event.data?.question as Question || prev.currentQuestion,
+                showingAnswer: false
+              }));
               break;
           }
         }
