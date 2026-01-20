@@ -1,17 +1,24 @@
 /**
  * Gravador de Áudio para o Modo Apresentador
- * Versão simplificada - não envia para outros jogadores, apenas armazena localmente
- * para futura análise de IA
+ * Captura métricas vocais reais usando AudioContext/AnalyserNode
+ * para análise de IA biométrica (pitch, frequência, amplitude)
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Pause, Play, Volume2, Loader2 } from 'lucide-react';
+import { Mic, Square, Pause, Play, Volume2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { 
+  startForensicsSession, 
+  markRecordingStart, 
+  analyzeAudioFrame, 
+  finalizeForensicsSession,
+  type VoiceMetrics 
+} from '@/services/audioForensicsService';
 
 interface PresenterModeRecorderProps {
-  onRecordingComplete?: (audioBlob: Blob, durationMs: number) => void;
+  onRecordingComplete?: (audioBlob: Blob, durationMs: number, metrics: VoiceMetrics) => void;
   disabled?: boolean;
   maxDuration?: number;
 }
@@ -67,6 +74,9 @@ export default function PresenterModeRecorder({
       return;
     }
 
+    // Capture real audio metrics for forensics analysis
+    analyzeAudioFrame(analyserRef.current);
+
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
 
@@ -88,6 +98,9 @@ export default function PresenterModeRecorder({
 
   const startRecording = async () => {
     try {
+      // Start forensics session BEFORE recording to track response latency
+      startForensicsSession();
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -103,10 +116,13 @@ export default function PresenterModeRecorder({
       
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.7;
+      analyser.fftSize = 2048; // Higher resolution for better pitch detection
+      analyser.smoothingTimeConstant = 0.5; // Less smoothing for more accurate analysis
       source.connect(analyser);
       analyserRef.current = analyser;
+
+      // Mark recording start for latency calculation
+      markRecordingStart();
 
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
 
@@ -126,6 +142,10 @@ export default function PresenterModeRecorder({
         
         const recordingDurationMs = Date.now() - recordingStartTimeRef.current;
         
+        // Finalize forensics session and get real voice metrics
+        const voiceMetrics = finalizeForensicsSession(recordingDurationMs);
+        console.log('[PresenterRecorder] Real voice metrics captured:', voiceMetrics);
+        
         stream.getTracks().forEach(track => track.stop());
         if (audioContext.state !== 'closed') {
           audioContext.close();
@@ -139,12 +159,12 @@ export default function PresenterModeRecorder({
           setAudioUrl(url);
         }
         
-        // Callback with blob for future AI analysis
-        onRecordingComplete?.(audioBlob, recordingDurationMs);
+        // Callback with blob and REAL voice metrics for AI analysis
+        onRecordingComplete?.(audioBlob, recordingDurationMs, voiceMetrics);
         
         toast({ 
           title: '✅ Justificativa gravada!', 
-          description: 'Sua explicação foi registrada com sucesso.' 
+          description: `Métricas capturadas: ${voiceMetrics.pitchStability} pitch, ${voiceMetrics.speechRateBPM} palavras/min` 
         });
       };
 

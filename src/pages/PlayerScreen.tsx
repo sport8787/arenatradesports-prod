@@ -506,14 +506,14 @@ export default function PlayerScreen() {
                     {roomState.justificationEnabled && (
                       <>
                         <PresenterModeRecorder
-                          onRecordingComplete={async (blob, durationMs) => {
+                          onRecordingComplete={async (blob, durationMs, voiceMetrics) => {
                             setRecordedAudioBlob(blob);
                             setIsProcessingAudio(true);
                             
                             try {
                               const result = await processRecordedAudio(
                                 blob,
-                                durationMs,
+                                voiceMetrics, // Pass REAL voice metrics
                                 roomId || '',
                                 playerId,
                                 roomState.currentRound,
