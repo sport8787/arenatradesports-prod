@@ -312,8 +312,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as PresenterEvent;
         
-        // Presenter recebe votos do júri
-        if (isPresenter && event.type === 'jury_vote') {
+        // All users receive jury votes for real-time counter
+        if (event.type === 'jury_vote') {
           const voteData = event.data as unknown as JuryVote;
           if (voteData?.playerId && voteData?.voteType) {
             setRoomState(prev => ({
@@ -324,7 +324,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
               ]
             }));
           }
-          return;
+          // Continue processing for presenter-specific logic if needed
+          if (isPresenter) return;
         }
         
         // Atualizar estado baseado no evento recebido (para jogadores)
