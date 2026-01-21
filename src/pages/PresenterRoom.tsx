@@ -8,8 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, Pause, SkipForward, Volume2, VolumeX, Users, 
   MessageCircle, Eye, EyeOff, Timer, Check, Mic, 
-  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy, Square, Brain
+  ArrowLeft, Settings, Trophy, Zap, RefreshCw, Copy, Square, Brain,
+  ThumbsUp, ThumbsDown
 } from 'lucide-react';
+import LiveVoteCounter from '@/components/game/LiveVoteCounter';
+import MycroftPreviewPanel from '@/components/game/MycroftPreviewPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom } from '@/hooks/usePresenterRoom';
 import { useAuth } from '@/hooks/useAuth';
@@ -670,55 +673,32 @@ export default function PresenterRoom() {
                 </Button>
               </div>
               
-              {/* Mycroft Release Button - Prominent placement */}
-              {roomState.pendingMycroftAnalysis && !roomState.mycroftReleased && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 rounded-xl bg-purple-900/30 border border-purple-500/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-purple-300">Análise do Mycroft Pronta</p>
-                        <p className="text-xs text-muted-foreground">
-                          Clique para enviar a análise forense ao júri
-                        </p>
-                      </div>
-                    </div>
-                    <GoldButton
-                      onClick={() => {
-                        releaseMycroft();
-                        toast({ 
-                          title: '🔬 Mycroft Liberado!',
-                          description: 'Análise forense enviada para o júri'
-                        });
-                      }}
-                      size="sm"
-                    >
-                      <Brain className="w-4 h-4 mr-2" />
-                      Liberar Mycroft
-                    </GoldButton>
-                  </div>
-                </motion.div>
+              {/* Live Vote Counter - Real-time voting display */}
+              {roomState.votingActive && (
+                <div className="mt-4">
+                  <LiveVoteCounter
+                    votes={roomState.juryVotes}
+                    totalJuryMembers={roomState.players.filter(p => p.role === 'jury').length}
+                    showDetails={true}
+                  />
+                </div>
               )}
               
-              {roomState.mycroftReleased && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-4 p-3 rounded-xl bg-success/20 border border-success/50 text-center"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4 text-success" />
-                    <span className="text-sm text-success font-medium">
-                      Análise do Mycroft enviada ao júri
-                    </span>
-                  </div>
-                </motion.div>
+              {/* Mycroft Preview Panel - Full preview before releasing */}
+              {roomState.pendingMycroftAnalysis && (
+                <div className="mt-4">
+                  <MycroftPreviewPanel
+                    analysis={roomState.pendingMycroftAnalysis}
+                    isReleased={roomState.mycroftReleased}
+                    onRelease={() => {
+                      releaseMycroft();
+                      toast({ 
+                        title: '🔬 Mycroft Liberado!',
+                        description: 'Análise forense enviada para o júri'
+                      });
+                    }}
+                  />
+                </div>
               )}
             </div>
 

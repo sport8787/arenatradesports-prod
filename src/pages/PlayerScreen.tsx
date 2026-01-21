@@ -15,12 +15,20 @@ import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Button } from '@/components/ui/button';
 import GoldButton from '@/components/game/GoldButton';
 import RoundBackground from '@/components/game/RoundBackground';
+import LiveVoteCounter from '@/components/game/LiveVoteCounter';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
 import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
 import { processRecordedAudio, MycroftAnalysisResult } from '@/services/presenterAudioService';
+
+interface JuryVote {
+  playerId: string;
+  nickname: string;
+  voteType: 'believe' | 'doubt';
+  timestamp: number;
+}
 
 type PlayerRole = 'player' | 'jury';
 
@@ -48,6 +56,7 @@ export default function PlayerScreen() {
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [mycroftAnalysis, setMycroftAnalysis] = useState<MycroftAnalysisResult | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
+  const [juryVotes, setJuryVotes] = useState<JuryVote[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -150,6 +159,28 @@ export default function PlayerScreen() {
             description: 'O apresentador liberou a análise de voz!'
           });
         }
+
+        // Listen for jury votes to show live counter to all players
+        if (event.type === 'jury_vote' && event.data) {
+          const voteData = event.data as unknown as JuryVote;
+          if (voteData?.playerId && voteData?.voteType) {
+            console.log('[PlayerScreen] 🗳️ Jury vote received:', voteData);
+            setJuryVotes(prev => [
+              ...prev.filter(v => v.playerId !== voteData.playerId),
+              voteData
+            ]);
+          }
+        }
+
+        // Clear votes on new voting round
+        if (event.type === 'start_voting') {
+          setJuryVotes([]);
+        }
+
+        // Clear votes on next round
+        if (event.type === 'next_round') {
+          setJuryVotes([]);
+        }
       })
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED');
@@ -210,19 +241,27 @@ export default function PlayerScreen() {
     setVote(voteType);
     setHasVoted(true);
     
-    // Broadcast voto para o apresentador via canal
+    const voteData = {
+      playerId,
+      nickname,
+      voteType,
+      timestamp: Date.now()
+    };
+
+    // Also add to local state immediately for UI feedback
+    setJuryVotes(prev => [
+      ...prev.filter(v => v.playerId !== playerId),
+      voteData
+    ]);
+    
+    // Broadcast voto para o apresentador E outros jogadores via canal
     if (channelRef.current && playerId) {
       await channelRef.current.send({
         type: 'broadcast',
         event: 'presenter_control',
         payload: {
           type: 'jury_vote',
-          data: {
-            playerId,
-            nickname,
-            voteType,
-            timestamp: Date.now()
-          },
+          data: voteData,
           timestamp: Date.now()
         }
       });
@@ -604,6 +643,17 @@ export default function PlayerScreen() {
                         )}
                       </>
                     )}
+                    
+                    {/* Live Vote Counter for Main Player - shows during voting */}
+                    {roomState.votingActive && (
+                      <div className="mt-4">
+                        <LiveVoteCounter
+                          votes={juryVotes}
+                          totalJuryMembers={roomState.players.filter(p => p.role === 'jury').length}
+                          showDetails={false}
+                        />
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>
@@ -759,6 +809,16 @@ export default function PlayerScreen() {
                         </p>
                       </motion.div>
                     )}
+
+                    {/* Live Vote Counter for Jury */}
+                    <div className="mt-4">
+                      <LiveVoteCounter
+                        votes={juryVotes}
+                        totalJuryMembers={roomState.players.filter(p => p.role === 'jury').length}
+                        showDetails={false}
+                        compact={true}
+                      />
+                    </div>
                   </div>
                 )}
 
