@@ -83,6 +83,38 @@ export default function PlayerScreen() {
     loadPlayer();
   }, [roomId]);
 
+  // Carregar votos do banco quando a questão muda (para recuperar estado após reload)
+  useEffect(() => {
+    const loadVotes = async () => {
+      if (!roomId || !roomState.currentQuestion?.id) return;
+
+      const { data, error } = await supabase
+        .from('votes')
+        .select('*, players!votes_player_id_fkey(nickname)')
+        .eq('room_id', roomId)
+        .eq('question_id', roomState.currentQuestion.id);
+
+      if (!error && data) {
+        const loadedVotes: JuryVote[] = data.map(v => ({
+          playerId: v.player_id,
+          nickname: (v.players as { nickname: string } | null)?.nickname || 'Jogador',
+          voteType: v.vote_type as 'believe' | 'doubt',
+          timestamp: new Date(v.created_at).getTime()
+        }));
+        setJuryVotes(loadedVotes);
+        
+        // Verificar se o jogador atual já votou
+        const myVote = data.find(v => v.player_id === playerId);
+        if (myVote) {
+          setVote(myVote.vote_type as 'believe' | 'doubt');
+          setHasVoted(true);
+        }
+      }
+    };
+
+    loadVotes();
+  }, [roomId, roomState.currentQuestion?.id, playerId]);
+
   // Listen for broadcasts from presenter (audio, Mycroft release, jury votes)
   // NOTE: This is intentionally a lightweight listener to drive local-only UI
   // (audio playback + local vote list + released Mycroft analysis display).
@@ -241,6 +273,8 @@ export default function PlayerScreen() {
     setVote(voteType);
     setHasVoted(true);
     
+    const questionId = roomState.currentQuestion?.id;
+    
     const voteData = {
       playerId,
       nickname,
@@ -254,6 +288,27 @@ export default function PlayerScreen() {
       voteData
     ]);
     
+    // Salvar voto no banco diretamente (jogador salva seu próprio voto)
+    if (roomId && questionId && playerId) {
+      // Remover voto anterior do mesmo jogador
+      await supabase
+        .from('votes')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('question_id', questionId)
+        .eq('player_id', playerId);
+      
+      // Inserir novo voto
+      await supabase
+        .from('votes')
+        .insert({
+          room_id: roomId,
+          question_id: questionId,
+          player_id: playerId,
+          vote_type: voteType
+        });
+    }
+    
     // Broadcast voto para o apresentador E outros jogadores via canal
     if (channelRef.current && playerId) {
       await channelRef.current.send({
@@ -261,7 +316,7 @@ export default function PlayerScreen() {
         event: 'presenter_control',
         payload: {
           type: 'jury_vote',
-          data: voteData,
+          data: { ...voteData, questionId },
           timestamp: Date.now()
         }
       });
