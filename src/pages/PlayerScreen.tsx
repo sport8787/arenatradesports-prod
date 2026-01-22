@@ -568,14 +568,19 @@ export default function PlayerScreen() {
                             setIsProcessingAudio(true);
                             
                             try {
+                              // Get the actual text of the correct answer
+                              const question = roomState.currentQuestion;
+                              const correctAnswerText = question ? 
+                                question[`option_${question.correct_option.toLowerCase()}` as keyof typeof question] as string || '' : '';
+                              
                               const result = await processRecordedAudio(
                                 blob,
                                 voiceMetrics, // Pass REAL voice metrics
                                 roomId || '',
                                 playerId,
                                 roomState.currentRound,
-                                roomState.currentQuestion?.question_text || '',
-                                roomState.currentQuestion?.correct_option || '',
+                                question?.question_text || '',
+                                correctAnswerText, // Pass the TEXT of the correct answer
                                 selectedAnswer || ''
                               );
                               
