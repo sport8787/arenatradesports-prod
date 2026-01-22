@@ -41,7 +41,7 @@ interface Player {
   isOnline: boolean;
 }
 
-interface JuryVote {
+export interface JuryVote {
   playerId: string;
   nickname: string;
   voteType: 'believe' | 'doubt';
@@ -168,13 +168,20 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
   }, [broadcastEvent, roomState.currentQuestion]);
 
   const startVoting = useCallback(async () => {
-    // Limpa votos anteriores ao iniciar nova votação
+    // Limpa votos anteriores ao iniciar nova votação (no banco e em memória)
+    if (roomId && roomState.currentQuestion) {
+      await supabase
+        .from('votes')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('question_id', roomState.currentQuestion.id);
+    }
     setRoomState(prev => ({ ...prev, votingActive: true, juryVotes: [] }));
     await broadcastEvent({
       type: 'start_voting',
       timestamp: Date.now()
     });
-  }, [broadcastEvent]);
+  }, [broadcastEvent, roomId, roomState.currentQuestion]);
 
   const endVoting = useCallback(async () => {
     // When voting ends we also stop any active voting timer to avoid lingering countdown in the UI
@@ -308,6 +315,49 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     }
   }, [roomId]);
 
+  // Carregar votos do banco para a questão atual
+  const loadVotes = useCallback(async (questionId: string) => {
+    if (!roomId) return;
+
+    const { data, error } = await supabase
+      .from('votes')
+      .select('*, players!votes_player_id_fkey(nickname)')
+      .eq('room_id', roomId)
+      .eq('question_id', questionId);
+
+    if (!error && data) {
+      const juryVotes: JuryVote[] = data.map(v => ({
+        playerId: v.player_id,
+        nickname: (v.players as { nickname: string } | null)?.nickname || 'Jogador',
+        voteType: v.vote_type as 'believe' | 'doubt',
+        timestamp: new Date(v.created_at).getTime()
+      }));
+      setRoomState(prev => ({ ...prev, juryVotes }));
+    }
+  }, [roomId]);
+
+  // Salvar voto no banco
+  const saveVote = useCallback(async (vote: JuryVote, questionId: string) => {
+    if (!roomId) return;
+
+    // Upsert: remove voto anterior do mesmo jogador e insere novo
+    await supabase
+      .from('votes')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('question_id', questionId)
+      .eq('player_id', vote.playerId);
+
+    await supabase
+      .from('votes')
+      .insert({
+        room_id: roomId,
+        question_id: questionId,
+        player_id: vote.playerId,
+        vote_type: vote.voteType
+      });
+  }, [roomId]);
+
   // Setup realtime channel
   useEffect(() => {
     if (!roomId) {
@@ -328,6 +378,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
         // All users receive jury votes for real-time counter
         if (event.type === 'jury_vote') {
           const voteData = event.data as unknown as JuryVote;
+          const questionId = (event.data as { questionId?: string })?.questionId;
           if (voteData?.playerId && voteData?.voteType) {
             setRoomState(prev => ({
               ...prev,
@@ -336,6 +387,10 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
                 voteData
               ]
             }));
+            // Persistir voto no banco (qualquer cliente pode fazer isso, mas o presenter faz a gestão principal)
+            if (isPresenter && questionId) {
+              saveVote(voteData, questionId);
+            }
           }
           // Continue processing for presenter-specific logic if needed
           if (isPresenter) return;
@@ -438,7 +493,14 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
       clearTimeout(loadingTimeout);
       supabase.removeChannel(channel);
     };
-  }, [roomId, isPresenter, loadPlayers]);
+  }, [roomId, isPresenter, loadPlayers, saveVote]);
+
+  // Carregar votos quando a questão muda (para recuperar estado após reload)
+  useEffect(() => {
+    if (roomState.currentQuestion?.id && roomId) {
+      loadVotes(roomState.currentQuestion.id);
+    }
+  }, [roomState.currentQuestion?.id, roomId, loadVotes]);
 
   return {
     roomState,
@@ -458,6 +520,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     startGame,
     showScores,
     loadPlayers,
+    loadVotes,
+    saveVote,
     storePendingMycroft,
     releaseMycroft
   };

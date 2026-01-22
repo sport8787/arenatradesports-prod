@@ -673,14 +673,19 @@ export default function PresenterRoom() {
                 </Button>
               </div>
               
-              {/* Live Vote Counter - Real-time voting display */}
-              {roomState.votingActive && (
+              {/* Live Vote Counter - Real-time voting display (show during and after voting) */}
+              {(roomState.votingActive || roomState.juryVotes.length > 0) && (
                 <div className="mt-4">
                   <LiveVoteCounter
                     votes={roomState.juryVotes}
                     totalJuryMembers={roomState.players.filter(p => p.role === 'jury').length}
                     showDetails={true}
                   />
+                  {!roomState.votingActive && roomState.juryVotes.length > 0 && (
+                    <p className="text-center text-xs text-muted-foreground mt-2">
+                      Votação encerrada - {roomState.juryVotes.length} voto(s) registrado(s)
+                    </p>
+                  )}
                 </div>
               )}
               
