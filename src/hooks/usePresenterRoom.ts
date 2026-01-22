@@ -177,9 +177,22 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
   }, [broadcastEvent]);
 
   const endVoting = useCallback(async () => {
-    setRoomState(prev => ({ ...prev, votingActive: false }));
+    // When voting ends we also stop any active voting timer to avoid lingering countdown in the UI
+    setRoomState(prev => ({
+      ...prev,
+      votingActive: false,
+      timerActive: false,
+      timerType: null,
+      timerDuration: 0
+    }));
     await broadcastEvent({
       type: 'end_voting',
+      timestamp: Date.now()
+    });
+
+    // Explicitly stop timer on all clients as well
+    await broadcastEvent({
+      type: 'stop_timer',
       timestamp: Date.now()
     });
   }, [broadcastEvent]);

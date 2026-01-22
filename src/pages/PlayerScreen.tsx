@@ -83,14 +83,14 @@ export default function PlayerScreen() {
     loadPlayer();
   }, [roomId]);
 
-  // Listen for audio broadcasts and Mycroft analysis from presenter
-  // Nota: Usamos o canal existente do usePresenterRoom para evitar duplicação
-  // Este efeito adiciona handlers extras para áudio e análise Mycroft
+  // Listen for broadcasts from presenter (audio, Mycroft release, jury votes)
+  // NOTE: This is intentionally a lightweight listener to drive local-only UI
+  // (audio playback + local vote list + released Mycroft analysis display).
   useEffect(() => {
     if (!roomId) return;
 
-    // Criar canal separado apenas para handlers de áudio (o usePresenterRoom já gerencia o estado)
-    const audioChannel = supabase.channel(`player-audio:${roomId}`)
+    // Use the same room channel used by the presenter controls to avoid mismatches
+    const audioChannel = supabase.channel(`presenter:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as { type: PresenterEventType; data?: Record<string, unknown>; timestamp: number };
         
@@ -649,8 +649,8 @@ export default function PlayerScreen() {
                       </>
                     )}
                     
-                    {/* Live Vote Counter for Main Player - shows during voting */}
-                    {roomState.votingActive && (
+                    {/* Live Vote Counter for Main Player - show during voting and after closing */}
+                    {(roomState.votingActive || juryVotes.length > 0) && (
                       <div className="mt-4">
                         <LiveVoteCounter
                           votes={juryVotes}
@@ -825,6 +825,27 @@ export default function PlayerScreen() {
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Resultado da votação (após encerrar) */}
+                {!roomState.votingActive && juryVotes.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 space-y-3"
+                  >
+                    <p className="text-center text-sm text-muted-foreground">
+                      Votação encerrada. Aguardando o apresentador revelar a resposta...
+                    </p>
+                    <div className="flex justify-center">
+                      <LiveVoteCounter
+                        votes={juryVotes}
+                        totalJuryMembers={roomState.players.filter(p => p.role === 'jury').length}
+                        showDetails={false}
+                        compact={true}
+                      />
+                    </div>
+                  </motion.div>
                 )}
 
                 {/* Aguardando votação abrir */}
