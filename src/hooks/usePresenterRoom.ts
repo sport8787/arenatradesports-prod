@@ -506,6 +506,7 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     roomState,
     loading,
     error,
+    channelRef, // Expor ref do canal para PlayerScreen poder fazer broadcast
     // Ações do apresentador
     showQuestion,
     hideQuestion,

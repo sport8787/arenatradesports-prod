@@ -38,7 +38,8 @@ export default function PlayerScreen() {
   
   const {
     roomState,
-    loading
+    loading,
+    channelRef: presenterChannelRef
   } = usePresenterRoom(roomId, false);
 
   const [nickname, setNickname] = useState<string>('');
@@ -58,7 +59,6 @@ export default function PlayerScreen() {
   const [playerId, setPlayerId] = useState<string>('');
   const [juryVotes, setJuryVotes] = useState<JuryVote[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Carregar dados do jogador
   useEffect(() => {
@@ -115,14 +115,15 @@ export default function PlayerScreen() {
     loadVotes();
   }, [roomId, roomState.currentQuestion?.id, playerId]);
 
-  // Listen for broadcasts from presenter (audio, Mycroft release, jury votes)
-  // NOTE: This is intentionally a lightweight listener to drive local-only UI
-  // (audio playback + local vote list + released Mycroft analysis display).
+  // Listen for audio broadcasts and specific presenter events
+  // NOTE: We use a DIFFERENT channel name to avoid conflict with usePresenterRoom's channel
+  // The usePresenterRoom hook handles game state (game_start, show_question, etc.)
+  // This channel handles audio playback and Mycroft analysis display only
   useEffect(() => {
     if (!roomId) return;
 
-    // Use the same room channel used by the presenter controls to avoid mismatches
-    const audioChannel = supabase.channel(`presenter:${roomId}`)
+    // Use a dedicated player-specific channel for audio/UI events to avoid conflicts
+    const playerAudioChannel = supabase.channel(`player-audio:${roomId}:${playerId || 'anon'}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as { type: PresenterEventType; data?: Record<string, unknown>; timestamp: number };
         
@@ -191,42 +192,24 @@ export default function PlayerScreen() {
             description: 'O apresentador liberou a análise de voz!'
           });
         }
-
-        // Listen for jury votes to show live counter to all players
-        if (event.type === 'jury_vote' && event.data) {
-          const voteData = event.data as unknown as JuryVote;
-          if (voteData?.playerId && voteData?.voteType) {
-            console.log('[PlayerScreen] 🗳️ Jury vote received:', voteData);
-            setJuryVotes(prev => [
-              ...prev.filter(v => v.playerId !== voteData.playerId),
-              voteData
-            ]);
-          }
-        }
-
-        // Clear votes on new voting round
-        if (event.type === 'start_voting') {
-          setJuryVotes([]);
-        }
-
-        // Clear votes on next round
-        if (event.type === 'next_round') {
-          setJuryVotes([]);
-        }
       })
       .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED');
+        console.log('[PlayerScreen] Player audio channel status:', status);
       });
 
-    channelRef.current = audioChannel;
-
     return () => {
-      supabase.removeChannel(audioChannel);
+      supabase.removeChannel(playerAudioChannel);
       if (audioRef.current) {
         audioRef.current.pause();
       }
     };
-  }, [roomId, isMuted, role]);
+  }, [roomId, isMuted, role, playerId]);
+
+  // Sync juryVotes from roomState (managed by usePresenterRoom hook)
+  // This ensures we use the same channel as the hook
+  useEffect(() => {
+    setJuryVotes(roomState.juryVotes);
+  }, [roomState.juryVotes]);
 
   // Timer local sincronizado
   useEffect(() => {
@@ -309,9 +292,9 @@ export default function PlayerScreen() {
         });
     }
     
-    // Broadcast voto para o apresentador E outros jogadores via canal
-    if (channelRef.current && playerId) {
-      await channelRef.current.send({
+    // Broadcast voto para o apresentador E outros jogadores via canal do hook
+    if (presenterChannelRef?.current && playerId) {
+      await presenterChannelRef.current.send({
         type: 'broadcast',
         event: 'presenter_control',
         payload: {
@@ -644,8 +627,8 @@ export default function PlayerScreen() {
                                 
                                 // Broadcast voice metrics AND Mycroft analysis TO PRESENTER ONLY
                                 // The presenter will decide when to release the analysis to the jury
-                                if (channelRef.current) {
-                                  await channelRef.current.send({
+                                if (presenterChannelRef?.current) {
+                                  await presenterChannelRef.current.send({
                                     type: 'broadcast',
                                     event: 'presenter_control',
                                     payload: {
@@ -660,7 +643,7 @@ export default function PlayerScreen() {
                                   console.log('[PlayerScreen] 📊 Voice metrics sent to presenter');
                                   
                                   // Send Mycroft analysis to PRESENTER (not directly to jury)
-                                  await channelRef.current.send({
+                                  await presenterChannelRef.current.send({
                                     type: 'broadcast',
                                     event: 'presenter_control',
                                     payload: {
