@@ -625,11 +625,49 @@ export default function PlayerScreen() {
                               if (result.analysis) {
                                 setMycroftAnalysis(result.analysis);
                                 
-                                // Broadcast voice metrics AND Mycroft analysis TO PRESENTER ONLY
+                                // Broadcast voice metrics AND Mycroft analysis TO PRESENTER
                                 // The presenter will decide when to release the analysis to the jury
+                                // We send to BOTH the main presenter channel AND the dedicated metrics channel
+                                
+                                // Create a dedicated channel for metrics to ensure presenter receives it
+                                const metricsChannel = supabase.channel(`presenter-metrics-receiver:${roomId}`);
+                                await metricsChannel.subscribe();
+                                
+                                // Send via dedicated metrics channel
+                                await metricsChannel.send({
+                                  type: 'broadcast' as const,
+                                  event: 'presenter_control',
+                                  payload: {
+                                    type: 'voice_metrics',
+                                    data: {
+                                      metrics: result.metrics,
+                                      playerName: nickname
+                                    },
+                                    timestamp: Date.now()
+                                  }
+                                });
+                                console.log('[PlayerScreen] 📊 Voice metrics sent via dedicated channel');
+                                
+                                await metricsChannel.send({
+                                  type: 'broadcast' as const,
+                                  event: 'presenter_control',
+                                  payload: {
+                                    type: 'mycroft_analysis',
+                                    data: {
+                                      verdict: result.analysis.verdict,
+                                      confidence: result.analysis.confidence,
+                                      forensicDetails: result.analysis.forensicDetails,
+                                      metrics: result.metrics
+                                    },
+                                    timestamp: Date.now()
+                                  }
+                                });
+                                console.log('[PlayerScreen] 📡 Mycroft analysis sent via dedicated channel');
+                                
+                                // Also send via main channel as backup
                                 if (presenterChannelRef?.current) {
                                   await presenterChannelRef.current.send({
-                                    type: 'broadcast',
+                                    type: 'broadcast' as const,
                                     event: 'presenter_control',
                                     payload: {
                                       type: 'voice_metrics',
@@ -640,11 +678,8 @@ export default function PlayerScreen() {
                                       timestamp: Date.now()
                                     }
                                   });
-                                  console.log('[PlayerScreen] 📊 Voice metrics sent to presenter');
-                                  
-                                  // Send Mycroft analysis to PRESENTER (not directly to jury)
                                   await presenterChannelRef.current.send({
-                                    type: 'broadcast',
+                                    type: 'broadcast' as const,
                                     event: 'presenter_control',
                                     payload: {
                                       type: 'mycroft_analysis',
@@ -657,8 +692,13 @@ export default function PlayerScreen() {
                                       timestamp: Date.now()
                                     }
                                   });
-                                  console.log('[PlayerScreen] 📡 Mycroft analysis sent to PRESENTER (awaiting release)');
+                                  console.log('[PlayerScreen] 📡 Also sent via main presenter channel');
                                 }
+                                
+                                // Cleanup the dedicated channel after a short delay
+                                setTimeout(() => {
+                                  supabase.removeChannel(metricsChannel);
+                                }, 1000);
                                 
                                 toast({
                                   title: '🔬 Análise Pronta',

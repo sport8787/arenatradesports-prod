@@ -13,12 +13,14 @@ interface VoiceMetricsPanelProps {
   metrics: VoiceMetrics | null;
   playerName?: string;
   isLoading?: boolean;
+  waitingForRecording?: boolean;
 }
 
 export default function VoiceMetricsPanel({ 
   metrics, 
   playerName = 'Jogador',
-  isLoading = false 
+  isLoading = false,
+  waitingForRecording = false
 }: VoiceMetricsPanelProps) {
   if (!metrics && !isLoading) {
     return (
@@ -27,9 +29,26 @@ export default function VoiceMetricsPanel({
           <Activity className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Métricas Vocais</h3>
         </div>
-        <p className="text-sm text-muted-foreground text-center py-4">
-          Aguardando gravação do jogador...
-        </p>
+        {waitingForRecording ? (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center py-4 gap-2"
+          >
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              <Radio className="w-6 h-6 text-gold animate-pulse" />
+            </motion.div>
+            <p className="text-sm text-gold font-medium">Aguardando gravação...</p>
+            <p className="text-xs text-muted-foreground">O jogador principal está gravando</p>
+          </motion.div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Clique em "Liberar Gravação" para iniciar
+          </p>
+        )}
       </div>
     );
   }
