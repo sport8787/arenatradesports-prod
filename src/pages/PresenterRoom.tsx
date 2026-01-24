@@ -181,23 +181,34 @@ export default function PresenterRoom() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // State for waiting for player recording
+  const [waitingForRecording, setWaitingForRecording] = useState(false);
+  const [hasReceivedRecording, setHasReceivedRecording] = useState(false);
+
   // Listen for voice metrics AND Mycroft analysis from players
+  // Using the SAME channel as the main room to receive player broadcasts
   useEffect(() => {
     if (!roomId) return;
 
-    const channel = supabase.channel(`presenter-metrics:${roomId}`)
+    // Use the same channel name that PlayerScreen broadcasts to via presenterChannelRef
+    const metricsChannel = supabase.channel(`presenter-metrics-receiver:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as { type: string; data?: Record<string, unknown> };
+        
+        console.log('[PresenterRoom] 📡 Received event on metrics channel:', event.type);
         
         if (event.type === 'voice_metrics' && event.data) {
           const { metrics, playerName } = event.data as { 
             metrics: VoiceMetrics; 
             playerName: string 
           };
+          console.log('[PresenterRoom] 📊 Voice metrics received:', metrics);
           setIsAnalyzing(false);
+          setWaitingForRecording(false);
+          setHasReceivedRecording(true);
           setPlayerVoiceMetrics(metrics);
           setMetricsPlayerName(playerName || 'Jogador');
-          toast({ title: '📊 Métricas vocais recebidas' });
+          toast({ title: '📊 Métricas vocais recebidas de ' + (playerName || 'Jogador') });
         }
         
         // Receive Mycroft analysis from player - store for later release
@@ -211,14 +222,16 @@ export default function PresenterRoom() {
           });
           toast({ 
             title: '🔬 Análise do Mycroft Pronta!',
-            description: 'Clique em "Liberar Mycroft" para enviar ao júri'
+            description: 'Clique em "EXIBIR ANÁLISE" para ver os detalhes'
           });
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[PresenterRoom] Metrics channel status:', status);
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(metricsChannel);
     };
   }, [roomId, storePendingMycroft]);
 
@@ -227,8 +240,17 @@ export default function PresenterRoom() {
     if (roomState.currentRound) {
       setPlayerVoiceMetrics(null);
       setIsAnalyzing(false);
+      setWaitingForRecording(false);
+      setHasReceivedRecording(false);
     }
   }, [roomState.currentRound]);
+
+  // Track when justification is enabled - start waiting for recording
+  useEffect(() => {
+    if (roomState.justificationEnabled && !hasReceivedRecording) {
+      setWaitingForRecording(true);
+    }
+  }, [roomState.justificationEnabled, hasReceivedRecording]);
 
   // Carregar perguntas
   useEffect(() => {
@@ -689,21 +711,69 @@ export default function PresenterRoom() {
                 </div>
               )}
               
-              {/* Mycroft Preview Panel - Full preview before releasing */}
-              {roomState.pendingMycroftAnalysis && (
-                <div className="mt-4">
-                  <MycroftPreviewPanel
-                    analysis={roomState.pendingMycroftAnalysis}
-                    isReleased={roomState.mycroftReleased}
-                    onRelease={() => {
-                      releaseMycroft();
-                      toast({ 
-                        title: '🔬 Mycroft Liberado!',
-                        description: 'Análise forense enviada para o júri'
-                      });
-                    }}
-                  />
-                </div>
+              {/* Mycroft Analysis Button - Large and Prominent */}
+              {roomState.justificationEnabled && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4"
+                >
+                  {!roomState.pendingMycroftAnalysis ? (
+                    <div className={cn(
+                      "p-4 rounded-xl border-2 border-dashed",
+                      waitingForRecording 
+                        ? "border-gold/50 bg-gold/5"
+                        : hasReceivedRecording 
+                          ? "border-success/50 bg-success/10"
+                          : "border-purple-500/30 bg-purple-900/10"
+                    )}>
+                      <div className="flex items-center justify-center gap-3">
+                        {waitingForRecording ? (
+                          <>
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1, repeat: Infinity }}
+                            >
+                              <Mic className="w-6 h-6 text-gold" />
+                            </motion.div>
+                            <div className="text-center">
+                              <p className="text-gold font-semibold">⏳ Aguardando gravação do jogador...</p>
+                              <p className="text-xs text-muted-foreground">O Mycroft analisará assim que a gravação for concluída</p>
+                            </div>
+                          </>
+                        ) : hasReceivedRecording ? (
+                          <>
+                            <Check className="w-6 h-6 text-success" />
+                            <div className="text-center">
+                              <p className="text-success font-semibold">✓ Gravação recebida!</p>
+                              <p className="text-xs text-muted-foreground">Aguardando análise do Mycroft...</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-6 h-6 text-purple-400" />
+                            <div className="text-center">
+                              <p className="text-purple-300 font-semibold">Mycroft pronto</p>
+                              <p className="text-xs text-muted-foreground">A análise aparecerá quando o jogador gravar</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <MycroftPreviewPanel
+                      analysis={roomState.pendingMycroftAnalysis}
+                      isReleased={roomState.mycroftReleased}
+                      onRelease={() => {
+                        releaseMycroft();
+                        toast({ 
+                          title: '🔬 Mycroft Liberado!',
+                          description: 'Análise forense enviada para o júri'
+                        });
+                      }}
+                    />
+                  )}
+                </motion.div>
               )}
             </div>
 
@@ -827,6 +897,7 @@ export default function PresenterRoom() {
               metrics={playerVoiceMetrics}
               playerName={metricsPlayerName}
               isLoading={isAnalyzing}
+              waitingForRecording={waitingForRecording}
             />
 
             <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">
