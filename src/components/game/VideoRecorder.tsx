@@ -1,12 +1,12 @@
 /**
  * VideoRecorder Component
  * Records video with webcam for Mycroft 2.0 facial analysis
- * Includes real-time face landmark tracking and audio capture
+ * Includes real-time face landmark tracking using MediaPipe FaceMesh
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, VideoOff, Mic, MicOff, Circle, Square, Pause, Play, Upload, AlertCircle, Eye, Camera } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Circle, Square, Pause, Play, Upload, AlertCircle, Eye, Camera, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,13 @@ import {
   finalizeVideoForensicsSession,
   type VideoForensicsResult,
 } from '@/services/videoForensicsService';
+import {
+  initializeFaceMesh,
+  startFaceDetection,
+  stopFaceDetection,
+  destroyFaceMesh,
+  isFaceMeshReady,
+} from '@/services/faceMeshService';
 
 interface VideoRecorderProps {
   roomId: string;
@@ -36,7 +43,7 @@ interface VideoRecorderProps {
   onConsentRequired?: () => void;
 }
 
-type RecordingState = 'idle' | 'preparing' | 'recording' | 'paused' | 'processing' | 'uploading' | 'complete' | 'error';
+type RecordingState = 'idle' | 'preparing' | 'loading-facemesh' | 'recording' | 'paused' | 'processing' | 'uploading' | 'complete' | 'error';
 
 export default function VideoRecorder({
   roomId,
@@ -53,6 +60,8 @@ export default function VideoRecorder({
   const [hasMic, setHasMic] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceMeshLoaded, setFaceMeshLoaded] = useState(false);
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -65,14 +74,14 @@ export default function VideoRecorder({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
-  // MediaPipe FaceMesh reference (loaded dynamically)
-  const faceMeshRef = useRef<any>(null);
-  const cameraRef = useRef<any>(null);
+  // MediaPipe tracking state
+  const lastLandmarksRef = useRef<number[][] | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       cleanup();
+      destroyFaceMesh();
     };
   }, []);
 
@@ -85,6 +94,7 @@ export default function VideoRecorder({
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+    stopFaceDetection();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -93,11 +103,8 @@ export default function VideoRecorder({
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    if (cameraRef.current) {
-      cameraRef.current.stop();
-      cameraRef.current = null;
-    }
     chunksRef.current = [];
+    lastLandmarksRef.current = null;
   }, []);
 
   // Check for camera and mic permissions
@@ -116,26 +123,33 @@ export default function VideoRecorder({
     checkDevices();
   }, []);
 
-  // Load MediaPipe FaceMesh dynamically
-  const loadFaceMesh = useCallback(async () => {
-    try {
-      // Check if already loaded
-      if (faceMeshRef.current) return true;
-
-      // For now, we'll use a simplified approach without external MediaPipe
-      // In production, you would load @mediapipe/face_mesh here
-      console.log('[VideoRecorder] FaceMesh would be loaded here');
-      
-      // Placeholder - in real implementation, load MediaPipe
-      // const { FaceMesh } = await import('@mediapipe/face_mesh');
-      // faceMeshRef.current = new FaceMesh({...});
-      
-      return true;
-    } catch (err) {
-      console.error('[VideoRecorder] Failed to load FaceMesh:', err);
-      return false;
-    }
+  // Initialize FaceMesh on mount
+  useEffect(() => {
+    const init = async () => {
+      const success = await initializeFaceMesh();
+      setFaceMeshLoaded(success);
+      if (!success) {
+        console.warn('[VideoRecorder] FaceMesh initialization failed, will use fallback');
+      }
+    };
+    init();
   }, []);
+
+  // Callback for FaceMesh results
+  const handleFaceMeshResults = useCallback((landmarks: number[][] | null) => {
+    if (landmarks) {
+      setFaceDetected(true);
+      lastLandmarksRef.current = landmarks;
+      
+      // Analyze frame for facial forensics
+      if (state === 'recording') {
+        analyzeVideoFrame(landmarks);
+      }
+    } else {
+      setFaceDetected(false);
+      lastLandmarksRef.current = null;
+    }
+  }, [state]);
 
   // Start recording
   const startRecording = async () => {
@@ -177,10 +191,16 @@ export default function VideoRecorder({
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true; // Mute preview to avoid feedback
         await videoRef.current.play();
+        
+        // Start FaceMesh detection if available
+        if (faceMeshLoaded) {
+          setState('loading-facemesh');
+          const faceStarted = await startFaceDetection(videoRef.current, handleFaceMeshResults);
+          if (!faceStarted) {
+            console.warn('[VideoRecorder] FaceMesh detection failed to start, continuing without');
+          }
+        }
       }
-
-      // Load FaceMesh for facial analysis
-      await loadFaceMesh();
 
       // Set up audio analysis
       if (hasMic) {
@@ -241,7 +261,7 @@ export default function VideoRecorder({
     }
   };
 
-  // Analysis loop for real-time processing
+  // Analysis loop for real-time processing (audio only - FaceMesh handles video via callback)
   const startAnalysisLoop = () => {
     const analyze = () => {
       // Analyze audio
@@ -249,17 +269,8 @@ export default function VideoRecorder({
         analyzeAudioFrame(analyserRef.current);
       }
 
-      // Analyze video frame for facial landmarks
-      // In real implementation, FaceMesh would provide landmarks
-      if (videoRef.current && canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0);
-          // FaceMesh would process the frame here
-          // For now, we'll simulate with empty landmarks
-          // analyzeVideoFrame(landmarks);
-        }
-      }
+      // FaceMesh handles video frames via its own callback (handleFaceMeshResults)
+      // No need for manual frame processing here
 
       if (state === 'recording') {
         animationFrameRef.current = requestAnimationFrame(analyze);
@@ -483,8 +494,17 @@ export default function VideoRecorder({
         {/* Eye tracking indicator */}
         {state === 'recording' && mycroftConsent && (
           <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full border border-success/30">
-            <Eye className="w-4 h-4 text-success" />
-            <span className="text-xs text-success">Mycroft analisando...</span>
+            {faceDetected ? (
+              <>
+                <Scan className="w-4 h-4 text-success" />
+                <span className="text-xs text-success">Rosto detectado</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 text-warning animate-pulse" />
+                <span className="text-xs text-warning">Posicione seu rosto</span>
+              </>
+            )}
           </div>
         )}
 
