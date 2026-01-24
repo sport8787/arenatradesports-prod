@@ -257,6 +257,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
   const releaseMycroft = useCallback(async () => {
     if (!roomState.pendingMycroftAnalysis) return;
     
+    console.log('[usePresenterRoom] 🔬 Releasing Mycroft to jury with metrics:', roomState.pendingMycroftAnalysis.metrics);
+    
     setRoomState(prev => ({ ...prev, mycroftReleased: true }));
     await broadcastEvent({
       type: 'release_mycroft',
@@ -264,7 +266,9 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
         verdict: roomState.pendingMycroftAnalysis.verdict,
         confidence: roomState.pendingMycroftAnalysis.confidence,
         forensicDetails: roomState.pendingMycroftAnalysis.forensicDetails,
-        metrics: roomState.pendingMycroftAnalysis.metrics
+        // Send as BOTH 'metrics' and 'voiceMetrics' for compatibility
+        metrics: roomState.pendingMycroftAnalysis.metrics,
+        voiceMetrics: roomState.pendingMycroftAnalysis.metrics
       },
       timestamp: Date.now()
     });

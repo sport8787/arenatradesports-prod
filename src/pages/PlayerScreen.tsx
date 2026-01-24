@@ -283,6 +283,52 @@ export default function PlayerScreen() {
     setMycroftVoiceMetrics(null);
   }, [roomState.currentQuestion?.id]);
 
+  // NEW: Generate Mycroft 2.0 Human Reading when presenter releases analysis via main channel
+  // This listens to roomState.mycroftReleased which is set by usePresenterRoom on release_mycroft event
+  useEffect(() => {
+    if (!roomState.mycroftReleased || !roomState.pendingMycroftAnalysis || role !== 'jury') {
+      return;
+    }
+    
+    console.log('[PlayerScreen] 🔬 Mycroft released via main channel, generating Human Reading...');
+    
+    const analysis = roomState.pendingMycroftAnalysis;
+    
+    // Set legacy analysis for compatibility
+    setMycroftAnalysis({
+      verdict: analysis.verdict,
+      confidence: analysis.confidence,
+      forensicDetails: analysis.forensicDetails
+    });
+    
+    // Generate Mycroft 2.0 Human Reading if we have metrics
+    // The metrics come as either 'metrics' or 'voiceMetrics' in the payload
+    const metrics = (analysis.metrics as unknown as VoiceMetrics) || null;
+    
+    if (metrics && typeof metrics === 'object' && 'avgPitch' in metrics) {
+      setMycroftVoiceMetrics(metrics);
+      
+      (async () => {
+        try {
+          const humanReading = await generateHumanReadingWithBaseline(
+            metrics,
+            profile?.user_id || null,
+            undefined // wasCorrect not available in this context
+          );
+          setMycroftHumanReading(humanReading);
+          console.log('[PlayerScreen] 🧠 Mycroft 2.0 Human Reading generated from main channel:', humanReading.zone, humanReading.title);
+        } catch (err) {
+          console.error('[PlayerScreen] Error generating human reading:', err);
+        }
+      })();
+      
+      toast({
+        title: '🔬 Análise Forense do Mycroft',
+        description: 'O apresentador liberou a análise de voz!'
+      });
+    }
+  }, [roomState.mycroftReleased, roomState.pendingMycroftAnalysis, role, profile?.user_id]);
+
   // Handlers for Mycroft consent
   const handleMycroftAccept = () => {
     setMycroftConsent(true);
