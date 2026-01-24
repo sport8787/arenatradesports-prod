@@ -26,6 +26,7 @@ import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
 import { uploadAudioToStorage, MycroftAnalysisResult } from '@/services/presenterAudioService';
 import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
 import { MycroftHumanReadingPanel } from '@/components/game/MycroftHumanReading';
+import MycroftVideoAnalysisCard from '@/components/game/MycroftVideoAnalysisCard';
 import { generateHumanReadingWithBaseline, getBluffScore, type MycroftHumanReading } from '@/services/mycroftHumanReadingService';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
 
@@ -66,6 +67,13 @@ export default function PlayerScreen() {
   // NEW: Mycroft 2.0 Human Reading state
   const [mycroftHumanReading, setMycroftHumanReading] = useState<MycroftHumanReading | null>(null);
   const [mycroftVoiceMetrics, setMycroftVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  const [mycroftVideoUrl, setMycroftVideoUrl] = useState<string | null>(null);
+  const [mycroftFacialAnalysis, setMycroftFacialAnalysis] = useState<{
+    overallFacialSuspicion: number;
+    eyeGaze: string;
+    microExpressions: string[];
+    pnlReasoning: string;
+  } | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
   const [juryVotes, setJuryVotes] = useState<JuryVote[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -199,6 +207,8 @@ export default function PlayerScreen() {
         // Receive Mycroft analysis ONLY when presenter releases it (release_mycroft event)
         if (event.type === 'release_mycroft' && event.data && role === 'jury') {
           console.log('[PlayerScreen] 🔬 Mycroft 2.0 analysis RELEASED by presenter:', event.data);
+          console.log('[PlayerScreen] 📹 Video URL received:', event.data.videoUrl);
+          console.log('[PlayerScreen] 🎭 Facial analysis received:', event.data.facialAnalysis);
           
           // Set legacy analysis for compatibility
           setMycroftAnalysis({
@@ -206,6 +216,19 @@ export default function PlayerScreen() {
             confidence: event.data.confidence as number,
             forensicDetails: event.data.forensicDetails as string
           });
+          
+          // NEW: Set video URL and facial analysis for combined analysis display
+          if (event.data.videoUrl) {
+            setMycroftVideoUrl(event.data.videoUrl as string);
+          }
+          if (event.data.facialAnalysis) {
+            setMycroftFacialAnalysis(event.data.facialAnalysis as {
+              overallFacialSuspicion: number;
+              eyeGaze: string;
+              microExpressions: string[];
+              pnlReasoning: string;
+            });
+          }
           
           // NEW: Generate Mycroft 2.0 Human Reading with adaptive baseline
           if (event.data.voiceMetrics) {
@@ -229,8 +252,10 @@ export default function PlayerScreen() {
           }
           
           toast({
-            title: '🔬 Análise Forense do Mycroft',
-            description: 'O apresentador liberou a análise de voz!'
+            title: event.data.videoUrl ? '🎬 Análise de Vídeo do Mycroft' : '🔬 Análise Forense do Mycroft',
+            description: event.data.videoUrl 
+              ? 'O apresentador liberou a análise de vídeo + voz!' 
+              : 'O apresentador liberou a análise de voz!'
           });
         }
       })
@@ -281,6 +306,8 @@ export default function PlayerScreen() {
     setMycroftAnalysis(null); // Clear previous analysis
     setMycroftHumanReading(null); // Clear Mycroft 2.0 reading
     setMycroftVoiceMetrics(null);
+    setMycroftVideoUrl(null); // Clear video URL
+    setMycroftFacialAnalysis(null); // Clear facial analysis
   }, [roomState.currentQuestion?.id]);
 
   // NEW: Generate Mycroft 2.0 Human Reading when presenter releases analysis via main channel
@@ -300,6 +327,16 @@ export default function PlayerScreen() {
       confidence: analysis.confidence,
       forensicDetails: analysis.forensicDetails
     });
+    
+    // NEW: Set video URL and facial analysis from main channel
+    if (analysis.videoUrl) {
+      console.log('[PlayerScreen] 📹 Video URL from main channel:', analysis.videoUrl);
+      setMycroftVideoUrl(analysis.videoUrl);
+    }
+    if (analysis.facialAnalysis) {
+      console.log('[PlayerScreen] 🎭 Facial analysis from main channel:', analysis.facialAnalysis);
+      setMycroftFacialAnalysis(analysis.facialAnalysis);
+    }
     
     // Generate Mycroft 2.0 Human Reading if we have metrics
     // The metrics come as either 'metrics' or 'voiceMetrics' in the payload
@@ -323,8 +360,10 @@ export default function PlayerScreen() {
       })();
       
       toast({
-        title: '🔬 Análise Forense do Mycroft',
-        description: 'O apresentador liberou a análise de voz!'
+        title: analysis.videoUrl ? '🎬 Análise de Vídeo do Mycroft' : '🔬 Análise Forense do Mycroft',
+        description: analysis.videoUrl 
+          ? 'O apresentador liberou a análise de vídeo + voz!' 
+          : 'O apresentador liberou a análise de voz!'
       });
     }
   }, [roomState.mycroftReleased, roomState.pendingMycroftAnalysis, role, profile?.user_id]);
@@ -865,8 +904,75 @@ export default function PlayerScreen() {
                   );
                 })}
 
-                {/* Mycroft 2.0 Human Reading Panel - ONLY for jury */}
-                {mycroftHumanReading && mycroftVoiceMetrics ? (
+                {/* Video Analysis Card - When video is available */}
+                {mycroftVideoUrl && mycroftFacialAnalysis && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 rounded-xl border border-purple-500/50 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 overflow-hidden"
+                  >
+                    {/* Header */}
+                    <div className="p-3 border-b border-purple-500/30 flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-500/20">
+                        <span className="text-xl">🎬</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-purple-300 text-sm">ANÁLISE DE VÍDEO MYCROFT 2.0</h4>
+                        <p className="text-xs text-purple-400/80">Biometria vocal + facial combinada</p>
+                      </div>
+                    </div>
+
+                    {/* Video Player */}
+                    <div className="aspect-video bg-black">
+                      <video 
+                        src={mycroftVideoUrl} 
+                        controls 
+                        className="w-full h-full object-cover"
+                        playsInline
+                      />
+                    </div>
+
+                    {/* Combined Score */}
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-background/30">
+                          <span className="text-xs text-muted-foreground">Score Facial</span>
+                          <p className="font-bold text-lg">{Math.round(mycroftFacialAnalysis.overallFacialSuspicion)}%</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-background/30">
+                          <span className="text-xs text-muted-foreground">Olhar Dominante</span>
+                          <p className="font-bold text-lg capitalize">{mycroftFacialAnalysis.eyeGaze}</p>
+                        </div>
+                      </div>
+
+                      {/* PNL Analysis */}
+                      <div className="p-3 rounded-lg bg-background/30">
+                        <span className="text-xs text-muted-foreground">Análise PNL</span>
+                        <p className="text-sm text-foreground/90 mt-1">{mycroftFacialAnalysis.pnlReasoning}</p>
+                      </div>
+
+                      {/* Micro-expressions */}
+                      {mycroftFacialAnalysis.microExpressions.length > 0 && (
+                        <div className="p-3 rounded-lg bg-background/30">
+                          <span className="text-xs text-muted-foreground">Micro-Expressões Detectadas</span>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {mycroftFacialAnalysis.microExpressions.map((expr, i) => (
+                              <span 
+                                key={i}
+                                className="px-2 py-0.5 bg-warning/20 text-warning text-xs rounded"
+                              >
+                                {expr}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Mycroft 2.0 Human Reading Panel - Vocal analysis (show when no video OR alongside video) */}
+                {mycroftHumanReading && mycroftVoiceMetrics && !mycroftVideoUrl ? (
                   <MycroftHumanReadingPanel
                     reading={mycroftHumanReading}
                     bluffScore={getBluffScore(mycroftVoiceMetrics)}
@@ -874,8 +980,8 @@ export default function PlayerScreen() {
                     showTechnicalButton={true}
                     className="mt-4"
                   />
-                ) : mycroftAnalysis && (
-                  // Legacy fallback display (when no voice metrics available)
+                ) : mycroftAnalysis && !mycroftVideoUrl && (
+                  // Legacy fallback display (when no voice metrics OR video available)
                   <motion.div
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
