@@ -467,13 +467,18 @@ export type Database = {
         Row: {
           audio_url: string
           avg_pitch: number | null
+          combined_suspicion_score: number | null
           created_at: string
+          eye_gaze_dominant: string | null
+          facial_analysis_json: Json | null
+          facial_stress_score: number | null
           harmonics_to_noise: number | null
           id: string
           jitter: number | null
           jitter_absolute: number | null
           jitter_deviation: number | null
           latency_deviation: number | null
+          micro_expressions_detected: string[] | null
           mycroft_forensic_details: string | null
           mycroft_verdict: string | null
           peak_amplitude: number | null
@@ -482,6 +487,7 @@ export type Database = {
           pitch_variance: number | null
           player_id: string | null
           player_name: string | null
+          pnl_access_type: string | null
           question_id: string | null
           recording_duration_ms: number | null
           response_latency_ms: number | null
@@ -493,18 +499,24 @@ export type Database = {
           speech_rate_deviation: number | null
           stress_level: string | null
           stress_score: number | null
+          video_url: string | null
           was_bluffing: boolean | null
         }
         Insert: {
           audio_url: string
           avg_pitch?: number | null
+          combined_suspicion_score?: number | null
           created_at?: string
+          eye_gaze_dominant?: string | null
+          facial_analysis_json?: Json | null
+          facial_stress_score?: number | null
           harmonics_to_noise?: number | null
           id?: string
           jitter?: number | null
           jitter_absolute?: number | null
           jitter_deviation?: number | null
           latency_deviation?: number | null
+          micro_expressions_detected?: string[] | null
           mycroft_forensic_details?: string | null
           mycroft_verdict?: string | null
           peak_amplitude?: number | null
@@ -513,6 +525,7 @@ export type Database = {
           pitch_variance?: number | null
           player_id?: string | null
           player_name?: string | null
+          pnl_access_type?: string | null
           question_id?: string | null
           recording_duration_ms?: number | null
           response_latency_ms?: number | null
@@ -524,18 +537,24 @@ export type Database = {
           speech_rate_deviation?: number | null
           stress_level?: string | null
           stress_score?: number | null
+          video_url?: string | null
           was_bluffing?: boolean | null
         }
         Update: {
           audio_url?: string
           avg_pitch?: number | null
+          combined_suspicion_score?: number | null
           created_at?: string
+          eye_gaze_dominant?: string | null
+          facial_analysis_json?: Json | null
+          facial_stress_score?: number | null
           harmonics_to_noise?: number | null
           id?: string
           jitter?: number | null
           jitter_absolute?: number | null
           jitter_deviation?: number | null
           latency_deviation?: number | null
+          micro_expressions_detected?: string[] | null
           mycroft_forensic_details?: string | null
           mycroft_verdict?: string | null
           peak_amplitude?: number | null
@@ -544,6 +563,7 @@ export type Database = {
           pitch_variance?: number | null
           player_id?: string | null
           player_name?: string | null
+          pnl_access_type?: string | null
           question_id?: string | null
           recording_duration_ms?: number | null
           response_latency_ms?: number | null
@@ -555,6 +575,7 @@ export type Database = {
           speech_rate_deviation?: number | null
           stress_level?: string | null
           stress_score?: number | null
+          video_url?: string | null
           was_bluffing?: boolean | null
         }
         Relationships: [
