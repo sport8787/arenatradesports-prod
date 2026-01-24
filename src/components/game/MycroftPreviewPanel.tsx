@@ -1,13 +1,16 @@
 /**
  * MycroftPreviewPanel - Preview da análise do Mycroft para o apresentador
  * Exibido antes de liberar para o júri
+ * + Botão para tocar análise com voz do Mycroft via ElevenLabs
  */
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Eye, Send, AlertTriangle } from 'lucide-react';
+import { Brain, Eye, Send, AlertTriangle, Volume2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GoldButton from '@/components/game/GoldButton';
 import { cn } from '@/lib/utils';
+import { playMycroftVerdict } from '@/services/presenterAudioService';
 
 interface MycroftAnalysis {
   verdict: string;
@@ -27,6 +30,8 @@ export function MycroftPreviewPanel({
   isReleased, 
   onRelease 
 }: MycroftPreviewPanelProps) {
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 70) return 'text-red-400';
     if (confidence >= 40) return 'text-yellow-400';
@@ -37,6 +42,19 @@ export function MycroftPreviewPanel({
     if (confidence >= 70) return 'Alta suspeita de blefe';
     if (confidence >= 40) return 'Inconclusivo';
     return 'Provavelmente verdade';
+  };
+
+  const handlePlayAudio = async () => {
+    if (isPlayingAudio) return;
+    
+    // Combine verdict + forensic details for TTS
+    const fullText = `${analysis.verdict}. ${analysis.forensicDetails}`;
+    
+    await playMycroftVerdict(
+      fullText,
+      () => setIsPlayingAudio(true),
+      () => setIsPlayingAudio(false)
+    );
   };
 
   if (isReleased) {
@@ -50,12 +68,26 @@ export function MycroftPreviewPanel({
           <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
             <Brain className="w-5 h-5 text-success" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="font-semibold text-success">Análise Liberada para o Júri</p>
             <p className="text-xs text-muted-foreground">
               O júri está visualizando a análise forense
             </p>
           </div>
+          {/* Botão para tocar mesmo após liberado */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePlayAudio}
+            disabled={isPlayingAudio}
+            className="border-success/50 text-success hover:bg-success/10"
+          >
+            {isPlayingAudio ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </Button>
         </div>
       </motion.div>
     );
@@ -83,13 +115,38 @@ export function MycroftPreviewPanel({
             </p>
           </div>
         </div>
-        <GoldButton
-          onClick={onRelease}
-          size="sm"
-        >
-          <Send className="w-4 h-4 mr-2" />
-          Liberar para Júri
-        </GoldButton>
+        <div className="flex items-center gap-2">
+          {/* Botão de Tocar Áudio do Mycroft */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePlayAudio}
+            disabled={isPlayingAudio}
+            className={cn(
+              "border-purple-500/50 text-purple-300 hover:bg-purple-500/20",
+              isPlayingAudio && "animate-pulse"
+            )}
+          >
+            {isPlayingAudio ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Tocando...
+              </>
+            ) : (
+              <>
+                <Volume2 className="w-4 h-4 mr-2" />
+                Tocar Voz
+              </>
+            )}
+          </Button>
+          <GoldButton
+            onClick={onRelease}
+            size="sm"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Liberar para Júri
+          </GoldButton>
+        </div>
       </div>
 
       {/* Analysis Content */}
