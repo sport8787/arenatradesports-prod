@@ -1,6 +1,7 @@
 // Mycroft Combined Analysis Panel v2.0
 // Displays humanized reading + technical feedback for vocal + facial analysis
 // Used by jury in multiplayer mode
+// Now includes TTS audio playback like presenter mode
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,11 +15,16 @@ import {
   Eye,
   Mic,
   Video,
-  Activity
+  Activity,
+  Volume2,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import type { CombinedReading } from '@/services/mycroftCombinedReadingService';
+import { generateCombinedReadingText } from '@/services/mycroftCombinedReadingService';
+import { playMycroftVerdict } from '@/services/presenterAudioService';
 
 interface MycroftCombinedPanelProps {
   reading: CombinedReading;
@@ -32,6 +38,7 @@ export function MycroftCombinedPanel({
   className 
 }: MycroftCombinedPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // Zone configuration
   const zoneConfig = {
@@ -60,6 +67,19 @@ export function MycroftCombinedPanel({
 
   const config = zoneConfig[reading.zone];
   const ZoneIcon = config.icon;
+
+  // Handle TTS audio playback
+  const handlePlayAudio = async () => {
+    if (isPlayingAudio) return;
+    
+    const readingText = generateCombinedReadingText(reading);
+    
+    await playMycroftVerdict(
+      readingText,
+      () => setIsPlayingAudio(true),
+      () => setIsPlayingAudio(false)
+    );
+  };
 
   return (
     <motion.div
@@ -105,6 +125,30 @@ export function MycroftCombinedPanel({
           ➡️ {reading.conclusion}
         </p>
       </div>
+
+      {/* Audio Playback Button */}
+      <Button
+        onClick={handlePlayAudio}
+        disabled={isPlayingAudio}
+        variant="outline"
+        className={cn(
+          "w-full border-current",
+          config.text,
+          isPlayingAudio && "animate-pulse"
+        )}
+      >
+        {isPlayingAudio ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Reproduzindo Análise...
+          </>
+        ) : (
+          <>
+            <Volume2 className="w-4 h-4 mr-2" />
+            🎧 Ouvir Análise do Mycroft
+          </>
+        )}
+      </Button>
 
       {/* Technical Summary Badge */}
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg">
