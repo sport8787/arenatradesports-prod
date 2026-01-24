@@ -89,6 +89,8 @@ import { backgroundMusic } from '@/services/backgroundMusicService';
 // Mycroft 2.0 imports
 import { generateHumanReadingWithBaseline, getBluffScore, type MycroftHumanReading } from '@/services/mycroftHumanReadingService';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
+import { generateCombinedReading, type CombinedReading } from '@/services/mycroftCombinedReadingService';
+import { MycroftCombinedPanel } from '@/components/game/MycroftCombinedPanel';
 import { 
   createInitialPsychologyState, 
   updatePsychologyState, 
@@ -378,6 +380,9 @@ function GameRoomContent() {
     facialAnalysis: VideoForensicsResult;
     combinedScore: number;
   } | null>(null);
+  
+  // Jury combined Mycroft 2.0 reading (generated locally from received evidence)
+  const [juryCombinedReading, setJuryCombinedReading] = useState<CombinedReading | null>(null);
 
   // Handlers for Mycroft consent
   const handleMycroftAccept = () => {
@@ -532,10 +537,11 @@ function GameRoomContent() {
     }
   }, [profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option, isRoomHost]);
 
-  // Reset recording mode and jury video evidence when question changes
+  // Reset recording mode, jury video evidence and combined reading when question changes
   useEffect(() => {
     setRecordingMode(null);
     setJuryVideoEvidence(null);
+    setJuryCombinedReading(null);
   }, [gameState.currentQuestion?.id]);
   
   // Channel ref for video evidence broadcast
@@ -568,6 +574,12 @@ function GameRoomContent() {
         if (!isRoomHost) {
           console.log('[GameRoom] 📹 Jury received video evidence!');
           setJuryVideoEvidence(evidence);
+          
+          // Generate Mycroft 2.0 combined reading locally on jury device
+          console.log('[GameRoom] 🧠 Generating Mycroft 2.0 combined reading from evidence...');
+          const combinedReading = generateCombinedReading(evidence.voiceMetrics, evidence.facialAnalysis);
+          setJuryCombinedReading(combinedReading);
+          console.log('[GameRoom] ✅ Combined reading generated:', combinedReading.title, combinedReading.zone);
         }
       })
       .subscribe((status) => {
@@ -2525,23 +2537,27 @@ function GameRoomContent() {
                         </motion.div>
                       ) : (
                         <>
-                          {/* VIDEO EVIDENCE: Show MycroftVideoAnalysisCard when available */}
+                          {/* VIDEO EVIDENCE: Show video player + Mycroft 2.0 Combined Panel */}
                           {juryVideoEvidence ? (
-                            <MycroftVideoAnalysisCard
-                              videoUrl={juryVideoEvidence.videoUrl}
-                              analysis={{
-                                vocalMetrics: juryVideoEvidence.voiceMetrics,
-                                facialAnalysis: juryVideoEvidence.facialAnalysis,
-                                combinedScore: juryVideoEvidence.combinedScore,
-                                overallVerdict: juryVideoEvidence.combinedScore > 70 
-                                  ? 'bluff' 
-                                  : juryVideoEvidence.combinedScore > 40 
-                                    ? 'suspicious' 
-                                    : 'conviction',
-                              }}
-                              isReleased={true}
-                              playerName={gameState.currentPlayer?.nickname}
-                            />
+                            <div className="space-y-4">
+                              {/* Video Player */}
+                              <div className="rounded-xl overflow-hidden border border-border/50">
+                                <video 
+                                  src={juryVideoEvidence.videoUrl} 
+                                  controls 
+                                  className="w-full aspect-video bg-black"
+                                  playsInline
+                                />
+                              </div>
+                              
+                              {/* Mycroft 2.0 Combined Reading Panel */}
+                              {juryCombinedReading && (
+                                <MycroftCombinedPanel 
+                                  reading={juryCombinedReading}
+                                  showTechnicalDetails={true}
+                                />
+                              )}
+                            </div>
                           ) : (
                             <>
                               {/* AUDIO-ONLY: Traditional audio player for jury */}
