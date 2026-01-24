@@ -39,6 +39,7 @@ import AudioRecorder from '@/components/game/AudioRecorder';
 import VideoRecorder from '@/components/game/VideoRecorder';
 import RecordingModeSelector, { type RecordingMode } from '@/components/game/RecordingModeSelector';
 import AudioPlayer from '@/components/game/AudioPlayer';
+import MycroftVideoAnalysisCard from '@/components/game/MycroftVideoAnalysisCard';
 import type { VideoForensicsResult } from '@/services/videoForensicsService';
 import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
@@ -369,6 +370,14 @@ function GameRoomContent() {
   
   // Recording mode selection (audio-only or video)
   const [recordingMode, setRecordingMode] = useState<RecordingMode | null>(null);
+  
+  // Jury video evidence state (received from host via realtime)
+  const [juryVideoEvidence, setJuryVideoEvidence] = useState<{
+    videoUrl: string;
+    voiceMetrics: VoiceMetrics;
+    facialAnalysis: VideoForensicsResult;
+    combinedScore: number;
+  } | null>(null);
 
   // Handlers for Mycroft consent
   const handleMycroftAccept = () => {
@@ -463,7 +472,6 @@ function GameRoomContent() {
       );
       
       // Combine vocal + facial scores
-      // getBluffScore expects a MycroftHumanReading, which humanReading already is
       const vocalScore = humanReading.zone === 'bluff' ? 80 : humanReading.zone === 'attention' ? 50 : 20;
       const facialScore = videoMetrics.overallFacialSuspicion;
       const combinedScore = (vocalScore * 0.6) + (facialScore * 0.4);
@@ -488,6 +496,25 @@ function GameRoomContent() {
       setMycroftHumanReading(adjustedReading);
       console.log('[GameRoom] 🧠 Combined Mycroft 2.0 Reading:', adjustedReading.zone, 
         `(vocal: ${vocalScore}%, facial: ${facialScore}%, combined: ${combinedScore.toFixed(1)}%)`);
+      
+      // BROADCAST VIDEO EVIDENCE TO JURY via realtime
+      // This allows jury members to see the video + analysis in their voting panel
+      if (videoEvidenceChannelRef.current && isRoomHost) {
+        const evidence = {
+          videoUrl,
+          voiceMetrics: audioMetrics,
+          facialAnalysis: videoMetrics,
+          combinedScore,
+        };
+        
+        console.log('[GameRoom] 📡 Broadcasting video evidence to jury...');
+        videoEvidenceChannelRef.current.send({
+          type: 'broadcast',
+          event: 'video_evidence',
+          payload: evidence,
+        });
+        console.log('[GameRoom] ✅ Video evidence broadcast sent!');
+      }
     } catch (err) {
       console.error('[GameRoom] Error generating combined Mycroft 2.0 reading:', err);
       setMycroftHumanReading({
@@ -503,12 +530,59 @@ function GameRoomContent() {
         counterpoint: '',
       });
     }
-  }, [profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option]);
+  }, [profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option, isRoomHost]);
 
-  // Reset recording mode when question changes
+  // Reset recording mode and jury video evidence when question changes
   useEffect(() => {
     setRecordingMode(null);
+    setJuryVideoEvidence(null);
   }, [gameState.currentQuestion?.id]);
+  
+  // Channel ref for video evidence broadcast
+  const videoEvidenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  
+  // Subscribe to video evidence channel (jury members receive evidence from host)
+  useEffect(() => {
+    if (!roomId) return;
+    
+    const channelName = `video-evidence-${roomId}`;
+    console.log('[GameRoom] Subscribing to video evidence channel:', channelName);
+    
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: false },
+      },
+    });
+    
+    channel
+      .on('broadcast', { event: 'video_evidence' }, (payload) => {
+        console.log('[GameRoom] 📹 Received video evidence broadcast:', payload);
+        const evidence = payload.payload as {
+          videoUrl: string;
+          voiceMetrics: VoiceMetrics;
+          facialAnalysis: VideoForensicsResult;
+          combinedScore: number;
+        };
+        
+        // Only jury members receive evidence (not the host who sent it)
+        if (!isRoomHost) {
+          console.log('[GameRoom] 📹 Jury received video evidence!');
+          setJuryVideoEvidence(evidence);
+        }
+      })
+      .subscribe((status) => {
+        console.log('[GameRoom] Video evidence channel status:', status);
+      });
+    
+    videoEvidenceChannelRef.current = channel;
+    
+    return () => {
+      if (videoEvidenceChannelRef.current) {
+        supabase.removeChannel(videoEvidenceChannelRef.current);
+        videoEvidenceChannelRef.current = null;
+      }
+    };
+  }, [roomId, isRoomHost]);
 
   const persistGameResult = async (amount: number) => {
     // Don't persist for guests or unauthenticated users
@@ -2418,8 +2492,8 @@ function GameRoomContent() {
                         autoNarrate={false}
                       />
                       
-                      {/* Waiting for host to record audio */}
-                      {!gameState.room?.current_audio_url ? (
+                      {/* Waiting for host to record audio/video - show when neither audio nor video evidence is available */}
+                      {!gameState.room?.current_audio_url && !juryVideoEvidence ? (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -2451,14 +2525,35 @@ function GameRoomContent() {
                         </motion.div>
                       ) : (
                         <>
-                          {/* Audio player for jury to hear host's justification */}
-                          <AudioPlayer 
-                            audioUrl={gameState.room?.current_audio_url || null}
-                            hostName={gameState.currentPlayer?.nickname}
-                            autoPlay={false}
-                          />
-                          {gameState.currentQuestion.mycroft_risk_level && (
-                            <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
+                          {/* VIDEO EVIDENCE: Show MycroftVideoAnalysisCard when available */}
+                          {juryVideoEvidence ? (
+                            <MycroftVideoAnalysisCard
+                              videoUrl={juryVideoEvidence.videoUrl}
+                              analysis={{
+                                vocalMetrics: juryVideoEvidence.voiceMetrics,
+                                facialAnalysis: juryVideoEvidence.facialAnalysis,
+                                combinedScore: juryVideoEvidence.combinedScore,
+                                overallVerdict: juryVideoEvidence.combinedScore > 70 
+                                  ? 'bluff' 
+                                  : juryVideoEvidence.combinedScore > 40 
+                                    ? 'suspicious' 
+                                    : 'conviction',
+                              }}
+                              isReleased={true}
+                              playerName={gameState.currentPlayer?.nickname}
+                            />
+                          ) : (
+                            <>
+                              {/* AUDIO-ONLY: Traditional audio player for jury */}
+                              <AudioPlayer 
+                                audioUrl={gameState.room?.current_audio_url || null}
+                                hostName={gameState.currentPlayer?.nickname}
+                                autoPlay={false}
+                              />
+                              {gameState.currentQuestion.mycroft_risk_level && (
+                                <MycroftPanel question={gameState.currentQuestion} variant="analytics" isVisible />
+                              )}
+                            </>
                           )}
                           <VotingPanel
                             onVote={handleVoteWithCost}
@@ -2473,6 +2568,7 @@ function GameRoomContent() {
                             detectorCost={DETECTOR_COST}
                             canAffordDetector={hasEnoughCoins(DETECTOR_COST)}
                             hasUsedDetector={detectorUsed}
+                            timerDurationOverride={juryVideoEvidence ? 180 : undefined}
                           />
                         </>
                       )}
