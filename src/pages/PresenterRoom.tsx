@@ -189,7 +189,14 @@ export default function PresenterRoom() {
   const [hasReceivedRecording, setHasReceivedRecording] = useState(false);
   const [pendingJustification, setPendingJustification] = useState<{
     audioUrl: string | null;
+    videoUrl: string | null;
     voiceMetrics: VoiceMetrics;
+    facialAnalysis?: {
+      overallFacialSuspicion: number;
+      eyeGaze: string;
+      microExpressions: string[];
+      pnlReasoning: string;
+    };
     playerName: string;
     questionText: string;
     correctAnswerText: string;
@@ -218,7 +225,14 @@ export default function PresenterRoom() {
         if (event.type === 'justification_ready' && event.data) {
           const data = event.data as {
             audioUrl: string | null;
+            videoUrl?: string | null;
             voiceMetrics: VoiceMetrics;
+            facialAnalysis?: {
+              overallFacialSuspicion: number;
+              eyeGaze: string;
+              microExpressions: string[];
+              pnlReasoning: string;
+            };
             playerName: string;
             questionText: string;
             correctAnswerText: string;
@@ -226,11 +240,15 @@ export default function PresenterRoom() {
           };
           
           console.log('[PresenterRoom] 📤 Justification received from player:', data);
+          console.log('[PresenterRoom] 📹 Video URL:', data.videoUrl);
+          console.log('[PresenterRoom] 🎭 Facial analysis:', data.facialAnalysis);
           
           // Store all data needed for Mycroft analysis
           setPendingJustification({
             audioUrl: data.audioUrl,
+            videoUrl: data.videoUrl || null,
             voiceMetrics: data.voiceMetrics,
+            facialAnalysis: data.facialAnalysis,
             playerName: data.playerName,
             questionText: data.questionText,
             correctAnswerText: data.correctAnswerText,
@@ -349,13 +367,16 @@ export default function PresenterRoom() {
         
         if (analysis) {
           console.log('[PresenterRoom] ✅ Mycroft analysis received:', analysis);
+          console.log('[PresenterRoom] 📹 Including video URL:', pendingJustification.videoUrl);
           
-          // Store the analysis for presenter preview
+          // Store the analysis for presenter preview WITH video data
           storePendingMycroft({
             verdict: analysis.verdict,
             confidence: analysis.confidence,
             forensicDetails: analysis.forensicDetails,
-            metrics: pendingJustification.voiceMetrics as unknown as Record<string, unknown>
+            metrics: pendingJustification.voiceMetrics as unknown as Record<string, unknown>,
+            videoUrl: pendingJustification.videoUrl || undefined,
+            facialAnalysis: pendingJustification.facialAnalysis
           });
           
           // Update database with Mycroft analysis results
@@ -753,7 +774,7 @@ export default function PresenterRoom() {
                     variant="outline"
                     onClick={() => {
                       startVoting();
-                      startTimer('voting', 30);
+                      startTimer('voting', 180); // 180 seconds for jury voting with video
                     }}
                     disabled={!roomState.currentQuestion || roomState.votingActive}
                     className={cn(
@@ -763,7 +784,7 @@ export default function PresenterRoom() {
                     size="sm"
                   >
                     <Users className="w-3 h-3 mr-1" />
-                    Iniciar Votação (30s)
+                    Iniciar Votação (3 min)
                   </Button>
                 </div>
 

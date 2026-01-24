@@ -53,6 +53,13 @@ interface MycroftPendingAnalysis {
   confidence: number;
   forensicDetails: string;
   metrics?: Record<string, unknown>;
+  videoUrl?: string;
+  facialAnalysis?: {
+    overallFacialSuspicion: number;
+    eyeGaze: string;
+    microExpressions: string[];
+    pnlReasoning: string;
+  };
 }
 
 interface RoomState {
@@ -258,6 +265,8 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
     if (!roomState.pendingMycroftAnalysis) return;
     
     console.log('[usePresenterRoom] 🔬 Releasing Mycroft to jury with metrics:', roomState.pendingMycroftAnalysis.metrics);
+    console.log('[usePresenterRoom] 📹 Video URL:', roomState.pendingMycroftAnalysis.videoUrl);
+    console.log('[usePresenterRoom] 🎭 Facial analysis:', roomState.pendingMycroftAnalysis.facialAnalysis);
     
     setRoomState(prev => ({ ...prev, mycroftReleased: true }));
     await broadcastEvent({
@@ -268,7 +277,10 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
         forensicDetails: roomState.pendingMycroftAnalysis.forensicDetails,
         // Send as BOTH 'metrics' and 'voiceMetrics' for compatibility
         metrics: roomState.pendingMycroftAnalysis.metrics,
-        voiceMetrics: roomState.pendingMycroftAnalysis.metrics
+        voiceMetrics: roomState.pendingMycroftAnalysis.metrics,
+        // NEW: Include video URL and facial analysis for jury to view
+        videoUrl: roomState.pendingMycroftAnalysis.videoUrl,
+        facialAnalysis: roomState.pendingMycroftAnalysis.facialAnalysis
       },
       timestamp: Date.now()
     });
@@ -460,7 +472,14 @@ export function usePresenterRoom(roomId: string | undefined, isPresenter: boolea
                   verdict: event.data?.verdict as string,
                   confidence: event.data?.confidence as number,
                   forensicDetails: event.data?.forensicDetails as string,
-                  metrics: event.data?.metrics as Record<string, unknown>
+                  metrics: event.data?.metrics as Record<string, unknown>,
+                  videoUrl: event.data?.videoUrl as string | undefined,
+                  facialAnalysis: event.data?.facialAnalysis as {
+                    overallFacialSuspicion: number;
+                    eyeGaze: string;
+                    microExpressions: string[];
+                    pnlReasoning: string;
+                  } | undefined
                 }
               }));
               break;
