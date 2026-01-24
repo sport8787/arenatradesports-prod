@@ -629,6 +629,8 @@ export default function PlayerScreen() {
                     {roomState.justificationEnabled && (
                       <>
                         <PresenterModeRecorder
+                          mycroftConsent={mycroftConsent}
+                          onConsentRequired={() => setShowMycroftConsent(true)}
                           onRecordingComplete={async (blob, durationMs, voiceMetrics) => {
                             setRecordedAudioBlob(blob);
                             setIsProcessingAudio(true);

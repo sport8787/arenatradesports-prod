@@ -21,12 +21,18 @@ interface PresenterModeRecorderProps {
   onRecordingComplete?: (audioBlob: Blob, durationMs: number, metrics: VoiceMetrics) => void;
   disabled?: boolean;
   maxDuration?: number;
+  /** If null, consent not yet given - will trigger onConsentRequired */
+  mycroftConsent?: boolean | null;
+  /** Called when recording is attempted but consent is null */
+  onConsentRequired?: () => void;
 }
 
 export default function PresenterModeRecorder({ 
   onRecordingComplete, 
   disabled = false,
-  maxDuration = 60 
+  maxDuration = 60,
+  mycroftConsent,
+  onConsentRequired
 }: PresenterModeRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -97,6 +103,12 @@ export default function PresenterModeRecorder({
   }, [isPaused]);
 
   const startRecording = async () => {
+    // Check consent before starting - if null, require consent first
+    if (mycroftConsent === null) {
+      onConsentRequired?.();
+      return;
+    }
+    
     try {
       // Start forensics session BEFORE recording to track response latency
       startForensicsSession();

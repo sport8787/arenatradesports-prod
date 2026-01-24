@@ -15,9 +15,19 @@ export interface AudioRecorderProps {
   roomId: string;
   onRecordingComplete?: (audioUrl: string, metrics: VoiceMetrics) => void;
   disabled?: boolean;
+  /** If null, consent not yet given - will trigger onConsentRequired */
+  mycroftConsent?: boolean | null;
+  /** Called when recording is attempted but consent is null */
+  onConsentRequired?: () => void;
 }
 
-export default function AudioRecorder({ roomId, onRecordingComplete, disabled }: AudioRecorderProps) {
+export default function AudioRecorder({ 
+  roomId, 
+  onRecordingComplete, 
+  disabled,
+  mycroftConsent,
+  onConsentRequired
+}: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -93,6 +103,12 @@ export default function AudioRecorder({ roomId, onRecordingComplete, disabled }:
   }, [isPaused]);
 
   const startRecording = async () => {
+    // Check consent before starting - if null, require consent first
+    if (mycroftConsent === null) {
+      onConsentRequired?.();
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
