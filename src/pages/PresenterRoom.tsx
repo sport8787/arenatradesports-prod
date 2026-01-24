@@ -26,7 +26,7 @@ import VoiceMetricsPanel from '@/components/game/VoiceMetricsPanel';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
-import { analyzeWithMycroft } from '@/services/presenterAudioService';
+import { analyzeWithMycroft, playMycroftVerdict } from '@/services/presenterAudioService';
 
 // Categorias de áudio do Hórus com arquivos locais
 const HORUS_AUDIO_CATEGORIES = [
@@ -194,6 +194,7 @@ export default function PresenterRoom() {
     userResponseText: string;
   } | null>(null);
   const [isCallingMycroft, setIsCallingMycroft] = useState(false);
+  const [isPlayingMycroftAudio, setIsPlayingMycroftAudio] = useState(false);
 
   // Listen for justification_ready from players
   // This event contains audio URL, voice metrics, and all data needed for Mycroft
