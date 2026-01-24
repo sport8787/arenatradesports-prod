@@ -36,7 +36,10 @@ import MoneyRain from '@/components/game/MoneyRain';
 import ConquestAchievement from '@/components/game/ConquestAchievement';
 import CaughtStamp from '@/components/game/CaughtStamp';
 import AudioRecorder from '@/components/game/AudioRecorder';
+import VideoRecorder from '@/components/game/VideoRecorder';
+import RecordingModeSelector, { type RecordingMode } from '@/components/game/RecordingModeSelector';
 import AudioPlayer from '@/components/game/AudioPlayer';
+import type { VideoForensicsResult } from '@/services/videoForensicsService';
 import ImmunityCardUnlock from '@/components/game/ImmunityCardUnlock';
 import ImmunitySavedOverlay from '@/components/game/ImmunitySavedOverlay';
 import BonusCardsPanel from '@/components/game/BonusCardsPanel';
@@ -361,7 +364,11 @@ function GameRoomContent() {
 
   // Mycroft 2.0 - Human Reading state (adaptive baseline analysis)
   const [lastVoiceMetrics, setLastVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  const [lastVideoMetrics, setLastVideoMetrics] = useState<VideoForensicsResult | null>(null);
   const [mycroftHumanReading, setMycroftHumanReading] = useState<MycroftHumanReading | null>(null);
+  
+  // Recording mode selection (audio-only or video)
+  const [recordingMode, setRecordingMode] = useState<RecordingMode | null>(null);
 
   // Handlers for Mycroft consent
   const handleMycroftAccept = () => {
@@ -428,6 +435,80 @@ function GameRoomContent() {
       });
     }
   }, [mycroftConsent, profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option]);
+
+  // Handler for VideoRecorder - integrates with Mycroft 2.0 facial + vocal analysis
+  const handleVideoRecordingComplete = useCallback(async (
+    videoUrl: string, 
+    audioMetrics: VoiceMetrics, 
+    videoMetrics: VideoForensicsResult
+  ) => {
+    console.log('[GameRoom] 🎬 Video recording complete with metrics:', { audioMetrics, videoMetrics });
+    setLastVoiceMetrics(audioMetrics);
+    setLastVideoMetrics(videoMetrics);
+    
+    const userId = profile?.user_id || null;
+    
+    try {
+      const wasCorrect = confirmedAnswer && gameState.currentQuestion?.correct_option
+        ? confirmedAnswer === gameState.currentQuestion.correct_option
+        : undefined;
+      
+      console.log('[GameRoom] 🔬 Generating combined Mycroft 2.0 analysis (vocal + facial)...', { userId, wasCorrect });
+      
+      // Generate vocal analysis
+      const humanReading = await generateHumanReadingWithBaseline(
+        audioMetrics,
+        userId,
+        wasCorrect
+      );
+      
+      // Combine vocal + facial scores
+      // getBluffScore expects a MycroftHumanReading, which humanReading already is
+      const vocalScore = humanReading.zone === 'bluff' ? 80 : humanReading.zone === 'attention' ? 50 : 20;
+      const facialScore = videoMetrics.overallFacialSuspicion;
+      const combinedScore = (vocalScore * 0.6) + (facialScore * 0.4);
+      
+      // Adjust zone based on combined score
+      let adjustedZone = humanReading.zone;
+      if (combinedScore > 70 && humanReading.zone !== 'bluff') {
+        adjustedZone = 'bluff';
+      } else if (combinedScore < 30 && humanReading.zone !== 'truth') {
+        adjustedZone = 'truth';
+      }
+      
+      const adjustedReading: MycroftHumanReading = {
+        ...humanReading,
+        zone: adjustedZone,
+        lines: [
+          ...humanReading.lines,
+          `📹 Análise facial: ${videoMetrics.pnlAnalysis.reasoning}`,
+        ],
+      };
+      
+      setMycroftHumanReading(adjustedReading);
+      console.log('[GameRoom] 🧠 Combined Mycroft 2.0 Reading:', adjustedReading.zone, 
+        `(vocal: ${vocalScore}%, facial: ${facialScore}%, combined: ${combinedScore.toFixed(1)}%)`);
+    } catch (err) {
+      console.error('[GameRoom] Error generating combined Mycroft 2.0 reading:', err);
+      setMycroftHumanReading({
+        zone: 'attention',
+        scenarioId: 4,
+        title: 'Análise em Andamento',
+        lines: ['Processando análise facial e vocal...'],
+        conclusion: 'O sistema está processando sua gravação.',
+        zoneLabel: 'Processando',
+        color: 'yellow',
+        confidence: 'low',
+        reasoning: 'Análise combinada em progresso.',
+        counterpoint: '',
+      });
+    }
+  }, [profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option]);
+
+  // Reset recording mode when question changes
+  useEffect(() => {
+    setRecordingMode(null);
+  }, [gameState.currentQuestion?.id]);
 
   const persistGameResult = async (amount: number) => {
     // Don't persist for guests or unauthenticated users
@@ -2279,14 +2360,29 @@ function GameRoomContent() {
                         autoNarrate={false}
                       />
                       <div className="space-y-4">
-                        {/* Audio recorder for host - now with Mycroft 2.0 integration */}
-                        <AudioRecorder 
-                          roomId={roomId || ''} 
-                          disabled={false}
-                          mycroftConsent={mycroftConsent}
-                          onConsentRequired={() => setShowMycroftConsent(true)}
-                          onRecordingComplete={handleRecordingComplete}
-                        />
+                        {/* Recording mode selector - choose between audio or video */}
+                        {!recordingMode ? (
+                          <RecordingModeSelector
+                            onSelect={setRecordingMode}
+                            mycroftConsent={mycroftConsent}
+                          />
+                        ) : recordingMode === 'audio' ? (
+                          <AudioRecorder 
+                            roomId={roomId || ''} 
+                            disabled={false}
+                            mycroftConsent={mycroftConsent}
+                            onConsentRequired={() => setShowMycroftConsent(true)}
+                            onRecordingComplete={handleRecordingComplete}
+                          />
+                        ) : (
+                          <VideoRecorder
+                            roomId={roomId || ''}
+                            disabled={false}
+                            mycroftConsent={mycroftConsent}
+                            onConsentRequired={() => setShowMycroftConsent(true)}
+                            onRecordingComplete={handleVideoRecordingComplete}
+                          />
+                        )}
                         
                         {/* Vote counter for host */}
                         <VoteCounter 
