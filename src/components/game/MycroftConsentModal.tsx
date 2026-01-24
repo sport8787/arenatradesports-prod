@@ -203,9 +203,10 @@ export default function MycroftConsentModal({
 
           {/* Privacy Policy link */}
           <a 
-            href="#" 
+            href="/privacidade" 
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 text-xs text-primary hover:underline"
-            onClick={(e) => e.preventDefault()}
           >
             <ExternalLink className="w-3 h-3" />
             Política de Privacidade completa
