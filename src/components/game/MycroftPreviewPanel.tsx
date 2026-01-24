@@ -1,22 +1,30 @@
 /**
  * MycroftPreviewPanel - Preview da análise do Mycroft para o apresentador
  * Exibido antes de liberar para o júri
- * + Botão para tocar análise com voz do Mycroft via ElevenLabs
+ * Agora usa leitura humanizada com 10 cenários baseados em métricas reais
  */
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Brain, Eye, Send, AlertTriangle, Volume2, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Brain, Eye, Send, Volume2, Loader2, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import GoldButton from '@/components/game/GoldButton';
 import { cn } from '@/lib/utils';
 import { playMycroftVerdict } from '@/services/presenterAudioService';
+import { 
+  generateHumanReading, 
+  getBluffScore, 
+  generateReadingText,
+  getFallbackReading,
+  type MycroftHumanReading as Reading
+} from '@/services/mycroftHumanReadingService';
+import type { VoiceMetrics } from '@/services/audioForensicsService';
 
 interface MycroftAnalysis {
   verdict: string;
   confidence: number;
   forensicDetails: string;
-  metrics?: Record<string, unknown>;
+  metrics?: VoiceMetrics | Record<string, unknown>;
 }
 
 interface MycroftPreviewPanelProps {
@@ -31,27 +39,60 @@ export function MycroftPreviewPanel({
   onRelease 
 }: MycroftPreviewPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
   
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 70) return 'text-red-400';
-    if (confidence >= 40) return 'text-yellow-400';
-    return 'text-emerald-400';
+  // Generate human reading from metrics
+  const humanReading = useMemo<Reading>(() => {
+    if (analysis.metrics && 'responseLatencyMs' in analysis.metrics) {
+      return generateHumanReading(analysis.metrics as VoiceMetrics);
+    }
+    return getFallbackReading();
+  }, [analysis.metrics]);
+  
+  const bluffScore = useMemo(() => {
+    if (analysis.metrics && 'responseLatencyMs' in analysis.metrics) {
+      return getBluffScore(analysis.metrics as VoiceMetrics);
+    }
+    return 50;
+  }, [analysis.metrics]);
+  
+  // Cast metrics for technical display
+  const voiceMetrics = analysis.metrics && 'responseLatencyMs' in analysis.metrics 
+    ? analysis.metrics as VoiceMetrics 
+    : null;
+  
+  const getBarColor = () => {
+    if (humanReading.color === 'emerald') return 'bg-emerald-500';
+    if (humanReading.color === 'yellow') return 'bg-yellow-500';
+    return 'bg-red-500';
   };
-
-  const getConfidenceLabel = (confidence: number) => {
-    if (confidence >= 70) return 'Alta suspeita de blefe';
-    if (confidence >= 40) return 'Inconclusivo';
-    return 'Provavelmente verdade';
+  
+  const getTextColor = () => {
+    if (humanReading.color === 'emerald') return 'text-emerald-400';
+    if (humanReading.color === 'yellow') return 'text-yellow-400';
+    return 'text-red-400';
+  };
+  
+  const getBorderColor = () => {
+    if (humanReading.color === 'emerald') return 'border-emerald-500/50';
+    if (humanReading.color === 'yellow') return 'border-yellow-500/50';
+    return 'border-red-500/50';
+  };
+  
+  const getBgColor = () => {
+    if (humanReading.color === 'emerald') return 'bg-emerald-500/10';
+    if (humanReading.color === 'yellow') return 'bg-yellow-500/10';
+    return 'bg-red-500/10';
   };
 
   const handlePlayAudio = async () => {
     if (isPlayingAudio) return;
     
-    // Combine verdict + forensic details for TTS
-    const fullText = `${analysis.verdict}. ${analysis.forensicDetails}`;
+    // Use the humanized reading text for TTS
+    const readingText = generateReadingText(humanReading);
     
     await playMycroftVerdict(
-      fullText,
+      readingText,
       () => setIsPlayingAudio(true),
       () => setIsPlayingAudio(false)
     );
@@ -71,10 +112,9 @@ export function MycroftPreviewPanel({
           <div className="flex-1">
             <p className="font-semibold text-success">Análise Liberada para o Júri</p>
             <p className="text-xs text-muted-foreground">
-              O júri está visualizando a análise forense
+              O júri está visualizando a leitura do Mycroft
             </p>
           </div>
-          {/* Botão para tocar mesmo após liberado */}
           <Button
             variant="outline"
             size="sm"
@@ -97,18 +137,22 @@ export function MycroftPreviewPanel({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-purple-900/20 border border-purple-500/50 rounded-xl overflow-hidden"
+      className={cn(
+        'rounded-xl border overflow-hidden',
+        getBorderColor(),
+        getBgColor()
+      )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-500/30 bg-purple-900/30">
+      <div className={cn('flex items-center justify-between p-4 border-b', getBorderColor())}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-            <Brain className="w-5 h-5 text-purple-400" />
+          <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', getBgColor())}>
+            <Brain className={cn('w-5 h-5', getTextColor())} />
           </div>
           <div>
-            <p className="font-semibold text-purple-300 flex items-center gap-2">
+            <p className={cn('font-semibold flex items-center gap-2', getTextColor())}>
               <Eye className="w-4 h-4" />
-              Preview da Análise
+              Preview da Leitura
             </p>
             <p className="text-xs text-muted-foreground">
               Somente você pode ver isso
@@ -116,15 +160,15 @@ export function MycroftPreviewPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Botão de Tocar Áudio do Mycroft */}
           <Button
             variant="outline"
             size="sm"
             onClick={handlePlayAudio}
             disabled={isPlayingAudio}
             className={cn(
-              "border-purple-500/50 text-purple-300 hover:bg-purple-500/20",
-              isPlayingAudio && "animate-pulse"
+              'border-current opacity-70 hover:opacity-100',
+              getTextColor(),
+              isPlayingAudio && 'animate-pulse'
             )}
           >
             {isPlayingAudio ? (
@@ -139,75 +183,140 @@ export function MycroftPreviewPanel({
               </>
             )}
           </Button>
-          <GoldButton
-            onClick={onRelease}
-            size="sm"
-          >
+          <GoldButton onClick={onRelease} size="sm">
             <Send className="w-4 h-4 mr-2" />
             Liberar para Júri
           </GoldButton>
         </div>
       </div>
 
-      {/* Analysis Content */}
+      {/* Human Reading Content */}
       <div className="p-4 space-y-4">
-        {/* Confidence Meter */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Nível de Suspeita</span>
-            <span className={cn("font-bold", getConfidenceColor(analysis.confidence))}>
-              {analysis.confidence}%
+        {/* Main Header */}
+        <div className="flex items-center gap-2">
+          <Brain className={cn('w-5 h-5', getTextColor())} />
+          <span className={cn('font-bold tracking-wide uppercase text-sm', getTextColor())}>
+            LEITURA DO MYCROFT
+          </span>
+        </div>
+        
+        {/* Reading Lines */}
+        <div className="space-y-1">
+          {humanReading.lines.map((line, i) => (
+            <p key={i} className="text-foreground/90 text-sm leading-relaxed">
+              {line}
+            </p>
+          ))}
+        </div>
+        
+        {/* Conclusion */}
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">➡️</span>
+          <span className={cn('font-semibold', getTextColor())}>
+            {humanReading.conclusion}
+          </span>
+        </div>
+        
+        {/* Visual Indicator Bar */}
+        <div className="space-y-2 pt-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Verdade</span>
+            <span>Atenção</span>
+            <span>Blefe</span>
+          </div>
+          
+          {/* Bar Track */}
+          <div className="relative h-3 bg-background/50 rounded-full overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 via-yellow-500/30 to-red-500/30" />
+            
+            {/* Indicator */}
+            <motion.div
+              initial={{ left: '50%' }}
+              animate={{ left: `${bluffScore}%` }}
+              transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+              className="absolute top-0 bottom-0 w-1"
+              style={{ transform: 'translateX(-50%)' }}
+            >
+              <div className={cn(
+                'w-4 h-4 -mt-0.5 rounded-full border-2 border-white shadow-lg',
+                getBarColor()
+              )} />
+            </motion.div>
+          </div>
+          
+          {/* Zone Label */}
+          <div className="text-center">
+            <span className={cn(
+              'inline-block px-3 py-1 rounded-full text-xs font-bold',
+              getBgColor(),
+              getTextColor()
+            )}>
+              {humanReading.zoneLabel}
             </span>
           </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${analysis.confidence}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-              className={cn(
-                "h-full rounded-full",
-                analysis.confidence >= 70 ? "bg-gradient-to-r from-red-500 to-red-400" :
-                analysis.confidence >= 40 ? "bg-gradient-to-r from-yellow-500 to-yellow-400" :
-                "bg-gradient-to-r from-emerald-500 to-emerald-400"
+        </div>
+        
+        {/* Technical Details Toggle */}
+        {voiceMetrics && (
+          <div className="pt-2 border-t border-border/30">
+            <button
+              onClick={() => setShowTechnical(!showTechnical)}
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+            >
+              <Activity className="w-3 h-3" />
+              🔍 Ver análise técnica
+              {showTechnical ? (
+                <ChevronUp className="w-3 h-3 ml-auto" />
+              ) : (
+                <ChevronDown className="w-3 h-3 ml-auto" />
               )}
-            />
-          </div>
-          <p className={cn("text-xs text-center font-medium", getConfidenceColor(analysis.confidence))}>
-            {getConfidenceLabel(analysis.confidence)}
-          </p>
-        </div>
-
-        {/* Verdict */}
-        <div className="bg-background/30 rounded-lg p-3">
-          <p className="text-xs text-muted-foreground mb-1">Veredito:</p>
-          <p className="text-sm font-medium">{analysis.verdict}</p>
-        </div>
-
-        {/* Forensic Details */}
-        <div className="bg-background/30 rounded-lg p-3">
-          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            Análise Forense:
-          </p>
-          <p className="text-sm text-purple-200">{analysis.forensicDetails}</p>
-        </div>
-
-        {/* Metrics Preview */}
-        {analysis.metrics && (
-          <div className="bg-background/30 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-2">Métricas Vocais:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {Object.entries(analysis.metrics).slice(0, 4).map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-muted-foreground capitalize">
-                    {key.replace(/_/g, ' ')}:
-                  </span>
-                  <span className="text-purple-300 font-mono">
-                    {typeof value === 'number' ? value.toFixed(2) : String(value)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            </button>
+            
+            <AnimatePresence>
+              {showTechnical && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 p-3 rounded-lg bg-background/30 border border-border/50 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Latência:</span>
+                        <span className="text-foreground">{voiceMetrics.responseLatencyMs}ms</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Pitch:</span>
+                        <span className="text-foreground">{voiceMetrics.avgPitch.toFixed(0)}Hz</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Jitter:</span>
+                        <span className="text-foreground">{voiceMetrics.jitter.toFixed(2)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Shimmer:</span>
+                        <span className="text-foreground">{voiceMetrics.shimmer.toFixed(2)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxa:</span>
+                        <span className="text-foreground">{voiceMetrics.speechRateBPM} BPM</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">HNR:</span>
+                        <span className="text-foreground">{voiceMetrics.harmonicsToNoise.toFixed(1)} dB</span>
+                      </div>
+                    </div>
+                    
+                    {analysis.forensicDetails && (
+                      <div className="pt-2 border-t border-border/30">
+                        <p className="text-xs text-muted-foreground">{analysis.forensicDetails}</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>
