@@ -21,6 +21,8 @@ interface VotingPanelProps {
   detectorCost?: number;
   canAffordDetector?: boolean;
   hasUsedDetector?: boolean;
+  /** Override timer duration (e.g., 180s for video evidence) */
+  timerDurationOverride?: number;
 }
 
 export default function VotingPanel({ 
@@ -37,13 +39,15 @@ export default function VotingPanel({
   detectorCost = 150,
   canAffordDetector = true,
   hasUsedDetector = false,
+  timerDurationOverride,
 }: VotingPanelProps) {
   const canDoubt = canAffordDoubt && !hasVoted && !disabled;
   const canUseDetector = canAffordDetector && !hasUsedDetector && !hasVoted && !disabled;
   
   // Get narrative context for dynamic timer (optional - works without it)
   const narrative = useNarrativeOptional();
-  const timerDuration = narrative?.timerDuration ?? 60;
+  // Use override if provided (e.g., 180s for video evidence), otherwise use narrative or default
+  const timerDuration = timerDurationOverride ?? narrative?.timerDuration ?? 60;
   const timerVisible = narrative?.timerVisible ?? true;
   const pressureLevel = narrative?.pressureLevel ?? 0;
 
