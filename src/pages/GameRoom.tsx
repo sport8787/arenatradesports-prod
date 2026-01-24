@@ -82,6 +82,9 @@ import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/Myc
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
+// Mycroft 2.0 imports
+import { generateHumanReadingWithBaseline, getBluffScore, type MycroftHumanReading } from '@/services/mycroftHumanReadingService';
+import type { VoiceMetrics } from '@/services/audioForensicsService';
 import { 
   createInitialPsychologyState, 
   updatePsychologyState, 
@@ -356,6 +359,10 @@ function GameRoomContent() {
     return stored === null ? null : stored === 'true';
   });
 
+  // Mycroft 2.0 - Human Reading state (adaptive baseline analysis)
+  const [lastVoiceMetrics, setLastVoiceMetrics] = useState<VoiceMetrics | null>(null);
+  const [mycroftHumanReading, setMycroftHumanReading] = useState<MycroftHumanReading | null>(null);
+
   // Handlers for Mycroft consent
   const handleMycroftAccept = () => {
     setMycroftConsent(true);
@@ -370,6 +377,29 @@ function GameRoomContent() {
     setShowMycroftConsent(false);
     toast({ title: 'Mycroft Desativado', description: 'Você pode jogar normalmente sem análise vocal' });
   };
+
+  // Handler for AudioRecorder - integrates with Mycroft 2.0 adaptive baseline
+  const handleRecordingComplete = useCallback(async (audioUrl: string, metrics: VoiceMetrics) => {
+    console.log('[GameRoom] 🎙️ Recording complete with metrics:', metrics);
+    setLastVoiceMetrics(metrics);
+    
+    // Generate Mycroft 2.0 human reading with adaptive baseline
+    if (mycroftConsent && profile?.user_id) {
+      try {
+        const wasCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
+        const humanReading = await generateHumanReadingWithBaseline(
+          metrics,
+          profile.user_id,
+          wasCorrect
+        );
+        setMycroftHumanReading(humanReading);
+        console.log('[GameRoom] 🧠 Mycroft 2.0 Human Reading:', humanReading.zone, humanReading.title, 
+          `(confidence: ${humanReading.confidence})`);
+      } catch (err) {
+        console.error('[GameRoom] Error generating Mycroft 2.0 reading:', err);
+      }
+    }
+  }, [mycroftConsent, profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option]);
 
   const persistGameResult = async (amount: number) => {
     // Don't persist for guests or unauthenticated users
@@ -2246,12 +2276,13 @@ function GameRoomContent() {
                         autoNarrate={false}
                       />
                       <div className="space-y-4">
-                        {/* Audio recorder for host */}
+                        {/* Audio recorder for host - now with Mycroft 2.0 integration */}
                         <AudioRecorder 
                           roomId={roomId || ''} 
                           disabled={false}
                           mycroftConsent={mycroftConsent}
                           onConsentRequired={() => setShowMycroftConsent(true)}
+                          onRecordingComplete={handleRecordingComplete}
                         />
                         
                         {/* Vote counter for host */}
