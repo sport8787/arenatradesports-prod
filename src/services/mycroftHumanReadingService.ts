@@ -1,8 +1,9 @@
-// Mycroft Human Reading Service
+// Mycroft Human Reading Service v2.0
+// Now integrates with adaptive baseline from mycroft2Engine
 // Maps biometric voice metrics to human-readable feedback scenarios
-// 10 scenarios: 3 truth (green), 3 gray zone (yellow), 4 bluff (red)
 
 import { VoiceMetrics } from './audioForensicsService';
+import { analyzeWithMycroft2, type VocalAnalysisResult, type AudioMetrics } from './mycroft2Engine';
 
 export type ReadingZone = 'truth' | 'attention' | 'bluff';
 
@@ -14,10 +15,15 @@ export interface MycroftHumanReading {
   conclusion: string;
   zoneLabel: string;
   color: 'emerald' | 'yellow' | 'red';
+  // NEW: Mycroft 2.0 fields
+  confidence?: 'low' | 'medium' | 'high';
+  reasoning?: string;
+  counterpoint?: string;
+  wasCorrect?: boolean;
 }
 
 // The 10 scenarios from the design spec
-const SCENARIOS: Record<number, Omit<MycroftHumanReading, 'zone' | 'color' | 'zoneLabel'>> = {
+const SCENARIOS: Record<number, Omit<MycroftHumanReading, 'zone' | 'color' | 'zoneLabel' | 'confidence' | 'reasoning' | 'counterpoint' | 'wasCorrect'>> = {
   // 🟢 TRUTH SCENARIOS (1-3)
   1: {
     scenarioId: 1,
@@ -135,8 +141,48 @@ const ZONE_COLORS: Record<ReadingZone, 'emerald' | 'yellow' | 'red'> = {
 };
 
 /**
+ * Convert VoiceMetrics to AudioMetrics format for Mycroft 2.0
+ */
+function convertToAudioMetrics(metrics: VoiceMetrics): AudioMetrics {
+  return {
+    pitch: metrics.avgPitch || 0,
+    jitter: metrics.jitter || 0,
+    shimmer: metrics.shimmer || 0,
+    hnr: metrics.harmonicsToNoise || 0,
+    latency: metrics.responseLatencyMs || 0,
+    speechRate: metrics.speechRateBPM || 0,
+  };
+}
+
+/**
+ * Convert Mycroft 2.0 result to human-readable format
+ */
+function convertToHumanReading(result: VocalAnalysisResult): MycroftHumanReading {
+  const scenario = SCENARIOS[result.scenarioId] || SCENARIOS[5];
+  
+  // Use the dynamic text from Mycroft 2.0 or fallback to static scenario
+  const lines = result.scenarioText?.body 
+    ? result.scenarioText.body.split('. ').filter(l => l.length > 0).map(l => l.endsWith('.') ? l : l + '.')
+    : scenario.lines;
+  
+  return {
+    scenarioId: result.scenarioId,
+    zone: result.zone,
+    title: result.scenarioText?.title || scenario.title,
+    lines,
+    conclusion: result.scenarioText?.conclusion || scenario.conclusion,
+    zoneLabel: ZONE_LABELS[result.zone],
+    color: ZONE_COLORS[result.zone],
+    confidence: result.confidence,
+    reasoning: result.reasoning,
+    counterpoint: result.counterpoint,
+    wasCorrect: result.wasCorrect,
+  };
+}
+
+/**
  * Calculate a composite stress/bluff score from voice metrics (0-100)
- * Higher = more likely bluffing
+ * Used for basic analysis without adaptive baseline
  */
 function calculateBluffScore(metrics: VoiceMetrics): number {
   let score = 0;
@@ -146,41 +192,38 @@ function calculateBluffScore(metrics: VoiceMetrics): number {
   if (metrics.responseLatencyMs !== undefined) {
     const latency = metrics.responseLatencyMs;
     if (latency < 1500) {
-      // Too fast - suspicious
       score += 70;
     } else if (latency < 3000) {
       score += 40;
     } else if (latency < 5000) {
-      score += 20; // Normal range
+      score += 20;
     } else if (latency < 8000) {
-      score += 35; // Getting slow
+      score += 35;
     } else {
-      score += 60; // Very slow - overthinking
+      score += 60;
     }
     factors++;
   }
   
-  // 2. Pitch stability (lower = more stable = more truthful)
+  // 2. Pitch stability
   if (metrics.pitchStability !== undefined) {
-    const stability = metrics.pitchStability;
-    if (stability === 'stable') {
+    if (metrics.pitchStability === 'stable') {
       score += 15;
-    } else if (stability === 'micro-tremors') {
+    } else if (metrics.pitchStability === 'micro-tremors') {
       score += 45;
     } else {
-      score += 75; // unstable
+      score += 75;
     }
     factors++;
   }
   
-  // 3. Jitter (voice tremor) - higher = more stress
+  // 3. Jitter (voice tremor)
   if (metrics.jitter !== undefined) {
-    const jitter = metrics.jitter;
-    if (jitter < 0.5) {
+    if (metrics.jitter < 0.5) {
       score += 10;
-    } else if (jitter < 1.0) {
+    } else if (metrics.jitter < 1.0) {
       score += 30;
-    } else if (jitter < 2.0) {
+    } else if (metrics.jitter < 2.0) {
       score += 55;
     } else {
       score += 80;
@@ -188,14 +231,13 @@ function calculateBluffScore(metrics: VoiceMetrics): number {
     factors++;
   }
   
-  // 4. Shimmer (amplitude variation) - higher = more stress
+  // 4. Shimmer
   if (metrics.shimmer !== undefined) {
-    const shimmer = metrics.shimmer;
-    if (shimmer < 3) {
+    if (metrics.shimmer < 3) {
       score += 10;
-    } else if (shimmer < 6) {
+    } else if (metrics.shimmer < 6) {
       score += 35;
-    } else if (shimmer < 10) {
+    } else if (metrics.shimmer < 10) {
       score += 60;
     } else {
       score += 85;
@@ -203,37 +245,34 @@ function calculateBluffScore(metrics: VoiceMetrics): number {
     factors++;
   }
   
-  // 5. Stress deviation from baseline (if available)
+  // 5. Stress deviation from baseline
   if (metrics.stressDeviation?.overallStressScore !== undefined) {
-    const stressScore = metrics.stressDeviation.overallStressScore;
-    score += stressScore; // Already 0-100
+    score += metrics.stressDeviation.overallStressScore;
     factors++;
   }
   
-  // 6. Speech rate (very fast or very slow = suspicious)
+  // 6. Speech rate
   if (metrics.speechRateBPM !== undefined) {
     const rate = metrics.speechRateBPM;
     if (rate < 80) {
-      score += 50; // Very slow
+      score += 50;
     } else if (rate < 120) {
-      score += 20; // Normal
+      score += 20;
     } else if (rate < 180) {
-      score += 35; // Fast but ok
+      score += 35;
     } else {
-      score += 70; // Racing
+      score += 70;
     }
     factors++;
   }
   
-  // Calculate average, default to 50 if no metrics
   return factors > 0 ? Math.round(score / factors) : 50;
 }
 
 /**
- * Select the appropriate scenario based on bluff score
+ * Select scenario based on bluff score (legacy method without adaptive baseline)
  */
 function selectScenarioId(bluffScore: number, metrics: VoiceMetrics): number {
-  // Determine zone first
   let zone: ReadingZone;
   if (bluffScore < 35) {
     zone = 'truth';
@@ -243,58 +282,57 @@ function selectScenarioId(bluffScore: number, metrics: VoiceMetrics): number {
     zone = 'bluff';
   }
   
-  // Select specific scenario within zone based on nuances
   if (zone === 'truth') {
-    if (bluffScore < 20) {
-      return 1; // Pure conviction
-    } else if (metrics.stressDeviation?.stressLevel === 'elevated' || metrics.stressDeviation?.stressLevel === 'high') {
-      return 2; // Truth with tension
-    } else {
-      return 3; // Truth barely
-    }
+    if (bluffScore < 20) return 1;
+    else if (metrics.stressDeviation?.stressLevel === 'elevated' || metrics.stressDeviation?.stressLevel === 'high') return 2;
+    else return 3;
   }
   
   if (zone === 'attention') {
-    if (metrics.speechRateBPM && (metrics.speechRateBPM < 90 || metrics.speechRateBPM > 160)) {
-      return 4; // Irregular rhythm
-    } else if (metrics.pitchStability === 'micro-tremors') {
-      return 5; // Inconsistent conviction
-    } else {
-      return 6; // Mixed signals
-    }
+    if (metrics.speechRateBPM && (metrics.speechRateBPM < 90 || metrics.speechRateBPM > 160)) return 4;
+    else if (metrics.pitchStability === 'micro-tremors') return 5;
+    else return 6;
   }
   
-  // Bluff zone
-  if (bluffScore >= 85) {
-    return 10; // Collapse
-  } else if (metrics.responseLatencyMs && metrics.responseLatencyMs < 2000) {
-    return 7; // Too fast classic bluff
-  } else if (metrics.jitter && metrics.jitter > 1.5) {
-    return 9; // Forced conviction
-  } else {
-    return 8; // Well-executed bluff
+  if (bluffScore >= 85) return 10;
+  else if (metrics.responseLatencyMs && metrics.responseLatencyMs < 2000) return 7;
+  else if (metrics.jitter && metrics.jitter > 1.5) return 9;
+  else return 8;
+}
+
+/**
+ * NEW: Generate human-readable Mycroft reading with adaptive baseline (Mycroft 2.0)
+ * Requires userId for personalized analysis
+ */
+export async function generateHumanReadingWithBaseline(
+  metrics: VoiceMetrics,
+  userId: string | null,
+  wasCorrect?: boolean
+): Promise<MycroftHumanReading> {
+  try {
+    const audioMetrics = convertToAudioMetrics(metrics);
+    const result = await analyzeWithMycroft2(userId, audioMetrics, wasCorrect);
+    return convertToHumanReading(result);
+  } catch (error) {
+    console.error('[MycroftHumanReading] Error with Mycroft 2.0:', error);
+    // Fallback to legacy method
+    return generateHumanReading(metrics);
   }
 }
 
 /**
- * Main function: Generate human-readable Mycroft reading from voice metrics
+ * LEGACY: Generate human-readable Mycroft reading from voice metrics (without adaptive baseline)
  */
 export function generateHumanReading(metrics: VoiceMetrics): MycroftHumanReading {
   const bluffScore = calculateBluffScore(metrics);
   const scenarioId = selectScenarioId(bluffScore, metrics);
   const scenario = SCENARIOS[scenarioId];
   
-  // Determine zone from scenario ID
   let zone: ReadingZone;
-  if (scenarioId <= 3) {
-    zone = 'truth';
-  } else if (scenarioId <= 6) {
-    zone = 'attention';
-  } else {
-    zone = 'bluff';
-  }
+  if (scenarioId <= 3) zone = 'truth';
+  else if (scenarioId <= 6) zone = 'attention';
+  else zone = 'bluff';
   
-  // Optionally randomize conclusion slightly
   const useVariation = Math.random() > 0.7;
   const conclusion = useVariation 
     ? CONCLUSION_VARIATIONS[zone][Math.floor(Math.random() * CONCLUSION_VARIATIONS[zone].length)]
@@ -340,3 +378,6 @@ export function getFallbackReading(): MycroftHumanReading {
     color: 'yellow'
   };
 }
+
+// Re-export types from mycroft2Engine
+export type { VocalAnalysisResult, AudioMetrics } from './mycroft2Engine';

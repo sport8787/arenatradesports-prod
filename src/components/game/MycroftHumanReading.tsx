@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+import { Brain, ChevronDown, ChevronUp, Activity, Shield, AlertTriangle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MycroftHumanReading as Reading } from '@/services/mycroftHumanReadingService';
 import { VoiceMetrics } from '@/services/audioForensicsService';
@@ -52,6 +52,25 @@ export function MycroftHumanReadingPanel({
     return 'bg-red-500/10';
   };
 
+  // Confidence badge colors
+  const getConfidenceBadge = () => {
+    if (!reading.confidence) return null;
+    const config = {
+      low: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Baixa' },
+      medium: { bg: 'bg-blue-900/50', text: 'text-blue-400', label: 'Média' },
+      high: { bg: 'bg-purple-900/50', text: 'text-purple-400', label: 'Alta' },
+    };
+    const conf = config[reading.confidence];
+    return (
+      <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium', conf.bg, conf.text)}>
+        Confiança: {conf.label}
+      </span>
+    );
+  };
+
+  // Zone icon
+  const ZoneIcon = reading.zone === 'truth' ? Shield : reading.zone === 'attention' ? AlertTriangle : AlertCircle;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -64,17 +83,24 @@ export function MycroftHumanReadingPanel({
       )}
     >
       {/* Header */}
-      <div className={cn('px-4 py-3 border-b', getBorderColor())}>
+      <div className={cn('px-4 py-3 border-b flex items-center justify-between', getBorderColor())}>
         <div className="flex items-center gap-2">
           <Brain className={cn('w-5 h-5', getTextColor())} />
           <span className={cn('font-bold tracking-wide', getTextColor())}>
             LEITURA DO MYCROFT
           </span>
         </div>
+        {getConfidenceBadge()}
       </div>
       
       {/* Main Reading Block */}
       <div className="p-4 space-y-4">
+        {/* Title */}
+        <div className="flex items-center gap-2">
+          <ZoneIcon className={cn('w-4 h-4', getTextColor())} />
+          <span className={cn('font-semibold', getTextColor())}>{reading.title}</span>
+        </div>
+
         {/* Reading Lines */}
         <div className="space-y-1">
           {reading.lines.map((line, i) => (
@@ -91,6 +117,24 @@ export function MycroftHumanReadingPanel({
             {reading.conclusion}
           </span>
         </div>
+
+        {/* Reasoning & Counterpoint (Mycroft 2.0) */}
+        {(reading.reasoning || reading.counterpoint) && (
+          <div className="space-y-2 pt-2 border-t border-border/30">
+            {reading.reasoning && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">📊 Análise: </span>
+                <span className="text-foreground/80">{reading.reasoning}</span>
+              </div>
+            )}
+            {reading.counterpoint && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">⚖️ Contraponto: </span>
+                <span className="text-foreground/60">{reading.counterpoint}</span>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Visual Indicator Bar */}
         <div className="space-y-2 pt-2">
@@ -132,6 +176,21 @@ export function MycroftHumanReadingPanel({
             </span>
           </div>
         </div>
+
+        {/* Correct Answer Badge */}
+        {reading.wasCorrect !== undefined && (
+          <div className="pt-2">
+            {reading.wasCorrect ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-900/50 text-emerald-400 text-xs rounded-full">
+                ✓ Resposta Correta
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-900/50 text-red-400 text-xs rounded-full">
+                ✗ Resposta Incorreta
+              </span>
+            )}
+          </div>
+        )}
         
         {/* Technical Details Button */}
         {showTechnicalButton && metrics && (
@@ -227,6 +286,11 @@ export function MycroftReadingCompact({
       <span className={cn('text-sm font-medium', getTextColor())}>
         {reading.conclusion}
       </span>
+      {reading.confidence && (
+        <span className="text-[10px] text-muted-foreground">
+          ({reading.confidence === 'low' ? 'baixa' : reading.confidence === 'medium' ? 'média' : 'alta'} conf.)
+        </span>
+      )}
     </div>
   );
 }

@@ -409,6 +409,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_vocal_profiles: {
+        Row: {
+          avg_jitter: number | null
+          avg_latency: number | null
+          avg_pitch: number | null
+          avg_shimmer: number | null
+          avg_speech_rate: number | null
+          created_at: string | null
+          id: string
+          jitter_std_dev: number | null
+          latency_std_dev: number | null
+          pitch_std_dev: number | null
+          samples_count: number | null
+          shimmer_std_dev: number | null
+          speech_rate_std_dev: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avg_jitter?: number | null
+          avg_latency?: number | null
+          avg_pitch?: number | null
+          avg_shimmer?: number | null
+          avg_speech_rate?: number | null
+          created_at?: string | null
+          id?: string
+          jitter_std_dev?: number | null
+          latency_std_dev?: number | null
+          pitch_std_dev?: number | null
+          samples_count?: number | null
+          shimmer_std_dev?: number | null
+          speech_rate_std_dev?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avg_jitter?: number | null
+          avg_latency?: number | null
+          avg_pitch?: number | null
+          avg_shimmer?: number | null
+          avg_speech_rate?: number | null
+          created_at?: string | null
+          id?: string
+          jitter_std_dev?: number | null
+          latency_std_dev?: number | null
+          pitch_std_dev?: number | null
+          samples_count?: number | null
+          shimmer_std_dev?: number | null
+          speech_rate_std_dev?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       voice_recordings: {
         Row: {
           audio_url: string
