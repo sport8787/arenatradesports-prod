@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
 import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
-import { processRecordedAudio, MycroftAnalysisResult } from '@/services/presenterAudioService';
+import { uploadAudioToStorage, MycroftAnalysisResult } from '@/services/presenterAudioService';
 
 interface JuryVote {
   playerId: string;
@@ -606,107 +606,81 @@ export default function PlayerScreen() {
                             setIsProcessingAudio(true);
                             
                             try {
-                              // Get the actual text of the correct answer
+                              // Get the actual text of the correct answer and user response
                               const question = roomState.currentQuestion;
                               const correctAnswerText = question ? 
                                 question[`option_${question.correct_option.toLowerCase()}` as keyof typeof question] as string || '' : '';
+                              const userResponseText = selectedAnswer && question ? 
+                                question[`option_${selectedAnswer.toLowerCase()}` as keyof typeof question] as string || '' : '';
                               
-                              const result = await processRecordedAudio(
+                              // 1. Upload audio to storage (NO AI CALL - presenter will trigger it)
+                              const audioUrl = await uploadAudioToStorage(
                                 blob,
-                                voiceMetrics, // Pass REAL voice metrics
                                 roomId || '',
                                 playerId,
-                                roomState.currentRound,
-                                question?.question_text || '',
-                                correctAnswerText, // Pass the TEXT of the correct answer
-                                selectedAnswer || ''
+                                roomState.currentRound
                               );
                               
-                              if (result.analysis) {
-                                setMycroftAnalysis(result.analysis);
-                                
-                                // Broadcast voice metrics AND Mycroft analysis TO PRESENTER
-                                // The presenter will decide when to release the analysis to the jury
-                                // We send to BOTH the main presenter channel AND the dedicated metrics channel
-                                
-                                // Create a dedicated channel for metrics to ensure presenter receives it
-                                const metricsChannel = supabase.channel(`presenter-metrics-receiver:${roomId}`);
-                                await metricsChannel.subscribe();
-                                
-                                // Send via dedicated metrics channel
-                                await metricsChannel.send({
-                                  type: 'broadcast' as const,
-                                  event: 'presenter_control',
-                                  payload: {
-                                    type: 'voice_metrics',
-                                    data: {
-                                      metrics: result.metrics,
-                                      playerName: nickname
-                                    },
-                                    timestamp: Date.now()
-                                  }
-                                });
-                                console.log('[PlayerScreen] 📊 Voice metrics sent via dedicated channel');
-                                
-                                await metricsChannel.send({
-                                  type: 'broadcast' as const,
-                                  event: 'presenter_control',
-                                  payload: {
-                                    type: 'mycroft_analysis',
-                                    data: {
-                                      verdict: result.analysis.verdict,
-                                      confidence: result.analysis.confidence,
-                                      forensicDetails: result.analysis.forensicDetails,
-                                      metrics: result.metrics
-                                    },
-                                    timestamp: Date.now()
-                                  }
-                                });
-                                console.log('[PlayerScreen] 📡 Mycroft analysis sent via dedicated channel');
-                                
-                                // Also send via main channel as backup
-                                if (presenterChannelRef?.current) {
-                                  await presenterChannelRef.current.send({
-                                    type: 'broadcast' as const,
-                                    event: 'presenter_control',
-                                    payload: {
-                                      type: 'voice_metrics',
-                                      data: {
-                                        metrics: result.metrics,
-                                        playerName: nickname
-                                      },
-                                      timestamp: Date.now()
-                                    }
-                                  });
-                                  await presenterChannelRef.current.send({
-                                    type: 'broadcast' as const,
-                                    event: 'presenter_control',
-                                    payload: {
-                                      type: 'mycroft_analysis',
-                                      data: {
-                                        verdict: result.analysis.verdict,
-                                        confidence: result.analysis.confidence,
-                                        forensicDetails: result.analysis.forensicDetails,
-                                        metrics: result.metrics
-                                      },
-                                      timestamp: Date.now()
-                                    }
-                                  });
-                                  console.log('[PlayerScreen] 📡 Also sent via main presenter channel');
+                              console.log('[PlayerScreen] 📤 Audio uploaded to:', audioUrl);
+                              
+                              // 2. Send justification_ready event to presenter with ALL data needed for Mycroft
+                              // The presenter will trigger the Mycroft AI call when clicking "Encerrar Votação"
+                              const justificationData = {
+                                audioUrl,
+                                voiceMetrics,
+                                playerName: nickname,
+                                questionId: question?.id,
+                                questionText: question?.question_text || '',
+                                correctAnswerText,
+                                userResponseText,
+                                selectedAnswer
+                              };
+                              
+                              // Create a dedicated channel for metrics to ensure presenter receives it
+                              const metricsChannel = supabase.channel(`presenter-metrics-receiver:${roomId}`);
+                              await metricsChannel.subscribe();
+                              
+                              // Send justification_ready event (NOT mycroft_analysis - presenter triggers that!)
+                              await metricsChannel.send({
+                                type: 'broadcast' as const,
+                                event: 'presenter_control',
+                                payload: {
+                                  type: 'justification_ready',
+                                  data: justificationData,
+                                  timestamp: Date.now()
                                 }
-                                
-                                // Cleanup the dedicated channel after a short delay
-                                setTimeout(() => {
-                                  supabase.removeChannel(metricsChannel);
-                                }, 1000);
-                                
-                                toast({
-                                  title: '🔬 Análise Pronta',
-                                  description: 'Aguarde o apresentador liberar para o júri'
+                              });
+                              console.log('[PlayerScreen] 📡 Justification data sent to presenter:', justificationData);
+                              
+                              // Also send via main channel as backup
+                              if (presenterChannelRef?.current) {
+                                await presenterChannelRef.current.send({
+                                  type: 'broadcast' as const,
+                                  event: 'presenter_control',
+                                  payload: {
+                                    type: 'justification_ready',
+                                    data: justificationData,
+                                    timestamp: Date.now()
+                                  }
                                 });
+                                console.log('[PlayerScreen] 📡 Also sent via main presenter channel');
                               }
+                              
+                              // Cleanup the dedicated channel after a short delay
+                              setTimeout(() => {
+                                supabase.removeChannel(metricsChannel);
+                              }, 1000);
+                              
+                              toast({
+                                title: '✅ Justificativa Enviada!',
+                                description: 'Aguardando o júri votar...'
+                              });
                             } catch (err) {
-                              console.error('[PlayerScreen] Audio processing error:', err);
+                              console.error('[PlayerScreen] Audio upload error:', err);
+                              toast({
+                                title: 'Erro ao enviar justificativa',
+                                variant: 'destructive'
+                              });
                             } finally {
                               setIsProcessingAudio(false);
                             }
@@ -718,10 +692,10 @@ export default function PlayerScreen() {
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="flex items-center gap-2 p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl"
+                            className="flex items-center gap-2 p-3 bg-gold/10 border border-gold/30 rounded-xl"
                           >
-                            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-                            <span className="text-sm text-purple-300">Mycroft analisando voz...</span>
+                            <Loader2 className="w-4 h-4 text-gold animate-spin" />
+                            <span className="text-sm text-gold">Enviando justificativa...</span>
                           </motion.div>
                         )}
                       </>

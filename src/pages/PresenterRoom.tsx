@@ -26,6 +26,7 @@ import VoiceMetricsPanel from '@/components/game/VoiceMetricsPanel';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
+import { analyzeWithMycroft } from '@/services/presenterAudioService';
 
 // Categorias de áudio do Hórus com arquivos locais
 const HORUS_AUDIO_CATEGORIES = [
@@ -181,49 +182,81 @@ export default function PresenterRoom() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // State for waiting for player recording
+  // State for waiting for player recording and pending justification data
   const [waitingForRecording, setWaitingForRecording] = useState(false);
   const [hasReceivedRecording, setHasReceivedRecording] = useState(false);
+  const [pendingJustification, setPendingJustification] = useState<{
+    audioUrl: string | null;
+    voiceMetrics: VoiceMetrics;
+    playerName: string;
+    questionText: string;
+    correctAnswerText: string;
+    userResponseText: string;
+  } | null>(null);
+  const [isCallingMycroft, setIsCallingMycroft] = useState(false);
 
-  // Listen for voice metrics AND Mycroft analysis from players
-  // Using the SAME channel as the main room to receive player broadcasts
+  // Listen for justification_ready from players
+  // This event contains audio URL, voice metrics, and all data needed for Mycroft
+  // The presenter will trigger the Mycroft AI call when clicking "Encerrar Votação"
   useEffect(() => {
     if (!roomId) return;
 
-    // Use the same channel name that PlayerScreen broadcasts to via presenterChannelRef
+    // Use the same channel name that PlayerScreen broadcasts to
     const metricsChannel = supabase.channel(`presenter-metrics-receiver:${roomId}`)
       .on('broadcast', { event: 'presenter_control' }, (payload) => {
         const event = payload.payload as { type: string; data?: Record<string, unknown> };
         
         console.log('[PresenterRoom] 📡 Received event on metrics channel:', event.type);
         
+        // NEW: Receive justification_ready (audio + metrics + question data)
+        // This does NOT trigger AI - presenter does that manually
+        if (event.type === 'justification_ready' && event.data) {
+          const data = event.data as {
+            audioUrl: string | null;
+            voiceMetrics: VoiceMetrics;
+            playerName: string;
+            questionText: string;
+            correctAnswerText: string;
+            userResponseText: string;
+          };
+          
+          console.log('[PresenterRoom] 📤 Justification received from player:', data);
+          
+          // Store all data needed for Mycroft analysis
+          setPendingJustification({
+            audioUrl: data.audioUrl,
+            voiceMetrics: data.voiceMetrics,
+            playerName: data.playerName,
+            questionText: data.questionText,
+            correctAnswerText: data.correctAnswerText,
+            userResponseText: data.userResponseText
+          });
+          
+          // Also update metrics panel
+          setPlayerVoiceMetrics(data.voiceMetrics);
+          setMetricsPlayerName(data.playerName || 'Jogador');
+          
+          // Update UI states
+          setWaitingForRecording(false);
+          setHasReceivedRecording(true);
+          
+          toast({ 
+            title: '✅ Justificativa Recebida!',
+            description: `${data.playerName} gravou sua justificativa. Clique em "Encerrar Votação" para gerar análise.`
+          });
+        }
+        
+        // Legacy: still handle voice_metrics for backwards compatibility
         if (event.type === 'voice_metrics' && event.data) {
           const { metrics, playerName } = event.data as { 
             metrics: VoiceMetrics; 
             playerName: string 
           };
-          console.log('[PresenterRoom] 📊 Voice metrics received:', metrics);
-          setIsAnalyzing(false);
+          console.log('[PresenterRoom] 📊 Voice metrics received (legacy):', metrics);
           setWaitingForRecording(false);
           setHasReceivedRecording(true);
           setPlayerVoiceMetrics(metrics);
           setMetricsPlayerName(playerName || 'Jogador');
-          toast({ title: '📊 Métricas vocais recebidas de ' + (playerName || 'Jogador') });
-        }
-        
-        // Receive Mycroft analysis from player - store for later release
-        if (event.type === 'mycroft_analysis' && event.data) {
-          console.log('[PresenterRoom] 🔬 Mycroft analysis received from player:', event.data);
-          storePendingMycroft({
-            verdict: event.data.verdict as string,
-            confidence: event.data.confidence as number,
-            forensicDetails: event.data.forensicDetails as string,
-            metrics: event.data.metrics as Record<string, unknown>
-          });
-          toast({ 
-            title: '🔬 Análise do Mycroft Pronta!',
-            description: 'Clique em "EXIBIR ANÁLISE" para ver os detalhes'
-          });
         }
       })
       .subscribe((status) => {
@@ -233,7 +266,7 @@ export default function PresenterRoom() {
     return () => {
       supabase.removeChannel(metricsChannel);
     };
-  }, [roomId, storePendingMycroft]);
+  }, [roomId]);
 
   // Reset metrics on new round
   useEffect(() => {
@@ -242,6 +275,8 @@ export default function PresenterRoom() {
       setIsAnalyzing(false);
       setWaitingForRecording(false);
       setHasReceivedRecording(false);
+      setPendingJustification(null);
+      setIsCallingMycroft(false);
     }
   }, [roomState.currentRound]);
 
@@ -251,6 +286,69 @@ export default function PresenterRoom() {
       setWaitingForRecording(true);
     }
   }, [roomState.justificationEnabled, hasReceivedRecording]);
+
+  // Handler for "Encerrar Votação" - triggers Mycroft AI analysis
+  const handleEndVotingWithMycroft = useCallback(async () => {
+    console.log('[PresenterRoom] 🔬 Ending voting and triggering Mycroft analysis...');
+    
+    // 1. End voting first
+    await endVoting();
+    
+    // 2. If we have pending justification data, trigger Mycroft AI now
+    if (pendingJustification) {
+      setIsCallingMycroft(true);
+      toast({ 
+        title: '🔬 Analisando com Mycroft...',
+        description: 'Gerando análise forense da justificativa'
+      });
+      
+      try {
+        console.log('[PresenterRoom] Calling Mycroft AI with:', pendingJustification);
+        
+        const analysis = await analyzeWithMycroft(
+          pendingJustification.questionText,
+          pendingJustification.correctAnswerText,
+          pendingJustification.userResponseText,
+          pendingJustification.voiceMetrics
+        );
+        
+        if (analysis) {
+          console.log('[PresenterRoom] ✅ Mycroft analysis received:', analysis);
+          
+          // Store the analysis for presenter preview
+          storePendingMycroft({
+            verdict: analysis.verdict,
+            confidence: analysis.confidence,
+            forensicDetails: analysis.forensicDetails,
+            metrics: pendingJustification.voiceMetrics as unknown as Record<string, unknown>
+          });
+          
+          toast({ 
+            title: '✅ Análise do Mycroft Pronta!',
+            description: 'Clique em "EXIBIR ANÁLISE" para liberar ao júri'
+          });
+        } else {
+          console.error('[PresenterRoom] Mycroft analysis returned null');
+          toast({ 
+            title: '⚠️ Análise não disponível',
+            description: 'Não foi possível gerar análise do Mycroft',
+            variant: 'destructive'
+          });
+        }
+      } catch (err) {
+        console.error('[PresenterRoom] Mycroft analysis error:', err);
+        toast({ 
+          title: 'Erro na análise',
+          description: 'Falha ao chamar Mycroft AI',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsCallingMycroft(false);
+      }
+    } else {
+      console.log('[PresenterRoom] No pending justification - skipping Mycroft analysis');
+    }
+  }, [endVoting, pendingJustification, storePendingMycroft]);
 
   // Carregar perguntas
   useEffect(() => {
@@ -677,11 +775,24 @@ export default function PresenterRoom() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={endVoting}
-                  disabled={!roomState.votingActive}
-                  className="text-xs"
+                  onClick={handleEndVotingWithMycroft}
+                  disabled={!roomState.votingActive || isCallingMycroft}
+                  className={cn(
+                    "text-xs",
+                    pendingJustification && "text-purple-400 hover:text-purple-300"
+                  )}
                 >
-                  Encerrar Votação
+                  {isCallingMycroft ? (
+                    <>
+                      <Brain className="w-3 h-3 mr-1 animate-pulse" />
+                      Analisando...
+                    </>
+                  ) : (
+                    <>
+                      {pendingJustification && <Brain className="w-3 h-3 mr-1" />}
+                      Encerrar Votação {pendingJustification && '+ Mycroft'}
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
