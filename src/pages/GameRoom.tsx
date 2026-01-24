@@ -78,6 +78,7 @@ import PressureEffects from '@/components/game/PressureEffects';
 import NarrativeDisplay from '@/components/game/NarrativeDisplay';
 import CinematicEvent from '@/components/game/CinematicEvent';
 import NarrativeChoiceModal from '@/components/game/NarrativeChoiceModal';
+import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
 import { getActPhraseText, getSilentObserverPhrase } from '@/data/horusActPhrases';
 import { getRoundSpecificAudio, getCartaBonusAudio, playHorusAudio } from '@/services/horusLocalAudio';
 import { backgroundMusic } from '@/services/backgroundMusicService';
@@ -348,7 +349,28 @@ function GameRoomContent() {
   // BC Rewards tracker - rastreia todas as recompensas durante a partida
   const [rewardsTracker, setRewardsTracker] = useState<GameRewardsTracker>(createRewardsTracker);
 
-  // Persist game winnings to authenticated user's profile using atomic RPC
+  // LGPD Consent state for Mycroft
+  const [showMycroftConsent, setShowMycroftConsent] = useState(false);
+  const [mycroftConsent, setMycroftConsent] = useState<boolean | null>(() => {
+    const stored = localStorage.getItem('mycroft_consent');
+    return stored === null ? null : stored === 'true';
+  });
+
+  // Handlers for Mycroft consent
+  const handleMycroftAccept = () => {
+    setMycroftConsent(true);
+    localStorage.setItem('mycroft_consent', 'true');
+    setShowMycroftConsent(false);
+    toast({ title: '✅ Mycroft Ativado!', description: 'Análise vocal habilitada' });
+  };
+
+  const handleMycroftDecline = () => {
+    setMycroftConsent(false);
+    localStorage.setItem('mycroft_consent', 'false');
+    setShowMycroftConsent(false);
+    toast({ title: 'Mycroft Desativado', description: 'Você pode jogar normalmente sem análise vocal' });
+  };
+
   const persistGameResult = async (amount: number) => {
     // Don't persist for guests or unauthenticated users
     if (isGuest || !isAuthenticated || !profile) {
@@ -1923,6 +1945,11 @@ function GameRoomContent() {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            {/* Mycroft Consent Button */}
+            <MycroftConsentButton 
+              onClick={() => setShowMycroftConsent(true)}
+              hasConsented={mycroftConsent}
+            />
             {/* BluffCoins Display */}
             <BluffCoinDisplay amount={gameState.myPlayer?.bluffcoins || 0} size="sm" />
             {/* Audio sync indicator for online mode */}
@@ -2948,6 +2975,14 @@ function GameRoomContent() {
           />
         </div>
       )}
+
+      {/* Mycroft LGPD Consent Modal */}
+      <MycroftConsentModal
+        isOpen={showMycroftConsent}
+        onAccept={handleMycroftAccept}
+        onDecline={handleMycroftDecline}
+        onClose={() => setShowMycroftConsent(false)}
+      />
     </div>
     </>
   );

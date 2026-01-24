@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, Check, HelpCircle, 
-  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX
+  Loader2, Home, Users, Trophy, Wifi, WifiOff, Volume2, VolumeX, Shield
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom, PresenterEventType } from '@/hooks/usePresenterRoom';
@@ -22,6 +22,7 @@ import cartaClaro from '@/assets/carta_claro.png';
 import cartaBlefe from '@/assets/carta_blefe.png';
 import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
 import { uploadAudioToStorage, MycroftAnalysisResult } from '@/services/presenterAudioService';
+import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
 
 interface JuryVote {
   playerId: string;
@@ -59,6 +60,13 @@ export default function PlayerScreen() {
   const [playerId, setPlayerId] = useState<string>('');
   const [juryVotes, setJuryVotes] = useState<JuryVote[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // LGPD Consent state
+  const [showMycroftConsent, setShowMycroftConsent] = useState(false);
+  const [mycroftConsent, setMycroftConsent] = useState<boolean | null>(() => {
+    const stored = localStorage.getItem('mycroft_consent');
+    return stored === null ? null : stored === 'true';
+  });
 
   // Carregar dados do jogador
   useEffect(() => {
@@ -239,6 +247,21 @@ export default function PlayerScreen() {
     setHasVoted(false);
     setMycroftAnalysis(null); // Clear previous analysis
   }, [roomState.currentQuestion?.id]);
+
+  // Handlers for Mycroft consent
+  const handleMycroftAccept = () => {
+    setMycroftConsent(true);
+    localStorage.setItem('mycroft_consent', 'true');
+    setShowMycroftConsent(false);
+    toast({ title: '✅ Mycroft Ativado!', description: 'Análise vocal habilitada' });
+  };
+
+  const handleMycroftDecline = () => {
+    setMycroftConsent(false);
+    localStorage.setItem('mycroft_consent', 'false');
+    setShowMycroftConsent(false);
+    toast({ title: 'Mycroft Desativado', description: 'Você pode jogar normalmente sem análise vocal' });
+  };
 
   const handleSelectAnswer = (option: string) => {
     if (hasAnswered || role !== 'player') return;
@@ -421,6 +444,11 @@ export default function PlayerScreen() {
             ) : (
               <WifiOff className="w-4 h-4 text-destructive animate-pulse" />
             )}
+            {/* Mycroft Consent Button */}
+            <MycroftConsentButton 
+              onClick={() => setShowMycroftConsent(true)}
+              hasConsented={mycroftConsent}
+            />
             <button
               onClick={() => setShowScoreboard(true)}
               className="p-2 rounded-lg hover:bg-background/50 transition-colors"
@@ -1012,6 +1040,14 @@ export default function PlayerScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mycroft LGPD Consent Modal */}
+      <MycroftConsentModal
+        isOpen={showMycroftConsent}
+        onAccept={handleMycroftAccept}
+        onDecline={handleMycroftDecline}
+        onClose={() => setShowMycroftConsent(false)}
+      />
     </div>
   );
 }
