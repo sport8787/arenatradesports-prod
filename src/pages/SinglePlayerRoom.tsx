@@ -28,6 +28,7 @@ import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import EliminationAnimation from '@/components/game/EliminationAnimation';
 import MoneyRain from '@/components/game/MoneyRain';
 import AudioRecorder from '@/components/game/AudioRecorder';
+import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
 import BluffFeedback from '@/components/game/BluffFeedback';
 import CashOutDialog from '@/components/game/CashOutDialog';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
@@ -273,6 +274,27 @@ function SinglePlayerRoomContent() {
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
   const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
   const [voiceAnalysis, setVoiceAnalysis] = useState<VoiceAnalysisResult | null>(null);
+  
+  // LGPD Consent state for Mycroft voice analysis
+  const [showMycroftConsent, setShowMycroftConsent] = useState(false);
+  const [mycroftConsent, setMycroftConsent] = useState<boolean | null>(() => {
+    const stored = localStorage.getItem('mycroft_consent');
+    return stored === null ? null : stored === 'true';
+  });
+  
+  const handleMycroftAccept = () => {
+    setMycroftConsent(true);
+    localStorage.setItem('mycroft_consent', 'true');
+    setShowMycroftConsent(false);
+    toast({ title: '✅ Mycroft Ativado!', description: 'Análise vocal habilitada' });
+  };
+
+  const handleMycroftDecline = () => {
+    setMycroftConsent(false);
+    localStorage.setItem('mycroft_consent', 'false');
+    setShowMycroftConsent(false);
+    toast({ title: 'Mycroft Desativado', description: 'Você pode jogar normalmente sem análise vocal' });
+  };
   
   // Horus Bribe phase states - limita a 2 ofertas por partida, só a partir da rodada 3
   const [bribeOffersCount, setBribeOffersCount] = useState(0);
@@ -1790,6 +1812,8 @@ function SinglePlayerRoomContent() {
                   <div className="space-y-4">
                     <AudioRecorder 
                       roomId="solo-mode"
+                      mycroftConsent={mycroftConsent}
+                      onConsentRequired={() => setShowMycroftConsent(true)}
                       onRecordingComplete={(audioUrl, metrics) => {
                         setVoiceMetrics(metrics);
                         setHasRecordedAudio(true);
@@ -2352,6 +2376,14 @@ function SinglePlayerRoomContent() {
         onClose={() => setShowRewardsSummary(false)}
         tracker={rewardsTracker}
         gamePhase={currentGamePhase === 1 ? 'Aquecimento' : currentGamePhase === 2 ? 'Desafio' : 'Modo Extremo'}
+      />
+      
+      {/* Mycroft LGPD Consent Modal */}
+      <MycroftConsentModal
+        isOpen={showMycroftConsent}
+        onAccept={handleMycroftAccept}
+        onDecline={handleMycroftDecline}
+        onClose={() => setShowMycroftConsent(false)}
       />
       </div>
     </>

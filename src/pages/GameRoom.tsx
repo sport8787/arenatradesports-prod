@@ -2250,6 +2250,8 @@ function GameRoomContent() {
                         <AudioRecorder 
                           roomId={roomId || ''} 
                           disabled={false}
+                          mycroftConsent={mycroftConsent}
+                          onConsentRequired={() => setShowMycroftConsent(true)}
                         />
                         
                         {/* Vote counter for host */}
