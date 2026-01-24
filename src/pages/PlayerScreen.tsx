@@ -1,5 +1,6 @@
 /**
  * Tela do Jogador - Interface simplificada para jogadores no Modo Apresentador
+ * Agora com Mycroft 2.0 - Análise adaptativa baseada em baseline vocal
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePresenterRoom, PresenterEventType } from '@/hooks/usePresenterRoom';
+import { useAuth } from '@/hooks/useAuth';
 import { getOrCreateSessionId } from '@/lib/gameUtils';
 import { Button } from '@/components/ui/button';
 import GoldButton from '@/components/game/GoldButton';
@@ -23,6 +25,9 @@ import cartaBlefe from '@/assets/carta_blefe.png';
 import PresenterModeRecorder from '@/components/game/PresenterModeRecorder';
 import { uploadAudioToStorage, MycroftAnalysisResult } from '@/services/presenterAudioService';
 import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
+import { MycroftHumanReadingPanel } from '@/components/game/MycroftHumanReading';
+import { generateHumanReadingWithBaseline, getBluffScore, type MycroftHumanReading } from '@/services/mycroftHumanReadingService';
+import type { VoiceMetrics } from '@/services/audioForensicsService';
 
 interface JuryVote {
   playerId: string;
@@ -36,6 +41,7 @@ type PlayerRole = 'player' | 'jury';
 export default function PlayerScreen() {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   
   const {
     roomState,
@@ -57,6 +63,9 @@ export default function PlayerScreen() {
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   const [mycroftAnalysis, setMycroftAnalysis] = useState<MycroftAnalysisResult | null>(null);
+  // NEW: Mycroft 2.0 Human Reading state
+  const [mycroftHumanReading, setMycroftHumanReading] = useState<MycroftHumanReading | null>(null);
+  const [mycroftVoiceMetrics, setMycroftVoiceMetrics] = useState<VoiceMetrics | null>(null);
   const [playerId, setPlayerId] = useState<string>('');
   const [juryVotes, setJuryVotes] = useState<JuryVote[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -189,12 +198,36 @@ export default function PlayerScreen() {
 
         // Receive Mycroft analysis ONLY when presenter releases it (release_mycroft event)
         if (event.type === 'release_mycroft' && event.data && role === 'jury') {
-          console.log('[PlayerScreen] 🔬 Mycroft analysis RELEASED by presenter:', event.data);
+          console.log('[PlayerScreen] 🔬 Mycroft 2.0 analysis RELEASED by presenter:', event.data);
+          
+          // Set legacy analysis for compatibility
           setMycroftAnalysis({
             verdict: event.data.verdict as string,
             confidence: event.data.confidence as number,
             forensicDetails: event.data.forensicDetails as string
           });
+          
+          // NEW: Generate Mycroft 2.0 Human Reading with adaptive baseline
+          if (event.data.voiceMetrics) {
+            const voiceMetrics = event.data.voiceMetrics as VoiceMetrics;
+            setMycroftVoiceMetrics(voiceMetrics);
+            
+            // Generate human reading with user's baseline (if authenticated)
+            (async () => {
+              try {
+                const humanReading = await generateHumanReadingWithBaseline(
+                  voiceMetrics,
+                  profile?.user_id || null,
+                  event.data.wasCorrect as boolean | undefined
+                );
+                setMycroftHumanReading(humanReading);
+                console.log('[PlayerScreen] 🧠 Mycroft 2.0 Human Reading generated:', humanReading.zone, humanReading.title);
+              } catch (err) {
+                console.error('[PlayerScreen] Error generating human reading:', err);
+              }
+            })();
+          }
+          
           toast({
             title: '🔬 Análise Forense do Mycroft',
             description: 'O apresentador liberou a análise de voz!'
@@ -246,6 +279,8 @@ export default function PlayerScreen() {
     setVote(null);
     setHasVoted(false);
     setMycroftAnalysis(null); // Clear previous analysis
+    setMycroftHumanReading(null); // Clear Mycroft 2.0 reading
+    setMycroftVoiceMetrics(null);
   }, [roomState.currentQuestion?.id]);
 
   // Handlers for Mycroft consent
@@ -784,8 +819,17 @@ export default function PlayerScreen() {
                   );
                 })}
 
-                {/* Mycroft Forensic Analysis Panel - ONLY for jury */}
-                {mycroftAnalysis && (
+                {/* Mycroft 2.0 Human Reading Panel - ONLY for jury */}
+                {mycroftHumanReading && mycroftVoiceMetrics ? (
+                  <MycroftHumanReadingPanel
+                    reading={mycroftHumanReading}
+                    bluffScore={getBluffScore(mycroftVoiceMetrics)}
+                    metrics={mycroftVoiceMetrics}
+                    showTechnicalButton={true}
+                    className="mt-4"
+                  />
+                ) : mycroftAnalysis && (
+                  // Legacy fallback display (when no voice metrics available)
                   <motion.div
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
