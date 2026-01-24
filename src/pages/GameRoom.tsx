@@ -381,23 +381,51 @@ function GameRoomContent() {
   // Handler for AudioRecorder - integrates with Mycroft 2.0 adaptive baseline
   const handleRecordingComplete = useCallback(async (audioUrl: string, metrics: VoiceMetrics) => {
     console.log('[GameRoom] 🎙️ Recording complete with metrics:', metrics);
+    console.log('[GameRoom] Mycroft consent:', mycroftConsent, 'userId:', profile?.user_id);
     setLastVoiceMetrics(metrics);
     
     // Generate Mycroft 2.0 human reading with adaptive baseline
-    if (mycroftConsent && profile?.user_id) {
-      try {
-        const wasCorrect = confirmedAnswer === gameState.currentQuestion?.correct_option;
-        const humanReading = await generateHumanReadingWithBaseline(
-          metrics,
-          profile.user_id,
-          wasCorrect
-        );
-        setMycroftHumanReading(humanReading);
-        console.log('[GameRoom] 🧠 Mycroft 2.0 Human Reading:', humanReading.zone, humanReading.title, 
-          `(confidence: ${humanReading.confidence})`);
-      } catch (err) {
-        console.error('[GameRoom] Error generating Mycroft 2.0 reading:', err);
+    // Note: wasCorrect can be undefined at recording time since player may not have confirmed answer yet
+    // The baseline will still learn from the vocal patterns
+    const userId = profile?.user_id || null;
+    
+    try {
+      // Check if we have valid metrics before processing
+      if (!metrics || typeof metrics !== 'object') {
+        console.warn('[GameRoom] Invalid metrics received, skipping Mycroft analysis');
+        return;
       }
+      
+      // Determine if answer is correct (may be undefined if not confirmed yet)
+      const wasCorrect = confirmedAnswer && gameState.currentQuestion?.correct_option
+        ? confirmedAnswer === gameState.currentQuestion.correct_option
+        : undefined;
+      
+      console.log('[GameRoom] 🔬 Generating Mycroft 2.0 analysis...', { userId, wasCorrect, hasConsent: mycroftConsent });
+      
+      const humanReading = await generateHumanReadingWithBaseline(
+        metrics,
+        userId,
+        wasCorrect
+      );
+      setMycroftHumanReading(humanReading);
+      console.log('[GameRoom] 🧠 Mycroft 2.0 Human Reading:', humanReading.zone, humanReading.title, 
+        `(confidence: ${humanReading.confidence})`);
+    } catch (err) {
+      console.error('[GameRoom] Error generating Mycroft 2.0 reading:', err);
+      // Set a fallback reading so UI doesn't break
+      setMycroftHumanReading({
+        zone: 'attention',
+        scenarioId: 4,
+        title: 'Análise em Andamento',
+        lines: ['Coletando dados vocais para análise...', 'Padrões sendo estabelecidos.'],
+        conclusion: 'O sistema está aprendendo seu padrão vocal.',
+        zoneLabel: 'Calibrando',
+        color: 'yellow',
+        confidence: 'low',
+        reasoning: 'O sistema está aprendendo seu padrão vocal.',
+        counterpoint: '',
+      });
     }
   }, [mycroftConsent, profile?.user_id, confirmedAnswer, gameState.currentQuestion?.correct_option]);
 
@@ -615,72 +643,47 @@ function GameRoomContent() {
         };
 
         // Primeira rodada: toca ABERTURA e só depois lê a pergunta
+        // IMPORTANTE: Na primeira rodada, tocamos APENAS a abertura
+        // A leitura da pergunta acontece DEPOIS que a abertura termina
         if (isFirstRound) {
           const opening = getLocalAudioForMoment('game_start');
 
           if (opening) {
-            console.log('[GameRoom] Playing opening audio for first round');
+            console.log('[GameRoom] 🎬 First round - playing OPENING ONLY, question read will follow');
 
             if (isOnlineMode) {
-              // No sync não há onended; usa duração real do áudio (metadata) com fallback
+              // Online mode: broadcast abertura, mas NÃO lemos a pergunta imediatamente
+              // A leitura será feita após um delay fixo baseado na duração conhecida do áudio de abertura
               broadcastAudio(opening, 'game_start', 'horus');
-
-              const getDurationMs = (url: string, timeoutMs = 2500): Promise<number | null> => {
-                return new Promise((resolve) => {
-                  const audio = new Audio();
-                  audio.preload = 'metadata';
-                  audio.src = url;
-
-                  const timeout = window.setTimeout(() => resolve(null), timeoutMs);
-
-                  const cleanup = () => {
-                    window.clearTimeout(timeout);
-                    audio.removeEventListener('loadedmetadata', onLoaded);
-                    audio.removeEventListener('error', onError);
-                    // Drop reference to help GC
-                    audio.src = '';
-                  };
-
-                  const onLoaded = () => {
-                    cleanup();
-                    const duration = audio.duration;
-                    if (Number.isFinite(duration) && duration > 0) {
-                      resolve(duration * 1000);
-                      return;
-                    }
-                    resolve(null);
-                  };
-
-                  const onError = () => {
-                    cleanup();
-                    resolve(null);
-                  };
-
-                  audio.addEventListener('loadedmetadata', onLoaded, { once: true });
-                  audio.addEventListener('error', onError, { once: true });
-                  audio.load();
-                });
-              };
-
-              (async () => {
-                const fallbackMs = 15000;
-                const durationMs = await getDurationMs(opening);
-                const waitMs = Math.ceil((durationMs ?? fallbackMs) + 400);
-                setTimeout(playQuestionRead, waitMs);
-              })();
+              
+              // FIXED: Usar duração conhecida do áudio de abertura completa (~12s)
+              // Evita race condition de metadata não carregando a tempo
+              const ABERTURA_DURATION_MS = 12000; // ~12 segundos para abertura_completa.mp3
+              
+              console.log('[GameRoom] 📢 Scheduling question read after opening:', ABERTURA_DURATION_MS + 500, 'ms');
+              
+              setTimeout(() => {
+                // Verificar se ainda estamos no status 'question' antes de ler
+                if (gameState.room?.current_status === 'question') {
+                  playQuestionRead();
+                } else {
+                  console.log('[GameRoom] Status changed, skipping question read');
+                }
+              }, ABERTURA_DURATION_MS + 500);
             } else {
-              // Offline: sincroniza com o término real do áudio
+              // Offline: sincroniza com o término real do áudio via callback
               playHorus2Audio('game_start', undefined, () => {
                 console.log('[GameRoom] Opening ended, now reading question');
                 setTimeout(playQuestionRead, 400);
               });
             }
 
+            // IMPORTANTE: Break aqui para NÃO executar o playQuestionRead abaixo
             break;
           }
         }
 
-        // Caso normal: só lê a pergunta após pequeno delay
+        // Caso normal (não é primeira rodada): só lê a pergunta após pequeno delay
         setTimeout(playQuestionRead, 800);
         break;
       }
