@@ -18,6 +18,7 @@ import AdminFounderCases from "./pages/AdminFounderCases";
 import PresenterRoom from "./pages/PresenterRoom";
 import PlayerScreen from "./pages/PlayerScreen";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -69,6 +70,7 @@ const App = () => {
               <Route path="/como-jogar" element={<HowToPlay />} />
               <Route path="/admin/questions" element={<AdminQuestions />} />
               <Route path="/admin/founder-cases" element={<AdminFounderCases />} />
+              <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
