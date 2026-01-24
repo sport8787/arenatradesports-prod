@@ -235,8 +235,13 @@ export default function Index() {
 
         if (existingPlayer) {
           // Jogador já existe, navegar direto
+          setShowJoinForm(false); // ✅ Fechar modal de PIN
           navigate(`/player-screen/${room.id}`);
         } else {
+          // ✅ FIX: Fechar modal de PIN ANTES de abrir seletor de papel
+          setShowJoinForm(false);
+          setPin(''); // Limpar PIN
+          
           // Abrir seletor de papel
           setPendingPresenterRoom({
             id: room.id,
