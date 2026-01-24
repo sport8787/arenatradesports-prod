@@ -27,6 +27,8 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
 import { analyzeWithMycroft, playMycroftVerdict } from '@/services/presenterAudioService';
+import { saveVoiceRecording, getMetricsHistoryForRoom, updateWithMycroftAnalysis } from '@/services/voiceRecordingService';
+import VoiceMetricsChart, { type RoundMetrics } from '@/components/game/VoiceMetricsChart';
 
 // Categorias de áudio do Hórus com arquivos locais
 const HORUS_AUDIO_CATEGORIES = [
@@ -195,6 +197,8 @@ export default function PresenterRoom() {
   } | null>(null);
   const [isCallingMycroft, setIsCallingMycroft] = useState(false);
   const [isPlayingMycroftAudio, setIsPlayingMycroftAudio] = useState(false);
+  const [metricsHistory, setMetricsHistory] = useState<RoundMetrics[]>([]);
+  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
 
   // Listen for justification_ready from players
   // This event contains audio URL, voice metrics, and all data needed for Mycroft
@@ -241,6 +245,23 @@ export default function PresenterRoom() {
           setWaitingForRecording(false);
           setHasReceivedRecording(true);
           
+          // Save voice recording to database for Mycroft AI learning
+          if (data.audioUrl && roomId) {
+            saveVoiceRecording({
+              roomId,
+              roundNumber: roomState.currentRound,
+              audioUrl: data.audioUrl,
+              metrics: data.voiceMetrics,
+              playerName: data.playerName,
+              questionId: roomState.currentQuestion?.id || undefined,
+            }).then((recordingId) => {
+              if (recordingId) {
+                setCurrentRecordingId(recordingId);
+                console.log('[PresenterRoom] ✅ Voice recording saved:', recordingId);
+              }
+            });
+          }
+          
           toast({ 
             title: '✅ Justificativa Recebida!',
             description: `${data.playerName} gravou sua justificativa. Clique em "Encerrar Votação" para gerar análise.`
@@ -278,8 +299,21 @@ export default function PresenterRoom() {
       setHasReceivedRecording(false);
       setPendingJustification(null);
       setIsCallingMycroft(false);
+      setCurrentRecordingId(null);
     }
   }, [roomState.currentRound]);
+
+  // Load metrics history for chart on mount and after each round
+  useEffect(() => {
+    if (!roomId) return;
+    
+    const loadHistory = async () => {
+      const history = await getMetricsHistoryForRoom(roomId);
+      setMetricsHistory(history);
+    };
+    
+    loadHistory();
+  }, [roomId, roomState.currentRound]);
 
   // Track when justification is enabled - start waiting for recording
   useEffect(() => {
@@ -323,6 +357,20 @@ export default function PresenterRoom() {
             forensicDetails: analysis.forensicDetails,
             metrics: pendingJustification.voiceMetrics as unknown as Record<string, unknown>
           });
+          
+          // Update database with Mycroft analysis results
+          if (currentRecordingId) {
+            updateWithMycroftAnalysis(
+              currentRecordingId,
+              analysis.verdict,
+              analysis.forensicDetails
+            ).then(() => {
+              // Refresh history to update chart
+              if (roomId) {
+                getMetricsHistoryForRoom(roomId).then(setMetricsHistory);
+              }
+            });
+          }
           
           toast({ 
             title: '✅ Análise do Mycroft Pronta!',
@@ -1010,6 +1058,12 @@ export default function PresenterRoom() {
               playerName={metricsPlayerName}
               isLoading={isAnalyzing}
               waitingForRecording={waitingForRecording}
+            />
+
+            {/* Voice Metrics Temporal Chart */}
+            <VoiceMetricsChart 
+              metricsHistory={metricsHistory}
+              currentPlayerName={metricsPlayerName}
             />
 
             <div className="bg-background/30 backdrop-blur-sm rounded-xl p-4 border border-border/30">

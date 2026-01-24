@@ -409,6 +409,124 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_recordings: {
+        Row: {
+          audio_url: string
+          avg_pitch: number | null
+          created_at: string
+          harmonics_to_noise: number | null
+          id: string
+          jitter: number | null
+          jitter_absolute: number | null
+          jitter_deviation: number | null
+          latency_deviation: number | null
+          mycroft_forensic_details: string | null
+          mycroft_verdict: string | null
+          peak_amplitude: number | null
+          pitch_deviation: number | null
+          pitch_stability: string | null
+          pitch_variance: number | null
+          player_id: string | null
+          player_name: string | null
+          question_id: string | null
+          recording_duration_ms: number | null
+          response_latency_ms: number | null
+          room_id: string | null
+          round_number: number
+          session_id: string | null
+          shimmer: number | null
+          speech_rate_bpm: number | null
+          speech_rate_deviation: number | null
+          stress_level: string | null
+          stress_score: number | null
+          was_bluffing: boolean | null
+        }
+        Insert: {
+          audio_url: string
+          avg_pitch?: number | null
+          created_at?: string
+          harmonics_to_noise?: number | null
+          id?: string
+          jitter?: number | null
+          jitter_absolute?: number | null
+          jitter_deviation?: number | null
+          latency_deviation?: number | null
+          mycroft_forensic_details?: string | null
+          mycroft_verdict?: string | null
+          peak_amplitude?: number | null
+          pitch_deviation?: number | null
+          pitch_stability?: string | null
+          pitch_variance?: number | null
+          player_id?: string | null
+          player_name?: string | null
+          question_id?: string | null
+          recording_duration_ms?: number | null
+          response_latency_ms?: number | null
+          room_id?: string | null
+          round_number?: number
+          session_id?: string | null
+          shimmer?: number | null
+          speech_rate_bpm?: number | null
+          speech_rate_deviation?: number | null
+          stress_level?: string | null
+          stress_score?: number | null
+          was_bluffing?: boolean | null
+        }
+        Update: {
+          audio_url?: string
+          avg_pitch?: number | null
+          created_at?: string
+          harmonics_to_noise?: number | null
+          id?: string
+          jitter?: number | null
+          jitter_absolute?: number | null
+          jitter_deviation?: number | null
+          latency_deviation?: number | null
+          mycroft_forensic_details?: string | null
+          mycroft_verdict?: string | null
+          peak_amplitude?: number | null
+          pitch_deviation?: number | null
+          pitch_stability?: string | null
+          pitch_variance?: number | null
+          player_id?: string | null
+          player_name?: string | null
+          question_id?: string | null
+          recording_duration_ms?: number | null
+          response_latency_ms?: number | null
+          room_id?: string | null
+          round_number?: number
+          session_id?: string | null
+          shimmer?: number | null
+          speech_rate_bpm?: number | null
+          speech_rate_deviation?: number | null
+          stress_level?: string | null
+          stress_score?: number | null
+          was_bluffing?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_recordings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_recordings_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_recordings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       votes: {
         Row: {
           created_at: string
