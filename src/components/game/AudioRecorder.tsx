@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import GoldButton from './GoldButton';
 import { 
   VoiceMetrics,
+  startForensicsSession,
   markRecordingStart,
   analyzeAudioFrame,
   finalizeForensicsSession 
@@ -110,6 +111,9 @@ export default function AudioRecorder({
     }
     
     try {
+      // CRITICAL: Start forensics session BEFORE recording to track metrics
+      startForensicsSession();
+      console.log('[AudioRecorder] 🔬 Forensics session started for Mycroft 2.0');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
