@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
-import trailerVideo from '@/assets/trailer-hero.mp4';
+import trailerVideo from '@/assets/trailer-multiplayer-demo.mp4';
 import { 
   Play, 
   Bot, 
@@ -82,21 +82,54 @@ const TechFeature = ({ icon, label, value }: TechFeatureProps) => (
 const TrailerSection = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const handlePlayClick = () => {
-    if (videoRef.current) {
+    if (videoRef.current && audioRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        audioRef.current.pause();
       } else {
         videoRef.current.play();
+        audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
     }
   };
 
+  const handleVideoEnd = () => {
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
   return (
     <section id="trailer" className="relative py-20 px-4">
+      {/* Hidden audio element for theme music */}
+      <audio
+        ref={audioRef}
+        src="/audio/horus/tema.mp3"
+        preload="auto"
+        loop
+      />
+
       <div className="max-w-5xl mx-auto">
+        {/* Section header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8"
+        >
+          <h2 className="font-orbitron text-3xl md:text-4xl font-bold text-foreground mb-2">
+            <span className="text-primary">DEMO</span> MULTIPLAYER
+          </h2>
+          <p className="text-muted-foreground">Veja uma partida real com análise do Mycroft</p>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -109,12 +142,10 @@ const TrailerSection = () => {
             ref={videoRef}
             src={trailerVideo}
             className="absolute inset-0 w-full h-full object-cover"
-            loop
-            muted
             playsInline
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
-            onEnded={() => setIsPlaying(false)}
+            onEnded={handleVideoEnd}
           />
 
           {/* Play overlay - only show when not playing */}
@@ -123,7 +154,7 @@ const TrailerSection = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer z-10"
+              className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer z-10"
               onClick={handlePlayClick}
             >
               <motion.div
@@ -133,8 +164,8 @@ const TrailerSection = () => {
               >
                 <Play className="w-12 h-12 text-primary ml-2" />
               </motion.div>
-              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">ASSISTIR TRAILER</h3>
-              <p className="text-muted-foreground">Clique para reproduzir</p>
+              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">ASSISTIR GAMEPLAY</h3>
+              <p className="text-muted-foreground">Com música tema original</p>
             </motion.div>
           )}
 
@@ -144,6 +175,31 @@ const TrailerSection = () => {
               className="absolute inset-0 cursor-pointer z-10" 
               onClick={handlePlayClick}
             />
+          )}
+
+          {/* Playing indicator */}
+          {isPlaying && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm"
+            >
+              <div className="flex gap-0.5">
+                {[...Array(4)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1 bg-primary rounded-full"
+                    animate={{ height: [8, 16, 8] }}
+                    transition={{
+                      duration: 0.5,
+                      repeat: Infinity,
+                      delay: i * 0.1,
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">Reproduzindo</span>
+            </motion.div>
           )}
           
           {/* Decorative corners */}
@@ -161,7 +217,7 @@ const TrailerSection = () => {
           transition={{ delay: 0.3 }}
           className="text-center text-muted-foreground text-sm mt-4"
         >
-          O Santuário de Hórus espera por você
+          O Santuário de Hórus espera por você • Gameplay real do modo multiplayer
         </motion.p>
       </div>
     </section>
