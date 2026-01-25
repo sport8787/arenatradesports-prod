@@ -1,9 +1,10 @@
 // Professional Landing Page for Millionaire Bluff Arena
 // Features: Hero, Trailer, Features, Mycroft Technology, CTAs
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
+import trailerVideo from '@/assets/trailer-hero.mp4';
 import { 
   Play, 
   Bot, 
@@ -73,6 +74,96 @@ const TechFeature = ({ icon, label, value }: TechFeatureProps) => (
     </div>
   </div>
 );
+
+// Trailer Section Component
+const TrailerSection = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handlePlayClick = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  return (
+    <section id="trailer" className="relative py-20 px-4">
+      <div className="max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="relative aspect-video rounded-2xl overflow-hidden border-2 border-primary/30 shadow-[0_0_60px_rgba(212,175,55,0.2)]"
+        >
+          {/* Video element */}
+          <video
+            ref={videoRef}
+            src={trailerVideo}
+            className="absolute inset-0 w-full h-full object-cover"
+            loop
+            muted
+            playsInline
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+          />
+
+          {/* Play overlay - only show when not playing */}
+          {!isPlaying && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer z-10"
+              onClick={handlePlayClick}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-24 h-24 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center mb-6 hover:bg-primary/40 transition-colors border border-primary/50"
+              >
+                <Play className="w-12 h-12 text-primary ml-2" />
+              </motion.div>
+              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">ASSISTIR TRAILER</h3>
+              <p className="text-muted-foreground">Clique para reproduzir</p>
+            </motion.div>
+          )}
+
+          {/* Click to pause when playing */}
+          {isPlaying && (
+            <div 
+              className="absolute inset-0 cursor-pointer z-10" 
+              onClick={handlePlayClick}
+            />
+          )}
+          
+          {/* Decorative corners */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-primary z-20 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-primary z-20 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-primary z-20 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-primary z-20 pointer-events-none" />
+        </motion.div>
+
+        {/* Video caption */}
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.3 }}
+          className="text-center text-muted-foreground text-sm mt-4"
+        >
+          O Santuário de Hórus espera por você
+        </motion.p>
+      </div>
+    </section>
+  );
+};
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -207,36 +298,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ TRAILER SECTION ============ */}
-      <section id="trailer" className="relative py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="relative aspect-video rounded-2xl overflow-hidden border-2 border-primary/30 shadow-[0_0_60px_rgba(212,175,55,0.2)]"
-          >
-            {/* Placeholder for video - replace with actual trailer */}
-            <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card flex flex-col items-center justify-center">
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center mb-6 cursor-pointer hover:bg-primary/30 transition-colors"
-              >
-                <Play className="w-12 h-12 text-primary ml-2" />
-              </motion.div>
-              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">TRAILER EM BREVE</h3>
-              <p className="text-muted-foreground">A experiência que vai redefinir game shows</p>
-            </div>
-            
-            {/* Decorative corners */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-primary" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-primary" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-primary" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-primary" />
-          </motion.div>
-        </div>
-      </section>
+      <TrailerSection />
 
       {/* ============ FEATURES SECTION ============ */}
       <section ref={featuresRef} className="relative py-20 px-4">
