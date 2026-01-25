@@ -97,12 +97,12 @@ export default function Index() {
     }
   }, [isAuthenticated, economy.loading, economy.dailyBonusAvailable]);
 
-  // Redirect to auth if not authenticated and not guest
+  // Redirect to landing if not authenticated and not guest
   useEffect(() => {
     if (!authLoading && !isAuthenticated && !isGuest) {
       const guestMode = sessionStorage.getItem('guestMode');
       if (guestMode !== 'true') {
-        navigate('/auth');
+        navigate('/');
       }
     }
   }, [isAuthenticated, authLoading, navigate, isGuest]);
