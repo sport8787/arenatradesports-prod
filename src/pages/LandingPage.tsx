@@ -1,5 +1,5 @@
 // Professional Landing Page for Millionaire Bluff Arena
-// Features: Hero, Trailer, Features, Mycroft Technology, CTAs
+// Features: Hero, Trailer, Features, Mycroft Technology, Testimonials, CTAs
 
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { HeroParticles } from '@/components/landing/HeroParticles';
+import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
+import { SocialFooter } from '@/components/landing/SocialFooter';
 
 // Feature card component
 interface FeatureCardProps {
@@ -188,7 +191,11 @@ export default function LandingPage() {
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-mycroft-green/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
+          
+          {/* Golden Particles */}
+          <HeroParticles />
         </div>
 
         <div className="relative z-10 max-w-6xl mx-auto text-center">
@@ -539,6 +546,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ============ TESTIMONIALS SECTION ============ */}
+      <TestimonialsSection />
+
       {/* ============ FINAL CTA SECTION ============ */}
       <section ref={ctaRef} className="relative py-20 px-4">
         <div className="absolute inset-0 bg-gradient-to-t from-primary/10 via-transparent to-transparent" />
@@ -572,28 +582,8 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ============ FOOTER ============ */}
-      <footer className="border-t border-border/50 py-8 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-orbitron text-lg font-bold text-primary">BLUFF</span>
-            <span className="font-orbitron text-lg font-bold text-foreground">ARENA</span>
-          </div>
-          
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <a href="/privacidade" className="hover:text-foreground transition-colors">Privacidade</a>
-            <span>•</span>
-            <a href="/como-jogar" className="hover:text-foreground transition-colors">Como Jogar</a>
-            <span>•</span>
-            <span>© 2025 Millionaire Bluff Arena</span>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Bot className="w-4 h-4 text-mycroft-green" />
-            <span>Powered by Mycroft AI</span>
-          </div>
-        </div>
-      </footer>
+      {/* ============ FOOTER WITH SOCIAL ============ */}
+      <SocialFooter />
     </div>
   );
 }
