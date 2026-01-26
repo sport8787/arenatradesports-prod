@@ -241,48 +241,43 @@ const TrailerSection = () => {
           <div className="absolute top-0 left-0 right-0 h-[8%] bg-gradient-to-b from-black to-transparent z-10 pointer-events-none" />
           <div className="absolute bottom-0 left-0 right-0 h-[8%] bg-gradient-to-t from-black to-transparent z-10 pointer-events-none" />
 
-          {/* Play overlay - only show when not started or paused */}
-          {!isPlaying && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer z-20"
-              onClick={handlePlayClick}
-            >
+          {/* Play overlay - ONLY show when trailer hasn't started yet */}
+          <AnimatePresence>
+            {!hasStarted && (
               <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-24 h-24 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center mb-6 hover:bg-primary/40 transition-colors border border-primary/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer z-20"
+                onClick={handlePlayClick}
               >
-                <Play className="w-12 h-12 text-primary ml-2" />
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-24 h-24 rounded-full bg-primary/30 backdrop-blur-sm flex items-center justify-center mb-6 hover:bg-primary/40 transition-colors border border-primary/50"
+                >
+                  <Play className="w-12 h-12 text-primary ml-2" />
+                </motion.div>
+                <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">
+                  ASSISTIR TRAILER COMPLETO
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  ~45 segundos • 9 cenas • Com música tema original
+                </p>
+                
+                {/* Scene indicator pills */}
+                <div className="flex gap-1.5 mt-4">
+                  {TRAILER_SCENES.map((_, index) => (
+                    <motion.div
+                      key={index}
+                      className="w-2 h-2 rounded-full bg-white/30"
+                    />
+                  ))}
+                </div>
               </motion.div>
-              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">
-                {hasStarted ? 'CONTINUAR TRAILER' : 'ASSISTIR TRAILER'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Reprodução automática • 9 cenas • Música tema
-              </p>
-              
-              {/* Scene indicator pills */}
-              <div className="flex gap-1.5 mt-4">
-                {TRAILER_SCENES.map((scene, index) => (
-                  <motion.div
-                    key={index}
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-all",
-                      index < currentSceneIndex 
-                        ? "bg-primary" 
-                        : index === currentSceneIndex 
-                          ? "bg-primary w-6" 
-                          : "bg-white/30"
-                    )}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
+            )}
+          </AnimatePresence>
 
           {/* Click to pause when playing */}
           {isPlaying && (
