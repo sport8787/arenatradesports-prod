@@ -10,6 +10,11 @@ import trailerSceneMycroft from '@/assets/trailer-scene-mycroft.mp4';
 import trailerSceneVoting from '@/assets/trailer-scene-voting.mp4';
 import trailerSceneVictory from '@/assets/trailer-scene-victory.mp4';
 import trailerSceneCaught from '@/assets/trailer-scene-caught.mp4';
+// New gameplay scenes
+import trailerSceneQuestion from '@/assets/trailer-scene-question.mp4';
+import trailerSceneRecording from '@/assets/trailer-scene-recording.mp4';
+import trailerSceneAnalysis from '@/assets/trailer-scene-analysis.mp4';
+import trailerSceneScoreboard from '@/assets/trailer-scene-scoreboard.mp4';
 import { 
   Play, 
   Pause,
@@ -34,12 +39,16 @@ import { HeroParticles } from '@/components/landing/HeroParticles';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { SocialFooter } from '@/components/landing/SocialFooter';
 
-// Trailer scenes configuration
+// Trailer scenes configuration - 9 scenes = ~45 seconds total
 const TRAILER_SCENES = [
   { src: trailerSceneTension, title: 'A Tensão', description: 'Jogador sob pressão' },
-  { src: trailerSceneMycroft, title: 'Mycroft Analisa', description: 'IA forense em ação' },
+  { src: trailerSceneQuestion, title: 'A Pergunta', description: 'Responda ou blefe' },
+  { src: trailerSceneRecording, title: 'Gravação', description: 'Defenda sua resposta' },
+  { src: trailerSceneMycroft, title: 'Mycroft', description: 'IA forense em ação' },
+  { src: trailerSceneAnalysis, title: 'Análise', description: 'Convicção detectada' },
   { src: trailerSceneVoting, title: 'Votação', description: 'O júri decide' },
-  { src: trailerSceneCaught, title: 'Blefe Detectado', description: 'Ninguém escapa' },
+  { src: trailerSceneScoreboard, title: 'Placar', description: 'BluffCoins em jogo' },
+  { src: trailerSceneCaught, title: 'Flagrante', description: 'Blefe detectado' },
   { src: trailerSceneVictory, title: 'Vitória', description: '1 Milhão de BC' },
 ];
 
@@ -195,7 +204,7 @@ const TrailerSection = () => {
           <h2 className="font-orbitron text-3xl md:text-4xl font-bold text-foreground mb-2">
             <span className="text-primary">TRAILER</span> CINEMATOGRÁFICO
           </h2>
-          <p className="text-muted-foreground">5 cenas épicas do gameplay multiplayer</p>
+          <p className="text-muted-foreground">9 cenas épicas do gameplay multiplayer • ~45 segundos</p>
         </motion.div>
 
         <motion.div
@@ -245,7 +254,7 @@ const TrailerSection = () => {
                 <Play className="w-12 h-12 text-primary ml-2" />
               </motion.div>
               <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">ASSISTIR TRAILER COMPLETO</h3>
-              <p className="text-muted-foreground mb-4">~25 segundos • Com música tema original</p>
+              <p className="text-muted-foreground mb-4">~45 segundos • 9 cenas • Com música tema original</p>
               
               {/* Scene preview thumbnails */}
               <div className="flex gap-2 mt-4">
