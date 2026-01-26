@@ -15,6 +15,8 @@ import trailerSceneQuestion from '@/assets/trailer-scene-question.mp4';
 import trailerSceneRecording from '@/assets/trailer-scene-recording.mp4';
 import trailerSceneAnalysis from '@/assets/trailer-scene-analysis.mp4';
 import trailerSceneScoreboard from '@/assets/trailer-scene-scoreboard.mp4';
+// Hero video
+import trailerHero from '@/assets/trailer-hero.mp4';
 import { 
   Play, 
   Pause,
@@ -41,15 +43,15 @@ import { SocialFooter } from '@/components/landing/SocialFooter';
 
 // Trailer scenes configuration - 9 scenes = ~45 seconds total
 const TRAILER_SCENES = [
-  { src: trailerSceneTension, title: 'A Tensão', description: 'Jogador sob pressão' },
-  { src: trailerSceneQuestion, title: 'A Pergunta', description: 'Responda ou blefe' },
+  { src: trailerSceneTension, title: 'Tensão', description: 'Jogador sob pressão' },
+  { src: trailerSceneQuestion, title: 'Pergunta', description: 'Responda ou blefe' },
   { src: trailerSceneRecording, title: 'Gravação', description: 'Defenda sua resposta' },
   { src: trailerSceneMycroft, title: 'Mycroft', description: 'IA forense em ação' },
   { src: trailerSceneAnalysis, title: 'Análise', description: 'Convicção detectada' },
   { src: trailerSceneVoting, title: 'Votação', description: 'O júri decide' },
   { src: trailerSceneScoreboard, title: 'Placar', description: 'BluffCoins em jogo' },
   { src: trailerSceneCaught, title: 'Flagrante', description: 'Blefe detectado' },
-  { src: trailerSceneVictory, title: 'Vitória', description: '1 Milhão de BC' },
+  { src: trailerSceneVictory, title: 'Vitória', description: '1 milhão de BC' },
 ];
 
 // Feature card component
@@ -103,18 +105,43 @@ const TechFeature = ({ icon, label, value }: TechFeatureProps) => (
   </div>
 );
 
-// Trailer Section Component - Full Cinematic Experience
+// Trailer Section Component - Full Cinematic Experience with Auto-play
 const TrailerSection = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentScene = TRAILER_SCENES[currentSceneIndex];
-  const totalDuration = TRAILER_SCENES.length * 5; // 5 seconds per scene = 25s total
+  const totalDuration = TRAILER_SCENES.length * 5; // 5 seconds per scene
 
+  // Auto-advance to next scene when video ends
+  const handleVideoEnd = useCallback(() => {
+    const nextIndex = currentSceneIndex + 1;
+    
+    if (nextIndex < TRAILER_SCENES.length) {
+      setCurrentSceneIndex(nextIndex);
+      setProgress((nextIndex / TRAILER_SCENES.length) * 100);
+    } else {
+      // Trailer finished - loop back to beginning
+      setCurrentSceneIndex(0);
+      setProgress(0);
+      setIsPlaying(false);
+      setHasStarted(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    }
+  }, [currentSceneIndex]);
+
+  // Start playing trailer
   const handlePlayClick = useCallback(() => {
     if (videoRef.current && audioRef.current) {
       if (isPlaying) {
@@ -126,10 +153,11 @@ const TrailerSection = () => {
       } else {
         videoRef.current.play();
         audioRef.current.play();
+        setHasStarted(true);
         // Start progress tracking
         progressIntervalRef.current = setInterval(() => {
           setProgress(prev => {
-            const newProgress = prev + (100 / (totalDuration * 10)); // Update every 100ms
+            const newProgress = prev + (100 / (totalDuration * 10));
             return newProgress >= 100 ? 100 : newProgress;
           });
         }, 100);
@@ -138,40 +166,16 @@ const TrailerSection = () => {
     }
   }, [isPlaying, totalDuration]);
 
-  const handleVideoEnd = useCallback(() => {
-    // Move to next scene
-    const nextIndex = currentSceneIndex + 1;
-    
-    if (nextIndex < TRAILER_SCENES.length) {
-      setCurrentSceneIndex(nextIndex);
-      // Auto-play next scene
-      setTimeout(() => {
-        if (videoRef.current && isPlaying) {
-          videoRef.current.play();
-        }
-      }, 100);
-    } else {
-      // Trailer finished - loop back
-      setCurrentSceneIndex(0);
-      setProgress(0);
-      setIsPlaying(false);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
+  // Auto-play video when scene changes
+  useEffect(() => {
+    if (hasStarted && videoRef.current) {
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        // Autoplay was prevented
+      });
     }
-  }, [currentSceneIndex, isPlaying]);
-
-  const handleSkipToScene = (index: number) => {
-    setCurrentSceneIndex(index);
-    setProgress((index / TRAILER_SCENES.length) * 100);
-    if (videoRef.current && isPlaying) {
-      setTimeout(() => videoRef.current?.play(), 100);
-    }
-  };
+  }, [currentSceneIndex, hasStarted]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -214,7 +218,7 @@ const TrailerSection = () => {
           transition={{ duration: 0.8 }}
           className="relative aspect-video rounded-2xl overflow-hidden border-2 border-primary/30 shadow-[0_0_60px_rgba(212,175,55,0.2)]"
         >
-          {/* Video element with scene transition */}
+          {/* Video element with smooth scene transitions */}
           <AnimatePresence mode="wait">
             <motion.video
               key={currentSceneIndex}
@@ -223,10 +227,10 @@ const TrailerSection = () => {
               className="absolute inset-0 w-full h-full object-cover"
               playsInline
               muted
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={handleVideoEnd}
@@ -237,12 +241,13 @@ const TrailerSection = () => {
           <div className="absolute top-0 left-0 right-0 h-[8%] bg-gradient-to-b from-black to-transparent z-10 pointer-events-none" />
           <div className="absolute bottom-0 left-0 right-0 h-[8%] bg-gradient-to-t from-black to-transparent z-10 pointer-events-none" />
 
-          {/* Play overlay - only show when not playing */}
+          {/* Play overlay - only show when not started or paused */}
           {!isPlaying && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
               className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center cursor-pointer z-20"
               onClick={handlePlayClick}
             >
@@ -253,29 +258,27 @@ const TrailerSection = () => {
               >
                 <Play className="w-12 h-12 text-primary ml-2" />
               </motion.div>
-              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">ASSISTIR TRAILER COMPLETO</h3>
-              <p className="text-muted-foreground mb-4">~45 segundos • 9 cenas • Com música tema original</p>
+              <h3 className="font-orbitron text-2xl font-bold text-foreground mb-2">
+                {hasStarted ? 'CONTINUAR TRAILER' : 'ASSISTIR TRAILER'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                Reprodução automática • 9 cenas • Música tema
+              </p>
               
-              {/* Scene preview thumbnails */}
-              <div className="flex gap-2 mt-4">
+              {/* Scene indicator pills */}
+              <div className="flex gap-1.5 mt-4">
                 {TRAILER_SCENES.map((scene, index) => (
-                  <motion.button
+                  <motion.div
                     key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSkipToScene(index);
-                    }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                      currentSceneIndex === index
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-white/10 text-white/70 hover:bg-white/20"
+                      "w-2 h-2 rounded-full transition-all",
+                      index < currentSceneIndex 
+                        ? "bg-primary" 
+                        : index === currentSceneIndex 
+                          ? "bg-primary w-6" 
+                          : "bg-white/30"
                     )}
-                  >
-                    {index + 1}. {scene.title}
-                  </motion.button>
+                  />
                 ))}
               </div>
             </motion.div>
@@ -292,43 +295,33 @@ const TrailerSection = () => {
           {/* Scene indicator and controls - visible when playing */}
           {isPlaying && (
             <>
-              {/* Current scene label */}
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute top-4 left-4 z-30"
-              >
-                <div className="px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm">
-                  <p className="text-xs text-muted-foreground">{currentSceneIndex + 1}/{TRAILER_SCENES.length}</p>
-                  <p className="font-orbitron text-sm font-bold text-primary">{currentScene.title}</p>
-                </div>
-              </motion.div>
+              {/* Current scene label with smooth transition */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSceneIndex}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute top-4 left-4 z-30"
+                >
+                  <div className="px-4 py-2 rounded-lg bg-black/70 backdrop-blur-sm border border-primary/30">
+                    <p className="text-xs text-muted-foreground">Cena {currentSceneIndex + 1} de {TRAILER_SCENES.length}</p>
+                    <p className="font-orbitron text-sm font-bold text-primary">{currentScene.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{currentScene.description}</p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
 
               {/* Pause button */}
               <motion.button
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 onClick={handlePlayClick}
-                className="absolute top-4 right-4 z-30 p-2 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-black/80 transition-colors"
+                className="absolute top-4 right-4 z-30 p-2 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-black/80 transition-colors border border-white/20"
               >
                 <Pause className="w-5 h-5 text-white" />
               </motion.button>
-
-              {/* Skip to next scene button */}
-              {currentSceneIndex < TRAILER_SCENES.length - 1 && (
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSkipToScene(currentSceneIndex + 1);
-                  }}
-                  className="absolute bottom-16 right-4 z-30 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-black/80 transition-colors"
-                >
-                  <span className="text-xs text-white">Próxima</span>
-                  <SkipForward className="w-4 h-4 text-white" />
-                </motion.button>
-              )}
 
               {/* Playing indicator with audio visualizer */}
               <motion.div
@@ -380,30 +373,29 @@ const TrailerSection = () => {
           <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-primary z-40 pointer-events-none" />
         </motion.div>
 
-        {/* Scene navigation dots */}
-        <div className="flex justify-center gap-2 mt-6">
+        {/* Scene progress indicators */}
+        <div className="flex justify-center gap-3 mt-6">
           {TRAILER_SCENES.map((scene, index) => (
-            <button
+            <motion.div
               key={index}
-              onClick={() => handleSkipToScene(index)}
-              className={cn(
-                "group flex flex-col items-center transition-all",
-                currentSceneIndex === index ? "scale-110" : "opacity-60 hover:opacity-100"
-              )}
+              className="flex flex-col items-center"
+              animate={currentSceneIndex === index ? { scale: 1.1 } : { scale: 1 }}
             >
               <div className={cn(
-                "w-3 h-3 rounded-full transition-all mb-1",
-                currentSceneIndex === index 
-                  ? "bg-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]" 
-                  : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"
+                "w-8 h-1 rounded-full transition-all mb-2",
+                index < currentSceneIndex 
+                  ? "bg-primary" 
+                  : index === currentSceneIndex 
+                    ? "bg-primary shadow-[0_0_10px_rgba(212,175,55,0.5)]" 
+                    : "bg-muted-foreground/20"
               )} />
               <span className={cn(
-                "text-[10px] transition-all",
-                currentSceneIndex === index ? "text-primary" : "text-muted-foreground"
+                "text-[10px] transition-all hidden md:block",
+                currentSceneIndex === index ? "text-primary font-medium" : "text-muted-foreground/50"
               )}>
                 {scene.title}
               </span>
-            </button>
+            </motion.div>
           ))}
         </div>
 
@@ -415,7 +407,7 @@ const TrailerSection = () => {
           transition={{ delay: 0.3 }}
           className="text-center text-muted-foreground text-sm mt-4"
         >
-          O Santuário de Hórus espera por você • Trailer cinematográfico completo
+          O Santuário de Hórus espera por você • Clique para iniciar a reprodução automática
         </motion.p>
       </div>
     </section>
@@ -441,12 +433,23 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* ============ HERO SECTION ============ */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 py-20">
-        {/* Background Effects */}
+        {/* Background Video - Sanctuary of Horus */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover opacity-30"
+          >
+            <source src={trailerHero} type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
+          <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-background" />
+          
+          {/* Animated glow effects */}
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse" />
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-mycroft-green/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
           
           {/* Golden Particles */}
           <HeroParticles />
