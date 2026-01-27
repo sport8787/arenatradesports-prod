@@ -27,6 +27,7 @@ import trailerSceneHorusTaunt from '@/assets/trailer-scene-horus-taunt.mp4';
 import trailerSceneAllin from '@/assets/trailer-scene-allin.mp4';
 // Hero video
 import trailerHero from '@/assets/trailer-hero.mp4';
+import trailerComplete from '@/assets/trailer-complete.mp4';
 import { 
   Play, 
   Pause,
@@ -237,7 +238,7 @@ const TrailerSection = () => {
           <h2 className="font-orbitron text-3xl md:text-4xl font-bold text-foreground mb-2">
             <span className="text-primary">TRAILER</span> CINEMATOGRÁFICO
           </h2>
-          <p className="text-muted-foreground">9 cenas épicas do gameplay multiplayer • ~45 segundos</p>
+          <p className="text-muted-foreground">17 cenas épicas do gameplay • ~85 segundos</p>
         </motion.div>
 
         <motion.div
@@ -438,12 +439,30 @@ const TrailerSection = () => {
           ))}
         </div>
 
+        {/* Download complete trailer button */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center mt-6"
+        >
+          <a
+            href={trailerComplete}
+            download="bluff-arena-trailer-completo.mp4"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded-xl font-orbitron text-sm text-primary transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
+          >
+            <Download className="w-5 h-5" />
+            BAIXAR TRAILER COMPLETO
+          </a>
+        </motion.div>
+
         {/* Video caption */}
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
           className="text-center text-muted-foreground text-sm mt-4"
         >
           O Santuário de Hórus espera por você • Clique para iniciar a reprodução automática
