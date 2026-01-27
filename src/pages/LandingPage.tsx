@@ -111,6 +111,7 @@ const TrailerSection = () => {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,8 +124,14 @@ const TrailerSection = () => {
     const nextIndex = currentSceneIndex + 1;
     
     if (nextIndex < TRAILER_SCENES.length) {
-      setCurrentSceneIndex(nextIndex);
-      setProgress((nextIndex / TRAILER_SCENES.length) * 100);
+      setIsTransitioning(true);
+      
+      // Small delay for transition effect
+      setTimeout(() => {
+        setCurrentSceneIndex(nextIndex);
+        setProgress((nextIndex / TRAILER_SCENES.length) * 100);
+        setIsTransitioning(false);
+      }, 300);
     } else {
       // Trailer finished - loop back to beginning
       setCurrentSceneIndex(0);
@@ -150,9 +157,12 @@ const TrailerSection = () => {
         if (progressIntervalRef.current) {
           clearInterval(progressIntervalRef.current);
         }
+        setIsPlaying(false);
       } else {
-        videoRef.current.play();
-        audioRef.current.play();
+        videoRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(console.error);
+        audioRef.current.play().catch(console.error);
         setHasStarted(true);
         // Start progress tracking
         progressIntervalRef.current = setInterval(() => {
@@ -162,20 +172,20 @@ const TrailerSection = () => {
           });
         }, 100);
       }
-      setIsPlaying(!isPlaying);
     }
   }, [isPlaying, totalDuration]);
 
-  // Auto-play video when scene changes
+  // Load and play new scene source when scene changes
   useEffect(() => {
-    if (hasStarted && videoRef.current) {
-      videoRef.current.play().then(() => {
+    if (hasStarted && videoRef.current && !isTransitioning) {
+      const video = videoRef.current;
+      video.src = currentScene.src;
+      video.load();
+      video.play().then(() => {
         setIsPlaying(true);
-      }).catch(() => {
-        // Autoplay was prevented
-      });
+      }).catch(console.error);
     }
-  }, [currentSceneIndex, hasStarted]);
+  }, [currentSceneIndex, hasStarted, currentScene.src, isTransitioning]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -218,24 +228,25 @@ const TrailerSection = () => {
           transition={{ duration: 0.8 }}
           className="relative aspect-video rounded-2xl overflow-hidden border-2 border-primary/30 shadow-[0_0_60px_rgba(212,175,55,0.2)]"
         >
-          {/* Video element with smooth scene transitions */}
-          <AnimatePresence mode="wait">
-            <motion.video
-              key={currentSceneIndex}
+{/* Video element - persistent to maintain ref */}
+          <motion.div
+            className="absolute inset-0"
+            animate={{ 
+              opacity: isTransitioning ? 0 : 1,
+              scale: isTransitioning ? 0.95 : 1
+            }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            <video
               ref={videoRef}
-              src={currentScene.src}
               className="absolute inset-0 w-full h-full object-cover"
               playsInline
               muted
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={handleVideoEnd}
             />
-          </AnimatePresence>
+          </motion.div>
 
           {/* Cinematic letterbox bars */}
           <div className="absolute top-0 left-0 right-0 h-[8%] bg-gradient-to-b from-black to-transparent z-10 pointer-events-none" />
