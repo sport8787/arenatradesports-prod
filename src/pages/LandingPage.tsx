@@ -42,7 +42,8 @@ import {
   Target,
   Video,
   Volume2,
-  SkipForward
+  SkipForward,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -335,15 +336,29 @@ const TrailerSection = () => {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Pause button */}
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={handlePlayClick}
-                className="absolute top-4 right-4 z-30 p-2 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-black/80 transition-colors border border-white/20"
-              >
-                <Pause className="w-5 h-5 text-white" />
-              </motion.button>
+              {/* Controls: Pause + Download */}
+              <div className="absolute top-4 right-4 z-30 flex gap-2">
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={handlePlayClick}
+                  className="p-2 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-black/80 transition-colors border border-white/20"
+                  title="Pausar"
+                >
+                  <Pause className="w-5 h-5 text-white" />
+                </motion.button>
+                <motion.a
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  href={currentScene.src}
+                  download={`bluff-arena-${currentScene.title.toLowerCase().replace(/\s+/g, '-')}.mp4`}
+                  className="p-2 rounded-lg bg-black/70 backdrop-blur-sm hover:bg-primary/30 transition-colors border border-white/20"
+                  title="Baixar cena atual"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="w-5 h-5 text-white" />
+                </motion.a>
+              </div>
 
               {/* Playing indicator with audio visualizer */}
               <motion.div
