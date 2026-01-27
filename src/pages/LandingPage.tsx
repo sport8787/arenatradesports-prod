@@ -20,6 +20,10 @@ import trailerSceneDetector from '@/assets/trailer-scene-detector.mp4';
 import trailerSceneRewards from '@/assets/trailer-scene-rewards.mp4';
 import trailerSceneBriefcase from '@/assets/trailer-scene-briefcase.mp4';
 import trailerSceneLobby from '@/assets/trailer-scene-lobby.mp4';
+// Dramatic scenes
+import trailerSceneElimination from '@/assets/trailer-scene-elimination.mp4';
+import trailerSceneBonusCard from '@/assets/trailer-scene-bonus-card.mp4';
+import trailerSceneHorusTaunt from '@/assets/trailer-scene-horus-taunt.mp4';
 // Hero video
 import trailerHero from '@/assets/trailer-hero.mp4';
 import { 
@@ -46,18 +50,21 @@ import { HeroParticles } from '@/components/landing/HeroParticles';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { SocialFooter } from '@/components/landing/SocialFooter';
 
-// Trailer scenes configuration - 13 scenes = ~65 seconds total
+// Trailer scenes configuration - 16 scenes = ~80 seconds total
 const TRAILER_SCENES = [
   { src: trailerSceneTension, title: 'Tensão', description: 'Jogador sob pressão' },
   { src: trailerSceneQuestion, title: 'Pergunta', description: 'Responda ou blefe' },
   { src: trailerSceneRecording, title: 'Gravação', description: 'Defenda sua resposta' },
   { src: trailerSceneDetector, title: 'Detector', description: 'Análise forense vocal' },
   { src: trailerSceneMycroft, title: 'Mycroft', description: 'IA forense em ação' },
+  { src: trailerSceneHorusTaunt, title: 'Hórus', description: 'Provocação sarcástica' },
   { src: trailerSceneAnalysis, title: 'Análise', description: 'Convicção detectada' },
   { src: trailerSceneVoting, title: 'Votação', description: 'O júri decide' },
   { src: trailerSceneLobby, title: 'Lobby', description: 'Modo multiplayer' },
   { src: trailerSceneScoreboard, title: 'Placar', description: 'BluffCoins em jogo' },
+  { src: trailerSceneBonusCard, title: 'Carta Bônus', description: 'Imunidade ativada' },
   { src: trailerSceneCaught, title: 'Flagrante', description: 'Blefe detectado' },
+  { src: trailerSceneElimination, title: 'Eliminação', description: 'Fim de jogo' },
   { src: trailerSceneBriefcase, title: 'Maleta', description: 'Escolha misteriosa' },
   { src: trailerSceneRewards, title: 'Prêmios', description: 'Recompensas épicas' },
   { src: trailerSceneVictory, title: 'Vitória', description: '1 milhão de BC' },
