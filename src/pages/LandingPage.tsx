@@ -25,6 +25,7 @@ import trailerSceneElimination from '@/assets/trailer-scene-elimination.mp4';
 import trailerSceneBonusCard from '@/assets/trailer-scene-bonus-card.mp4';
 import trailerSceneHorusTaunt from '@/assets/trailer-scene-horus-taunt.mp4';
 import trailerSceneAllin from '@/assets/trailer-scene-allin.mp4';
+import trailerSceneFacialAnalysis from '@/assets/trailer-scene-facial-analysis.mp4';
 // Hero video
 import trailerHero from '@/assets/trailer-hero.mp4';
 import trailerComplete from '@/assets/trailer-complete.mp4';
@@ -53,13 +54,14 @@ import { HeroParticles } from '@/components/landing/HeroParticles';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { SocialFooter } from '@/components/landing/SocialFooter';
 
-// Trailer scenes configuration - 17 scenes = ~85 seconds total
+// Trailer scenes configuration - 18 scenes = ~90 seconds total
 const TRAILER_SCENES = [
   { src: trailerSceneTension, title: 'Tensão', description: 'Jogador sob pressão' },
   { src: trailerSceneQuestion, title: 'Pergunta', description: 'Responda ou blefe' },
   { src: trailerSceneRecording, title: 'Gravação', description: 'Defenda sua resposta' },
   { src: trailerSceneDetector, title: 'Detector', description: 'Análise forense vocal' },
   { src: trailerSceneMycroft, title: 'Mycroft', description: 'IA forense em ação' },
+  { src: trailerSceneFacialAnalysis, title: 'Análise Facial', description: '478 pontos biométricos' },
   { src: trailerSceneHorusTaunt, title: 'Hórus', description: 'Provocação sarcástica' },
   { src: trailerSceneAnalysis, title: 'Análise', description: 'Convicção detectada' },
   { src: trailerSceneVoting, title: 'Votação', description: 'O júri decide' },
@@ -238,7 +240,7 @@ const TrailerSection = () => {
           <h2 className="font-orbitron text-3xl md:text-4xl font-bold text-foreground mb-2">
             <span className="text-primary">TRAILER</span> CINEMATOGRÁFICO
           </h2>
-          <p className="text-muted-foreground">17 cenas épicas do gameplay • ~85 segundos</p>
+          <p className="text-muted-foreground">18 cenas épicas do gameplay • ~90 segundos</p>
         </motion.div>
 
         <motion.div
