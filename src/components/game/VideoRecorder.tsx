@@ -2,6 +2,7 @@
  * VideoRecorder Component
  * Records video with webcam for Mycroft 2.0 facial analysis
  * Includes real-time face landmark tracking using MediaPipe FaceMesh
+ * Now with visual overlay showing 478 green biometric landmarks
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -9,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Video, VideoOff, Mic, MicOff, Circle, Square, Pause, Play, Upload, AlertCircle, Eye, Camera, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   startForensicsSession, 
@@ -29,6 +31,8 @@ import {
   destroyFaceMesh,
   isFaceMeshReady,
 } from '@/services/faceMeshService';
+import FaceLandmarksOverlay from './FaceLandmarksOverlay';
+import LiveBiometricIndicators from './LiveBiometricIndicators';
 
 interface VideoRecorderProps {
   roomId: string;
@@ -62,6 +66,15 @@ export default function VideoRecorder({
   const [isMicOn, setIsMicOn] = useState(true);
   const [faceDetected, setFaceDetected] = useState(false);
   const [faceMeshLoaded, setFaceMeshLoaded] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [currentLandmarks, setCurrentLandmarks] = useState<number[][] | null>(null);
+  const [liveBiometrics, setLiveBiometrics] = useState({
+    lipTension: 0,
+    blinkRate: 0,
+    gazeDirection: 'straight' as 'left' | 'right' | 'straight' | 'up' | 'down',
+    stressLevel: 0,
+  });
+  const [videoSize, setVideoSize] = useState({ width: 1280, height: 720 });
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -140,14 +153,24 @@ export default function VideoRecorder({
     if (landmarks) {
       setFaceDetected(true);
       lastLandmarksRef.current = landmarks;
+      setCurrentLandmarks(landmarks);
       
       // Analyze frame for facial forensics
       if (state === 'recording') {
-        analyzeVideoFrame(landmarks);
+        const frameAnalysis = analyzeVideoFrame(landmarks);
+        
+        // Update live biometric indicators
+        setLiveBiometrics({
+          lipTension: (frameAnalysis.stressIndicators.lipTension || 0) * 100,
+          blinkRate: 15, // Will be calculated from session data
+          gazeDirection: frameAnalysis.eyeGaze as 'left' | 'right' | 'straight' | 'up' | 'down',
+          stressLevel: frameAnalysis.stressIndicators.overallScore || 0,
+        });
       }
     } else {
       setFaceDetected(false);
       lastLandmarksRef.current = null;
+      setCurrentLandmarks(null);
     }
   }, [state]);
 
@@ -430,7 +453,23 @@ export default function VideoRecorder({
           className={`w-full h-full object-cover ${!isCameraOn ? 'hidden' : ''}`}
           playsInline
           muted
+          onLoadedMetadata={(e) => {
+            const video = e.target as HTMLVideoElement;
+            setVideoSize({ width: video.videoWidth || 1280, height: video.videoHeight || 720 });
+          }}
         />
+        
+        {/* Face Landmarks Overlay */}
+        {showOverlay && isCameraOn && currentLandmarks && state === 'recording' && (
+          <FaceLandmarksOverlay
+            landmarks={currentLandmarks}
+            width={videoSize.width}
+            height={videoSize.height}
+            showConnections={true}
+            highlightAnomalies={false}
+            isScanning={!faceDetected}
+          />
+        )}
         
         {/* Camera off overlay */}
         {!isCameraOn && state !== 'idle' && (
@@ -507,6 +546,16 @@ export default function VideoRecorder({
             )}
           </div>
         )}
+        
+        {/* Live Biometric Indicators */}
+        {state === 'recording' && mycroftConsent && faceDetected && (
+          <LiveBiometricIndicators
+            data={liveBiometrics}
+            isActive={true}
+            compact={true}
+            className="absolute bottom-4 right-4 max-w-[200px]"
+          />
+        )}
 
         {/* Hidden canvas for frame processing */}
         <canvas
@@ -555,6 +604,18 @@ export default function VideoRecorder({
         <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Overlay Toggle */}
+      {state === 'recording' && mycroftConsent && (
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-xs text-muted-foreground">Overlay de Landmarks</span>
+          <Switch
+            checked={showOverlay}
+            onCheckedChange={setShowOverlay}
+            className="data-[state=checked]:bg-success"
+          />
         </div>
       )}
 
