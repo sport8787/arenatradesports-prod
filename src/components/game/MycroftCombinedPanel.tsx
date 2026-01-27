@@ -1,7 +1,7 @@
 // Mycroft Combined Analysis Panel v2.0
 // Displays humanized reading + technical feedback for vocal + facial analysis
 // Used by jury in multiplayer mode
-// Now includes TTS audio playback like presenter mode
+// Now includes TTS audio playback and PNL Timeline visualization
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,19 +25,26 @@ import { Button } from '@/components/ui/button';
 import type { CombinedReading } from '@/services/mycroftCombinedReadingService';
 import { generateCombinedReadingText } from '@/services/mycroftCombinedReadingService';
 import { playMycroftVerdict } from '@/services/presenterAudioService';
+import type { VideoForensicsResult } from '@/services/videoForensicsService';
+import PNLTimelinePanel from './PNLTimelinePanel';
 
 interface MycroftCombinedPanelProps {
   reading: CombinedReading;
   showTechnicalDetails?: boolean;
+  videoMetrics?: VideoForensicsResult;
+  recordingDurationMs?: number;
   className?: string;
 }
 
 export function MycroftCombinedPanel({ 
   reading, 
   showTechnicalDetails = true,
+  videoMetrics,
+  recordingDurationMs = 30000,
   className 
 }: MycroftCombinedPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // Zone configuration
@@ -247,6 +254,37 @@ export function MycroftCombinedPanel({
                 <div className="mt-2 text-[10px] text-muted-foreground text-center">
                   Combinado = 60% Vocal + 40% Facial
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* PNL Timeline Panel */}
+      {videoMetrics && videoMetrics.timeline && videoMetrics.timeline.length > 0 && (
+        <div className="pt-2 border-t border-border/50">
+          <button
+            onClick={() => setShowTimeline(!showTimeline)}
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+          >
+            <Activity className="w-3 h-3" />
+            Ver Timeline PNL
+            {showTimeline ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          <AnimatePresence>
+            {showTimeline && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <PNLTimelinePanel
+                  timeline={videoMetrics.timeline}
+                  durationMs={recordingDurationMs}
+                  pnlAnalysis={videoMetrics.pnlAnalysis}
+                />
               </motion.div>
             )}
           </AnimatePresence>
