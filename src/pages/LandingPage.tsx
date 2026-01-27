@@ -24,6 +24,7 @@ import trailerSceneLobby from '@/assets/trailer-scene-lobby.mp4';
 import trailerSceneElimination from '@/assets/trailer-scene-elimination.mp4';
 import trailerSceneBonusCard from '@/assets/trailer-scene-bonus-card.mp4';
 import trailerSceneHorusTaunt from '@/assets/trailer-scene-horus-taunt.mp4';
+import trailerSceneAllin from '@/assets/trailer-scene-allin.mp4';
 // Hero video
 import trailerHero from '@/assets/trailer-hero.mp4';
 import { 
@@ -51,7 +52,7 @@ import { HeroParticles } from '@/components/landing/HeroParticles';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { SocialFooter } from '@/components/landing/SocialFooter';
 
-// Trailer scenes configuration - 16 scenes = ~80 seconds total
+// Trailer scenes configuration - 17 scenes = ~85 seconds total
 const TRAILER_SCENES = [
   { src: trailerSceneTension, title: 'Tensão', description: 'Jogador sob pressão' },
   { src: trailerSceneQuestion, title: 'Pergunta', description: 'Responda ou blefe' },
@@ -67,6 +68,7 @@ const TRAILER_SCENES = [
   { src: trailerSceneCaught, title: 'Flagrante', description: 'Blefe detectado' },
   { src: trailerSceneElimination, title: 'Eliminação', description: 'Fim de jogo' },
   { src: trailerSceneBriefcase, title: 'Maleta', description: 'Escolha misteriosa' },
+  { src: trailerSceneAllin, title: 'ALL-IN', description: '1 milhão em jogo' },
   { src: trailerSceneRewards, title: 'Prêmios', description: 'Recompensas épicas' },
   { src: trailerSceneVictory, title: 'Vitória', description: '1 milhão de BC' },
 ];
