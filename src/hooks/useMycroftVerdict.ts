@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Question } from '@/types/game';
+import { VoiceMetrics } from '@/services/audioForensicsService';
 
 export interface VerdictMetrics {
   responseTimeMs: number;
@@ -25,6 +26,8 @@ export interface VerdictReport {
   recommendation: string;
   fullVerdict: string;
   questionContext?: QuestionContext;
+  charCount?: number;
+  withinLimit?: boolean;
 }
 
 // Generate random protocol code
@@ -110,10 +113,11 @@ export function useMycroftVerdict() {
     setMetrics(prev => ({ ...prev, audioRecordingDuration: durationMs }));
   }, []);
 
-  // Generate verdict using AI with actual question context
+  // Generate verdict with ACTUAL voiceMetrics
   const generateVerdict = useCallback(async (
     question: Question,
-    userResponse: 'A' | 'B' | 'C' | 'D'
+    userResponse: 'A' | 'B' | 'C' | 'D',
+    voiceMetrics?: VoiceMetrics
   ): Promise<VerdictReport> => {
     setIsGenerating(true);
     
@@ -132,7 +136,7 @@ export function useMycroftVerdict() {
     const riskLevel = calculateRiskLevel(metrics);
     
     try {
-      // Call the AI edge function for fact-checked verdict
+      // Now passes voiceMetrics to edge function
       const { data, error } = await supabase.functions.invoke('mycroft-ai', {
         body: {
           type: 'verdict',
@@ -144,6 +148,18 @@ export function useMycroftVerdict() {
             successfulBluffs: metrics.successfulBluffs,
             caughtBluffs: metrics.caughtBluffs,
           },
+          // Pass complete voice forensics data
+          voiceMetrics: voiceMetrics ? {
+            responseLatencyMs: voiceMetrics.responseLatencyMs,
+            pitchStability: voiceMetrics.pitchStability,
+            speechRateBPM: voiceMetrics.speechRateBPM,
+            avgPitch: voiceMetrics.avgPitch,
+            pitchVariance: voiceMetrics.pitchVariance,
+            jitter: voiceMetrics.jitter,
+            shimmer: voiceMetrics.shimmer,
+            harmonicsToNoise: voiceMetrics.harmonicsToNoise,
+            recordingDurationMs: voiceMetrics.recordingDurationMs,
+          } : undefined,
         },
       });
       
@@ -153,6 +169,18 @@ export function useMycroftVerdict() {
       }
       
       const aiVerdict = data?.verdict || '';
+      const charCount = data?.charCount;
+      const withinLimit = data?.withinLimit;
+      
+      // Log if we received forensic data in the verdict
+      if (voiceMetrics) {
+        console.log('✅ VoiceMetrics sent to edge function:', {
+          latency: voiceMetrics.responseLatencyMs,
+          jitter: voiceMetrics.jitter,
+          shimmer: voiceMetrics.shimmer,
+          pitch: voiceMetrics.avgPitch,
+        });
+      }
       
       // Validate the verdict contains relevant keywords
       const userKeyword = userResponseText.split(' ')[0]?.toLowerCase() || '';
@@ -163,7 +191,10 @@ export function useMycroftVerdict() {
         verdictLower.includes(userKeyword) || 
         verdictLower.includes(correctKeyword) ||
         verdictLower.includes('protocolo') ||
-        verdictLower.includes(isCorrect ? 'corret' : 'incorret');
+        verdictLower.includes(isCorrect ? 'corret' : 'incorret') ||
+        verdictLower.includes('latência') || // Check for forensic terms
+        verdictLower.includes('jitter') ||
+        verdictLower.includes('pitch');
       
       if (!isValid && aiVerdict) {
         console.warn('AI verdict failed validation, using fallback');
@@ -176,7 +207,8 @@ export function useMycroftVerdict() {
         correctAnswerText,
         isCorrect,
         metrics,
-        protocolCode
+        protocolCode,
+        voiceMetrics
       );
       
       // Parse analysis from verdict
@@ -196,6 +228,16 @@ export function useMycroftVerdict() {
         analysis.push('Resposta correta confirmada.');
       }
       
+      // Add voice metrics to analysis if available
+      if (voiceMetrics) {
+        if (voiceMetrics.jitter && voiceMetrics.jitter > 1.5) {
+          analysis.push(`Jitter vocal elevado: ${voiceMetrics.jitter.toFixed(2)}%.`);
+        }
+        if (voiceMetrics.pitchStability === 'unstable') {
+          analysis.push('Instabilidade vocal detectada.');
+        }
+      }
+      
       const recommendation = isCorrect 
         ? 'Veracidade técnica validada. Nenhuma anomalia crítica detectada.'
         : 'Erro registrado. Credibilidade em análise.';
@@ -210,6 +252,8 @@ export function useMycroftVerdict() {
         recommendation,
         fullVerdict: finalVerdict,
         questionContext,
+        charCount,
+        withinLimit,
       };
     } catch (error) {
       console.error('Failed to generate AI verdict, using fallback:', error);
@@ -222,7 +266,8 @@ export function useMycroftVerdict() {
         correctAnswerText,
         isCorrect,
         metrics,
-        protocolCode
+        protocolCode,
+        voiceMetrics
       );
       
       const analysis: string[] = [];
@@ -230,6 +275,16 @@ export function useMycroftVerdict() {
         analysis.push(`Erro factual: respondeu "${userResponseText}" quando a correta era "${correctAnswerText}".`);
       } else {
         analysis.push('Resposta correta confirmada.');
+      }
+      
+      // Add voice metrics to analysis if available
+      if (voiceMetrics) {
+        if (voiceMetrics.jitter && voiceMetrics.jitter > 1.5) {
+          analysis.push(`Jitter vocal elevado: ${voiceMetrics.jitter.toFixed(2)}%.`);
+        }
+        if (voiceMetrics.responseLatencyMs && voiceMetrics.responseLatencyMs < 1500) {
+          analysis.push(`Resposta muito rápida: ${voiceMetrics.responseLatencyMs}ms.`);
+        }
       }
       
       return {
@@ -266,14 +321,15 @@ export function useMycroftVerdict() {
   };
 }
 
-// Generate a fallback verdict based strictly on actual game data
+// Generate a fallback verdict with voice forensics data
 function generateFallbackVerdict(
   question: Question,
   userResponseText: string,
   correctAnswerText: string,
   isCorrect: boolean,
   metrics: VerdictMetrics,
-  protocolCode: string
+  protocolCode: string,
+  voiceMetrics?: VoiceMetrics
 ): string {
   const timeAnalysis = metrics.responseTimeMs > 10000 
     ? 'Sobrecarga Cognitiva detectada.' 
@@ -289,5 +345,33 @@ function generateFallbackVerdict(
     ? `Histórico: ${metrics.successfulBluffs} blefes bem-sucedidos, ${metrics.caughtBluffs} flagras.`
     : '';
   
-  return `${protocolCode} ${timeAnalysis} ${factCheck} ${bluffHistory}`.trim();
+  // Add voice forensics data if available
+  let voiceAnalysis = '';
+  if (voiceMetrics) {
+    const forensicData: string[] = [];
+    
+    if (voiceMetrics.responseLatencyMs !== undefined) {
+      forensicData.push(`Latência: ${voiceMetrics.responseLatencyMs}ms`);
+    }
+    
+    if (voiceMetrics.jitter !== undefined) {
+      forensicData.push(`Jitter: ${voiceMetrics.jitter.toFixed(2)}%`);
+    }
+    
+    if (voiceMetrics.pitchStability) {
+      const stabilityLabel = voiceMetrics.pitchStability === 'stable' ? 'estável' : 
+                             voiceMetrics.pitchStability === 'micro-tremors' ? 'micro-tremores' : 'instável';
+      forensicData.push(`Pitch: ${stabilityLabel}`);
+    }
+    
+    if (voiceMetrics.speechRateBPM !== undefined) {
+      forensicData.push(`Velocidade: ${voiceMetrics.speechRateBPM} wpm`);
+    }
+    
+    if (forensicData.length > 0) {
+      voiceAnalysis = `Análise Forense: ${forensicData.join(', ')}.`;
+    }
+  }
+  
+  return `${protocolCode} ${timeAnalysis} ${factCheck} ${voiceAnalysis} ${bluffHistory}`.trim();
 }
