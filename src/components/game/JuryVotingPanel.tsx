@@ -2,9 +2,23 @@
 // Shows 3 juror cards with their votes, confidence, and reasoning
 // Includes dramatic animations: confetti for CONVENCEU, shake for NÃO CONVENCEU
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign, Sparkles } from 'lucide-react';
+
+// Local audio files for verdict sounds (no API costs)
+const VERDICT_SOUNDS = {
+  victory: [
+    '/audio/horus/vitoria.mp3',
+    '/audio/horus/vitoria2.mp3',
+    '/audio/horus/vitoria3.mp3',
+    '/audio/horus/vitoria4.mp3',
+  ],
+  defeat: [
+    '/audio/horus/derrota.mp3',
+    '/audio/horus/derrota2.mp3',
+  ],
+};
 import type { JuryVerdict, JuryVote, JurorProfile } from '@/services/juryClaudeService';
 
 interface JuryVotingPanelProps {
@@ -192,6 +206,22 @@ const JurorCard: React.FC<{
 const VerdictBanner: React.FC<{ verdict: JuryVerdict }> = ({ verdict }) => {
   const claroCount = verdict.votes.filter(v => v.vote === 'CLARO').length;
   const [showEffects, setShowEffects] = useState(false);
+  const audioPlayedRef = useRef(false);
+  
+  // Play verdict sound effect
+  useEffect(() => {
+    if (audioPlayedRef.current) return;
+    audioPlayedRef.current = true;
+    
+    const sounds = verdict.convicted ? VERDICT_SOUNDS.victory : VERDICT_SOUNDS.defeat;
+    const randomSound = sounds[Math.floor(Math.random() * sounds.length)];
+    
+    const audio = new Audio(randomSound);
+    audio.volume = 0.7;
+    audio.play().catch(() => {
+      // Silently fail if audio can't play
+    });
+  }, [verdict.convicted]);
   
   // Trigger effects after initial animation
   useEffect(() => {
