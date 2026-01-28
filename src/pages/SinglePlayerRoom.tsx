@@ -960,30 +960,25 @@ function SinglePlayerRoomContent() {
       let gazeDeviation = 'straight';
       let facialTension = 30;
       
-      if (voiceMetrics || videoMetrics) {
+      // CRITICAL: Use REAL voice metrics, never simulated defaults
+      if (voiceMetrics) {
+        console.log('[SinglePlayer] 🔬 REAL voice metrics captured:', {
+          responseLatencyMs: voiceMetrics.responseLatencyMs,
+          jitter: voiceMetrics.jitter,
+          shimmer: voiceMetrics.shimmer,
+          pitchStability: voiceMetrics.pitchStability,
+          speechContinuity: voiceMetrics.speechContinuity,
+          silentPeriods: voiceMetrics.silentPeriods,
+          fillerWordsCount: voiceMetrics.fillerWordsCount,
+          longestPause: voiceMetrics.longestPause,
+        });
+        
         try {
-          const reading = generateCombinedReading(
-            voiceMetrics || {
-              responseLatencyMs: 3000,
-              pitchStability: 'stable' as const,
-              speechRateBPM: 120,
-              avgPitch: 150,
-              pitchVariance: 10,
-              peakAmplitude: 0.5,
-              recordingDurationMs: 10000,
-              jitter: 0.5,
-              jitterAbsolute: 0.01,
-              shimmer: 2,
-              harmonicsToNoise: 10,
-              silentPeriods: 0,
-              longestPause: 0,
-              fillerWordsCount: 0,
-              speechContinuity: 80,
-            },
-            videoMetrics || null
-          );
+          const reading = generateCombinedReading(voiceMetrics, videoMetrics || null);
           setMycroftCombinedReading(reading);
           combinedScore = reading.combinedScore;
+          
+          console.log('[SinglePlayer] 🎯 Mycroft combined score from REAL data:', combinedScore);
           
           // Extract facial data if available
           if (videoMetrics) {
@@ -994,6 +989,8 @@ function SinglePlayerRoomContent() {
         } catch (err) {
           console.error('[SinglePlayer] Mycroft reading error:', err);
         }
+      } else {
+        console.warn('[SinglePlayer] ⚠️ No voice metrics available - analysis will be limited');
       }
       
       const juryRequest = {
@@ -1018,10 +1015,16 @@ function SinglePlayerRoomContent() {
         },
       };
       
-      console.log('[SinglePlayer] 📊 Sending to AI Jury:', {
+      console.log('[SinglePlayer] 📊 Sending to AI Jury with REAL biometric data:', {
         transcription: juryRequest.transcription.substring(0, 50) + '...',
         stressScore: juryRequest.mycroftAnalysis.stressScore,
         combinedScore: juryRequest.mycroftAnalysis.combinedScore,
+        vocalJitter: juryRequest.mycroftAnalysis.vocalJitter,
+        silentPeriods: juryRequest.mycroftAnalysis.silentPeriods,
+        fillerWordsCount: juryRequest.mycroftAnalysis.fillerWordsCount,
+        speechContinuity: juryRequest.mycroftAnalysis.speechContinuity,
+        longestPause: juryRequest.mycroftAnalysis.longestPause,
+        confidenceTone: juryRequest.mycroftAnalysis.confidenceTone,
         hasVideoMetrics: !!videoMetrics,
       });
       

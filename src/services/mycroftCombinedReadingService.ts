@@ -398,60 +398,129 @@ export function generateCombinedReading(
 }
 
 /**
- * Simple vocal score calculation (legacy, without baseline)
+ * Improved vocal score calculation - more sensitive to real stress signals
+ * Higher score = more suspicious/bluff-like
+ * CRITICAL: Uses REAL metrics, not simulated defaults
  */
 function calculateSimpleVocalScore(metrics: VoiceMetrics): number {
   let score = 0;
   let factors = 0;
 
-  // Response latency
+  console.log('[MycroftCombinedReading] 🔬 Calculating vocal score from REAL metrics:', {
+    responseLatencyMs: metrics.responseLatencyMs,
+    pitchStability: metrics.pitchStability,
+    jitter: metrics.jitter,
+    shimmer: metrics.shimmer,
+    speechRateBPM: metrics.speechRateBPM,
+    silentPeriods: metrics.silentPeriods,
+    fillerWordsCount: metrics.fillerWordsCount,
+    speechContinuity: metrics.speechContinuity,
+  });
+
+  // Response latency - REFINED thresholds
+  // Very fast (<800ms) = suspicious (prepared answer)
+  // Fast (800-1500ms) = confident
+  // Normal (1500-3000ms) = thinking
+  // Slow (3000-5000ms) = hesitating  
+  // Very slow (>5000ms) = struggling
   if (metrics.responseLatencyMs !== undefined) {
     const latency = metrics.responseLatencyMs;
-    if (latency < 1500) score += 65;
-    else if (latency < 3000) score += 35;
-    else if (latency < 5000) score += 20;
-    else if (latency < 8000) score += 40;
-    else score += 60;
+    if (latency < 800) score += 55; // Too fast, possibly rehearsed
+    else if (latency < 1500) score += 20; // Natural confidence
+    else if (latency < 3000) score += 35; // Thinking (normal)
+    else if (latency < 5000) score += 55; // Hesitating
+    else score += 75; // Struggling significantly
     factors++;
   }
 
-  // Pitch stability
+  // Pitch stability - SENSITIVE thresholds
   if (metrics.pitchStability !== undefined) {
     if (metrics.pitchStability === 'stable') score += 15;
-    else if (metrics.pitchStability === 'micro-tremors') score += 50;
-    else score += 75;
+    else if (metrics.pitchStability === 'micro-tremors') score += 55; // Increased sensitivity
+    else score += 80; // Unstable = high stress
     factors++;
   }
 
-  // Jitter
+  // Jitter - REFINED thresholds (lower is better)
+  // Normal speech: 0.2-0.5%, Stress: >1%, High stress: >2%
   if (metrics.jitter !== undefined) {
-    if (metrics.jitter < 0.5) score += 10;
-    else if (metrics.jitter < 1.0) score += 35;
-    else if (metrics.jitter < 2.0) score += 60;
-    else score += 80;
+    if (metrics.jitter < 0.3) score += 10; // Very stable
+    else if (metrics.jitter < 0.7) score += 25; // Normal
+    else if (metrics.jitter < 1.2) score += 50; // Moderate stress
+    else if (metrics.jitter < 2.0) score += 70; // High stress
+    else score += 90; // Extreme instability
     factors++;
   }
 
-  // Shimmer
+  // Shimmer - REFINED thresholds
   if (metrics.shimmer !== undefined) {
-    if (metrics.shimmer < 3) score += 10;
-    else if (metrics.shimmer < 6) score += 40;
-    else if (metrics.shimmer < 10) score += 65;
-    else score += 85;
+    if (metrics.shimmer < 2) score += 10; // Very stable amplitude
+    else if (metrics.shimmer < 4) score += 30; // Normal
+    else if (metrics.shimmer < 7) score += 55; // Noticeable variation
+    else if (metrics.shimmer < 12) score += 75; // High variation
+    else score += 90; // Extreme
     factors++;
   }
 
-  // Speech rate
+  // Speech rate - too slow or too fast indicates stress
   if (metrics.speechRateBPM !== undefined) {
     const rate = metrics.speechRateBPM;
-    if (rate < 80) score += 55;
-    else if (rate < 120) score += 20;
-    else if (rate < 180) score += 40;
-    else score += 70;
+    if (rate < 60) score += 70; // Very slow = struggling
+    else if (rate < 90) score += 50; // Slow = hesitant
+    else if (rate < 140) score += 20; // Normal pace
+    else if (rate < 180) score += 45; // Fast = nervous
+    else score += 75; // Very fast = panicking
     factors++;
   }
 
-  return factors > 0 ? Math.round(score / factors) : 50;
+  // NEW: Speech fluency metrics - HIGHLY SENSITIVE
+  // Silent periods (pauses > 1 second)
+  if (metrics.silentPeriods !== undefined) {
+    if (metrics.silentPeriods === 0) score += 10;
+    else if (metrics.silentPeriods === 1) score += 35;
+    else if (metrics.silentPeriods === 2) score += 55;
+    else if (metrics.silentPeriods <= 4) score += 75;
+    else score += 90; // Many pauses = extreme hesitation
+    factors++;
+  }
+
+  // Filler words (uhm, ahh patterns)
+  if (metrics.fillerWordsCount !== undefined) {
+    if (metrics.fillerWordsCount === 0) score += 10;
+    else if (metrics.fillerWordsCount <= 2) score += 40;
+    else if (metrics.fillerWordsCount <= 4) score += 60;
+    else if (metrics.fillerWordsCount <= 6) score += 80;
+    else score += 95; // Excessive hesitation markers
+    factors++;
+  }
+
+  // Speech continuity score (0-100, higher = better)
+  if (metrics.speechContinuity !== undefined) {
+    const continuity = metrics.speechContinuity;
+    if (continuity >= 85) score += 10; // Excellent fluency
+    else if (continuity >= 70) score += 25; // Good
+    else if (continuity >= 50) score += 50; // Moderate breaks
+    else if (continuity >= 30) score += 75; // Choppy speech
+    else score += 95; // Very fragmented = high stress
+    factors++;
+  }
+
+  // Longest pause (in ms)
+  if (metrics.longestPause !== undefined && metrics.longestPause > 0) {
+    const pauseSeconds = metrics.longestPause / 1000;
+    if (pauseSeconds < 0.5) score += 10;
+    else if (pauseSeconds < 1.5) score += 30;
+    else if (pauseSeconds < 3) score += 55;
+    else if (pauseSeconds < 5) score += 75;
+    else score += 90; // Very long pause = thinking hard or struggling
+    factors++;
+  }
+
+  const finalScore = factors > 0 ? Math.round(score / factors) : 50;
+  
+  console.log('[MycroftCombinedReading] 📊 Final vocal suspicion score:', finalScore, '(from', factors, 'factors)');
+  
+  return finalScore;
 }
 
 /**
