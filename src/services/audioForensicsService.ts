@@ -75,17 +75,25 @@ export function analyzeAudioFrame(analyserNode: AnalyserNode): void {
   const timeData = new Uint8Array(analyserNode.fftSize);
   analyserNode.getByteTimeDomainData(timeData);
 
-  // Estimate fundamental pitch from frequency data
-  const pitch = estimatePitch(frequencyData, analyserNode.context.sampleRate);
-  // Store per-frame pitch, including 0 for unvoiced/silence.
+  // Calculate RMS amplitude FIRST (most reliable silence indicator)
+  const amplitude = calculateRMS(timeData);
+  currentSession.amplitudeSamples.push(amplitude);
+  
+  // CRITICAL FIX: Use amplitude threshold to determine if voice is present
+  // RMS values typically: silence ~0.001-0.01, soft speech ~0.02-0.08, normal ~0.1-0.3
+  const isVoicePresent = amplitude > 0.015; // Lower threshold for sensitivity
+  
+  // Only estimate pitch if voice is present (amplitude above noise floor)
+  let pitch = 0;
+  if (isVoicePresent) {
+    pitch = estimatePitch(frequencyData, analyserNode.context.sampleRate);
+  }
+  
+  // Store per-frame pitch, 0 = silence/unvoiced
   currentSession.pitchFrameSamples.push(pitch);
   if (pitch > 0) {
     currentSession.pitchSamples.push(pitch);
   }
-
-  // Calculate RMS amplitude
-  const amplitude = calculateRMS(timeData);
-  currentSession.amplitudeSamples.push(amplitude);
   
   // DEBUG: Log every 30 frames (~0.5s) to verify capture is working
   frameCounter++;
@@ -93,9 +101,10 @@ export function analyzeAudioFrame(analyserNode: AnalyserNode): void {
     console.log('[AudioForensics] 🎤 CAPTURE:', {
       frame: frameCounter,
       amplitude: amplitude.toFixed(4),
+      isVoice: isVoicePresent ? '🗣️' : '🔇',
       pitch: pitch > 0 ? pitch.toFixed(0) + 'Hz' : 'silent',
       totalSamples: currentSession.amplitudeSamples.length,
-      pitchSamples: currentSession.pitchSamples.length,
+      silentFrames: currentSession.pitchFrameSamples.filter(p => p === 0).length,
     });
   }
 }
@@ -119,8 +128,10 @@ function estimatePitch(frequencyData: Float32Array, sampleRate: number): number 
   // Convert bin to frequency
   const frequency = (maxIndex * sampleRate) / (frequencyData.length * 2);
   
-  // Filter out noise (only return if signal is strong enough)
-  return maxValue > -60 ? frequency : 0;
+  // CRITICAL FIX: Stricter threshold (-40 dB instead of -60 dB)
+  // -40 dB means the signal must be ~10x stronger to be considered "voice"
+  // -100 dB = silence, -40 dB = moderate voice, 0 dB = loud
+  return maxValue > -40 ? frequency : 0;
 }
 
 // Calculate RMS amplitude
