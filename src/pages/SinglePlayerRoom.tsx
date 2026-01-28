@@ -108,6 +108,9 @@ import { useMLDataPersistence } from '@/hooks/useMLDataPersistence';
 // Júri IA - Claude Sonnet 4 powered (Single Player only)
 import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict, type JuryVoteRequest } from '@/services/juryClaudeService';
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
+// Biometric Calibration (polygraph-style baseline)
+import { BiometricCalibrationFlow } from '@/components/game/BiometricCalibrationFlow';
+import { hasValidBaseline, compareToBaseline, getBaselineSummary, CALIBRATION_BONUS_BC } from '@/services/biometricCalibrationService';
 // ElevenLabs STT - DISABLED for cost reasons (using free speech fluency metrics instead)
 // import { transcribeAudioFromUrl, calculateSpeechMetrics, type TranscriptionResult } from '@/services/elevenLabsSTTService';
 
@@ -199,7 +202,8 @@ const generateBriefcasePrize = (): number => {
 
 // IMPORTANT: 'bribe_offer' must come BEFORE 'voting_simulation' to prevent spoilers
 // 'jury_deliberation' comes after vote_reveal for AI jury analysis
-type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'jury_deliberation' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+// 'calibration' is optional pre-game phase for polygraph-style baseline
+type GamePhase = 'nickname' | 'calibration' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'jury_deliberation' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 // Wrapper component that provides NarrativeContext
 export default function SinglePlayerRoom() {
@@ -311,6 +315,10 @@ function SinglePlayerRoomContent() {
   const [mycroftCombinedReading, setMycroftCombinedReading] = useState<CombinedReading | null>(null);
   const [showMycroftCombinedPanel, setShowMycroftCombinedPanel] = useState(false);
   const [isMicCalibrated, setIsMicCalibrated] = useState(false);
+  
+  // Biometric calibration state
+  const [showCalibrationFlow, setShowCalibrationFlow] = useState(false);
+  const [hasCalibration, setHasCalibration] = useState(() => hasValidBaseline());
   
   // LGPD Consent state for Mycroft voice analysis
   const [showMycroftConsent, setShowMycroftConsent] = useState(false);
@@ -570,6 +578,39 @@ function SinglePlayerRoomContent() {
     }
   }, []);
 
+  // Handle calibration completion
+  const handleCalibrationComplete = async (calibrated: boolean, bonusBC: number) => {
+    setShowCalibrationFlow(false);
+    setHasCalibration(calibrated);
+    
+    if (calibrated && bonusBC > 0 && !isGuest) {
+      // Award calibration bonus
+      await economy.addBC(bonusBC);
+      toast({ 
+        title: `🧠 +${bonusBC} BC`, 
+        description: 'Bônus de calibração biométrica!' 
+      });
+    }
+    
+    // Continue to game start
+    await actuallyStartGame();
+  };
+
+  // Handle calibration skip
+  const handleCalibrationSkip = async () => {
+    setShowCalibrationFlow(false);
+    await actuallyStartGame();
+  };
+
+  // Check if should show calibration
+  const shouldOfferCalibration = () => {
+    // Only offer calibration if:
+    // 1. Mycroft consent is given
+    // 2. Recording mode is set (user chose audio or video)
+    // 3. No valid baseline exists yet
+    return mycroftConsent === true && recordingMode !== null && !hasValidBaseline();
+  };
+
   const startGame = async () => {
     // Guest users don't have a profile; allow them to play without persistence.
     const nickname = isGuest ? guestNickname : profile?.username;
@@ -583,6 +624,20 @@ function SinglePlayerRoomContent() {
       toast({ title: 'Erro ao carregar perfil', variant: 'destructive' });
       return;
     }
+
+    // Check if should offer calibration before starting
+    if (shouldOfferCalibration()) {
+      setShowCalibrationFlow(true);
+      return; // Wait for calibration to complete/skip
+    }
+
+    // Continue to actual game start
+    await actuallyStartGame();
+  };
+
+  const actuallyStartGame = async () => {
+    const nickname = isGuest ? guestNickname : profile?.username;
+    if (!nickname) return;
 
     // Check and deduct NT cost for phase 2/3
     const phaseConfig = economy.getPhaseConfig(currentGamePhase);
@@ -1804,6 +1859,17 @@ function SinglePlayerRoomContent() {
     );
   }
 
+  // Biometric Calibration Flow (polygraph-style)
+  if (showCalibrationFlow) {
+    return (
+      <BiometricCalibrationFlow
+        onComplete={handleCalibrationComplete}
+        onSkip={handleCalibrationSkip}
+        playerName={displayName}
+      />
+    );
+  }
+
   // Nickname entry screen - show Shadow Players
   if (gamePhase === 'nickname') {
     const displayPlayers = shadowPlayers.length > 0 ? shadowPlayers : generateShadowPlayers(3);
@@ -1858,6 +1924,23 @@ function SinglePlayerRoomContent() {
                   {economy.ntBalance < phaseConfig.ntCost && ' (saldo insuficiente)'}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Calibration status indicator */}
+          {mycroftConsent === true && recordingMode !== null && (
+            <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 ${
+              hasCalibration 
+                ? 'bg-chart-3/10 border border-chart-3/30' 
+                : 'bg-accent/10 border border-accent/30'
+            }`}>
+              <Brain className={`w-4 h-4 ${hasCalibration ? 'text-chart-3' : 'text-accent'}`} />
+              <span className={`text-xs ${hasCalibration ? 'text-chart-3' : 'text-accent'}`}>
+                {hasCalibration 
+                  ? `✓ Calibração ativa (${getBaselineSummary().hoursRemaining}h restantes)`
+                  : 'Calibração disponível (+50 BC)'
+                }
+              </span>
             </div>
           )}
 
