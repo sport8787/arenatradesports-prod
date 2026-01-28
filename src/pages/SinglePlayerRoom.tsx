@@ -97,6 +97,9 @@ import {
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import LiveBCCounter from '@/components/game/LiveBCCounter';
+// Júri IA - Claude Sonnet 4 powered (Single Player only)
+import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict } from '@/services/juryClaudeService';
+import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -185,7 +188,8 @@ const generateBriefcasePrize = (): number => {
 };
 
 // IMPORTANT: 'bribe_offer' must come BEFORE 'voting_simulation' to prevent spoilers
-type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'analyzing' | 'result' | 'eliminated' | 'victory';
+// 'jury_deliberation' comes after vote_reveal for AI jury analysis
+type GamePhase = 'nickname' | 'briefcase' | 'question' | 'recording' | 'bribe_offer' | 'voting_simulation' | 'vote_reveal' | 'jury_deliberation' | 'analyzing' | 'result' | 'eliminated' | 'victory';
 
 // Wrapper component that provides NarrativeContext
 export default function SinglePlayerRoom() {
@@ -317,8 +321,25 @@ function SinglePlayerRoomContent() {
   const [showHorusTerminal, setShowHorusTerminal] = useState(false);
   const [lastAction, setLastAction] = useState<string>("Iniciando partida");
   
-  // Horus bribe amount - calculated based on BC rewards table
+// Horus bribe amount - calculated based on BC rewards table
   const [horusBribeAmount, setHorusBribeAmount] = useState(0);
+  
+  // Júri IA states (Single Player only - Claude Sonnet 4)
+  const [juryVerdict, setJuryVerdict] = useState<JuryVerdict | null>(null);
+  const [isJuryDeliberating, setIsJuryDeliberating] = useState(false);
+  const [juryEnabled, setJuryEnabled] = useState(true);
+  
+  // Validate jury API on mount
+  useEffect(() => {
+    validateJuryApiKey().then(isValid => {
+      if (!isValid) {
+        console.warn('[SinglePlayer] ⚠️ Júri IA indisponível - usando fallback');
+        setJuryEnabled(false);
+      } else {
+        console.log('[SinglePlayer] ✅ Júri IA habilitado');
+      }
+    });
+  }, []);
   
   // Psychology dialogue system
   const [psychologyState, setPsychologyState] = useState<PlayerPsychologyState>(() => 
@@ -882,12 +903,66 @@ function SinglePlayerRoomContent() {
     setGamePhase('vote_reveal');
   };
   
-  // Called when vote reveal completes - process results
+// Called when vote reveal completes - now triggers AI Jury deliberation
   const handleVoteRevealComplete = () => {
-    processResults();
+    // Go to AI jury deliberation phase
+    setGamePhase('jury_deliberation');
+    setIsJuryDeliberating(true);
+    callAIJury();
   };
   
-  // Called when player makes a decision on the bribe offer
+  // Call AI Jury (Claude Sonnet 4) for deliberation
+  const callAIJury = async () => {
+    if (!currentQuestion || !confirmedAnswer) {
+      processResults();
+      return;
+    }
+    
+    try {
+      const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
+      const correctAnswer = currentQuestion[`option_${currentQuestion.correct_option.toLowerCase()}` as keyof Question] as string;
+      
+      const juryRequest = {
+        question: currentQuestion.question_text,
+        playerAnswer: currentQuestion[`option_${confirmedAnswer.toLowerCase()}` as keyof Question] as string,
+        correctAnswer,
+        transcription: "Justificativa gravada pelo jogador",
+        mycroftAnalysis: {
+          stressScore: 50,
+          microExpressions: [],
+          gazeDeviation: 'straight',
+          vocalHesitation: Math.max(0, Math.floor((voiceMetrics?.responseLatencyMs || 0) / 2000)),
+          confidenceTone: voiceMetrics?.pitchStability === 'stable' ? 'high' : voiceMetrics?.pitchStability === 'micro-tremors' ? 'medium' : 'low',
+          vocalJitter: voiceMetrics?.jitter || 0,
+          facialTension: 30,
+          combinedScore: 50,
+        },
+      };
+      
+      const verdict = juryEnabled 
+        ? await getJuryVerdict(juryRequest)
+        : generateFallbackVerdict();
+      
+      setJuryVerdict(verdict);
+      setIsJuryDeliberating(false);
+      
+      // Update score based on jury verdict
+      if (verdict.convicted) {
+        toast({ title: '✅ Júri IA convencido!', description: 'O júri acreditou em você!' });
+      } else {
+        toast({ title: '❌ Júri IA não convencido', description: 'O júri detectou seu blefe!', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('[SinglePlayer] Jury error:', error);
+      setJuryVerdict(generateFallbackVerdict());
+      setIsJuryDeliberating(false);
+    }
+  };
+  
+  // Called when jury panel animation completes
+  const handleJuryComplete = () => {
+    processResults();
+  };
   const proceedToAnalysis = () => {
     // After bribe decision, go to voting simulation
     startVotingSimulation();
@@ -1860,6 +1935,30 @@ function SinglePlayerRoomContent() {
                     onComplete={handleVoteRevealComplete}
                     revealIntervalMs={1200}
                   />
+                </LuxuryCard>
+              )}
+
+              {/* JURY DELIBERATION PHASE - AI Jury powered by Claude Sonnet 4 */}
+              {gamePhase === 'jury_deliberation' && (
+                <LuxuryCard className="p-6">
+                  <div className="text-center mb-6">
+                    <h2 className="font-orbitron text-xl text-primary">Júri IA Deliberando</h2>
+                    <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
+                  </div>
+                  <JuryVotingPanel
+                    verdict={juryVerdict}
+                    isLoading={isJuryDeliberating}
+                    onComplete={handleJuryComplete}
+                  />
+                  {!isJuryDeliberating && juryVerdict && (
+                    <GoldButton 
+                      onClick={handleJuryComplete}
+                      className="mt-6 w-full"
+                      size="lg"
+                    >
+                      Próxima Rodada →
+                    </GoldButton>
+                  )}
                 </LuxuryCard>
               )}
 
