@@ -15,7 +15,7 @@ export interface MycroftHumanReading {
   conclusion: string;
   zoneLabel: string;
   color: 'emerald' | 'yellow' | 'red';
-  // NEW: Mycroft 2.0 fields
+  // Mycroft 2.0 fields
   confidence?: 'low' | 'medium' | 'high';
   reasoning?: string;
   counterpoint?: string;
@@ -301,7 +301,7 @@ function selectScenarioId(bluffScore: number, metrics: VoiceMetrics): number {
 }
 
 /**
- * NEW: Generate human-readable Mycroft reading with adaptive baseline (Mycroft 2.0)
+ * Generate human-readable Mycroft reading with adaptive baseline (Mycroft 2.0)
  * Requires userId for personalized analysis
  */
 export async function generateHumanReadingWithBaseline(
