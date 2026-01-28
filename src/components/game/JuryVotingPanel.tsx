@@ -5,6 +5,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign, Sparkles } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Local audio files for verdict sounds (no API costs)
 const VERDICT_SOUNDS = {
@@ -19,11 +20,12 @@ const VERDICT_SOUNDS = {
     '/audio/horus/derrota2.mp3',
   ],
 };
-import type { JuryVerdict, JuryVote, JurorProfile } from '@/services/juryClaudeService';
+import type { JuryVerdict, JuryVote, JurorProfile, JuryVoteRequest } from '@/services/juryClaudeService';
 
 interface JuryVotingPanelProps {
   verdict: JuryVerdict | null;
   isLoading: boolean;
+  debugRequest?: JuryVoteRequest | null;
 }
 
 // Confetti particle component for CONVENCEU
@@ -432,6 +434,7 @@ const LoadingState: React.FC = () => {
 export const JuryVotingPanel: React.FC<JuryVotingPanelProps> = ({
   verdict,
   isLoading,
+  debugRequest,
 }) => {
   // No auto-complete timer - results stay visible until user clicks "PRÓXIMA RODADA"
   
@@ -458,19 +461,40 @@ export const JuryVotingPanel: React.FC<JuryVotingPanelProps> = ({
           <JurorCard key={vote.profile} vote={vote} index={index} />
         ))}
       </div>
-      
-      {/* Technical Details (collapsible) */}
-      <details className="mt-4">
-        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-          Detalhes Técnicos
-        </summary>
-        <div className="mt-2 p-4 bg-background/20 rounded-lg text-xs text-muted-foreground space-y-1">
-          <p>• Modelo: Claude Sonnet 4 (claude-sonnet-4-20250514)</p>
-          <p>• Processamento: {verdict.totalProcessingTimeMs}ms</p>
-          <p>• Custo estimado: R${verdict.costEstimate.toFixed(2)}</p>
-          <p>• Tokens aprox: ~900 por jurado × 3 = ~2.700 tokens</p>
-        </div>
-      </details>
+
+      {/* Tabs: technical + payload sent */}
+      <Tabs defaultValue="tech" className="mt-4">
+        <TabsList className="w-full">
+          <TabsTrigger value="tech" className="flex-1">Detalhes Técnicos</TabsTrigger>
+          <TabsTrigger value="payload" className="flex-1">Métricas enviadas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tech" className="mt-3">
+          <div className="p-4 bg-background/20 rounded-lg text-xs text-muted-foreground space-y-1">
+            <p>• Modelo: Claude Sonnet 4 (claude-sonnet-4-20250514)</p>
+            <p>• Processamento: {verdict.totalProcessingTimeMs}ms</p>
+            <p>• Custo estimado: R${verdict.costEstimate.toFixed(2)}</p>
+            <p>• Tokens aprox: ~900 por jurado × 3 = ~2.700 tokens</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payload" className="mt-3">
+          {debugRequest ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Este é o payload exato enviado para o júri IA nesta rodada.
+              </p>
+              <pre className="max-h-80 overflow-auto rounded-lg bg-secondary/30 p-3 text-xs text-foreground/80">
+                {JSON.stringify(debugRequest, null, 2)}
+              </pre>
+            </div>
+          ) : (
+            <div className="p-4 bg-background/20 rounded-lg text-xs text-muted-foreground">
+              Nenhum payload capturado ainda nesta rodada.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
