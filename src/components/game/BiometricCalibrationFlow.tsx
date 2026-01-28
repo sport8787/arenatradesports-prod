@@ -17,7 +17,7 @@ import {
   CALIBRATION_QUESTIONS,
   CALIBRATION_BONUS_BC,
   createBiometricBaseline,
-  getBaselineSummary,
+  getBaselineSummarySync,
   type CalibrationQuestion,
 } from '@/services/biometricCalibrationService';
 
@@ -44,8 +44,8 @@ export function BiometricCalibrationFlow({ onComplete, onSkip, playerName }: Bio
   const truthQuestion = CALIBRATION_QUESTIONS.find(q => q.id === 'truth')!;
   const lieQuestion = CALIBRATION_QUESTIONS.find(q => q.id === 'lie')!;
   
-  // Check if baseline already exists
-  const baselineSummary = getBaselineSummary();
+  // Check if baseline already exists (sync for immediate display)
+  const baselineSummary = getBaselineSummarySync();
   
   // Handle recording complete for truth
   const handleTruthRecordingComplete = useCallback((

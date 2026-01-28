@@ -14,6 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
+      biometric_baselines: {
+        Row: {
+          blink_rate_deviation_threshold: number | null
+          calibrated_at: string
+          capture_mode: string
+          created_at: string
+          expires_at: string
+          id: string
+          is_valid: boolean
+          jitter_deviation_threshold: number | null
+          lie_avg_pitch: number | null
+          lie_blink_rate: number | null
+          lie_brow_asymmetry: number | null
+          lie_face_symmetry: number | null
+          lie_facial_stress_score: number | null
+          lie_gaze_deviation: number | null
+          lie_jitter: number | null
+          lie_lip_tension: number | null
+          lie_longest_pause: number | null
+          lie_mouth_openness: number | null
+          lie_pitch_variance: number | null
+          lie_response_latency: number | null
+          lie_shimmer: number | null
+          lie_silent_periods: number | null
+          lie_speech_continuity: number | null
+          lie_speech_rate: number | null
+          lip_tension_deviation_threshold: number | null
+          pitch_deviation_threshold: number | null
+          session_id: string | null
+          stress_score_deviation_threshold: number | null
+          truth_avg_pitch: number | null
+          truth_blink_rate: number | null
+          truth_brow_asymmetry: number | null
+          truth_face_symmetry: number | null
+          truth_facial_stress_score: number | null
+          truth_gaze_deviation: number | null
+          truth_jitter: number | null
+          truth_lip_tension: number | null
+          truth_longest_pause: number | null
+          truth_mouth_openness: number | null
+          truth_pitch_variance: number | null
+          truth_response_latency: number | null
+          truth_shimmer: number | null
+          truth_silent_periods: number | null
+          truth_speech_continuity: number | null
+          truth_speech_rate: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          blink_rate_deviation_threshold?: number | null
+          calibrated_at?: string
+          capture_mode?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_valid?: boolean
+          jitter_deviation_threshold?: number | null
+          lie_avg_pitch?: number | null
+          lie_blink_rate?: number | null
+          lie_brow_asymmetry?: number | null
+          lie_face_symmetry?: number | null
+          lie_facial_stress_score?: number | null
+          lie_gaze_deviation?: number | null
+          lie_jitter?: number | null
+          lie_lip_tension?: number | null
+          lie_longest_pause?: number | null
+          lie_mouth_openness?: number | null
+          lie_pitch_variance?: number | null
+          lie_response_latency?: number | null
+          lie_shimmer?: number | null
+          lie_silent_periods?: number | null
+          lie_speech_continuity?: number | null
+          lie_speech_rate?: number | null
+          lip_tension_deviation_threshold?: number | null
+          pitch_deviation_threshold?: number | null
+          session_id?: string | null
+          stress_score_deviation_threshold?: number | null
+          truth_avg_pitch?: number | null
+          truth_blink_rate?: number | null
+          truth_brow_asymmetry?: number | null
+          truth_face_symmetry?: number | null
+          truth_facial_stress_score?: number | null
+          truth_gaze_deviation?: number | null
+          truth_jitter?: number | null
+          truth_lip_tension?: number | null
+          truth_longest_pause?: number | null
+          truth_mouth_openness?: number | null
+          truth_pitch_variance?: number | null
+          truth_response_latency?: number | null
+          truth_shimmer?: number | null
+          truth_silent_periods?: number | null
+          truth_speech_continuity?: number | null
+          truth_speech_rate?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          blink_rate_deviation_threshold?: number | null
+          calibrated_at?: string
+          capture_mode?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_valid?: boolean
+          jitter_deviation_threshold?: number | null
+          lie_avg_pitch?: number | null
+          lie_blink_rate?: number | null
+          lie_brow_asymmetry?: number | null
+          lie_face_symmetry?: number | null
+          lie_facial_stress_score?: number | null
+          lie_gaze_deviation?: number | null
+          lie_jitter?: number | null
+          lie_lip_tension?: number | null
+          lie_longest_pause?: number | null
+          lie_mouth_openness?: number | null
+          lie_pitch_variance?: number | null
+          lie_response_latency?: number | null
+          lie_shimmer?: number | null
+          lie_silent_periods?: number | null
+          lie_speech_continuity?: number | null
+          lie_speech_rate?: number | null
+          lip_tension_deviation_threshold?: number | null
+          pitch_deviation_threshold?: number | null
+          session_id?: string | null
+          stress_score_deviation_threshold?: number | null
+          truth_avg_pitch?: number | null
+          truth_blink_rate?: number | null
+          truth_brow_asymmetry?: number | null
+          truth_face_symmetry?: number | null
+          truth_facial_stress_score?: number | null
+          truth_gaze_deviation?: number | null
+          truth_jitter?: number | null
+          truth_lip_tension?: number | null
+          truth_longest_pause?: number | null
+          truth_mouth_openness?: number | null
+          truth_pitch_variance?: number | null
+          truth_response_latency?: number | null
+          truth_shimmer?: number | null
+          truth_silent_periods?: number | null
+          truth_speech_continuity?: number | null
+          truth_speech_rate?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       consent_records: {
         Row: {
           consent_given: boolean
