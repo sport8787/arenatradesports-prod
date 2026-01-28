@@ -298,35 +298,134 @@ function estimatePitch(frequencyData: Float32Array, sampleRate: number): number 
 }
 
 // ═══════════════════════════════════════════════════════════
-// V2: CALCULATE METRICS FROM INTERVAL SAMPLES
+// V2: ADAPTIVE THRESHOLD CONFIGURATION
 // ═══════════════════════════════════════════════════════════
 
-function calculateJitterV2(samples: number[]): number {
-  if (samples.length < 10) return 0;
+const V2_CONFIG = {
+  ADAPTIVE_THRESHOLD_PERCENTILE: 15, // Usar percentil 15 como silêncio
+  MIN_THRESHOLD: 0.003,               // Mínimo absoluto (0.3%)
+  MIN_SILENCE_DURATION_MS: 300,       // 300ms = pausa
+  FILLER_MIN_DURATION_MS: 150,        // 150ms mínimo
+  FILLER_MAX_DURATION_MS: 800,        // 800ms máximo
+};
+
+// ═══════════════════════════════════════════════════════════
+// V2: CALCULATE ADAPTIVE THRESHOLD
+// ═══════════════════════════════════════════════════════════
+
+function calculateAdaptiveThresholdV2(samples: number[]): number {
+  // Calcular amplitudes absolutas
+  const amplitudes = samples.map(s => Math.abs(s));
   
-  let sum = 0;
-  let count = 0;
+  // Ordenar
+  const sorted = amplitudes.slice().sort((a, b) => a - b);
   
-  for (let i = 1; i < samples.length; i++) {
-    const diff = Math.abs(samples[i] - samples[i - 1]);
-    sum += diff;
-    count++;
-  }
+  // Pegar percentil (ex: 15% = threshold de silêncio)
+  const index = Math.floor(sorted.length * (V2_CONFIG.ADAPTIVE_THRESHOLD_PERCENTILE / 100));
+  const threshold = sorted[index];
   
-  const avgDiff = sum / count;
-  return avgDiff * 100; // Normalize to 0-100
+  // Garantir mínimo
+  const finalThreshold = Math.max(threshold, V2_CONFIG.MIN_THRESHOLD);
+  
+  console.log('📊 [Threshold Adaptativo]');
+  console.log('   Percentil', V2_CONFIG.ADAPTIVE_THRESHOLD_PERCENTILE, 'raw:', threshold.toFixed(5));
+  console.log('   Threshold final:', finalThreshold.toFixed(5));
+  
+  return finalThreshold;
 }
 
-function calculateShimmerV2(samples: number[]): number {
-  if (samples.length < 100) return 0;
+// ═══════════════════════════════════════════════════════════
+// V2: SEGMENT VOICE vs SILENCE (ADAPTIVE)
+// ═══════════════════════════════════════════════════════════
+
+interface VoiceSegmentResult {
+  voiceSamples: number[];
+  voicePercentage: number;
+  silencePercentage: number;
+  silentPeriods: number;
+  longestPauseMs: number;
+}
+
+function segmentVoiceAndSilenceV2(
+  samples: number[],
+  threshold: number,
+  sampleRate: number
+): VoiceSegmentResult {
+  const minSilenceSamples = (V2_CONFIG.MIN_SILENCE_DURATION_MS / 1000) * sampleRate;
+  
+  let voiceSampleCount = 0;
+  let silentPeriods = 0;
+  let currentSilenceLength = 0;
+  let maxSilenceLength = 0;
+  const voiceSamples: number[] = [];
+  
+  for (let i = 0; i < samples.length; i++) {
+    const amplitude = Math.abs(samples[i]);
+    
+    if (amplitude > threshold) {
+      // VOZ
+      voiceSampleCount++;
+      voiceSamples.push(samples[i]);
+      
+      // Pausa terminou?
+      if (currentSilenceLength >= minSilenceSamples) {
+        silentPeriods++;
+        maxSilenceLength = Math.max(maxSilenceLength, currentSilenceLength);
+      }
+      currentSilenceLength = 0;
+    } else {
+      // SILÊNCIO
+      currentSilenceLength++;
+    }
+  }
+  
+  // Última pausa
+  if (currentSilenceLength >= minSilenceSamples) {
+    silentPeriods++;
+    maxSilenceLength = Math.max(maxSilenceLength, currentSilenceLength);
+  }
+  
+  const voicePercentage = (voiceSampleCount / samples.length) * 100;
+  const silencePercentage = 100 - voicePercentage;
+  const longestPauseMs = (maxSilenceLength / sampleRate) * 1000;
+  
+  return {
+    voiceSamples,
+    voicePercentage,
+    silencePercentage,
+    silentPeriods,
+    longestPauseMs,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// V2: CALCULATE METRICS (ADAPTIVE)
+// ═══════════════════════════════════════════════════════════
+
+function calculateJitterV2(voiceSamples: number[]): number {
+  if (voiceSamples.length < 10) return 0;
+  
+  let sum = 0;
+  for (let i = 1; i < voiceSamples.length; i++) {
+    const diff = Math.abs(voiceSamples[i] - voiceSamples[i - 1]);
+    sum += diff;
+  }
+  
+  const avgDiff = sum / (voiceSamples.length - 1);
+  // Normalizar para 0-100 (quanto maior, mais nervoso)
+  return Math.min(100, avgDiff * 1000);
+}
+
+function calculateShimmerV2(voiceSamples: number[]): number {
+  if (voiceSamples.length < 100) return 0;
   
   const windowSize = 100;
   const energies: number[] = [];
   
-  for (let i = 0; i < samples.length - windowSize; i += windowSize) {
+  for (let i = 0; i < voiceSamples.length - windowSize; i += windowSize) {
     let energy = 0;
     for (let j = 0; j < windowSize; j++) {
-      energy += samples[i + j] * samples[i + j];
+      energy += voiceSamples[i + j] * voiceSamples[i + j];
     }
     energies.push(energy / windowSize);
   }
@@ -339,70 +438,17 @@ function calculateShimmerV2(samples: number[]): number {
     sum += diff;
   }
   
-  return (sum / energies.length) * 100;
+  const avgDiff = sum / (energies.length - 1);
+  return Math.min(100, avgDiff * 5000);
 }
 
-function detectSilentPeriodsV2(samples: number[], sampleRate: number): number {
-  const SILENCE_THRESHOLD = 0.02;
-  const MIN_SILENCE_DURATION_MS = 200;
-  const minSilenceSamples = (MIN_SILENCE_DURATION_MS / 1000) * sampleRate;
-  
-  let silentCount = 0;
-  let currentSilenceLength = 0;
-  
-  for (let i = 0; i < samples.length; i++) {
-    const amplitude = Math.abs(samples[i]);
-    
-    if (amplitude < SILENCE_THRESHOLD) {
-      currentSilenceLength++;
-    } else {
-      if (currentSilenceLength >= minSilenceSamples) {
-        silentCount++;
-      }
-      currentSilenceLength = 0;
-    }
-  }
-  
-  if (currentSilenceLength >= minSilenceSamples) {
-    silentCount++;
-  }
-  
-  return silentCount;
-}
-
-function findLongestPauseV2(samples: number[], sampleRate: number): number {
-  const SILENCE_THRESHOLD = 0.02;
-  
-  let maxSilenceLength = 0;
-  let currentSilenceLength = 0;
-  
-  for (let i = 0; i < samples.length; i++) {
-    const amplitude = Math.abs(samples[i]);
-    
-    if (amplitude < SILENCE_THRESHOLD) {
-      currentSilenceLength++;
-    } else {
-      if (currentSilenceLength > maxSilenceLength) {
-        maxSilenceLength = currentSilenceLength;
-      }
-      currentSilenceLength = 0;
-    }
-  }
-  
-  if (currentSilenceLength > maxSilenceLength) {
-    maxSilenceLength = currentSilenceLength;
-  }
-  
-  return (maxSilenceLength / sampleRate) * 1000;
-}
-
-function detectFillerWordsV2(samples: number[], sampleRate: number): number {
-  const SILENCE_THRESHOLD = 0.02;
-  const FILLER_MIN_DURATION_MS = 100;
-  const FILLER_MAX_DURATION_MS = 500;
-  
-  const minSamples = (FILLER_MIN_DURATION_MS / 1000) * sampleRate;
-  const maxSamples = (FILLER_MAX_DURATION_MS / 1000) * sampleRate;
+function detectFillerWordsV2(
+  samples: number[],
+  threshold: number,
+  sampleRate: number
+): number {
+  const minSamples = (V2_CONFIG.FILLER_MIN_DURATION_MS / 1000) * sampleRate;
+  const maxSamples = (V2_CONFIG.FILLER_MAX_DURATION_MS / 1000) * sampleRate;
   
   let fillerCount = 0;
   let currentSoundLength = 0;
@@ -411,7 +457,7 @@ function detectFillerWordsV2(samples: number[], sampleRate: number): number {
   for (let i = 0; i < samples.length; i++) {
     const amplitude = Math.abs(samples[i]);
     
-    if (amplitude > SILENCE_THRESHOLD) {
+    if (amplitude > threshold) {
       if (!inSound) {
         inSound = true;
         currentSoundLength = 1;
@@ -420,6 +466,7 @@ function detectFillerWordsV2(samples: number[], sampleRate: number): number {
       }
     } else {
       if (inSound) {
+        // Som terminou - era uma hesitação?
         if (currentSoundLength >= minSamples && currentSoundLength <= maxSamples) {
           fillerCount++;
         }
@@ -432,33 +479,19 @@ function detectFillerWordsV2(samples: number[], sampleRate: number): number {
   return fillerCount;
 }
 
-function calculateSpeechContinuityV2(samples: number[]): number {
-  const SILENCE_THRESHOLD = 0.02;
-  
-  let speechSamples = 0;
-  
-  for (let i = 0; i < samples.length; i++) {
-    if (Math.abs(samples[i]) > SILENCE_THRESHOLD) {
-      speechSamples++;
-    }
-  }
-  
-  return Math.round((speechSamples / samples.length) * 100);
-}
-
-function analyzePitchStabilityV2(samples: number[]): number {
-  if (samples.length < 100) return 50;
+function analyzePitchStabilityV2(voiceSamples: number[]): number {
+  if (voiceSamples.length < 1000) return 50;
   
   const windowSize = 1000;
   const frequencies: number[] = [];
   
-  for (let i = 0; i < samples.length - windowSize; i += windowSize) {
+  for (let i = 0; i < voiceSamples.length - windowSize; i += windowSize) {
     let zeroCrossings = 0;
     
     for (let j = 1; j < windowSize; j++) {
       if (
-        (samples[i + j - 1] < 0 && samples[i + j] >= 0) ||
-        (samples[i + j - 1] >= 0 && samples[i + j] < 0)
+        (voiceSamples[i + j - 1] < 0 && voiceSamples[i + j] >= 0) ||
+        (voiceSamples[i + j - 1] >= 0 && voiceSamples[i + j] < 0)
       ) {
         zeroCrossings++;
       }
@@ -473,7 +506,7 @@ function analyzePitchStabilityV2(samples: number[]): number {
   const variance = frequencies.reduce((sum, f) => sum + Math.pow(f - mean, 2), 0) / frequencies.length;
   const stdDev = Math.sqrt(variance);
   
-  const stability = Math.max(0, Math.min(100, 100 - (stdDev / mean) * 100));
+  const stability = Math.max(0, Math.min(100, 100 - (stdDev / mean) * 50));
   
   return Math.round(stability);
 }
@@ -488,23 +521,45 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
   // ═══ TRY V2 (INTERVAL-BASED) FIRST ═══
   if (activeSession && activeSession.samples.length > 1000) {
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('📊 [AudioForensics] CALCULATING METRICS (V2 - INTERVAL)');
+    console.log('📊 [AudioForensics V2] CALCULATING METRICS (ADAPTIVE THRESHOLD)');
     console.log('╚═══════════════════════════════════════════════════════════╝');
     console.log('Captures:', activeSession.captureCount);
-    console.log('Samples:', activeSession.samples.length);
+    console.log('Samples:', activeSession.samples.length.toLocaleString());
     console.log('Duration:', (activeSession.samples.length / activeSession.sampleRate).toFixed(2), 's');
     
     const samples = activeSession.samples;
     const sampleRate = activeSession.sampleRate;
     
-    // Calculate all metrics
-    const jitter = calculateJitterV2(samples);
-    const shimmer = calculateShimmerV2(samples);
-    const silentPeriods = detectSilentPeriodsV2(samples, sampleRate);
-    const longestPause = findLongestPauseV2(samples, sampleRate);
-    const fillerWordsCount = detectFillerWordsV2(samples, sampleRate);
-    const speechContinuity = calculateSpeechContinuityV2(samples);
-    const pitchStability = analyzePitchStabilityV2(samples);
+    // ═══ ETAPA 1: CALCULAR THRESHOLD ADAPTATIVO ═══
+    console.log('\n📊 ETAPA 1: Calculando threshold adaptativo...');
+    const adaptiveThreshold = calculateAdaptiveThresholdV2(samples);
+    
+    // ═══ ETAPA 2: SEPARAR VOZ vs SILÊNCIO ═══
+    console.log('\n📊 ETAPA 2: Separando voz vs silêncio...');
+    const voiceSegments = segmentVoiceAndSilenceV2(samples, adaptiveThreshold, sampleRate);
+    console.log('🎤 Voz:', voiceSegments.voicePercentage.toFixed(1), '%');
+    console.log('🤫 Silêncio:', voiceSegments.silencePercentage.toFixed(1), '%');
+    console.log('⏸️ Pausas detectadas:', voiceSegments.silentPeriods);
+    console.log('⏱️ Maior pausa:', voiceSegments.longestPauseMs.toFixed(0), 'ms');
+    
+    // ═══ ETAPA 3: ANALISAR VOZ ═══
+    console.log('\n📊 ETAPA 3: Analisando características da voz...');
+    
+    // Jitter (variação rápida de amplitude) - usa apenas samples de voz
+    const jitter = calculateJitterV2(voiceSegments.voiceSamples);
+    console.log('📈 Jitter:', jitter.toFixed(2), '(variação de amplitude)');
+    
+    // Shimmer (variação de energia) - usa apenas samples de voz
+    const shimmer = calculateShimmerV2(voiceSegments.voiceSamples);
+    console.log('📈 Shimmer:', shimmer.toFixed(2), '(variação de energia)');
+    
+    // Hesitações (sons curtos tipo "uhm") - usa threshold adaptativo
+    const fillerWordsCount = detectFillerWordsV2(samples, adaptiveThreshold, sampleRate);
+    console.log('💬 Hesitações:', fillerWordsCount, '("uhm", "ahh", etc)');
+    
+    // Pitch stability - usa apenas samples de voz
+    const pitchStability = analyzePitchStabilityV2(voiceSegments.voiceSamples);
+    console.log('🎵 Estabilidade Pitch:', pitchStability.toFixed(1), '%');
     
     // Response latency
     const responseLatencyMs = activeSession.recordingStartedAt > 0 
@@ -535,23 +590,24 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
       jitterAbsolute: 0,
       shimmer: Math.round(shimmer * 100) / 100,
       harmonicsToNoise: 0,
-      silentPeriods,
-      longestPause: Math.round(longestPause),
+      silentPeriods: voiceSegments.silentPeriods,
+      longestPause: Math.round(voiceSegments.longestPauseMs),
       fillerWordsCount,
-      speechContinuity,
+      speechContinuity: Math.round(voiceSegments.voicePercentage),
     };
     
-    console.log('📊 V2 METRICS CALCULATED:');
+    console.log('\n✅ MÉTRICAS FINAIS V2 (ADAPTIVE):');
     console.log(JSON.stringify(metrics, null, 2));
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('[AudioForensics] 🎯 FINAL METRICS:');
-    console.log('  📊 Fluency Score:', speechContinuity + '%', speechContinuity >= 70 ? '✅ FLUENT' : speechContinuity >= 40 ? '🟡 HESITANT' : '⚠️ FRAGMENTED');
-    console.log('  🔇 Silent Periods:', silentPeriods);
-    console.log('  ⏱️ Longest Pause:', (longestPause / 1000).toFixed(1) + 's');
-    console.log('  💬 Filler Words:', fillerWordsCount);
-    console.log('  🎵 Jitter:', jitter.toFixed(2) + '%');
-    console.log('  📈 Pitch Stability:', pitchStabilityClass);
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('[AudioForensics V2] 🎯 RESUMO:');
+    console.log('  📊 Fluency Score:', metrics.speechContinuity + '%', metrics.speechContinuity >= 70 ? '✅ FLUENT' : metrics.speechContinuity >= 40 ? '🟡 HESITANT' : '⚠️ FRAGMENTED');
+    console.log('  🔇 Silent Periods:', metrics.silentPeriods);
+    console.log('  ⏱️ Longest Pause:', (metrics.longestPause / 1000).toFixed(1) + 's');
+    console.log('  💬 Filler Words:', metrics.fillerWordsCount);
+    console.log('  🎵 Jitter:', metrics.jitter.toFixed(2) + '%');
+    console.log('  📈 Shimmer:', metrics.shimmer.toFixed(2) + '%');
+    console.log('  🎤 Pitch Stability:', pitchStabilityClass);
+    console.log('═══════════════════════════════════════════════════════════════\n');
     
     // Stop interval capture
     stopIntervalCapture();
