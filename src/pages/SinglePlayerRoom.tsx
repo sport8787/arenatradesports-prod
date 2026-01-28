@@ -103,6 +103,8 @@ import {
 import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import LiveBCCounter from '@/components/game/LiveBCCounter';
+// ML Data Persistence for Mycroft training
+import { useMLDataPersistence } from '@/hooks/useMLDataPersistence';
 // Júri IA - Claude Sonnet 4 powered (Single Player only)
 import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict, type JuryVoteRequest } from '@/services/juryClaudeService';
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
@@ -247,6 +249,21 @@ function SinglePlayerRoomContent() {
   
   // Game phase for economy
   const [currentGamePhase, setCurrentGamePhase] = useState<1 | 2 | 3>(1);
+  
+  // ML Data Persistence for Mycroft training
+  const getDifficultyMode = (phase: 1 | 2 | 3): 'aquecimento' | 'desafio' | 'extremo' => {
+    switch (phase) {
+      case 1: return 'aquecimento';
+      case 2: return 'desafio';
+      case 3: return 'extremo';
+    }
+  };
+  
+  const mlPersistence = useMLDataPersistence({
+    gameMode: 'solo',
+    difficultyMode: getDifficultyMode(currentGamePhase),
+    totalRounds: getMaxRoundsForPhase(currentGamePhase),
+  });
 
   // Round progression
   const [currentRound, setCurrentRound] = useState(0);
@@ -307,6 +324,9 @@ function SinglePlayerRoomContent() {
     localStorage.setItem('mycroft_consent', 'true');
     setShowMycroftConsent(false);
     toast({ title: '✅ Mycroft Ativado!', description: 'Análise vocal habilitada' });
+    
+    // 🧠 ML DATA PERSISTENCE: Record consent
+    mlPersistence.recordMycroftConsent(true);
   };
 
   const handleMycroftDecline = () => {
@@ -314,6 +334,9 @@ function SinglePlayerRoomContent() {
     localStorage.setItem('mycroft_consent', 'false');
     setShowMycroftConsent(false);
     toast({ title: 'Mycroft Desativado', description: 'Você pode jogar normalmente sem análise vocal' });
+    
+    // 🧠 ML DATA PERSISTENCE: Record consent decline
+    mlPersistence.recordMycroftConsent(false);
   };
   
   // Horus Bribe phase states - limita a 2 ofertas por partida, só a partir da rodada 3
@@ -508,6 +531,17 @@ function SinglePlayerRoomContent() {
     }
   }, [isAuthenticated, authLoading, navigate, isGuest]);
 
+  // 🧠 ML DATA PERSISTENCE: End match when game ends
+  useEffect(() => {
+    if ((gamePhase === 'victory' || gamePhase === 'eliminated') && mlPersistence.isInitialized) {
+      const wasCompleted = gamePhase === 'victory';
+      const finalScore = accumulatedPrize;
+      
+      mlPersistence.endMatch(finalScore, currentRound, wasCompleted);
+      console.log('[ML] ✅ Match ended:', { wasCompleted, finalScore, roundsCompleted: currentRound });
+    }
+  }, [gamePhase, mlPersistence.isInitialized, accumulatedPrize, currentRound]);
+
   // Load shadow players from sessionStorage (set by FakeLobby)
   useEffect(() => {
     const storedPlayers = sessionStorage.getItem('horusShadowPlayers');
@@ -590,6 +624,12 @@ function SinglePlayerRoomContent() {
     resetPressureState();
     resetNarrativeAudioLock(); // ✅ NOVO: Reseta lock global de eventos narrativos
     narrativeEngineRef.current = getNarrativeEngine(nickname);
+    
+    // 🧠 ML DATA PERSISTENCE: Initialize match for training data
+    const matchId = await mlPersistence.initMatch();
+    if (matchId) {
+      console.log('[ML] ✅ Match initialized for training data:', matchId);
+    }
 
     // Start first round directly (opening plays on login now)
     setCurrentRound(1);
@@ -1061,6 +1101,56 @@ function SinglePlayerRoomContent() {
       setJuryVerdict(verdict);
       setIsJuryDeliberating(false);
       setShowMycroftCombinedPanel(true);
+      
+      // 🧠 ML DATA PERSISTENCE: Save recording with all metrics for training
+      // Calculate believe votes from jury verdict
+      const juryBelieveVotes = verdict.votes.filter(v => v.vote === 'CLARO').length;
+      
+      const recordingId = await mlPersistence.saveRecording({
+        roundNumber: currentRound,
+        audioUrl: lastAudioUrl || 'no-audio',
+        videoUrl: recordingMode === 'video' ? lastAudioUrl : undefined,
+        captureMode: recordingMode || 'audio',
+        voiceMetrics: voiceMetrics!,
+        facialAnalysis: videoMetrics ? {
+          blinkRate: videoMetrics.facialStress?.blinkRate || 0,
+          browAsymmetry: videoMetrics.facialStress?.browAsymmetry || 0,
+          lipTension: (videoMetrics.facialStress?.lipTension || 0) * 100,
+          eyeGazeDominant: videoMetrics.eyeGaze?.dominantDirection || 'straight',
+          microExpressionsDetected: videoMetrics.microExpressions?.detected?.map(e => e.type) || [],
+          facialStressScore: (videoMetrics.facialStress?.overallScore || 0),
+        } : undefined,
+        questionId: currentQuestion?.id,
+        questionDifficulty: currentQuestion?.difficulty,
+        questionCategory: currentQuestion?.category,
+        answerWasCorrect: playerAnsweredCorrectly,
+        timeToAnswerMs: voiceMetrics?.responseLatencyMs,
+        mycroftVerdict: verdict.convicted ? 'convinced' : 'suspicious',
+        mycroftForensicDetails: JSON.stringify(juryRequest.mycroftAnalysis),
+        combinedSuspicionScore: combinedScore,
+        wasBluffing: !playerAnsweredCorrectly && juryBelieveVotes > 0,
+        playerName: displayName,
+        playerId: profile?.id,
+      });
+      
+      if (recordingId) {
+        console.log('[ML] ✅ Recording saved for training:', recordingId);
+        
+        // Save AI jury votes
+        await mlPersistence.saveAIVotes(
+          currentQuestion!.id,
+          profile?.id || 'anonymous',
+          verdict.votes.map(v => ({
+            profile: v.profile === 'conservador' ? 'prudente' : v.profile === 'agressivo' ? 'tubarao' : 'quant',
+            vote: v.vote === 'CLARO' ? 'believe' : 'doubt',
+            confidence: v.confidence / 100,
+            reasoning: v.reasoning,
+          }))
+        );
+        
+        // Generate training label
+        await mlPersistence.generateLabel();
+      }
       
       // Update score based on jury verdict
       if (verdict.convicted) {
