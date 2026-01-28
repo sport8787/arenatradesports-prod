@@ -9,7 +9,9 @@ import {
   startForensicsSession,
   markRecordingStart,
   analyzeAudioFrame,
-  finalizeForensicsSession 
+  finalizeForensicsSession,
+  startIntervalCapture,
+  stopIntervalCapture
 } from '@/services/audioForensicsService';
 
 export interface AudioRecorderProps {
@@ -72,6 +74,8 @@ export default function AudioRecorder({
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    // Stop V2 interval capture
+    stopIntervalCapture();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
@@ -153,6 +157,9 @@ export default function AudioRecorder({
       analyser.smoothingTimeConstant = 0.7;
       source.connect(analyser);
       analyserRef.current = analyser;
+
+      // V2: Start interval-based capture (ROBUST - replaces ScriptProcessor)
+      startIntervalCapture(audioContext, stream);
 
       // Start waveform animation
       animationFrameRef.current = requestAnimationFrame(updateWaveform);

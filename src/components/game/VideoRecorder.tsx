@@ -17,6 +17,8 @@ import {
   markRecordingStart,
   analyzeAudioFrame, 
   finalizeForensicsSession,
+  startIntervalCapture,
+  stopIntervalCapture,
   type VoiceMetrics 
 } from '@/services/audioForensicsService';
 import {
@@ -117,6 +119,8 @@ export default function VideoRecorder({
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+    // Stop V2 interval capture
+    stopIntervalCapture();
     stopFaceDetection();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -260,9 +264,12 @@ export default function VideoRecorder({
         analyserRef.current = audioContextRef.current.createAnalyser();
         analyserRef.current.fftSize = 2048;
         source.connect(analyserRef.current);
+        
+        // V2: Start interval-based capture (ROBUST - replaces ScriptProcessor)
+        startIntervalCapture(audioContextRef.current, stream);
       }
 
-      // Start forensics sessions
+      // Start forensics sessions (legacy - still needed for latency tracking)
       startForensicsSession();
       startVideoForensicsSession();
 
