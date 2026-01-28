@@ -1,15 +1,74 @@
 // Jury Voting Panel - UI Component to display AI jury votes
 // Shows 3 juror cards with their votes, confidence, and reasoning
+// Includes dramatic animations: confetti for CONVENCEU, shake for NÃO CONVENCEU
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign, Sparkles } from 'lucide-react';
 import type { JuryVerdict, JuryVote, JurorProfile } from '@/services/juryClaudeService';
 
 interface JuryVotingPanelProps {
   verdict: JuryVerdict | null;
   isLoading: boolean;
 }
+
+// Confetti particle component for CONVENCEU
+const ConfettiParticle: React.FC<{ delay: number; x: number }> = ({ delay, x }) => {
+  const colors = ['#FFD700', '#FFA500', '#FFDF00', '#F0E68C', '#DAA520'];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const size = Math.random() * 8 + 4;
+  const rotation = Math.random() * 360;
+  
+  return (
+    <motion.div
+      initial={{ y: -20, x, opacity: 1, rotate: 0, scale: 0 }}
+      animate={{ 
+        y: 400, 
+        x: x + (Math.random() - 0.5) * 100,
+        opacity: [1, 1, 0],
+        rotate: rotation + 720,
+        scale: [0, 1, 1, 0.5]
+      }}
+      transition={{ 
+        duration: 3,
+        delay,
+        ease: "easeOut"
+      }}
+      style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+        backgroundColor: color,
+        borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+        top: 0,
+        left: '50%',
+        zIndex: 100,
+      }}
+    />
+  );
+};
+
+// Golden coins falling animation
+const GoldenCoin: React.FC<{ delay: number; x: number }> = ({ delay, x }) => (
+  <motion.div
+    initial={{ y: -30, x, opacity: 0, scale: 0 }}
+    animate={{ 
+      y: 350, 
+      opacity: [0, 1, 1, 0],
+      scale: [0, 1, 1, 0.8],
+      rotateY: [0, 1080]
+    }}
+    transition={{ 
+      duration: 2.5,
+      delay,
+      ease: "easeIn"
+    }}
+    className="absolute top-0 left-1/2 text-2xl z-50"
+    style={{ marginLeft: x }}
+  >
+    🪙
+  </motion.div>
+);
 
 // Juror metadata for UI
 const JUROR_META: Record<JurorProfile, {
@@ -128,33 +187,124 @@ const JurorCard: React.FC<{
 };
 
 /**
- * Verdict Summary Banner
+ * Verdict Summary Banner with dramatic animations
  */
 const VerdictBanner: React.FC<{ verdict: JuryVerdict }> = ({ verdict }) => {
   const claroCount = verdict.votes.filter(v => v.vote === 'CLARO').length;
+  const [showEffects, setShowEffects] = useState(false);
+  
+  // Trigger effects after initial animation
+  useEffect(() => {
+    const timer = setTimeout(() => setShowEffects(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Generate confetti particles for CONVENCEU
+  const confettiParticles = Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    delay: Math.random() * 0.5,
+    x: (Math.random() - 0.5) * 300,
+  }));
+  
+  // Generate golden coins
+  const goldenCoins = Array.from({ length: 8 }, (_, i) => ({
+    id: i,
+    delay: Math.random() * 0.8 + 0.2,
+    x: (Math.random() - 0.5) * 250,
+  }));
+  
+  // Shake animation for NÃO CONVENCEU
+  const shakeAnimation = !verdict.convicted ? {
+    x: [0, -10, 10, -10, 10, -5, 5, 0],
+    scale: 1,
+    opacity: 1
+  } : {
+    scale: 1,
+    opacity: 1
+  };
   
   return (
     <motion.div
       initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 0.8, type: "spring" }}
+      animate={shakeAnimation}
+      transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
       className={`relative overflow-hidden rounded-xl border-2 ${
         verdict.convicted 
           ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/20 to-emerald-500/5' 
           : 'border-red-500 bg-gradient-to-r from-red-500/20 to-red-500/5'
       } p-6 mb-6`}
     >
-      <div className="flex items-center justify-between">
+      {/* Confetti & Coins for CONVENCEU */}
+      <AnimatePresence>
+        {verdict.convicted && showEffects && (
+          <>
+            {confettiParticles.map(p => (
+              <ConfettiParticle key={p.id} delay={p.delay} x={p.x} />
+            ))}
+            {goldenCoins.map(c => (
+              <GoldenCoin key={`coin-${c.id}`} delay={c.delay} x={c.x} />
+            ))}
+          </>
+        )}
+      </AnimatePresence>
+      
+      {/* Shake overlay for NÃO CONVENCEU */}
+      {!verdict.convicted && showEffects && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.3, 0] }}
+          transition={{ duration: 0.5, repeat: 2 }}
+          className="absolute inset-0 bg-red-500/20 z-10 pointer-events-none"
+        />
+      )}
+      
+      <div className="flex items-center justify-between relative z-20">
         <div>
-          <div className={`text-3xl font-bold mb-2 ${
-            verdict.convicted ? 'text-emerald-400' : 'text-red-400'
-          }`}>
-            {verdict.convicted ? '✅ CONVENCEU O JÚRI' : '❌ NÃO CONVENCEU'}
-          </div>
+          <motion.div 
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 1, type: "spring", stiffness: 300 }}
+            className={`text-3xl font-bold mb-2 ${
+              verdict.convicted ? 'text-emerald-400' : 'text-red-400'
+            }`}
+          >
+            {verdict.convicted ? (
+              <span className="flex items-center gap-2">
+                <motion.span
+                  animate={{ rotate: [0, 15, -15, 0] }}
+                  transition={{ duration: 0.5, delay: 1.2 }}
+                >
+                  ✅
+                </motion.span>
+                <span>CONVENCEU O JÚRI</span>
+                <motion.span
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 0.3, delay: 1.5, repeat: 2 }}
+                >
+                  <Sparkles className="w-6 h-6 text-gold" />
+                </motion.span>
+              </span>
+            ) : (
+              <motion.span 
+                animate={{ x: [0, -3, 3, -3, 3, 0] }}
+                transition={{ duration: 0.4, delay: 1 }}
+                className="flex items-center gap-2"
+              >
+                ❌ NÃO CONVENCEU
+              </motion.span>
+            )}
+          </motion.div>
           <div className="text-foreground/80">
             Votação: {claroCount} CLARO × {3 - claroCount} BLEFE
             {verdict.unanimous && (
-              <span className="ml-2 text-yellow-400">(Unânime!)</span>
+              <motion.span 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.5 }}
+                className="ml-2 text-yellow-400"
+              >
+                (Unânime! 🏆)
+              </motion.span>
             )}
           </div>
         </div>
@@ -186,6 +336,22 @@ const VerdictBanner: React.FC<{ verdict: JuryVerdict }> = ({ verdict }) => {
           verdict.convicted ? 'bg-emerald-500' : 'bg-red-500'
         }`}
       />
+      
+      {/* Victory glow pulse for CONVENCEU */}
+      {verdict.convicted && (
+        <motion.div
+          animate={{
+            scale: [1, 1.5, 1],
+            opacity: [0.2, 0.4, 0.2],
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute -left-10 -top-10 w-32 h-32 rounded-full blur-2xl bg-gold"
+        />
+      )}
     </motion.div>
   );
 };
