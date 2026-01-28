@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      consent_records: {
+        Row: {
+          consent_given: boolean
+          consent_type: string
+          consent_version: string | null
+          created_at: string
+          given_at: string
+          id: string
+          ip_hash: string | null
+          revoked_at: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          consent_given: boolean
+          consent_type: string
+          consent_version?: string | null
+          created_at?: string
+          given_at?: string
+          id?: string
+          ip_hash?: string | null
+          revoked_at?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          consent_given?: boolean
+          consent_type?: string
+          consent_version?: string | null
+          created_at?: string
+          given_at?: string
+          id?: string
+          ip_hash?: string | null
+          revoked_at?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       founder_cases: {
         Row: {
           activated_at: string | null
@@ -43,6 +85,71 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      matches: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          device_type: string | null
+          difficulty_mode: string | null
+          ended_at: string | null
+          final_score: number | null
+          game_mode: string
+          id: string
+          player_session_id: string | null
+          player_user_id: string | null
+          room_id: string | null
+          rounds_completed: number | null
+          started_at: string
+          total_rounds: number | null
+          user_agent: string | null
+          was_completed: boolean | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          device_type?: string | null
+          difficulty_mode?: string | null
+          ended_at?: string | null
+          final_score?: number | null
+          game_mode?: string
+          id?: string
+          player_session_id?: string | null
+          player_user_id?: string | null
+          room_id?: string | null
+          rounds_completed?: number | null
+          started_at?: string
+          total_rounds?: number | null
+          user_agent?: string | null
+          was_completed?: boolean | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          device_type?: string | null
+          difficulty_mode?: string | null
+          ended_at?: string | null
+          final_score?: number | null
+          game_mode?: string
+          id?: string
+          player_session_id?: string | null
+          player_user_id?: string | null
+          room_id?: string | null
+          rounds_completed?: number | null
+          started_at?: string
+          total_rounds?: number | null
+          user_agent?: string | null
+          was_completed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       players: {
         Row: {
@@ -359,6 +466,100 @@ export type Database = {
         }
         Relationships: []
       }
+      training_labels: {
+        Row: {
+          ai_votes_believe: number | null
+          ai_votes_doubt: number | null
+          consensus_score: number | null
+          created_at: string
+          exclusion_reason: string | null
+          final_label: string | null
+          human_votes_believe: number | null
+          human_votes_doubt: number | null
+          id: string
+          is_valid_for_training: boolean | null
+          label_quality: string | null
+          label_source: string | null
+          match_id: string | null
+          metrics_snapshot: Json | null
+          player_claimed_truth: boolean | null
+          player_was_bluffing: boolean | null
+          question_id: string | null
+          recording_id: string
+          total_votes: number | null
+          votes_believe: number | null
+          votes_doubt: number | null
+        }
+        Insert: {
+          ai_votes_believe?: number | null
+          ai_votes_doubt?: number | null
+          consensus_score?: number | null
+          created_at?: string
+          exclusion_reason?: string | null
+          final_label?: string | null
+          human_votes_believe?: number | null
+          human_votes_doubt?: number | null
+          id?: string
+          is_valid_for_training?: boolean | null
+          label_quality?: string | null
+          label_source?: string | null
+          match_id?: string | null
+          metrics_snapshot?: Json | null
+          player_claimed_truth?: boolean | null
+          player_was_bluffing?: boolean | null
+          question_id?: string | null
+          recording_id: string
+          total_votes?: number | null
+          votes_believe?: number | null
+          votes_doubt?: number | null
+        }
+        Update: {
+          ai_votes_believe?: number | null
+          ai_votes_doubt?: number | null
+          consensus_score?: number | null
+          created_at?: string
+          exclusion_reason?: string | null
+          final_label?: string | null
+          human_votes_believe?: number | null
+          human_votes_doubt?: number | null
+          id?: string
+          is_valid_for_training?: boolean | null
+          label_quality?: string | null
+          label_source?: string | null
+          match_id?: string | null
+          metrics_snapshot?: Json | null
+          player_claimed_truth?: boolean | null
+          player_was_bluffing?: boolean | null
+          question_id?: string | null
+          recording_id?: string
+          total_votes?: number | null
+          votes_believe?: number | null
+          votes_doubt?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_labels_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_labels_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_labels_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: true
+            referencedRelation: "voice_recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_question_history: {
         Row: {
           created_at: string
@@ -465,19 +666,29 @@ export type Database = {
       }
       voice_recordings: {
         Row: {
+          answer_was_correct: boolean | null
           audio_url: string
           avg_pitch: number | null
+          blink_rate: number | null
+          brow_asymmetry: number | null
+          capture_mode: string | null
           combined_suspicion_score: number | null
+          consent_level: string | null
           created_at: string
+          device_type: string | null
           eye_gaze_dominant: string | null
           facial_analysis_json: Json | null
           facial_stress_score: number | null
+          filler_words_count: number | null
           harmonics_to_noise: number | null
           id: string
           jitter: number | null
           jitter_absolute: number | null
           jitter_deviation: number | null
           latency_deviation: number | null
+          lip_tension: number | null
+          longest_pause_ms: number | null
+          match_id: string | null
           micro_expressions_detected: string[] | null
           mycroft_forensic_details: string | null
           mycroft_verdict: string | null
@@ -488,6 +699,8 @@ export type Database = {
           player_id: string | null
           player_name: string | null
           pnl_access_type: string | null
+          question_category: string | null
+          question_difficulty: string | null
           question_id: string | null
           recording_duration_ms: number | null
           response_latency_ms: number | null
@@ -495,27 +708,41 @@ export type Database = {
           round_number: number
           session_id: string | null
           shimmer: number | null
+          silent_periods_count: number | null
+          speech_continuity: number | null
           speech_rate_bpm: number | null
           speech_rate_deviation: number | null
           stress_level: string | null
           stress_score: number | null
+          time_to_answer_ms: number | null
           video_url: string | null
           was_bluffing: boolean | null
+          words_per_minute: number | null
         }
         Insert: {
+          answer_was_correct?: boolean | null
           audio_url: string
           avg_pitch?: number | null
+          blink_rate?: number | null
+          brow_asymmetry?: number | null
+          capture_mode?: string | null
           combined_suspicion_score?: number | null
+          consent_level?: string | null
           created_at?: string
+          device_type?: string | null
           eye_gaze_dominant?: string | null
           facial_analysis_json?: Json | null
           facial_stress_score?: number | null
+          filler_words_count?: number | null
           harmonics_to_noise?: number | null
           id?: string
           jitter?: number | null
           jitter_absolute?: number | null
           jitter_deviation?: number | null
           latency_deviation?: number | null
+          lip_tension?: number | null
+          longest_pause_ms?: number | null
+          match_id?: string | null
           micro_expressions_detected?: string[] | null
           mycroft_forensic_details?: string | null
           mycroft_verdict?: string | null
@@ -526,6 +753,8 @@ export type Database = {
           player_id?: string | null
           player_name?: string | null
           pnl_access_type?: string | null
+          question_category?: string | null
+          question_difficulty?: string | null
           question_id?: string | null
           recording_duration_ms?: number | null
           response_latency_ms?: number | null
@@ -533,27 +762,41 @@ export type Database = {
           round_number?: number
           session_id?: string | null
           shimmer?: number | null
+          silent_periods_count?: number | null
+          speech_continuity?: number | null
           speech_rate_bpm?: number | null
           speech_rate_deviation?: number | null
           stress_level?: string | null
           stress_score?: number | null
+          time_to_answer_ms?: number | null
           video_url?: string | null
           was_bluffing?: boolean | null
+          words_per_minute?: number | null
         }
         Update: {
+          answer_was_correct?: boolean | null
           audio_url?: string
           avg_pitch?: number | null
+          blink_rate?: number | null
+          brow_asymmetry?: number | null
+          capture_mode?: string | null
           combined_suspicion_score?: number | null
+          consent_level?: string | null
           created_at?: string
+          device_type?: string | null
           eye_gaze_dominant?: string | null
           facial_analysis_json?: Json | null
           facial_stress_score?: number | null
+          filler_words_count?: number | null
           harmonics_to_noise?: number | null
           id?: string
           jitter?: number | null
           jitter_absolute?: number | null
           jitter_deviation?: number | null
           latency_deviation?: number | null
+          lip_tension?: number | null
+          longest_pause_ms?: number | null
+          match_id?: string | null
           micro_expressions_detected?: string[] | null
           mycroft_forensic_details?: string | null
           mycroft_verdict?: string | null
@@ -564,6 +807,8 @@ export type Database = {
           player_id?: string | null
           player_name?: string | null
           pnl_access_type?: string | null
+          question_category?: string | null
+          question_difficulty?: string | null
           question_id?: string | null
           recording_duration_ms?: number | null
           response_latency_ms?: number | null
@@ -571,14 +816,25 @@ export type Database = {
           round_number?: number
           session_id?: string | null
           shimmer?: number | null
+          silent_periods_count?: number | null
+          speech_continuity?: number | null
           speech_rate_bpm?: number | null
           speech_rate_deviation?: number | null
           stress_level?: string | null
           stress_score?: number | null
+          time_to_answer_ms?: number | null
           video_url?: string | null
           was_bluffing?: boolean | null
+          words_per_minute?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "voice_recordings_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "voice_recordings_player_id_fkey"
             columns: ["player_id"]
@@ -604,28 +860,43 @@ export type Database = {
       }
       votes: {
         Row: {
+          ai_profile: string | null
+          confidence_level: number | null
           created_at: string
           id: string
           player_id: string
           question_id: string
+          reasoning: string | null
+          recording_id: string | null
           room_id: string
           vote_type: string
+          voter_type: string | null
         }
         Insert: {
+          ai_profile?: string | null
+          confidence_level?: number | null
           created_at?: string
           id?: string
           player_id: string
           question_id: string
+          reasoning?: string | null
+          recording_id?: string | null
           room_id: string
           vote_type: string
+          voter_type?: string | null
         }
         Update: {
+          ai_profile?: string | null
+          confidence_level?: number | null
           created_at?: string
           id?: string
           player_id?: string
           question_id?: string
+          reasoning?: string | null
+          recording_id?: string | null
           room_id?: string
           vote_type?: string
+          voter_type?: string | null
         }
         Relationships: [
           {
@@ -640,6 +911,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "voice_recordings"
             referencedColumns: ["id"]
           },
           {
@@ -662,6 +940,10 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
+      generate_training_label: {
+        Args: { p_recording_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
