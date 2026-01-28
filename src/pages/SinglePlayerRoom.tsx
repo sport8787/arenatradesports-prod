@@ -105,6 +105,8 @@ import LiveBCCounter from '@/components/game/LiveBCCounter';
 // Júri IA - Claude Sonnet 4 powered (Single Player only)
 import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict } from '@/services/juryClaudeService';
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
+// ElevenLabs STT - Real-time transcription
+import { transcribeAudioFromUrl, calculateSpeechMetrics, type TranscriptionResult } from '@/services/elevenLabsSTTService';
 
 // BluffCoin costs
 const MYCROFT_COST = 200;
@@ -340,6 +342,8 @@ function SinglePlayerRoomContent() {
   const [juryVerdict, setJuryVerdict] = useState<JuryVerdict | null>(null);
   const [isJuryDeliberating, setIsJuryDeliberating] = useState(false);
   const [juryEnabled, setJuryEnabled] = useState(true);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [lastAudioUrl, setLastAudioUrl] = useState<string | null>(null);
   
   // Validate jury API on mount
   useEffect(() => {
@@ -1969,31 +1973,120 @@ function SinglePlayerRoomContent() {
 
                     {/* Audio Recorder */}
                     {recordingMode === 'audio' && (
-                      <AudioRecorder 
-                        roomId="solo-mode"
-                        mycroftConsent={mycroftConsent}
-                        onConsentRequired={() => setShowMycroftConsent(true)}
-                        onRecordingComplete={(audioUrl, metrics) => {
-                          setVoiceMetrics(metrics);
-                          setHasRecordedAudio(true);
-                          // Generate transcription from audio URL if needed
-                          setTranscription("Justificativa gravada pelo jogador via áudio");
-                        }}
-                      />
+                      <div className="space-y-2">
+                        <AudioRecorder 
+                          roomId="solo-mode"
+                          mycroftConsent={mycroftConsent}
+                          onConsentRequired={() => setShowMycroftConsent(true)}
+                          onRecordingComplete={async (audioUrl, metrics) => {
+                            setVoiceMetrics(metrics);
+                            setHasRecordedAudio(true);
+                            setLastAudioUrl(audioUrl);
+                            
+                            // Real-time transcription using ElevenLabs STT
+                            setIsTranscribing(true);
+                            setTranscription(""); // Clear previous
+                            
+                            try {
+                              console.log('[SinglePlayer] Starting transcription for:', audioUrl);
+                              const result = await transcribeAudioFromUrl(audioUrl, 'por');
+                              
+                              if (result.text) {
+                                setTranscription(result.text);
+                                console.log('[SinglePlayer] Transcription complete:', result.text.substring(0, 100) + '...');
+                                
+                                // Calculate speech metrics for jury analysis
+                                const speechMetrics = calculateSpeechMetrics(result);
+                                console.log('[SinglePlayer] Speech metrics:', speechMetrics);
+                                
+                                toast({ 
+                                  title: '🎙️ Transcrição completa!', 
+                                  description: `${result.words?.length || 0} palavras detectadas` 
+                                });
+                              } else {
+                                setTranscription("Justificativa gravada (transcrição indisponível)");
+                                console.warn('[SinglePlayer] Empty transcription returned');
+                              }
+                            } catch (error) {
+                              console.error('[SinglePlayer] Transcription error:', error);
+                              setTranscription("Justificativa gravada (erro na transcrição)");
+                            } finally {
+                              setIsTranscribing(false);
+                            }
+                          }}
+                        />
+                        {isTranscribing && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Transcrevendo sua justificativa...</span>
+                          </div>
+                        )}
+                        {transcription && !isTranscribing && (
+                          <div className="p-3 bg-background/50 border border-gold/20 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">📝 Transcrição:</p>
+                            <p className="text-sm text-foreground italic">"{transcription}"</p>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {/* Video Recorder */}
                     {recordingMode === 'video' && (
-                      <VideoRecorder
-                        roomId="solo-mode"
-                        mycroftConsent={mycroftConsent}
-                        onConsentRequired={() => setShowMycroftConsent(true)}
-                        onRecordingComplete={(videoUrl, audioMetrics, videoForensics) => {
-                          setVoiceMetrics(audioMetrics);
-                          setVideoMetrics(videoForensics);
-                          setHasRecordedAudio(true);
-                        }}
-                      />
+                      <div className="space-y-2">
+                        <VideoRecorder
+                          roomId="solo-mode"
+                          mycroftConsent={mycroftConsent}
+                          onConsentRequired={() => setShowMycroftConsent(true)}
+                          onRecordingComplete={async (videoUrl, audioMetrics, videoForensics) => {
+                            setVoiceMetrics(audioMetrics);
+                            setVideoMetrics(videoForensics);
+                            setHasRecordedAudio(true);
+                            setLastAudioUrl(videoUrl);
+                            
+                            // Real-time transcription using ElevenLabs STT
+                            // Note: VideoRecorder stores audio separately, we'll use the video URL
+                            setIsTranscribing(true);
+                            setTranscription("");
+                            
+                            try {
+                              console.log('[SinglePlayer] Starting transcription for video:', videoUrl);
+                              const result = await transcribeAudioFromUrl(videoUrl, 'por');
+                              
+                              if (result.text) {
+                                setTranscription(result.text);
+                                console.log('[SinglePlayer] Transcription complete:', result.text.substring(0, 100) + '...');
+                                
+                                const speechMetrics = calculateSpeechMetrics(result);
+                                console.log('[SinglePlayer] Speech metrics:', speechMetrics);
+                                
+                                toast({ 
+                                  title: '🎥 Transcrição completa!', 
+                                  description: `${result.words?.length || 0} palavras detectadas` 
+                                });
+                              } else {
+                                setTranscription("Justificativa gravada em vídeo (transcrição indisponível)");
+                              }
+                            } catch (error) {
+                              console.error('[SinglePlayer] Video transcription error:', error);
+                              setTranscription("Justificativa gravada em vídeo (erro na transcrição)");
+                            } finally {
+                              setIsTranscribing(false);
+                            }
+                          }}
+                        />
+                        {isTranscribing && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Transcrevendo sua justificativa...</span>
+                          </div>
+                        )}
+                        {transcription && !isTranscribing && (
+                          <div className="p-3 bg-background/50 border border-gold/20 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">📝 Transcrição:</p>
+                            <p className="text-sm text-foreground italic">"{transcription}"</p>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {/* Actions - only show when recording mode is selected */}
@@ -2013,7 +2106,7 @@ function SinglePlayerRoomContent() {
                         <GoldButton 
                           onClick={() => submitAudio(hasRecordedAudio)} 
                           className="flex-1"
-                          disabled={!hasRecordedAudio}
+                          disabled={!hasRecordedAudio || isTranscribing}
                         >
                           <Brain className="w-5 h-5 mr-2" />
                           ENVIAR PARA A MESA
