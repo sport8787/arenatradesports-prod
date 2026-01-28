@@ -28,7 +28,12 @@ import BonusCardsPanel from '@/components/game/BonusCardsPanel';
 import EliminationAnimation from '@/components/game/EliminationAnimation';
 import MoneyRain from '@/components/game/MoneyRain';
 import AudioRecorder from '@/components/game/AudioRecorder';
+import VideoRecorder from '@/components/game/VideoRecorder';
+import RecordingModeSelector, { type RecordingMode } from '@/components/game/RecordingModeSelector';
 import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
+import { MycroftCombinedPanel } from '@/components/game/MycroftCombinedPanel';
+import { generateCombinedReading, type CombinedReading } from '@/services/mycroftCombinedReadingService';
+import type { VideoForensicsResult } from '@/services/videoForensicsService';
 import BluffFeedback from '@/components/game/BluffFeedback';
 import CashOutDialog from '@/components/game/CashOutDialog';
 import MysteryBriefcaseModal from '@/components/game/MysteryBriefcaseModal';
@@ -278,6 +283,13 @@ function SinglePlayerRoomContent() {
   const [voiceMetrics, setVoiceMetrics] = useState<VoiceMetrics | null>(null);
   const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
   const [voiceAnalysis, setVoiceAnalysis] = useState<VoiceAnalysisResult | null>(null);
+  
+  // Recording mode selector (audio vs video)
+  const [recordingMode, setRecordingMode] = useState<RecordingMode | null>(null);
+  const [videoMetrics, setVideoMetrics] = useState<VideoForensicsResult | null>(null);
+  const [transcription, setTranscription] = useState<string>("");
+  const [mycroftCombinedReading, setMycroftCombinedReading] = useState<CombinedReading | null>(null);
+  const [showMycroftCombinedPanel, setShowMycroftCombinedPanel] = useState(false);
   
   // LGPD Consent state for Mycroft voice analysis
   const [showMycroftConsent, setShowMycroftConsent] = useState(false);
@@ -922,22 +934,67 @@ function SinglePlayerRoomContent() {
       const playerAnsweredCorrectly = confirmedAnswer === currentQuestion.correct_option;
       const correctAnswer = currentQuestion[`option_${currentQuestion.correct_option.toLowerCase()}` as keyof Question] as string;
       
+      // Generate Mycroft 2.0 combined reading with real data
+      let combinedScore = 50;
+      let microExpressions: string[] = [];
+      let gazeDeviation = 'straight';
+      let facialTension = 30;
+      
+      if (voiceMetrics || videoMetrics) {
+        try {
+          const reading = generateCombinedReading(
+            voiceMetrics || {
+              responseLatencyMs: 3000,
+              pitchStability: 'stable',
+              speechRateBPM: 120,
+              avgPitch: 150,
+              pitchVariance: 10,
+              peakAmplitude: 0.5,
+              recordingDurationMs: 10000,
+              jitter: 0.5,
+              jitterAbsolute: 0.01,
+              shimmer: 2,
+              harmonicsToNoise: 10,
+            },
+            videoMetrics || null
+          );
+          setMycroftCombinedReading(reading);
+          combinedScore = reading.combinedScore;
+          
+          // Extract facial data if available
+          if (videoMetrics) {
+            microExpressions = videoMetrics.microExpressions?.detected?.map(e => e.type) || [];
+            gazeDeviation = videoMetrics.eyeGaze?.dominantDirection || 'straight';
+            facialTension = (videoMetrics.facialStress?.lipTension || 0) * 100;
+          }
+        } catch (err) {
+          console.error('[SinglePlayer] Mycroft reading error:', err);
+        }
+      }
+      
       const juryRequest = {
         question: currentQuestion.question_text,
         playerAnswer: currentQuestion[`option_${confirmedAnswer.toLowerCase()}` as keyof Question] as string,
         correctAnswer,
-        transcription: "Justificativa gravada pelo jogador",
+        transcription: transcription || "Justificativa gravada pelo jogador",
         mycroftAnalysis: {
-          stressScore: 50,
-          microExpressions: [],
-          gazeDeviation: 'straight',
+          stressScore: combinedScore,
+          microExpressions,
+          gazeDeviation,
           vocalHesitation: Math.max(0, Math.floor((voiceMetrics?.responseLatencyMs || 0) / 2000)),
           confidenceTone: voiceMetrics?.pitchStability === 'stable' ? 'high' : voiceMetrics?.pitchStability === 'micro-tremors' ? 'medium' : 'low',
           vocalJitter: voiceMetrics?.jitter || 0,
-          facialTension: 30,
-          combinedScore: 50,
+          facialTension,
+          combinedScore,
         },
       };
+      
+      console.log('[SinglePlayer] 📊 Sending to AI Jury:', {
+        transcription: juryRequest.transcription.substring(0, 50) + '...',
+        stressScore: juryRequest.mycroftAnalysis.stressScore,
+        combinedScore: juryRequest.mycroftAnalysis.combinedScore,
+        hasVideoMetrics: !!videoMetrics,
+      });
       
       const verdict = juryEnabled 
         ? await getJuryVerdict(juryRequest)
@@ -945,6 +1002,7 @@ function SinglePlayerRoomContent() {
       
       setJuryVerdict(verdict);
       setIsJuryDeliberating(false);
+      setShowMycroftCombinedPanel(true);
       
       // Update score based on jury verdict
       if (verdict.convicted) {
@@ -1451,6 +1509,16 @@ function SinglePlayerRoomContent() {
     await selectNextQuestion();
     setNewlyUnlockedCard(null);
     
+    // Reset recording state for new round
+    setRecordingMode(null);
+    setVoiceMetrics(null);
+    setVideoMetrics(null);
+    setHasRecordedAudio(false);
+    setTranscription("");
+    setMycroftCombinedReading(null);
+    setShowMycroftCombinedPanel(false);
+    setJuryVerdict(null);
+    
     // Update NarrativeEngine state
     narrativeEngineRef.current.advanceRound(true);
     
@@ -1885,33 +1953,73 @@ function SinglePlayerRoomContent() {
                   />
                   
                   <div className="space-y-4">
-                    <AudioRecorder 
-                      roomId="solo-mode"
-                      mycroftConsent={mycroftConsent}
-                      onConsentRequired={() => setShowMycroftConsent(true)}
-                      onRecordingComplete={(audioUrl, metrics) => {
-                        setVoiceMetrics(metrics);
-                        setHasRecordedAudio(true);
-                      }}
-                    />
+                    {/* Recording Mode Selector - choose audio or video */}
+                    {!recordingMode && (
+                      <RecordingModeSelector
+                        onSelect={(mode) => {
+                          setRecordingMode(mode);
+                          setHasRecordedAudio(false);
+                          setVoiceMetrics(null);
+                          setVideoMetrics(null);
+                          setTranscription("");
+                        }}
+                        mycroftConsent={mycroftConsent}
+                      />
+                    )}
 
-                    <div className="flex gap-4">
-                      <GoldButton 
-                        variant="outline" 
-                        onClick={activateMycroft} 
-                        className="flex-1"
-                        disabled={mycroftUsed || bluffcoins < MYCROFT_COST}
-                      >
-                        <BotIcon className="w-5 h-5 mr-2" /> 
-                        {mycroftUsed ? 'Mycroft Ativado' : (
-                          <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
-                        )}
-                      </GoldButton>
-                      <GoldButton onClick={() => submitAudio(hasRecordedAudio)} className="flex-1">
-                        <Brain className="w-5 h-5 mr-2" />
-                        ENVIAR PARA A MESA
-                      </GoldButton>
-                    </div>
+                    {/* Audio Recorder */}
+                    {recordingMode === 'audio' && (
+                      <AudioRecorder 
+                        roomId="solo-mode"
+                        mycroftConsent={mycroftConsent}
+                        onConsentRequired={() => setShowMycroftConsent(true)}
+                        onRecordingComplete={(audioUrl, metrics) => {
+                          setVoiceMetrics(metrics);
+                          setHasRecordedAudio(true);
+                          // Generate transcription from audio URL if needed
+                          setTranscription("Justificativa gravada pelo jogador via áudio");
+                        }}
+                      />
+                    )}
+
+                    {/* Video Recorder */}
+                    {recordingMode === 'video' && (
+                      <VideoRecorder
+                        roomId="solo-mode"
+                        mycroftConsent={mycroftConsent}
+                        onConsentRequired={() => setShowMycroftConsent(true)}
+                        onRecordingComplete={(videoUrl, audioMetrics, videoForensics) => {
+                          setVoiceMetrics(audioMetrics);
+                          setVideoMetrics(videoForensics);
+                          setHasRecordedAudio(true);
+                        }}
+                      />
+                    )}
+
+                    {/* Actions - only show when recording mode is selected */}
+                    {recordingMode && (
+                      <div className="flex gap-4">
+                        <GoldButton 
+                          variant="outline" 
+                          onClick={activateMycroft} 
+                          className="flex-1"
+                          disabled={mycroftUsed || bluffcoins < MYCROFT_COST}
+                        >
+                          <BotIcon className="w-5 h-5 mr-2" /> 
+                          {mycroftUsed ? 'Mycroft Ativado' : (
+                            <>Mycroft <BluffCoinCost amount={MYCROFT_COST} /></>
+                          )}
+                        </GoldButton>
+                        <GoldButton 
+                          onClick={() => submitAudio(hasRecordedAudio)} 
+                          className="flex-1"
+                          disabled={!hasRecordedAudio}
+                        >
+                          <Brain className="w-5 h-5 mr-2" />
+                          ENVIAR PARA A MESA
+                        </GoldButton>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1940,16 +2048,28 @@ function SinglePlayerRoomContent() {
 
               {/* JURY DELIBERATION PHASE - AI Jury powered by Claude Sonnet 4 */}
               {gamePhase === 'jury_deliberation' && (
-                <LuxuryCard className="p-6">
-                  <div className="text-center mb-6">
-                    <h2 className="font-orbitron text-xl text-primary">Júri IA Deliberando</h2>
-                    <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
-                  </div>
-                  <JuryVotingPanel
-                    verdict={juryVerdict}
-                    isLoading={isJuryDeliberating}
-                    onComplete={handleJuryComplete}
-                  />
+                <div className="space-y-6">
+                  <LuxuryCard className="p-6">
+                    <div className="text-center mb-6">
+                      <h2 className="font-orbitron text-xl text-primary">Júri IA Deliberando</h2>
+                      <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
+                    </div>
+                    <JuryVotingPanel
+                      verdict={juryVerdict}
+                      isLoading={isJuryDeliberating}
+                      onComplete={handleJuryComplete}
+                    />
+                  </LuxuryCard>
+                  
+                  {/* Mycroft 2.0 Combined Analysis Panel */}
+                  {showMycroftCombinedPanel && mycroftCombinedReading && (
+                    <MycroftCombinedPanel
+                      reading={mycroftCombinedReading}
+                      videoMetrics={videoMetrics || undefined}
+                      recordingDurationMs={voiceMetrics?.recordingDurationMs}
+                    />
+                  )}
+                  
                   {!isJuryDeliberating && juryVerdict && (
                     <GoldButton 
                       onClick={handleJuryComplete}
@@ -1959,7 +2079,7 @@ function SinglePlayerRoomContent() {
                       Próxima Rodada →
                     </GoldButton>
                   )}
-                </LuxuryCard>
+                </div>
               )}
 
               {/* BRIBE OFFER PHASE - Horus makes his offer before jury votes */}
