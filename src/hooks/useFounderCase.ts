@@ -35,7 +35,7 @@ export function useFounderCase() {
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         setState(prev => ({ ...prev, loading: false, hasFounderCase: false }));
@@ -70,7 +70,7 @@ export function useFounderCase() {
         .from('founder_cases')
         .select('*')
         .eq('case_code', code.toUpperCase())
-        .single();
+        .maybeSingle();
 
       if (error || !existingCase) {
         return false;
