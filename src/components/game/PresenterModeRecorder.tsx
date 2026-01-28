@@ -14,6 +14,8 @@ import {
   markRecordingStart, 
   analyzeAudioFrame, 
   finalizeForensicsSession,
+  startIntervalCapture,
+  stopIntervalCapture,
   type VoiceMetrics 
 } from '@/services/audioForensicsService';
 
@@ -66,6 +68,8 @@ export default function PresenterModeRecorder({
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    // Stop V2 interval capture
+    stopIntervalCapture();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
@@ -144,6 +148,9 @@ export default function PresenterModeRecorder({
       analyser.smoothingTimeConstant = 0.5; // Less smoothing for more accurate analysis
       source.connect(analyser);
       analyserRef.current = analyser;
+
+      // V2: Start interval-based capture (ROBUST - replaces ScriptProcessor)
+      startIntervalCapture(audioContext, stream);
 
       // Mark recording start for latency calculation
       markRecordingStart();
