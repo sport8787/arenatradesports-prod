@@ -2,20 +2,13 @@
  * MediaPipe FaceMesh Service
  * Provides real-time facial landmark detection using MediaPipe.
  *
- * NOTE: MediaPipe packages ship as IIFE scripts (not true ESM exports) and
- * expose constructors on the global object. Importing named exports can result
- * in runtime errors like: "FaceMesh is not a constructor".
+ * Uses CDN script injection for reliable loading across all environments.
  */
-
-import '@mediapipe/face_mesh';
-import '@mediapipe/camera_utils';
-import type { Results, FaceMesh as FaceMeshInstanceType } from '@mediapipe/face_mesh';
-import type { Camera as CameraInstanceType } from '@mediapipe/camera_utils';
 
 // Types
 export interface FaceMeshInstance {
-  faceMesh: FaceMeshInstanceType;
-  camera: CameraInstanceType | null;
+  faceMesh: any;
+  camera: any;
   isReady: boolean;
 }
 
@@ -32,6 +25,87 @@ export type OnResultsCallback = (landmarks: number[][] | null) => void;
 
 let instance: FaceMeshInstance | null = null;
 let onResultsCallback: OnResultsCallback | null = null;
+let scriptsLoaded = false;
+let loadingPromise: Promise<boolean> | null = null;
+
+// CDN URLs for MediaPipe
+const FACE_MESH_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js';
+const CAMERA_UTILS_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js';
+
+/**
+ * Load a script from CDN and wait for it to be ready
+ */
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (document.querySelector(`script[src="${src}"]`)) {
+      console.log(`[FaceMesh] Script already loaded: ${src}`);
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.crossOrigin = 'anonymous';
+    script.onload = () => {
+      console.log(`[FaceMesh] ✅ Script loaded: ${src}`);
+      resolve();
+    };
+    script.onerror = (err) => {
+      console.error(`[FaceMesh] ❌ Script failed: ${src}`, err);
+      reject(new Error(`Failed to load script: ${src}`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Load MediaPipe scripts from CDN
+ */
+async function loadMediaPipeScripts(): Promise<boolean> {
+  if (scriptsLoaded) {
+    return true;
+  }
+
+  if (loadingPromise) {
+    return loadingPromise;
+  }
+
+  loadingPromise = (async () => {
+    try {
+      console.log('[FaceMesh] 📦 Loading MediaPipe scripts from CDN...');
+      
+      // Load scripts sequentially (camera_utils depends on face_mesh patterns)
+      await loadScript(FACE_MESH_CDN);
+      await loadScript(CAMERA_UTILS_CDN);
+      
+      // Wait a bit for globals to be registered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify constructors are available
+      const win = window as any;
+      if (typeof win.FaceMesh !== 'function') {
+        console.error('[FaceMesh] FaceMesh constructor not found after loading');
+        return false;
+      }
+      if (typeof win.Camera !== 'function') {
+        console.error('[FaceMesh] Camera constructor not found after loading');
+        return false;
+      }
+      
+      console.log('[FaceMesh] ✅ All MediaPipe scripts loaded successfully');
+      scriptsLoaded = true;
+      return true;
+    } catch (error) {
+      console.error('[FaceMesh] ❌ Failed to load MediaPipe scripts:', error);
+      return false;
+    } finally {
+      loadingPromise = null;
+    }
+  })();
+
+  return loadingPromise;
+}
 
 /**
  * Initialize MediaPipe FaceMesh
@@ -43,40 +117,21 @@ export async function initializeFaceMesh(): Promise<boolean> {
   }
 
   try {
-    console.log('[FaceMesh] Initializing MediaPipe FaceMesh...');
+    console.log('[FaceMesh] 🚀 Initializing MediaPipe FaceMesh...');
 
-    // MediaPipe packaging is inconsistent across environments (IIFE globals vs ESM exports).
-    // We support BOTH:
-    // 1) ESM: import('@mediapipe/face_mesh').FaceMesh
-    // 2) Global: globalThis.FaceMesh
-    type FaceMeshCtor = new (config?: unknown) => FaceMeshInstanceType;
-    let FaceMeshCtorResolved: FaceMeshCtor | undefined;
-
-    try {
-      const mod: any = await import('@mediapipe/face_mesh');
-      const candidate = mod?.FaceMesh ?? mod?.default?.FaceMesh ?? mod?.default;
-      if (typeof candidate === 'function') {
-        FaceMeshCtorResolved = candidate as FaceMeshCtor;
-      }
-    } catch (e) {
-      console.warn('[FaceMesh] ESM import failed, will try global constructor.', e);
-    }
-
-    if (!FaceMeshCtorResolved) {
-      const globalCandidate = (globalThis as any).FaceMesh;
-      if (typeof globalCandidate === 'function') {
-        FaceMeshCtorResolved = globalCandidate as FaceMeshCtor;
-      }
-    }
-
-    if (!FaceMeshCtorResolved) {
-      console.error('[FaceMesh] Global FaceMesh constructor not found.');
+    // Load scripts from CDN
+    const loaded = await loadMediaPipeScripts();
+    if (!loaded) {
+      console.error('[FaceMesh] Failed to load MediaPipe scripts');
       return false;
     }
 
-    const faceMesh = new FaceMeshCtorResolved({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+    const win = window as any;
+    const FaceMeshCtor = win.FaceMesh;
+
+    const faceMesh = new FaceMeshCtor({
+      locateFile: (file: string) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
       },
     });
 
@@ -97,10 +152,10 @@ export async function initializeFaceMesh(): Promise<boolean> {
       isReady: true,
     };
 
-    console.log('[FaceMesh] Initialized successfully');
+    console.log('[FaceMesh] ✅ Initialized successfully');
     return true;
   } catch (error) {
-    console.error('[FaceMesh] Initialization error:', error);
+    console.error('[FaceMesh] ❌ Initialization error:', error);
     return false;
   }
 }
@@ -108,7 +163,7 @@ export async function initializeFaceMesh(): Promise<boolean> {
 /**
  * Handle FaceMesh results
  */
-function handleResults(results: Results): void {
+function handleResults(results: any): void {
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     // Convert landmarks to array format [[x, y, z], ...]
     const landmarks = results.multiFaceLandmarks[0].map(
@@ -147,40 +202,24 @@ export async function startFaceDetection(
   setOnResultsCallback(callback);
 
   try {
-    type CameraCtor = new (
-      videoElement: HTMLVideoElement,
-      options: {
-        onFrame: () => Promise<void> | void;
-        width: number;
-        height: number;
-      }
-    ) => CameraInstanceType;
-
-    let CameraCtorResolved: CameraCtor | undefined;
-    try {
-      const mod: any = await import('@mediapipe/camera_utils');
-      const candidate = mod?.Camera ?? mod?.default?.Camera ?? mod?.default;
-      if (typeof candidate === 'function') {
-        CameraCtorResolved = candidate as CameraCtor;
-      }
-    } catch (e) {
-      console.warn('[FaceMesh] Camera ESM import failed, will try global constructor.', e);
+    // Load scripts if not already loaded
+    const loaded = await loadMediaPipeScripts();
+    if (!loaded) {
+      console.error('[FaceMesh] Failed to load MediaPipe scripts for camera');
+      return false;
     }
 
-    if (!CameraCtorResolved) {
-      const globalCandidate = (globalThis as any).Camera;
-      if (typeof globalCandidate === 'function') {
-        CameraCtorResolved = globalCandidate as CameraCtor;
-      }
-    }
+    const win = window as any;
+    const CameraCtor = win.Camera;
 
-    if (!CameraCtorResolved) {
+    if (!CameraCtor) {
       console.error('[FaceMesh] Global Camera constructor not found.');
       return false;
     }
 
     // Create camera instance
-    const camera = new CameraCtorResolved(videoElement, {
+    // Create camera instance
+    const camera = new CameraCtor(videoElement, {
       onFrame: async () => {
         if (instance?.faceMesh) {
           await instance.faceMesh.send({ image: videoElement });
