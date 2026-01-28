@@ -52,6 +52,7 @@ export default function AudioRecorder({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+  const isPausedRef = useRef(false);
   
   const MAX_DURATION = 60; // 60 seconds max
 
@@ -63,6 +64,10 @@ export default function AudioRecorder({
       cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -82,7 +87,7 @@ export default function AudioRecorder({
   const updateWaveform = useCallback(() => {
     if (!isMountedRef.current) return;
     
-    if (!analyserRef.current || isPaused) {
+    if (!analyserRef.current || isPausedRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
       return;
     }
@@ -108,7 +113,7 @@ export default function AudioRecorder({
     analyzeAudioFrame(analyserRef.current);
     
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
-  }, [isPaused]);
+  }, []);
 
   const startRecording = async () => {
     // Check consent before starting - if null, require consent first
@@ -134,6 +139,13 @@ export default function AudioRecorder({
       // Setup Web Audio API for visualization
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
+
+      // Ensure AudioContext is running (Safari/iOS can start suspended)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log('[AudioRecorder] 🔊 AudioContext state:', audioContext.state, 'sampleRate:', audioContext.sampleRate);
+      console.log('[AudioRecorder] 🎤 Audio tracks:', stream.getAudioTracks().length);
       
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
