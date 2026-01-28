@@ -24,6 +24,11 @@ export interface JuryVoteRequest {
     vocalJitter: number;
     facialTension: number;
     combinedScore: number;
+    // NEW: Speech fluency metrics (FREE - no transcription needed)
+    silentPeriods?: number;
+    longestPause?: number;
+    fillerWordsCount?: number;
+    speechContinuity?: number;
   };
 }
 

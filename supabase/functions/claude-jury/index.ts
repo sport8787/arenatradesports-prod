@@ -27,6 +27,11 @@ interface JuryVoteRequest {
     vocalJitter: number;
     facialTension: number;
     combinedScore: number;
+    // NEW: Speech fluency metrics (FREE)
+    silentPeriods?: number;
+    longestPause?: number;
+    fillerWordsCount?: number;
+    speechContinuity?: number;
   };
 }
 
@@ -180,6 +185,12 @@ ANÁLISE MYCROFT 2.0 (Biometria Forense):
 
 😬 **Tensão Facial:** ${request.mycroftAnalysis.facialTension}/100
    ${request.mycroftAnalysis.facialTension > 60 ? '⚠️ ALTA' : request.mycroftAnalysis.facialTension > 30 ? '🟡 MODERADA' : '🟢 BAIXA'}
+
+🎤 **Fluência da Fala (métricas gratuitas):**
+   - Pausas longas (>1s): ${request.mycroftAnalysis.silentPeriods ?? 0}x ${(request.mycroftAnalysis.silentPeriods ?? 0) > 2 ? '⚠️ MUITAS' : (request.mycroftAnalysis.silentPeriods ?? 0) > 0 ? '🟡 ALGUMAS' : '🟢 NENHUMA'}
+   - Maior pausa: ${((request.mycroftAnalysis.longestPause ?? 0) / 1000).toFixed(1)}s
+   - Hesitações ("uhm/ahh"): ${request.mycroftAnalysis.fillerWordsCount ?? 0}x ${(request.mycroftAnalysis.fillerWordsCount ?? 0) > 3 ? '⚠️ EXCESSIVAS' : (request.mycroftAnalysis.fillerWordsCount ?? 0) > 1 ? '🟡 MODERADAS' : '🟢 MÍNIMAS'}
+   - Score de fluência: ${request.mycroftAnalysis.speechContinuity ?? 80}/100 ${(request.mycroftAnalysis.speechContinuity ?? 80) < 50 ? '⚠️ BAIXA' : (request.mycroftAnalysis.speechContinuity ?? 80) < 70 ? '🟡 MODERADA' : '🟢 ALTA'}
 
 🎯 **Score Final Mycroft:** ${request.mycroftAnalysis.combinedScore}/100
    ${request.mycroftAnalysis.combinedScore > 65 ? '🔴 ZONA BLEFE' : request.mycroftAnalysis.combinedScore > 35 ? '🟡 ZONA MISTA' : '🟢 ZONA VERDADE'}
