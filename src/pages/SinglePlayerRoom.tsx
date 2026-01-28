@@ -342,6 +342,7 @@ function SinglePlayerRoomContent() {
   const [juryVerdict, setJuryVerdict] = useState<JuryVerdict | null>(null);
   const [isJuryDeliberating, setIsJuryDeliberating] = useState(false);
   const [juryEnabled, setJuryEnabled] = useState(true);
+  const [showJuryButton, setShowJuryButton] = useState(false);
   // isTranscribing state REMOVED - transcription disabled for cost reasons
   const [lastAudioUrl, setLastAudioUrl] = useState<string | null>(null);
   
@@ -356,6 +357,21 @@ function SinglePlayerRoomContent() {
       }
     });
   }, []);
+  
+  // Delay para exibir botão do júri (força usuário a ler resultado)
+  useEffect(() => {
+    if (gamePhase === 'jury_deliberation' && !isJuryDeliberating && juryVerdict) {
+      setShowJuryButton(false); // Reset
+      
+      const timer = setTimeout(() => {
+        setShowJuryButton(true);
+      }, 5000); // 5 segundos de delay
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowJuryButton(false);
+    }
+  }, [gamePhase, isJuryDeliberating, juryVerdict]);
   
   // Psychology dialogue system
   const [psychologyState, setPsychologyState] = useState<PlayerPsychologyState>(() => 
@@ -2154,7 +2170,8 @@ function SinglePlayerRoomContent() {
               {/* JURY DELIBERATION PHASE - AI Jury powered by Claude Sonnet 4 */}
               {gamePhase === 'jury_deliberation' && (
                 <div className="space-y-6">
-                  {/* Loading state */}
+                  
+                  {/* ══════ LOADING STATE ══════ */}
                   {isJuryDeliberating && (
                     <LuxuryCard className="p-6">
                       <div className="text-center mb-6">
@@ -2168,27 +2185,75 @@ function SinglePlayerRoomContent() {
                     </LuxuryCard>
                   )}
                   
-                  {/* Button first, then results below */}
+                  {/* ══════ RESULTADO APARECE PRIMEIRO ══════ */}
                   {!isJuryDeliberating && juryVerdict && (
                     <>
-                      <GoldButton 
-                        onClick={handleJuryComplete}
-                        className="w-full"
-                        size="lg"
-                      >
-                        PRÓXIMA RODADA →
-                      </GoldButton>
-                      
-                      {/* Jury Results - displayed inline below button */}
+                      {/* CARD PRINCIPAL - Resultado do Júri */}
                       <LuxuryCard className="p-6">
                         <div className="text-center mb-4">
-                          <h2 className="font-orbitron text-xl text-primary">Resultado do Júri IA</h2>
+                          <h2 className="font-orbitron text-2xl text-primary mb-2">
+                            ⚖️ Resultado do Júri IA
+                          </h2>
                           <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
                         </div>
+                        
+                        {/* Painel com os 3 votos */}
                         <JuryVotingPanel
                           verdict={juryVerdict}
                           isLoading={false}
                         />
+                        
+                        {/* Veredito Final em Destaque */}
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 1, duration: 0.5 }}
+                          className={`mt-6 p-5 rounded-xl border-2 ${
+                            juryVerdict.convicted 
+                              ? 'bg-emerald-500/10 border-emerald-500/50 shadow-emerald-500/20' 
+                              : 'bg-red-500/10 border-red-500/50 shadow-red-500/20'
+                          } shadow-lg`}
+                        >
+                          <div className="text-center space-y-3">
+                            {/* Título do Veredito */}
+                            <div className={`text-3xl font-bold ${
+                              juryVerdict.convicted ? 'text-emerald-400' : 'text-red-400'
+                            }`}>
+                              {juryVerdict.convicted ? '✅ CONVENCEU O JÚRI!' : '❌ NÃO CONVENCEU'}
+                            </div>
+                            
+                            {/* Detalhes da Votação */}
+                            <div className="space-y-1">
+                              <div className="text-base text-muted-foreground">
+                                Votação: <span className="text-emerald-400 font-bold">
+                                  {juryVerdict.votes.filter(v => v.vote === 'CLARO').length} CLARO
+                                </span> × <span className="text-red-400 font-bold">
+                                  {juryVerdict.votes.filter(v => v.vote === 'BLEFE').length} BLEFE
+                                </span>
+                              </div>
+                              
+                              {juryVerdict.unanimous && (
+                                <div className="inline-block px-3 py-1 bg-gold/20 border border-gold/50 rounded-full">
+                                  <span className="text-gold text-sm font-bold animate-pulse">
+                                    ⚡ DECISÃO UNÂNIME!
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Score e Custo */}
+                            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-2 border-t border-white/10">
+                              <div className="flex items-center gap-1">
+                                <Brain className="w-3 h-3" />
+                                <span>Latência: {juryVerdict.totalProcessingTimeMs}ms</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Coins className="w-3 h-3" />
+                                <span>Custo: R$ {juryVerdict.costEstimate.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
                       </LuxuryCard>
                       
                       {/* Mycroft 2.0 Combined Analysis Panel */}
@@ -2199,6 +2264,40 @@ function SinglePlayerRoomContent() {
                           recordingDurationMs={voiceMetrics?.recordingDurationMs}
                         />
                       )}
+                      
+                      {/* ══════ BOTÃO - APARECE APÓS 5 SEGUNDOS ══════ */}
+                      <AnimatePresence>
+                        {showJuryButton ? (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ 
+                              type: "spring", 
+                              stiffness: 300, 
+                              damping: 25 
+                            }}
+                          >
+                            <GoldButton 
+                              onClick={handleJuryComplete}
+                              className="w-full"
+                              size="lg"
+                            >
+                              <Play className="w-5 h-5 mr-2" />
+                              PRÓXIMA RODADA →
+                            </GoldButton>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center py-4 text-sm text-muted-foreground"
+                          >
+                            <Loader2 className="w-4 h-4 inline-block animate-spin mr-2" />
+                            Leia o resultado do júri antes de continuar...
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </>
                   )}
                 </div>
