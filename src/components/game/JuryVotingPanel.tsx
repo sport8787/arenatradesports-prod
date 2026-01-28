@@ -9,7 +9,6 @@ import type { JuryVerdict, JuryVote, JurorProfile } from '@/services/juryClaudeS
 interface JuryVotingPanelProps {
   verdict: JuryVerdict | null;
   isLoading: boolean;
-  onComplete?: () => void;
 }
 
 // Juror metadata for UI
@@ -237,15 +236,8 @@ const LoadingState: React.FC = () => {
 export const JuryVotingPanel: React.FC<JuryVotingPanelProps> = ({
   verdict,
   isLoading,
-  onComplete,
 }) => {
-  // Call onComplete after animation finishes
-  React.useEffect(() => {
-    if (verdict && !isLoading && onComplete) {
-      const timer = setTimeout(onComplete, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [verdict, isLoading, onComplete]);
+  // No auto-complete timer - results stay visible until user clicks "PRÓXIMA RODADA"
   
   if (isLoading) {
     return <LoadingState />;

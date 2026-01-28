@@ -2154,35 +2154,52 @@ function SinglePlayerRoomContent() {
               {/* JURY DELIBERATION PHASE - AI Jury powered by Claude Sonnet 4 */}
               {gamePhase === 'jury_deliberation' && (
                 <div className="space-y-6">
-                  <LuxuryCard className="p-6">
-                    <div className="text-center mb-6">
-                      <h2 className="font-orbitron text-xl text-primary">Júri IA Deliberando</h2>
-                      <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
-                    </div>
-                    <JuryVotingPanel
-                      verdict={juryVerdict}
-                      isLoading={isJuryDeliberating}
-                      onComplete={handleJuryComplete}
-                    />
-                  </LuxuryCard>
-                  
-                  {/* Mycroft 2.0 Combined Analysis Panel */}
-                  {showMycroftCombinedPanel && mycroftCombinedReading && (
-                    <MycroftCombinedPanel
-                      reading={mycroftCombinedReading}
-                      videoMetrics={videoMetrics || undefined}
-                      recordingDurationMs={voiceMetrics?.recordingDurationMs}
-                    />
+                  {/* Loading state */}
+                  {isJuryDeliberating && (
+                    <LuxuryCard className="p-6">
+                      <div className="text-center mb-6">
+                        <h2 className="font-orbitron text-xl text-primary">Júri IA Deliberando</h2>
+                        <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
+                      </div>
+                      <JuryVotingPanel
+                        verdict={null}
+                        isLoading={true}
+                      />
+                    </LuxuryCard>
                   )}
                   
+                  {/* Button first, then results below */}
                   {!isJuryDeliberating && juryVerdict && (
-                    <GoldButton 
-                      onClick={handleJuryComplete}
-                      className="mt-6 w-full"
-                      size="lg"
-                    >
-                      Próxima Rodada →
-                    </GoldButton>
+                    <>
+                      <GoldButton 
+                        onClick={handleJuryComplete}
+                        className="w-full"
+                        size="lg"
+                      >
+                        PRÓXIMA RODADA →
+                      </GoldButton>
+                      
+                      {/* Jury Results - displayed inline below button */}
+                      <LuxuryCard className="p-6">
+                        <div className="text-center mb-4">
+                          <h2 className="font-orbitron text-xl text-primary">Resultado do Júri IA</h2>
+                          <p className="text-sm text-muted-foreground">Powered by Claude Sonnet 4</p>
+                        </div>
+                        <JuryVotingPanel
+                          verdict={juryVerdict}
+                          isLoading={false}
+                        />
+                      </LuxuryCard>
+                      
+                      {/* Mycroft 2.0 Combined Analysis Panel */}
+                      {showMycroftCombinedPanel && mycroftCombinedReading && (
+                        <MycroftCombinedPanel
+                          reading={mycroftCombinedReading}
+                          videoMetrics={videoMetrics || undefined}
+                          recordingDurationMs={voiceMetrics?.recordingDurationMs}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               )}
