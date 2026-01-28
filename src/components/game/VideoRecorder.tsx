@@ -34,6 +34,7 @@ import {
 } from '@/services/faceMeshService';
 import FaceLandmarksOverlay from './FaceLandmarksOverlay';
 import LiveBiometricIndicators from './LiveBiometricIndicators';
+import AudioCaptureVisualizer from './AudioCaptureVisualizer';
 
 interface VideoRecorderProps {
   roomId: string;
@@ -76,6 +77,11 @@ export default function VideoRecorder({
     stressLevel: 0,
   });
   const [videoSize, setVideoSize] = useState({ width: 1280, height: 720 });
+  
+  // Audio capture visualization state
+  const [waveformData, setWaveformData] = useState<number[]>(new Array(40).fill(0));
+  const [audioAmplitude, setAudioAmplitude] = useState(0);
+  const [audioSamplesCollected, setAudioSamplesCollected] = useState(0);
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -311,10 +317,38 @@ export default function VideoRecorder({
 
   // Analysis loop for real-time processing (audio only - FaceMesh handles video via callback)
   const startAnalysisLoop = () => {
+    let sampleCount = 0;
+    
     const analyze = () => {
-      // Analyze audio
+      // Analyze audio and update visualization
       if (analyserRef.current) {
         analyzeAudioFrame(analyserRef.current);
+        
+        // Get frequency data for waveform visualization
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(dataArray);
+        
+        // Sample 40 bars for waveform
+        const samples = 40;
+        const step = Math.floor(dataArray.length / samples);
+        const newWaveform: number[] = [];
+        let totalAmplitude = 0;
+        
+        for (let i = 0; i < samples; i++) {
+          const value = dataArray[i * step] / 255;
+          newWaveform.push(value);
+          totalAmplitude += value;
+        }
+        
+        const avgAmplitude = totalAmplitude / samples;
+        sampleCount++;
+        
+        // Update visualization state (throttled to avoid too many re-renders)
+        if (sampleCount % 3 === 0) {
+          setWaveformData(newWaveform);
+          setAudioAmplitude(avgAmplitude);
+          setAudioSamplesCollected(prev => prev + 1);
+        }
       }
 
       // FaceMesh handles video frames via its own callback (handleFaceMeshResults)
@@ -623,6 +657,16 @@ export default function VideoRecorder({
             {Math.round(maxDuration - timer)}s restantes
           </p>
         </div>
+      )}
+
+      {/* Audio Capture Visualizer - below video during recording */}
+      {(state === 'recording' || state === 'paused') && (
+        <AudioCaptureVisualizer
+          waveformData={waveformData}
+          isCapturing={state === 'recording'}
+          amplitude={audioAmplitude}
+          samplesCollected={audioSamplesCollected}
+        />
       )}
 
       {/* Error message */}
