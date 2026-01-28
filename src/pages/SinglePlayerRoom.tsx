@@ -103,7 +103,7 @@ import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import LiveBCCounter from '@/components/game/LiveBCCounter';
 // Júri IA - Claude Sonnet 4 powered (Single Player only)
-import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict } from '@/services/juryClaudeService';
+import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict, type JuryVoteRequest } from '@/services/juryClaudeService';
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
 // ElevenLabs STT - DISABLED for cost reasons (using free speech fluency metrics instead)
 // import { transcribeAudioFromUrl, calculateSpeechMetrics, type TranscriptionResult } from '@/services/elevenLabsSTTService';
@@ -343,6 +343,7 @@ function SinglePlayerRoomContent() {
   const [isJuryDeliberating, setIsJuryDeliberating] = useState(false);
   const [juryEnabled, setJuryEnabled] = useState(true);
   const [showJuryButton, setShowJuryButton] = useState(false);
+  const [juryLastRequest, setJuryLastRequest] = useState<JuryVoteRequest | null>(null);
   // isTranscribing state REMOVED - transcription disabled for cost reasons
   const [lastAudioUrl, setLastAudioUrl] = useState<string | null>(null);
   
@@ -1013,7 +1014,10 @@ function SinglePlayerRoomContent() {
           fillerWordsCount: voiceMetrics?.fillerWordsCount || 0,
           speechContinuity: voiceMetrics?.speechContinuity || 80,
         },
-      };
+      } satisfies JuryVoteRequest;
+
+      // Keep the exact payload used, so the UI can show what was sent to the jury
+      setJuryLastRequest(juryRequest);
       
       // ═══════════════════════════════════════════════════════════════
       // DEBUG: DETAILED JURY REQUEST LOGGING
@@ -1570,6 +1574,7 @@ function SinglePlayerRoomContent() {
     setMycroftCombinedReading(null);
     setShowMycroftCombinedPanel(false);
     setJuryVerdict(null);
+    setJuryLastRequest(null);
     
     // Update NarrativeEngine state
     narrativeEngineRef.current.advanceRound(true);
@@ -2204,6 +2209,7 @@ function SinglePlayerRoomContent() {
                       <JuryVotingPanel
                         verdict={null}
                         isLoading={true}
+                        debugRequest={juryLastRequest}
                       />
                     </LuxuryCard>
                   )}
@@ -2224,6 +2230,7 @@ function SinglePlayerRoomContent() {
                         <JuryVotingPanel
                           verdict={juryVerdict}
                           isLoading={false}
+                          debugRequest={juryLastRequest}
                         />
                         
                         {/* Veredito Final em Destaque */}
