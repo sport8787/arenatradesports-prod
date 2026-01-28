@@ -175,24 +175,38 @@ function calculateHNR(amplitudeSamples: number[], pitchSamples: number[]): numbe
   return Math.round(ratio * 30);
 }
 
-// Calculate silent periods (pauses > 500ms) from amplitude data
-// IMPROVED: Lower threshold to detect shorter pauses that indicate hesitation
+// Calculate silent periods (pauses > 300ms) from amplitude data
+// CRITICAL FIX: Much more sensitive detection of hesitation
 function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number): { silentPeriods: number; longestPause: number } {
   if (amplitudeSamples.length < 10) {
+    console.warn('[AudioForensics] ⚠️ Too few samples for pause detection');
     return { silentPeriods: 0, longestPause: 0 };
   }
 
-  const silenceThreshold = 0.04; // LOWERED: More sensitive to quiet moments
+  // CRITICAL: Very sensitive threshold to catch ANY hesitation
+  const silenceThreshold = 0.025; // LOWERED AGAIN: Catch quieter moments
   const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
-  const minSilenceSamples = Math.floor(samplesPerSecond * 0.5); // 500ms minimum pause (was 1s)
+  const minSilenceSamples = Math.floor(samplesPerSecond * 0.3); // 300ms minimum (was 500ms)
   
   let silentPeriods = 0;
   let currentSilenceLength = 0;
   let longestPause = 0;
   let allPauses: number[] = [];
   
+  // Calculate average amplitude for relative comparison
+  const avgAmplitude = amplitudeSamples.reduce((a, b) => a + b, 0) / amplitudeSamples.length;
+  const dynamicThreshold = Math.min(silenceThreshold, avgAmplitude * 0.3); // Use lower of fixed or 30% of average
+  
+  console.log('[AudioForensics] 📊 Pause detection params:', {
+    samples: amplitudeSamples.length,
+    avgAmplitude: avgAmplitude.toFixed(4),
+    silenceThreshold: dynamicThreshold.toFixed(4),
+    minSilenceSamples,
+    durationMs,
+  });
+  
   for (const amplitude of amplitudeSamples) {
-    if (amplitude < silenceThreshold) {
+    if (amplitude < dynamicThreshold) {
       currentSilenceLength++;
     } else {
       if (currentSilenceLength >= minSilenceSamples) {
@@ -217,22 +231,33 @@ function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number):
     }
   }
   
-  console.log('[AudioForensics] 🔬 Detected pauses:', { silentPeriods, longestPause: Math.round(longestPause), allPauses: allPauses.map(p => Math.round(p)) });
+  console.log('[AudioForensics] 🔬 DETECTED PAUSES:', { 
+    silentPeriods, 
+    longestPause: Math.round(longestPause),
+    allPauses: allPauses.map(p => Math.round(p)),
+    'impact': silentPeriods > 2 ? '⚠️ HIGH HESITATION' : silentPeriods > 0 ? '🟡 SOME HESITATION' : '✅ FLUENT'
+  });
   
   return { silentPeriods, longestPause: Math.round(longestPause) };
 }
 
 // Estimate filler words ("uhm", "ahh") based on amplitude patterns
 // These typically show as low-energy sustained sounds followed by speech bursts
-// IMPROVED: More sensitive detection of hesitation patterns
+// CRITICAL FIX: Much more sensitive detection of hesitation patterns
 function estimateFillerWords(amplitudeSamples: number[], durationMs: number): number {
-  if (amplitudeSamples.length < 20 || durationMs < 1000) return 0;
+  if (amplitudeSamples.length < 20 || durationMs < 1000) {
+    console.warn('[AudioForensics] ⚠️ Too few samples for filler detection');
+    return 0;
+  }
   
   const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
-  const fillerDuration = 0.15 * samplesPerSecond; // LOWERED: 150-500ms (was 200-500ms)
+  const fillerDuration = 0.1 * samplesPerSecond; // LOWERED: 100-600ms (was 150-500ms)
   const maxFillerDuration = 0.6 * samplesPerSecond;
-  const lowThreshold = 0.06; // LOWERED: More sensitive
-  const midThreshold = 0.12; // LOWERED: Catch quieter hesitations
+  
+  // Calculate dynamic thresholds based on recording
+  const avgAmplitude = amplitudeSamples.reduce((a, b) => a + b, 0) / amplitudeSamples.length;
+  const lowThreshold = Math.min(0.04, avgAmplitude * 0.4); // LOWERED: More sensitive
+  const midThreshold = Math.min(0.08, avgAmplitude * 0.7); // LOWERED: Catch quieter hesitations
   
   let fillerCount = 0;
   let currentLowRun = 0;
@@ -257,25 +282,30 @@ function estimateFillerWords(amplitudeSamples: number[], durationMs: number): nu
     }
   }
   
-  console.log('[AudioForensics] 🔬 Detected filler patterns:', fillerCount);
+  console.log('[AudioForensics] 🔬 DETECTED FILLERS:', { 
+    fillerCount, 
+    avgAmplitude: avgAmplitude.toFixed(4),
+    thresholds: { low: lowThreshold.toFixed(4), mid: midThreshold.toFixed(4) },
+    'impact': fillerCount > 3 ? '⚠️ HIGH HESITATION' : fillerCount > 1 ? '🟡 SOME HESITATION' : '✅ FLUENT'
+  });
   
   return fillerCount;
 }
 
 // Calculate speech continuity score (0-100, higher = more fluid speech)
-// IMPROVED: More aggressive penalties for hesitation signals
+// CRITICAL FIX: Much more aggressive penalties for hesitation signals
 function calculateSpeechContinuity(amplitudeSamples: number[], silentPeriods: number, fillerWordsCount: number, durationMs: number): number {
   if (amplitudeSamples.length < 10 || durationMs < 1000) return 100;
   
   // Base score starts at 100
   let score = 100;
   
-  // INCREASED penalties for hesitation signals
-  // Penalty for silent periods (each pause reduces score significantly)
-  score -= silentPeriods * 18; // Was 15
+  // AGGRESSIVE penalties for hesitation signals
+  // Penalty for silent periods (each pause reduces score HEAVILY)
+  score -= silentPeriods * 25; // Was 18 - now MUCH heavier
   
   // Penalty for filler words (each estimated filler reduces score)
-  score -= fillerWordsCount * 12; // Was 8
+  score -= fillerWordsCount * 15; // Was 12
   
   // Calculate amplitude variation for choppy speech detection
   const avgAmplitude = amplitudeSamples.reduce((a, b) => a + b, 0) / amplitudeSamples.length;
@@ -283,20 +313,27 @@ function calculateSpeechContinuity(amplitudeSamples: number[], silentPeriods: nu
   const coefficientOfVariation = Math.sqrt(variance) / (avgAmplitude || 1);
   
   // High variation in amplitude suggests choppy/nervous speech
-  if (coefficientOfVariation > 1.8) {
-    score -= 30; // Was 20 - very choppy
-  } else if (coefficientOfVariation > 1.3) {
-    score -= 20; // Was 10
-  } else if (coefficientOfVariation > 0.9) {
-    score -= 10; // New tier
+  if (coefficientOfVariation > 1.5) {
+    score -= 35; // INCREASED - very choppy
+  } else if (coefficientOfVariation > 1.0) {
+    score -= 25; // INCREASED
+  } else if (coefficientOfVariation > 0.7) {
+    score -= 15; // New lower tier
   }
   
   const finalScore = Math.max(0, Math.min(100, Math.round(score)));
   
-  console.log('[AudioForensics] 🔬 Speech continuity score:', finalScore, {
+  console.log('[AudioForensics] 🔬 SPEECH CONTINUITY:', {
+    score: finalScore,
     silentPeriods,
     fillerWordsCount,
     coefficientOfVariation: coefficientOfVariation.toFixed(2),
+    penalties: {
+      fromPauses: silentPeriods * 25,
+      fromFillers: fillerWordsCount * 15,
+      fromVariation: coefficientOfVariation > 1.5 ? 35 : coefficientOfVariation > 1.0 ? 25 : coefficientOfVariation > 0.7 ? 15 : 0,
+    },
+    'impact': finalScore < 50 ? '⚠️ LOW FLUENCY' : finalScore < 70 ? '🟡 MODERATE' : '✅ FLUENT'
   });
   
   // Clamp to 0-100

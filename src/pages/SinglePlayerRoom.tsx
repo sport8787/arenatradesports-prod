@@ -1015,18 +1015,38 @@ function SinglePlayerRoomContent() {
         },
       };
       
-      console.log('[SinglePlayer] 📊 Sending to AI Jury with REAL biometric data:', {
-        transcription: juryRequest.transcription.substring(0, 50) + '...',
-        stressScore: juryRequest.mycroftAnalysis.stressScore,
-        combinedScore: juryRequest.mycroftAnalysis.combinedScore,
-        vocalJitter: juryRequest.mycroftAnalysis.vocalJitter,
-        silentPeriods: juryRequest.mycroftAnalysis.silentPeriods,
-        fillerWordsCount: juryRequest.mycroftAnalysis.fillerWordsCount,
-        speechContinuity: juryRequest.mycroftAnalysis.speechContinuity,
-        longestPause: juryRequest.mycroftAnalysis.longestPause,
-        confidenceTone: juryRequest.mycroftAnalysis.confidenceTone,
-        hasVideoMetrics: !!videoMetrics,
-      });
+      // ═══════════════════════════════════════════════════════════════
+      // DEBUG: DETAILED JURY REQUEST LOGGING
+      // ═══════════════════════════════════════════════════════════════
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('📊 ENVIANDO PARA JÚRI IA - DADOS COMPLETOS');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('🎯 PERGUNTA:', currentQuestion.question_text);
+      console.log('📝 RESPOSTA JOGADOR:', juryRequest.playerAnswer);
+      console.log('✅ RESPOSTA CORRETA:', correctAnswer);
+      console.log('🎭 ACERTOU?', playerAnsweredCorrectly ? 'SIM ✅' : 'NÃO ❌');
+      console.log('🎤 TRANSCRIÇÃO:', juryRequest.transcription.substring(0, 100) + '...');
+      console.log('');
+      console.log('📈 ANÁLISE MYCROFT 2.0:');
+      console.log('  • stressScore (combinedScore):', juryRequest.mycroftAnalysis.stressScore, 
+        juryRequest.mycroftAnalysis.stressScore > 65 ? '🔴 ALTO' : 
+        juryRequest.mycroftAnalysis.stressScore > 35 ? '🟡 MÉDIO' : '🟢 BAIXO');
+      console.log('  • vocalJitter:', juryRequest.mycroftAnalysis.vocalJitter.toFixed(2) + '%',
+        juryRequest.mycroftAnalysis.vocalJitter > 2 ? '⚠️' : '✅');
+      console.log('  • confidenceTone:', juryRequest.mycroftAnalysis.confidenceTone);
+      console.log('  • silentPeriods:', juryRequest.mycroftAnalysis.silentPeriods,
+        juryRequest.mycroftAnalysis.silentPeriods > 2 ? '⚠️ MUITAS PAUSAS' : '');
+      console.log('  • longestPause:', (juryRequest.mycroftAnalysis.longestPause / 1000).toFixed(1) + 's',
+        juryRequest.mycroftAnalysis.longestPause > 2000 ? '⚠️ PAUSA LONGA' : '');
+      console.log('  • fillerWordsCount:', juryRequest.mycroftAnalysis.fillerWordsCount,
+        juryRequest.mycroftAnalysis.fillerWordsCount > 3 ? '⚠️ MUITAS HESITAÇÕES' : '');
+      console.log('  • speechContinuity:', juryRequest.mycroftAnalysis.speechContinuity + '%',
+        juryRequest.mycroftAnalysis.speechContinuity < 50 ? '⚠️ BAIXA FLUÊNCIA' : '');
+      console.log('  • vocalHesitation:', juryRequest.mycroftAnalysis.vocalHesitation);
+      console.log('  • microExpressions:', juryRequest.mycroftAnalysis.microExpressions);
+      console.log('  • gazeDeviation:', juryRequest.mycroftAnalysis.gazeDeviation);
+      console.log('  • facialTension:', juryRequest.mycroftAnalysis.facialTension);
+      console.log('═══════════════════════════════════════════════════════════════');
       
       const verdict = juryEnabled 
         ? await getJuryVerdict(juryRequest)
