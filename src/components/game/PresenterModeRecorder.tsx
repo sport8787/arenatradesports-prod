@@ -49,6 +49,7 @@ export default function PresenterModeRecorder({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+  const isPausedRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -57,6 +58,10 @@ export default function PresenterModeRecorder({
       cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -75,7 +80,7 @@ export default function PresenterModeRecorder({
   const updateWaveform = useCallback(() => {
     if (!isMountedRef.current) return;
     
-    if (!analyserRef.current || isPaused) {
+    if (!analyserRef.current || isPausedRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
       return;
     }
@@ -100,7 +105,7 @@ export default function PresenterModeRecorder({
     }
     
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
-  }, [isPaused]);
+  }, []);
 
   const startRecording = async () => {
     // Check consent before starting - if null, require consent first
@@ -125,6 +130,13 @@ export default function PresenterModeRecorder({
 
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
+
+      // Ensure AudioContext is running (Safari/iOS can start suspended)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log('[PresenterRecorder] 🔊 AudioContext state:', audioContext.state, 'sampleRate:', audioContext.sampleRate);
+      console.log('[PresenterRecorder] 🎤 Audio tracks:', stream.getAudioTracks().length);
       
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();

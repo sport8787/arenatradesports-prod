@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   startForensicsSession, 
+  markRecordingStart,
   analyzeAudioFrame, 
   finalizeForensicsSession,
   type VoiceMetrics 
@@ -86,6 +87,9 @@ export default function VideoRecorder({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+
+  // Avoid stale React state closures inside rAF loops
+  const isMediaRecorderRecording = () => mediaRecorderRef.current?.state === 'recording';
   
   // MediaPipe tracking state
   const lastLandmarksRef = useRef<number[][] | null>(null);
@@ -209,6 +213,17 @@ export default function VideoRecorder({
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
+      // Diagnostics (helps confirm the stream is valid)
+      console.log('[VideoRecorder] 🎤 Audio tracks:', stream.getAudioTracks().length);
+      stream.getAudioTracks().forEach((t, i) => {
+        console.log(`[VideoRecorder] 🎤 Track ${i}:`, {
+          enabled: t.enabled,
+          muted: t.muted,
+          readyState: t.readyState,
+          label: t.label,
+        });
+      });
+
       // Set up video preview
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -228,6 +243,13 @@ export default function VideoRecorder({
       // Set up audio analysis
       if (hasMic) {
         audioContextRef.current = new AudioContext();
+
+        // Ensure AudioContext is running (Safari/iOS can start suspended even after getUserMedia)
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        console.log('[VideoRecorder] 🔊 AudioContext state:', audioContextRef.current.state, 'sampleRate:', audioContextRef.current.sampleRate);
+
         const source = audioContextRef.current.createMediaStreamSource(stream);
         analyserRef.current = audioContextRef.current.createAnalyser();
         analyserRef.current.fftSize = 2048;
@@ -262,6 +284,9 @@ export default function VideoRecorder({
       mediaRecorderRef.current.start(1000); // Collect data every second
       setState('recording');
 
+      // Start latency tracking for this recording
+      markRecordingStart();
+
       // Start timer
       timerIntervalRef.current = window.setInterval(() => {
         setTimer(prev => {
@@ -295,7 +320,8 @@ export default function VideoRecorder({
       // FaceMesh handles video frames via its own callback (handleFaceMeshResults)
       // No need for manual frame processing here
 
-      if (state === 'recording') {
+      // IMPORTANT: don't depend on React state here (can be stale at the moment this loop starts)
+      if (isMediaRecorderRecording()) {
         animationFrameRef.current = requestAnimationFrame(analyze);
       }
     };

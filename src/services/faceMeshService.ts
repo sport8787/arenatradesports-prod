@@ -45,16 +45,36 @@ export async function initializeFaceMesh(): Promise<boolean> {
   try {
     console.log('[FaceMesh] Initializing MediaPipe FaceMesh...');
 
-    // MediaPipe constructors are attached to globalThis by the IIFE bundles.
-    // Cast for TS while keeping runtime safe.
+    // MediaPipe packaging is inconsistent across environments (IIFE globals vs ESM exports).
+    // We support BOTH:
+    // 1) ESM: import('@mediapipe/face_mesh').FaceMesh
+    // 2) Global: globalThis.FaceMesh
     type FaceMeshCtor = new (config?: unknown) => FaceMeshInstanceType;
-    const FaceMeshGlobal = (globalThis as any).FaceMesh as FaceMeshCtor | undefined;
-    if (!FaceMeshGlobal) {
+    let FaceMeshCtorResolved: FaceMeshCtor | undefined;
+
+    try {
+      const mod: any = await import('@mediapipe/face_mesh');
+      const candidate = mod?.FaceMesh ?? mod?.default?.FaceMesh ?? mod?.default;
+      if (typeof candidate === 'function') {
+        FaceMeshCtorResolved = candidate as FaceMeshCtor;
+      }
+    } catch (e) {
+      console.warn('[FaceMesh] ESM import failed, will try global constructor.', e);
+    }
+
+    if (!FaceMeshCtorResolved) {
+      const globalCandidate = (globalThis as any).FaceMesh;
+      if (typeof globalCandidate === 'function') {
+        FaceMeshCtorResolved = globalCandidate as FaceMeshCtor;
+      }
+    }
+
+    if (!FaceMeshCtorResolved) {
       console.error('[FaceMesh] Global FaceMesh constructor not found.');
       return false;
     }
 
-    const faceMesh = new FaceMeshGlobal({
+    const faceMesh = new FaceMeshCtorResolved({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
       },
@@ -136,14 +156,31 @@ export async function startFaceDetection(
       }
     ) => CameraInstanceType;
 
-    const CameraGlobal = (globalThis as any).Camera as CameraCtor | undefined;
-    if (!CameraGlobal) {
+    let CameraCtorResolved: CameraCtor | undefined;
+    try {
+      const mod: any = await import('@mediapipe/camera_utils');
+      const candidate = mod?.Camera ?? mod?.default?.Camera ?? mod?.default;
+      if (typeof candidate === 'function') {
+        CameraCtorResolved = candidate as CameraCtor;
+      }
+    } catch (e) {
+      console.warn('[FaceMesh] Camera ESM import failed, will try global constructor.', e);
+    }
+
+    if (!CameraCtorResolved) {
+      const globalCandidate = (globalThis as any).Camera;
+      if (typeof globalCandidate === 'function') {
+        CameraCtorResolved = globalCandidate as CameraCtor;
+      }
+    }
+
+    if (!CameraCtorResolved) {
       console.error('[FaceMesh] Global Camera constructor not found.');
       return false;
     }
 
     // Create camera instance
-    const camera = new CameraGlobal(videoElement, {
+    const camera = new CameraCtorResolved(videoElement, {
       onFrame: async () => {
         if (instance?.faceMesh) {
           await instance.faceMesh.send({ image: videoElement });
