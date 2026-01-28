@@ -71,7 +71,11 @@ export default function VideoRecorder({
   const [faceDetected, setFaceDetected] = useState(false);
   const [faceMeshLoaded, setFaceMeshLoaded] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [enableBluffAlerts, setEnableBluffAlerts] = useState(true);
   const [currentLandmarks, setCurrentLandmarks] = useState<number[][] | null>(null);
+  const [currentMicroExpression, setCurrentMicroExpression] = useState<string | null>(null);
+  const [gazeDeviation, setGazeDeviation] = useState(0);
   const [liveBiometrics, setLiveBiometrics] = useState({
     lipTension: 0,
     blinkRate: 0,
@@ -174,12 +178,26 @@ export default function VideoRecorder({
         const frameAnalysis = analyzeVideoFrame(landmarks);
         
         // Update live biometric indicators
+        const lipTensionValue = (frameAnalysis.stressIndicators.lipTension || 0) * 100;
+        const stressValue = frameAnalysis.stressIndicators.overallScore || 0;
+        const gazeDir = frameAnalysis.eyeGaze as 'left' | 'right' | 'straight' | 'up' | 'down';
+        
         setLiveBiometrics({
-          lipTension: (frameAnalysis.stressIndicators.lipTension || 0) * 100,
+          lipTension: lipTensionValue,
           blinkRate: 15, // Will be calculated from session data
-          gazeDirection: frameAnalysis.eyeGaze as 'left' | 'right' | 'straight' | 'up' | 'down',
-          stressLevel: frameAnalysis.stressIndicators.overallScore || 0,
+          gazeDirection: gazeDir,
+          stressLevel: stressValue,
         });
+        
+        // Update enhanced overlay state
+        const detectedExpressions = frameAnalysis.expressions || [];
+        const nonNeutralExpression = detectedExpressions.find((e: string) => e !== 'neutral');
+        setCurrentMicroExpression(nonNeutralExpression || null);
+        
+        // Calculate gaze deviation percentage
+        const gazeDeviationValue = gazeDir !== 'straight' ? 
+          (gazeDir === 'left' || gazeDir === 'right' ? 40 : 25) + Math.random() * 20 : 0;
+        setGazeDeviation(gazeDeviationValue);
       }
     } else {
       setFaceDetected(false);
@@ -526,7 +544,7 @@ export default function VideoRecorder({
           }}
         />
         
-        {/* Face Landmarks Overlay */}
+        {/* Face Landmarks Overlay with enhanced visuals */}
         {showOverlay && isCameraOn && currentLandmarks && state === 'recording' && (
           <FaceLandmarksOverlay
             landmarks={currentLandmarks}
@@ -535,6 +553,13 @@ export default function VideoRecorder({
             showConnections={true}
             highlightAnomalies={false}
             isScanning={!faceDetected}
+            microExpression={currentMicroExpression}
+            gazeDeviation={gazeDeviation}
+            stressLevel={liveBiometrics.stressLevel}
+            lipTension={liveBiometrics.lipTension}
+            showHeatmap={showHeatmap}
+            showAnimatedHighlights={true}
+            enableBluffAlerts={enableBluffAlerts}
           />
         )}
         
@@ -684,15 +709,33 @@ export default function VideoRecorder({
         </div>
       )}
 
-      {/* Overlay Toggle */}
+      {/* Enhanced Overlay Controls */}
       {state === 'recording' && mycroftConsent && (
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Overlay de Landmarks</span>
-          <Switch
-            checked={showOverlay}
-            onCheckedChange={setShowOverlay}
-            className="data-[state=checked]:bg-success"
-          />
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Landmarks</span>
+            <Switch
+              checked={showOverlay}
+              onCheckedChange={setShowOverlay}
+              className="data-[state=checked]:bg-success"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Heat Map</span>
+            <Switch
+              checked={showHeatmap}
+              onCheckedChange={setShowHeatmap}
+              className="data-[state=checked]:bg-orange-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Alertas</span>
+            <Switch
+              checked={enableBluffAlerts}
+              onCheckedChange={setEnableBluffAlerts}
+              className="data-[state=checked]:bg-red-500"
+            />
+          </div>
         </div>
       )}
 
