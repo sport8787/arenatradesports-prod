@@ -23,6 +23,11 @@ export interface VoiceMetrics {
   shimmer: number;                // Amplitude variation between cycles (%)
   harmonicsToNoise: number;       // Voice clarity ratio (higher = clearer)
   stressDeviation?: StressDeviation; // Deviation from personal baseline
+  // FREE speech fluency metrics (no transcription needed)
+  silentPeriods: number;          // Number of pauses >1s
+  longestPause: number;           // Longest pause in ms
+  fillerWordsCount: number;       // Estimated "uhm", "ahh" patterns
+  speechContinuity: number;       // 0-100 speech fluidity score
 }
 
 export interface ForensicsSession {
@@ -170,6 +175,113 @@ function calculateHNR(amplitudeSamples: number[], pitchSamples: number[]): numbe
   return Math.round(ratio * 30);
 }
 
+// Calculate silent periods (pauses > 1 second) from amplitude data
+function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number): { silentPeriods: number; longestPause: number } {
+  if (amplitudeSamples.length < 10) {
+    return { silentPeriods: 0, longestPause: 0 };
+  }
+
+  const silenceThreshold = 0.05; // Amplitude below this is considered silence
+  const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
+  const minSilenceSamples = Math.floor(samplesPerSecond); // 1 second worth of samples
+  
+  let silentPeriods = 0;
+  let currentSilenceLength = 0;
+  let longestPause = 0;
+  
+  for (const amplitude of amplitudeSamples) {
+    if (amplitude < silenceThreshold) {
+      currentSilenceLength++;
+    } else {
+      if (currentSilenceLength >= minSilenceSamples) {
+        silentPeriods++;
+        const pauseDurationMs = (currentSilenceLength / samplesPerSecond) * 1000;
+        if (pauseDurationMs > longestPause) {
+          longestPause = pauseDurationMs;
+        }
+      }
+      currentSilenceLength = 0;
+    }
+  }
+  
+  // Check final silence period
+  if (currentSilenceLength >= minSilenceSamples) {
+    silentPeriods++;
+    const pauseDurationMs = (currentSilenceLength / samplesPerSecond) * 1000;
+    if (pauseDurationMs > longestPause) {
+      longestPause = pauseDurationMs;
+    }
+  }
+  
+  return { silentPeriods, longestPause: Math.round(longestPause) };
+}
+
+// Estimate filler words ("uhm", "ahh") based on amplitude patterns
+// These typically show as low-energy sustained sounds followed by speech bursts
+function estimateFillerWords(amplitudeSamples: number[], durationMs: number): number {
+  if (amplitudeSamples.length < 20 || durationMs < 2000) return 0;
+  
+  const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
+  const fillerDuration = 0.2 * samplesPerSecond; // Fillers typically 200-400ms
+  const maxFillerDuration = 0.5 * samplesPerSecond;
+  const lowThreshold = 0.08;
+  const midThreshold = 0.15;
+  
+  let fillerCount = 0;
+  let currentLowRun = 0;
+  let prevWasHigh = true;
+  
+  for (const amplitude of amplitudeSamples) {
+    if (amplitude > midThreshold) {
+      // Check if previous low run was filler-like
+      if (currentLowRun >= fillerDuration && currentLowRun <= maxFillerDuration && !prevWasHigh) {
+        fillerCount++;
+      }
+      currentLowRun = 0;
+      prevWasHigh = true;
+    } else if (amplitude >= lowThreshold && amplitude <= midThreshold) {
+      // Moderate amplitude - potential filler sound
+      currentLowRun++;
+      prevWasHigh = false;
+    } else {
+      // True silence - reset
+      currentLowRun = 0;
+      prevWasHigh = false;
+    }
+  }
+  
+  return fillerCount;
+}
+
+// Calculate speech continuity score (0-100, higher = more fluid speech)
+function calculateSpeechContinuity(amplitudeSamples: number[], silentPeriods: number, fillerWordsCount: number, durationMs: number): number {
+  if (amplitudeSamples.length < 10 || durationMs < 1000) return 100;
+  
+  // Base score starts at 100
+  let score = 100;
+  
+  // Penalty for silent periods (each pause > 1s reduces score)
+  score -= silentPeriods * 15;
+  
+  // Penalty for filler words (each estimated filler reduces score)
+  score -= fillerWordsCount * 8;
+  
+  // Bonus for consistent speech energy
+  const avgAmplitude = amplitudeSamples.reduce((a, b) => a + b, 0) / amplitudeSamples.length;
+  const variance = amplitudeSamples.reduce((sum, a) => sum + Math.pow(a - avgAmplitude, 2), 0) / amplitudeSamples.length;
+  const coefficientOfVariation = Math.sqrt(variance) / (avgAmplitude || 1);
+  
+  // High variation in amplitude suggests choppy speech
+  if (coefficientOfVariation > 1.5) {
+    score -= 20;
+  } else if (coefficientOfVariation > 1.0) {
+    score -= 10;
+  }
+  
+  // Clamp to 0-100
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 // Finalize session and get metrics
 export function finalizeForensicsSession(recordingDurationMs: number, playerId?: string): VoiceMetrics {
   if (!currentSession) {
@@ -211,6 +323,11 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
   const shimmer = calculateShimmer(amplitudeSamples);
   const harmonicsToNoise = calculateHNR(amplitudeSamples, pitchSamples);
 
+  // NEW: Calculate FREE speech fluency metrics
+  const { silentPeriods, longestPause } = calculateSilentPeriods(amplitudeSamples, recordingDurationMs);
+  const fillerWordsCount = estimateFillerWords(amplitudeSamples, recordingDurationMs);
+  const speechContinuity = calculateSpeechContinuity(amplitudeSamples, silentPeriods, fillerWordsCount, recordingDurationMs);
+
   // Update player baseline if playerId provided
   if (playerId) {
     updateBaseline(playerId, avgPitch, responseLatencyMs, speechRateBPM, jitter);
@@ -235,9 +352,14 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
     shimmer,
     harmonicsToNoise,
     stressDeviation: stressDeviation || undefined,
+    // FREE speech fluency metrics
+    silentPeriods,
+    longestPause,
+    fillerWordsCount,
+    speechContinuity,
   };
 
-  console.log('[AudioForensics] Final metrics with jitter:', metrics);
+  console.log('[AudioForensics] Final metrics with speech fluency:', metrics);
   
   // Clear session
   currentSession = null;
@@ -284,6 +406,10 @@ function getDefaultMetrics(): VoiceMetrics {
     jitterAbsolute: 0,
     shimmer: 0,
     harmonicsToNoise: 0,
+    silentPeriods: 0,
+    longestPause: 0,
+    fillerWordsCount: 0,
+    speechContinuity: 100,
   };
 }
 
@@ -318,6 +444,18 @@ export function generateForensicPrompt(metrics: VoiceMetrics): string {
     metrics.harmonicsToNoise > 12 ? 'Clareza normal' :
     'Voz abafada/insegura';
 
+  // Speech fluency analysis (FREE metrics)
+  const fluencyAnalysis = 
+    metrics.speechContinuity >= 80 ? 'Fala fluida e confiante' :
+    metrics.speechContinuity >= 60 ? 'Fala razoavelmente fluida' :
+    metrics.speechContinuity >= 40 ? 'Fala com hesitações perceptíveis' :
+    'Fala fragmentada (possível nervosismo)';
+
+  const pauseAnalysis = 
+    metrics.silentPeriods === 0 ? 'Sem pausas significativas' :
+    metrics.silentPeriods <= 2 ? 'Pausas ocasionais' :
+    'Múltiplas pausas detectadas';
+
   let basePrompt = `DADOS FORENSES CAPTURADOS (ANÁLISE PSICOACÚSTICA):
 📊 MÉTRICAS BÁSICAS:
 - Latência: ${metrics.responseLatencyMs}ms (${latencyAnalysis})
@@ -327,7 +465,13 @@ export function generateForensicPrompt(metrics: VoiceMetrics): string {
 🔬 ANÁLISE DE MICRO-VARIAÇÕES (INVISÍVEIS AO OUVIDO HUMANO):
 - JITTER: ${metrics.jitter}% (${jitterAnalysis}) - variação ciclo-a-ciclo de ${metrics.jitterAbsolute}Hz
 - SHIMMER: ${metrics.shimmer}% (${shimmerAnalysis})
-- Clareza vocal (HNR): ${metrics.harmonicsToNoise}dB (${clarityAnalysis})`;
+- Clareza vocal (HNR): ${metrics.harmonicsToNoise}dB (${clarityAnalysis})
+
+🎤 FLUÊNCIA DA FALA (ANÁLISE GRATUITA):
+- Pausas longas (>1s): ${metrics.silentPeriods} (${pauseAnalysis})
+- Maior pausa: ${(metrics.longestPause / 1000).toFixed(1)}s
+- Hesitações ("uhm/ahh"): ${metrics.fillerWordsCount} detectadas
+- Score de fluência: ${metrics.speechContinuity}/100 (${fluencyAnalysis})`;
 
   // Add stress deviation if available (baseline comparison)
   if (metrics.stressDeviation) {
