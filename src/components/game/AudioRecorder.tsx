@@ -29,6 +29,13 @@ export default function AudioRecorder({
   mycroftConsent,
   onConsentRequired
 }: AudioRecorderProps) {
+  // Some modes use non-UUID roomIds (e.g. "solo-mode").
+  // Avoid sending invalid filters to the backend.
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -276,10 +283,14 @@ export default function AudioRecorder({
       setAudioUrl(url);
 
       // Save URL to room
-      await supabase
-        .from('rooms')
-        .update({ current_audio_url: url })
-        .eq('id', roomId);
+      if (isValidUUID(roomId)) {
+        await supabase
+          .from('rooms')
+          .update({ current_audio_url: url })
+          .eq('id', roomId);
+      } else {
+        console.warn('[AudioRecorder] Skipping room update (non-UUID roomId):', roomId);
+      }
 
       if (!isMountedRef.current) return;
       

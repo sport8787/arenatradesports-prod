@@ -1,15 +1,21 @@
 /**
  * MediaPipe FaceMesh Service
- * Provides real-time facial landmark detection using MediaPipe
+ * Provides real-time facial landmark detection using MediaPipe.
+ *
+ * NOTE: MediaPipe packages ship as IIFE scripts (not true ESM exports) and
+ * expose constructors on the global object. Importing named exports can result
+ * in runtime errors like: "FaceMesh is not a constructor".
  */
 
-import { FaceMesh, Results } from '@mediapipe/face_mesh';
-import { Camera } from '@mediapipe/camera_utils';
+import '@mediapipe/face_mesh';
+import '@mediapipe/camera_utils';
+import type { Results, FaceMesh as FaceMeshInstanceType } from '@mediapipe/face_mesh';
+import type { Camera as CameraInstanceType } from '@mediapipe/camera_utils';
 
 // Types
 export interface FaceMeshInstance {
-  faceMesh: FaceMesh;
-  camera: Camera | null;
+  faceMesh: FaceMeshInstanceType;
+  camera: CameraInstanceType | null;
   isReady: boolean;
 }
 
@@ -39,7 +45,16 @@ export async function initializeFaceMesh(): Promise<boolean> {
   try {
     console.log('[FaceMesh] Initializing MediaPipe FaceMesh...');
 
-    const faceMesh = new FaceMesh({
+    // MediaPipe constructors are attached to globalThis by the IIFE bundles.
+    // Cast for TS while keeping runtime safe.
+    type FaceMeshCtor = new (config?: unknown) => FaceMeshInstanceType;
+    const FaceMeshGlobal = (globalThis as any).FaceMesh as FaceMeshCtor | undefined;
+    if (!FaceMeshGlobal) {
+      console.error('[FaceMesh] Global FaceMesh constructor not found.');
+      return false;
+    }
+
+    const faceMesh = new FaceMeshGlobal({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
       },
@@ -112,8 +127,23 @@ export async function startFaceDetection(
   setOnResultsCallback(callback);
 
   try {
+    type CameraCtor = new (
+      videoElement: HTMLVideoElement,
+      options: {
+        onFrame: () => Promise<void> | void;
+        width: number;
+        height: number;
+      }
+    ) => CameraInstanceType;
+
+    const CameraGlobal = (globalThis as any).Camera as CameraCtor | undefined;
+    if (!CameraGlobal) {
+      console.error('[FaceMesh] Global Camera constructor not found.');
+      return false;
+    }
+
     // Create camera instance
-    const camera = new Camera(videoElement, {
+    const camera = new CameraGlobal(videoElement, {
       onFrame: async () => {
         if (instance?.faceMesh) {
           await instance.faceMesh.send({ image: videoElement });

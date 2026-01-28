@@ -34,6 +34,7 @@ export interface ForensicsSession {
   questionDisplayedAt: number;    // Timestamp when question was shown
   recordingStartedAt: number;     // Timestamp when recording started
   pitchSamples: number[];         // Collected pitch samples
+  pitchFrameSamples: number[];    // Pitch per frame (includes 0 when unvoiced)
   amplitudeSamples: number[];     // Collected amplitude samples
 }
 
@@ -46,6 +47,7 @@ export function startForensicsSession(): void {
     questionDisplayedAt: Date.now(),
     recordingStartedAt: 0,
     pitchSamples: [],
+    pitchFrameSamples: [],
     amplitudeSamples: [],
   };
   console.log('[AudioForensics] Session started - tracking response latency');
@@ -75,6 +77,8 @@ export function analyzeAudioFrame(analyserNode: AnalyserNode): void {
 
   // Estimate fundamental pitch from frequency data
   const pitch = estimatePitch(frequencyData, analyserNode.context.sampleRate);
+  // Store per-frame pitch, including 0 for unvoiced/silence.
+  currentSession.pitchFrameSamples.push(pitch);
   if (pitch > 0) {
     currentSession.pitchSamples.push(pitch);
   }
@@ -190,17 +194,22 @@ function calculateHNR(amplitudeSamples: number[], pitchSamples: number[]): numbe
   return Math.round(ratio * 30);
 }
 
-// Calculate silent periods (pauses > 200ms) from amplitude data
-// CRITICAL FIX V2: Use MAXIMUM of relative and absolute threshold, not minimum
-function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number): { silentPeriods: number; longestPause: number } {
+// Calculate silent periods using pitch dropouts (robust to AGC/noise suppression)
+// We consider a pause when pitch stays at 0 (unvoiced) for >= 1s.
+function calculateSilentPeriods(
+  amplitudeSamples: number[],
+  pitchFrameSamples: number[],
+  durationMs: number
+): { silentPeriods: number; longestPause: number } {
   if (amplitudeSamples.length < 10) {
     console.warn('[AudioForensics] ⚠️ Too few samples for pause detection:', amplitudeSamples.length);
     return { silentPeriods: 0, longestPause: 0 };
   }
 
-  const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
-  // REDUCED: 200ms minimum pause (was 300ms)
-  const minSilenceSamples = Math.max(2, Math.floor(samplesPerSecond * 0.2));
+  const frames = Math.min(amplitudeSamples.length, pitchFrameSamples.length);
+  const samplesPerSecond = frames / (durationMs / 1000);
+  // Long pause threshold (>= 1s)
+  const minSilenceSamples = Math.max(2, Math.floor(samplesPerSecond * 1.0));
   
   // Calculate average amplitude for relative comparison
   const avgAmplitude = amplitudeSamples.reduce((a, b) => a + b, 0) / amplitudeSamples.length;
@@ -229,18 +238,19 @@ function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number):
   let currentSilenceLength = 0;
   let longestPause = 0;
   let allPauses: number[] = [];
-  
-  for (const amplitude of amplitudeSamples) {
-    if (amplitude < dynamicThreshold) {
+
+  for (let i = 0; i < frames; i++) {
+    const pitch = pitchFrameSamples[i] || 0;
+    const isSilent = pitch <= 0;
+
+    if (isSilent) {
       currentSilenceLength++;
     } else {
       if (currentSilenceLength >= minSilenceSamples) {
         silentPeriods++;
         const pauseDurationMs = (currentSilenceLength / samplesPerSecond) * 1000;
         allPauses.push(pauseDurationMs);
-        if (pauseDurationMs > longestPause) {
-          longestPause = pauseDurationMs;
-        }
+        if (pauseDurationMs > longestPause) longestPause = pauseDurationMs;
       }
       currentSilenceLength = 0;
     }
@@ -268,14 +278,15 @@ function calculateSilentPeriods(amplitudeSamples: number[], durationMs: number):
 
 // Estimate filler words ("uhm", "ahh") based on amplitude patterns
 // V2: Count ALL low-energy segments that could indicate hesitation
-function estimateFillerWords(amplitudeSamples: number[], durationMs: number): number {
+function estimateFillerWords(amplitudeSamples: number[], pitchFrameSamples: number[], durationMs: number): number {
   if (amplitudeSamples.length < 20 || durationMs < 1000) {
     console.warn('[AudioForensics] ⚠️ Too few samples for filler detection');
     return 0;
   }
-  
-  const samplesPerSecond = amplitudeSamples.length / (durationMs / 1000);
-  // Filler duration: 80-800ms (covers "uhm", "erm", hesitations)
+
+  const frames = Math.min(amplitudeSamples.length, pitchFrameSamples.length);
+  const samplesPerSecond = frames / (durationMs / 1000);
+  // Filler duration: 80-800ms (short unvoiced runs between voiced bursts)
   const minFillerSamples = Math.max(1, Math.floor(samplesPerSecond * 0.08));
   const maxFillerSamples = Math.floor(samplesPerSecond * 0.8);
   
@@ -289,30 +300,26 @@ function estimateFillerWords(amplitudeSamples: number[], durationMs: number): nu
   const midEnergyThreshold = avgAmplitude * 0.6;
   
   let fillerCount = 0;
-  let currentLowRun = 0;
+  let currentUnvoicedRun = 0;
   let wasVoiced = false;
-  
-  for (const amplitude of amplitudeSamples) {
-    // Voiced sound = above mid threshold
-    if (amplitude > midEnergyThreshold) {
-      // Check if we just finished a potential filler
-      if (currentLowRun >= minFillerSamples && currentLowRun <= maxFillerSamples && wasVoiced) {
+
+  for (let i = 0; i < frames; i++) {
+    const pitch = pitchFrameSamples[i] || 0;
+    const amplitude = amplitudeSamples[i] || 0;
+    const voiced = pitch > 0 && amplitude > lowEnergyThreshold;
+
+    if (voiced) {
+      // closing an unvoiced run => possible filler
+      if (wasVoiced && currentUnvoicedRun >= minFillerSamples && currentUnvoicedRun <= maxFillerSamples) {
         fillerCount++;
       }
-      currentLowRun = 0;
+      currentUnvoicedRun = 0;
       wasVoiced = true;
-    } 
-    // Low energy sound (potential filler like "uhm")
-    else if (amplitude >= lowEnergyThreshold && amplitude <= midEnergyThreshold) {
-      currentLowRun++;
-    } 
-    // Near silence
-    else {
-      if (currentLowRun >= minFillerSamples && currentLowRun <= maxFillerSamples && wasVoiced) {
-        fillerCount++;
-      }
-      currentLowRun = 0;
+      continue;
     }
+
+    // unvoiced
+    if (wasVoiced) currentUnvoicedRun++;
   }
   
   console.log('[AudioForensics] 🔬 V2 DETECTED FILLERS:', { 
@@ -387,7 +394,7 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
     return getDefaultMetrics();
   }
 
-  const { questionDisplayedAt, recordingStartedAt, pitchSamples, amplitudeSamples } = currentSession;
+  const { questionDisplayedAt, recordingStartedAt, pitchSamples, pitchFrameSamples, amplitudeSamples } = currentSession;
 
   // CRITICAL: Log sample count - if too low, detection won't work
   console.log('[AudioForensics] 📈 SESSION SUMMARY:', {
@@ -436,8 +443,8 @@ export function finalizeForensicsSession(recordingDurationMs: number, playerId?:
   const harmonicsToNoise = calculateHNR(amplitudeSamples, pitchSamples);
 
   // NEW: Calculate FREE speech fluency metrics
-  const { silentPeriods, longestPause } = calculateSilentPeriods(amplitudeSamples, recordingDurationMs);
-  const fillerWordsCount = estimateFillerWords(amplitudeSamples, recordingDurationMs);
+  const { silentPeriods, longestPause } = calculateSilentPeriods(amplitudeSamples, pitchFrameSamples, recordingDurationMs);
+  const fillerWordsCount = estimateFillerWords(amplitudeSamples, pitchFrameSamples, recordingDurationMs);
   const speechContinuity = calculateSpeechContinuity(amplitudeSamples, silentPeriods, fillerWordsCount, recordingDurationMs);
 
   // Update player baseline if playerId provided
