@@ -110,7 +110,7 @@ import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryV
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
 // Biometric Calibration (polygraph-style baseline)
 import { BiometricCalibrationFlow } from '@/components/game/BiometricCalibrationFlow';
-import { hasValidBaseline, compareToBaseline, getBaselineSummary, CALIBRATION_BONUS_BC } from '@/services/biometricCalibrationService';
+import { hasValidBaselineSync, compareToBaseline, getBaselineSummarySync, CALIBRATION_BONUS_BC } from '@/services/biometricCalibrationService';
 // ElevenLabs STT - DISABLED for cost reasons (using free speech fluency metrics instead)
 // import { transcribeAudioFromUrl, calculateSpeechMetrics, type TranscriptionResult } from '@/services/elevenLabsSTTService';
 
@@ -318,7 +318,7 @@ function SinglePlayerRoomContent() {
   
   // Biometric calibration state
   const [showCalibrationFlow, setShowCalibrationFlow] = useState(false);
-  const [hasCalibration, setHasCalibration] = useState(() => hasValidBaseline());
+  const [hasCalibration, setHasCalibration] = useState(() => hasValidBaselineSync());
   
   // LGPD Consent state for Mycroft voice analysis
   const [showMycroftConsent, setShowMycroftConsent] = useState(false);
@@ -608,7 +608,7 @@ function SinglePlayerRoomContent() {
     // 1. Mycroft consent is given
     // 2. Recording mode is set (user chose audio or video)
     // 3. No valid baseline exists yet
-    return mycroftConsent === true && recordingMode !== null && !hasValidBaseline();
+    return mycroftConsent === true && recordingMode !== null && !hasValidBaselineSync();
   };
 
   const startGame = async () => {
@@ -1937,7 +1937,7 @@ function SinglePlayerRoomContent() {
               <Brain className={`w-4 h-4 ${hasCalibration ? 'text-chart-3' : 'text-accent'}`} />
               <span className={`text-xs ${hasCalibration ? 'text-chart-3' : 'text-accent'}`}>
                 {hasCalibration 
-                  ? `✓ Calibração ativa (${getBaselineSummary().hoursRemaining}h restantes)`
+                  ? `✓ Calibração ativa (${getBaselineSummarySync().hoursRemaining}h restantes)`
                   : 'Calibração disponível (+50 BC)'
                 }
               </span>

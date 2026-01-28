@@ -2,10 +2,12 @@
  * Biometric Calibration Service
  * Captures truth and lie baselines from player before game starts
  * Similar to polygraph calibration for more accurate analysis
+ * Now persists to Supabase with behavior_id for user tracking
  */
 
 import type { VoiceMetrics } from '@/services/audioForensicsService';
 import type { VideoForensicsResult } from '@/services/videoForensicsService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Calibration questions with instructions
 export interface CalibrationQuestion {
@@ -32,6 +34,7 @@ export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
 
 // Baseline data structure
 export interface BiometricBaseline {
+  id?: string; // Database ID (behavior_id)
   // Vocal metrics baseline
   vocal: {
     truth: {
@@ -92,9 +95,19 @@ export interface BiometricBaseline {
   sessionId: string;
 }
 
-// Storage key for baseline
+// Storage key for baseline (local cache)
 const BASELINE_STORAGE_KEY = 'blefador_biometric_baseline';
 const BASELINE_EXPIRY_HOURS = 24; // Baseline válido por 24h
+
+// Helper to get session ID
+function getSessionId(): string {
+  let sessionId = sessionStorage.getItem('blefador_session_id');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem('blefador_session_id', sessionId);
+  }
+  return sessionId;
+}
 
 /**
  * Extract vocal baseline from VoiceMetrics
@@ -210,37 +223,207 @@ export function createBiometricBaseline(
 }
 
 /**
- * Save baseline to localStorage
+ * Save baseline to localStorage (cache) and Supabase (persistence)
  */
-function saveBaseline(baseline: BiometricBaseline): void {
+async function saveBaseline(baseline: BiometricBaseline): Promise<string | null> {
   try {
+    // Save to localStorage as cache
     localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(baseline));
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    const sessionId = getSessionId();
+    
+    // Prepare data for Supabase
+    const dbData = {
+      user_id: user?.id || null,
+      session_id: sessionId,
+      
+      // Vocal - Truth
+      truth_avg_pitch: baseline.vocal.truth.avgPitch,
+      truth_pitch_variance: baseline.vocal.truth.pitchVariance,
+      truth_jitter: baseline.vocal.truth.jitter,
+      truth_shimmer: baseline.vocal.truth.shimmer,
+      truth_speech_rate: baseline.vocal.truth.speechRate,
+      truth_response_latency: baseline.vocal.truth.responseLatency,
+      truth_silent_periods: baseline.vocal.truth.silentPeriods,
+      truth_longest_pause: baseline.vocal.truth.longestPause,
+      truth_speech_continuity: baseline.vocal.truth.speechContinuity,
+      
+      // Vocal - Lie
+      lie_avg_pitch: baseline.vocal.lie.avgPitch,
+      lie_pitch_variance: baseline.vocal.lie.pitchVariance,
+      lie_jitter: baseline.vocal.lie.jitter,
+      lie_shimmer: baseline.vocal.lie.shimmer,
+      lie_speech_rate: baseline.vocal.lie.speechRate,
+      lie_response_latency: baseline.vocal.lie.responseLatency,
+      lie_silent_periods: baseline.vocal.lie.silentPeriods,
+      lie_longest_pause: baseline.vocal.lie.longestPause,
+      lie_speech_continuity: baseline.vocal.lie.speechContinuity,
+      
+      // Facial - Truth (if available)
+      truth_blink_rate: baseline.facial?.truth.blinkRate,
+      truth_lip_tension: baseline.facial?.truth.lipTension,
+      truth_brow_asymmetry: baseline.facial?.truth.browAsymmetry,
+      truth_facial_stress_score: baseline.facial?.truth.facialStressScore,
+      truth_gaze_deviation: baseline.facial?.truth.gazeDeviation,
+      truth_mouth_openness: baseline.facial?.truth.mouthOpenness,
+      truth_face_symmetry: baseline.facial?.truth.faceSymmetry,
+      
+      // Facial - Lie (if available)
+      lie_blink_rate: baseline.facial?.lie.blinkRate,
+      lie_lip_tension: baseline.facial?.lie.lipTension,
+      lie_brow_asymmetry: baseline.facial?.lie.browAsymmetry,
+      lie_facial_stress_score: baseline.facial?.lie.facialStressScore,
+      lie_gaze_deviation: baseline.facial?.lie.gazeDeviation,
+      lie_mouth_openness: baseline.facial?.lie.mouthOpenness,
+      lie_face_symmetry: baseline.facial?.lie.faceSymmetry,
+      
+      // Thresholds
+      pitch_deviation_threshold: baseline.thresholds.pitchDeviationThreshold,
+      jitter_deviation_threshold: baseline.thresholds.jitterDeviationThreshold,
+      stress_score_deviation_threshold: baseline.thresholds.stressScoreDeviationThreshold,
+      blink_rate_deviation_threshold: baseline.thresholds.blinkRateDeviationThreshold,
+      lip_tension_deviation_threshold: baseline.thresholds.lipTensionDeviationThreshold,
+      
+      // Metadata
+      capture_mode: baseline.captureMode,
+      calibrated_at: baseline.calibratedAt,
+      expires_at: new Date(new Date(baseline.calibratedAt).getTime() + BASELINE_EXPIRY_HOURS * 60 * 60 * 1000).toISOString(),
+    };
+    
+    // Insert into Supabase
+    const { data, error } = await supabase
+      .from('biometric_baselines')
+      .insert(dbData)
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('[BiometricCalibration] Failed to save to database:', error);
+      return null;
+    }
+    
+    console.log('[BiometricCalibration] ✅ Baseline saved to database with behavior_id:', data.id);
+    return data.id;
   } catch (e) {
     console.error('[BiometricCalibration] Failed to save baseline:', e);
+    return null;
   }
 }
 
 /**
- * Load baseline from localStorage
+ * Load baseline from Supabase (or localStorage cache)
  */
-export function loadBaseline(): BiometricBaseline | null {
+export async function loadBaseline(): Promise<BiometricBaseline | null> {
   try {
-    const stored = localStorage.getItem(BASELINE_STORAGE_KEY);
-    if (!stored) return null;
+    // First check localStorage cache
+    const cached = localStorage.getItem(BASELINE_STORAGE_KEY);
+    if (cached) {
+      const baseline: BiometricBaseline = JSON.parse(cached);
+      const calibratedAt = new Date(baseline.calibratedAt);
+      const now = new Date();
+      const hoursDiff = (now.getTime() - calibratedAt.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursDiff <= BASELINE_EXPIRY_HOURS) {
+        return baseline;
+      }
+    }
     
-    const baseline: BiometricBaseline = JSON.parse(stored);
+    // Try to load from database
+    const { data: { user } } = await supabase.auth.getUser();
+    const sessionId = getSessionId();
     
-    // Check if baseline is expired
-    const calibratedAt = new Date(baseline.calibratedAt);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - calibratedAt.getTime()) / (1000 * 60 * 60);
+    // Query for valid baseline
+    let query = supabase
+      .from('biometric_baselines')
+      .select('*')
+      .eq('is_valid', true)
+      .gt('expires_at', new Date().toISOString())
+      .order('calibrated_at', { ascending: false })
+      .limit(1);
     
-    if (hoursDiff > BASELINE_EXPIRY_HOURS) {
-      console.log('[BiometricCalibration] Baseline expirado, removendo...');
+    if (user?.id) {
+      query = query.eq('user_id', user.id);
+    } else {
+      query = query.eq('session_id', sessionId);
+    }
+    
+    const { data, error } = await query.maybeSingle();
+    
+    if (error || !data) {
+      console.log('[BiometricCalibration] No valid baseline found in database');
       clearBaseline();
       return null;
     }
     
+    // Convert database row to BiometricBaseline
+    const baseline: BiometricBaseline = {
+      id: data.id,
+      vocal: {
+        truth: {
+          avgPitch: Number(data.truth_avg_pitch) || 0,
+          pitchVariance: Number(data.truth_pitch_variance) || 0,
+          jitter: Number(data.truth_jitter) || 0,
+          shimmer: Number(data.truth_shimmer) || 0,
+          speechRate: Number(data.truth_speech_rate) || 0,
+          responseLatency: Number(data.truth_response_latency) || 0,
+          silentPeriods: Number(data.truth_silent_periods) || 0,
+          longestPause: Number(data.truth_longest_pause) || 0,
+          speechContinuity: Number(data.truth_speech_continuity) || 0,
+        },
+        lie: {
+          avgPitch: Number(data.lie_avg_pitch) || 0,
+          pitchVariance: Number(data.lie_pitch_variance) || 0,
+          jitter: Number(data.lie_jitter) || 0,
+          shimmer: Number(data.lie_shimmer) || 0,
+          speechRate: Number(data.lie_speech_rate) || 0,
+          responseLatency: Number(data.lie_response_latency) || 0,
+          silentPeriods: Number(data.lie_silent_periods) || 0,
+          longestPause: Number(data.lie_longest_pause) || 0,
+          speechContinuity: Number(data.lie_speech_continuity) || 0,
+        },
+      },
+      thresholds: {
+        pitchDeviationThreshold: Number(data.pitch_deviation_threshold) || 0.05,
+        jitterDeviationThreshold: Number(data.jitter_deviation_threshold) || 0.1,
+        stressScoreDeviationThreshold: Number(data.stress_score_deviation_threshold) || 5,
+        blinkRateDeviationThreshold: Number(data.blink_rate_deviation_threshold) || 0.1,
+        lipTensionDeviationThreshold: Number(data.lip_tension_deviation_threshold) || 0.05,
+      },
+      calibratedAt: data.calibrated_at,
+      captureMode: data.capture_mode as 'audio' | 'video',
+      sessionId: data.session_id || sessionId,
+    };
+    
+    // Add facial data if available
+    if (data.truth_blink_rate !== null && data.lie_blink_rate !== null) {
+      baseline.facial = {
+        truth: {
+          blinkRate: Number(data.truth_blink_rate) || 0,
+          lipTension: Number(data.truth_lip_tension) || 0,
+          browAsymmetry: Number(data.truth_brow_asymmetry) || 0,
+          facialStressScore: Number(data.truth_facial_stress_score) || 0,
+          gazeDeviation: Number(data.truth_gaze_deviation) || 0,
+          mouthOpenness: Number(data.truth_mouth_openness) || 0,
+          faceSymmetry: Number(data.truth_face_symmetry) || 1,
+        },
+        lie: {
+          blinkRate: Number(data.lie_blink_rate) || 0,
+          lipTension: Number(data.lie_lip_tension) || 0,
+          browAsymmetry: Number(data.lie_brow_asymmetry) || 0,
+          facialStressScore: Number(data.lie_facial_stress_score) || 0,
+          gazeDeviation: Number(data.lie_gaze_deviation) || 0,
+          mouthOpenness: Number(data.lie_mouth_openness) || 0,
+          faceSymmetry: Number(data.lie_face_symmetry) || 1,
+        },
+      };
+    }
+    
+    // Cache it locally
+    localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(baseline));
+    
+    console.log('[BiometricCalibration] ✅ Baseline loaded from database:', data.id);
     return baseline;
   } catch (e) {
     console.error('[BiometricCalibration] Failed to load baseline:', e);
@@ -249,17 +432,69 @@ export function loadBaseline(): BiometricBaseline | null {
 }
 
 /**
- * Clear saved baseline
+ * Synchronous load from cache only (for quick checks)
  */
-export function clearBaseline(): void {
-  localStorage.removeItem(BASELINE_STORAGE_KEY);
+export function loadBaselineSync(): BiometricBaseline | null {
+  try {
+    const cached = localStorage.getItem(BASELINE_STORAGE_KEY);
+    if (!cached) return null;
+    
+    const baseline: BiometricBaseline = JSON.parse(cached);
+    const calibratedAt = new Date(baseline.calibratedAt);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - calibratedAt.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursDiff > BASELINE_EXPIRY_HOURS) {
+      return null;
+    }
+    
+    return baseline;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Check if valid baseline exists
+ * Clear saved baseline (local and database)
  */
-export function hasValidBaseline(): boolean {
-  return loadBaseline() !== null;
+export async function clearBaseline(): Promise<void> {
+  localStorage.removeItem(BASELINE_STORAGE_KEY);
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const sessionId = getSessionId();
+    
+    // Invalidate in database
+    let query = supabase
+      .from('biometric_baselines')
+      .update({ is_valid: false })
+      .eq('is_valid', true);
+    
+    if (user?.id) {
+      query = query.eq('user_id', user.id);
+    } else {
+      query = query.eq('session_id', sessionId);
+    }
+    
+    await query;
+  } catch (e) {
+    console.error('[BiometricCalibration] Failed to clear baseline in database:', e);
+  }
+}
+
+/**
+ * Check if valid baseline exists (sync check from cache)
+ */
+export function hasValidBaselineSync(): boolean {
+  return loadBaselineSync() !== null;
+}
+
+/**
+ * Check if valid baseline exists (async check including database)
+ */
+export async function hasValidBaseline(): Promise<boolean> {
+  const baseline = await loadBaseline();
+  return baseline !== null;
 }
 
 /**
@@ -268,15 +503,18 @@ export function hasValidBaseline(): boolean {
  */
 export function compareToBaseline(
   currentVoice: VoiceMetrics,
-  currentVideo?: VideoForensicsResult
+  currentVideo?: VideoForensicsResult,
+  cachedBaseline?: BiometricBaseline | null
 ): { 
   deceptionScore: number; 
   signals: string[];
   matchesTruthPattern: boolean;
   matchesLiePattern: boolean;
   confidence: 'low' | 'medium' | 'high';
+  baselineId?: string;
 } {
-  const baseline = loadBaseline();
+  // Use cached baseline or sync load from localStorage
+  const baseline = cachedBaseline ?? loadBaselineSync();
   
   if (!baseline) {
     return {
@@ -285,6 +523,7 @@ export function compareToBaseline(
       matchesTruthPattern: false,
       matchesLiePattern: false,
       confidence: 'low',
+      baselineId: undefined,
     };
   }
   
@@ -388,6 +627,7 @@ export function compareToBaseline(
   }
   
   console.log('[BiometricCalibration] Comparação com baseline:', {
+    baselineId: baseline.id,
     deceptionScore,
     signals,
     confidence,
@@ -399,6 +639,7 @@ export function compareToBaseline(
     matchesTruthPattern,
     matchesLiePattern,
     confidence,
+    baselineId: baseline.id,
   };
 }
 
@@ -410,13 +651,14 @@ export const CALIBRATION_BONUS_BC = 50;
 /**
  * Get baseline summary for display
  */
-export function getBaselineSummary(): { 
+export function getBaselineSummarySync(): { 
   exists: boolean;
+  baselineId?: string;
   captureMode?: 'audio' | 'video';
   calibratedAt?: string;
   hoursRemaining?: number;
 } {
-  const baseline = loadBaseline();
+  const baseline = loadBaselineSync();
   
   if (!baseline) {
     return { exists: false };
@@ -429,6 +671,37 @@ export function getBaselineSummary(): {
   
   return {
     exists: true,
+    baselineId: baseline.id,
+    captureMode: baseline.captureMode,
+    calibratedAt: baseline.calibratedAt,
+    hoursRemaining: Math.round(hoursRemaining),
+  };
+}
+
+/**
+ * Get baseline summary (async with database check)
+ */
+export async function getBaselineSummary(): Promise<{ 
+  exists: boolean;
+  baselineId?: string;
+  captureMode?: 'audio' | 'video';
+  calibratedAt?: string;
+  hoursRemaining?: number;
+}> {
+  const baseline = await loadBaseline();
+  
+  if (!baseline) {
+    return { exists: false };
+  }
+  
+  const calibratedAt = new Date(baseline.calibratedAt);
+  const now = new Date();
+  const hoursDiff = (now.getTime() - calibratedAt.getTime()) / (1000 * 60 * 60);
+  const hoursRemaining = Math.max(0, BASELINE_EXPIRY_HOURS - hoursDiff);
+  
+  return {
+    exists: true,
+    baselineId: baseline.id,
     captureMode: baseline.captureMode,
     calibratedAt: baseline.calibratedAt,
     hoursRemaining: Math.round(hoursRemaining),
