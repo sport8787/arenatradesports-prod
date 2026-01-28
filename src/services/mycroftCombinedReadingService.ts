@@ -347,15 +347,35 @@ export async function generateCombinedReadingWithBaseline(
 /**
  * LEGACY: Generate combined reading from vocal + facial analysis
  * Without adaptive baseline (fallback method)
+ * CRITICAL: Uses REAL vocal metrics with HIGHLY SENSITIVE scoring
  */
 export function generateCombinedReading(
   voiceMetrics: VoiceMetrics,
   facialAnalysis: VideoForensicsResult | null
 ): CombinedReading {
-  // Simple calculation without baseline
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('[MycroftCombinedReading] 🔬 GENERATING COMBINED READING');
+  console.log('═══════════════════════════════════════════════════════════════');
+  
+  // CRITICAL: Calculate vocal score from REAL metrics
   const vocalScore = calculateSimpleVocalScore(voiceMetrics);
+  
+  // Calculate facial score (defaults to 50 if no video)
   const facialScore = calculateFacialScore(facialAnalysis);
-  const combinedScore = (vocalScore * 0.6) + (facialScore * 0.4);
+  
+  // Combined score: 60% vocal + 40% facial
+  // If no facial analysis, use 100% vocal
+  const combinedScore = facialAnalysis 
+    ? (vocalScore * 0.6) + (facialScore * 0.4)
+    : vocalScore; // Use ONLY vocal if no video
+  
+  console.log('');
+  console.log('📊 SCORE BREAKDOWN:');
+  console.log(`  • Vocal Score: ${vocalScore}/100 (${facialAnalysis ? '60%' : '100%'} weight)`);
+  console.log(`  • Facial Score: ${facialScore}/100 (${facialAnalysis ? '40%' : '0%'} weight)`);
+  console.log(`  • Combined Score: ${combinedScore.toFixed(1)}/100`);
+  console.log(`  • Zone: ${combinedScore > 65 ? '🔴 BLUFF' : combinedScore > 35 ? '🟡 ATTENTION' : '🟢 CONVICTION'}`);
+  console.log('═══════════════════════════════════════════════════════════════');
   
   const scenarioId = selectScenarioId(vocalScore, facialScore, voiceMetrics, facialAnalysis);
   const scenario = COMBINED_SCENARIOS[scenarioId];
@@ -393,132 +413,202 @@ export function generateCombinedReading(
     color: ZONE_COLORS[zone],
     vocalScore,
     facialScore,
-    combinedScore
+    combinedScore: Math.round(combinedScore)
   };
 }
 
 /**
- * Improved vocal score calculation - more sensitive to real stress signals
+ * Improved vocal score calculation - HIGHLY SENSITIVE to real stress signals
  * Higher score = more suspicious/bluff-like
- * CRITICAL: Uses REAL metrics, not simulated defaults
+ * CRITICAL: Uses REAL metrics with AGGRESSIVE scoring to detect hesitation
  */
 function calculateSimpleVocalScore(metrics: VoiceMetrics): number {
   let score = 0;
   let factors = 0;
 
-  console.log('[MycroftCombinedReading] 🔬 Calculating vocal score from REAL metrics:', {
-    responseLatencyMs: metrics.responseLatencyMs,
-    pitchStability: metrics.pitchStability,
-    jitter: metrics.jitter,
-    shimmer: metrics.shimmer,
-    speechRateBPM: metrics.speechRateBPM,
-    silentPeriods: metrics.silentPeriods,
-    fillerWordsCount: metrics.fillerWordsCount,
-    speechContinuity: metrics.speechContinuity,
-  });
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('[MycroftCombinedReading] 🔬 CALCULATING VOCAL SUSPICION SCORE');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('📊 RAW METRICS RECEIVED:');
+  console.log('  • responseLatencyMs:', metrics.responseLatencyMs);
+  console.log('  • pitchStability:', metrics.pitchStability);
+  console.log('  • jitter:', metrics.jitter);
+  console.log('  • shimmer:', metrics.shimmer);
+  console.log('  • speechRateBPM:', metrics.speechRateBPM);
+  console.log('  • silentPeriods:', metrics.silentPeriods);
+  console.log('  • fillerWordsCount:', metrics.fillerWordsCount);
+  console.log('  • speechContinuity:', metrics.speechContinuity);
+  console.log('  • longestPause:', metrics.longestPause);
+  console.log('═══════════════════════════════════════════════════════════════');
 
-  // Response latency - REFINED thresholds
-  // Very fast (<800ms) = suspicious (prepared answer)
-  // Fast (800-1500ms) = confident
-  // Normal (1500-3000ms) = thinking
-  // Slow (3000-5000ms) = hesitating  
-  // Very slow (>5000ms) = struggling
-  if (metrics.responseLatencyMs !== undefined) {
+  // ═══════════════════════════════════════════════════════════════
+  // 1. RESPONSE LATENCY - How long before they started speaking
+  // ═══════════════════════════════════════════════════════════════
+  if (metrics.responseLatencyMs !== undefined && metrics.responseLatencyMs > 0) {
     const latency = metrics.responseLatencyMs;
-    if (latency < 800) score += 55; // Too fast, possibly rehearsed
-    else if (latency < 1500) score += 20; // Natural confidence
-    else if (latency < 3000) score += 35; // Thinking (normal)
-    else if (latency < 5000) score += 55; // Hesitating
-    else score += 75; // Struggling significantly
+    let latencyScore = 0;
+    
+    if (latency < 500) latencyScore = 45; // Very fast = possibly rehearsed
+    else if (latency < 1000) latencyScore = 25; // Quick confident
+    else if (latency < 2000) latencyScore = 35; // Normal thinking
+    else if (latency < 4000) latencyScore = 60; // Hesitating
+    else if (latency < 6000) latencyScore = 75; // Struggling
+    else latencyScore = 90; // Very slow = big problem
+    
+    score += latencyScore;
     factors++;
+    console.log(`  🕐 Latency (${latency}ms) → +${latencyScore} points`);
   }
 
-  // Pitch stability - SENSITIVE thresholds
+  // ═══════════════════════════════════════════════════════════════
+  // 2. PITCH STABILITY - Voice trembling indicator
+  // ═══════════════════════════════════════════════════════════════
   if (metrics.pitchStability !== undefined) {
-    if (metrics.pitchStability === 'stable') score += 15;
-    else if (metrics.pitchStability === 'micro-tremors') score += 55; // Increased sensitivity
-    else score += 80; // Unstable = high stress
+    let pitchScore = 0;
+    
+    if (metrics.pitchStability === 'stable') pitchScore = 15;
+    else if (metrics.pitchStability === 'micro-tremors') pitchScore = 60; // INCREASED
+    else pitchScore = 85; // Unstable = high stress
+    
+    score += pitchScore;
     factors++;
+    console.log(`  🎵 Pitch stability (${metrics.pitchStability}) → +${pitchScore} points`);
   }
 
-  // Jitter - REFINED thresholds (lower is better)
-  // Normal speech: 0.2-0.5%, Stress: >1%, High stress: >2%
-  if (metrics.jitter !== undefined) {
-    if (metrics.jitter < 0.3) score += 10; // Very stable
-    else if (metrics.jitter < 0.7) score += 25; // Normal
-    else if (metrics.jitter < 1.2) score += 50; // Moderate stress
-    else if (metrics.jitter < 2.0) score += 70; // High stress
-    else score += 90; // Extreme instability
+  // ═══════════════════════════════════════════════════════════════
+  // 3. JITTER - Cycle-to-cycle pitch variation (key stress marker)
+  // ═══════════════════════════════════════════════════════════════
+  if (metrics.jitter !== undefined && metrics.jitter > 0) {
+    let jitterScore = 0;
+    
+    if (metrics.jitter < 0.2) jitterScore = 10; // Very stable
+    else if (metrics.jitter < 0.5) jitterScore = 25; // Normal
+    else if (metrics.jitter < 1.0) jitterScore = 50; // Moderate stress
+    else if (metrics.jitter < 1.5) jitterScore = 70; // High stress
+    else if (metrics.jitter < 2.5) jitterScore = 85; // Very high stress
+    else jitterScore = 95; // Extreme instability
+    
+    score += jitterScore;
     factors++;
+    console.log(`  📈 Jitter (${metrics.jitter.toFixed(2)}%) → +${jitterScore} points`);
   }
 
-  // Shimmer - REFINED thresholds
-  if (metrics.shimmer !== undefined) {
-    if (metrics.shimmer < 2) score += 10; // Very stable amplitude
-    else if (metrics.shimmer < 4) score += 30; // Normal
-    else if (metrics.shimmer < 7) score += 55; // Noticeable variation
-    else if (metrics.shimmer < 12) score += 75; // High variation
-    else score += 90; // Extreme
+  // ═══════════════════════════════════════════════════════════════
+  // 4. SHIMMER - Amplitude variation
+  // ═══════════════════════════════════════════════════════════════
+  if (metrics.shimmer !== undefined && metrics.shimmer > 0) {
+    let shimmerScore = 0;
+    
+    if (metrics.shimmer < 2) shimmerScore = 10;
+    else if (metrics.shimmer < 4) shimmerScore = 30;
+    else if (metrics.shimmer < 6) shimmerScore = 50;
+    else if (metrics.shimmer < 10) shimmerScore = 70;
+    else shimmerScore = 90;
+    
+    score += shimmerScore;
     factors++;
+    console.log(`  🔊 Shimmer (${metrics.shimmer.toFixed(2)}%) → +${shimmerScore} points`);
   }
 
-  // Speech rate - too slow or too fast indicates stress
-  if (metrics.speechRateBPM !== undefined) {
+  // ═══════════════════════════════════════════════════════════════
+  // 5. SPEECH RATE - Too fast or too slow indicates stress
+  // ═══════════════════════════════════════════════════════════════
+  if (metrics.speechRateBPM !== undefined && metrics.speechRateBPM > 0) {
+    let rateScore = 0;
     const rate = metrics.speechRateBPM;
-    if (rate < 60) score += 70; // Very slow = struggling
-    else if (rate < 90) score += 50; // Slow = hesitant
-    else if (rate < 140) score += 20; // Normal pace
-    else if (rate < 180) score += 45; // Fast = nervous
-    else score += 75; // Very fast = panicking
+    
+    if (rate < 50) rateScore = 80; // Very slow = struggling
+    else if (rate < 80) rateScore = 55; // Slow = hesitant
+    else if (rate < 130) rateScore = 20; // Normal pace
+    else if (rate < 170) rateScore = 45; // Fast = nervous
+    else rateScore = 75; // Very fast = panicking
+    
+    score += rateScore;
     factors++;
+    console.log(`  🗣️ Speech rate (${rate} BPM) → +${rateScore} points`);
   }
 
-  // NEW: Speech fluency metrics - HIGHLY SENSITIVE
-  // Silent periods (pauses > 1 second)
+  // ═══════════════════════════════════════════════════════════════
+  // 6. SILENT PERIODS - Pauses during speech (KEY HESITATION MARKER)
+  // ═══════════════════════════════════════════════════════════════
   if (metrics.silentPeriods !== undefined) {
-    if (metrics.silentPeriods === 0) score += 10;
-    else if (metrics.silentPeriods === 1) score += 35;
-    else if (metrics.silentPeriods === 2) score += 55;
-    else if (metrics.silentPeriods <= 4) score += 75;
-    else score += 90; // Many pauses = extreme hesitation
+    let pauseScore = 0;
+    
+    if (metrics.silentPeriods === 0) pauseScore = 10;
+    else if (metrics.silentPeriods === 1) pauseScore = 45; // INCREASED
+    else if (metrics.silentPeriods === 2) pauseScore = 65; // INCREASED
+    else if (metrics.silentPeriods <= 4) pauseScore = 80; // INCREASED
+    else pauseScore = 95; // Many pauses = extreme hesitation
+    
+    score += pauseScore;
     factors++;
+    console.log(`  ⏸️ Silent periods (${metrics.silentPeriods}) → +${pauseScore} points ⚠️ KEY METRIC`);
   }
 
-  // Filler words (uhm, ahh patterns)
+  // ═══════════════════════════════════════════════════════════════
+  // 7. FILLER WORDS - "uhm", "ahh" patterns (KEY HESITATION MARKER)
+  // ═══════════════════════════════════════════════════════════════
   if (metrics.fillerWordsCount !== undefined) {
-    if (metrics.fillerWordsCount === 0) score += 10;
-    else if (metrics.fillerWordsCount <= 2) score += 40;
-    else if (metrics.fillerWordsCount <= 4) score += 60;
-    else if (metrics.fillerWordsCount <= 6) score += 80;
-    else score += 95; // Excessive hesitation markers
+    let fillerScore = 0;
+    
+    if (metrics.fillerWordsCount === 0) fillerScore = 10;
+    else if (metrics.fillerWordsCount <= 1) fillerScore = 40;
+    else if (metrics.fillerWordsCount <= 3) fillerScore = 65; // INCREASED
+    else if (metrics.fillerWordsCount <= 5) fillerScore = 80; // INCREASED
+    else fillerScore = 95; // Excessive hesitation markers
+    
+    score += fillerScore;
     factors++;
+    console.log(`  💬 Filler words (${metrics.fillerWordsCount}) → +${fillerScore} points ⚠️ KEY METRIC`);
   }
 
-  // Speech continuity score (0-100, higher = better)
+  // ═══════════════════════════════════════════════════════════════
+  // 8. SPEECH CONTINUITY - Overall fluency (0-100, higher = better)
+  // ═══════════════════════════════════════════════════════════════
   if (metrics.speechContinuity !== undefined) {
+    let continuityScore = 0;
     const continuity = metrics.speechContinuity;
-    if (continuity >= 85) score += 10; // Excellent fluency
-    else if (continuity >= 70) score += 25; // Good
-    else if (continuity >= 50) score += 50; // Moderate breaks
-    else if (continuity >= 30) score += 75; // Choppy speech
-    else score += 95; // Very fragmented = high stress
+    
+    if (continuity >= 85) continuityScore = 10; // Excellent fluency
+    else if (continuity >= 70) continuityScore = 30; // Good
+    else if (continuity >= 55) continuityScore = 55; // Moderate breaks
+    else if (continuity >= 40) continuityScore = 75; // Choppy speech
+    else continuityScore = 95; // Very fragmented = high stress
+    
+    score += continuityScore;
     factors++;
+    console.log(`  📊 Speech continuity (${continuity}%) → +${continuityScore} points ⚠️ KEY METRIC`);
   }
 
-  // Longest pause (in ms)
+  // ═══════════════════════════════════════════════════════════════
+  // 9. LONGEST PAUSE - Duration of the longest pause
+  // ═══════════════════════════════════════════════════════════════
   if (metrics.longestPause !== undefined && metrics.longestPause > 0) {
+    let pauseDurScore = 0;
     const pauseSeconds = metrics.longestPause / 1000;
-    if (pauseSeconds < 0.5) score += 10;
-    else if (pauseSeconds < 1.5) score += 30;
-    else if (pauseSeconds < 3) score += 55;
-    else if (pauseSeconds < 5) score += 75;
-    else score += 90; // Very long pause = thinking hard or struggling
+    
+    if (pauseSeconds < 0.3) pauseDurScore = 10;
+    else if (pauseSeconds < 0.8) pauseDurScore = 30;
+    else if (pauseSeconds < 1.5) pauseDurScore = 50;
+    else if (pauseSeconds < 2.5) pauseDurScore = 70;
+    else if (pauseSeconds < 4) pauseDurScore = 85;
+    else pauseDurScore = 95; // Very long pause = thinking hard
+    
+    score += pauseDurScore;
     factors++;
+    console.log(`  ⏱️ Longest pause (${pauseSeconds.toFixed(1)}s) → +${pauseDurScore} points`);
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // FINAL CALCULATION
+  // ═══════════════════════════════════════════════════════════════
   const finalScore = factors > 0 ? Math.round(score / factors) : 50;
   
-  console.log('[MycroftCombinedReading] 📊 Final vocal suspicion score:', finalScore, '(from', factors, 'factors)');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(`📊 FINAL VOCAL SUSPICION SCORE: ${finalScore}/100`);
+  console.log(`   (from ${factors} factors, total raw: ${score})`);
+  console.log(`   ${finalScore > 65 ? '🔴 BLUFF ZONE' : finalScore > 35 ? '🟡 ATTENTION ZONE' : '🟢 CONVICTION ZONE'}`);
+  console.log('═══════════════════════════════════════════════════════════════');
   
   return finalScore;
 }
