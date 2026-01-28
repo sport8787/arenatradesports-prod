@@ -30,6 +30,7 @@ import MoneyRain from '@/components/game/MoneyRain';
 import AudioRecorder from '@/components/game/AudioRecorder';
 import VideoRecorder from '@/components/game/VideoRecorder';
 import RecordingModeSelector, { type RecordingMode } from '@/components/game/RecordingModeSelector';
+import MicCalibrationPanel from '@/components/game/MicCalibrationPanel';
 import MycroftConsentModal, { MycroftConsentButton } from '@/components/game/MycroftConsentModal';
 import { MycroftCombinedPanel } from '@/components/game/MycroftCombinedPanel';
 import { generateCombinedReading, type CombinedReading } from '@/services/mycroftCombinedReadingService';
@@ -292,6 +293,7 @@ function SinglePlayerRoomContent() {
   const [transcription, setTranscription] = useState<string>("");
   const [mycroftCombinedReading, setMycroftCombinedReading] = useState<CombinedReading | null>(null);
   const [showMycroftCombinedPanel, setShowMycroftCombinedPanel] = useState(false);
+  const [isMicCalibrated, setIsMicCalibrated] = useState(false);
   
   // LGPD Consent state for Mycroft voice analysis
   const [showMycroftConsent, setShowMycroftConsent] = useState(false);
@@ -1575,6 +1577,7 @@ function SinglePlayerRoomContent() {
     setShowMycroftCombinedPanel(false);
     setJuryVerdict(null);
     setJuryLastRequest(null);
+    setIsMicCalibrated(false); // Reset mic calibration for new round
     
     // Update NarrativeEngine state
     narrativeEngineRef.current.advanceRound(true);
@@ -2010,8 +2013,16 @@ function SinglePlayerRoomContent() {
                   />
                   
                   <div className="space-y-4">
+                    {/* Mic Calibration Panel - shows first if not calibrated */}
+                    {!isMicCalibrated && !recordingMode && (
+                      <MicCalibrationPanel
+                        onCalibrated={() => setIsMicCalibrated(true)}
+                        onSkip={() => setIsMicCalibrated(true)}
+                      />
+                    )}
+                    
                     {/* Recording Mode Selector - choose audio or video */}
-                    {!recordingMode && (
+                    {isMicCalibrated && !recordingMode && (
                       <RecordingModeSelector
                         onSelect={(mode) => {
                           setRecordingMode(mode);

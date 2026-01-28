@@ -4,8 +4,9 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign, Sparkles } from 'lucide-react';
+import { Shield, Sword, Calculator, CheckCircle, XCircle, Clock, DollarSign, Sparkles, AlertTriangle, Copy, Check } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 // Local audio files for verdict sounds (no API costs)
 const VERDICT_SOUNDS = {
@@ -201,6 +202,46 @@ const JurorCard: React.FC<{
     </motion.div>
   );
 };
+
+/**
+ * Fallback Badge - shows when jury used random votes instead of Claude
+ */
+const FallbackBadge: React.FC = () => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.8 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-400 text-xs font-medium"
+  >
+    <AlertTriangle className="w-3.5 h-3.5" />
+    <span>Fallback ativado</span>
+  </motion.div>
+);
+
+/**
+ * Detect if verdict is a fallback (random votes)
+ */
+function isFallbackVerdict(verdict: JuryVerdict): boolean {
+  // Fallback indicators:
+  // 1. Cost is 0
+  // 2. Total processing time is 0 or very low (< 100ms)
+  // 3. All votes have confidence = 50 (the fallback default)
+  // 4. Any reasoning contains "fallback", "indisponível", "erro"
+  
+  if (verdict.costEstimate === 0) return true;
+  if (verdict.totalProcessingTimeMs < 100) return true;
+  
+  const allConfidence50 = verdict.votes.every(v => v.confidence === 50);
+  const hasFallbackReasoning = verdict.votes.some(v => 
+    v.reasoning.toLowerCase().includes('fallback') ||
+    v.reasoning.toLowerCase().includes('indisponível') ||
+    v.reasoning.toLowerCase().includes('erro') ||
+    v.reasoning.toLowerCase().includes('aleatório')
+  );
+  
+  if (allConfidence50 && hasFallbackReasoning) return true;
+  
+  return false;
+}
 
 /**
  * Verdict Summary Banner with dramatic animations
@@ -450,8 +491,26 @@ export const JuryVotingPanel: React.FC<JuryVotingPanelProps> = ({
     );
   }
   
+  const isFallback = isFallbackVerdict(verdict);
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopyPayload = () => {
+    if (debugRequest) {
+      navigator.clipboard.writeText(JSON.stringify(debugRequest, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+  
   return (
     <div className="space-y-4">
+      {/* Fallback warning badge */}
+      {isFallback && (
+        <div className="flex justify-center">
+          <FallbackBadge />
+        </div>
+      )}
+      
       {/* Verdict Banner */}
       <VerdictBanner verdict={verdict} />
       
@@ -481,9 +540,29 @@ export const JuryVotingPanel: React.FC<JuryVotingPanelProps> = ({
         <TabsContent value="payload" className="mt-3">
           {debugRequest ? (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Este é o payload exato enviado para o júri IA nesta rodada.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Payload exato enviado para o júri IA nesta rodada.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyPayload}
+                  className="h-7 text-xs"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1 text-emerald-400" />
+                      Copiado
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copiar JSON
+                    </>
+                  )}
+                </Button>
+              </div>
               <pre className="max-h-80 overflow-auto rounded-lg bg-secondary/30 p-3 text-xs text-foreground/80">
                 {JSON.stringify(debugRequest, null, 2)}
               </pre>
