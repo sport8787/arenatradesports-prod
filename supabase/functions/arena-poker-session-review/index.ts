@@ -31,28 +31,28 @@ Responda APENAS com JSON válido no formato:
 {
   "totalHands": number,
   "overallScore": number,
-  "summary": string (resumo de 2-3 frases da sessão),
+  "summary": string,
   "recurringLeaks": [
     {
       "title": string,
       "frequency": number,
       "severity": "grave" | "atencao" | "info",
       "description": string,
-      "hands": [number] (números das mãos onde o leak aparece, 1-indexed)
+      "hands": [number]
     }
   ],
   "spotClusters": [
     {
-      "type": string (nome do cluster, ex: "BB Defense vs BTN"),
+      "type": string,
       "count": number,
-      "insight": string (insight principal sobre esse cluster)
+      "insight": string
     }
   ],
   "trainingPlan": [
     {
-      "day": string (ex: "Sessão 1 - Segunda"),
-      "focus": string (foco principal),
-      "exercises": [string] (2-3 exercícios práticos de 5-15 min)
+      "day": string,
+      "focus": string,
+      "exercises": [string]
     }
   ],
   "tags": [string]
@@ -64,8 +64,8 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const { hands } = await req.json();
     if (!hands || !Array.isArray(hands) || hands.length < 2) {
@@ -79,41 +79,40 @@ serve(async (req) => {
       .map((h: string, i: number) => `--- MÃO #${i + 1} ---\n${h}`)
       .join("\n\n");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `Analise as seguintes ${hands.length} mãos da minha sessão:\n\n${userPrompt}` },
         ],
-        temperature: 0.7,
-        response_format: { type: "json_object" },
+        model: "google/gemini-2.5-flash",
       }),
     });
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`OpenAI session review error [${status}]:`, body);
+      console.error(`Lovable AI session review error [${status}]:`, body);
       if (status === 429) {
         return new Response(
           JSON.stringify({ error: "RATE_LIMITED" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`OPENAI_ERROR_${status}`);
+      throw new Error(`AI_ERROR_${status}`);
     }
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error("No content in response");
 
-    const result = JSON.parse(text);
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const result = JSON.parse(cleaned);
 
     return new Response(
       JSON.stringify(result),

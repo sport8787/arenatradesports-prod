@@ -29,26 +29,9 @@ REGRAS DE RESPOSTA:
 - Use o contexto da mão analisada quando fornecido
 - Responda SEMPRE em português brasileiro
 
-ESTRUTURA (quando analisando mão completa):
-(1) Resumo da mão (fatos puros)
-(2) Diagnóstico rápido (1-3 linhas): ponto decisivo + avaliação [Boa/Ok/Leak]
-(3) Análise por street: opções, range do vilão, linha recomendada + alternativa, justificativa
-(4) Leak detection (máx 2): técnico + mental
-(5) Regra de bolso (heurística simples)
-(6) Próxima ação de treino (5-15 min)
-(7) Tags: [preflop][bb_vs_btn][suited_connector][tournament][spr_high][exploit][leak_overcall][mental_tilt?]
-
-SESSION REVIEW (múltiplas mãos):
-- Agrupar por tipo de spot
-- Identificar top 3 leaks recorrentes
-- Sugerir plano de treino semanal (3 sessões)
-
 SEGURANÇA:
 - Não instrua uso de RTA, screen readers, solvers ao vivo, HUD abuse
 - Se suspeitar tilt/compulsão, recomende cooldown e limites de bankroll
-
-PERGUNTAS (quando falta info):
-Faça APENAS o mínimo necessário (Q1, Q2...) e forneça análise provisória com premissas sinalizadas.
 
 TOM: Direto, estilo coach. Sem enrolação. Foco em melhoria e disciplina.`;
 
@@ -58,8 +41,8 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const { messages, handContext } = await req.json();
 
@@ -67,26 +50,25 @@ serve(async (req) => {
       ? `${SYSTEM_PROMPT}\n\nCONTEXTO DA MÃO ANALISADA:\n${handContext}`
       : SYSTEM_PROMPT;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemContent },
           ...messages,
         ],
-        temperature: 0.8,
+        model: "google/gemini-2.5-flash",
       }),
     });
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`OpenAI chat error [${status}]:`, body);
+      console.error(`Lovable AI chat error [${status}]:`, body);
 
       if (status === 429) {
         return new Response(
@@ -96,7 +78,7 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: "OpenAI API error" }),
+        JSON.stringify({ error: "AI API error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
