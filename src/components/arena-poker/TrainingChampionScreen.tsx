@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Coins, ArrowLeft, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 interface TrainingChampionScreenProps {
   wins: number;
   bank: number;
+  apcEarned: number;
   onRestart: () => void;
   onBack: () => void;
 }
@@ -26,10 +26,9 @@ function GoldParticle({ delay }: { delay: number }) {
   );
 }
 
-const TrainingChampionScreen = ({ wins, bank, onRestart, onBack }: TrainingChampionScreenProps) => {
+const TrainingChampionScreen = ({ wins, bank, apcEarned, onRestart, onBack }: TrainingChampionScreenProps) => {
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden">
-      {/* Gold Particles */}
       {Array.from({ length: 40 }).map((_, i) => (
         <GoldParticle key={i} delay={i * 0.15} />
       ))}
@@ -56,11 +55,16 @@ const TrainingChampionScreen = ({ wins, bank, onRestart, onBack }: TrainingChamp
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2">
-          <Coins className="w-6 h-6 text-[hsl(var(--arena-gold))]" />
-          <span className="font-mono text-3xl font-black text-[hsl(var(--arena-gold))]">
-            {bank.toLocaleString()} BC
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <Coins className="w-6 h-6 text-[hsl(var(--arena-gold))]" />
+            <span className="font-mono text-3xl font-black text-[hsl(var(--arena-gold))]">
+              {bank.toLocaleString()} APC
+            </span>
+          </div>
+          <p className="font-mono text-xs text-[hsl(var(--arena-gold)_/_0.6)]">
+            +{apcEarned.toLocaleString()} APC salvos no seu perfil
+          </p>
         </div>
 
         <div className="flex justify-center gap-3 pt-4">
