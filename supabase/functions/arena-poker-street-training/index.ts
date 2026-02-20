@@ -221,36 +221,60 @@ REGRAS:
 - A provocação deve ser COERENTE com a intenção escolhida.
 - Responda APENAS com JSON válido.`;
 
-async function callGeminiAI(prompt: string) {
+async function callGeminiAI(prompt: string, maxRetries = 3) {
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    }
-  );
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const status = response.status;
-    const body = await response.text();
-    console.error(`Gemini API error [${status}]:`, body);
-    if (status === 429) throw new Error("RATE_LIMITED");
-    throw new Error(`AI_ERROR_${status}`);
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
+      console.log(`Retry attempt ${attempt + 1} after ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        }
+      );
+
+      if (response.status === 429) {
+        lastError = new Error("RATE_LIMITED");
+        console.warn(`Gemini 429 on attempt ${attempt + 1}/${maxRetries}`);
+        continue;
+      }
+
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(`Gemini API error [${response.status}]:`, body);
+        throw new Error(`AI_ERROR_${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("No content in Gemini response");
+
+      const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      return JSON.parse(cleaned);
+    } catch (e) {
+      if (e instanceof Error && e.message === "RATE_LIMITED") {
+        lastError = e;
+        continue;
+      }
+      throw e;
+    }
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No content in Gemini response");
-
-  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  return JSON.parse(cleaned);
+  throw lastError || new Error("RATE_LIMITED");
 }
 
 serve(async (req) => {

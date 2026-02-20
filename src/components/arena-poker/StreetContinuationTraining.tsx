@@ -360,9 +360,14 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
         }).select('id').single();
         if (session) handSessionIdRef.current = session.id;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Generate error:', err);
-      toast.error('Erro ao gerar mão. Tente novamente.');
+      const isRateLimit = err?.message?.includes('429') || err?.context?.body?.includes('RATE_LIMITED');
+      if (isRateLimit) {
+        toast.error('Servidor ocupado. Aguarde alguns segundos e tente novamente.', { duration: 5000 });
+      } else {
+        toast.error('Erro ao gerar mão. Tente novamente.');
+      }
     } finally {
       setIsLoading(false);
     }
