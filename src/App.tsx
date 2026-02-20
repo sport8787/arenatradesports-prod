@@ -20,6 +20,7 @@ import PresenterRoom from "./pages/PresenterRoom";
 import PlayerScreen from "./pages/PlayerScreen";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ArenaPoker from "./pages/ArenaPoker";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -73,6 +74,7 @@ const App = () => {
               <Route path="/admin/questions" element={<AdminQuestions />} />
               <Route path="/admin/founder-cases" element={<AdminFounderCases />} />
               <Route path="/privacidade" element={<PrivacyPolicy />} />
+              <Route path="/arena-poker" element={<ArenaPoker />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
