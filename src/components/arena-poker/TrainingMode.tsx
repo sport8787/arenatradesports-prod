@@ -35,6 +35,20 @@ interface Scenario {
   dificuldade: number;
 }
 
+interface PerspectiveData {
+  acao: string;
+  raciocinio: string;
+  ev: string;
+}
+
+interface Perspectivas {
+  tag: PerspectiveData;
+  lag: PerspectiveData;
+  gto: PerspectiveData;
+  jogadorEv: string;
+  melhorEstilo: 'tag' | 'lag' | 'gto';
+}
+
 interface EvalResult {
   correto: boolean;
   nota: number;
@@ -44,6 +58,7 @@ interface EvalResult {
   bcGanho: number;
   bcPerdido: number;
   evDiferenca: string;
+  perspectivas?: Perspectivas;
 }
 
 interface TrainingModeProps {
@@ -63,6 +78,106 @@ function playSound(path: string, volume = 0.4) {
     audio.volume = volume;
     audio.play().catch(() => {});
   } catch {}
+}
+
+// ─── Multi-Perspective Panel ─────────────────────────────────
+const STYLE_CONFIG = {
+  tag: { label: 'TAG', sublabel: 'Tight-Aggressive', emoji: '🛡️', color: 'var(--arena-cyan)' },
+  lag: { label: 'LAG', sublabel: 'Loose-Aggressive', emoji: '🔥', color: 'var(--arena-gold)' },
+  gto: { label: 'GTO', sublabel: 'Solver', emoji: '🎯', color: 'var(--mycroft-green)' },
+} as const;
+
+function MultiPerspectivePanel({ perspectivas }: { perspectivas: Perspectivas }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  return (
+    <div className="border border-[hsl(var(--arena-cyan)_/_0.25)] rounded-xl overflow-hidden bg-[hsl(var(--arena-cyan)_/_0.02)]">
+      <div className="px-5 py-3 border-b border-[hsl(var(--arena-cyan)_/_0.15)] flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🎯</span>
+          <span className="font-mono text-xs uppercase tracking-widest text-[hsl(var(--arena-cyan))] font-bold">
+            3 Perspectivas
+          </span>
+        </div>
+        <span className="font-mono text-[10px] text-muted-foreground uppercase">
+          Melhor: <span className="text-[hsl(var(--arena-gold))] font-bold">{STYLE_CONFIG[perspectivas.melhorEstilo]?.label}</span>
+        </span>
+      </div>
+
+      <div className="divide-y divide-[hsl(var(--border)_/_0.5)]">
+        {(['tag', 'lag', 'gto'] as const).map((key) => {
+          const cfg = STYLE_CONFIG[key];
+          const p = perspectivas[key];
+          const isBest = perspectivas.melhorEstilo === key;
+          const isOpen = expanded === key;
+
+          return (
+            <button
+              key={key}
+              onClick={() => setExpanded(isOpen ? null : key)}
+              className="w-full text-left px-5 py-3 hover:bg-[hsl(var(--secondary)_/_0.3)] transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{cfg.emoji}</span>
+                  <div>
+                    <span className={`font-mono text-xs font-bold uppercase tracking-wider`}
+                      style={{ color: `hsl(${cfg.color})` }}>
+                      {cfg.label}
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground ml-2">{cfg.sublabel}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm font-bold" style={{ color: `hsl(${cfg.color})` }}>
+                    {p.acao}
+                  </span>
+                  <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                    p.ev.startsWith('+') || p.ev.startsWith('0')
+                      ? 'bg-[hsl(var(--success)_/_0.15)] text-[hsl(var(--success))]'
+                      : 'bg-[hsl(var(--destructive)_/_0.15)] text-[hsl(var(--destructive))]'
+                  }`}>
+                    EV: {p.ev}
+                  </span>
+                  {isBest && (
+                    <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[hsl(var(--arena-gold)_/_0.2)] text-[hsl(var(--arena-gold))] font-bold uppercase">
+                      ★ Best
+                    </span>
+                  )}
+                </div>
+              </div>
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.p
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="font-mono text-xs text-muted-foreground mt-2 overflow-hidden"
+                  >
+                    {p.raciocinio}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Player's EV */}
+      <div className="px-5 py-3 border-t border-[hsl(var(--border)_/_0.5)] bg-[hsl(var(--destructive)_/_0.03)]">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Você jogou</span>
+          <span className={`font-mono text-sm font-black ${
+            perspectivas.jogadorEv.startsWith('+') || perspectivas.jogadorEv.startsWith('0')
+              ? 'text-[hsl(var(--success))]'
+              : 'text-[hsl(var(--destructive))]'
+          }`}>
+            EV: {perspectivas.jogadorEv}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main Component ──────────────────────────────────────────
@@ -528,6 +643,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                     </div>
                     <p className="font-mono text-sm text-[hsl(var(--arena-gold))] italic">"{evalResult.feedbackHorus}"</p>
                   </div>
+
+                  {/* ─── Multi-Perspective Comparison ──────── */}
+                  {evalResult.perspectivas && (
+                    <MultiPerspectivePanel perspectivas={evalResult.perspectivas} />
+                  )}
 
                   {/* BC Change */}
                   <div className="text-center">
