@@ -1,185 +1,50 @@
 
-# Plano de Implementação: Mycroft 2.0 Análise Facial em Tempo Real
 
-## Visão Geral
+# Corrigir Bluff Talk (Provocação em Vídeo) no Street Continuation
 
-O objetivo é completar os 3 elementos visuais faltantes para que a análise facial do Mycroft 2.0 funcione como demonstrado no trailer: overlay de landmarks, timeline PNL e integração no Single Player.
+## Problema Identificado
 
----
+O modal de "Bluff Talk" (gravação de provocação em vídeo) **existe** no código do Street Continuation, mas aparece apenas em condições muito específicas que podem não estar sendo atingidas durante o jogo:
 
-## Arquitetura Atual (99% Pronta)
+1. **Condição de timing**: O modal só aparece na **transição entre streets** (depois de acertar uma decisão), nunca durante a decisão em si
+2. **Condição de index**: O modal só aparece quando `currentStreetIdx > 0`, ou seja, apenas nas transições Flop-para-Turn e Turn-para-River. A transição Preflop-para-Flop (index 0) e pula
+3. **Condição de acerto**: Se o jogador erra, o modal nunca aparece
+4. **Condição de fim de mao**: Se a IA decide que a mao terminou (ex: fold), o modal e pulado
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    IMPLEMENTADO                                  │
-├─────────────────────────────────────────────────────────────────┤
-│ faceMeshService.ts      │ Rastreia 478 landmarks via MediaPipe  │
-│ videoForensicsService.ts│ Calcula tensão labial, olhar, micro-  │
-│                         │ expressões, blink rate                │
-│ audioForensicsService.ts│ Pitch, jitter, shimmer, latência     │
-│ mycroft2Engine.ts       │ Baseline adaptativo por jogador      │
-│ mycroftCombinedReading  │ Combina 60% vocal + 40% facial       │
-│ VideoRecorder.tsx       │ Grava vídeo com FaceMesh ativo       │
-│ MycroftCombinedPanel.tsx│ Exibe veredito para o júri           │
-└─────────────────────────────────────────────────────────────────┘
-```
+Resumindo: se voce errou no Flop, ou se a mao terminou antes do Turn, nunca veria o modal de video.
 
----
+## Solucao Proposta
 
-## O Que Falta Implementar
+Alterar a logica para oferecer o Bluff Talk como opcao **antes de tomar a decisao** em cada street pos-flop, em vez de apenas na transicao. Isso e mais intuitivo — o jogador grava a provocacao, depois toma a decisao.
 
-### Etapa 1: Overlay Visual de Landmarks (Prioridade Alta)
-**Componente:** `FaceLandmarksOverlay.tsx`
+### Mudancas Tecnicas
 
-Criar um canvas SVG/Canvas2D que desenha os 478 pontos verdes sobre o vídeo do jogador em tempo real, exatamente como no trailer.
+**Arquivo: `src/components/arena-poker/StreetContinuationTraining.tsx`**
 
-**Funcionalidades:**
-- Pontos verdes conectados nas regiões: olhos, sobrancelhas, boca, mandíbula
-- Linhas de conexão entre landmarks adjacentes
-- Indicadores dinâmicos de micro-expressões detectadas
-- Animação de "scan" quando uma anomalia é detectada
-- Toggle para ativar/desativar overlay
+1. **Adicionar botao "Gravar Provocacao"** na area de decisao (ao lado dos botoes de acao) para streets Flop, Turn e River
+   - O botao aparece quando `currentStreetIdx > 0` (pos-flop), `bluffTalkEnabled` esta ON, e o jogador ainda nao decidiu
+   - Icone de camera/mic com estilo dourado para chamar atencao
 
-**Integração:**
-- Adicionar como camada sobre o `<video>` no `VideoRecorder.tsx`
-- Receber landmarks do callback `handleFaceMeshResults`
+2. **Manter a logica atual** de transicao como opcao secundaria (para quem prefere gravar depois de ver o cenario e antes de avançar)
 
----
+3. **Corrigir a transicao Preflop-para-Flop**: mudar a condicao de `currentStreetIdx > 0` para `currentStreetIdx >= 0` na transicao, permitindo que o Bluff Talk apareca tambem ao sair do Preflop para o Flop (opcional, pode ser configuravel)
 
-### Etapa 2: Timeline PNL (Prioridade Média)
-**Componente:** `PNLTimelinePanel.tsx`
+4. **Adicionar indicador visual** de que o Bluff Talk esta disponivel na street atual — um badge sutil "Table Talk disponivel" abaixo do cenario
 
-Criar uma linha do tempo visual que mostra os eventos faciais detectados durante a gravação.
-
-**Funcionalidades:**
-- Barra horizontal representando a duração da gravação
-- Marcadores coloridos para eventos:
-  - Verde: Olhar direto
-  - Amarelo: Desvio de olhar esquerda (memória visual)
-  - Vermelho: Desvio de olhar direita (construção visual)
-  - Roxo: Micro-expressões detectadas
-  - Laranja: Tensão facial elevada
-- Tooltip com detalhes ao passar o mouse
-- Legenda explicativa de PNL
-
-**Integração:**
-- Renderizar no `MycroftCombinedPanel.tsx` abaixo do veredito
-- Usar dados do `VideoForensicsResult.timeline`
-
----
-
-### Etapa 3: Indicadores em Tempo Real (Prioridade Média)
-**Componente:** `LiveBiometricIndicators.tsx`
-
-Exibir métricas em tempo real durante a gravação.
-
-**Funcionalidades:**
-- Gauge circular para "Tensão Labial" (0-100%)
-- Gauge circular para "Taxa de Piscadas" (bpm)
-- Indicador de direção do olhar com seta animada
-- Cor dinâmica: Verde (normal), Amarelo (atenção), Vermelho (alerta)
-
-**Integração:**
-- Posicionar no canto inferior direito do `VideoRecorder.tsx`
-- Atualizar via `analyzeFrame` do `videoForensicsService.ts`
-
----
-
-### Etapa 4: Integração no Single Player (Prioridade Alta)
-**Arquivo:** `SinglePlayerRoom.tsx`
-
-Ativar a análise facial completa no modo single player.
-
-**Modificações:**
-- Importar `VideoRecorder` como alternativa ao `AudioRecorder`
-- Adicionar seletor de modo de gravação (áudio vs vídeo)
-- Exibir `MycroftCombinedPanel` após votação dos bots
-- Persistir métricas faciais no `voice_recordings` com session_id
-
----
-
-## Arquivos a Criar
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/game/FaceLandmarksOverlay.tsx` | Canvas SVG com 478 pontos verdes |
-| `src/components/game/PNLTimelinePanel.tsx` | Timeline de eventos PNL |
-| `src/components/game/LiveBiometricIndicators.tsx` | Gauges de métricas em tempo real |
-
-## Arquivos a Modificar
-
-| Arquivo | Modificação |
-|---------|-------------|
-| `VideoRecorder.tsx` | Integrar overlay + indicadores |
-| `MycroftCombinedPanel.tsx` | Adicionar timeline PNL |
-| `SinglePlayerRoom.tsx` | Adicionar opção de vídeo + exibir painel combinado |
-
----
-
-## Detalhes Técnicos
-
-### FaceLandmarksOverlay (Especificação)
+### Fluxo Corrigido
 
 ```text
-Props:
-  - landmarks: number[][] (478 pontos [x, y, z])
-  - width: number
-  - height: number
-  - showConnections: boolean
-  - highlightAnomalies: boolean
-
-Regiões a desenhar:
-  - FACE_OVAL (10, 338, 297, ...) - contorno do rosto
-  - LEFT_EYE / RIGHT_EYE - olhos
-  - LEFT_IRIS / RIGHT_IRIS - íris (tracking do olhar)
-  - LIPS - lábios
-  - LEFT_BROW / RIGHT_BROW - sobrancelhas
+Cenario aparece (Flop/Turn/River)
+    |
+    v
+Jogador ve opcoes de acao + botao "Gravar Provocacao"
+    |
+    ├── Clica "Gravar Provocacao" → Abre BluffTalkModal → Volta para decisao
+    |
+    └── Escolhe acao → Avaliacao → Feedback → Proximo street
 ```
 
-### PNLTimelinePanel (Especificação)
+### Estimativa
 
-```text
-Props:
-  - timeline: VideoForensicsResult['timeline']
-  - durationMs: number
-  - pnlAnalysis: PNLAnalysis
-
-Eventos a mapear:
-  - 'gaze' → Cores por direção
-  - 'expression' → Ícone de expressão
-  - 'stress' → Barra de intensidade
-```
-
-### Estimativa de Esforço
-
-| Etapa | Complexidade | Linhas de Código |
-|-------|--------------|------------------|
-| FaceLandmarksOverlay | Média | ~200 |
-| PNLTimelinePanel | Baixa | ~150 |
-| LiveBiometricIndicators | Baixa | ~120 |
-| Integração Single Player | Média | ~100 |
-| **Total** | | **~570 linhas** |
-
----
-
-## Resultado Final
-
-Após implementação, o Mycroft 2.0 terá:
-
-1. **Overlay verde cinematográfico** sobre o rosto do jogador durante gravação
-2. **Timeline PNL** mostrando sequência de eventos faciais
-3. **Gauges em tempo real** com tensão labial, piscadas e direção do olhar
-4. **Análise completa no Single Player** com veredito combinado vocal+facial
-
-O visual será idêntico ao trailer: interface high-tech com pontos biométricos verdes, linhas de conexão e métricas de micro-expressões em tempo real.
-
----
-
-## Dependências Externas
-
-Nenhuma. Todas as bibliotecas necessárias já estão instaladas:
-- `@mediapipe/face_mesh` (FaceMesh)
-- `@mediapipe/camera_utils` (Captura de câmera)
-- `framer-motion` (Animações)
-- `recharts` (Gráficos para timeline)
-
+- 1 arquivo modificado
+- Mudanca de baixo risco — reutiliza o BluffTalkModal existente, apenas muda quando ele aparece
