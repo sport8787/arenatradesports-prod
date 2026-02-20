@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, ArrowLeft, Heart, Coins, ChevronRight,
+  Shield, ArrowLeft, Heart, Coins, ChevronRight, User,
   ChevronUp, ChevronDown, Crosshair, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import TrainingChampionScreen from './TrainingChampionScreen';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { GoldEditionCard, parseCards } from './GoldEditionCard';
 import { HorusTrashTalk, ReactionButtons } from './HorusTrashTalk';
+import StyleProfileModal from './StyleProfileModal';
 
 // ─── Types ───────────────────────────────────────────────────
 interface Scenario {
@@ -331,9 +332,52 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [isChampion, setIsChampion] = useState(false);
   const [bankAnimation, setBankAnimation] = useState<'gain' | 'loss' | null>(null);
   const [bcEarned, setBcEarned] = useState(0);
+  const [showStyleProfile, setShowStyleProfile] = useState(false);
   const scenarioStartTime = useRef(Date.now());
+  const lastActionRef = useRef<string>('');
 
-  // ─── Persistence ────────────────────────────────────────────
+  // ─── Persist Scenario Result ────────────────────────────────
+  const persistScenarioResult = useCallback(async (result: EvalResult, playerAction: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !scenario) return;
+
+      // Determine which style matched the player's action
+      let playerMatchedStyle: string | null = null;
+      if (result.perspectivas) {
+        const p = result.perspectivas;
+        const actionLower = playerAction.toLowerCase();
+        if (p.tag.acao.toLowerCase().includes(actionLower)) playerMatchedStyle = 'tag';
+        else if (p.lag.acao.toLowerCase().includes(actionLower)) playerMatchedStyle = 'lag';
+        else if (p.gto.acao.toLowerCase().includes(actionLower)) playerMatchedStyle = 'gto';
+      }
+
+      await supabase.from('training_scenario_history').insert({
+        user_id: user.id,
+        scenario_number: scenarioNum,
+        street: scenario.cenario.street,
+        hero_cards: scenario.cenario.heroCartas,
+        board_cards: scenario.cenario.boardCards || null,
+        player_action: playerAction,
+        correct_action: scenario.acaoCorreta,
+        was_correct: result.correto,
+        nota: result.nota,
+        ev_diferenca: result.evDiferenca,
+        tag_acao: result.perspectivas?.tag.acao,
+        tag_ev: result.perspectivas?.tag.ev,
+        lag_acao: result.perspectivas?.lag.acao,
+        lag_ev: result.perspectivas?.lag.ev,
+        gto_acao: result.perspectivas?.gto.acao,
+        gto_ev: result.perspectivas?.gto.ev,
+        player_ev: result.perspectivas?.jogadorEv,
+        best_style: result.perspectivas?.melhorEstilo,
+        player_matched_style: playerMatchedStyle,
+      });
+    } catch (err) {
+      console.error('Failed to persist scenario:', err);
+    }
+  }, [scenario, scenarioNum]);
+
   const persistSession = useCallback(async (earned: number, scenariosWon: number, played: number, champion: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -392,7 +436,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
 
       const result = data as EvalResult;
       setEvalResult(result);
+      lastActionRef.current = action;
       setTotalPlayed(prev => prev + 1);
+
+      // Persist scenario result with perspectives
+      persistScenarioResult(result, action);
 
       if (result.correto) {
         const gain = result.bcGanho || 100;
@@ -430,7 +478,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     } finally {
       setIsEvaluating(false);
     }
-  }, [scenario, raiseValue, bcEarned, wins, totalPlayed, persistSession]);
+  }, [scenario, raiseValue, bcEarned, wins, totalPlayed, persistSession, persistScenarioResult]);
 
   const nextScenario = () => {
     setScenarioNum(prev => prev + 1);
@@ -478,6 +526,17 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
           </div>
 
           <div className="flex items-center gap-4">
+            {totalPlayed >= 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStyleProfile(true)}
+                className="font-mono text-[10px] uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)] h-8"
+              >
+                <User className="w-3 h-3 mr-1" />
+                Meu Estilo
+              </Button>
+            )}
             <div className="flex items-center gap-1.5">
               {Array.from({ length: MAX_LIVES }).map((_, i) => (
                 <Heart key={i} className={`w-4 h-4 transition-all ${i < lives ? 'text-red-500 fill-red-500' : 'text-muted-foreground/30'}`} />
@@ -784,6 +843,13 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
           </motion.div>
         )}
       </main>
+
+      {/* Style Profile Modal */}
+      <AnimatePresence>
+        {showStyleProfile && (
+          <StyleProfileModal onClose={() => setShowStyleProfile(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -752,6 +752,81 @@ export type Database = {
           },
         ]
       }
+      training_scenario_history: {
+        Row: {
+          best_style: string | null
+          board_cards: string | null
+          correct_action: string
+          created_at: string
+          ev_diferenca: string | null
+          gto_acao: string | null
+          gto_ev: string | null
+          hero_cards: string | null
+          id: string
+          lag_acao: string | null
+          lag_ev: string | null
+          nota: number | null
+          player_action: string
+          player_ev: string | null
+          player_matched_style: string | null
+          scenario_number: number
+          session_id: string | null
+          street: string | null
+          tag_acao: string | null
+          tag_ev: string | null
+          user_id: string
+          was_correct: boolean
+        }
+        Insert: {
+          best_style?: string | null
+          board_cards?: string | null
+          correct_action: string
+          created_at?: string
+          ev_diferenca?: string | null
+          gto_acao?: string | null
+          gto_ev?: string | null
+          hero_cards?: string | null
+          id?: string
+          lag_acao?: string | null
+          lag_ev?: string | null
+          nota?: number | null
+          player_action: string
+          player_ev?: string | null
+          player_matched_style?: string | null
+          scenario_number: number
+          session_id?: string | null
+          street?: string | null
+          tag_acao?: string | null
+          tag_ev?: string | null
+          user_id: string
+          was_correct?: boolean
+        }
+        Update: {
+          best_style?: string | null
+          board_cards?: string | null
+          correct_action?: string
+          created_at?: string
+          ev_diferenca?: string | null
+          gto_acao?: string | null
+          gto_ev?: string | null
+          hero_cards?: string | null
+          id?: string
+          lag_acao?: string | null
+          lag_ev?: string | null
+          nota?: number | null
+          player_action?: string
+          player_ev?: string | null
+          player_matched_style?: string | null
+          scenario_number?: number
+          session_id?: string | null
+          street?: string | null
+          tag_acao?: string | null
+          tag_ev?: string | null
+          user_id?: string
+          was_correct?: boolean
+        }
+        Relationships: []
+      }
       user_question_history: {
         Row: {
           created_at: string
