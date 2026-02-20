@@ -816,6 +816,7 @@ export type Database = {
           answer_was_correct: boolean | null
           audio_url: string
           avg_pitch: number | null
+          baseline_id: string | null
           blink_rate: number | null
           brow_asymmetry: number | null
           capture_mode: string | null
@@ -870,6 +871,7 @@ export type Database = {
           answer_was_correct?: boolean | null
           audio_url: string
           avg_pitch?: number | null
+          baseline_id?: string | null
           blink_rate?: number | null
           brow_asymmetry?: number | null
           capture_mode?: string | null
@@ -924,6 +926,7 @@ export type Database = {
           answer_was_correct?: boolean | null
           audio_url?: string
           avg_pitch?: number | null
+          baseline_id?: string | null
           blink_rate?: number | null
           brow_asymmetry?: number | null
           capture_mode?: string | null
@@ -975,6 +978,13 @@ export type Database = {
           words_per_minute?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "voice_recordings_baseline_id_fkey"
+            columns: ["baseline_id"]
+            isOneToOne: false
+            referencedRelation: "biometric_baselines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "voice_recordings_match_id_fkey"
             columns: ["match_id"]

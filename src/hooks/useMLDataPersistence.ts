@@ -155,6 +155,7 @@ export function useMLDataPersistence(options: UseMLDataPersistenceOptions): UseM
     wasBluffing?: boolean;
     playerName?: string;
     playerId?: string;
+    baselineId?: string;
   }): Promise<string | null> => {
     const recordingData: RecordingMLData = {
       matchId: matchId || undefined,
@@ -179,6 +180,7 @@ export function useMLDataPersistence(options: UseMLDataPersistenceOptions): UseM
       wasBluffing: data.wasBluffing,
       playerName: data.playerName,
       sessionId: sessionId.current,
+      baselineId: data.baselineId,
     };
 
     const id = await saveRecordingWithMLData(recordingData);
