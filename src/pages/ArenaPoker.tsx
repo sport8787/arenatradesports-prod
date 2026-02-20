@@ -53,13 +53,11 @@ function parseCard(s: string): Card {
   return { rank, suit: suitMap[s.slice(-1).toLowerCase()] || 's' };
 }
 
-// --- Streaming helper ---
-async function streamChat(opts: {
+// --- Chat helper (non-streaming for direct Gemini API) ---
+async function sendChat(opts: {
   messages: { role: string; content: string }[];
   handContext?: string;
-  onDelta: (text: string) => void;
-  onDone: () => void;
-}) {
+}): Promise<string> {
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/arena-poker-chat`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -70,35 +68,11 @@ async function streamChat(opts: {
     body: JSON.stringify({ messages: opts.messages, handContext: opts.handContext }),
   });
 
-  if (resp.status === 429) { toast.error('Rate limit atingido. Tente novamente em breve.'); opts.onDone(); return; }
-  if (resp.status === 402) { toast.error('Créditos de IA esgotados.'); opts.onDone(); return; }
-  if (!resp.ok || !resp.body) { toast.error('Erro ao conectar com a IA.'); opts.onDone(); return; }
+  if (resp.status === 429) { toast.error('Rate limit atingido. Tente novamente em breve.'); return ''; }
+  if (!resp.ok) { toast.error('Erro ao conectar com a IA.'); return ''; }
 
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-
-    let idx: number;
-    while ((idx = buf.indexOf('\n')) !== -1) {
-      let line = buf.slice(0, idx);
-      buf = buf.slice(idx + 1);
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (json === '[DONE]') { opts.onDone(); return; }
-      try {
-        const parsed = JSON.parse(json);
-        const content = parsed.choices?.[0]?.delta?.content;
-        if (content) opts.onDelta(content);
-      } catch { /* partial chunk */ }
-    }
-  }
-  opts.onDone();
+  const data = await resp.json();
+  return data.content || 'Sem resposta.';
 }
 
 // --- Page ---
@@ -167,30 +141,27 @@ const ArenaPoker = () => {
     }
   }, []);
 
-  const handleChatSend = useCallback((message: string) => {
+  const handleChatSend = useCallback(async (message: string) => {
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: message };
     setChatMessages(prev => [...prev, userMsg]);
     setChatLoading(true);
 
-    let assistantSoFar = '';
-    const allMessages = [...chatMessages, userMsg].map(m => ({ role: m.role, content: m.content }));
+    try {
+      const allMessages = [...chatMessages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      const content = await sendChat({
+        messages: allMessages,
+        handContext: rawHandHistory || undefined,
+      });
 
-    streamChat({
-      messages: allMessages,
-      handContext: rawHandHistory || undefined,
-      onDelta: (chunk) => {
-        assistantSoFar += chunk;
-        setChatMessages(prev => {
-          const last = prev[prev.length - 1];
-          if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-          }
-          const persona: 'mycroft' | 'horus' = assistantSoFar.includes('[MYCROFT]') ? 'mycroft' : 'horus';
-          return [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: assistantSoFar, persona }];
-        });
-      },
-      onDone: () => setChatLoading(false),
-    });
+      if (content) {
+        const persona: 'mycroft' | 'horus' = content.includes('[MYCROFT]') ? 'mycroft' : 'horus';
+        setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content, persona }]);
+      }
+    } catch {
+      toast.error('Erro no chat.');
+    } finally {
+      setChatLoading(false);
+    }
   }, [chatMessages, rawHandHistory]);
 
   return (
