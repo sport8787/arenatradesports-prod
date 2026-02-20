@@ -6,8 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
 const MYCROFT_SYSTEM = `Você é Mycroft, um analista técnico frio e meticuloso de poker. Seu trabalho é analisar Hand Histories e identificar leaks técnicos com precisão cirúrgica.
 
 REGRAS:
@@ -17,7 +15,12 @@ REGRAS:
 - Calcule um blufferScore de 0 a 100 (qualidade geral do jogo na mão)
 - Seja direto, sem floreios. Dados puros.
 
-Você DEVE usar a ferramenta analyze_hand para retornar sua análise.`;
+Responda APENAS com JSON válido no formato:
+{
+  "blufferScore": number,
+  "leaks": [{"id": string, "title": string, "severity": "grave"|"atencao"|"info", "description": string, "category": string}],
+  "technicalNotes": [string]
+}`;
 
 const HORUS_SYSTEM = `Você é Hórus, um coach de poker provocativo e perspicaz, especialista em mental game e estratégia avançada.
 
@@ -29,130 +32,43 @@ REGRAS:
 - Gere 3-5 tags relevantes para a análise
 - Seja incisivo, direto e memorável. Estilo de mentor durão.
 
-Você DEVE usar a ferramenta coach_hand para retornar seu coaching.`;
+Responda APENAS com JSON válido no formato:
+{
+  "messages": [{"id": string, "text": string, "type": "provocacao"|"estrategia"|"alerta"}],
+  "acordo": string,
+  "tags": [string]
+}`;
 
-const mycroftTools = [
-  {
-    type: "function",
-    function: {
-      name: "analyze_hand",
-      description: "Return structured technical analysis of a poker hand.",
-      parameters: {
-        type: "object",
-        properties: {
-          blufferScore: {
-            type: "number",
-            description: "Overall play quality 0-100",
-          },
-          leaks: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                title: { type: "string" },
-                severity: {
-                  type: "string",
-                  enum: ["grave", "atencao", "info"],
-                },
-                description: { type: "string" },
-                category: { type: "string" },
-              },
-              required: ["id", "title", "severity", "description", "category"],
-              additionalProperties: false,
-            },
-          },
-          technicalNotes: {
-            type: "array",
-            items: { type: "string" },
-          },
-        },
-        required: ["blufferScore", "leaks", "technicalNotes"],
-        additionalProperties: false,
-      },
-    },
-  },
-];
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-const horusTools = [
-  {
-    type: "function",
-    function: {
-      name: "coach_hand",
-      description: "Return structured coaching analysis of a poker hand.",
-      parameters: {
-        type: "object",
-        properties: {
-          messages: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                text: { type: "string" },
-                type: {
-                  type: "string",
-                  enum: ["provocacao", "estrategia", "alerta"],
-                },
-              },
-              required: ["id", "text", "type"],
-              additionalProperties: false,
-            },
-          },
-          acordo: { type: "string", description: "Main strategic advice" },
-          tags: {
-            type: "array",
-            items: { type: "string" },
-            description: "Hashtag tags for the analysis",
-          },
-        },
-        required: ["messages", "acordo", "tags"],
-        additionalProperties: false,
-      },
-    },
-  },
-];
-
-async function callAI(
-  apiKey: string,
-  systemPrompt: string,
-  userPrompt: string,
-  tools: unknown[],
-  toolName: string
-) {
-  const response = await fetch(AI_GATEWAY, {
+  const response = await fetch(url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+      contents: [
+        { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
       ],
-      tools,
-      tool_choice: { type: "function", function: { name: toolName } },
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.7,
+      },
     }),
   });
 
   if (!response.ok) {
     const status = response.status;
     const body = await response.text();
-    console.error(`AI call failed [${status}]:`, body);
+    console.error(`Gemini call failed [${status}]:`, body);
     if (status === 429) throw new Error("RATE_LIMITED");
-    if (status === 402) throw new Error("PAYMENT_REQUIRED");
-    throw new Error(`AI_ERROR_${status}`);
+    throw new Error(`GEMINI_ERROR_${status}`);
   }
 
   const data = await response.json();
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall?.function?.arguments) {
-    throw new Error("No tool call in response");
-  }
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("No content in Gemini response");
 
-  return JSON.parse(toolCall.function.arguments);
+  return JSON.parse(text);
 }
 
 serve(async (req) => {
@@ -161,8 +77,8 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const { handHistory } = await req.json();
     if (!handHistory || typeof handHistory !== "string") {
@@ -174,23 +90,19 @@ serve(async (req) => {
 
     const userPrompt = `Analise o seguinte Hand History de poker:\n\n${handHistory}`;
 
-    // Run both AI calls in parallel
     const [mycroftResult, horusResult] = await Promise.all([
-      callAI(LOVABLE_API_KEY, MYCROFT_SYSTEM, userPrompt, mycroftTools, "analyze_hand"),
-      callAI(LOVABLE_API_KEY, HORUS_SYSTEM, userPrompt, horusTools, "coach_hand"),
+      callGemini(GEMINI_API_KEY, MYCROFT_SYSTEM, userPrompt),
+      callGemini(GEMINI_API_KEY, HORUS_SYSTEM, userPrompt),
     ]);
 
     return new Response(
-      JSON.stringify({
-        mycroft: mycroftResult,
-        horus: horusResult,
-      }),
+      JSON.stringify({ mycroft: mycroftResult, horus: horusResult }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("arena-poker-analyze error:", e);
     const msg = e instanceof Error ? e.message : "Unknown error";
-    const status = msg === "RATE_LIMITED" ? 429 : msg === "PAYMENT_REQUIRED" ? 402 : 500;
+    const status = msg === "RATE_LIMITED" ? 429 : 500;
     return new Response(
       JSON.stringify({ error: msg }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
