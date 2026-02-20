@@ -492,7 +492,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
 
     if (evalResult.correto && !handEnded && !isLastStreet) {
       // Show bluff talk modal for flop/turn/river if enabled
-      if (bluffTalkEnabled && currentStreetIdx > 0) {
+      if (bluffTalkEnabled && currentStreetIdx >= 0) {
         setShowBluffTalk(true);
       } else {
         moveToNextStreet();
@@ -865,6 +865,16 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
             {/* ─── Hórus Trash Talk ──────────────────────── */}
             {showDecision && <HorusTrashTalk active={true} scenarioStartTime={scenarioStartTime.current} />}
 
+            {/* ─── Table Talk Badge ─────────────────────── */}
+            {showDecision && bluffTalkEnabled && currentStreet !== 'preflop' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--arena-gold)_/_0.08)] border border-[hsl(var(--arena-gold)_/_0.25)]">
+                  <Video className="w-3 h-3 text-[hsl(var(--arena-gold))]" />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Table Talk disponível</span>
+                </div>
+              </motion.div>
+            )}
+
             {/* ─── Action Buttons ─────────────────────────── */}
             {showDecision && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -889,6 +899,20 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
                     );
                   })}
                 </div>
+
+                {/* Bluff Talk button — visible on post-flop streets */}
+                {bluffTalkEnabled && currentStreet !== 'preflop' && (
+                  <div className="flex justify-center pt-1">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowBluffTalk(true)}
+                      className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-gold)_/_0.4)] text-[hsl(var(--arena-gold))] hover:bg-[hsl(var(--arena-gold)_/_0.1)] gap-2"
+                    >
+                      <Video className="w-4 h-4" /> Gravar Provocação
+                    </Button>
+                  </div>
+                )}
+
                 <div className="pt-2">
                   <ReactionButtons onReaction={(emoji) => toast(`Hórus viu seu ${emoji}`, { icon: '👁️', duration: 1500 })} />
                 </div>
