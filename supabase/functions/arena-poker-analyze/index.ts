@@ -39,34 +39,35 @@ Responda APENAS com JSON válido no formato:
   "tags": [string]
 }`;
 
-async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
+async function callOpenAI(apiKey: string, systemPrompt: string, userPrompt: string) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [
-        { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.7,
-      },
+      temperature: 0.7,
+      response_format: { type: "json_object" },
     }),
   });
 
   if (!response.ok) {
     const status = response.status;
     const body = await response.text();
-    console.error(`Gemini call failed [${status}]:`, body);
+    console.error(`OpenAI call failed [${status}]:`, body);
     if (status === 429) throw new Error("RATE_LIMITED");
-    throw new Error(`GEMINI_ERROR_${status}`);
+    throw new Error(`OPENAI_ERROR_${status}`);
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No content in Gemini response");
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No content in OpenAI response");
 
   return JSON.parse(text);
 }
@@ -77,8 +78,8 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     const { handHistory } = await req.json();
     if (!handHistory || typeof handHistory !== "string") {
@@ -91,8 +92,8 @@ serve(async (req) => {
     const userPrompt = `Analise o seguinte Hand History de poker:\n\n${handHistory}`;
 
     const [mycroftResult, horusResult] = await Promise.all([
-      callGemini(GEMINI_API_KEY, MYCROFT_SYSTEM, userPrompt),
-      callGemini(GEMINI_API_KEY, HORUS_SYSTEM, userPrompt),
+      callOpenAI(OPENAI_API_KEY, MYCROFT_SYSTEM, userPrompt),
+      callOpenAI(OPENAI_API_KEY, HORUS_SYSTEM, userPrompt),
     ]);
 
     return new Response(
