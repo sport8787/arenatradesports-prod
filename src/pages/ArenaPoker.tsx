@@ -7,21 +7,22 @@ import FileImporter from '@/components/arena-poker/FileImporter';
 import SessionImportSummary from '@/components/arena-poker/SessionImportSummary';
 import HandGrid from '@/components/arena-poker/HandGrid';
 import HandAnalysisModal from '@/components/arena-poker/HandAnalysisModal';
+import TrainingMode from '@/components/arena-poker/TrainingMode';
 import { parseSessionFile, parseHandHistory, type ParsedHand } from '@/lib/handHistoryParser';
 import { toast } from 'sonner';
 
-type Phase = 'import' | 'grid';
+type Phase = 'import' | 'grid' | 'training';
 
 const ArenaPoker = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('import');
   const [hands, setHands] = useState<ParsedHand[]>([]);
   const [selectedHand, setSelectedHand] = useState<ParsedHand | null>(null);
+  const [trainingContext, setTrainingContext] = useState<string | undefined>();
 
   const handleImport = (content: string) => {
     const parsed = parseSessionFile(content);
     if (parsed.length === 0) {
-      // Try as single hand
       const single = parseHandHistory(content);
       if (single) {
         setHands([single]);
@@ -41,7 +42,23 @@ const ArenaPoker = () => {
     setPhase('import');
     setHands([]);
     setSelectedHand(null);
+    setTrainingContext(undefined);
   };
+
+  const startTraining = (handContext: string) => {
+    setSelectedHand(null);
+    setTrainingContext(handContext);
+    setPhase('training');
+  };
+
+  if (phase === 'training') {
+    return (
+      <TrainingMode
+        onBack={() => setPhase('grid')}
+        handContext={trainingContext}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -76,7 +93,6 @@ const ArenaPoker = () => {
 
       <main className="max-w-[1600px] mx-auto px-4 py-6">
         {phase === 'import' && <FileImporter onImport={handleImport} />}
-
         {phase === 'grid' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <SessionImportSummary hands={hands} />
@@ -89,6 +105,7 @@ const ArenaPoker = () => {
         <HandAnalysisModal
           hand={selectedHand}
           onClose={() => setSelectedHand(null)}
+          onStartTraining={startTraining}
         />
       )}
     </div>

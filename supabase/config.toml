@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.arena-poker-chat]
 verify_jwt = false
+
+[functions.arena-poker-training]
+verify_jwt = false
