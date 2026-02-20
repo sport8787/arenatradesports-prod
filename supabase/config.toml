@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.arena-poker-trends]
 verify_jwt = false
+
+[functions.arena-poker-street-training]
+verify_jwt = false
+
+[functions.arena-poker-bluff-talk]
+verify_jwt = false
+
+[functions.arena-poker-session-review]
+verify_jwt = false
