@@ -182,70 +182,78 @@ const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
 
             {analysis && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                {/* Section 1: O Veredito */}
-                <section className="space-y-3">
-                  <h3 className="font-mono text-[20px] font-bold uppercase tracking-wider text-[hsl(var(--arena-gold))] flex items-center gap-2">
-                    <Trophy className="w-5 h-5" />
-                    O Veredito
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <span className={`font-mono text-5xl font-black ${getScoreColor(analysis.veredito.nota)}`}>
-                      {analysis.veredito.nota}
-                    </span>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 rounded-full bg-secondary overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${analysis.veredito.nota}%` }}
-                          transition={{ duration: 1, ease: 'easeOut' }}
-                          className={`h-full rounded-full ${getScoreBarColor(analysis.veredito.nota)}`}
-                        />
-                      </div>
-                      <p className="font-mono text-sm text-muted-foreground">{analysis.veredito.resumo}</p>
-                    </div>
-                  </div>
-                </section>
+                {/* ── RELATÓRIO FORENSE: MYCROFT 2.0 ── */}
+                <div className="border border-[#00D2FF]/30 rounded-xl p-6 bg-[#00D2FF]/[0.03] space-y-8">
+                  <h2 className="font-mono text-[20px] font-black uppercase tracking-[0.15em] text-[#00D2FF] flex items-center gap-3">
+                    <Zap className="w-6 h-6 text-[#00D2FF]" />
+                    Relatório Forense: Mycroft 2.0
+                  </h2>
 
-                {/* Section 2: O Script do Vencedor */}
-                <section className="space-y-3">
-                  <h3 className="font-mono text-[20px] font-bold uppercase tracking-wider text-[hsl(var(--arena-cyan))] flex items-center gap-2">
-                    <Target className="w-5 h-5" />
-                    O Script do Vencedor
-                  </h3>
-                  <p className="font-mono text-sm text-muted-foreground mb-3">{analysis.scriptVencedor.titulo}</p>
-                  <div className="space-y-3">
-                    {analysis.scriptVencedor.passos.map((passo, i) => (
-                      <div key={i} className="border border-border rounded-lg p-4 bg-secondary/30">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-mono text-xs px-2 py-0.5 rounded bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))] uppercase font-bold">
-                            {passo.street}
-                          </span>
-                          <span className="font-mono text-sm font-bold text-foreground">{passo.acao}</span>
+                  {/* Veredito */}
+                  <section className="space-y-3">
+                    <h3 className="font-mono text-base font-bold uppercase tracking-wider text-[#00D2FF]/80 flex items-center gap-2">
+                      <Trophy className="w-4 h-4" />
+                      O Veredito
+                    </h3>
+                    <div className="flex items-center gap-4">
+                      <span className={`font-mono text-5xl font-black ${getScoreColor(analysis.veredito.nota)}`}>
+                        {analysis.veredito.nota}
+                      </span>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 rounded-full bg-secondary overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${analysis.veredito.nota}%` }}
+                            transition={{ duration: 1, ease: 'easeOut' }}
+                            className={`h-full rounded-full ${getScoreBarColor(analysis.veredito.nota)}`}
+                          />
                         </div>
-                        <p className="font-mono text-xs text-muted-foreground leading-relaxed">{passo.explicacao}</p>
+                        <p className="font-mono text-sm text-muted-foreground">{analysis.veredito.resumo}</p>
                       </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Section 3: Visão do Hórus */}
-                <section className="space-y-3">
-                  <h3 className="font-mono text-[20px] font-bold uppercase tracking-wider text-[hsl(var(--arena-gold))] flex items-center gap-2">
-                    <Eye className="w-5 h-5" />
-                    Visão do Hórus
-                  </h3>
-                  <div className="border border-[hsl(var(--arena-gold)_/_0.2)] rounded-lg p-5 bg-[hsl(var(--arena-gold)_/_0.03)] space-y-4">
-                    <div>
-                      <p className="font-mono text-xs text-[hsl(var(--arena-gold)_/_0.6)] uppercase tracking-wider mb-1">Insight</p>
-                      <p className="font-mono text-sm text-foreground">{analysis.visaoHorus.insight}</p>
                     </div>
+                  </section>
+
+                  {/* Script do Vencedor */}
+                  <section className="space-y-3">
+                    <h3 className="font-mono text-base font-bold uppercase tracking-wider text-[#00D2FF]/80 flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      O Script do Vencedor
+                    </h3>
+                    <p className="font-mono text-sm text-muted-foreground mb-3">{analysis.scriptVencedor.titulo}</p>
+                    <div className="space-y-3">
+                      {analysis.scriptVencedor.passos.map((passo, i) => (
+                        <div key={i} className="border border-[#00D2FF]/15 rounded-lg p-4 bg-[#00D2FF]/[0.02]">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#00D2FF]/15 text-[#00D2FF] uppercase font-bold">
+                              {passo.street}
+                            </span>
+                            <span className="font-mono text-sm font-bold text-foreground">{passo.acao}</span>
+                          </div>
+                          <p className="font-mono text-xs text-muted-foreground leading-relaxed">{passo.explicacao}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <p className="font-mono text-[10px] text-[#00D2FF]/40 uppercase tracking-widest text-right">
+                    Assinado digitalmente — Mycroft 2.0 | Perito Forense
+                  </p>
+                </div>
+
+                {/* ── VEREDITO DE HÓRUS ── */}
+                <section className="space-y-3">
+                  <h2 className="font-mono text-[20px] font-black uppercase tracking-[0.15em] text-[#D4AF37] flex items-center gap-3">
+                    <Eye className="w-6 h-6 text-[#D4AF37]" />
+                    Veredito de Hórus
+                  </h2>
+                  <div className="border border-[#D4AF37]/25 rounded-xl p-5 bg-[#D4AF37]/[0.03] space-y-4">
+                    <p className="font-mono text-sm text-foreground italic">"{analysis.visaoHorus.insight}"</p>
                     <div>
-                      <p className="font-mono text-xs text-[hsl(var(--arena-gold)_/_0.6)] uppercase tracking-wider mb-1">Leitura do Vilão</p>
+                      <p className="font-mono text-[10px] text-[#D4AF37]/50 uppercase tracking-wider mb-1">Leitura do Vilão</p>
                       <p className="font-mono text-sm text-foreground">{analysis.visaoHorus.leituraVilao}</p>
                     </div>
-                    <div className="border-t border-[hsl(var(--arena-gold)_/_0.15)] pt-3">
-                      <p className="font-mono text-xs text-[hsl(var(--arena-gold)_/_0.6)] uppercase tracking-wider mb-1">Conselho do Hórus</p>
-                      <p className="font-mono text-sm font-bold text-[hsl(var(--arena-gold))]">"{analysis.visaoHorus.conselho}"</p>
+                    <div className="border-t border-[#D4AF37]/15 pt-3">
+                      <p className="font-mono text-sm font-bold text-[#D4AF37]">"{analysis.visaoHorus.conselho}"</p>
                     </div>
                   </div>
                 </section>
