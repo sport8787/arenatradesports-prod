@@ -70,6 +70,36 @@ export default function GameActionsPanel({
         </motion.div>
       </motion.button>
 
+      {/* Arena Poker - Study AI */}
+      <Link to="/arena-poker" className="block">
+        <motion.div
+          whileHover={{ scale: 1.02, y: -3 }}
+          whileTap={{ scale: 0.98 }}
+          className="
+            w-full relative overflow-hidden
+            bg-gradient-to-r from-[hsl(0_0%_5%)] via-[hsl(200_100%_15%/0.3)] to-[hsl(0_0%_5%)]
+            border border-[hsl(190_100%_50%/0.4)] hover:border-[hsl(190_100%_50%/0.7)]
+            rounded-2xl p-4
+            flex items-center gap-4
+            transition-all duration-300
+            hover:shadow-[0_6px_25px_rgba(0,210,255,0.3)]
+            group
+          "
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[hsl(190_100%_50%/0.05)] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          <span className="text-3xl">♠️</span>
+          <div className="flex-1 text-left">
+            <h3 className="font-orbitron text-base font-bold text-[hsl(190_100%_50%)] uppercase tracking-wide">
+              Arena Poker
+            </h3>
+            <p className="text-xs text-foreground/60">
+              Study AI • Análise pós-sessão
+            </p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-[hsl(190_100%_50%/0.6)]" />
+        </motion.div>
+      </Link>
+
       {/* Botões Secundários - Grid 2x2 */}
       <div className="grid grid-cols-2 gap-3">
         <motion.button
