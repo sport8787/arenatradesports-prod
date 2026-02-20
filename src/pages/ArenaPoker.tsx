@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Shield, RotateCcw, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -8,6 +8,7 @@ import SessionImportSummary from '@/components/arena-poker/SessionImportSummary'
 import HandGrid from '@/components/arena-poker/HandGrid';
 import HandAnalysisModal from '@/components/arena-poker/HandAnalysisModal';
 import TrainingMode from '@/components/arena-poker/TrainingMode';
+import TrendsAlertPanel from '@/components/arena-poker/TrendsAlertPanel';
 import { parseSessionFile, parseHandHistory, type ParsedHand } from '@/lib/handHistoryParser';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ const ArenaPoker = () => {
   const [hands, setHands] = useState<ParsedHand[]>([]);
   const [selectedHand, setSelectedHand] = useState<ParsedHand | null>(null);
   const [trainingContext, setTrainingContext] = useState<string | undefined>();
+  const [showTrends, setShowTrends] = useState(false);
 
   const handleImport = (content: string) => {
     const parsed = parseSessionFile(content);
@@ -43,6 +45,7 @@ const ArenaPoker = () => {
     setHands([]);
     setSelectedHand(null);
     setTrainingContext(undefined);
+    setShowTrends(false);
   };
 
   const startTraining = (handContext: string) => {
@@ -78,15 +81,28 @@ const ArenaPoker = () => {
             </div>
           </div>
           {phase === 'grid' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetAll}
-              className="font-mono text-xs uppercase tracking-wider border-border text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="w-3 h-3 mr-1.5" />
-              Nova Sessão
-            </Button>
+            <div className="flex items-center gap-2">
+              {hands.length >= 3 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTrends(true)}
+                  className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                >
+                  <Activity className="w-3 h-3 mr-1.5" />
+                  Tendências
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetAll}
+                className="font-mono text-xs uppercase tracking-wider border-border text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="w-3 h-3 mr-1.5" />
+                Nova Sessão
+              </Button>
+            </div>
           )}
         </div>
       </header>
@@ -106,6 +122,13 @@ const ArenaPoker = () => {
           hand={selectedHand}
           onClose={() => setSelectedHand(null)}
           onStartTraining={startTraining}
+        />
+      )}
+
+      {showTrends && (
+        <TrendsAlertPanel
+          hands={hands}
+          onClose={() => setShowTrends(false)}
         />
       )}
     </div>
