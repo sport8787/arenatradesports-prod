@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Trophy, Target, Eye, Brain, Crosshair } from 'lucide-react';
+import { X, Trophy, Target, Brain, Crosshair } from 'lucide-react';
+import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
@@ -186,7 +187,7 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining }: HandAnalysisModal
                 {/* ── RELATÓRIO FORENSE: MYCROFT 2.0 ── */}
                 <div className="border border-[#00D2FF]/30 rounded-xl p-6 bg-[#00D2FF]/[0.03] space-y-8">
                   <h2 className="font-mono text-[20px] font-black uppercase tracking-[0.15em] text-[#00D2FF] flex items-center gap-3">
-                    <Zap className="w-6 h-6 text-[#00D2FF]" />
+                    <MonocleIcon className="text-[#00D2FF]" size={24} />
                     Relatório Forense: Mycroft 2.0
                   </h2>
 
@@ -244,7 +245,7 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining }: HandAnalysisModal
                 {/* ── VEREDITO DE HÓRUS ── */}
                 <section className="space-y-3">
                   <h2 className="font-mono text-[20px] font-black uppercase tracking-[0.15em] text-[#D4AF37] flex items-center gap-3">
-                    <Eye className="w-6 h-6 text-[#D4AF37]" />
+                    <PharaohIcon className="text-[#D4AF37]" size={24} />
                     Veredito de Hórus
                   </h2>
                   <div className="border border-[#D4AF37]/25 rounded-xl p-5 bg-[#D4AF37]/[0.03] space-y-4">
@@ -289,7 +290,7 @@ function AnalysisSkeleton({ horusPhrase }: { horusPhrase: string }) {
       {/* Hórus speaking */}
       <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-5 bg-[hsl(var(--arena-gold)_/_0.04)]">
         <div className="flex items-center gap-2 mb-3">
-          <Eye className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
+          <PharaohIcon className="text-[hsl(var(--arena-gold))]" size={20} />
           <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Hórus diz:</span>
         </div>
         <AnimatePresence mode="wait">

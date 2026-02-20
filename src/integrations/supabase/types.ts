@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      arena_poker_rankings: {
+        Row: {
+          apc_balance: number
+          best_win_streak: number
+          champion_titles: number
+          created_at: string
+          id: string
+          total_scenarios_played: number
+          total_scenarios_won: number
+          total_sessions: number
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          apc_balance?: number
+          best_win_streak?: number
+          champion_titles?: number
+          created_at?: string
+          id?: string
+          total_scenarios_played?: number
+          total_scenarios_won?: number
+          total_sessions?: number
+          updated_at?: string
+          user_id: string
+          username?: string
+        }
+        Update: {
+          apc_balance?: number
+          best_win_streak?: number
+          champion_titles?: number
+          created_at?: string
+          id?: string
+          total_scenarios_played?: number
+          total_scenarios_won?: number
+          total_sessions?: number
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       biometric_baselines: {
         Row: {
           blink_rate_deviation_threshold: number | null
@@ -1108,6 +1150,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_apc_balance: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
       increment_bc_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
@@ -1118,6 +1164,16 @@ export type Database = {
       }
       increment_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
+      record_arena_session: {
+        Args: {
+          p_apc_earned: number
+          p_is_champion: boolean
+          p_scenarios_played: number
+          p_scenarios_won: number
+          p_user_id: string
+        }
         Returns: undefined
       }
       spend_nt_balance: {

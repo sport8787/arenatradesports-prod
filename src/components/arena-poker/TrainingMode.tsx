@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, Zap, Trophy, ArrowLeft, Heart, Coins,
+  Shield, Trophy, ArrowLeft, Heart, Coins,
   ChevronUp, ChevronDown, Crosshair, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import TrainingChampionScreen from './TrainingChampionScreen';
+import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 
 interface Scenario {
   cenario: {
@@ -71,6 +72,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [lives, setLives] = useState(MAX_LIVES);
   const [scenarioNum, setScenarioNum] = useState(1);
   const [wins, setWins] = useState(0);
+  const [totalPlayed, setTotalPlayed] = useState(0);
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [evalResult, setEvalResult] = useState<EvalResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +81,25 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [gameOver, setGameOver] = useState(false);
   const [isChampion, setIsChampion] = useState(false);
   const [bankAnimation, setBankAnimation] = useState<'gain' | 'loss' | null>(null);
+  const [apcEarned, setApcEarned] = useState(0);
+
+  // Persist APC when session ends (game over or champion)
+  const persistSession = useCallback(async (earned: number, scenariosWon: number, played: number, champion: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      await supabase.rpc('record_arena_session', {
+        p_user_id: user.id,
+        p_apc_earned: earned,
+        p_scenarios_won: scenariosWon,
+        p_scenarios_played: played,
+        p_is_champion: champion,
+      });
+    } catch (err) {
+      console.error('Failed to persist APC:', err);
+    }
+  }, []);
 
   const generateScenario = useCallback(async () => {
     setIsLoading(true);
@@ -115,14 +136,19 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
 
       const result = data as EvalResult;
       setEvalResult(result);
+      setTotalPlayed(prev => prev + 1);
 
       if (result.correto) {
         const gain = result.bcGanho || 100;
         setBank(prev => prev + gain);
+        setApcEarned(prev => prev + gain);
         setBankAnimation('gain');
         setWins(prev => {
           const next = prev + 1;
-          if (next >= WIN_TARGET) setIsChampion(true);
+          if (next >= WIN_TARGET) {
+            setIsChampion(true);
+            persistSession(apcEarned + gain, next, totalPlayed + 1, true);
+          }
           return next;
         });
       } else {
@@ -131,7 +157,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         setBankAnimation('loss');
         setLives(prev => {
           const next = prev - 1;
-          if (next <= 0) setGameOver(true);
+          if (next <= 0) {
+            setGameOver(true);
+            // Persist even on game over — earned APC minus losses still counted
+            persistSession(apcEarned, wins, totalPlayed + 1, false);
+          }
           return next;
         });
       }
@@ -143,7 +173,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     } finally {
       setIsEvaluating(false);
     }
-  }, [scenario, raiseValue]);
+  }, [scenario, raiseValue, apcEarned, wins, totalPlayed, persistSession]);
 
   const nextScenario = () => {
     setScenarioNum(prev => prev + 1);
@@ -157,6 +187,8 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     setLives(MAX_LIVES);
     setScenarioNum(1);
     setWins(0);
+    setTotalPlayed(0);
+    setApcEarned(0);
     setScenario(null);
     setEvalResult(null);
     setGameOver(false);
@@ -164,7 +196,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   };
 
   if (isChampion) {
-    return <TrainingChampionScreen wins={wins} bank={bank} onRestart={restartTraining} onBack={onBack} />;
+    return <TrainingChampionScreen wins={wins} bank={bank} apcEarned={apcEarned} onRestart={restartTraining} onBack={onBack} />;
   }
 
   return (
@@ -204,7 +236,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
               }`}
             >
               <Coins className="w-4 h-4" />
-              {bank.toLocaleString()} BC
+              {bank.toLocaleString()} APC
             </motion.div>
             <div className="h-5 w-px bg-border" />
             <span className="font-mono text-xs text-muted-foreground">
@@ -223,8 +255,13 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                 <div className="text-6xl mb-4">💀</div>
                 <h2 className="font-mono text-2xl font-black uppercase text-[hsl(var(--destructive))]">Game Over</h2>
                 <p className="font-mono text-sm text-muted-foreground">
-                  Você sobreviveu {wins} cenários com {bank.toLocaleString()} BC restantes.
+                  Você sobreviveu {wins} cenários com {bank.toLocaleString()} APC restantes.
                 </p>
+                {apcEarned > 0 && (
+                  <p className="font-mono text-xs text-[hsl(var(--arena-gold))]">
+                    +{apcEarned} APC salvos no seu perfil Arena Poker
+                  </p>
+                )}
                 <div className="flex justify-center gap-3">
                   <Button onClick={restartTraining} className="bg-[hsl(var(--arena-cyan))] text-black font-mono font-bold uppercase tracking-wider">
                     Tentar Novamente
@@ -241,7 +278,10 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                 </h2>
                 <p className="font-mono text-sm text-muted-foreground max-w-md mx-auto">
                   Vença {WIN_TARGET} cenários seguidos para se tornar Campeão da Arena Poker.
-                  Você tem {MAX_LIVES} vidas e uma banca de {INITIAL_BANK.toLocaleString()} BC.
+                  Você tem {MAX_LIVES} vidas e uma banca de {INITIAL_BANK.toLocaleString()} APC.
+                </p>
+                <p className="font-mono text-[10px] text-[hsl(var(--arena-gold)_/_0.7)]">
+                  APC (Arena Poker Coins) são salvos no seu perfil mesmo que você não complete todos os cenários.
                 </p>
                 <Button
                   onClick={generateScenario}
@@ -259,7 +299,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         {isLoading && (
           <div className="space-y-6 py-8">
             <div className="flex items-center gap-2 mb-4">
-              <Zap className="w-5 h-5 text-[hsl(var(--arena-cyan))] animate-pulse" />
+              <MonocleIcon className="text-[hsl(var(--arena-cyan))] animate-pulse" size={20} />
               <span className="font-mono text-sm text-[hsl(var(--arena-cyan))]">Mycroft gerando cenário {scenarioNum}...</span>
             </div>
             <Skeleton className="h-40 w-full rounded-xl bg-secondary/30" />
@@ -274,7 +314,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
             <div className="border border-[hsl(var(--arena-cyan)_/_0.3)] rounded-xl p-6 bg-[hsl(var(--arena-cyan)_/_0.03)]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-mono text-xs uppercase tracking-widest text-[hsl(var(--arena-cyan))] flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
+                  <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={16} />
                   Cenário #{scenarioNum} — {scenario.cenario.street}
                 </h3>
                 <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))]">
@@ -401,7 +441,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
             {/* Evaluating */}
             {isEvaluating && (
               <div className="text-center py-8">
-                <Zap className="w-8 h-8 mx-auto text-[hsl(var(--arena-cyan))] animate-pulse mb-3" />
+                <MonocleIcon className="mx-auto text-[hsl(var(--arena-cyan))] animate-pulse mb-3" size={32} />
                 <p className="font-mono text-sm text-[hsl(var(--arena-cyan))]">Mycroft analisando sua decisão...</p>
               </div>
             )}
@@ -417,7 +457,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                       : 'border-[hsl(var(--destructive)_/_0.4)] bg-[hsl(var(--destructive)_/_0.05)]'
                   }`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <Zap className="w-5 h-5 text-[hsl(var(--arena-cyan))]" />
+                      <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={20} />
                       <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-cyan))] font-bold">
                         Relatório Digital — Mycroft 2.0
                       </span>
@@ -439,18 +479,18 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                   {/* Hórus Comment */}
                   <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-4 bg-[hsl(var(--arena-gold)_/_0.04)]">
                     <div className="flex items-center gap-2 mb-2">
-                      <Shield className="w-4 h-4 text-[hsl(var(--arena-gold))]" />
+                      <PharaohIcon className="text-[hsl(var(--arena-gold))]" size={18} />
                       <span className="font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Hórus diz:</span>
                     </div>
                     <p className="font-mono text-sm text-[hsl(var(--arena-gold))] italic">"{evalResult.feedbackHorus}"</p>
                   </div>
 
-                  {/* BC Change */}
+                  {/* APC Change */}
                   <div className="text-center">
                     <p className={`font-mono text-lg font-bold ${
                       evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
                     }`}>
-                      {evalResult.correto ? `+${evalResult.bcGanho} BC` : `-${evalResult.bcPerdido} BC`}
+                      {evalResult.correto ? `+${evalResult.bcGanho} APC` : `-${evalResult.bcPerdido} APC`}
                     </p>
                   </div>
 
