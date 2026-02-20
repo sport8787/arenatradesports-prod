@@ -638,8 +638,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                   <span className="text-[hsl(var(--arena-gold))]">Treino</span>
                 </h2>
                 <p className="font-mono text-sm text-muted-foreground max-w-md mx-auto">
-                  Vença {WIN_TARGET} cenários seguidos para ganhar o <span className="text-[hsl(var(--arena-gold))] font-bold">Tiket Dourado</span>.
+                  Sobreviva a <span className="text-[hsl(var(--arena-cyan))] font-bold">{WIN_TARGET} decisões críticas</span> sem quebrar.
                   Você tem {MAX_LIVES} vidas e {INITIAL_BANK.toLocaleString()} BC de banca.
+                </p>
+                <p className="font-mono text-xs text-muted-foreground/70 max-w-sm mx-auto">
+                  Complete o desafio para ganhar o <span className="text-[hsl(var(--arena-gold))] font-bold">Tiket Dourado</span>.
                 </p>
                 <Button
                   onClick={generateScenario}

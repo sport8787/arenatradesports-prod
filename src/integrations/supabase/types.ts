@@ -206,6 +206,65 @@ export type Database = {
         }
         Relationships: []
       }
+      bluff_talk_attempts: {
+        Row: {
+          alignment_check: string | null
+          bluff_score: number | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          intent: string | null
+          leak_detection: string | null
+          mycroft_bluff_feedback_text: string | null
+          opponent_reaction: string | null
+          suggested_phrases_json: Json | null
+          training_street_id: string
+          transcript_text: string | null
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          alignment_check?: string | null
+          bluff_score?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          intent?: string | null
+          leak_detection?: string | null
+          mycroft_bluff_feedback_text?: string | null
+          opponent_reaction?: string | null
+          suggested_phrases_json?: Json | null
+          training_street_id: string
+          transcript_text?: string | null
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          alignment_check?: string | null
+          bluff_score?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          intent?: string | null
+          leak_detection?: string | null
+          mycroft_bluff_feedback_text?: string | null
+          opponent_reaction?: string | null
+          suggested_phrases_json?: Json | null
+          training_street_id?: string
+          transcript_text?: string | null
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bluff_talk_attempts_training_street_id_fkey"
+            columns: ["training_street_id"]
+            isOneToOne: false
+            referencedRelation: "training_streets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_records: {
         Row: {
           consent_given: boolean
@@ -658,6 +717,92 @@ export type Database = {
         }
         Relationships: []
       }
+      training_hand_sessions: {
+        Row: {
+          ante: string | null
+          bc_awarded: number
+          blind_level: string | null
+          board_cards_flop: string | null
+          board_cards_river: string | null
+          board_cards_turn: string | null
+          created_at: string
+          current_street: string
+          hand_number: number
+          hero_hole_cards: string
+          hero_stack: number
+          id: string
+          initial_stacks_json: Json | null
+          metadata_json: Json | null
+          position_hero: string | null
+          position_villain: string | null
+          pot_size: number
+          status: string
+          training_run_id: string
+          user_id: string
+          villain_name: string | null
+          villain_profile: string | null
+          villain_stack: number
+        }
+        Insert: {
+          ante?: string | null
+          bc_awarded?: number
+          blind_level?: string | null
+          board_cards_flop?: string | null
+          board_cards_river?: string | null
+          board_cards_turn?: string | null
+          created_at?: string
+          current_street?: string
+          hand_number?: number
+          hero_hole_cards: string
+          hero_stack?: number
+          id?: string
+          initial_stacks_json?: Json | null
+          metadata_json?: Json | null
+          position_hero?: string | null
+          position_villain?: string | null
+          pot_size?: number
+          status?: string
+          training_run_id: string
+          user_id: string
+          villain_name?: string | null
+          villain_profile?: string | null
+          villain_stack?: number
+        }
+        Update: {
+          ante?: string | null
+          bc_awarded?: number
+          blind_level?: string | null
+          board_cards_flop?: string | null
+          board_cards_river?: string | null
+          board_cards_turn?: string | null
+          created_at?: string
+          current_street?: string
+          hand_number?: number
+          hero_hole_cards?: string
+          hero_stack?: number
+          id?: string
+          initial_stacks_json?: Json | null
+          metadata_json?: Json | null
+          position_hero?: string | null
+          position_villain?: string | null
+          pot_size?: number
+          status?: string
+          training_run_id?: string
+          user_id?: string
+          villain_name?: string | null
+          villain_profile?: string | null
+          villain_stack?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_hand_sessions_training_run_id_fkey"
+            columns: ["training_run_id"]
+            isOneToOne: false
+            referencedRelation: "training_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_labels: {
         Row: {
           ai_votes_believe: number | null
@@ -752,6 +897,60 @@ export type Database = {
           },
         ]
       }
+      training_runs: {
+        Row: {
+          bankroll_current: number
+          bankroll_start: number
+          created_at: string
+          difficulty_level_start: string
+          ended_at: string | null
+          engine_module: string
+          error_mode: string
+          golden_ticket_progress_delta: number
+          hands_completed: number
+          hands_target: number
+          id: string
+          lives_remaining: number
+          lives_start: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          bankroll_current?: number
+          bankroll_start?: number
+          created_at?: string
+          difficulty_level_start?: string
+          ended_at?: string | null
+          engine_module?: string
+          error_mode?: string
+          golden_ticket_progress_delta?: number
+          hands_completed?: number
+          hands_target?: number
+          id?: string
+          lives_remaining?: number
+          lives_start?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          bankroll_current?: number
+          bankroll_start?: number
+          created_at?: string
+          difficulty_level_start?: string
+          ended_at?: string | null
+          engine_module?: string
+          error_mode?: string
+          golden_ticket_progress_delta?: number
+          hands_completed?: number
+          hands_target?: number
+          id?: string
+          lives_remaining?: number
+          lives_start?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       training_scenario_history: {
         Row: {
           best_style: string | null
@@ -826,6 +1025,83 @@ export type Database = {
           was_correct?: boolean
         }
         Relationships: []
+      }
+      training_streets: {
+        Row: {
+          action_history_json: Json | null
+          board_cards: string | null
+          correct_action_json: Json | null
+          created_at: string
+          ev_analysis_json: Json | null
+          feedback_mycroft_text: string | null
+          hero_bet_size: number | null
+          hero_decision: string | null
+          hero_options_json: Json | null
+          hero_stack: number
+          id: string
+          nota: number | null
+          pot_size: number
+          result: string | null
+          scenario_text: string | null
+          street: string
+          training_hand_session_id: string
+          user_id: string
+          verdict_horus_text: string | null
+          villain_stack: number
+        }
+        Insert: {
+          action_history_json?: Json | null
+          board_cards?: string | null
+          correct_action_json?: Json | null
+          created_at?: string
+          ev_analysis_json?: Json | null
+          feedback_mycroft_text?: string | null
+          hero_bet_size?: number | null
+          hero_decision?: string | null
+          hero_options_json?: Json | null
+          hero_stack?: number
+          id?: string
+          nota?: number | null
+          pot_size?: number
+          result?: string | null
+          scenario_text?: string | null
+          street: string
+          training_hand_session_id: string
+          user_id: string
+          verdict_horus_text?: string | null
+          villain_stack?: number
+        }
+        Update: {
+          action_history_json?: Json | null
+          board_cards?: string | null
+          correct_action_json?: Json | null
+          created_at?: string
+          ev_analysis_json?: Json | null
+          feedback_mycroft_text?: string | null
+          hero_bet_size?: number | null
+          hero_decision?: string | null
+          hero_options_json?: Json | null
+          hero_stack?: number
+          id?: string
+          nota?: number | null
+          pot_size?: number
+          result?: string | null
+          scenario_text?: string | null
+          street?: string
+          training_hand_session_id?: string
+          user_id?: string
+          verdict_horus_text?: string | null
+          villain_stack?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_streets_training_hand_session_id_fkey"
+            columns: ["training_hand_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_hand_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_question_history: {
         Row: {
