@@ -72,37 +72,40 @@ Responda APENAS com JSON válido no formato:
   "tags": [string]
 }`;
 
-async function callOpenAI(apiKey: string, systemPrompt: string, userPrompt: string) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+async function callLovableAI(systemPrompt: string, userPrompt: string) {
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.7,
-      response_format: { type: "json_object" },
+      model: "google/gemini-2.5-flash",
     }),
   });
 
   if (!response.ok) {
     const status = response.status;
     const body = await response.text();
-    console.error(`OpenAI call failed [${status}]:`, body);
+    console.error(`Lovable AI call failed [${status}]:`, body);
     if (status === 429) throw new Error("RATE_LIMITED");
-    throw new Error(`OPENAI_ERROR_${status}`);
+    throw new Error(`AI_ERROR_${status}`);
   }
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No content in OpenAI response");
+  if (!text) throw new Error("No content in AI response");
 
-  return JSON.parse(text);
+  // Clean markdown fences if present
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return JSON.parse(cleaned);
 }
 
 serve(async (req) => {
@@ -111,9 +114,6 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
-
     const { handHistory } = await req.json();
     if (!handHistory || typeof handHistory !== "string") {
       return new Response(
@@ -125,8 +125,8 @@ serve(async (req) => {
     const userPrompt = `Analise o seguinte Hand History de poker:\n\n${handHistory}`;
 
     const [mycroftResult, horusResult] = await Promise.all([
-      callOpenAI(OPENAI_API_KEY, MYCROFT_SYSTEM, userPrompt),
-      callOpenAI(OPENAI_API_KEY, HORUS_SYSTEM, userPrompt),
+      callLovableAI(MYCROFT_SYSTEM, userPrompt),
+      callLovableAI(HORUS_SYSTEM, userPrompt),
     ]);
 
     return new Response(
