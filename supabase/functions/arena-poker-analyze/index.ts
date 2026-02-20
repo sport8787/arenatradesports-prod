@@ -72,38 +72,38 @@ Responda APENAS com JSON válido no formato:
   "tags": [string]
 }`;
 
-async function callLovableAI(systemPrompt: string, userPrompt: string) {
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+async function callGeminiAI(systemPrompt: string, userPrompt: string) {
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      model: "google/gemini-2.5-flash",
-    }),
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
 
   if (!response.ok) {
     const status = response.status;
     const body = await response.text();
-    console.error(`Lovable AI call failed [${status}]:`, body);
+    console.error(`Gemini API error [${status}]:`, body);
     if (status === 429) throw new Error("RATE_LIMITED");
     throw new Error(`AI_ERROR_${status}`);
   }
 
   const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("No content in AI response");
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("No content in Gemini response");
 
-  // Clean markdown fences if present
   const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   return JSON.parse(cleaned);
 }
@@ -125,8 +125,8 @@ serve(async (req) => {
     const userPrompt = `Analise o seguinte Hand History de poker:\n\n${handHistory}`;
 
     const [mycroftResult, horusResult] = await Promise.all([
-      callLovableAI(MYCROFT_SYSTEM, userPrompt),
-      callLovableAI(HORUS_SYSTEM, userPrompt),
+      callGeminiAI(MYCROFT_SYSTEM, userPrompt),
+      callGeminiAI(HORUS_SYSTEM, userPrompt),
     ]);
 
     return new Response(

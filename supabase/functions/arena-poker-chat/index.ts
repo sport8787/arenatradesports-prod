@@ -41,8 +41,8 @@ serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const { messages, handContext } = await req.json();
 
@@ -50,25 +50,29 @@ serve(async (req) => {
       ? `${SYSTEM_PROMPT}\n\nCONTEXTO DA MÃO ANALISADA:\n${handContext}`
       : SYSTEM_PROMPT;
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemContent },
-          ...messages,
-        ],
-        model: "google/gemini-2.5-flash",
-      }),
-    });
+    // Build Gemini contents from messages
+    const geminiContents = [
+      { role: "user", parts: [{ text: systemContent }] },
+      { role: "model", parts: [{ text: "Entendido. Estou pronto para analisar." }] },
+      ...messages.map((m: { role: string; content: string }) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+    ];
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: geminiContents }),
+      }
+    );
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`Lovable AI chat error [${status}]:`, body);
+      console.error(`Gemini chat error [${status}]:`, body);
 
       if (status === 429) {
         return new Response(
@@ -84,7 +88,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "Sem resposta.";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sem resposta.";
 
     return new Response(
       JSON.stringify({ content: text }),

@@ -64,8 +64,8 @@ serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const { hands } = await req.json();
     if (!hands || !Array.isArray(hands) || hands.length < 2) {
@@ -79,25 +79,29 @@ serve(async (req) => {
       .map((h: string, i: number) => `--- MÃO #${i + 1} ---\n${h}`)
       .join("\n\n");
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Analise as seguintes ${hands.length} mãos da minha sessão:\n\n${userPrompt}` },
-        ],
-        model: "google/gemini-2.5-flash",
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${SYSTEM_PROMPT}\n\nAnalise as seguintes ${hands.length} mãos da minha sessão:\n\n${userPrompt}` }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`Lovable AI session review error [${status}]:`, body);
+      console.error(`Gemini session review error [${status}]:`, body);
       if (status === 429) {
         return new Response(
           JSON.stringify({ error: "RATE_LIMITED" }),
@@ -108,7 +112,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No content in response");
 
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
