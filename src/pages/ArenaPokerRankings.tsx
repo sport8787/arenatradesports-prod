@@ -72,7 +72,7 @@ function RankRow({ rank, position, sortKey }: { rank: ArenaRanking; position: nu
 
           <div className="text-right flex flex-col items-end gap-1">
             {sortKey === 'apc' && (
-              <span className="font-orbitron text-sm font-bold text-amber-400">{rank.apc_balance.toLocaleString()} APC</span>
+              <span className="font-orbitron text-sm font-bold text-amber-400">{rank.apc_balance.toLocaleString()} BC</span>
             )}
             {sortKey === 'wins' && (
               <span className="font-orbitron text-sm font-bold text-emerald-400">{rank.total_scenarios_won} vitórias</span>
@@ -139,7 +139,7 @@ export default function ArenaPokerRankings() {
             <PharaohIcon size={32} className="text-amber-400" />
             <div>
               <h1 className="font-orbitron text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-                Ranking Arena Poker
+                Ranking — Mestres da Arena
               </h1>
               <p className="text-xs text-muted-foreground">{rankings.length} jogadores classificados</p>
             </div>
@@ -149,7 +149,7 @@ export default function ArenaPokerRankings() {
         {/* Tabs */}
         <Tabs value={sortKey} onValueChange={setSortKey}>
           <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="apc" className="text-xs gap-1"><Flame className="w-3 h-3" /> APC</TabsTrigger>
+            <TabsTrigger value="apc" className="text-xs gap-1"><Flame className="w-3 h-3" /> BC Arena</TabsTrigger>
             <TabsTrigger value="wins" className="text-xs gap-1"><Target className="w-3 h-3" /> Vitórias</TabsTrigger>
             <TabsTrigger value="champion" className="text-xs gap-1"><Crown className="w-3 h-3" /> Títulos</TabsTrigger>
             <TabsTrigger value="tickets" className="text-xs gap-1"><Ticket className="w-3 h-3" /> Tikets</TabsTrigger>

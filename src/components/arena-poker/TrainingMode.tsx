@@ -80,7 +80,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [gameOver, setGameOver] = useState(false);
   const [isChampion, setIsChampion] = useState(false);
   const [bankAnimation, setBankAnimation] = useState<'gain' | 'loss' | null>(null);
-  const [apcEarned, setApcEarned] = useState(0);
+  const [bcEarned, setBcEarned] = useState(0);
   const scenarioStartTime = useRef(Date.now());
 
   // ─── Persistence ────────────────────────────────────────────
@@ -96,7 +96,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         p_is_champion: champion,
       });
     } catch (err) {
-      console.error('Failed to persist APC:', err);
+      console.error('Failed to persist session:', err);
     }
   }, []);
 
@@ -147,14 +147,14 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
       if (result.correto) {
         const gain = result.bcGanho || 100;
         setBank(prev => prev + gain);
-        setApcEarned(prev => prev + gain);
+        setBcEarned(prev => prev + gain);
         setBankAnimation('gain');
         playSound('/audio/horus/acordo.mp3', 0.4);
         setWins(prev => {
           const next = prev + 1;
           if (next >= WIN_TARGET) {
             setIsChampion(true);
-            persistSession(apcEarned + gain, next, totalPlayed + 1, true);
+            persistSession(bcEarned + gain, next, totalPlayed + 1, true);
           }
           return next;
         });
@@ -167,7 +167,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
           const next = prev - 1;
           if (next <= 0) {
             setGameOver(true);
-            persistSession(apcEarned, wins, totalPlayed + 1, false);
+            persistSession(bcEarned, wins, totalPlayed + 1, false);
           }
           return next;
         });
@@ -180,7 +180,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     } finally {
       setIsEvaluating(false);
     }
-  }, [scenario, raiseValue, apcEarned, wins, totalPlayed, persistSession]);
+  }, [scenario, raiseValue, bcEarned, wins, totalPlayed, persistSession]);
 
   const nextScenario = () => {
     setScenarioNum(prev => prev + 1);
@@ -195,7 +195,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     setScenarioNum(1);
     setWins(0);
     setTotalPlayed(0);
-    setApcEarned(0);
+    setBcEarned(0);
     setScenario(null);
     setEvalResult(null);
     setGameOver(false);
@@ -203,7 +203,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   };
 
   if (isChampion) {
-    return <TrainingChampionScreen wins={wins} bank={bank} apcEarned={apcEarned} onRestart={restartTraining} onBack={onBack} />;
+    return <TrainingChampionScreen wins={wins} bank={bank} bcEarned={bcEarned} onRestart={restartTraining} onBack={onBack} />;
   }
 
   const showingDecisionPhase = scenario && !isLoading && !evalResult && !isEvaluating;
@@ -241,7 +241,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
               }`}
             >
               <Coins className="w-4 h-4" />
-              {bank.toLocaleString()} APC
+              {bank.toLocaleString()} BC
             </motion.div>
             <div className="h-5 w-px bg-border" />
             <span className="font-mono text-xs text-muted-foreground">
@@ -260,10 +260,10 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                 <div className="text-6xl mb-4">💀</div>
                 <h2 className="font-mono text-2xl font-black uppercase text-[hsl(var(--destructive))]">Game Over</h2>
                 <p className="font-mono text-sm text-muted-foreground">
-                  Você sobreviveu {wins} cenários com {bank.toLocaleString()} APC restantes.
+                  Você sobreviveu {wins} cenários com {bank.toLocaleString()} BC restantes.
                 </p>
-                {apcEarned > 0 && (
-                  <p className="font-mono text-xs text-[hsl(var(--arena-gold))]">+{apcEarned} APC salvos no seu perfil</p>
+                {bcEarned > 0 && (
+                  <p className="font-mono text-xs text-[hsl(var(--arena-gold))]">+{bcEarned} BC salvos no seu perfil</p>
                 )}
                 <div className="flex justify-center gap-3">
                   <Button onClick={restartTraining} className="bg-[hsl(var(--arena-cyan))] text-black font-mono font-bold uppercase tracking-wider">Tentar Novamente</Button>
@@ -279,7 +279,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                 </h2>
                 <p className="font-mono text-sm text-muted-foreground max-w-md mx-auto">
                   Vença {WIN_TARGET} cenários seguidos para ganhar o <span className="text-[hsl(var(--arena-gold))] font-bold">Tiket Dourado</span>.
-                  Você tem {MAX_LIVES} vidas e {INITIAL_BANK.toLocaleString()} APC.
+                  Você tem {MAX_LIVES} vidas e {INITIAL_BANK.toLocaleString()} BC de banca.
                 </p>
                 <Button
                   onClick={generateScenario}
@@ -491,12 +491,12 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                     <p className="font-mono text-sm text-[hsl(var(--arena-gold))] italic">"{evalResult.feedbackHorus}"</p>
                   </div>
 
-                  {/* APC Change */}
+                  {/* BC Change */}
                   <div className="text-center">
                     <p className={`font-mono text-lg font-bold ${
                       evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
                     }`}>
-                      {evalResult.correto ? `+${evalResult.bcGanho} APC` : `-${evalResult.bcPerdido} APC`}
+                      {evalResult.correto ? `+${evalResult.bcGanho} BC` : `-${evalResult.bcPerdido} BC`}
                     </p>
                   </div>
 
