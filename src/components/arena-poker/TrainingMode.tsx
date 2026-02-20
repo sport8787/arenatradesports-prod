@@ -251,6 +251,44 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         </div>
       </header>
 
+      {/* ─── Progress Bar ─────────────────────────────────── */}
+      {(scenario || isLoading || evalResult) && (
+        <div className="border-b border-border bg-background/80">
+          <div className="max-w-[1200px] mx-auto px-4 py-3">
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                Modo Treino
+              </span>
+              <span className="font-mono text-xs text-foreground whitespace-nowrap">
+                Cenário <span className="text-[hsl(var(--arena-cyan))] font-bold">{scenarioNum}</span> de {WIN_TARGET}
+              </span>
+              <div className="flex-1 relative h-3 rounded-full overflow-hidden bg-secondary">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(var(--arena-gold))]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(wins / WIN_TARGET) * 100}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  style={{ boxShadow: '0 0 8px hsl(var(--arena-cyan) / 0.5)' }}
+                />
+              </div>
+              <span className="font-mono text-xs font-bold text-[hsl(var(--arena-cyan))] whitespace-nowrap">
+                {Math.round((wins / WIN_TARGET) * 100)}%
+              </span>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-1">
+                {Array.from({ length: MAX_LIVES }).map((_, i) => (
+                  <span key={i} className={`text-sm transition-all ${i < lives ? '' : 'opacity-20 grayscale'}`}>❤️</span>
+                ))}
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <span className="font-mono text-xs font-bold text-[hsl(var(--arena-gold))] whitespace-nowrap">
+                💰 {bank.toLocaleString()} BC
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-[1200px] mx-auto px-4 py-6">
         {/* ─── Start / Game Over ──────────────────────────── */}
         {!scenario && !isLoading && (
