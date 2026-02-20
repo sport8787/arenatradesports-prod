@@ -41,7 +41,7 @@ REGRAS:
 - Se o cenário for nível ${"{scenarioNumber}"}, aumente a complexidade proporcionalmente.
 - Responda APENAS com JSON válido.`;
 
-const EVALUATE_PROMPT = `Você é Mycroft 2.0, perito forense de poker. Avalie a decisão do jogador.
+const EVALUATE_PROMPT = `Você é Mycroft 2.0, perito forense de poker. Avalie a decisão do jogador E forneça uma análise multi-perspectiva.
 
 Cenário:
 {scenario}
@@ -60,13 +60,35 @@ Responda EXATAMENTE no formato JSON:
   "explicacaoDetalhada": "<explicação completa da jogada ideal com cálculos>",
   "bcGanho": <BC ganhos se correto (50-200), 0 se errado>,
   "bcPerdido": <BC perdidos se errado (100-500), 0 se correto>,
-  "evDiferenca": "<diferença de EV entre a jogada feita e a ideal>"
+  "evDiferenca": "<diferença de EV entre a jogada feita e a ideal>",
+  "perspectivas": {
+    "tag": {
+      "acao": "<ação recomendada pelo estilo TAG>",
+      "raciocinio": "<explicação curta do raciocínio TAG, 1-2 frases>",
+      "ev": "<EV estimado em BB, ex: +0.5BB ou -0.2BB>"
+    },
+    "lag": {
+      "acao": "<ação recomendada pelo estilo LAG>",
+      "raciocinio": "<explicação curta do raciocínio LAG, 1-2 frases>",
+      "ev": "<EV estimado em BB>"
+    },
+    "gto": {
+      "acao": "<ação GTO (pode incluir mixing, ex: 'Fold 85% / Call 15%')>",
+      "raciocinio": "<explicação curta do raciocínio GTO/solver, 1-2 frases>",
+      "ev": "<EV estimado em BB>"
+    },
+    "jogadorEv": "<EV da ação do jogador em BB>",
+    "melhorEstilo": "<tag|lag|gto - qual estilo se encaixa melhor na jogada ideal para este spot>"
+  }
 }
 
 REGRAS:
 - Se a ação é parcialmente correta (ex: Call ao invés de Raise, mas não Fold), dê crédito parcial.
 - O feedback do Mycroft deve ser técnico e usar termos de poker.
 - O feedback do Hórus deve ser provocativo mas educativo.
+- As 3 perspectivas devem ser GENUINAMENTE diferentes — TAG é conservador, LAG é exploitativo, GTO é equilibrado.
+- O EV de cada perspectiva deve ser realista e consistente com o cenário.
+- "melhorEstilo" deve indicar qual abordagem é mais lucrativa neste spot específico.
 - Responda APENAS com JSON válido.`;
 
 async function callGeminiAI(prompt: string) {
