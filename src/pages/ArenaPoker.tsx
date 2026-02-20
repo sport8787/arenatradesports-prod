@@ -10,6 +10,8 @@ import MycroftAnalysisPanel from '@/components/arena-poker/MycroftAnalysisPanel'
 import HorusStrategyPanel from '@/components/arena-poker/HorusStrategyPanel';
 import ArenaPokerChat from '@/components/arena-poker/ArenaPokerChat';
 import ScanningOverlay from '@/components/arena-poker/ScanningOverlay';
+import SessionReviewInput from '@/components/arena-poker/SessionReviewInput';
+import SessionReviewResults from '@/components/arena-poker/SessionReviewResults';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,6 +20,16 @@ interface Card { rank: string; suit: 's' | 'h' | 'd' | 'c' }
 interface Leak { id: string; title: string; severity: 'grave' | 'atencao' | 'info'; description: string; category: string }
 interface CoachingMessage { id: string; text: string; type: 'provocacao' | 'estrategia' | 'alerta' }
 interface ChatMessage { id: string; role: 'user' | 'assistant'; content: string; persona?: 'mycroft' | 'horus' }
+
+interface SessionReviewData {
+  totalHands: number;
+  overallScore: number;
+  recurringLeaks: { title: string; frequency: number; severity: 'grave' | 'atencao' | 'info'; description: string; hands: number[] }[];
+  spotClusters: { type: string; count: number; insight: string }[];
+  trainingPlan: { day: string; focus: string; exercises: string[] }[];
+  tags: string[];
+  summary: string;
+}
 
 // --- Simple HH Parser ---
 function parseHandHistory(raw: string) {
@@ -53,7 +65,7 @@ function parseCard(s: string): Card {
   return { rank, suit: suitMap[s.slice(-1).toLowerCase()] || 's' };
 }
 
-// --- Chat helper (non-streaming for direct Gemini API) ---
+// --- Chat helper ---
 async function sendChat(opts: {
   messages: { role: string; content: string }[];
   handContext?: string;
@@ -75,12 +87,17 @@ async function sendChat(opts: {
   return data.content || 'Sem resposta.';
 }
 
-// --- Page ---
+type AnalysisMode = 'single' | 'session';
+type Phase = 'input' | 'analyzing' | 'results';
+
 const ArenaPoker = () => {
   const navigate = useNavigate();
 
-  const [phase, setPhase] = useState<'input' | 'analyzing' | 'results'>('input');
+  const [mode, setMode] = useState<AnalysisMode>('single');
+  const [phase, setPhase] = useState<Phase>('input');
   const [scanPhase, setScanPhase] = useState<'mycroft' | 'horus' | 'complete'>('mycroft');
+
+  // Single analysis state
   const [blufferScore, setBlufferScore] = useState(0);
   const [parsedHand, setParsedHand] = useState<ReturnType<typeof parseHandHistory> | null>(null);
   const [rawHandHistory, setRawHandHistory] = useState('');
@@ -92,6 +109,22 @@ const ArenaPoker = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Session review state
+  const [sessionData, setSessionData] = useState<SessionReviewData | null>(null);
+
+  const resetAll = () => {
+    setPhase('input');
+    setLeaks([]);
+    setCoachingMessages([]);
+    setTags([]);
+    setAcordo(null);
+    setChatMessages([]);
+    setParsedHand(null);
+    setRawHandHistory('');
+    setSessionData(null);
+    setBlufferScore(0);
+  };
+
   const handleAnalyze = useCallback(async (handHistory: string) => {
     setPhase('analyzing');
     setScanPhase('mycroft');
@@ -99,7 +132,6 @@ const ArenaPoker = () => {
     const parsed = parseHandHistory(handHistory);
     setParsedHand(parsed);
 
-    // Scanning animation while AI processes
     const scanTimer = setTimeout(() => setScanPhase('horus'), 2000);
 
     try {
@@ -119,13 +151,11 @@ const ArenaPoker = () => {
       setScanPhase('complete');
       await new Promise(r => setTimeout(r, 600));
 
-      // Mycroft results
       const m = data.mycroft;
       setBlufferScore(m.blufferScore ?? 50);
       setLeaks(m.leaks ?? []);
       setTechnicalNotes(m.technicalNotes ?? []);
 
-      // Horus results
       const h = data.horus;
       setCoachingMessages(h.messages ?? []);
       setAcordo(h.acordo ?? null);
@@ -137,6 +167,40 @@ const ArenaPoker = () => {
       clearTimeout(scanTimer);
       console.error('Analysis failed:', err);
       toast.error('Falha ao analisar. Verifique sua conexão.');
+      setPhase('input');
+    }
+  }, []);
+
+  const handleSessionReview = useCallback(async (hands: string[]) => {
+    setPhase('analyzing');
+    setScanPhase('mycroft');
+
+    const scanTimer = setTimeout(() => setScanPhase('horus'), 2500);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('arena-poker-session-review', {
+        body: { hands },
+      });
+
+      clearTimeout(scanTimer);
+
+      if (error) {
+        console.error('Session review error:', error);
+        toast.error('Erro na revisão. Tente novamente.');
+        setPhase('input');
+        return;
+      }
+
+      setScanPhase('complete');
+      await new Promise(r => setTimeout(r, 600));
+
+      setSessionData(data);
+      setPhase('results');
+      toast.success(`Sessão analisada: ${hands.length} mãos`);
+    } catch (err) {
+      clearTimeout(scanTimer);
+      console.error('Session review failed:', err);
+      toast.error('Falha na revisão. Verifique sua conexão.');
       setPhase('input');
     }
   }, []);
@@ -183,7 +247,7 @@ const ArenaPoker = () => {
               </h1>
             </div>
           </div>
-          {phase === 'results' && <BlufferScore score={blufferScore} />}
+          {phase === 'results' && mode === 'single' && <BlufferScore score={blufferScore} />}
         </div>
       </header>
 
@@ -202,7 +266,37 @@ const ArenaPoker = () => {
                 Análise de inteligência forense aplicada ao poker. Cole seu Hand History e deixe Mycroft e Hórus revelarem seus leaks.
               </p>
             </div>
-            <HandHistoryInput onAnalyze={handleAnalyze} isAnalyzing={false} />
+
+            {/* Mode Tabs */}
+            <div className="flex items-center gap-2 justify-center">
+              <button
+                onClick={() => setMode('single')}
+                className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-wider transition-all ${
+                  mode === 'single'
+                    ? 'bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))] border border-[hsl(var(--arena-cyan)_/_0.4)]'
+                    : 'text-muted-foreground border border-transparent hover:text-foreground'
+                }`}
+              >
+                Mão Única
+              </button>
+              <button
+                onClick={() => setMode('session')}
+                className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-wider transition-all ${
+                  mode === 'session'
+                    ? 'bg-[hsl(var(--arena-gold)_/_0.15)] text-[hsl(var(--arena-gold))] border border-[hsl(var(--arena-gold)_/_0.4)]'
+                    : 'text-muted-foreground border border-transparent hover:text-foreground'
+                }`}
+              >
+                Session Review
+              </button>
+            </div>
+
+            {mode === 'single' ? (
+              <HandHistoryInput onAnalyze={handleAnalyze} isAnalyzing={false} />
+            ) : (
+              <SessionReviewInput onAnalyze={handleSessionReview} isAnalyzing={false} />
+            )}
+
             <div className="flex items-center justify-center gap-[2px] h-6 opacity-30">
               {[...Array(60)].map((_, i) => (
                 <motion.div key={i} className="w-[2px] bg-[hsl(var(--arena-cyan))] rounded-full" animate={{ height: [2, Math.random() * 12 + 3, 2] }} transition={{ duration: 2, delay: i * 0.03, repeat: Infinity, repeatType: 'reverse' }} />
@@ -211,7 +305,7 @@ const ArenaPoker = () => {
           </motion.div>
         )}
 
-        {phase === 'results' && parsedHand && (
+        {phase === 'results' && mode === 'single' && parsedHand && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="max-w-lg mx-auto">
               <HandVisualizer playerCards={parsedHand.playerCards} boardCards={parsedHand.boardCards} positions={parsedHand.positions} />
@@ -222,8 +316,19 @@ const ArenaPoker = () => {
               <ArenaPokerChat messages={chatMessages} onSend={handleChatSend} isLoading={chatLoading} />
             </div>
             <div className="text-center pt-4">
-              <Button variant="outline" onClick={() => { setPhase('input'); setLeaks([]); setCoachingMessages([]); setTags([]); setAcordo(null); setChatMessages([]); setParsedHand(null); setRawHandHistory(''); }} className="font-mono text-xs uppercase tracking-wider border-[hsl(0_0%_20%)] text-muted-foreground hover:text-foreground">
+              <Button variant="outline" onClick={resetAll} className="font-mono text-xs uppercase tracking-wider border-[hsl(0_0%_20%)] text-muted-foreground hover:text-foreground">
                 Nova Análise
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {phase === 'results' && mode === 'session' && sessionData && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <SessionReviewResults data={sessionData} />
+            <div className="text-center pt-4">
+              <Button variant="outline" onClick={resetAll} className="font-mono text-xs uppercase tracking-wider border-[hsl(0_0%_20%)] text-muted-foreground hover:text-foreground">
+                Nova Revisão
               </Button>
             </div>
           </motion.div>
