@@ -20,6 +20,7 @@ export type Database = {
           best_win_streak: number
           champion_titles: number
           created_at: string
+          golden_tickets: number
           id: string
           total_scenarios_played: number
           total_scenarios_won: number
@@ -33,6 +34,7 @@ export type Database = {
           best_win_streak?: number
           champion_titles?: number
           created_at?: string
+          golden_tickets?: number
           id?: string
           total_scenarios_played?: number
           total_scenarios_won?: number
@@ -46,6 +48,7 @@ export type Database = {
           best_win_streak?: number
           champion_titles?: number
           created_at?: string
+          golden_tickets?: number
           id?: string
           total_scenarios_played?: number
           total_scenarios_won?: number

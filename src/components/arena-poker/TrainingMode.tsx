@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, Trophy, ArrowLeft, Heart, Coins,
+  Shield, ArrowLeft, Heart, Coins,
   ChevronUp, ChevronDown, Crosshair, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import TrainingChampionScreen from './TrainingChampionScreen';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
+import { GoldEditionCard, parseCards } from './GoldEditionCard';
+import { HorusTrashTalk, ReactionButtons } from './HorusTrashTalk';
 
+// ─── Types ───────────────────────────────────────────────────
 interface Scenario {
   cenario: {
     heroPosicao: string;
@@ -43,30 +46,26 @@ interface EvalResult {
   evDiferenca: string;
 }
 
-const suitSymbol: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
-const suitColor: Record<string, string> = {
-  s: 'text-foreground', h: 'text-red-500', d: 'text-blue-400', c: 'text-green-400',
-};
-
-function parseCards(str: string) {
-  const cards: { rank: string; suit: string }[] = [];
-  for (let i = 0; i < str.length; i += 2) {
-    if (i + 1 < str.length) {
-      cards.push({ rank: str[i], suit: str[i + 1].toLowerCase() });
-    }
-  }
-  return cards;
-}
-
 interface TrainingModeProps {
   onBack: () => void;
   handContext?: string;
 }
 
+// ─── Constants ───────────────────────────────────────────────
 const INITIAL_BANK = 5000;
 const MAX_LIVES = 3;
 const WIN_TARGET = 10;
 
+// ─── Sound Effects ───────────────────────────────────────────
+function playSound(path: string, volume = 0.4) {
+  try {
+    const audio = new Audio(path);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+// ─── Main Component ──────────────────────────────────────────
 const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [bank, setBank] = useState(INITIAL_BANK);
   const [lives, setLives] = useState(MAX_LIVES);
@@ -82,13 +81,13 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
   const [isChampion, setIsChampion] = useState(false);
   const [bankAnimation, setBankAnimation] = useState<'gain' | 'loss' | null>(null);
   const [apcEarned, setApcEarned] = useState(0);
+  const scenarioStartTime = useRef(Date.now());
 
-  // Persist APC when session ends (game over or champion)
+  // ─── Persistence ────────────────────────────────────────────
   const persistSession = useCallback(async (earned: number, scenariosWon: number, played: number, champion: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      
       await supabase.rpc('record_arena_session', {
         p_user_id: user.id,
         p_apc_earned: earned,
@@ -101,6 +100,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     }
   }, []);
 
+  // ─── Scenario Generation ───────────────────────────────────
   const generateScenario = useCallback(async () => {
     setIsLoading(true);
     setEvalResult(null);
@@ -111,6 +111,9 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
       if (error) throw error;
       setScenario(data);
       setRaiseValue(data?.cenario?.potAtual ? Math.ceil(data.cenario.potAtual * 2.5) : 6);
+      scenarioStartTime.current = Date.now();
+      // Card dealing sound
+      playSound('/audio/horus/bip.mp3', 0.3);
     } catch (err) {
       console.error('Generate error:', err);
       toast.error('Erro ao gerar cenário. Tente novamente.');
@@ -119,9 +122,12 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     }
   }, [scenarioNum, handContext]);
 
+  // ─── Action Evaluation ─────────────────────────────────────
   const evaluateAction = useCallback(async (action: string) => {
     if (!scenario) return;
     setIsEvaluating(true);
+    // Chip sound on action
+    playSound('/audio/horus/bip.mp3', 0.25);
     try {
       const { data, error } = await supabase.functions.invoke('arena-poker-training', {
         body: {
@@ -143,6 +149,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         setBank(prev => prev + gain);
         setApcEarned(prev => prev + gain);
         setBankAnimation('gain');
+        playSound('/audio/horus/acordo.mp3', 0.4);
         setWins(prev => {
           const next = prev + 1;
           if (next >= WIN_TARGET) {
@@ -155,11 +162,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
         const loss = result.bcPerdido || 200;
         setBank(prev => Math.max(0, prev - loss));
         setBankAnimation('loss');
+        playSound('/audio/horus/erro.mp3', 0.4);
         setLives(prev => {
           const next = prev - 1;
           if (next <= 0) {
             setGameOver(true);
-            // Persist even on game over — earned APC minus losses still counted
             persistSession(apcEarned, wins, totalPlayed + 1, false);
           }
           return next;
@@ -199,9 +206,11 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
     return <TrainingChampionScreen wins={wins} bank={bank} apcEarned={apcEarned} onRestart={restartTraining} onBack={onBack} />;
   }
 
+  const showingDecisionPhase = scenario && !isLoading && !evalResult && !isEvaluating;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
+      {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-[1200px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -218,14 +227,10 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
             </div>
           </div>
 
-          {/* Stats Bar */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               {Array.from({ length: MAX_LIVES }).map((_, i) => (
-                <Heart
-                  key={i}
-                  className={`w-4 h-4 transition-all ${i < lives ? 'text-red-500 fill-red-500' : 'text-muted-foreground/30'}`}
-                />
+                <Heart key={i} className={`w-4 h-4 transition-all ${i < lives ? 'text-red-500 fill-red-500' : 'text-muted-foreground/30'}`} />
               ))}
             </div>
             <div className="h-5 w-px bg-border" />
@@ -240,14 +245,14 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
             </motion.div>
             <div className="h-5 w-px bg-border" />
             <span className="font-mono text-xs text-muted-foreground">
-              <span className="text-[hsl(var(--arena-cyan))]">{wins}</span>/{WIN_TARGET} vitórias
+              <span className="text-[hsl(var(--arena-cyan))]">{wins}</span>/{WIN_TARGET}
             </span>
           </div>
         </div>
       </header>
 
       <main className="max-w-[1200px] mx-auto px-4 py-6">
-        {/* Start / Game Over */}
+        {/* ─── Start / Game Over ──────────────────────────── */}
         {!scenario && !isLoading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 space-y-6">
             {gameOver ? (
@@ -258,14 +263,10 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                   Você sobreviveu {wins} cenários com {bank.toLocaleString()} APC restantes.
                 </p>
                 {apcEarned > 0 && (
-                  <p className="font-mono text-xs text-[hsl(var(--arena-gold))]">
-                    +{apcEarned} APC salvos no seu perfil Arena Poker
-                  </p>
+                  <p className="font-mono text-xs text-[hsl(var(--arena-gold))]">+{apcEarned} APC salvos no seu perfil</p>
                 )}
                 <div className="flex justify-center gap-3">
-                  <Button onClick={restartTraining} className="bg-[hsl(var(--arena-cyan))] text-black font-mono font-bold uppercase tracking-wider">
-                    Tentar Novamente
-                  </Button>
+                  <Button onClick={restartTraining} className="bg-[hsl(var(--arena-cyan))] text-black font-mono font-bold uppercase tracking-wider">Tentar Novamente</Button>
                   <Button variant="outline" onClick={onBack} className="font-mono">Voltar</Button>
                 </div>
               </>
@@ -277,25 +278,21 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                   <span className="text-[hsl(var(--arena-gold))]">Treino</span>
                 </h2>
                 <p className="font-mono text-sm text-muted-foreground max-w-md mx-auto">
-                  Vença {WIN_TARGET} cenários seguidos para se tornar Campeão da Arena Poker.
-                  Você tem {MAX_LIVES} vidas e uma banca de {INITIAL_BANK.toLocaleString()} APC.
-                </p>
-                <p className="font-mono text-[10px] text-[hsl(var(--arena-gold)_/_0.7)]">
-                  APC (Arena Poker Coins) são salvos no seu perfil mesmo que você não complete todos os cenários.
+                  Vença {WIN_TARGET} cenários seguidos para ganhar o <span className="text-[hsl(var(--arena-gold))] font-bold">Tiket Dourado</span>.
+                  Você tem {MAX_LIVES} vidas e {INITIAL_BANK.toLocaleString()} APC.
                 </p>
                 <Button
                   onClick={generateScenario}
                   className="bg-gradient-to-r from-[hsl(var(--arena-gold))] to-[hsl(38_92%_55%)] text-black font-bold uppercase tracking-wider font-mono text-sm px-8 py-3"
                 >
-                  <Brain className="w-5 h-5 mr-2" />
-                  Iniciar Treino
+                  <Brain className="w-5 h-5 mr-2" /> Iniciar Treino
                 </Button>
               </>
             )}
           </motion.div>
         )}
 
-        {/* Loading */}
+        {/* ─── Loading ────────────────────────────────────── */}
         {isLoading && (
           <div className="space-y-6 py-8">
             <div className="flex items-center gap-2 mb-4">
@@ -307,10 +304,9 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
           </div>
         )}
 
-        {/* Scenario */}
+        {/* ─── Scenario ───────────────────────────────────── */}
         {scenario && !isLoading && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            {/* Scenario Card */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
             <div className="border border-[hsl(var(--arena-cyan)_/_0.3)] rounded-xl p-6 bg-[hsl(var(--arena-cyan)_/_0.03)]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-mono text-xs uppercase tracking-widest text-[hsl(var(--arena-cyan))] flex items-center gap-2">
@@ -322,10 +318,8 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                 </span>
               </div>
 
-              {/* Context */}
               <p className="font-mono text-sm text-muted-foreground italic mb-5">"{scenario.cenario.contexto}"</p>
 
-              {/* Table Layout */}
               <div className="grid grid-cols-2 gap-6">
                 {/* Hero */}
                 <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-4 bg-[hsl(var(--arena-gold)_/_0.03)]">
@@ -338,15 +332,15 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                       <p className="font-mono text-[10px] text-muted-foreground">Stack: {scenario.cenario.heroStack}BB</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     {parseCards(scenario.cenario.heroCartas).map((card, i) => (
-                      <div
+                      <GoldEditionCard
                         key={i}
-                        className="w-16 h-24 rounded-lg border-2 border-[hsl(var(--arena-gold))] bg-[hsl(var(--arena-gold)_/_0.1)] shadow-[0_0_20px_hsl(var(--arena-gold)_/_0.3)] flex flex-col items-center justify-center"
-                      >
-                        <span className={`font-bold text-2xl ${suitColor[card.suit]}`}>{card.rank}</span>
-                        <span className={`text-lg ${suitColor[card.suit]}`}>{suitSymbol[card.suit]}</span>
-                      </div>
+                        rank={card.rank}
+                        suit={card.suit}
+                        size="md"
+                        isLeak={evalResult ? !evalResult.correto : false}
+                      />
                     ))}
                   </div>
                 </div>
@@ -376,10 +370,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                   <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">Board</span>
                   <div className="flex items-center justify-center gap-2 mt-1">
                     {parseCards(scenario.cenario.boardCards).map((card, i) => (
-                      <div key={i} className="w-12 h-18 rounded border border-border bg-secondary flex flex-col items-center justify-center p-1">
-                        <span className={`font-bold text-lg ${suitColor[card.suit]}`}>{card.rank}</span>
-                        <span className={`text-sm ${suitColor[card.suit]}`}>{suitSymbol[card.suit]}</span>
-                      </div>
+                      <GoldEditionCard key={i} rank={card.rank} suit={card.suit} size="sm" />
                     ))}
                   </div>
                 </div>
@@ -393,8 +384,13 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            {!evalResult && !isEvaluating && (
+            {/* ─── Hórus Trash Talk (during decision) ──── */}
+            {showingDecisionPhase && (
+              <HorusTrashTalk active={true} scenarioStartTime={scenarioStartTime.current} />
+            )}
+
+            {/* ─── Action Buttons ─────────────────────────── */}
+            {showingDecisionPhase && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                 <p className="font-mono text-sm text-center text-muted-foreground">O que você faz?</p>
                 <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
@@ -435,22 +431,29 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                     All-in
                   </Button>
                 </div>
+
+                {/* Reaction Buttons */}
+                <div className="pt-2">
+                  <ReactionButtons onReaction={(emoji) => {
+                    toast(`Hórus viu seu ${emoji}`, { icon: '👁️', duration: 1500 });
+                  }} />
+                </div>
               </motion.div>
             )}
 
-            {/* Evaluating */}
+            {/* ─── Evaluating ─────────────────────────────── */}
             {isEvaluating && (
               <div className="text-center py-8">
                 <MonocleIcon className="mx-auto text-[hsl(var(--arena-cyan))] animate-pulse mb-3" size={32} />
-                <p className="font-mono text-sm text-[hsl(var(--arena-cyan))]">Mycroft analisando sua decisão...</p>
+                <p className="font-mono text-sm text-[hsl(var(--arena-cyan))]">Mycroft preparando laudo pericial...</p>
               </div>
             )}
 
-            {/* Result */}
+            {/* ─── Result ─────────────────────────────────── */}
             <AnimatePresence>
               {evalResult && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                  {/* Mycroft Feedback */}
+                  {/* Mycroft Laudo Pericial */}
                   <div className={`border rounded-xl p-5 ${
                     evalResult.correto
                       ? 'border-[hsl(var(--success)_/_0.4)] bg-[hsl(var(--success)_/_0.05)]'
@@ -459,7 +462,7 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                     <div className="flex items-center gap-2 mb-3">
                       <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={20} />
                       <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-cyan))] font-bold">
-                        Relatório Digital — Mycroft 2.0
+                        Laudo Pericial — Mycroft 2.0
                       </span>
                       <span className={`ml-auto font-mono text-2xl font-black ${
                         evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
@@ -474,6 +477,9 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
                         EV Diferença: {evalResult.evDiferenca}
                       </p>
                     )}
+                    <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.3)] uppercase tracking-widest text-right mt-3">
+                      Assinado digitalmente — Mycroft 2.0
+                    </p>
                   </div>
 
                   {/* Hórus Comment */}
