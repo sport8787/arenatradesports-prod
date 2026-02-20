@@ -13,6 +13,14 @@ import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { GoldEditionCard, parseCards } from './GoldEditionCard';
 import { HorusTrashTalk, ReactionButtons } from './HorusTrashTalk';
 import BluffTalkModal from './BluffTalkModal';
+import CognitiveLeakReport from './CognitiveLeakReport';
+import {
+  analyzeDecisionForLeak,
+  resetLeakTracker,
+  advanceHandIndex,
+  getSessionLeaks,
+  type DetectedLeak,
+} from '@/services/cognitiveLeaksService';
 
 // ─── Types ───────────────────────────────────────────────────
 interface StreetData {
@@ -281,6 +289,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
 
   // Study mode retry
   const [showRetryHint, setShowRetryHint] = useState(false);
+  const [detectedLeak, setDetectedLeak] = useState<DetectedLeak | null>(null);
 
   const scenarioStartTime = useRef(Date.now());
   const runIdRef = useRef<string | null>(null);
@@ -453,11 +462,39 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
           setCurrentHeroStack(result.nextStreetUpdate.newHeroStack);
           setCurrentVillainStack(result.nextStreetUpdate.newVillainStack);
         }
+
+        // Cognitive leak analysis (also on correct — tracks full history)
+        const leakResult = analyzeDecisionForLeak({
+          street: currentStreet,
+          playerAction: action,
+          correctAction: streetData.correctAction,
+          wasCorrect: true,
+          nota: result.nota,
+          evDiferenca: result.evDiferenca,
+          potSize: currentPot,
+          heroStack: currentHeroStack,
+          scenarioText: streetData.scenarioText,
+        });
+        setDetectedLeak(leakResult);
       } else {
         const loss = result.bcPerdido || 200;
         setBank(prev => Math.max(0, prev - loss));
         setBankAnimation('loss');
         playSound('/audio/horus/erro.mp3', 0.4);
+
+        // Cognitive leak analysis on errors
+        const leakResult = analyzeDecisionForLeak({
+          street: currentStreet,
+          playerAction: action,
+          correctAction: streetData.correctAction,
+          wasCorrect: false,
+          nota: result.nota,
+          evDiferenca: result.evDiferenca,
+          potSize: currentPot,
+          heroStack: currentHeroStack,
+          scenarioText: streetData.scenarioText,
+        });
+        setDetectedLeak(leakResult);
 
         if (errorMode === 'challenge') {
           setLives(prev => {
@@ -520,6 +557,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
   };
 
   const completeHand = () => {
+    advanceHandIndex();
     setHandsCompleted(prev => {
       const next = prev + 1;
       if (next >= WIN_TARGET) {
@@ -550,6 +588,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
     setActionHistory([]);
     setCurrentStreetIdx(0);
     setShowRetryHint(false);
+    setDetectedLeak(null);
   };
 
   const handleBluffTalkComplete = () => {
@@ -584,6 +623,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
 
   // ─── Restart ───────────────────────────────────────────────
   const restartTraining = () => {
+    resetLeakTracker();
     setBank(INITIAL_BANK);
     setLives(MAX_LIVES);
     setHandsCompleted(0);
@@ -932,6 +972,11 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
               {evalResult && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                   <StreetLaudo evalResult={evalResult} />
+
+                  {/* Cognitive Leak Report */}
+                  {detectedLeak && (
+                    <CognitiveLeakReport leak={detectedLeak} />
+                  )}
 
                   {/* Hórus Comment */}
                   <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-4 bg-[hsl(var(--arena-gold)_/_0.04)]">
