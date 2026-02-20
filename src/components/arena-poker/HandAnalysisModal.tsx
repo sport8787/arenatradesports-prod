@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Trophy, Target, Eye, Brain } from 'lucide-react';
+import { X, Zap, Trophy, Target, Eye, Brain, Crosshair } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +39,7 @@ function useRotatingPhrase(active: boolean, intervalMs = 4500) {
 interface HandAnalysisModalProps {
   hand: ParsedHand;
   onClose: () => void;
+  onStartTraining?: (handContext: string) => void;
 }
 
 const suitSymbol: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
@@ -61,7 +62,7 @@ function getScoreBarColor(score: number) {
   return 'bg-[hsl(var(--destructive))]';
 }
 
-const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
+const HandAnalysisModal = ({ hand, onClose, onStartTraining }: HandAnalysisModalProps) => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const horusPhrase = useRotatingPhrase(isLoading);
@@ -257,6 +258,22 @@ const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
                     </div>
                   </div>
                 </section>
+
+                {/* Training Mode Button */}
+                {onStartTraining && (
+                  <div className="text-center pt-4 border-t border-border">
+                    <Button
+                      onClick={() => onStartTraining(hand.raw)}
+                      className="bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(190_100%_50%)] text-black font-bold uppercase tracking-wider font-mono text-sm px-8 py-3"
+                    >
+                      <Crosshair className="w-5 h-5 mr-2" />
+                      Modo Treino
+                    </Button>
+                    <p className="font-mono text-[10px] text-muted-foreground mt-2">
+                      Pratique cenários similares com feedback de Mycroft em tempo real
+                    </p>
+                  </div>
+                )}
               </motion.div>
             )}
           </div>
