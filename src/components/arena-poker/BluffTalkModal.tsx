@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Video, X, RefreshCw, Lightbulb, Shield, Crosshair, Target } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, X, RefreshCw, Lightbulb, Shield, Crosshair, Target, Camera, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 
 // ─── Types ───────────────────────────────────────────────────
+type RecordMode = 'audio' | 'video';
+
 interface BluffTalkModalProps {
   street: string;
   heroCards: string;
@@ -46,7 +48,7 @@ const INTENT_CONFIG: Record<Intent, { label: string; emoji: string; description:
 export default function BluffTalkModal({
   street, heroCards, boardCards, heroAction, villainName, villainProfile, onClose, onComplete,
 }: BluffTalkModalProps) {
-  const [phase, setPhase] = useState<'intent' | 'suggest' | 'record' | 'analyzing' | 'result'>('intent');
+  const [phase, setPhase] = useState<'intent' | 'suggest' | 'record_mode' | 'record' | 'analyzing' | 'result'>('intent');
   const [intent, setIntent] = useState<Intent | null>(null);
   const [suggestions, setSuggestions] = useState<ProvocationSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -54,6 +56,7 @@ export default function BluffTalkModal({
   const [recordingTime, setRecordingTime] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<BluffAnalysisResult | null>(null);
   const [transcript, setTranscript] = useState('');
+  const [recordMode, setRecordMode] = useState<RecordMode>('video');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -90,11 +93,21 @@ export default function BluffTalkModal({
   };
 
   // ─── Recording ────────────────────────────────────────────
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      const useVideo = recordMode === 'video';
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: useVideo });
       streamRef.current = stream;
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+      const mimeType = useVideo ? 'video/webm;codecs=vp9,opus' : 'audio/webm;codecs=opus';
+      const recorder = new MediaRecorder(stream, { mimeType });
+
+      // Show video preview
+      if (useVideo && videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+        videoPreviewRef.current.play().catch(() => {});
+      }
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -134,10 +147,12 @@ export default function BluffTalkModal({
     return new Promise<void>((resolve) => {
       recorder.onstop = async () => {
         streamRef.current?.getTracks().forEach(t => t.stop());
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
         setIsRecording(false);
         setPhase('analyzing');
 
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const blobType = recordMode === 'video' ? 'video/webm' : 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: blobType });
         await analyzeBluffTalk(blob);
         resolve();
       };
@@ -146,13 +161,15 @@ export default function BluffTalkModal({
   }, []);
 
   // ─── Analyze ──────────────────────────────────────────────
-  const analyzeBluffTalk = async (videoBlob: Blob) => {
+  const analyzeBluffTalk = async (mediaBlob: Blob) => {
     try {
-      // 1. Upload video to storage
-      const fileName = `bluff-talk/${Date.now()}.webm`;
+      // 1. Upload recording to storage
+      const ext = recordMode === 'video' ? 'webm' : 'webm';
+      const contentType = recordMode === 'video' ? 'video/webm' : 'audio/webm';
+      const fileName = `bluff-talk/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from('game-video')
-        .upload(fileName, videoBlob, { contentType: 'video/webm' });
+        .upload(fileName, mediaBlob, { contentType });
       
       if (uploadError) console.error('Upload error:', uploadError);
 
@@ -183,6 +200,7 @@ export default function BluffTalkModal({
           duration: recordingTime,
           heroCards, boardCards, street, heroAction,
           intent, villainName, villainProfile,
+          recordMode,
         },
       });
 
@@ -233,9 +251,9 @@ export default function BluffTalkModal({
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Mic className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
+            <Video className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
             <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-              <span className="text-[hsl(var(--arena-gold))]">Table Talk</span>
+              <span className="text-[hsl(var(--arena-gold))]">Provocação de Mesa</span>
               <span className="text-muted-foreground ml-2">— {street}</span>
             </h3>
           </div>
@@ -248,6 +266,14 @@ export default function BluffTalkModal({
           {/* ─── Phase: Intent Selection ─────────────────── */}
           {phase === 'intent' && (
             <div className="space-y-4">
+              <div className="text-center space-y-2 mb-2">
+                <p className="font-mono text-sm text-foreground font-bold">
+                  🎬 Grave uma provocação como se estivesse em uma mesa real
+                </p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  Fale diretamente para o seu oponente. O Mycroft vai analisar sua voz, expressões faciais e coerência com a jogada.
+                </p>
+              </div>
               <p className="font-mono text-xs text-muted-foreground text-center uppercase tracking-wider">
                 Qual sua intenção nesta provocação?
               </p>
@@ -267,7 +293,7 @@ export default function BluffTalkModal({
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" onClick={() => { setPhase('record'); }} className="w-full font-mono text-xs text-muted-foreground">
+              <Button variant="ghost" onClick={() => { setPhase('record_mode'); }} className="w-full font-mono text-xs text-muted-foreground">
                 Pular intenção → Gravar direto
               </Button>
             </div>
@@ -296,7 +322,7 @@ export default function BluffTalkModal({
                 </div>
               ))}
               <Button
-                onClick={() => setPhase('record')}
+                onClick={() => setPhase('record_mode')}
                 className="w-full bg-[hsl(var(--arena-gold))] text-black font-mono font-bold uppercase"
               >
                 <Video className="w-4 h-4 mr-2" /> Gravar Provocação
@@ -304,17 +330,91 @@ export default function BluffTalkModal({
             </div>
           )}
 
+          {/* ─── Phase: Record Mode Selection ────────────── */}
+          {phase === 'record_mode' && (
+            <div className="space-y-4">
+              <p className="font-mono text-sm text-center text-foreground font-bold mb-1">
+                Como você quer gravar?
+              </p>
+              <p className="font-mono text-xs text-center text-muted-foreground mb-2">
+                No poker real, sua expressão facial diz tanto quanto suas palavras.
+              </p>
+              <div className="grid gap-3">
+                <button
+                  onClick={() => { setRecordMode('video'); setPhase('record'); }}
+                  className="relative flex items-center gap-4 p-4 border-2 border-[hsl(var(--success)_/_0.5)] rounded-xl bg-[hsl(var(--success)_/_0.05)] hover:bg-[hsl(var(--success)_/_0.1)] transition-all text-left"
+                >
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[hsl(var(--success))] text-black text-[9px] font-bold rounded-full font-mono uppercase">
+                    Recomendado
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[hsl(var(--success)_/_0.2)]">
+                    <Camera className="w-5 h-5 text-[hsl(var(--success))]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-mono text-sm font-bold text-foreground">🎥 Vídeo + Áudio</p>
+                    <p className="font-mono text-xs text-muted-foreground">Mycroft analisa micro-expressões, olhar e tensão facial</p>
+                  </div>
+                  <Eye className="w-4 h-4 text-[hsl(var(--success)_/_0.5)]" />
+                </button>
+                <button
+                  onClick={() => { setRecordMode('audio'); setPhase('record'); }}
+                  className="flex items-center gap-4 p-4 border border-[hsl(var(--border)_/_0.5)] rounded-xl hover:border-[hsl(var(--arena-gold)_/_0.5)] hover:bg-[hsl(var(--arena-gold)_/_0.03)] transition-all text-left"
+                >
+                  <div className="p-2.5 rounded-lg bg-[hsl(var(--primary)_/_0.2)]">
+                    <Mic className="w-5 h-5 text-[hsl(var(--primary))]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-mono text-sm font-bold text-foreground">🎙️ Apenas Áudio</p>
+                    <p className="font-mono text-xs text-muted-foreground">Análise vocal: tom, hesitações, cadência</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ─── Phase: Recording ────────────────────────── */}
           {phase === 'record' && (
-            <div className="text-center space-y-6">
-              <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
-                Grave sua provocação (5–20 segundos)
-              </p>
-              
-              {intent && (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[hsl(var(--arena-gold)_/_0.1)] border border-[hsl(var(--arena-gold)_/_0.3)]">
-                  <span className="text-sm">{INTENT_CONFIG[intent].emoji}</span>
-                  <span className="font-mono text-xs text-[hsl(var(--arena-gold))] font-bold">{INTENT_CONFIG[intent].label}</span>
+            <div className="text-center space-y-5">
+              <div className="space-y-1">
+                <p className="font-mono text-sm text-foreground font-bold">
+                  {recordMode === 'video' ? '🎥 Olhe para a câmera e provoque seu oponente' : '🎙️ Fale como se estivesse na mesa'}
+                </p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {recordMode === 'video'
+                    ? 'Mycroft vai analisar suas micro-expressões e coerência facial'
+                    : 'Mycroft vai analisar tom, hesitações e cadência vocal'
+                  }
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
+                {intent && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[hsl(var(--arena-gold)_/_0.1)] border border-[hsl(var(--arena-gold)_/_0.3)]">
+                    <span className="text-sm">{INTENT_CONFIG[intent].emoji}</span>
+                    <span className="font-mono text-xs text-[hsl(var(--arena-gold))] font-bold">{INTENT_CONFIG[intent].label}</span>
+                  </div>
+                )}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/50 border border-border">
+                  {recordMode === 'video' ? <Camera className="w-3 h-3 text-[hsl(var(--success))]" /> : <Mic className="w-3 h-3 text-[hsl(var(--primary))]" />}
+                  <span className="font-mono text-[10px] text-muted-foreground">{recordMode === 'video' ? 'Vídeo' : 'Áudio'}</span>
+                </div>
+              </div>
+
+              {/* Video preview */}
+              {recordMode === 'video' && (
+                <div className="relative w-48 h-36 mx-auto rounded-xl overflow-hidden border border-[hsl(var(--border)_/_0.3)] bg-black/50">
+                  <video ref={videoPreviewRef} muted playsInline className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                  {isRecording && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-[hsl(var(--destructive))] text-white">
+                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      <span className="font-mono text-[9px] font-bold">REC</span>
+                    </div>
+                  )}
+                  {!isRecording && !streamRef.current && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Camera className="w-8 h-8 text-muted-foreground/30" />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -322,7 +422,7 @@ export default function BluffTalkModal({
                 <motion.div
                   animate={isRecording ? { scale: [1, 1.15, 1] } : {}}
                   transition={{ repeat: Infinity, duration: 1.5 }}
-                  className={`w-24 h-24 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+                  className={`w-20 h-20 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                     isRecording
                       ? 'bg-[hsl(var(--destructive))] shadow-[0_0_30px_hsl(var(--destructive)_/_0.5)]'
                       : 'bg-[hsl(var(--arena-gold))] shadow-[0_0_20px_hsl(var(--arena-gold)_/_0.3)]'
@@ -330,9 +430,9 @@ export default function BluffTalkModal({
                   onClick={isRecording ? stopRecording : startRecording}
                 >
                   {isRecording ? (
-                    <MicOff className="w-10 h-10 text-white" />
+                    recordMode === 'video' ? <VideoOff className="w-8 h-8 text-white" /> : <MicOff className="w-8 h-8 text-white" />
                   ) : (
-                    <Mic className="w-10 h-10 text-black" />
+                    recordMode === 'video' ? <Camera className="w-8 h-8 text-black" /> : <Mic className="w-8 h-8 text-black" />
                   )}
                 </motion.div>
               </div>
@@ -352,6 +452,9 @@ export default function BluffTalkModal({
               )}
 
               <div className="flex justify-center gap-3">
+                <Button variant="ghost" onClick={() => setPhase('record_mode')} className="font-mono text-xs text-muted-foreground">
+                  ← Trocar modo
+                </Button>
                 <Button variant="ghost" onClick={() => onComplete(null)} className="font-mono text-xs text-muted-foreground">
                   Pular →
                 </Button>
@@ -367,7 +470,10 @@ export default function BluffTalkModal({
                 Mycroft analisando provocação...
               </p>
               <p className="font-mono text-xs text-muted-foreground">
-                Transcrevendo áudio e simulando reação do oponente
+                {recordMode === 'video'
+                  ? 'Transcrevendo áudio, analisando micro-expressões e simulando reação do oponente'
+                  : 'Transcrevendo áudio e simulando reação do oponente'
+                }
               </p>
             </div>
           )}
