@@ -721,7 +721,7 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
                 </div>
                 <div className="h-4 w-px bg-border" />
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-muted-foreground">Table Talk:</span>
+                  <span className="font-mono text-xs text-muted-foreground">Provocação:</span>
                   <button
                     onClick={() => setBluffTalkEnabled(!bluffTalkEnabled)}
                     className={`font-mono text-xs px-3 py-1 rounded-full transition-all ${bluffTalkEnabled ? 'bg-[hsl(var(--arena-gold)_/_0.2)] text-[hsl(var(--arena-gold))] font-bold' : 'text-muted-foreground'}`}
@@ -905,12 +905,12 @@ const StreetContinuationTraining = ({ onBack }: StreetContinuationProps) => {
             {/* ─── Hórus Trash Talk ──────────────────────── */}
             {showDecision && <HorusTrashTalk active={true} scenarioStartTime={scenarioStartTime.current} />}
 
-            {/* ─── Table Talk Badge ─────────────────────── */}
+            {/* ─── Provocação Badge ─────────────────────── */}
             {showDecision && bluffTalkEnabled && currentStreet !== 'preflop' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[hsl(var(--arena-gold)_/_0.08)] border border-[hsl(var(--arena-gold)_/_0.25)]">
                   <Video className="w-3 h-3 text-[hsl(var(--arena-gold))]" />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Table Talk disponível</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Provocação disponível</span>
                 </div>
               </motion.div>
             )}
