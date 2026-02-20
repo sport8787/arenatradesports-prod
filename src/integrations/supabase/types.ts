@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_response_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          function_name: string
+          hit_count: number
+          id: string
+          response_json: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at?: string
+          function_name: string
+          hit_count?: number
+          id?: string
+          response_json: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          function_name?: string
+          hit_count?: number
+          id?: string
+          response_json?: Json
+        }
+        Relationships: []
+      }
       arena_poker_rankings: {
         Row: {
           apc_balance: number
