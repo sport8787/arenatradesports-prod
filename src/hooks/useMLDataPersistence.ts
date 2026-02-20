@@ -1,6 +1,6 @@
 /**
  * Hook para integrar persistência de dados ML nos fluxos de jogo
- * Gerencia match, recordings e training labels automaticamente
+ * Gerencia match, recordings (com baseline_id) e training labels automaticamente
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -16,6 +16,27 @@ import {
   type RecordingMLData,
 } from '@/services/mlDataPersistenceService';
 import type { VoiceMetrics } from '@/services/audioForensicsService';
+
+export interface SaveRecordingInput {
+  roundNumber: number;
+  audioUrl: string;
+  videoUrl?: string;
+  captureMode: 'audio' | 'video';
+  voiceMetrics: VoiceMetrics;
+  facialAnalysis?: RecordingMLData['facialAnalysis'];
+  questionId?: string;
+  questionDifficulty?: string;
+  questionCategory?: string;
+  answerWasCorrect?: boolean;
+  timeToAnswerMs?: number;
+  mycroftVerdict?: string;
+  mycroftForensicDetails?: string;
+  combinedSuspicionScore?: number;
+  wasBluffing?: boolean;
+  playerName?: string;
+  playerId?: string;
+  baselineId?: string;
+}
 
 interface UseMLDataPersistenceOptions {
   gameMode: 'solo' | 'multiplayer' | 'presenter';
@@ -137,26 +158,7 @@ export function useMLDataPersistence(options: UseMLDataPersistenceOptions): UseM
   }, [matchId]);
 
   // Save recording with all ML data
-  const saveRecording = useCallback(async (data: {
-    roundNumber: number;
-    audioUrl: string;
-    videoUrl?: string;
-    captureMode: 'audio' | 'video';
-    voiceMetrics: VoiceMetrics;
-    facialAnalysis?: RecordingMLData['facialAnalysis'];
-    questionId?: string;
-    questionDifficulty?: string;
-    questionCategory?: string;
-    answerWasCorrect?: boolean;
-    timeToAnswerMs?: number;
-    mycroftVerdict?: string;
-    mycroftForensicDetails?: string;
-    combinedSuspicionScore?: number;
-    wasBluffing?: boolean;
-    playerName?: string;
-    playerId?: string;
-    baselineId?: string;
-  }): Promise<string | null> => {
+  const saveRecording = useCallback(async (data: SaveRecordingInput): Promise<string | null> => {
     const recordingData: RecordingMLData = {
       matchId: matchId || undefined,
       roomId: options.roomId,
