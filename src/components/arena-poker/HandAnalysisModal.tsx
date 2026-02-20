@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Trophy, Target, Eye, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,29 @@ interface AnalysisResult {
   veredito: { nota: number; resumo: string };
   scriptVencedor: { titulo: string; passos: { street: string; acao: string; explicacao: string }[] };
   visaoHorus: { insight: string; leituraVilao: string; conselho: string };
+}
+
+const HORUS_LOADING_PHRASES = [
+  "Paciência… Dissecar uma decisão leva tempo. Ser lido pelo seu oponente é instantâneo.",
+  "Muitos blefam para vencer. Os melhores blefam para sobreviver. Onde você se encaixa?",
+  "Suas cartas dizem uma coisa. Sua agressividade diz outra. Vamos ver o que o Mycroft acha dessa dissonância.",
+  "O feltro não perdoa o ego. Estou vendo se foi ele quem tomou essa decisão por você.",
+  "Cada chip apostado conta uma história. Vamos descobrir se a sua foi ficção ou realidade.",
+  "O vilão não precisa acertar sempre. Ele só precisa acertar quando importa. Será que você fez o mesmo?",
+  "Enquanto você esperava a carta perfeita, o vilão estava lendo suas hesitações.",
+  "Poker não é sobre as cartas que você tem. É sobre a história que você conta. Vamos auditar a sua.",
+  "Relaxe. Até os melhores cometem erros. A diferença é que eles aprendem com cada um deles.",
+  "Estou cruzando os dados com o Mycroft. Ele não perdoa. Eu, talvez, se você merecer.",
+];
+
+function useRotatingPhrase(active: boolean, intervalMs = 4500) {
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * HORUS_LOADING_PHRASES.length));
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setIndex(i => (i + 1) % HORUS_LOADING_PHRASES.length), intervalMs);
+    return () => clearInterval(id);
+  }, [active, intervalMs]);
+  return HORUS_LOADING_PHRASES[index];
 }
 
 interface HandAnalysisModalProps {
@@ -41,6 +64,7 @@ function getScoreBarColor(score: number) {
 const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const horusPhrase = useRotatingPhrase(isLoading);
 
   const runAnalysis = async () => {
     setIsLoading(true);
@@ -154,7 +178,7 @@ const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
               </motion.div>
             )}
 
-            {isLoading && <AnalysisSkeleton />}
+            {isLoading && <AnalysisSkeleton horusPhrase={horusPhrase} />}
 
             {analysis && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -234,9 +258,29 @@ const HandAnalysisModal = ({ hand, onClose }: HandAnalysisModalProps) => {
   );
 };
 
-function AnalysisSkeleton() {
+function AnalysisSkeleton({ horusPhrase }: { horusPhrase: string }) {
   return (
     <div className="space-y-8 animate-in fade-in">
+      {/* Hórus speaking */}
+      <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-5 bg-[hsl(var(--arena-gold)_/_0.04)]">
+        <div className="flex items-center gap-2 mb-3">
+          <Eye className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
+          <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-gold))] font-bold">Hórus diz:</span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={horusPhrase}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.4 }}
+            className="font-mono text-sm text-[hsl(var(--arena-gold))] italic leading-relaxed"
+          >
+            "{horusPhrase}"
+          </motion.p>
+        </AnimatePresence>
+      </div>
+
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Skeleton className="w-5 h-5 rounded bg-[hsl(var(--arena-gold)_/_0.1)]" />
@@ -251,23 +295,9 @@ function AnalysisSkeleton() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="w-5 h-5 rounded bg-[hsl(var(--arena-cyan)_/_0.1)]" />
-          <Skeleton className="h-6 w-52 bg-[hsl(var(--arena-cyan)_/_0.1)]" />
-        </div>
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-20 w-full rounded-lg bg-secondary/30" />
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="w-5 h-5 rounded bg-[hsl(var(--arena-gold)_/_0.1)]" />
-          <Skeleton className="h-6 w-44 bg-[hsl(var(--arena-gold)_/_0.1)]" />
-        </div>
-        <Skeleton className="h-40 w-full rounded-lg bg-[hsl(var(--arena-gold)_/_0.03)]" />
-      </div>
+      {[1, 2, 3].map(i => (
+        <Skeleton key={i} className="h-20 w-full rounded-lg bg-secondary/30" />
+      ))}
 
       <p className="text-center font-mono text-xs text-muted-foreground animate-pulse">
         Mycroft & Hórus analisando esta mão...
