@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.arena-poker-training]
 verify_jwt = false
+
+[functions.arena-poker-trends]
+verify_jwt = false
