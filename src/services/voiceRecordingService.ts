@@ -18,6 +18,7 @@ export interface VoiceRecordingData {
   mycroftVerdict?: string;
   mycroftForensicDetails?: string;
   wasBluffing?: boolean;
+  baselineId?: string;
 }
 
 export interface StoredVoiceRecording {
@@ -97,6 +98,7 @@ export async function saveVoiceRecording(data: VoiceRecordingData): Promise<stri
       // Metadata
       player_name: data.playerName || null,
       session_id: data.sessionId || null,
+      baseline_id: data.baselineId || null,
     };
 
     const { data: result, error } = await supabase

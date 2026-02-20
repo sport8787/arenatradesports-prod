@@ -61,6 +61,7 @@ export interface RecordingMLData {
   playerName?: string;
   sessionId?: string;
   wasBluffing?: boolean;
+  baselineId?: string;
 }
 
 export interface JuryVoteData {
@@ -249,6 +250,7 @@ export async function saveRecordingWithMLData(data: RecordingMLData): Promise<st
       // Metadata
       player_name: data.playerName ?? null,
       session_id: data.sessionId ?? null,
+      baseline_id: data.baselineId ?? null,
     };
 
     const { data: result, error } = await supabase

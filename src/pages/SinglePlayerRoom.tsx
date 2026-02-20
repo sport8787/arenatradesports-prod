@@ -110,7 +110,7 @@ import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryV
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
 // Biometric Calibration (polygraph-style baseline)
 import { BiometricCalibrationFlow } from '@/components/game/BiometricCalibrationFlow';
-import { hasValidBaselineSync, compareToBaseline, getBaselineSummarySync, CALIBRATION_BONUS_BC } from '@/services/biometricCalibrationService';
+import { hasValidBaselineSync, compareToBaseline, getBaselineSummarySync, loadBaselineSync, CALIBRATION_BONUS_BC } from '@/services/biometricCalibrationService';
 // ElevenLabs STT - DISABLED for cost reasons (using free speech fluency metrics instead)
 // import { transcribeAudioFromUrl, calculateSpeechMetrics, type TranscriptionResult } from '@/services/elevenLabsSTTService';
 
@@ -1186,6 +1186,7 @@ function SinglePlayerRoomContent() {
         wasBluffing: !playerAnsweredCorrectly && juryBelieveVotes > 0,
         playerName: displayName,
         playerId: profile?.id,
+        baselineId: loadBaselineSync()?.id,
       });
       
       if (recordingId) {
