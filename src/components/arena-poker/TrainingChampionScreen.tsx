@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 interface TrainingChampionScreenProps {
   wins: number;
   bank: number;
-  apcEarned: number;
+  bcEarned: number;
   onRestart: () => void;
   onBack: () => void;
 }
@@ -74,7 +74,7 @@ function GoldenTicket() {
   );
 }
 
-const TrainingChampionScreen = ({ wins, bank, apcEarned, onRestart, onBack }: TrainingChampionScreenProps) => {
+const TrainingChampionScreen = ({ wins, bank, bcEarned, onRestart, onBack }: TrainingChampionScreenProps) => {
   const [showTicket, setShowTicket] = useState(false);
 
   // Show ticket after initial animation
@@ -140,11 +140,11 @@ const TrainingChampionScreen = ({ wins, bank, apcEarned, onRestart, onBack }: Tr
           <div className="flex items-center justify-center gap-2">
             <Coins className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
             <span className="font-mono text-2xl font-black text-[hsl(var(--arena-gold))]">
-              {bank.toLocaleString()} APC
+              {bank.toLocaleString()} BC
             </span>
           </div>
           <p className="font-mono text-[10px] text-[hsl(var(--arena-gold)_/_0.6)]">
-            +{apcEarned.toLocaleString()} APC salvos no seu perfil
+            +{bcEarned.toLocaleString()} BC creditados na sua carteira
           </p>
         </div>
 
