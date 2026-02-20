@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Target, Brain, Crosshair } from 'lucide-react';
+import { X, Trophy, Target, Brain, Crosshair, Swords } from 'lucide-react';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +41,7 @@ interface HandAnalysisModalProps {
   hand: ParsedHand;
   onClose: () => void;
   onStartTraining?: (handContext: string) => void;
+  onStartStreetTraining?: () => void;
 }
 
 const suitSymbol: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' };
@@ -63,7 +64,7 @@ function getScoreBarColor(score: number) {
   return 'bg-[hsl(var(--destructive))]';
 }
 
-const HandAnalysisModal = ({ hand, onClose, onStartTraining }: HandAnalysisModalProps) => {
+const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraining }: HandAnalysisModalProps) => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const horusPhrase = useRotatingPhrase(isLoading);
@@ -260,18 +261,31 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining }: HandAnalysisModal
                   </div>
                 </section>
 
-                {/* Training Mode Button */}
-                {onStartTraining && (
-                  <div className="text-center pt-4 border-t border-border">
-                    <Button
-                      onClick={() => onStartTraining(hand.raw)}
-                      className="bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(190_100%_50%)] text-black font-bold uppercase tracking-wider font-mono text-sm px-8 py-3"
-                    >
-                      <Crosshair className="w-5 h-5 mr-2" />
-                      Modo Treino
-                    </Button>
-                    <p className="font-mono text-[10px] text-muted-foreground mt-2">
-                      Pratique cenários similares com feedback de Mycroft em tempo real
+                {/* Training Mode Buttons */}
+                {(onStartTraining || onStartStreetTraining) && (
+                  <div className="pt-4 border-t border-border space-y-3">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      {onStartTraining && (
+                        <Button
+                          onClick={() => onStartTraining(hand.raw)}
+                          className="bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(190_100%_50%)] text-black font-bold uppercase tracking-wider font-mono text-sm px-6 py-3"
+                        >
+                          <Crosshair className="w-5 h-5 mr-2" />
+                          Modo Treino
+                        </Button>
+                      )}
+                      {onStartStreetTraining && (
+                        <Button
+                          onClick={onStartStreetTraining}
+                          className="bg-gradient-to-r from-[hsl(var(--arena-gold))] to-[hsl(38_92%_55%)] text-black font-bold uppercase tracking-wider font-mono text-sm px-6 py-3"
+                        >
+                          <Swords className="w-5 h-5 mr-2" />
+                          Street Continuation
+                        </Button>
+                      )}
+                    </div>
+                    <p className="font-mono text-[10px] text-muted-foreground text-center">
+                      Treino: cenários isolados · Street: sobreviva Preflop → River
                     </p>
                   </div>
                 )}
