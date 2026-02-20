@@ -26,8 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     const { messages, handContext } = await req.json();
 
@@ -35,35 +35,26 @@ serve(async (req) => {
       ? `${SYSTEM_PROMPT}\n\nCONTEXTO DA MÃO ANALISADA:\n${handContext}`
       : SYSTEM_PROMPT;
 
-    // Convert OpenAI-style messages to Gemini format
-    const geminiContents = [];
-    
-    // Add system + first user message combined
-    const geminiMessages = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-
-    // Prepend system prompt to first user message
-    if (geminiMessages.length > 0 && geminiMessages[0].role === "user") {
-      geminiMessages[0].parts[0].text = `${systemContent}\n\n${geminiMessages[0].parts[0].text}`;
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    const response = await fetch(url, {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
       body: JSON.stringify({
-        contents: geminiMessages,
-        generationConfig: { temperature: 0.8 },
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemContent },
+          ...messages,
+        ],
+        temperature: 0.8,
       }),
     });
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`Gemini chat error [${status}]:`, body);
+      console.error(`OpenAI chat error [${status}]:`, body);
 
       if (status === 429) {
         return new Response(
@@ -73,15 +64,14 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: "Gemini API error" }),
+        JSON.stringify({ error: "OpenAI API error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sem resposta.";
+    const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
-    // Return as non-streaming JSON (Gemini free tier doesn't support streaming well)
     return new Response(
       JSON.stringify({ content: text }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
