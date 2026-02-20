@@ -1,10 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// ─── Cache helpers ──────────────────────────────────────────
+function getSupabaseAdmin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+}
+
+async function sha256(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function getCache(cacheKey: string) {
+  try {
+    const sb = getSupabaseAdmin();
+    const { data } = await sb
+      .from("ai_response_cache")
+      .select("id, response_json, hit_count")
+      .eq("cache_key", cacheKey)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+    if (data) {
+      await sb.from("ai_response_cache").update({ hit_count: (data.hit_count || 0) + 1 }).eq("id", data.id);
+      console.log(`Cache HIT for key ${cacheKey.slice(0, 12)}...`);
+      return data.response_json;
+    }
+  } catch (e) {
+    console.warn("Cache read error:", e);
+  }
+  return null;
+}
+
+async function setCache(cacheKey: string, functionName: string, response: any) {
+  try {
+    const sb = getSupabaseAdmin();
+    await sb.from("ai_response_cache").upsert({
+      cache_key: cacheKey,
+      function_name: functionName,
+      response_json: response,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }, { onConflict: "cache_key" });
+    console.log(`Cache SET for key ${cacheKey.slice(0, 12)}...`);
+  } catch (e) {
+    console.warn("Cache write error:", e);
+  }
+}
 
 const STREET_ORDER = ["preflop", "flop", "turn", "river"];
 
@@ -301,6 +351,16 @@ serve(async (req) => {
               boardCards, street, potSize, heroStack, villainStack, actionHistory,
               scenarioText, villainAction, playerAction, correctAction, correctActionSet } = body;
       
+      // Cache key based on all decision parameters
+      const evalCacheInput = `eval:${heroCards}:${boardCards}:${street}:${playerAction}:${correctAction}:${potSize}:${villainAction}`;
+      const evalCacheKey = await sha256(evalCacheInput);
+      const cachedEval = await getCache(evalCacheKey);
+      if (cachedEval) {
+        return new Response(JSON.stringify(cachedEval), {
+          headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "HIT" },
+        });
+      }
+
       const prompt = EVALUATE_STREET_PROMPT
         .replace("{heroCards}", heroCards)
         .replace("{positionHero}", positionHero)
@@ -320,8 +380,9 @@ serve(async (req) => {
         .replace("{correctActionSet}", JSON.stringify(correctActionSet || [correctAction]));
 
       const result = await callGeminiAI(prompt);
+      setCache(evalCacheKey, "street-evaluate", result);
       return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" },
       });
     }
 
