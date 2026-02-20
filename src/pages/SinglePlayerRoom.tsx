@@ -104,7 +104,7 @@ import RewardsSummaryPanel from '@/components/game/RewardsSummaryPanel';
 import RewardsBreakdownInline from '@/components/game/RewardsBreakdownInline';
 import LiveBCCounter from '@/components/game/LiveBCCounter';
 // ML Data Persistence for Mycroft training
-import { useMLDataPersistence } from '@/hooks/useMLDataPersistence';
+import { useMLDataPersistence, type SaveRecordingInput } from '@/hooks/useMLDataPersistence';
 // Júri IA - Claude Sonnet 4 powered (Single Player only)
 import { getJuryVerdict, validateJuryApiKey, generateFallbackVerdict, type JuryVerdict, type JuryVoteRequest } from '@/services/juryClaudeService';
 import { JuryVotingPanel } from '@/components/game/JuryVotingPanel';
@@ -1161,7 +1161,7 @@ function SinglePlayerRoomContent() {
       // Calculate believe votes from jury verdict
       const juryBelieveVotes = verdict.votes.filter(v => v.vote === 'CLARO').length;
       
-      const recordingId = await mlPersistence.saveRecording({
+      const recordingInput: SaveRecordingInput = {
         roundNumber: currentRound,
         audioUrl: lastAudioUrl || 'no-audio',
         videoUrl: recordingMode === 'video' ? lastAudioUrl : undefined,
@@ -1187,7 +1187,8 @@ function SinglePlayerRoomContent() {
         playerName: displayName,
         playerId: profile?.id,
         baselineId: loadBaselineSync()?.id,
-      });
+      };
+      const recordingId = await mlPersistence.saveRecording(recordingInput);
       
       if (recordingId) {
         console.log('[ML] ✅ Recording saved for training:', recordingId);
