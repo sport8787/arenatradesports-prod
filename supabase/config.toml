@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.claude-jury]
 verify_jwt = false
+
+[functions.arena-poker-analyze]
+verify_jwt = false
+
+[functions.arena-poker-chat]
+verify_jwt = false
