@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, RotateCcw, Activity, Swords, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Shield, RotateCcw, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -117,32 +117,7 @@ const ArenaPoker = () => {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-4 py-6">
-        {phase === 'import' && (
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-xl p-6 bg-gradient-to-br from-[hsl(var(--arena-gold)_/_0.05)] to-transparent cursor-pointer hover:border-[hsl(var(--arena-gold)_/_0.6)] transition-all group"
-              onClick={() => setPhase('street-training')}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-[hsl(var(--arena-gold)_/_0.15)] flex items-center justify-center group-hover:bg-[hsl(var(--arena-gold)_/_0.25)] transition-colors">
-                  <Swords className="w-6 h-6 text-[hsl(var(--arena-gold))]" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-[hsl(var(--arena-gold))]">
-                    Street Continuation Mode
-                  </h3>
-                  <p className="font-mono text-xs text-muted-foreground mt-1">
-                    Sobreviva 10 decisões críticas sem quebrar. Preflop → Flop → Turn → River.
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-[hsl(var(--arena-gold)_/_0.5)] group-hover:text-[hsl(var(--arena-gold))] transition-colors" />
-              </div>
-            </motion.div>
-            <FileImporter onImport={handleImport} />
-          </div>
-        )}
+        {phase === 'import' && <FileImporter onImport={handleImport} />}
         {phase === 'grid' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <SessionImportSummary hands={hands} />
@@ -156,6 +131,10 @@ const ArenaPoker = () => {
           hand={selectedHand}
           onClose={() => setSelectedHand(null)}
           onStartTraining={startTraining}
+          onStartStreetTraining={() => {
+            setSelectedHand(null);
+            setPhase('street-training');
+          }}
         />
       )}
 
