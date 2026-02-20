@@ -55,11 +55,17 @@ Responda EXATAMENTE no formato JSON:
 {
   "correto": <true ou false>,
   "nota": <0 a 100>,
-  "feedbackMycroft": "<feedback técnico e analítico do Mycroft, 2-3 frases, tom frio e preciso>",
   "feedbackHorus": "<comentário provocativo e curto do Hórus sobre a decisão, 1 frase>",
-  "explicacaoDetalhada": "<explicação completa da jogada ideal com cálculos>",
   "bcGanho": <BC ganhos se correto (50-200), 0 se errado>,
   "bcPerdido": <BC perdidos se errado (100-500), 0 se correto>,
+  "laudoResumo": {
+    "street": "<street da decisão: Preflop|Flop|Turn|River>",
+    "acaoCorreta": "<ação correta curta, ex: 'Fold'>",
+    "situacao": "<1 linha descrevendo board + mão + pot, ex: 'Board: Q♥5♠6♦3♠ | Mão: A4o (gutshot) | Pot: 2100 | Bet: 1110 (53%)'>",
+    "matematica": "<2-3 bullets separados por \\n, ex: 'Equity: 8.5% (4 outs)\\nPot odds: 34.6%\\nGap: -26.1% ❌'>",
+    "conclusao": "<1 frase resumindo o veredito, ex: 'Fold correto. Call seria -950 EV.'>",
+    "analiseCompleta": "<explicação detalhada completa com cálculos para quem quer aprofundar, 3-6 frases>"
+  },
   "evDiferenca": "<diferença de EV entre a jogada feita e a ideal>",
   "perspectivas": {
     "tag": {
@@ -84,7 +90,11 @@ Responda EXATAMENTE no formato JSON:
 
 REGRAS:
 - Se a ação é parcialmente correta (ex: Call ao invés de Raise, mas não Fold), dê crédito parcial.
-- O feedback do Mycroft deve ser técnico e usar termos de poker.
+- O laudoResumo deve ser ESCANEÁVEL — bullets curtos, emojis para visual scanning rápido.
+- situacao deve incluir emojis de naipes (♥♠♦♣) e valores do pot/bet.
+- matematica deve ter no máximo 3 bullets com números claros.
+- conclusao é UMA frase que dá o veredito final.
+- analiseCompleta é o deep-dive para jogadores hardcore.
 - O feedback do Hórus deve ser provocativo mas educativo.
 - As 3 perspectivas devem ser GENUINAMENTE diferentes — TAG é conservador, LAG é exploitativo, GTO é equilibrado.
 - O EV de cada perspectiva deve ser realista e consistente com o cenário.

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, ArrowLeft, Heart, Coins,
+  Shield, ArrowLeft, Heart, Coins, ChevronRight,
   ChevronUp, ChevronDown, Crosshair, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,15 +49,26 @@ interface Perspectivas {
   melhorEstilo: 'tag' | 'lag' | 'gto';
 }
 
+interface LaudoResumo {
+  street: string;
+  acaoCorreta: string;
+  situacao: string;
+  matematica: string;
+  conclusao: string;
+  analiseCompleta: string;
+}
+
 interface EvalResult {
   correto: boolean;
   nota: number;
-  feedbackMycroft: string;
   feedbackHorus: string;
-  explicacaoDetalhada: string;
   bcGanho: number;
   bcPerdido: number;
   evDiferenca: string;
+  laudoResumo?: LaudoResumo;
+  // Legacy fields for backwards compat
+  feedbackMycroft?: string;
+  explicacaoDetalhada?: string;
   perspectivas?: Perspectivas;
 }
 
@@ -78,6 +89,130 @@ function playSound(path: string, volume = 0.4) {
     audio.volume = volume;
     audio.play().catch(() => {});
   } catch {}
+}
+
+// ─── Mycroft Structured Laudo ────────────────────────────────
+function MycroftStructuredLaudo({ evalResult }: { evalResult: EvalResult }) {
+  const [showFull, setShowFull] = useState(false);
+  const laudo = evalResult.laudoResumo;
+
+  // Fallback for legacy responses without laudoResumo
+  if (!laudo) {
+    return (
+      <div className={`border rounded-xl p-5 ${
+        evalResult.correto
+          ? 'border-[hsl(var(--success)_/_0.4)] bg-[hsl(var(--success)_/_0.05)]'
+          : 'border-[hsl(var(--destructive)_/_0.4)] bg-[hsl(var(--destructive)_/_0.05)]'
+      }`}>
+        <div className="flex items-center gap-2 mb-3">
+          <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={20} />
+          <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-cyan))] font-bold">
+            Laudo Pericial — Mycroft 2.0
+          </span>
+          <span className={`ml-auto font-mono text-2xl font-black ${
+            evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
+          }`}>
+            {evalResult.nota}/100
+          </span>
+        </div>
+        {evalResult.feedbackMycroft && <p className="font-mono text-sm text-foreground mb-2">{evalResult.feedbackMycroft}</p>}
+        {evalResult.explicacaoDetalhada && <p className="font-mono text-xs text-muted-foreground">{evalResult.explicacaoDetalhada}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`border rounded-xl overflow-hidden ${
+      evalResult.correto
+        ? 'border-[hsl(var(--success)_/_0.4)] bg-[hsl(var(--success)_/_0.05)]'
+        : 'border-[hsl(var(--destructive)_/_0.4)] bg-[hsl(var(--destructive)_/_0.05)]'
+    }`}>
+      {/* Header */}
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[hsl(var(--border)_/_0.3)]">
+        <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={20} />
+        <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-cyan))] font-bold">
+          {laudo.street} — {laudo.acaoCorreta}
+        </span>
+        <span className={`ml-auto font-mono text-2xl font-black ${
+          evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
+        }`}>
+          {evalResult.nota}/100
+        </span>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {/* 📊 SITUAÇÃO */}
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            📊 <span>Situação</span>
+          </p>
+          <p className="font-mono text-sm text-foreground">{laudo.situacao}</p>
+        </div>
+
+        {/* 📈 MATEMÁTICA */}
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            📈 <span>Matemática</span>
+          </p>
+          <div className="space-y-0.5">
+            {laudo.matematica.split('\n').map((line, i) => (
+              <p key={i} className="font-mono text-xs text-foreground">{line}</p>
+            ))}
+          </div>
+        </div>
+
+        {/* 💡 CONCLUSÃO */}
+        <div className="border-t border-[hsl(var(--border)_/_0.3)] pt-3">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
+            💡 <span>Conclusão</span>
+          </p>
+          <p className={`font-mono text-sm font-bold ${
+            evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
+          }`}>
+            {laudo.conclusao}
+          </p>
+          {evalResult.evDiferenca && (
+            <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.6)] mt-1">
+              EV Diferença: {evalResult.evDiferenca}
+            </p>
+          )}
+        </div>
+
+        {/* Expandable full analysis */}
+        <div className="border-t border-[hsl(var(--border)_/_0.3)] pt-2">
+          <button
+            onClick={() => setShowFull(!showFull)}
+            className="w-full flex items-center justify-between py-2 group"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[hsl(var(--arena-cyan)_/_0.6)] group-hover:text-[hsl(var(--arena-cyan))] transition-colors">
+              Ver Análise Completa
+            </span>
+            <ChevronRight className={`w-3.5 h-3.5 text-[hsl(var(--arena-cyan)_/_0.5)] transition-transform duration-200 ${showFull ? 'rotate-90' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {showFull && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <p className="font-mono text-xs text-muted-foreground pb-3 leading-relaxed">
+                  {laudo.analiseCompleta}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="px-5 py-2 border-t border-[hsl(var(--border)_/_0.15)]">
+        <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.3)] uppercase tracking-widest text-right">
+          Assinado digitalmente — Mycroft 2.0
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // ─── Multi-Perspective Panel ─────────────────────────────────
@@ -606,34 +741,8 @@ const TrainingMode = ({ onBack, handContext }: TrainingModeProps) => {
             <AnimatePresence>
               {evalResult && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                  {/* Mycroft Laudo Pericial */}
-                  <div className={`border rounded-xl p-5 ${
-                    evalResult.correto
-                      ? 'border-[hsl(var(--success)_/_0.4)] bg-[hsl(var(--success)_/_0.05)]'
-                      : 'border-[hsl(var(--destructive)_/_0.4)] bg-[hsl(var(--destructive)_/_0.05)]'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={20} />
-                      <span className="font-mono text-xs uppercase tracking-wider text-[hsl(var(--arena-cyan))] font-bold">
-                        Laudo Pericial — Mycroft 2.0
-                      </span>
-                      <span className={`ml-auto font-mono text-2xl font-black ${
-                        evalResult.correto ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'
-                      }`}>
-                        {evalResult.nota}/100
-                      </span>
-                    </div>
-                    <p className="font-mono text-sm text-foreground mb-2">{evalResult.feedbackMycroft}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{evalResult.explicacaoDetalhada}</p>
-                    {evalResult.evDiferenca && (
-                      <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.6)] mt-2">
-                        EV Diferença: {evalResult.evDiferenca}
-                      </p>
-                    )}
-                    <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.3)] uppercase tracking-widest text-right mt-3">
-                      Assinado digitalmente — Mycroft 2.0
-                    </p>
-                  </div>
+                  {/* Mycroft Laudo Pericial — Structured */}
+                  <MycroftStructuredLaudo evalResult={evalResult} />
 
                   {/* Hórus Comment */}
                   <div className="border border-[hsl(var(--arena-gold)_/_0.3)] rounded-lg p-4 bg-[hsl(var(--arena-gold)_/_0.04)]">
