@@ -53,6 +53,10 @@
     --mycroft-cyan: 180 100% 50%;
     --mycroft-glow: 0 0 30px hsl(142 100% 50% / 0.4);
 
+    /* Arena Poker Colors */
+    --arena-gold: 43 74% 53%;
+    --arena-cyan: 191 100% 50%;
+
     /* Gold Glow */
     --gold-glow: 0 0 40px hsl(43 74% 49% / 0.3);
     
