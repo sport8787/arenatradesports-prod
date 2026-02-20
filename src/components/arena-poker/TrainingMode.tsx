@@ -143,15 +143,23 @@ function MycroftStructuredLaudo({ evalResult }: { evalResult: EvalResult }) {
 
       <div className="px-5 py-4 space-y-4">
         {/* 📊 SITUAÇÃO */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
             📊 <span>Situação</span>
           </p>
           <p className="font-mono text-sm text-foreground">{laudo.situacao}</p>
-        </div>
+        </motion.div>
 
         {/* 📈 MATEMÁTICA */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
             📈 <span>Matemática</span>
           </p>
@@ -160,10 +168,15 @@ function MycroftStructuredLaudo({ evalResult }: { evalResult: EvalResult }) {
               <p key={i} className="font-mono text-xs text-foreground">{line}</p>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* 💡 CONCLUSÃO */}
-        <div className="border-t border-[hsl(var(--border)_/_0.3)] pt-3">
+        <motion.div
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="border-t border-[hsl(var(--border)_/_0.3)] pt-3"
+        >
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
             💡 <span>Conclusão</span>
           </p>
@@ -177,7 +190,7 @@ function MycroftStructuredLaudo({ evalResult }: { evalResult: EvalResult }) {
               EV Diferença: {evalResult.evDiferenca}
             </p>
           )}
-        </div>
+        </motion.div>
 
         {/* Expandable full analysis */}
         <div className="border-t border-[hsl(var(--border)_/_0.3)] pt-2">
