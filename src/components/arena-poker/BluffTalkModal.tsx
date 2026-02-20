@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Video, VideoOff, X, RefreshCw, Lightbulb, Shield, Crosshair, Target, Camera, Eye } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, X, RefreshCw, Lightbulb, Shield, Crosshair, Target, Camera, Eye, Loader2, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -57,6 +57,8 @@ export default function BluffTalkModal({
   const [analysisResult, setAnalysisResult] = useState<BluffAnalysisResult | null>(null);
   const [transcript, setTranscript] = useState('');
   const [recordMode, setRecordMode] = useState<RecordMode>('video');
+  const [mycroftScript, setMycroftScript] = useState<string | null>(null);
+  const [isLoadingScript, setIsLoadingScript] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -89,8 +91,32 @@ export default function BluffTalkModal({
   // ─── Select Intent ────────────────────────────────────────
   const handleIntentSelect = (selectedIntent: Intent) => {
     setIntent(selectedIntent);
+    setMycroftScript(null);
     fetchSuggestions(selectedIntent);
   };
+
+  // ─── Fetch Mycroft Detailed Script ──────────────────────────
+  const fetchMycroftScript = useCallback(async () => {
+    if (!intent) return;
+    setIsLoadingScript(true);
+    setMycroftScript(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('arena-poker-street-training', {
+        body: {
+          action: 'generate_provocation_script',
+          heroCards, boardCards, street, heroAction,
+          intent, villainName, villainProfile,
+        },
+      });
+      if (error) throw error;
+      setMycroftScript(data.script || 'Script indisponível');
+    } catch (err) {
+      console.error('Script error:', err);
+      toast.error('Erro ao gerar script');
+    } finally {
+      setIsLoadingScript(false);
+    }
+  }, [intent, heroCards, boardCards, street, heroAction, villainName, villainProfile]);
 
   // ─── Recording ────────────────────────────────────────────
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
@@ -448,6 +474,50 @@ export default function BluffTalkModal({
                     />
                   </div>
                   <p className="font-mono text-[10px] text-muted-foreground">Máximo: 20 segundos</p>
+                </div>
+              )}
+
+              {/* Mycroft Script Help - only when intent is selected */}
+              {intent && !isRecording && (
+                <div className="w-full space-y-3">
+                  {!mycroftScript && (
+                    <Button
+                      variant="outline"
+                      onClick={fetchMycroftScript}
+                      disabled={isLoadingScript}
+                      className="w-full font-mono text-xs border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                    >
+                      {isLoadingScript ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Mycroft escrevendo roteiro...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquareText className="w-3.5 h-3.5 mr-1.5" /> Pedir ajuda ao Mycroft
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {mycroftScript && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="border border-[hsl(var(--arena-cyan)_/_0.3)] rounded-xl p-4 bg-[hsl(var(--arena-cyan)_/_0.05)] space-y-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <MonocleIcon className="text-[hsl(var(--arena-cyan))]" size={16} />
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-[hsl(var(--arena-cyan))] font-bold">
+                          Roteiro do Mycroft — {INTENT_CONFIG[intent].label}
+                        </span>
+                      </div>
+                      <p className="font-mono text-sm text-foreground leading-relaxed whitespace-pre-wrap italic">
+                        "{mycroftScript}"
+                      </p>
+                      <p className="font-mono text-[9px] text-muted-foreground text-center">
+                        💡 Use como referência, adapte ao seu estilo e grave com naturalidade
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
               )}
 

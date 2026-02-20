@@ -187,6 +187,40 @@ REGRAS:
 - Adapte ao perfil do vilão (não provoque um maniac da mesma forma que um nit).
 - Responda APENAS com JSON válido.`;
 
+const GENERATE_SCRIPT_PROMPT = `Você é Mycroft 2.0, coach de poker e especialista em table talk. O jogador precisa gravar uma provocação de mesa e pediu sua ajuda para montar um ROTEIRO DETALHADO.
+
+Contexto da mão:
+- Mão do herói: {heroCards}
+- Board: {boardCards}
+- Street: {street}
+- Ação do herói: {heroAction}
+- Vilão: {villainName} ({villainProfile})
+
+INTENÇÃO ESCOLHIDA: {intent}
+- "intimidate" = Amedrontar: representar força máxima, fazer o vilão duvidar da própria mão
+- "induce_call" = Induzir Call: parecer fraco/inseguro para que o vilão pague, armadilha clássica
+- "induce_fold" = Induzir Fold: pressão psicológica máxima para forçar o fold
+
+Gere um ROTEIRO COMPLETO e DETALHADO que o jogador deve seguir ao gravar sua provocação. O roteiro deve incluir:
+
+1. **Abertura** — como iniciar a fala (tom de voz, postura, olhar)
+2. **Corpo** — a frase principal adaptada à intenção, com pausas dramáticas marcadas entre parênteses
+3. **Fechamento** — como finalizar (gesto, expressão, silêncio)
+4. **Dicas de atuação** — como modular voz, onde olhar, que expressão facial fazer
+
+Responda EXATAMENTE no formato JSON:
+
+{
+  "script": "<roteiro completo com marcações de pausa e tom, pronto para o jogador ler e atuar, máximo 200 palavras>"
+}
+
+REGRAS:
+- O roteiro deve ser NATURAL, como se fosse uma fala real de mesa.
+- Use marcações como (pausa), (olhe nos olhos), (sorria de canto), (abaixe a voz).
+- Adapte ao perfil do vilão — se ele é TAG, provoque diferente de um calling station.
+- A provocação deve ser COERENTE com a intenção escolhida.
+- Responda APENAS com JSON válido.`;
+
 async function callGeminiAI(prompt: string) {
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
@@ -271,6 +305,24 @@ serve(async (req) => {
       const { heroCards, boardCards, street, heroAction, intent, villainName, villainProfile } = body;
       
       const prompt = SUGGEST_PROVOCATION_PROMPT
+        .replace("{heroCards}", heroCards)
+        .replace("{boardCards}", boardCards || "N/A")
+        .replace("{street}", street)
+        .replace("{heroAction}", heroAction)
+        .replace("{intent}", intent)
+        .replace("{villainName}", villainName)
+        .replace("{villainProfile}", villainProfile || "unknown");
+
+      const result = await callGeminiAI(prompt);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "generate_provocation_script") {
+      const { heroCards, boardCards, street, heroAction, intent, villainName, villainProfile } = body;
+      
+      const prompt = GENERATE_SCRIPT_PROMPT
         .replace("{heroCards}", heroCards)
         .replace("{boardCards}", boardCards || "N/A")
         .replace("{street}", street)
