@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { asset, candles, currentPrice, balance, position, technicalData, isLive, change24h } = await req.json();
+    const { asset, candles, currentPrice, balance, position, technicalData, isLive, change24h, crossAssetData } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get("VITE_ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -22,29 +22,26 @@ serve(async (req) => {
       `O:${c.open} H:${c.high} L:${c.low} C:${c.close} V:${c.volume}`
     ).join(' | ');
 
-    // Pre-compute technical indicators server-side from candle data
     const recentCandles = candles.slice(-5);
     const avgClose = recentCandles.reduce((s: number, c: any) => s + c.close, 0) / recentCandles.length;
     const sentimento = currentPrice > avgClose * 1.01 ? 'Euforia Compradora' :
                        currentPrice < avgClose * 0.99 ? 'Pânico Vendedor' : 'Lateralização Neutra';
 
-    // Determine data provenance
     const dataProvenance = isLive === true ? 'LIVE' : 'SIMULADO';
     const confiancaModifier = dataProvenance === 'SIMULADO' ? 'ATENÇÃO: Dados SIMULADOS. Reduza o peso da confiança em 40%. Trate como cenário de treino.' : 'Dados LIVE confirmados. Análise com confiança total.';
 
-    // Determine institutional flow classification
     const absChange = Math.abs(change24h || 0);
     const isCrypto = asset.category === 'crypto';
+    const isFutures = asset.category === 'futures';
     let classeInstitucional = '';
-    if (isCrypto ? absChange > 5 : absChange > 3) {
+    if (isCrypto ? absChange > 5 : isFutures ? absChange > 1.5 : absChange > 3) {
       classeInstitucional = 'FORÇA INSTITUCIONAL';
-    } else if (absChange >= 1) {
+    } else if (absChange >= 0.5) {
       classeInstitucional = 'MOVIMENTO DE VAREJO/CONSOLIDAÇÃO';
     } else {
       classeInstitucional = 'ARMADILHA DE LIQUIDEZ';
     }
 
-    // Technical indicators summary (from frontend)
     const techSummary = technicalData ? `
 Indicadores Técnicos Pré-Calculados:
 - SMA 9: ${technicalData.sma9 ?? 'N/A'}
@@ -52,6 +49,33 @@ Indicadores Técnicos Pré-Calculados:
 - Bollinger Upper: ${technicalData.bollingerUpper ?? 'N/A'}
 - Bollinger Lower: ${technicalData.bollingerLower ?? 'N/A'}
 - RSI (14): ${technicalData.rsi ?? 'N/A'}
+` : '';
+
+    // Futures-specific rules
+    const futuresRules = isFutures ? `
+📊 REGRAS ESPECIAIS PARA MINI CONTRATOS (${asset.symbol}):
+
+REGRA DA MILHAR:
+- Identifique a milhar mais próxima (múltiplos de ${asset.symbol === 'WIN' ? '1.000' : '50'} pontos).
+- 50 pontos ANTES e DEPOIS da milhar = "ZONA DE GUERRA". O mercado testa essas zonas psicológicas.
+- Se o preço está na Zona de Guerra, indique no campo "zona_milhar".
+
+STOP CURTO OBRIGATÓRIO:
+- Mini Índice (WIN): NUNCA sugira stop > 150 pontos. Se o risco for maior, descarte a operação por "Falta de RRR".
+- Mini Dólar (WDO): NUNCA sugira stop > 5 pontos. Se o risco for maior, descarte a operação por "Falta de RRR".
+- O Valor do Ponto: WIN = R$0,20 | WDO = R$10,00.
+
+CORRELAÇÃO FORENSE ÍNDICE vs DÓLAR:
+${crossAssetData ? `
+- WIN (Mini Índice): Preço ${crossAssetData.winPrice ?? 'N/A'} | Variação 24h: ${crossAssetData.winChange?.toFixed(2) ?? 'N/A'}%
+- WDO (Mini Dólar): Preço ${crossAssetData.wdoPrice ?? 'N/A'} | Variação 24h: ${crossAssetData.wdoChange?.toFixed(2) ?? 'N/A'}%
+- Se ambos sobem juntos (correlação positiva atípica): Classifique como "ZONA DE ARMADILHA — Divergência Atípica".
+- Se o Dólar BR sobe contra o movimento global (DXY estável ou caindo): Avise sobre "INTERVENÇÃO ou PÂNICO LOCAL".
+` : 'Dados de correlação indisponíveis.'}
+
+SCRIPT DO HÓRUS PARA FUTUROS:
+- Foque no Stop Loss. Exemplo: "Israel, o Mycroft posicionou o seu Stop na máxima do candle anterior. Se o Índice falhar na milhar, o elevador vai descer sem nós. Está pronto?"
+- Se entrar em Zona de Guerra da Milhar: "Atenção! Zona de Guerra nos ${currentPrice.toLocaleString()}. Liquidez armadilhada. O Mycroft está de olho."
 ` : '';
 
     const systemPrompt = `Você é o Mycroft Trader, o módulo de inteligência forense financeira do ecossistema 'Blefador Milionário'. Você opera como um analista institucional de alta precisão.
@@ -81,23 +105,15 @@ Toda sugestão DEVE vir com Position Sizing rigoroso:
 📈 INTERPRETAÇÃO DE FLUXO INSTITUCIONAL (variação 24h = ${(change24h || 0).toFixed(2)}%):
 Classificação atual: ${classeInstitucional}.
 
-Lógica:
-- Variação > ${isCrypto ? '5%' : '3%'}: FORÇA INSTITUCIONAL. Dinheiro grosso no jogo. Positiva = baleias acumulando. Negativa = elevador ativado.
-- Variação 1-${isCrypto ? '5%' : '3%'}: MOVIMENTO DE VAREJO/CONSOLIDAÇÃO. Ruído. Não tome decisões agressivas.
-- Variação < 1% com alto sentimento: ARMADILHA DE LIQUIDEZ. Mercado parado mas sentimento alto = blefe de rompimento falso.
-
-Script do Vencedor (OBRIGATÓRIO no campo script_horus):
-- Se variação positiva E preço > SMA 21: "Israel, o Mycroft detectou que as instituições estão sustentando o preço. A escada está sendo construída. Manter Swing Trade."
-- Se variação negativa e brusca: "O elevador foi ativado. O Mycroft sugere aguardar o reteste no suporte antes de alocar os próximos 50 mil."
-- Adapte o script com dados reais do ativo.
+${futuresRules}
 
 ${techSummary}
 
 RETORNE estritamente um JSON válido:
 {
   "status_mercado": "BUY THE DIP" ou "HOLD" ou "SELL" ou "SHORT",
-  "analise_forense": "Texto técnico de até 400 caracteres. Comece pela confluência técnica detectada.",
-  "script_horus": "Texto provocativo para o Hórus, máximo 2 frases. DEVE incorporar a leitura institucional.",
+  "analise_forense": "Texto técnico de até 400 caracteres.",
+  "script_horus": "Texto provocativo para o Hórus, máximo 2 frases. ${isFutures ? 'FOQUE no Stop Loss e nas zonas de milhar.' : 'DEVE incorporar a leitura institucional.'}",
   "niveis_criticos": {
     "suporte": <número>,
     "resistencia": <número>
@@ -106,9 +122,9 @@ RETORNE estritamente um JSON válido:
   "blefe_de_mercado": true ou false,
   "volume_real_pct": <número 0-100>,
   "volume_burburinho_pct": <número 0-100>,
-  "recomendacao_aporte": "Texto curto com size exato, SL e TP. Ex: 'Entry: 5.000 TC (1% risco). SL: 340K. TP: 380K.'",
-  "confluencia_score": <número 0-4 indicando quantos indicadores confirmam>,
-  "indicadores_confirmados": ["lista dos indicadores que confirmam o sinal"],
+  "recomendacao_aporte": "Texto curto com size exato, SL e TP.",
+  "confluencia_score": <número 0-4>,
+  "indicadores_confirmados": ["lista dos indicadores que confirmam"],
   "status_institucional": "ACUMULAÇÃO" ou "DISTRIBUIÇÃO" ou "NEUTRO",
   "classe_fluxo": "${classeInstitucional}",
   "position_sizing": {
@@ -116,14 +132,16 @@ RETORNE estritamente um JSON válido:
     "size_sugerido_tc": <número>,
     "sl_preco": <número>,
     "tp_preco": <número>,
-    "rr_ratio": <número risk/reward>
+    "rr_ratio": <número>
   },
   "proveniencia": "${dataProvenance}",
-  "confianca_analise": <número 0-100, reduzido em 40% se SIMULADO>
+  "confianca_analise": <número 0-100>
+  ${isFutures ? `,"zona_milhar": { "milhar_proxima": <número>, "distancia_pontos": <número>, "status": "ZONA DE GUERRA" ou "FORA DA ZONA" }, "correlacao_indice_dolar": "NORMAL" ou "DIVERGÊNCIA ATÍPICA" ou "INTERVENÇÃO LOCAL", "stop_max_pontos": ${asset.symbol === 'WIN' ? 150 : 5}` : ''}
 }`;
 
     const userMessage = `Analise o ativo ${asset.symbol} (${asset.name}) no valor de ${currentPrice}.
-Categoria: ${asset.category === 'crypto' ? 'Criptomoeda' : 'Ação BR'}.
+Categoria: ${isCrypto ? 'Criptomoeda' : isFutures ? 'Mini Contrato Futuro B3' : 'Ação BR'}.
+${isFutures ? `Valor do ponto: R$${asset.pointValue?.toFixed(2) || '0.20'}.` : ''}
 Sentimento atual: ${sentimento}.
 Variação 24h: ${(change24h || 0).toFixed(2)}%.
 Proveniência dos dados: ${dataProvenance}.
@@ -142,7 +160,7 @@ Forneça o relatório forense completo em JSON.`;
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 900,
+        max_tokens: 1100,
         system: systemPrompt,
         messages: [
           { role: 'user', content: userMessage }
@@ -166,7 +184,6 @@ Forneça o relatório forense completo em JSON.`;
 
     console.log("Mycroft Trader Forense raw:", textContent);
 
-    // Extract JSON from response
     let jsonStr = textContent;
     const jsonMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
@@ -176,16 +193,10 @@ Forneça o relatório forense completo em JSON.`;
     const parsed = JSON.parse(jsonStr);
 
     const stressToRisk: Record<string, number> = {
-      'Baixo': 3,
-      'Médio': 6,
-      'Crítico': 9,
+      'Baixo': 3, 'Médio': 6, 'Crítico': 9,
     };
-
     const statusToTrend: Record<string, string> = {
-      'BUY THE DIP': 'bullish',
-      'HOLD': 'bearish',
-      'SELL': 'bearish',
-      'SHORT': 'bearish',
+      'BUY THE DIP': 'bullish', 'HOLD': 'bearish', 'SELL': 'bearish', 'SHORT': 'bearish',
     };
 
     const result = {
@@ -201,7 +212,6 @@ Forneça o relatório forense completo em JSON.`;
         volumeReal: parsed.volume_real_pct ?? 50,
         volumeBurburinho: parsed.volume_burburinho_pct ?? 50,
         recomendacaoAporte: parsed.recomendacao_aporte || null,
-        // New forensic fields
         confluenciaScore: parsed.confluencia_score ?? 0,
         indicadoresConfirmados: parsed.indicadores_confirmados || [],
         statusInstitucional: parsed.status_institucional || 'NEUTRO',
@@ -209,6 +219,10 @@ Forneça o relatório forense completo em JSON.`;
         positionSizing: parsed.position_sizing || null,
         proveniencia: parsed.proveniencia || dataProvenance,
         confiancaAnalise: parsed.confianca_analise ?? 50,
+        // Futures-specific
+        zonaMilhar: parsed.zona_milhar || null,
+        correlacaoIndiceDolar: parsed.correlacao_indice_dolar || null,
+        stopMaxPontos: parsed.stop_max_pontos || null,
       },
       horus: parsed.script_horus || 'O mercado está em silêncio... Mas isso nunca dura.',
     };
@@ -221,20 +235,13 @@ Forneça o relatório forense completo em JSON.`;
 
     return new Response(JSON.stringify({
       mycroft: {
-        support: 0,
-        resistance: 0,
-        trend: "bearish",
+        support: 0, resistance: 0, trend: "bearish",
         verdict: "Análise temporariamente indisponível. Opere com cautela.",
-        riskLevel: 5,
-        statusMercado: "HOLD",
-        alertaEstresse: "Médio",
-        confluenciaScore: 0,
-        indicadoresConfirmados: [],
-        statusInstitucional: "NEUTRO",
-        classeFluxo: "NEUTRO",
-        positionSizing: null,
-        proveniencia: "SIMULADO",
-        confiancaAnalise: 30,
+        riskLevel: 5, statusMercado: "HOLD", alertaEstresse: "Médio",
+        confluenciaScore: 0, indicadoresConfirmados: [],
+        statusInstitucional: "NEUTRO", classeFluxo: "NEUTRO",
+        positionSizing: null, proveniencia: "SIMULADO", confiancaAnalise: 30,
+        zonaMilhar: null, correlacaoIndiceDolar: null, stopMaxPontos: null,
       },
       horus: "O sistema está sobrecarregado... Mas um trader de verdade não depende de análises para agir.",
     }), {

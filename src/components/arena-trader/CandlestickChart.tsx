@@ -50,7 +50,19 @@ export default function CandlestickChart({ candles, asset, position, support, re
     return mainHeight - pad - ((price - yMin) / (yMax - yMin)) * (mainHeight - pad * 2);
   };
 
-  const formatPrice = (p: number) => asset.category === 'crypto' ? p.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) : p.toFixed(2);
+  const formatPrice = (p: number) => asset.category === 'crypto' ? p.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) : asset.category === 'futures' ? p.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) : p.toFixed(2);
+
+  // Milhar lines for futures
+  const milharLines = useMemo(() => {
+    if (asset.category !== 'futures') return [];
+    const step = asset.symbol === 'WIN' ? 1000 : 50; // milhar step
+    const lines: number[] = [];
+    const startMilhar = Math.floor(yMin / step) * step;
+    for (let m = startMilhar; m <= yMax; m += step) {
+      if (m >= yMin && m <= yMax) lines.push(m);
+    }
+    return lines;
+  }, [asset, yMin, yMax]);
 
   const yLabels = useMemo(() => {
     const count = 6;
@@ -96,6 +108,16 @@ export default function CandlestickChart({ candles, asset, position, support, re
             <line x1="60" y1={l.y} x2={width - 10} y2={l.y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
             <text x="55" y={l.y + 4} fill="rgba(255,255,255,0.3)" fontSize="10" textAnchor="end" fontFamily="monospace">
               {formatPrice(l.price)}
+            </text>
+          </g>
+        ))}
+
+        {/* Milhar Lines (futures only) */}
+        {milharLines.map((m, i) => (
+          <g key={`milhar-${i}`}>
+            <line x1="60" y1={toY(m)} x2={width - 10} y2={toY(m)} stroke="rgba(245,158,11,0.25)" strokeWidth="1.5" strokeDasharray="8,6" />
+            <text x={width - 8} y={toY(m) - 3} fill="rgba(245,158,11,0.5)" fontSize="8" textAnchor="end" fontFamily="monospace" fontWeight="bold">
+              {m.toLocaleString('pt-BR')}
             </text>
           </g>
         ))}

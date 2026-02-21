@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap, RefreshCw, Hash } from 'lucide-react';
 import type { Asset, TradePosition } from '@/pages/ArenaTrader';
 
 interface TradePanelProps {
@@ -10,6 +10,7 @@ interface TradePanelProps {
   unrealizedPnl: number;
   onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage?: number) => void;
   onClosePosition: () => void;
+  onInvertPosition?: () => void;
   asset: Asset;
 }
 
@@ -20,15 +21,60 @@ const TRADE_AMOUNTS = [
   { label: '100K', value: 100000 },
 ];
 
+const CONTRACT_OPTIONS = [1, 2, 5, 10];
 const LEVERAGE_OPTIONS = [1, 2, 5, 10];
 
-export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, asset }: TradePanelProps) {
+function FuturesContractSelector({ contracts, setContracts, pointValue, currentPrice }: {
+  contracts: number; setContracts: (n: number) => void; pointValue: number; currentPrice: number;
+}) {
+  const totalExposure = contracts * currentPrice * pointValue;
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Hash className="w-3.5 h-3.5 text-amber-400" />
+        <span className="text-xs font-bold text-white/60">Nº de Contratos</span>
+        <span className="text-[10px] text-amber-400/70 ml-auto">
+          Exposição: R$ {totalExposure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        {CONTRACT_OPTIONS.map((n) => (
+          <button
+            key={n}
+            onClick={() => setContracts(n)}
+            className={`
+              flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
+              ${contracts === n
+                ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
+                : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
+              }
+            `}
+          >
+            {n}x
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 text-[9px] text-white/30">
+        Valor do ponto: R$ {pointValue.toFixed(2)}
+      </div>
+    </div>
+  );
+}
+
+export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, onInvertPosition, asset }: TradePanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(25000);
   const [slEnabled, setSlEnabled] = useState(false);
   const [tpEnabled, setTpEnabled] = useState(false);
   const [slPercent, setSlPercent] = useState(3);
   const [tpPercent, setTpPercent] = useState(5);
   const [leverage, setLeverage] = useState(1);
+  const [contracts, setContracts] = useState(1);
+
+  const isFutures = asset.category === 'futures';
+
+  // For futures, amount is based on contracts * margin (approx 15% of notional)
+  const futuresMargin = isFutures ? Math.floor(contracts * currentPrice * (asset.pointValue || 1) * 0.15) : 0;
+  const effectiveAmount = isFutures ? Math.max(futuresMargin, 5000) : selectedAmount;
 
   const computeSL = () => slEnabled ? +(currentPrice * (1 - slPercent / 100)).toFixed(2) : undefined;
   const computeTP = () => tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
@@ -77,15 +123,30 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
               ({unrealizedPnl >= 0 ? '+' : ''}{pnlPercent}%)
             </div>
           </div>
-          <motion.button
-            onClick={onClosePosition}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-orbitron font-bold text-sm rounded-xl transition-colors flex items-center gap-2"
-          >
-            <X className="w-4 h-4" />
-            FECHAR POSIÇÃO
-          </motion.button>
+          <div className="flex items-center gap-2">
+            {/* Position Inversion Button (essential for Day Trade) */}
+            {isFutures && onInvertPosition && (
+              <motion.button
+                onClick={onInvertPosition}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 py-3 bg-purple-600 hover:bg-purple-500 text-white font-orbitron font-bold text-[10px] rounded-xl transition-colors flex items-center gap-1.5"
+                title="Inverter Posição"
+              >
+                <RefreshCw className="w-4 h-4" />
+                INVERTER
+              </motion.button>
+            )}
+            <motion.button
+              onClick={onClosePosition}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-orbitron font-bold text-sm rounded-xl transition-colors flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              FECHAR
+            </motion.button>
+          </div>
         </div>
       </motion.div>
     );
@@ -93,71 +154,85 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
 
   return (
     <div className="mt-3 bg-[#111111] border border-amber-900/30 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-amber-400/60" />
-          <span className="text-xs text-white/40">Volume da operação:</span>
-        </div>
-        <span className="font-orbitron text-xs text-amber-400">{selectedAmount.toLocaleString()} BC</span>
-      </div>
+      {/* Futures: Contract selector */}
+      {isFutures ? (
+        <FuturesContractSelector
+          contracts={contracts}
+          setContracts={setContracts}
+          pointValue={asset.pointValue || 1}
+          currentPrice={currentPrice}
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-amber-400/60" />
+              <span className="text-xs text-white/40">Volume da operação:</span>
+            </div>
+            <span className="font-orbitron text-xs text-amber-400">{selectedAmount.toLocaleString()} BC</span>
+          </div>
 
-      {/* Amount selector */}
-      <div className="flex gap-2 mb-3">
-        {TRADE_AMOUNTS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setSelectedAmount(opt.value)}
-            disabled={opt.value > balance}
-            className={`
-              flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
-              ${selectedAmount === opt.value
-                ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
-                : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
-              }
-              disabled:opacity-30 disabled:cursor-not-allowed
-            `}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+          {/* Amount selector */}
+          <div className="flex gap-2 mb-3">
+            {TRADE_AMOUNTS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedAmount(opt.value)}
+                disabled={opt.value > balance}
+                className={`
+                  flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
+                  ${selectedAmount === opt.value
+                    ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
+                    : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
+                  }
+                  disabled:opacity-30 disabled:cursor-not-allowed
+                `}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
-      {/* Leverage selector */}
-      <div className="mb-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Zap className={`w-3.5 h-3.5 ${leverage > 1 ? 'text-amber-400' : 'text-white/30'}`} />
-          <span className="text-xs font-bold text-white/60">Alavancagem</span>
-          {leverage > 1 && (
-            <span className="text-[10px] text-amber-400/70 ml-auto">
-              ⚠ Liq. ~R$ {liquidationPrice?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </span>
+      {/* Leverage selector (non-futures only, futures use contracts) */}
+      {!isFutures && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Zap className={`w-3.5 h-3.5 ${leverage > 1 ? 'text-amber-400' : 'text-white/30'}`} />
+            <span className="text-xs font-bold text-white/60">Alavancagem</span>
+            {leverage > 1 && (
+              <span className="text-[10px] text-amber-400/70 ml-auto">
+                ⚠ Liq. ~R$ {liquidationPrice?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {LEVERAGE_OPTIONS.map((lev) => (
+              <button
+                key={lev}
+                onClick={() => setLeverage(lev)}
+                className={`
+                  flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
+                  ${leverage === lev
+                    ? lev >= 5
+                      ? 'bg-red-500/20 border border-red-500/50 text-red-400'
+                      : 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
+                    : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
+                  }
+                `}
+              >
+                {lev}x
+              </button>
+            ))}
+          </div>
+          {leverage >= 5 && (
+            <p className="text-[10px] text-red-400/70 mt-1.5 italic">
+              ⚡ Alavancagem alta — risco exponencial de liquidação forçada
+            </p>
           )}
         </div>
-        <div className="flex gap-2">
-          {LEVERAGE_OPTIONS.map((lev) => (
-            <button
-              key={lev}
-              onClick={() => setLeverage(lev)}
-              className={`
-                flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
-                ${leverage === lev
-                  ? lev >= 5
-                    ? 'bg-red-500/20 border border-red-500/50 text-red-400'
-                    : 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
-                  : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
-                }
-              `}
-            >
-              {lev}x
-            </button>
-          ))}
-        </div>
-        {leverage >= 5 && (
-          <p className="text-[10px] text-red-400/70 mt-1.5 italic">
-            ⚡ Alavancagem alta — risco exponencial de liquidação forçada
-          </p>
-        )}
-      </div>
+      )}
 
       {/* SL/TP Controls */}
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -170,7 +245,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
           {slEnabled && (
             <div className="flex items-center gap-2">
               <input
-                type="range" min="1" max="10" step="0.5"
+                type="range" min="1" max={isFutures ? 2 : 10} step="0.5"
                 value={slPercent} onChange={(e) => setSlPercent(+e.target.value)}
                 className="flex-1 h-1 accent-red-500"
               />
@@ -201,8 +276,8 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
       {/* Buy/Sell buttons */}
       <div className="grid grid-cols-2 gap-3">
         <motion.button
-          onClick={() => onOpenPosition('long', selectedAmount, computeSL(), computeTP(), leverage)}
-          disabled={selectedAmount > balance}
+          onClick={() => onOpenPosition('long', effectiveAmount, computeSL(), computeTP(), isFutures ? 1 : leverage)}
+          disabled={effectiveAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="
@@ -220,8 +295,8 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </motion.button>
 
         <motion.button
-          onClick={() => onOpenPosition('short', selectedAmount, computeShortSL(), computeShortTP(), leverage)}
-          disabled={selectedAmount > balance}
+          onClick={() => onOpenPosition('short', effectiveAmount, computeShortSL(), computeShortTP(), isFutures ? 1 : leverage)}
+          disabled={effectiveAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="

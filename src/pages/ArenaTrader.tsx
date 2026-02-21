@@ -13,6 +13,7 @@ import TradePanel from '@/components/arena-trader/TradePanel';
 import TraderBalanceHeader from '@/components/arena-trader/TraderBalanceHeader';
 import SimulationControls from '@/components/arena-trader/SimulationControls';
 import IndicatorToggles from '@/components/arena-trader/IndicatorToggles';
+import MilharPressureMeter from '@/components/arena-trader/MilharPressureMeter';
 import MarketEventOverlay, { type MarketEvent } from '@/components/arena-trader/MarketEventOverlay';
 import StressLevelIndicator from '@/components/arena-trader/StressLevelIndicator';
 import AchievementsPanel from '@/components/arena-trader/AchievementsPanel';
@@ -32,7 +33,9 @@ export interface Asset {
   symbol: string;
   basePrice: number;
   volatility: number;
-  category: 'crypto' | 'stock';
+  category: 'crypto' | 'stock' | 'futures';
+  pointValue?: number; // R$ per point (futures only)
+  tickerPrefix?: string; // For dynamic ticker (e.g. 'WIN', 'WDO')
 }
 
 export const ASSETS: Asset[] = [
@@ -40,6 +43,8 @@ export const ASSETS: Asset[] = [
   { id: 'petr4', name: 'Petrobras', symbol: 'PETR4', basePrice: 38.50, volatility: 0.025, category: 'stock' },
   { id: 'vale3', name: 'Vale', symbol: 'VALE3', basePrice: 62.80, volatility: 0.03, category: 'stock' },
   { id: 'itub4', name: 'Itaú', symbol: 'ITUB4', basePrice: 34.20, volatility: 0.02, category: 'stock' },
+  { id: 'win', name: 'Mini Índice', symbol: 'WIN', basePrice: 131000, volatility: 0.008, category: 'futures', pointValue: 0.20, tickerPrefix: 'WIN' },
+  { id: 'wdo', name: 'Mini Dólar', symbol: 'WDO', basePrice: 5650, volatility: 0.006, category: 'futures', pointValue: 10.00, tickerPrefix: 'WDO' },
 ];
 
 export interface Candle {
@@ -359,6 +364,14 @@ export default function ArenaTrader() {
 
       const change24h = livePrices[selectedAsset.symbol]?.change24h ?? 0;
 
+      // Cross-asset correlation data for futures
+      const crossAssetData = selectedAsset.category === 'futures' ? {
+        winPrice: livePrices['WIN']?.price ?? null,
+        wdoPrice: livePrices['WDO']?.price ?? null,
+        winChange: livePrices['WIN']?.change24h ?? null,
+        wdoChange: livePrices['WDO']?.change24h ?? null,
+      } : null;
+
       const { data, error } = await supabase.functions.invoke('arena-trader-analyze', {
         body: {
           asset: selectedAsset,
@@ -369,6 +382,7 @@ export default function ArenaTrader() {
           technicalData,
           isLive,
           change24h,
+          crossAssetData,
         },
       });
       if (error) throw error;
@@ -525,6 +539,20 @@ export default function ArenaTrader() {
     await closePositionByIndex(idx);
   };
 
+  // Invert position (close current + open opposite) — essential for day trade futures
+  const invertPosition = async () => {
+    const idx = positions.findIndex(p => p.asset.symbol === selectedAsset.symbol);
+    if (idx === -1) return;
+    const pos = positions[idx];
+    const newType = pos.type === 'long' ? 'short' : 'long';
+    await closePositionByIndex(idx);
+    // Open opposite with same amount
+    setTimeout(() => {
+      openPosition(newType, pos.amount, pos.stopLoss, pos.takeProfit, pos.leverage);
+      setHorusMessage(`🔄 Inversão executada! Agora ${newType.toUpperCase()} em ${selectedAsset.symbol}. Coragem ou loucura?`);
+    }, 100);
+  };
+
   // Share trade to social feed
   const shareTradeToFeed = async (trade: { pnl: number; asset: string; type: string }, comment?: string) => {
     if (!isAuthenticated || !profile) {
@@ -637,6 +665,17 @@ export default function ArenaTrader() {
               />
             </div>
 
+            {/* Milhar Pressure Meter (futures only) */}
+            {selectedAsset.category === 'futures' && (
+              <div className="mt-2">
+                <MilharPressureMeter
+                  currentPrice={currentPrice}
+                  milharStep={selectedAsset.symbol === 'WIN' ? 1000 : 50}
+                  symbol={selectedAsset.symbol}
+                />
+              </div>
+            )}
+
             <TradePanel
               balance={balance}
               position={position}
@@ -644,6 +683,7 @@ export default function ArenaTrader() {
               unrealizedPnl={unrealizedPnl}
               onOpenPosition={openPosition}
               onClosePosition={closePosition}
+              onInvertPosition={selectedAsset.category === 'futures' ? invertPosition : undefined}
               asset={selectedAsset}
             />
 

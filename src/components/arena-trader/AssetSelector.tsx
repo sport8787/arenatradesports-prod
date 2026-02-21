@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Bitcoin, Building2, Wifi, WifiOff } from 'lucide-react';
+import { Bitcoin, Building2, Wifi, WifiOff, BarChart3 } from 'lucide-react';
 import type { Asset } from '@/pages/ArenaTrader';
 import type { LivePrices } from '@/hooks/useLivePrices';
 
@@ -55,10 +55,12 @@ export default function AssetSelector({ assets, selectedAsset, onSelect, current
               `}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                asset.category === 'crypto' ? 'bg-orange-500/20' : 'bg-blue-500/20'
+                asset.category === 'crypto' ? 'bg-orange-500/20' : asset.category === 'futures' ? 'bg-amber-500/20' : 'bg-blue-500/20'
               }`}>
                 {asset.category === 'crypto' ? (
                   <Bitcoin className="w-4 h-4 text-orange-400" />
+                ) : asset.category === 'futures' ? (
+                  <BarChart3 className="w-4 h-4 text-amber-400" />
                 ) : (
                   <Building2 className="w-4 h-4 text-blue-400" />
                 )}
