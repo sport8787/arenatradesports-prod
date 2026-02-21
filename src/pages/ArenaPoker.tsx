@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, RotateCcw, Activity } from 'lucide-react';
+import { ArrowLeft, Shield, RotateCcw, Activity, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -10,6 +10,7 @@ import HandAnalysisModal from '@/components/arena-poker/HandAnalysisModal';
 import TrainingMode from '@/components/arena-poker/TrainingMode';
 import TrendsAlertPanel from '@/components/arena-poker/TrendsAlertPanel';
 import StreetContinuationTraining from '@/components/arena-poker/StreetContinuationTraining';
+import TournamentAnalysisModal from '@/components/arena-poker/TournamentAnalysisModal';
 import { parseSessionFile, parseHandHistory, type ParsedHand } from '@/lib/handHistoryParser';
 import { toast } from 'sonner';
 
@@ -22,6 +23,7 @@ const ArenaPoker = () => {
   const [selectedHand, setSelectedHand] = useState<ParsedHand | null>(null);
   const [trainingContext, setTrainingContext] = useState<string | undefined>();
   const [showTrends, setShowTrends] = useState(false);
+  const [showTournament, setShowTournament] = useState(false);
 
   const handleImport = (content: string) => {
     const parsed = parseSessionFile(content);
@@ -91,6 +93,15 @@ const ArenaPoker = () => {
           </div>
           {phase === 'grid' && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTournament(true)}
+                className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-gold)_/_0.4)] text-[hsl(var(--arena-gold))] hover:bg-[hsl(var(--arena-gold)_/_0.1)]"
+              >
+                <Trophy className="w-3 h-3 mr-1.5" />
+                Análise do Torneio
+              </Button>
               {hands.length >= 3 && (
                 <Button
                   variant="outline"
@@ -142,6 +153,13 @@ const ArenaPoker = () => {
         <TrendsAlertPanel
           hands={hands}
           onClose={() => setShowTrends(false)}
+        />
+      )}
+
+      {showTournament && (
+        <TournamentAnalysisModal
+          hands={hands}
+          onClose={() => setShowTournament(false)}
         />
       )}
     </div>
