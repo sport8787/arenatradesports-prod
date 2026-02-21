@@ -74,7 +74,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
       const ext = file.name.split('.').pop()?.toLowerCase();
       
       if (!['txt', 'md', 'csv', 'pdf'].includes(ext || '')) {
-        toast({ title: `❌ ${file.name}: formato não suportado. Use .txt, .md ou .csv`, variant: 'destructive' });
+        toast({ title: `❌ ${file.name}: formato não suportado. Use .txt, .md, .csv ou .pdf`, variant: 'destructive' });
         continue;
       }
 
@@ -206,7 +206,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".txt,.md,.csv"
+                        accept=".txt,.md,.csv,.pdf"
                         multiple
                         onChange={handleUpload}
                         className="hidden"
@@ -217,7 +217,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] hover:bg-amber-500/20 transition-colors disabled:opacity-50"
                       >
                         {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                        Upload (.txt, .md, .csv)
+                        Upload (.txt, .md, .csv, .pdf)
                       </button>
                     </div>
 
@@ -235,7 +235,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                     )}
 
                     <p className="text-[9px] text-white/30">
-                      💡 Dica: Converta seus PDFs para .txt antes de enviar. O Mycroft usará o conteúdo como referência nas análises.
+                      💡 Envie seus PDFs de cursos e livros de trade. O Mycroft extrairá o conteúdo automaticamente para usar como referência nas análises.
                     </p>
                   </motion.div>
                 )}
