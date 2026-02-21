@@ -93,11 +93,16 @@
 
 ---
 
-## 📋 FASE 4 — Dados Reais e Social
+## 📋 FASE 4 — Dados Reais e Social (Parcial)
 
-### 4.1 — Preços Reais (API CoinGecko/Yahoo)
-- Integrar API pública para BTC com preço real
-- Indicador "LIVE" vs "SIMULADO" no gráfico
+### 4.1 — Preços Reais (API CoinGecko + Brapi) ✅
+- ✅ Edge function fetch-live-prices busca BTC via CoinGecko e PETR4/VALE3/ITUB4 via Brapi
+- ✅ Polling automático a cada 60s com hook useLivePrices
+- ✅ Indicador LIVE/SIMULADO no AssetSelector
+- ✅ Preço sobe → ciano; preço desce → vermelho neon
+- ✅ Variação 24h exibida por ativo
+- ✅ Candles gerados a partir do preço real como seed
+- ✅ Preço real passado ao Mycroft Trader para análise
 
 ### 4.2 — Múltiplas Posições Simultâneas
 - Abrir posições em ativos diferentes
