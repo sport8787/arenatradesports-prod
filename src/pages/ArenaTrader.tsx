@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BarChart3, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -15,7 +15,11 @@ import SimulationControls from '@/components/arena-trader/SimulationControls';
 import IndicatorToggles from '@/components/arena-trader/IndicatorToggles';
 import MarketEventOverlay, { type MarketEvent } from '@/components/arena-trader/MarketEventOverlay';
 import StressLevelIndicator from '@/components/arena-trader/StressLevelIndicator';
+import AchievementsPanel from '@/components/arena-trader/AchievementsPanel';
+import AchievementToast from '@/components/arena-trader/AchievementToast';
+import DailyChallengesPanel from '@/components/arena-trader/DailyChallengesPanel';
 import { useMarketEvents } from '@/hooks/useMarketEvents';
+import { checkAchievements, type Achievement, type TraderStats } from '@/services/traderAchievementsService';
 
 export interface Asset {
   id: string;
@@ -105,6 +109,11 @@ export default function ArenaTrader() {
   const [predictionHistory, setPredictionHistory] = useState<{ timestamp: number; asset: string; prediction: string; priceAtPrediction: number; correct?: boolean }[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { tryTriggerEvent, applyEventToCandles } = useMarketEvents();
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
+  const [achievementToast, setAchievementToast] = useState<Achievement | null>(null);
+  const [maxDrawdown, setMaxDrawdown] = useState(0);
+  const [winStreak, setWinStreak] = useState(0);
+  const [leverageHistory, setLeverageHistory] = useState<number[]>([]);
 
   // Load balance from DB
   useEffect(() => {
@@ -225,6 +234,47 @@ export default function ArenaTrader() {
     }
   }, [balance, initialBalance, bankrollWarningShown]);
 
+  // Track max drawdown
+  useEffect(() => {
+    const drawdownPct = ((initialBalance - balance) / initialBalance) * 100;
+    if (drawdownPct > maxDrawdown) setMaxDrawdown(drawdownPct);
+  }, [balance, initialBalance, maxDrawdown]);
+
+  // Check achievements after trades
+  useEffect(() => {
+    if (tradeHistory.length === 0) return;
+    // Calculate win streak
+    let streak = 0;
+    for (let i = tradeHistory.length - 1; i >= 0; i--) {
+      if (tradeHistory[i].pnl > 0) streak++;
+      else break;
+    }
+    setWinStreak(streak);
+
+    const stats: TraderStats = {
+      totalTrades: tradeHistory.length,
+      winningTrades: tradeHistory.filter(t => t.pnl > 0).length,
+      losingTrades: tradeHistory.filter(t => t.pnl <= 0).length,
+      balance,
+      initialBalance,
+      bestTrade: Math.max(...tradeHistory.map(t => t.pnl)),
+      worstTrade: Math.min(...tradeHistory.map(t => t.pnl)),
+      totalPnl: tradeHistory.reduce((s, t) => s + t.pnl, 0),
+      currentStreak: streak,
+      maxDrawdown,
+      leverageUsed: leverageHistory,
+      tradeHistory,
+    };
+
+    const newAchievements = checkAchievements(stats, unlockedAchievements);
+    if (newAchievements.length > 0) {
+      const newIds = newAchievements.map(a => a.id);
+      setUnlockedAchievements(prev => [...prev, ...newIds]);
+      setAchievementToast(newAchievements[0]);
+      toast({ title: `🏆 ${newAchievements[0].name}`, description: newAchievements[0].description });
+    }
+  }, [tradeHistory, balance]);
+
   const currentPrice = candles.length > 0 ? candles[candles.length - 1].close : selectedAsset.basePrice;
 
   const requestAnalysis = useCallback(async () => {
@@ -284,6 +334,7 @@ export default function ArenaTrader() {
 
     setPosition({ type, asset: selectedAsset, entryPrice: currentPrice, amount, timestamp: Date.now(), stopLoss, takeProfit, leverage });
     setBalance(prev => prev - amount);
+    if (leverage > 1) setLeverageHistory(prev => [...prev, leverage]);
 
     const leverageMsg = leverage > 1 ? ` com ${leverage}x de alavancagem` : '';
     setHorusMessage(
@@ -366,9 +417,14 @@ export default function ArenaTrader() {
             Arena Trader
           </h1>
 
-          <button onClick={() => setHorusMuted(!horusMuted)} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
-            {horusMuted ? <VolumeX className="w-5 h-5 text-amber-400/50" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setHorusMuted(!horusMuted)} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
+              {horusMuted ? <VolumeX className="w-5 h-5 text-amber-400/50" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
+            </button>
+            <button onClick={() => navigate('/arena-trader/rankings')} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Rankings">
+              <Trophy className="w-5 h-5 text-amber-400" />
+            </button>
+          </div>
         </div>
 
         {/* Asset Selector */}
@@ -448,9 +504,19 @@ export default function ArenaTrader() {
                 </div>
               </div>
             )}
+
+            <DailyChallengesPanel tradeHistory={tradeHistory} balance={balance} initialBalance={initialBalance} />
+
+            <AchievementsPanel unlockedIds={unlockedAchievements} />
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {achievementToast && (
+          <AchievementToast achievement={achievementToast} onClose={() => setAchievementToast(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

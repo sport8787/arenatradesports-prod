@@ -65,28 +65,31 @@
 
 ---
 
-## 📋 FASE 3 — Gamificação e Competição
+## 📋 FASE 3 — Gamificação e Competição ✅
 
-### 3.1 — Sistema de Conquistas (Achievements)
-- "Primeira Operação" — Abrir primeira posição
-- "Sangue Frio" — Fechar com lucro após PnL negativo de -5K
-- "Lobo de Wall Street" — Acumular 1M BC
-- "Sardinha Sobrevivente" — Recuperar após perder 50% da banca
+### 3.1 — Sistema de Conquistas (Achievements) ✅
+- ✅ "Primeira Operação" — Abrir primeira posição
+- ✅ "Sangue Frio" — Fechar com lucro após PnL negativo de -5K
+- ✅ "Lobo de Wall Street" — Acumular 1M BC
+- ✅ "Sardinha Sobrevivente" — Recuperar após perder 50% da banca
+- ✅ "Triple Kill" — 3 trades lucrativos em sequência
+- ✅ "Rei da Alavancagem" — Lucrar com 10x leverage
+- ✅ "Diversificado" — Operar em todos os 4 ativos
+- ✅ "Mestre do Short" — 3 shorts lucrativos
+- ✅ "Mãos de Diamante" — 20 trades sem zerar
+- ✅ "O Retorno" — Lucrar 50K após estar no negativo
 
-### 3.2 — Ranking Arena Trader
-- Página de rankings com Top 50 traders
-- Métricas: Win Rate, Melhor Trade, Pior Trade, Total P&L
-- Filtros por período (dia, semana, all-time)
+### 3.2 — Ranking Arena Trader ✅
+- ✅ Página /arena-trader/rankings com Top 50 traders
+- ✅ Métricas: Win Rate, Saldo, Total P&L
+- ✅ Filtros por Saldo, Win Rate, P&L
+- ✅ Visual com medalhas para Top 3
 
-### 3.3 — Desafios Diários do Hórus
-- "Desafio Sniper": 3 trades com lucro em sequência
-- "Desafio Sobrevivência": Não perder >5% da banca em 10 trades
-- Recompensas em BC + Streak de dias consecutivos
-
-### 3.4 — Modo Torneio
-- Torneios com timer (15 minutos)
-- Ranking final por PnL no período
-- Prêmios em BC para Top 3
+### 3.3 — Desafios Diários do Hórus ✅
+- ✅ "Desafio Sniper": 3 trades com lucro em sequência
+- ✅ "Desafio Sobrevivência": Não perder >5% da banca em 10 trades
+- ✅ "Trader Ativo": Realizar 5 operações
+- ✅ Barras de progresso visual + recompensas em BC
 
 ---
 
