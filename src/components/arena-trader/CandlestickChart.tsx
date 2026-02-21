@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { Candle, Asset, TradePosition } from '@/pages/ArenaTrader';
 import { calculateSMA, calculateBollingerBands, calculateRSI } from '@/lib/technicalIndicators';
 
@@ -19,23 +20,70 @@ interface CandlestickChartProps {
 }
 
 export default function CandlestickChart({ candles, asset, position, support, resistance, stopLoss, takeProfit, indicators }: CandlestickChartProps) {
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Track which candle index the position was opened on
+  const entryIndexRef = useRef<number | null>(null);
+  const prevPositionRef = useRef<TradePosition | null>(null);
+
+  useEffect(() => {
+    if (position && !prevPositionRef.current) {
+      // Position just opened — mark current candle
+      entryIndexRef.current = candles.length - 1;
+    } else if (!position && prevPositionRef.current) {
+      // Position closed — clear
+      entryIndexRef.current = null;
+    }
+    prevPositionRef.current = position;
+  }, [position, candles.length]);
+
+  const handleZoomIn = useCallback(() => setZoomLevel(z => Math.min(z + 0.3, 4)), []);
+  const handleZoomOut = useCallback(() => setZoomLevel(z => Math.max(z - 0.3, 0.5)), []);
+
+  // Ctrl+scroll zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoomLevel(z => {
+        const delta = e.deltaY > 0 ? -0.15 : 0.15;
+        return Math.min(4, Math.max(0.5, z + delta));
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
+
   const showRSI = indicators?.rsi;
   const mainHeight = showRSI ? 310 : 400;
   const rsiHeight = 80;
   const totalHeight = showRSI ? mainHeight + rsiHeight + 10 : mainHeight;
 
+  // Zoom: show fewer candles when zoomed in
+  const visibleCandles = useMemo(() => {
+    const maxVisible = Math.max(10, Math.round(candles.length / zoomLevel));
+    if (candles.length <= maxVisible) return candles;
+    return candles.slice(candles.length - maxVisible);
+  }, [candles, zoomLevel]);
+
+  const candleOffset = candles.length - visibleCandles.length;
+
   const { bars, yMin, yMax, width } = useMemo(() => {
-    if (candles.length === 0) return { bars: [], yMin: 0, yMax: 0, width: 800 };
+    if (visibleCandles.length === 0) return { bars: [], yMin: 0, yMax: 0, width: 800 };
 
     const w = 800;
     const pad = 60;
-    const allPrices = candles.flatMap(c => [c.high, c.low]);
+    const allPrices = visibleCandles.flatMap(c => [c.high, c.low]);
     const min = Math.min(...allPrices) * 0.998;
     const max = Math.max(...allPrices) * 1.002;
-    const barWidth = Math.max(4, (w - pad * 2) / candles.length - 2);
+    const barWidth = Math.max(4, (w - pad * 2) / visibleCandles.length - 2);
 
-    const mapped = candles.map((c, i) => {
-      const x = pad + i * ((w - pad * 2) / candles.length) + barWidth / 2;
+    const mapped = visibleCandles.map((c, i) => {
+      const x = pad + i * ((w - pad * 2) / visibleCandles.length) + barWidth / 2;
       const toY = (price: number) => mainHeight - pad - ((price - min) / (max - min)) * (mainHeight - pad * 2);
       const isGreen = c.close >= c.open;
 
@@ -43,7 +91,7 @@ export default function CandlestickChart({ candles, asset, position, support, re
     });
 
     return { bars: mapped, yMin: min, yMax: max, width: w };
-  }, [candles, mainHeight]);
+  }, [visibleCandles, mainHeight]);
 
   const toY = (price: number) => {
     const pad = 60;
@@ -55,7 +103,7 @@ export default function CandlestickChart({ candles, asset, position, support, re
   // Milhar lines for futures
   const milharLines = useMemo(() => {
     if (asset.category !== 'futures') return [];
-    const step = asset.symbol === 'WIN' ? 1000 : 50; // milhar step
+    const step = asset.symbol === 'WIN' ? 1000 : 50;
     const lines: number[] = [];
     const startMilhar = Math.floor(yMin / step) * step;
     for (let m = startMilhar; m <= yMax; m += step) {
@@ -74,11 +122,11 @@ export default function CandlestickChart({ candles, asset, position, support, re
     return labels;
   }, [yMin, yMax]);
 
-  // Technical indicators
-  const sma9 = useMemo(() => indicators?.sma9 ? calculateSMA(candles, 9) : [], [candles, indicators?.sma9]);
-  const sma21 = useMemo(() => indicators?.sma21 ? calculateSMA(candles, 21) : [], [candles, indicators?.sma21]);
-  const bollinger = useMemo(() => indicators?.bollinger ? calculateBollingerBands(candles) : [], [candles, indicators?.bollinger]);
-  const rsiValues = useMemo(() => indicators?.rsi ? calculateRSI(candles) : [], [candles, indicators?.rsi]);
+  // Technical indicators (use visibleCandles for correct alignment)
+  const sma9 = useMemo(() => indicators?.sma9 ? calculateSMA(candles, 9).slice(candleOffset) : [], [candles, indicators?.sma9, candleOffset]);
+  const sma21 = useMemo(() => indicators?.sma21 ? calculateSMA(candles, 21).slice(candleOffset) : [], [candles, indicators?.sma21, candleOffset]);
+  const bollinger = useMemo(() => indicators?.bollinger ? calculateBollingerBands(candles).slice(candleOffset) : [], [candles, indicators?.bollinger, candleOffset]);
+  const rsiValues = useMemo(() => indicators?.rsi ? calculateRSI(candles).slice(candleOffset) : [], [candles, indicators?.rsi, candleOffset]);
 
   const buildLinePath = (values: (number | null)[]) => {
     let path = '';
@@ -92,16 +140,40 @@ export default function CandlestickChart({ candles, asset, position, support, re
 
   const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
 
+  // Entry marker bar index (adjusted for visible range)
+  const entryBarIndex = entryIndexRef.current !== null ? entryIndexRef.current - candleOffset : null;
+  const showEntryMarker = position && entryBarIndex !== null && entryBarIndex >= 0 && entryBarIndex < bars.length;
+
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" ref={containerRef}>
       <div className="flex items-center justify-between mb-2">
         <span className="font-orbitron text-sm font-bold text-amber-400">{asset.symbol}</span>
-        <span className="font-orbitron text-lg font-bold text-white">
-          R$ {formatPrice(lastPrice)}
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5 bg-black/40 rounded-lg border border-amber-900/30 p-0.5">
+            <button
+              onClick={handleZoomOut}
+              className="p-1 rounded hover:bg-white/10 transition-colors text-amber-400/70 hover:text-amber-400"
+              title="Zoom out (Ctrl + Scroll ↓)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[9px] text-white/40 font-mono min-w-[28px] text-center">{zoomLevel.toFixed(1)}x</span>
+            <button
+              onClick={handleZoomIn}
+              className="p-1 rounded hover:bg-white/10 transition-colors text-amber-400/70 hover:text-amber-400"
+              title="Zoom in (Ctrl + Scroll ↑)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <span className="font-orbitron text-lg font-bold text-white">
+            R$ {formatPrice(lastPrice)}
+          </span>
+        </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${totalHeight}`} className="w-full h-[calc(100%-30px)]" preserveAspectRatio="none">
+      <svg ref={svgRef} viewBox={`0 0 ${width} ${totalHeight}`} className="w-full h-[calc(100%-30px)]" preserveAspectRatio="none">
         {/* Grid lines */}
         {yLabels.map((l, i) => (
           <g key={i}>
@@ -132,7 +204,6 @@ export default function CandlestickChart({ candles, asset, position, support, re
             upperPath += `${cmd} ${bars[i].x} ${toY(b.upper)} `;
             lowerPath += `${cmd} ${bars[i].x} ${toY(b.lower)} `;
           });
-          // Fill area
           const lowerReversed = bollinger
             .map((b, i) => b.lower && i < bars.length ? `${bars[i].x} ${toY(b.lower)}` : null)
             .filter(Boolean)
@@ -205,6 +276,80 @@ export default function CandlestickChart({ candles, asset, position, support, re
           </>
         )}
 
+        {/* ═══ ENTRY MARKER on candle (like Profit) ═══ */}
+        {showEntryMarker && (() => {
+          const bar = bars[entryBarIndex!];
+          const isLong = position!.type === 'long';
+          const markerY = isLong ? bar.lowY + 12 : bar.highY - 12;
+          const arrowColor = isLong ? '#22c55e' : '#ef4444';
+          const arrowLabel = isLong ? 'C' : 'V';
+          // Triangle pointing up (buy) or down (sell)
+          const triPoints = isLong
+            ? `${bar.x},${markerY - 8} ${bar.x - 6},${markerY + 2} ${bar.x + 6},${markerY + 2}`
+            : `${bar.x},${markerY + 8} ${bar.x - 6},${markerY - 2} ${bar.x + 6},${markerY - 2}`;
+
+          return (
+            <g>
+              {/* Entry arrow */}
+              <polygon points={triPoints} fill={arrowColor} opacity="0.9" />
+              <text x={bar.x} y={isLong ? markerY + 14 : markerY - 10} fill={arrowColor} fontSize="8" textAnchor="middle" fontFamily="monospace" fontWeight="bold">
+                {arrowLabel}
+              </text>
+
+              {/* Dashed vertical line from entry to SL/TP zone */}
+              <line x1={bar.x} y1={bar.highY} x2={bar.x} y2={bar.lowY} stroke={arrowColor} strokeWidth="1" strokeDasharray="2,2" opacity="0.3" />
+
+              {/* SL target marker (small horizontal dash at SL price) */}
+              {stopLoss && stopLoss >= yMin && stopLoss <= yMax && (
+                <g>
+                  <line x1={bar.x - 10} y1={toY(stopLoss)} x2={bar.x + 10} y2={toY(stopLoss)} stroke="#f43f5e" strokeWidth="2" opacity="0.8" />
+                  <circle cx={bar.x} cy={toY(stopLoss)} r="3" fill="#f43f5e" opacity="0.6" />
+                </g>
+              )}
+
+              {/* TP target marker */}
+              {takeProfit && takeProfit >= yMin && takeProfit <= yMax && (
+                <g>
+                  <line x1={bar.x - 10} y1={toY(takeProfit)} x2={bar.x + 10} y2={toY(takeProfit)} stroke="#22c55e" strokeWidth="2" opacity="0.8" />
+                  <circle cx={bar.x} cy={toY(takeProfit)} r="3" fill="#22c55e" opacity="0.6" />
+                </g>
+              )}
+
+              {/* Connecting line from entry to SL and TP */}
+              {stopLoss && stopLoss >= yMin && stopLoss <= yMax && (
+                <line x1={bar.x} y1={toY(position!.entryPrice)} x2={bar.x} y2={toY(stopLoss)} stroke="#f43f5e" strokeWidth="1" strokeDasharray="3,3" opacity="0.4" />
+              )}
+              {takeProfit && takeProfit >= yMin && takeProfit <= yMax && (
+                <line x1={bar.x} y1={toY(position!.entryPrice)} x2={bar.x} y2={toY(takeProfit)} stroke="#22c55e" strokeWidth="1" strokeDasharray="3,3" opacity="0.4" />
+              )}
+
+              {/* Shaded R:R zone (entry to TP green, entry to SL red) */}
+              {takeProfit && takeProfit >= yMin && takeProfit <= yMax && (
+                <rect
+                  x={bar.x - 8}
+                  y={Math.min(toY(position!.entryPrice), toY(takeProfit))}
+                  width="16"
+                  height={Math.abs(toY(position!.entryPrice) - toY(takeProfit))}
+                  fill="#22c55e"
+                  opacity="0.06"
+                  rx="2"
+                />
+              )}
+              {stopLoss && stopLoss >= yMin && stopLoss <= yMax && (
+                <rect
+                  x={bar.x - 8}
+                  y={Math.min(toY(position!.entryPrice), toY(stopLoss))}
+                  width="16"
+                  height={Math.abs(toY(position!.entryPrice) - toY(stopLoss))}
+                  fill="#f43f5e"
+                  opacity="0.06"
+                  rx="2"
+                />
+              )}
+            </g>
+          );
+        })()}
+
         {/* Candlesticks */}
         {bars.map((bar, i) => (
           <g key={i}>
@@ -241,9 +386,7 @@ export default function CandlestickChart({ candles, asset, position, support, re
 
           return (
             <g>
-              {/* RSI background */}
               <rect x="60" y={rsiTop} width={width - 70} height={rsiHeight} fill="rgba(255,255,255,0.02)" rx="4" />
-              {/* Overbought/Oversold zones */}
               <rect x="60" y={rsiToY(70)} width={width - 70} height={rsiToY(30) - rsiToY(70)} fill="rgba(6,182,212,0.05)" />
               <line x1="60" y1={rsiToY(70)} x2={width - 10} y2={rsiToY(70)} stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="4,4" opacity="0.4" />
               <line x1="60" y1={rsiToY(30)} x2={width - 10} y2={rsiToY(30)} stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="4,4" opacity="0.4" />
@@ -251,7 +394,6 @@ export default function CandlestickChart({ candles, asset, position, support, re
               <text x="55" y={rsiToY(30) + 3} fill="rgba(6,182,212,0.5)" fontSize="8" textAnchor="end" fontFamily="monospace">30</text>
               <text x="55" y={rsiToY(50) + 3} fill="rgba(255,255,255,0.2)" fontSize="8" textAnchor="end" fontFamily="monospace">50</text>
               <text x="62" y={rsiTop - 2} fill="rgba(6,182,212,0.6)" fontSize="9" fontFamily="monospace" fontWeight="bold">RSI(14)</text>
-              {/* RSI line */}
               <path d={rsiPath} fill="none" stroke="#06b6d4" strokeWidth="1.5" opacity="0.9" />
             </g>
           );
