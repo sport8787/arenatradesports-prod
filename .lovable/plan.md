@@ -1,50 +1,133 @@
+# 🎯 ARENA TRADER — Plano de Evolução
 
+## Estado Atual (v1.0)
+- ✅ Dashboard preto/dourado com gráfico de candlesticks SVG
+- ✅ 4 ativos (BTC, PETR4, VALE3, ITUB4)
+- ✅ Operações Long/Short com volumes fixos (10K-100K)
+- ✅ Mycroft Trader via Claude Sonnet (suporte, resistência, veredito forense)
+- ✅ Hórus Premium com provocações contextuais
+- ✅ Persistência de saldo (500K BC inicial) e histórico de trades
+- ✅ Alerta de bankroll (-10%)
 
-# Corrigir Bluff Talk (Provocação em Vídeo) no Street Continuation
+---
 
-## Problema Identificado
+## 📋 FASE 1 — Experiência de Trading (UX/Visual)
 
-O modal de "Bluff Talk" (gravação de provocação em vídeo) **existe** no código do Street Continuation, mas aparece apenas em condições muito específicas que podem não estar sendo atingidas durante o jogo:
+### 1.1 — Stop Loss & Take Profit
+- Permitir definir limites ao abrir posição
+- Fechamento automático quando preço atinge SL/TP
+- Linhas visuais no gráfico (vermelho para SL, verde para TP)
+- Hórus comenta quando SL é acionado vs quando TP é atingido
 
-1. **Condição de timing**: O modal só aparece na **transição entre streets** (depois de acertar uma decisão), nunca durante a decisão em si
-2. **Condição de index**: O modal só aparece quando `currentStreetIdx > 0`, ou seja, apenas nas transições Flop-para-Turn e Turn-para-River. A transição Preflop-para-Flop (index 0) e pula
-3. **Condição de acerto**: Se o jogador erra, o modal nunca aparece
-4. **Condição de fim de mao**: Se a IA decide que a mao terminou (ex: fold), o modal e pulado
+### 1.2 — Alavancagem (Leverage)
+- Seletor de alavancagem: 1x, 2x, 5x, 10x
+- Multiplicador no cálculo de PnL
+- Alerta do Mycroft sobre risco exponencial em alavancagens altas
+- Liquidação forçada se PnL negativo exceder margem
 
-Resumindo: se voce errou no Flop, ou se a mao terminou antes do Turn, nunca veria o modal de video.
+### 1.3 — Timeframes & Velocidade de Simulação
+- Seletor de velocidade: 1x, 2x, 5x (intervalo de tick: 3s, 1.5s, 0.6s)
+- Botão Pause/Play para congelar a simulação
+- Timeframes visuais: 1min, 5min, 15min (agrupamento de candles)
 
-## Solucao Proposta
+### 1.4 — Indicadores Técnicos no Gráfico
+- Média Móvel Simples (SMA 9 / SMA 21) como linhas sobre o gráfico
+- Banda de Bollinger para volatilidade visual
+- RSI em sub-chart abaixo do candlestick
+- Toggle para ligar/desligar cada indicador
 
-Alterar a logica para oferecer o Bluff Talk como opcao **antes de tomar a decisao** em cada street pos-flop, em vez de apenas na transicao. Isso e mais intuitivo — o jogador grava a provocacao, depois toma a decisao.
+---
 
-### Mudancas Tecnicas
+## 📋 FASE 2 — IA e Narrativa
 
-**Arquivo: `src/components/arena-poker/StreetContinuationTraining.tsx`**
+### 2.1 — Hórus TTS (Voz Real)
+- Integrar ElevenLabs TTS para o Hórus narrar o `script_horus`
+- Usar a voz/persona do Hórus já configurada no sistema
+- Narração automática ao abrir/fechar posição e em alertas de bankroll
 
-1. **Adicionar botao "Gravar Provocacao"** na area de decisao (ao lado dos botoes de acao) para streets Flop, Turn e River
-   - O botao aparece quando `currentStreetIdx > 0` (pos-flop), `bluffTalkEnabled` esta ON, e o jogador ainda nao decidiu
-   - Icone de camera/mic com estilo dourado para chamar atencao
+### 2.2 — Mycroft Trader Detalhado
+- Seção "Detecção de Blefe de Mercado" ao painel
+- Indicador visual de "Volume Real vs Burburinho"
+- Recomendação de aporte fracionado (% da banca ideal por operação)
+- Histórico de previsões do Mycroft (acertou/errou)
 
-2. **Manter a logica atual** de transicao como opcao secundaria (para quem prefere gravar depois de ver o cenario e antes de avançar)
+### 2.3 — Eventos Narrativos do Hórus
+- Flash Crash simulado: queda abrupta de -8% com narração dramática
+- Pump & Dump: alta artificial seguida de crash
+- "Notícias de última hora" fictícias que impactam preço
+- Cada evento com áudio temático
 
-3. **Corrigir a transicao Preflop-para-Flop**: mudar a condicao de `currentStreetIdx > 0` para `currentStreetIdx >= 0` na transicao, permitindo que o Bluff Talk apareca tambem ao sair do Preflop para o Flop (opcional, pode ser configuravel)
+### 2.4 — Alertas Inteligentes por Nível de Estresse
+- Baixo: Mycroft silencioso, Hórus faz piadas
+- Médio: Mycroft alerta, Hórus provoca
+- Crítico: Tela pulsa em vermelho, Hórus dramatiza, música de tensão
 
-4. **Adicionar indicador visual** de que o Bluff Talk esta disponivel na street atual — um badge sutil "Table Talk disponivel" abaixo do cenario
+---
 
-### Fluxo Corrigido
+## 📋 FASE 3 — Gamificação e Competição
 
-```text
-Cenario aparece (Flop/Turn/River)
-    |
-    v
-Jogador ve opcoes de acao + botao "Gravar Provocacao"
-    |
-    ├── Clica "Gravar Provocacao" → Abre BluffTalkModal → Volta para decisao
-    |
-    └── Escolhe acao → Avaliacao → Feedback → Proximo street
-```
+### 3.1 — Sistema de Conquistas (Achievements)
+- "Primeira Operação" — Abrir primeira posição
+- "Sangue Frio" — Fechar com lucro após PnL negativo de -5K
+- "Lobo de Wall Street" — Acumular 1M BC
+- "Sardinha Sobrevivente" — Recuperar após perder 50% da banca
 
-### Estimativa
+### 3.2 — Ranking Arena Trader
+- Página de rankings com Top 50 traders
+- Métricas: Win Rate, Melhor Trade, Pior Trade, Total P&L
+- Filtros por período (dia, semana, all-time)
 
-- 1 arquivo modificado
-- Mudanca de baixo risco — reutiliza o BluffTalkModal existente, apenas muda quando ele aparece
+### 3.3 — Desafios Diários do Hórus
+- "Desafio Sniper": 3 trades com lucro em sequência
+- "Desafio Sobrevivência": Não perder >5% da banca em 10 trades
+- Recompensas em BC + Streak de dias consecutivos
+
+### 3.4 — Modo Torneio
+- Torneios com timer (15 minutos)
+- Ranking final por PnL no período
+- Prêmios em BC para Top 3
+
+---
+
+## 📋 FASE 4 — Dados Reais e Social
+
+### 4.1 — Preços Reais (API CoinGecko/Yahoo)
+- Integrar API pública para BTC com preço real
+- Indicador "LIVE" vs "SIMULADO" no gráfico
+
+### 4.2 — Múltiplas Posições Simultâneas
+- Abrir posições em ativos diferentes
+- Dashboard de portfolio com PnL consolidado
+
+### 4.3 — Replay de Sessão
+- Salvar snapshots de cada trade
+- Análise de erros pós-sessão pelo Mycroft
+
+### 4.4 — Social Feed
+- Feed de trades públicos (opt-in)
+- "Copy Trade" simplificado
+
+---
+
+## 🔧 Melhorias Técnicas Pendentes
+
+| Item | Prioridade |
+|------|-----------|
+| Volume bars abaixo do candlestick | Alta |
+| Responsividade mobile | Alta |
+| Label "Paper Trading / Simulação" | Alta |
+| Migrar SVG para canvas (performance) | Média |
+| Persistir histórico individual no DB | Média |
+| Animação de confetti no lucro grande | Baixa |
+
+---
+
+## Ordem de Implementação Sugerida
+1. **Fase 1.1** (Stop Loss/Take Profit) — Mecânica essencial
+2. **Fase 1.4** (Indicadores SMA/Bollinger) — Visual profissional
+3. **Fase 2.1** (Hórus TTS) — Imersão narrativa
+4. **Fase 2.3** (Eventos narrativos) — Engajamento
+5. **Fase 3.1** (Achievements) — Retenção
+6. **Fase 1.2** (Alavancagem) — Complexidade progressiva
+7. **Fase 3.2** (Rankings) — Competição
+8. **Fase 4.1** (Preços reais) — Credibilidade
