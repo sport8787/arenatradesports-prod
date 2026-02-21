@@ -37,29 +37,31 @@
 
 ---
 
-## 📋 FASE 2 — IA e Narrativa
+## 📋 FASE 2 — IA e Narrativa ✅
 
-### 2.1 — Hórus TTS (Voz Real)
-- Integrar ElevenLabs TTS para o Hórus narrar o `script_horus`
-- Usar a voz/persona do Hórus já configurada no sistema
-- Narração automática ao abrir/fechar posição e em alertas de bankroll
+### 2.1 — Hórus TTS (Voz Real) ✅
+- ✅ Integrar ElevenLabs TTS para o Hórus narrar provocações
+- ✅ Voz George com stability 0.45, similarity 0.8, speed 1.1
+- ✅ Cache de áudio via cacheKey no storage
+- ✅ Visualização de waveform durante narração
 
-### 2.2 — Mycroft Trader Detalhado
-- Seção "Detecção de Blefe de Mercado" ao painel
-- Indicador visual de "Volume Real vs Burburinho"
-- Recomendação de aporte fracionado (% da banca ideal por operação)
-- Histórico de previsões do Mycroft (acertou/errou)
+### 2.2 — Mycroft Trader Detalhado ✅
+- ✅ Seção "Detecção de Blefe de Mercado" ao painel
+- ✅ Indicador visual de "Volume Real vs Burburinho"
+- ✅ Recomendação de aporte fracionado (% da banca ideal por operação)
+- ✅ Histórico de previsões do Mycroft (acertou/errou) com toggle
 
-### 2.3 — Eventos Narrativos do Hórus
-- Flash Crash simulado: queda abrupta de -8% com narração dramática
-- Pump & Dump: alta artificial seguida de crash
-- "Notícias de última hora" fictícias que impactam preço
-- Cada evento com áudio temático
+### 2.3 — Eventos Narrativos do Hórus ✅
+- ✅ Flash Crash simulado: queda abrupta com narração dramática
+- ✅ Pump & Dump: alta artificial seguida de crash
+- ✅ "Notícias de última hora" fictícias que impactam preço
+- ✅ ~8% chance por tick, cooldown 45s entre eventos
 
-### 2.4 — Alertas Inteligentes por Nível de Estresse
-- Baixo: Mycroft silencioso, Hórus faz piadas
-- Médio: Mycroft alerta, Hórus provoca
-- Crítico: Tela pulsa em vermelho, Hórus dramatiza, música de tensão
+### 2.4 — Alertas Inteligentes por Nível de Estresse ✅
+- ✅ Indicador visual de estresse (Baixo/Médio/Crítico) com barra de banca
+- ✅ Baixo: cor verde, sem pulsação
+- ✅ Médio: cor âmbar, label ATENÇÃO
+- ✅ Crítico: cor vermelha, borda pulsante, tela com classe pulse
 
 ---
 

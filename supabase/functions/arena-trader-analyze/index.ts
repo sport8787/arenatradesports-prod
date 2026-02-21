@@ -47,7 +47,11 @@ IMPORTANTE: Retorne estritamente um JSON válido com estes campos:
     "suporte": <número>,
     "resistencia": <número>
   },
-  "alerta_de_estresse": "Baixo" ou "Médio" ou "Crítico"
+  "alerta_de_estresse": "Baixo" ou "Médio" ou "Crítico",
+  "blefe_de_mercado": true ou false,
+  "volume_real_pct": <número 0-100>,
+  "volume_burburinho_pct": <número 0-100>,
+  "recomendacao_aporte": "Texto curto sugerindo % ideal da banca para próxima operação. Ex: '3-5% da banca (15K-25K BC)'"
 }`;
 
     const userMessage = `Analise o ativo ${asset.symbol} (${asset.name}) no valor de ${currentPrice}.
@@ -122,6 +126,10 @@ Forneça o relatório em JSON.`;
         riskLevel: stressToRisk[parsed.alerta_de_estresse] || 5,
         statusMercado: parsed.status_mercado,
         alertaEstresse: parsed.alerta_de_estresse,
+        blefeDeMercado: parsed.blefe_de_mercado ?? false,
+        volumeReal: parsed.volume_real_pct ?? 50,
+        volumeBurburinho: parsed.volume_burburinho_pct ?? 50,
+        recomendacaoAporte: parsed.recomendacao_aporte || null,
       },
       horus: parsed.script_horus || 'O mercado está em silêncio... Mas isso nunca dura.',
     };
