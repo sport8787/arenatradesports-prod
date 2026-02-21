@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Wallet, Shield, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap } from 'lucide-react';
 import type { Asset, TradePosition } from '@/pages/ArenaTrader';
 
 interface TradePanelProps {
@@ -8,7 +8,7 @@ interface TradePanelProps {
   position: TradePosition | null;
   currentPrice: number;
   unrealizedPnl: number;
-  onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number) => void;
+  onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage?: number) => void;
   onClosePosition: () => void;
   asset: Asset;
 }
@@ -20,17 +20,24 @@ const TRADE_AMOUNTS = [
   { label: '100K', value: 100000 },
 ];
 
+const LEVERAGE_OPTIONS = [1, 2, 5, 10];
+
 export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, asset }: TradePanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(25000);
   const [slEnabled, setSlEnabled] = useState(false);
   const [tpEnabled, setTpEnabled] = useState(false);
   const [slPercent, setSlPercent] = useState(3);
   const [tpPercent, setTpPercent] = useState(5);
+  const [leverage, setLeverage] = useState(1);
 
   const computeSL = () => slEnabled ? +(currentPrice * (1 - slPercent / 100)).toFixed(2) : undefined;
   const computeTP = () => tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
   const computeShortSL = () => slEnabled ? +(currentPrice * (1 + slPercent / 100)).toFixed(2) : undefined;
   const computeShortTP = () => tpEnabled ? +(currentPrice * (1 - tpPercent / 100)).toFixed(2) : undefined;
+
+  const liquidationPrice = leverage > 1
+    ? +(currentPrice * (1 - 1 / leverage)).toFixed(2)
+    : null;
 
   if (position) {
     const pnlPercent = ((unrealizedPnl / position.amount) * 100).toFixed(2);
@@ -48,6 +55,11 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
               {position.type === 'long' ? 'LONG' : 'SHORT'}
             </span>
             <span className="font-orbitron text-sm text-white">{position.asset.symbol}</span>
+            {position.leverage && position.leverage > 1 && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                {position.leverage}x
+              </span>
+            )}
           </div>
           <div className="text-right">
             <div className="text-xs text-white/40">Entrada: R$ {position.entryPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
@@ -90,7 +102,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
       </div>
 
       {/* Amount selector */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         {TRADE_AMOUNTS.map((opt) => (
           <button
             key={opt.value}
@@ -108,6 +120,43 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
             {opt.label}
           </button>
         ))}
+      </div>
+
+      {/* Leverage selector */}
+      <div className="mb-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Zap className={`w-3.5 h-3.5 ${leverage > 1 ? 'text-amber-400' : 'text-white/30'}`} />
+          <span className="text-xs font-bold text-white/60">Alavancagem</span>
+          {leverage > 1 && (
+            <span className="text-[10px] text-amber-400/70 ml-auto">
+              ⚠ Liq. ~R$ {liquidationPrice?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {LEVERAGE_OPTIONS.map((lev) => (
+            <button
+              key={lev}
+              onClick={() => setLeverage(lev)}
+              className={`
+                flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${leverage === lev
+                  ? lev >= 5
+                    ? 'bg-red-500/20 border border-red-500/50 text-red-400'
+                    : 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
+                  : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
+                }
+              `}
+            >
+              {lev}x
+            </button>
+          ))}
+        </div>
+        {leverage >= 5 && (
+          <p className="text-[10px] text-red-400/70 mt-1.5 italic">
+            ⚡ Alavancagem alta — risco exponencial de liquidação forçada
+          </p>
+        )}
       </div>
 
       {/* SL/TP Controls */}
@@ -152,7 +201,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
       {/* Buy/Sell buttons */}
       <div className="grid grid-cols-2 gap-3">
         <motion.button
-          onClick={() => onOpenPosition('long', selectedAmount, computeSL(), computeTP())}
+          onClick={() => onOpenPosition('long', selectedAmount, computeSL(), computeTP(), leverage)}
           disabled={selectedAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -171,7 +220,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </motion.button>
 
         <motion.button
-          onClick={() => onOpenPosition('short', selectedAmount, computeShortSL(), computeShortTP())}
+          onClick={() => onOpenPosition('short', selectedAmount, computeShortSL(), computeShortTP(), leverage)}
           disabled={selectedAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

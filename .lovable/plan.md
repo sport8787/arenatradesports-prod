@@ -11,30 +11,29 @@
 
 ---
 
-## 📋 FASE 1 — Experiência de Trading (UX/Visual)
+## 📋 FASE 1 — Experiência de Trading (UX/Visual) ✅
 
-### 1.1 — Stop Loss & Take Profit
-- Permitir definir limites ao abrir posição
-- Fechamento automático quando preço atinge SL/TP
-- Linhas visuais no gráfico (vermelho para SL, verde para TP)
-- Hórus comenta quando SL é acionado vs quando TP é atingido
+### 1.1 — Stop Loss & Take Profit ✅
+- ✅ Permitir definir limites ao abrir posição
+- ✅ Fechamento automático quando preço atinge SL/TP
+- ✅ Linhas visuais no gráfico (vermelho para SL, verde para TP)
+- ✅ Hórus comenta quando SL é acionado vs quando TP é atingido
 
-### 1.2 — Alavancagem (Leverage)
-- Seletor de alavancagem: 1x, 2x, 5x, 10x
-- Multiplicador no cálculo de PnL
-- Alerta do Mycroft sobre risco exponencial em alavancagens altas
-- Liquidação forçada se PnL negativo exceder margem
+### 1.2 — Alavancagem (Leverage) ✅
+- ✅ Seletor de alavancagem: 1x, 2x, 5x, 10x
+- ✅ Multiplicador no cálculo de PnL
+- ✅ Alerta visual sobre risco em alavancagens altas
+- ✅ Liquidação forçada se PnL negativo exceder margem
 
-### 1.3 — Timeframes & Velocidade de Simulação
-- Seletor de velocidade: 1x, 2x, 5x (intervalo de tick: 3s, 1.5s, 0.6s)
-- Botão Pause/Play para congelar a simulação
-- Timeframes visuais: 1min, 5min, 15min (agrupamento de candles)
+### 1.3 — Timeframes & Velocidade de Simulação ✅
+- ✅ Seletor de velocidade: 1x, 2x, 5x (intervalo de tick: 3s, 1.5s, 0.6s)
+- ✅ Botão Pause/Play para congelar a simulação
 
-### 1.4 — Indicadores Técnicos no Gráfico
-- Média Móvel Simples (SMA 9 / SMA 21) como linhas sobre o gráfico
-- Banda de Bollinger para volatilidade visual
-- RSI em sub-chart abaixo do candlestick
-- Toggle para ligar/desligar cada indicador
+### 1.4 — Indicadores Técnicos no Gráfico ✅
+- ✅ Média Móvel Simples (SMA 9 / SMA 21) como linhas sobre o gráfico
+- ✅ Banda de Bollinger para volatilidade visual
+- ✅ RSI em sub-chart abaixo do candlestick
+- ✅ Toggle para ligar/desligar cada indicador
 
 ---
 
