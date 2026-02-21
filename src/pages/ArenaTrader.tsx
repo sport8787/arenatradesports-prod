@@ -23,6 +23,7 @@ import SessionReplayPanel from '@/components/arena-trader/SessionReplayPanel';
 import SocialFeedPanel from '@/components/arena-trader/SocialFeedPanel';
 import { useMarketEvents } from '@/hooks/useMarketEvents';
 import { useLivePrices } from '@/hooks/useLivePrices';
+import { calculateSMA, calculateBollingerBands, calculateRSI } from '@/lib/technicalIndicators';
 import { checkAchievements, type Achievement, type TraderStats } from '@/services/traderAchievementsService';
 
 export interface Asset {
@@ -340,8 +341,35 @@ export default function ArenaTrader() {
     setIsAnalyzing(true);
     try {
       const recentCandles = candles.slice(-20);
+
+      // Pre-compute technical indicators to send to Mycroft
+      const sma9 = calculateSMA(candles, 9);
+      const sma21 = calculateSMA(candles, 21);
+      const bb = calculateBollingerBands(candles, 20);
+      const rsi = calculateRSI(candles, 14);
+      const lastIdx = candles.length - 1;
+
+      const technicalData = {
+        sma9: sma9[lastIdx] ?? null,
+        sma21: sma21[lastIdx] ?? null,
+        bollingerUpper: bb[lastIdx]?.upper ?? null,
+        bollingerLower: bb[lastIdx]?.lower ?? null,
+        rsi: rsi[lastIdx] ?? null,
+      };
+
+      const change24h = livePrices[selectedAsset.symbol]?.change24h ?? 0;
+
       const { data, error } = await supabase.functions.invoke('arena-trader-analyze', {
-        body: { asset: selectedAsset, candles: recentCandles, currentPrice, balance, position },
+        body: {
+          asset: selectedAsset,
+          candles: recentCandles,
+          currentPrice,
+          balance,
+          position,
+          technicalData,
+          isLive,
+          change24h,
+        },
       });
       if (error) throw error;
       const mycroft = data?.mycroft || null;
@@ -366,11 +394,16 @@ export default function ArenaTrader() {
         trend: Math.random() > 0.5 ? 'bullish' : 'bearish',
         verdict: `${selectedAsset.symbol} apresenta volatilidade moderada.`,
         riskLevel: Math.floor(Math.random() * 5) + 4,
+        confluenciaScore: 0,
+        indicadoresConfirmados: [],
+        statusInstitucional: 'NEUTRO',
+        proveniencia: 'SIMULADO',
+        confiancaAnalise: 30,
       });
     } finally {
       setIsAnalyzing(false);
     }
-  }, [candles, selectedAsset, currentPrice, balance, position]);
+  }, [candles, selectedAsset, currentPrice, balance, position, livePrices, isLive]);
 
   useEffect(() => {
     if (candles.length > 10) {
