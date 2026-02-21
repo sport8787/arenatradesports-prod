@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Wallet, Shield, Target } from 'lucide-react';
 import type { Asset, TradePosition } from '@/pages/ArenaTrader';
 
 interface TradePanelProps {
@@ -8,7 +8,7 @@ interface TradePanelProps {
   position: TradePosition | null;
   currentPrice: number;
   unrealizedPnl: number;
-  onOpenPosition: (type: 'long' | 'short', amount: number) => void;
+  onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number) => void;
   onClosePosition: () => void;
   asset: Asset;
 }
@@ -22,6 +22,15 @@ const TRADE_AMOUNTS = [
 
 export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, asset }: TradePanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(25000);
+  const [slEnabled, setSlEnabled] = useState(false);
+  const [tpEnabled, setTpEnabled] = useState(false);
+  const [slPercent, setSlPercent] = useState(3);
+  const [tpPercent, setTpPercent] = useState(5);
+
+  const computeSL = () => slEnabled ? +(currentPrice * (1 - slPercent / 100)).toFixed(2) : undefined;
+  const computeTP = () => tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
+  const computeShortSL = () => slEnabled ? +(currentPrice * (1 + slPercent / 100)).toFixed(2) : undefined;
+  const computeShortTP = () => tpEnabled ? +(currentPrice * (1 - tpPercent / 100)).toFixed(2) : undefined;
 
   if (position) {
     const pnlPercent = ((unrealizedPnl / position.amount) * 100).toFixed(2);
@@ -101,10 +110,49 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         ))}
       </div>
 
+      {/* SL/TP Controls */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Stop Loss */}
+        <div className={`p-2.5 rounded-lg border transition-all ${slEnabled ? 'bg-red-500/10 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
+          <button onClick={() => setSlEnabled(!slEnabled)} className="flex items-center gap-1.5 w-full mb-1.5">
+            <Shield className={`w-3.5 h-3.5 ${slEnabled ? 'text-red-400' : 'text-white/30'}`} />
+            <span className={`text-xs font-bold ${slEnabled ? 'text-red-400' : 'text-white/40'}`}>Stop Loss</span>
+          </button>
+          {slEnabled && (
+            <div className="flex items-center gap-2">
+              <input
+                type="range" min="1" max="10" step="0.5"
+                value={slPercent} onChange={(e) => setSlPercent(+e.target.value)}
+                className="flex-1 h-1 accent-red-500"
+              />
+              <span className="text-xs font-bold text-red-400 w-8 text-right">-{slPercent}%</span>
+            </div>
+          )}
+        </div>
+
+        {/* Take Profit */}
+        <div className={`p-2.5 rounded-lg border transition-all ${tpEnabled ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
+          <button onClick={() => setTpEnabled(!tpEnabled)} className="flex items-center gap-1.5 w-full mb-1.5">
+            <Target className={`w-3.5 h-3.5 ${tpEnabled ? 'text-emerald-400' : 'text-white/30'}`} />
+            <span className={`text-xs font-bold ${tpEnabled ? 'text-emerald-400' : 'text-white/40'}`}>Take Profit</span>
+          </button>
+          {tpEnabled && (
+            <div className="flex items-center gap-2">
+              <input
+                type="range" min="1" max="20" step="0.5"
+                value={tpPercent} onChange={(e) => setTpPercent(+e.target.value)}
+                className="flex-1 h-1 accent-emerald-500"
+              />
+              <span className="text-xs font-bold text-emerald-400 w-8 text-right">+{tpPercent}%</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Buy/Sell buttons */}
       <div className="grid grid-cols-2 gap-3">
         <motion.button
-          onClick={() => onOpenPosition('long', selectedAmount)}
+          onClick={() => onOpenPosition('long', selectedAmount, computeSL(), computeTP())}
           disabled={selectedAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -123,7 +171,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </motion.button>
 
         <motion.button
-          onClick={() => onOpenPosition('short', selectedAmount)}
+          onClick={() => onOpenPosition('short', selectedAmount, computeShortSL(), computeShortTP())}
           disabled={selectedAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

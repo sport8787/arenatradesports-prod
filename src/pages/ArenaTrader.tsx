@@ -44,6 +44,8 @@ export interface TradePosition {
   entryPrice: number;
   amount: number;
   timestamp: number;
+  stopLoss?: number;
+  takeProfit?: number;
 }
 
 function generateCandles(asset: Asset, count: number): Candle[] {
@@ -143,6 +145,30 @@ export default function ArenaTrader() {
     };
   }, [selectedAsset]);
 
+  // Check SL/TP auto-close
+  useEffect(() => {
+    if (!position || candles.length === 0) return;
+    const price = candles[candles.length - 1].close;
+
+    if (position.stopLoss) {
+      const hitSL = position.type === 'long' ? price <= position.stopLoss : price >= position.stopLoss;
+      if (hitSL) {
+        setHorusMessage(`⛔ Stop Loss acionado em ${position.asset.symbol}! O mercado não perdoa quem ignora a gestão de risco. Mas pelo menos você tinha um SL... Sardinhas não têm.`);
+        closePosition();
+        return;
+      }
+    }
+
+    if (position.takeProfit) {
+      const hitTP = position.type === 'long' ? price >= position.takeProfit : price <= position.takeProfit;
+      if (hitTP) {
+        setHorusMessage(`🎯 Take Profit atingido em ${position.asset.symbol}! Lucro no bolso. Disciplina de trader profissional. O Mycroft aprova.`);
+        closePosition();
+        return;
+      }
+    }
+  }, [candles, position]);
+
   // Check bankroll warning (10% drop)
   useEffect(() => {
     if (!bankrollWarningShown && balance <= initialBalance * 0.9 && balance < initialBalance) {
@@ -196,7 +222,7 @@ export default function ArenaTrader() {
     }
   }, [selectedAsset]);
 
-  const openPosition = async (type: 'long' | 'short', amount: number) => {
+  const openPosition = async (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number) => {
     if (amount > balance) {
       toast({ title: 'Saldo insuficiente', variant: 'destructive' });
       return;
@@ -212,6 +238,8 @@ export default function ArenaTrader() {
       entryPrice: currentPrice,
       amount,
       timestamp: Date.now(),
+      stopLoss,
+      takeProfit,
     });
 
     setBalance(prev => prev - amount);
@@ -321,6 +349,8 @@ export default function ArenaTrader() {
                 position={position}
                 support={mycroftAnalysis?.support}
                 resistance={mycroftAnalysis?.resistance}
+                stopLoss={position?.stopLoss}
+                takeProfit={position?.takeProfit}
               />
             </div>
 
