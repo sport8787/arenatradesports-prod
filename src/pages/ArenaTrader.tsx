@@ -924,26 +924,6 @@ export default function ArenaTrader() {
               </div>
             )}
 
-            {/* Mycroft Analyst Chat (toggleable) */}
-            {showKBChat && (
-              <MycroftAnalystChat
-                marketData={{
-                  asset: selectedAsset.name,
-                  symbol: selectedAsset.symbol,
-                  timeframe,
-                  price: currentPrice,
-                  sma9: calculateSMA(candles, 9)[candles.length - 1] ?? null,
-                  sma21: calculateSMA(candles, 21)[candles.length - 1] ?? null,
-                  rsi: calculateRSI(candles, 14)[candles.length - 1] ?? null,
-                  bollingerUpper: calculateBollingerBands(candles, 20)[candles.length - 1]?.upper ?? null,
-                  bollingerLower: calculateBollingerBands(candles, 20)[candles.length - 1]?.lower ?? null,
-                  volume: candles.length > 0 ? candles[candles.length - 1].volume : undefined,
-                  change24h: livePrices[selectedAsset.symbol]?.change24h,
-                  isLive,
-                }}
-              />
-            )}
-
             <SessionReplayPanel />
 
             <SocialFeedPanel onCopyTrade={handleCopyTrade} />
@@ -984,6 +964,35 @@ export default function ArenaTrader() {
                 <p className="text-[10px] text-white/50">Ensine o Mycroft com PDFs</p>
               </div>
             </motion.button>
+
+            {/* Mycroft Analyst Chat - renders right below the KB button */}
+            <AnimatePresence>
+              {showKBChat && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MycroftAnalystChat
+                    marketData={{
+                      asset: selectedAsset.name,
+                      symbol: selectedAsset.symbol,
+                      timeframe,
+                      price: currentPrice,
+                      sma9: calculateSMA(candles, 9)[candles.length - 1] ?? null,
+                      sma21: calculateSMA(candles, 21)[candles.length - 1] ?? null,
+                      rsi: calculateRSI(candles, 14)[candles.length - 1] ?? null,
+                      bollingerUpper: calculateBollingerBands(candles, 20)[candles.length - 1]?.upper ?? null,
+                      bollingerLower: calculateBollingerBands(candles, 20)[candles.length - 1]?.lower ?? null,
+                      volume: candles.length > 0 ? candles[candles.length - 1].volume : undefined,
+                      change24h: livePrices[selectedAsset.symbol]?.change24h,
+                      isLive,
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
