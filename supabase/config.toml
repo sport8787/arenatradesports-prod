@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.mycroft-analyst-chat]
 verify_jwt = false
+
+[functions.mycroft-poker-chat]
+verify_jwt = false
