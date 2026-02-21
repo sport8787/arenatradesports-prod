@@ -18,14 +18,14 @@ serve(async (req) => {
     // Fetch BTC from CoinGecko (free, no key needed)
     try {
       const btcRes = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true",
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true",
         { headers: { "Accept": "application/json" } }
       );
       if (btcRes.ok) {
         const btcData = await btcRes.json();
         prices["BTC"] = {
-          price: btcData.bitcoin?.usd || 0,
-          change24h: btcData.bitcoin?.usd_24h_change || 0,
+          price: btcData.bitcoin?.brl || 0,
+          change24h: btcData.bitcoin?.brl_24h_change || 0,
           source: "coingecko",
         };
       }
