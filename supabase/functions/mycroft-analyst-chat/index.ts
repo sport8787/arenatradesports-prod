@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import pdf from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,18 +44,9 @@ serve(async (req) => {
             const ext = file.name.split('.').pop()?.toLowerCase();
 
             if (ext === 'pdf') {
-              // Parse PDF to extract text
-              try {
-                const arrayBuffer = await fileData.arrayBuffer();
-                const buffer = new Uint8Array(arrayBuffer);
-                const pdfData = await pdf(buffer);
-                const text = pdfData.text?.substring(0, 80000) || "";
-                if (text.length > 0) {
-                  contents.push(`\n━━━ ${file.name} ━━━\n${text}`);
-                }
-              } catch (pdfErr) {
-                console.error(`PDF parse error for ${file.name}:`, pdfErr);
-              }
+              // PDF text extraction not supported in edge runtime
+              // User should upload .txt extracts instead
+              contents.push(`\n━━━ ${file.name} (PDF - extração limitada) ━━━\n[PDF detectado. Para melhor resultado, converta para .txt antes de enviar.]`);
             } else if (['txt', 'md', 'csv'].includes(ext || '')) {
               const text = await fileData.text();
               contents.push(`\n━━━ ${file.name} ━━━\n${text.substring(0, 50000)}`);
