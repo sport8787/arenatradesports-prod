@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,45 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("VITE_ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
       throw new Error("ANTHROPIC API KEY not configured");
+    }
+
+    // Load Knowledge Base from storage
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    let knowledgeBaseContent = "";
+    try {
+      const { data: files, error: listError } = await supabase.storage
+        .from("knowledge-base")
+        .list("", { limit: 50 });
+
+      if (!listError && files && files.length > 0) {
+        const contents: string[] = [];
+        for (const file of files) {
+          if (!file.name || file.name.length === 0) continue;
+          try {
+            const { data: fileData, error: dlError } = await supabase.storage
+              .from("knowledge-base")
+              .download(file.name);
+            if (dlError || !fileData) continue;
+
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            if (['txt', 'md', 'csv'].includes(ext || '')) {
+              const text = await fileData.text();
+              contents.push(`\n━━━ ${file.name} ━━━\n${text.substring(0, 50000)}`);
+            }
+          } catch (e) {
+            console.error(`Error reading ${file.name}:`, e);
+          }
+        }
+        if (contents.length > 0) {
+          knowledgeBaseContent = contents.join("\n\n");
+          console.log(`📚 KB loaded: ${contents.length} files, ${knowledgeBaseContent.length} chars`);
+        }
+      }
+    } catch (kbError) {
+      console.error("KB loading error:", kbError);
     }
 
     const candleSummary = candles.slice(-10).map((c: any) =>
@@ -78,7 +118,21 @@ SCRIPT DO HÓRUS PARA FUTUROS:
 - Se entrar em Zona de Guerra da Milhar: "Atenção! Zona de Guerra nos ${currentPrice.toLocaleString()}. Liquidez armadilhada. O Mycroft está de olho."
 ` : '';
 
+    const kbSection = knowledgeBaseContent ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BASE DE CONHECIMENTO (KNOWLEDGE BASE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Você tem acesso aos seguintes materiais de referência. USE-OS como base para suas análises, citando conceitos quando aplicável:
+
+${knowledgeBaseContent}
+
+━━━ FIM DA KNOWLEDGE BASE ━━━
+` : '';
+
     const systemPrompt = `Você é o Mycroft Trader, o módulo de inteligência forense financeira do ecossistema 'Blefador Milionário'. Você opera como um analista institucional de alta precisão.
+
+${kbSection}
 
 🛡️ PROTOCOLO DE AUDITORIA FORENSE — Execute ANTES de qualquer sinal:
 
