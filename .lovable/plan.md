@@ -93,10 +93,10 @@
 
 ---
 
-## 📋 FASE 4 — Dados Reais e Social (Parcial)
+## 📋 FASE 4 — Dados Reais e Social ✅
 
 ### 4.1 — Preços Reais (API CoinGecko + Brapi) ✅
-- ✅ Edge function fetch-live-prices busca BTC via CoinGecko e PETR4/VALE3/ITUB4 via Brapi
+- ✅ Edge function fetch-live-prices busca BTC via CoinGecko (BRL) e PETR4/VALE3/ITUB4 via Brapi
 - ✅ Polling automático a cada 60s com hook useLivePrices
 - ✅ Indicador LIVE/SIMULADO no AssetSelector
 - ✅ Preço sobe → ciano; preço desce → vermelho neon
@@ -104,17 +104,25 @@
 - ✅ Candles gerados a partir do preço real como seed
 - ✅ Preço real passado ao Mycroft Trader para análise
 
-### 4.2 — Múltiplas Posições Simultâneas
-- Abrir posições em ativos diferentes
-- Dashboard de portfolio com PnL consolidado
+### 4.2 — Múltiplas Posições Simultâneas ✅
+- ✅ Abrir posições em ativos diferentes simultaneamente
+- ✅ Dashboard de portfolio com PnL consolidado (PortfolioPanel)
+- ✅ Fechar posições individualmente via botão X
+- ✅ TraderBalanceHeader mostra PnL total de todas posições
+- ✅ Auto-close SL/TP/Liquidação em todas as posições
 
-### 4.3 — Replay de Sessão
-- Salvar snapshots de cada trade
-- Análise de erros pós-sessão pelo Mycroft
+### 4.3 — Replay de Sessão ✅
+- ✅ Salvar snapshots de cada trade no banco (trader_session_snapshots)
+- ✅ SessionReplayPanel com histórico expandível
+- ✅ Análise do Mycroft embutida em cada trade passado
+- ✅ Métricas de win rate e PnL total da sessão
 
-### 4.4 — Social Feed
-- Feed de trades públicos (opt-in)
-- "Copy Trade" simplificado
+### 4.4 — Social Feed ✅
+- ✅ Feed de trades públicos com realtime (trader_social_feed)
+- ✅ Botão "Compartilhar último trade" no dashboard
+- ✅ Sistema de likes e contagem de cópias
+- ✅ "Copy Trade" simplificado — seleciona ativo e tipo automaticamente
+- ✅ SocialFeedPanel com subscription realtime para novos trades
 
 ---
 

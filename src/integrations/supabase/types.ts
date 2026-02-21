@@ -795,6 +795,123 @@ export type Database = {
         }
         Relationships: []
       }
+      trader_session_snapshots: {
+        Row: {
+          amount: number
+          asset_symbol: string
+          candles_snapshot: Json | null
+          closed_at: string | null
+          entry_price: number
+          exit_price: number | null
+          horus_message: string | null
+          id: string
+          leverage: number
+          mycroft_analysis: Json | null
+          opened_at: string
+          pnl: number | null
+          session_id: string
+          status: string
+          stop_loss: number | null
+          take_profit: number | null
+          trade_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          asset_symbol: string
+          candles_snapshot?: Json | null
+          closed_at?: string | null
+          entry_price: number
+          exit_price?: number | null
+          horus_message?: string | null
+          id?: string
+          leverage?: number
+          mycroft_analysis?: Json | null
+          opened_at?: string
+          pnl?: number | null
+          session_id?: string
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          trade_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          asset_symbol?: string
+          candles_snapshot?: Json | null
+          closed_at?: string | null
+          entry_price?: number
+          exit_price?: number | null
+          horus_message?: string | null
+          id?: string
+          leverage?: number
+          mycroft_analysis?: Json | null
+          opened_at?: string
+          pnl?: number | null
+          session_id?: string
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          trade_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trader_social_feed: {
+        Row: {
+          amount: number
+          asset_symbol: string
+          comment: string | null
+          copies_count: number
+          created_at: string
+          entry_price: number
+          exit_price: number
+          id: string
+          leverage: number
+          likes_count: number
+          pnl: number
+          pnl_percent: number
+          trade_type: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          amount: number
+          asset_symbol: string
+          comment?: string | null
+          copies_count?: number
+          created_at?: string
+          entry_price: number
+          exit_price: number
+          id?: string
+          leverage?: number
+          likes_count?: number
+          pnl: number
+          pnl_percent?: number
+          trade_type: string
+          user_id: string
+          username?: string
+        }
+        Update: {
+          amount?: number
+          asset_symbol?: string
+          comment?: string | null
+          copies_count?: number
+          created_at?: string
+          entry_price?: number
+          exit_price?: number
+          id?: string
+          leverage?: number
+          likes_count?: number
+          pnl?: number
+          pnl_percent?: number
+          trade_type?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       training_hand_sessions: {
         Row: {
           ante: string | null
