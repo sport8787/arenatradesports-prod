@@ -27,14 +27,14 @@ const PARTIAL_OPTIONS = [25, 50, 75];
 
 function getContractOptions(asset: Asset): number[] {
   if (asset.category === 'futures') return [1, 2, 5, 10];
-  if (asset.category === 'crypto') return [1, 2, 5, 10];
+  if (asset.category === 'crypto') return [1, 5, 10, 20, 30, 50];
   // Stocks: lots of 100 shares
   return [1, 2, 5, 10];
 }
 
 function getContractLabel(asset: Asset): string {
   if (asset.category === 'futures') return 'Contratos';
-  if (asset.category === 'crypto') return 'Contratos';
+  if (asset.category === 'crypto') return 'Contratos (0.01 unidade)';
   return 'Lotes (100 ações)';
 }
 
@@ -42,7 +42,9 @@ function ContractSelector({ contracts, setContracts, asset, currentPrice }: {
   contracts: number; setContracts: (n: number) => void; asset: Asset; currentPrice: number;
 }) {
   const contractOptions = getContractOptions(asset);
-  const unitValue = asset.category === 'futures'
+  const unitValue = asset.category === 'crypto'
+    ? currentPrice * 0.01 // 1 contract = 0.01 unit for crypto
+    : asset.category === 'futures'
     ? currentPrice * (asset.pointValue || 1)
     : currentPrice * (asset.contractValue || 1);
   const totalExposure = contracts * unitValue;
@@ -78,7 +80,7 @@ function ContractSelector({ contracts, setContracts, asset, currentPrice }: {
           {asset.category === 'futures'
             ? `Valor do ponto: R$ ${(asset.pointValue || 1).toFixed(2)}`
             : asset.category === 'crypto'
-            ? `1 contrato = 1 ${asset.symbol}`
+            ? `1 contrato = 0.01 ${asset.symbol}`
             : `1 lote = 100 ações`}
         </span>
         <span>Valor unitário: R$ {unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -166,6 +168,10 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
     if (isFutures) {
       const margin = Math.floor(contracts * currentPrice * (asset.pointValue || 1) * 0.15);
       return Math.max(margin, 5000);
+    }
+    if (asset.category === 'crypto') {
+      // 1 contract = 0.01 unit for crypto
+      return Math.floor(contracts * currentPrice * 0.01);
     }
     const unitValue = currentPrice * (asset.contractValue || 1);
     return Math.floor(contracts * unitValue);
