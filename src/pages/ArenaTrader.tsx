@@ -19,6 +19,7 @@ import AchievementsPanel from '@/components/arena-trader/AchievementsPanel';
 import AchievementToast from '@/components/arena-trader/AchievementToast';
 import DailyChallengesPanel from '@/components/arena-trader/DailyChallengesPanel';
 import { useMarketEvents } from '@/hooks/useMarketEvents';
+import { useLivePrices } from '@/hooks/useLivePrices';
 import { checkAchievements, type Achievement, type TraderStats } from '@/services/traderAchievementsService';
 
 export interface Asset {
@@ -57,9 +58,9 @@ export interface TradePosition {
   leverage?: number;
 }
 
-function generateCandles(asset: Asset, count: number): Candle[] {
+function generateCandles(asset: Asset, count: number, startPrice?: number): Candle[] {
   const candles: Candle[] = [];
-  let price = asset.basePrice;
+  let price = startPrice || asset.basePrice;
   const now = Date.now();
 
   for (let i = count; i >= 0; i--) {
@@ -109,6 +110,7 @@ export default function ArenaTrader() {
   const [predictionHistory, setPredictionHistory] = useState<{ timestamp: number; asset: string; prediction: string; priceAtPrediction: number; correct?: boolean }[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { tryTriggerEvent, applyEventToCandles } = useMarketEvents();
+  const { prices: livePrices, isLive, getPriceDirection } = useLivePrices(60000);
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [achievementToast, setAchievementToast] = useState<Achievement | null>(null);
   const [maxDrawdown, setMaxDrawdown] = useState(0);
@@ -133,10 +135,11 @@ export default function ArenaTrader() {
     loadBalance();
   }, [isAuthenticated, profile]);
 
-  // Generate initial candles
+  // Generate initial candles — seed with live price if available
   useEffect(() => {
-    setCandles(generateCandles(selectedAsset, 50));
-  }, [selectedAsset]);
+    const livePrice = livePrices[selectedAsset.symbol]?.price;
+    setCandles(generateCandles(selectedAsset, 50, livePrice));
+  }, [selectedAsset, isLive]);
 
   // Tick candles based on speed and pause state
   useEffect(() => {
@@ -436,6 +439,9 @@ export default function ArenaTrader() {
             else toast({ title: 'Feche a posição antes de trocar de ativo', variant: 'destructive' });
           }}
           currentPrice={currentPrice}
+          livePrices={livePrices}
+          isLive={isLive}
+          getPriceDirection={getPriceDirection}
         />
 
         {/* Main Grid */}
