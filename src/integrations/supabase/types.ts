@@ -1133,6 +1133,45 @@ export type Database = {
           },
         ]
       }
+      uploaded_hand_files: {
+        Row: {
+          created_at: string
+          file_hash: string
+          filename: string
+          hands_count: number
+          id: string
+          platform: string
+          players_extracted: string[] | null
+          raw_content: string
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          filename: string
+          hands_count?: number
+          id?: string
+          platform?: string
+          players_extracted?: string[] | null
+          raw_content: string
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          filename?: string
+          hands_count?: number
+          id?: string
+          platform?: string
+          players_extracted?: string[] | null
+          raw_content?: string
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_question_history: {
         Row: {
           created_at: string
@@ -1236,6 +1275,144 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      villain_profiles: {
+        Row: {
+          ai_danger_level: string | null
+          ai_evolution_notes: string | null
+          ai_exploitable_tendencies: string | null
+          ai_style_summary: string | null
+          created_at: string
+          estimated_3bet: number | null
+          estimated_aggression: number | null
+          estimated_fold_to_3bet: number | null
+          estimated_pfr: number | null
+          estimated_vpip: number | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          platform: string
+          player_name: string
+          showdown_frequency: number | null
+          tags: string[] | null
+          times_seen: number
+          total_hands_against: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_danger_level?: string | null
+          ai_evolution_notes?: string | null
+          ai_exploitable_tendencies?: string | null
+          ai_style_summary?: string | null
+          created_at?: string
+          estimated_3bet?: number | null
+          estimated_aggression?: number | null
+          estimated_fold_to_3bet?: number | null
+          estimated_pfr?: number | null
+          estimated_vpip?: number | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          player_name: string
+          showdown_frequency?: number | null
+          tags?: string[] | null
+          times_seen?: number
+          total_hands_against?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_danger_level?: string | null
+          ai_evolution_notes?: string | null
+          ai_exploitable_tendencies?: string | null
+          ai_style_summary?: string | null
+          created_at?: string
+          estimated_3bet?: number | null
+          estimated_aggression?: number | null
+          estimated_fold_to_3bet?: number | null
+          estimated_pfr?: number | null
+          estimated_vpip?: number | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          player_name?: string
+          showdown_frequency?: number | null
+          tags?: string[] | null
+          times_seen?: number
+          total_hands_against?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      villain_session_stats: {
+        Row: {
+          aggression_session: number | null
+          all_ins: number
+          biggest_pot_bb: number | null
+          created_at: string
+          hands_played: number
+          hands_won: number
+          id: string
+          notable_plays: string | null
+          pfr_session: number | null
+          showdowns: number
+          uploaded_file_id: string
+          user_id: string
+          villain_profile_id: string
+          vpip_session: number | null
+        }
+        Insert: {
+          aggression_session?: number | null
+          all_ins?: number
+          biggest_pot_bb?: number | null
+          created_at?: string
+          hands_played?: number
+          hands_won?: number
+          id?: string
+          notable_plays?: string | null
+          pfr_session?: number | null
+          showdowns?: number
+          uploaded_file_id: string
+          user_id: string
+          villain_profile_id: string
+          vpip_session?: number | null
+        }
+        Update: {
+          aggression_session?: number | null
+          all_ins?: number
+          biggest_pot_bb?: number | null
+          created_at?: string
+          hands_played?: number
+          hands_won?: number
+          id?: string
+          notable_plays?: string | null
+          pfr_session?: number | null
+          showdowns?: number
+          uploaded_file_id?: string
+          user_id?: string
+          villain_profile_id?: string
+          vpip_session?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "villain_session_stats_uploaded_file_id_fkey"
+            columns: ["uploaded_file_id"]
+            isOneToOne: false
+            referencedRelation: "uploaded_hand_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "villain_session_stats_villain_profile_id_fkey"
+            columns: ["villain_profile_id"]
+            isOneToOne: false
+            referencedRelation: "villain_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       voice_recordings: {
         Row: {
