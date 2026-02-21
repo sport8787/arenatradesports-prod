@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Target, Brain, Crosshair, Swords } from 'lucide-react';
+import { X, Trophy, Target, Brain, Crosshair, Swords, Zap, Database } from 'lucide-react';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,6 +67,7 @@ function getScoreBarColor(score: number) {
 const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraining }: HandAnalysisModalProps) => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
   const horusPhrase = useRotatingPhrase(isLoading);
 
   const runAnalysis = async () => {
@@ -83,8 +84,9 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraini
         return;
       }
 
+      setFromCache(!!data?._cached);
       setAnalysis(data);
-      toast.success('Análise completa!');
+      toast.success(data?._cached ? 'Análise carregada do cache!' : 'Análise completa!');
     } catch (err) {
       console.error('Analysis failed:', err);
       toast.error('Falha ao analisar. Verifique sua conexão.');
@@ -134,9 +136,14 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraini
                   <span className="text-muted-foreground/30">•</span>
                   <span className="font-mono text-sm font-bold">{hand.potSizeBB}BB</span>
                   <span className="text-muted-foreground/30">•</span>
-                  <span className={`font-mono text-xs font-bold ${hand.heroWon ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}`}>
-                    {hand.heroWon ? 'VITÓRIA' : 'DERROTA'}
-                  </span>
+                    <span className={`font-mono text-xs font-bold ${hand.heroWon ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}`}>
+                      {hand.heroWon ? 'VITÓRIA' : 'DERROTA'}
+                    </span>
+                    {analysis && (
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${fromCache ? 'bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))]' : 'bg-[hsl(var(--arena-gold)_/_0.15)] text-[hsl(var(--arena-gold))]'}`}>
+                        {fromCache ? <><Database className="w-2.5 h-2.5" /> CACHE</> : <><Zap className="w-2.5 h-2.5" /> NOVA</>}
+                      </span>
+                    )}
                 </div>
                 {hand.boardCards.length > 0 && (
                   <div className="flex items-center gap-1 mt-2">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Skull, TrendingUp, TrendingDown, Shield, Brain, Sparkles, Loader2, Tag } from 'lucide-react';
+import { X, Trophy, Skull, TrendingUp, TrendingDown, Shield, Brain, Sparkles, Loader2, Tag, Zap, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import type { ParsedHand } from '@/lib/handHistoryParser';
@@ -38,6 +38,7 @@ const vereditoConfig: Record<string, { icon: typeof Trophy; color: string; label
 const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProps) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TournamentAnalysisData | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   const analyze = async () => {
     setLoading(true);
@@ -55,6 +56,7 @@ const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProp
         }
         return;
       }
+      setFromCache(!!result?._cached);
       setData(result);
     } catch (e) {
       console.error('Tournament analysis error:', e);
@@ -91,6 +93,11 @@ const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProp
               <h2 className="font-mono text-sm font-bold uppercase tracking-[0.15em] text-[hsl(var(--arena-gold))]">
                 Análise de Torneio
               </h2>
+              {data && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono font-bold ${fromCache ? 'bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))]' : 'bg-[hsl(var(--arena-gold)_/_0.15)] text-[hsl(var(--arena-gold))]'}`}>
+                  {fromCache ? <><Database className="w-2.5 h-2.5" /> CACHE</> : <><Zap className="w-2.5 h-2.5" /> NOVA ANÁLISE</>}
+                </span>
+              )}
             </div>
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
               <X className="w-5 h-5" />
