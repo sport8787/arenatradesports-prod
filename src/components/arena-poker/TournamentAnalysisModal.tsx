@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Skull, TrendingUp, TrendingDown, Shield, Brain, Sparkles, Loader2, Tag, Zap, Database } from 'lucide-react';
+import { X, Trophy, Skull, TrendingUp, TrendingDown, Shield, Brain, Sparkles, Loader2, Tag, Zap, Database, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import type { ParsedHand } from '@/lib/handHistoryParser';
+import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
 interface TournamentAnalysisData {
@@ -23,6 +24,7 @@ interface TournamentAnalysisData {
 interface TournamentAnalysisModalProps {
   hands: ParsedHand[];
   onClose: () => void;
+  useKB?: boolean;
 }
 
 const vereditoConfig: Record<string, { icon: typeof Trophy; color: string; label: string }> = {
@@ -35,12 +37,40 @@ const vereditoConfig: Record<string, { icon: typeof Trophy; color: string; label
   premiado_misto: { icon: TrendingUp, color: 'text-[hsl(var(--arena-cyan))]', label: 'Premiado — Misto' },
 };
 
-const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProps) => {
+const TournamentAnalysisModal = ({ hands, onClose, useKB = false }: TournamentAnalysisModalProps) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TournamentAnalysisData | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [kbAnalysis, setKbAnalysis] = useState<any>(null);
+  const [kbLoading, setKbLoading] = useState(false);
 
   const analyze = async () => {
+    if (useKB) {
+      setKbLoading(true);
+      try {
+        const rawHands = hands.map(h => h.raw);
+        const { data: result, error } = await supabase.functions.invoke('arena-poker-kb-tournament', {
+          body: { hands: rawHands },
+        });
+        if (error) throw error;
+        if (result?.error) {
+          if (result.error === 'RATE_LIMITED') {
+            toast.error('Servidor ocupado. Tente novamente em alguns segundos.');
+          } else {
+            throw new Error(result.error);
+          }
+          return;
+        }
+        setKbAnalysis(result);
+      } catch (e) {
+        console.error('KB Tournament analysis error:', e);
+        toast.error('Erro ao analisar torneio com KB. Tente novamente.');
+      } finally {
+        setKbLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const rawHands = hands.map(h => h.raw);
@@ -89,9 +119,9 @@ const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProp
           {/* Header */}
           <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-border bg-card/95 backdrop-blur-md rounded-t-xl">
             <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-[hsl(var(--arena-gold))]" />
-              <h2 className="font-mono text-sm font-bold uppercase tracking-[0.15em] text-[hsl(var(--arena-gold))]">
-                Análise de Torneio
+              {useKB ? <BookOpen className="w-5 h-5 text-[hsl(var(--arena-cyan))]" /> : <Trophy className="w-5 h-5 text-[hsl(var(--arena-gold))]" />}
+              <h2 className={`font-mono text-sm font-bold uppercase tracking-[0.15em] ${useKB ? 'text-[hsl(var(--arena-cyan))]' : 'text-[hsl(var(--arena-gold))]'}`}>
+                {useKB ? 'Torneio — Mycroft KB' : 'Análise de Torneio'}
               </h2>
               {data && (
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono font-bold ${fromCache ? 'bg-[hsl(var(--arena-cyan)_/_0.15)] text-[hsl(var(--arena-cyan))]' : 'bg-[hsl(var(--arena-gold)_/_0.15)] text-[hsl(var(--arena-gold))]'}`}>
@@ -105,34 +135,91 @@ const TournamentAnalysisModal = ({ hands, onClose }: TournamentAnalysisModalProp
           </div>
 
           <div className="p-5 space-y-5">
-            {!data && !loading && (
+            {!data && !loading && !kbAnalysis && !kbLoading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-8">
-                <Trophy className="w-16 h-16 text-[hsl(var(--arena-gold)_/_0.5)] mx-auto" />
+                {useKB ? <BookOpen className="w-16 h-16 text-[hsl(var(--arena-cyan)_/_0.5)] mx-auto" /> : <Trophy className="w-16 h-16 text-[hsl(var(--arena-gold)_/_0.5)] mx-auto" />}
                 <h3 className="font-mono text-lg font-bold text-foreground">
-                  Avaliar Desempenho no Torneio
+                  {useKB ? 'Torneio — Análise Fundamentada (KB)' : 'Avaliar Desempenho no Torneio'}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  A IA analisará todas as <strong className="text-[hsl(var(--arena-gold))]">{hands.length} mãos</strong> do torneio 
-                  e avaliará se você foi eliminado por erro técnico, cooler ou tilt — 
-                  ou se seu resultado premiado foi competência, sorte ou acaso.
+                  {useKB
+                    ? <>A IA analisará as <strong className="text-[hsl(var(--arena-cyan))]">{hands.length} mãos</strong> fundamentando cada avaliação nos livros da sua Knowledge Base.</>
+                    : <>A IA analisará todas as <strong className="text-[hsl(var(--arena-gold))]">{hands.length} mãos</strong> do torneio e avaliará se você foi eliminado por erro técnico, cooler ou tilt — ou se seu resultado premiado foi competência, sorte ou acaso.</>
+                  }
                 </p>
                 <Button
                   onClick={analyze}
-                  className="bg-gradient-to-r from-[hsl(var(--arena-gold))] to-[hsl(38_92%_55%)] text-black font-bold uppercase tracking-wider hover:brightness-110 font-mono text-sm px-8"
+                  className={`font-bold uppercase tracking-wider hover:brightness-110 font-mono text-sm px-8 ${
+                    useKB 
+                      ? 'bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(200_100%_40%)] text-white'
+                      : 'bg-gradient-to-r from-[hsl(var(--arena-gold))] to-[hsl(38_92%_55%)] text-black'
+                  }`}
                 >
-                  <Brain className="w-4 h-4 mr-2" />
-                  Analisar Torneio
+                  {useKB ? <BookOpen className="w-4 h-4 mr-2" /> : <Brain className="w-4 h-4 mr-2" />}
+                  {useKB ? 'Analisar com KB' : 'Analisar Torneio'}
                 </Button>
               </motion.div>
             )}
 
-            {loading && (
+            {(loading || kbLoading) && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
-                <Loader2 className="w-10 h-10 text-[hsl(var(--arena-gold))] animate-spin" />
+                <Loader2 className={`w-10 h-10 animate-spin ${useKB ? 'text-[hsl(var(--arena-cyan))]' : 'text-[hsl(var(--arena-gold))]'}`} />
                 <p className="font-mono text-sm text-muted-foreground animate-pulse">
-                  Analisando {hands.length} mãos do torneio...
+                  {useKB ? `Consultando Knowledge Base + ${hands.length} mãos...` : `Analisando ${hands.length} mãos do torneio...`}
                 </p>
               </div>
+            )}
+
+            {/* KB Analysis Results */}
+            {kbAnalysis && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="border border-[hsl(var(--arena-cyan)_/_0.4)] rounded-lg p-5 bg-[hsl(var(--arena-cyan)_/_0.03)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-mono text-lg font-bold text-[hsl(var(--arena-cyan))]">{kbAnalysis.titulo || 'Análise KB'}</h3>
+                    {kbAnalysis.scoreGeral !== undefined && (
+                      <span className="font-mono text-3xl font-bold text-[hsl(var(--arena-gold))]">
+                        {kbAnalysis.scoreGeral}<span className="text-lg text-muted-foreground">/100</span>
+                      </span>
+                    )}
+                  </div>
+                  
+                  {kbAnalysis.conselho_horus && (
+                    <p className="font-mono text-sm font-bold text-[hsl(var(--arena-gold))] italic mb-4">
+                      🔱 "{kbAnalysis.conselho_horus}"
+                    </p>
+                  )}
+                </div>
+
+                {kbAnalysis.analise_torneio && (
+                  <div className="border border-[hsl(var(--arena-cyan)_/_0.2)] rounded-lg p-5 bg-black/40 max-h-[500px] overflow-y-auto">
+                    <div className="prose prose-sm prose-invert max-w-none
+                      [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-base [&_h1]:text-[hsl(var(--arena-cyan))]
+                      [&_h2]:text-sm [&_h2]:text-[hsl(var(--arena-cyan)_/_0.8)] [&_h3]:text-xs
+                      [&_li]:text-xs [&_strong]:text-[hsl(var(--arena-gold))]
+                      [&_code]:text-[hsl(var(--arena-cyan))] [&_code]:bg-[hsl(var(--arena-cyan)_/_0.1)] [&_code]:px-1 [&_code]:rounded">
+                      <ReactMarkdown>{kbAnalysis.analise_torneio}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {kbAnalysis.leaks_principais?.length > 0 && (
+                  <div className="border border-red-500/20 bg-red-500/5 rounded-lg p-4">
+                    <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-red-400 mb-2">Leaks Principais</h4>
+                    {kbAnalysis.leaks_principais.map((l: string, i: number) => (
+                      <p key={i} className="text-xs text-red-300/80 mb-1">⚠️ {l}</p>
+                    ))}
+                  </div>
+                )}
+
+                {kbAnalysis.livros_recomendados?.length > 0 && (
+                  <div className="border border-[hsl(var(--arena-gold)_/_0.2)] bg-[hsl(var(--arena-gold)_/_0.03)] rounded-lg p-4">
+                    <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[hsl(var(--arena-gold))] mb-2">📖 Leitura Recomendada</h4>
+                    {kbAnalysis.livros_recomendados.map((l: string, i: number) => (
+                      <p key={i} className="text-xs text-[hsl(var(--arena-gold)_/_0.7)] mb-1">• {l}</p>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
             )}
 
             {data && cfg && (
