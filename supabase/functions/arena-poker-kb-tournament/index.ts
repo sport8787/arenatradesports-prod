@@ -161,7 +161,7 @@ Responda em português brasileiro.`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nTorneio com ${hands.length} mãos:\n\n${userPrompt}` }] }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 5000 },
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 16000 },
         }),
       }
     );
@@ -180,7 +180,36 @@ Responda em português brasileiro.`;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No content");
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const result = JSON.parse(cleaned);
+    
+    let result: any;
+    try {
+      result = JSON.parse(cleaned);
+    } catch (_parseErr) {
+      // Attempt to repair truncated JSON
+      let repaired = cleaned;
+      // Close any unterminated strings
+      const quoteCount = (repaired.match(/"/g) || []).length;
+      if (quoteCount % 2 !== 0) repaired += '"';
+      // Close arrays/objects
+      const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+      const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+      for (let i = 0; i < openBrackets; i++) repaired += ']';
+      for (let i = 0; i < openBraces; i++) repaired += '}';
+      try {
+        result = JSON.parse(repaired);
+      } catch (_e2) {
+        // Fallback: extract what we can
+        result = {
+          analise_torneio: cleaned.substring(0, 4000),
+          veredito: "eliminado_erro_tecnico",
+          scoreGeral: 50,
+          titulo: "Análise parcial",
+          leaks_principais: [],
+          livros_recomendados: [],
+          conselho_horus: "A análise foi parcialmente processada."
+        };
+      }
+    }
 
     setCache(cacheKey, "arena-poker-kb-tournament", result);
 
