@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import pdf from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,7 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("VITE_ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC API KEY not configured");
 
-    // Load Knowledge Base PDFs from storage
+    // Load Knowledge Base from storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -32,17 +33,31 @@ serve(async (req) => {
         .list("", { limit: 50 });
 
       if (!listError && files && files.length > 0) {
-        const textFiles = files.filter(f => 
-          f.name.endsWith(".txt") || f.name.endsWith(".md") || f.name.endsWith(".csv")
-        );
-
         const contents: string[] = [];
-        for (const file of textFiles) {
+        for (const file of files) {
+          if (!file.name || file.name.length === 0) continue;
           try {
             const { data: fileData, error: dlError } = await supabase.storage
               .from("knowledge-base")
               .download(file.name);
-            if (!dlError && fileData) {
+            if (dlError || !fileData) continue;
+
+            const ext = file.name.split('.').pop()?.toLowerCase();
+
+            if (ext === 'pdf') {
+              // Parse PDF to extract text
+              try {
+                const arrayBuffer = await fileData.arrayBuffer();
+                const buffer = new Uint8Array(arrayBuffer);
+                const pdfData = await pdf(buffer);
+                const text = pdfData.text?.substring(0, 80000) || "";
+                if (text.length > 0) {
+                  contents.push(`\n━━━ ${file.name} ━━━\n${text}`);
+                }
+              } catch (pdfErr) {
+                console.error(`PDF parse error for ${file.name}:`, pdfErr);
+              }
+            } else if (['txt', 'md', 'csv'].includes(ext || '')) {
               const text = await fileData.text();
               contents.push(`\n━━━ ${file.name} ━━━\n${text.substring(0, 50000)}`);
             }
