@@ -11,7 +11,7 @@ import HorusTraderVoice from '@/components/arena-trader/HorusTraderVoice';
 import AssetSelector from '@/components/arena-trader/AssetSelector';
 import TradePanel from '@/components/arena-trader/TradePanel';
 import TraderBalanceHeader from '@/components/arena-trader/TraderBalanceHeader';
-import SimulationControls from '@/components/arena-trader/SimulationControls';
+// SimulationControls removed — real data only
 import IndicatorToggles from '@/components/arena-trader/IndicatorToggles';
 import MilharPressureMeter from '@/components/arena-trader/MilharPressureMeter';
 import MarketEventOverlay, { type MarketEvent } from '@/components/arena-trader/MarketEventOverlay';
@@ -26,6 +26,7 @@ import { useMarketEvents } from '@/hooks/useMarketEvents';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import { calculateSMA, calculateBollingerBands, calculateRSI } from '@/lib/technicalIndicators';
 import { checkAchievements, type Achievement, type TraderStats } from '@/services/traderAchievementsService';
+import { AlertTriangle } from 'lucide-react';
 
 export interface Asset {
   id: string;
@@ -68,35 +69,9 @@ export interface TradePosition {
   snapshotId?: string; // DB snapshot ID
 }
 
-function generateCandles(asset: Asset, count: number, startPrice?: number): Candle[] {
-  const candles: Candle[] = [];
-  let price = startPrice || asset.basePrice;
-  const now = Date.now();
+// No more generateCandles — real data only
 
-  for (let i = count; i >= 0; i--) {
-    const change = (Math.random() - 0.48) * asset.volatility * price;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * asset.volatility * price * 0.5;
-    const low = Math.min(open, close) - Math.random() * asset.volatility * price * 0.5;
-    const volume = Math.floor(Math.random() * 1000000) + 100000;
-
-    candles.push({
-      time: now - i * 60000,
-      open: +open.toFixed(2),
-      high: +high.toFixed(2),
-      low: +low.toFixed(2),
-      close: +close.toFixed(2),
-      volume,
-    });
-
-    price = close;
-  }
-
-  return candles;
-}
-
-const SPEED_INTERVALS: Record<number, number> = { 1: 3000, 2: 1500, 5: 600 };
+// Real data mode — no speed intervals needed
 
 export default function ArenaTrader() {
   const navigate = useNavigate();
@@ -107,13 +82,16 @@ export default function ArenaTrader() {
   const [candles, setCandles] = useState<Candle[]>([]);
   // Multiple positions support
   const [positions, setPositions] = useState<TradePosition[]>([]);
+  const [marketOpen, setMarketOpen] = useState(true);
+  const [marketNextOpen, setMarketNextOpen] = useState<string | null>(null);
+  const [loadingCandles, setLoadingCandles] = useState(false);
   const [mycroftAnalysis, setMycroftAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [horusMessage, setHorusMessage] = useState('');
   const [horusMuted, setHorusMuted] = useState(false);
   const [tradeHistory, setTradeHistory] = useState<{ pnl: number; asset: string; type: string }[]>([]);
   const [bankrollWarningShown, setBankrollWarningShown] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  // speed state removed — real data mode
   const [paused, setPaused] = useState(false);
   const [indicators, setIndicators] = useState({ sma9: false, sma21: false, bollinger: false, rsi: false });
   const [marketEvent, setMarketEvent] = useState<MarketEvent | null>(null);
@@ -162,55 +140,62 @@ export default function ArenaTrader() {
     loadBalance();
   }, [isAuthenticated, profile]);
 
-  // Generate initial candles — seed with live price if available
-  useEffect(() => {
-    const livePrice = livePrices[selectedAsset.symbol]?.price;
-    setCandles(generateCandles(selectedAsset, 50, livePrice));
-  }, [selectedAsset, isLive]);
+  // Fetch REAL candles from API
+  const fetchRealCandles = useCallback(async (asset: Asset) => {
+    setLoadingCandles(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-historical-candles', {
+        body: { symbol: asset.symbol, category: asset.category },
+      });
+      if (error) throw error;
 
-  // Tick candles based on speed and pause state
+      if (data?.candles && data.candles.length > 0) {
+        setCandles(data.candles);
+      }
+      if (data?.marketStatus) {
+        setMarketOpen(data.marketStatus.open);
+        setMarketNextOpen(data.marketStatus.nextOpen || null);
+        if (!data.marketStatus.open) {
+          setPaused(true);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching real candles:', e);
+      // Fallback: use live price as single candle
+      const livePrice = livePrices[asset.symbol]?.price || asset.basePrice;
+      setCandles([{
+        time: Date.now(),
+        open: livePrice,
+        high: livePrice * 1.001,
+        low: livePrice * 0.999,
+        close: livePrice,
+        volume: 100000,
+      }]);
+    } finally {
+      setLoadingCandles(false);
+    }
+  }, [livePrices]);
+
+  // Load real candles on asset change
   useEffect(() => {
-    if (paused) {
+    fetchRealCandles(selectedAsset);
+  }, [selectedAsset]);
+
+  // Refresh candles periodically (every 60s) when market is open
+  useEffect(() => {
+    if (!marketOpen || paused) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
 
     intervalRef.current = setInterval(() => {
-      const eventResult = tryTriggerEvent();
-      if (eventResult) {
-        setMarketEvent(eventResult.event);
-        setHorusMessage(eventResult.horusMessage);
-        setCandles(prev => applyEventToCandles(prev, eventResult.event, selectedAsset));
-        setTimeout(() => setMarketEvent(null), 5000);
-        return;
-      }
-
-      setCandles(prev => {
-        if (prev.length === 0) return prev;
-        const lastCandle = prev[prev.length - 1];
-        const change = (Math.random() - 0.48) * selectedAsset.volatility * lastCandle.close;
-        const open = lastCandle.close;
-        const close = open + change;
-        const high = Math.max(open, close) + Math.random() * selectedAsset.volatility * open * 0.3;
-        const low = Math.min(open, close) - Math.random() * selectedAsset.volatility * open * 0.3;
-
-        const newCandle: Candle = {
-          time: Date.now(),
-          open: +open.toFixed(2),
-          high: +high.toFixed(2),
-          low: +low.toFixed(2),
-          close: +close.toFixed(2),
-          volume: Math.floor(Math.random() * 500000) + 50000,
-        };
-
-        return [...prev.slice(-60), newCandle];
-      });
-    }, SPEED_INTERVALS[speed] || 3000);
+      fetchRealCandles(selectedAsset);
+    }, 60000); // Refresh real data every 60s
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [selectedAsset, speed, paused]);
+  }, [selectedAsset, marketOpen, paused, fetchRealCandles]);
 
   // Check SL/TP/Liquidation auto-close for ALL positions
   useEffect(() => {
@@ -647,8 +632,35 @@ export default function ArenaTrader() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
           {/* Chart - 2 cols */}
           <div className="lg:col-span-2">
+            {/* Market closed banner */}
+            {!marketOpen && (
+              <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="text-xs text-amber-400 font-medium">
+                  MERCADO FECHADO — Gráfico pausado com dados reais do último pregão.
+                  {marketNextOpen && ` Reabre: ${marketNextOpen}`}
+                </span>
+                <button
+                  onClick={() => fetchRealCandles(selectedAsset)}
+                  className="ml-auto text-[10px] px-2 py-1 rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                >
+                  Atualizar
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <SimulationControls speed={speed} onSpeedChange={setSpeed} paused={paused} onTogglePause={() => setPaused(!paused)} />
+              <div className="flex items-center gap-2">
+                {marketOpen && (
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE
+                  </span>
+                )}
+                {loadingCandles && (
+                  <span className="text-[10px] text-amber-400/60 animate-pulse">Carregando...</span>
+                )}
+              </div>
               <IndicatorToggles indicators={indicators} onToggle={toggleIndicator} />
             </div>
 
