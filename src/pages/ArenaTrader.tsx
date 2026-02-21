@@ -204,18 +204,39 @@ export default function ArenaTrader() {
     };
   }, [selectedAsset, marketOpen, paused, fetchRealCandles]);
 
-  // Keep chart alive: update last candle with live price between API refreshes
+  // Keep chart alive: update last candle OR create new candles with live price
   useEffect(() => {
     const livePrice = livePrices[selectedAsset.symbol]?.price;
     if (!livePrice || candles.length === 0 || !marketOpen) return;
 
     setCandles(prev => {
       const updated = [...prev];
-      const last = { ...updated[updated.length - 1] };
-      last.close = livePrice;
-      last.high = Math.max(last.high, livePrice);
-      last.low = Math.min(last.low, livePrice);
-      updated[updated.length - 1] = last;
+      const lastCandle = updated[updated.length - 1];
+      const now = Date.now();
+      const candleInterval = 30 * 60 * 1000; // 30min candle interval (matches CoinGecko OHLC)
+      const timeSinceLastCandle = now - lastCandle.time;
+
+      if (timeSinceLastCandle > candleInterval) {
+        // Create a new candle — the previous one is "closed"
+        const newCandle = {
+          time: lastCandle.time + candleInterval,
+          open: lastCandle.close,
+          high: Math.max(lastCandle.close, livePrice),
+          low: Math.min(lastCandle.close, livePrice),
+          close: livePrice,
+          volume: Math.floor(Math.random() * 300000) + 100000,
+        };
+        updated.push(newCandle);
+        // Keep max 60 candles to avoid memory bloat
+        if (updated.length > 60) updated.shift();
+      } else {
+        // Update current candle with live tick
+        const last = { ...updated[updated.length - 1] };
+        last.close = livePrice;
+        last.high = Math.max(last.high, livePrice);
+        last.low = Math.min(last.low, livePrice);
+        updated[updated.length - 1] = last;
+      }
       return updated;
     });
   }, [livePrices, selectedAsset.symbol, marketOpen]);
