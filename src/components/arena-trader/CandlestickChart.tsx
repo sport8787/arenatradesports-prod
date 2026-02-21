@@ -7,9 +7,11 @@ interface CandlestickChartProps {
   position: TradePosition | null;
   support?: number;
   resistance?: number;
+  stopLoss?: number;
+  takeProfit?: number;
 }
 
-export default function CandlestickChart({ candles, asset, position, support, resistance }: CandlestickChartProps) {
+export default function CandlestickChart({ candles, asset, position, support, resistance, stopLoss, takeProfit }: CandlestickChartProps) {
   const { bars, yMin, yMax, width, height } = useMemo(() => {
     if (candles.length === 0) return { bars: [], yMin: 0, yMax: 0, width: 800, height: 400 };
 
@@ -94,6 +96,28 @@ export default function CandlestickChart({ candles, asset, position, support, re
           <>
             <line x1="60" y1={toY(resistance)} x2={width - 10} y2={toY(resistance)} stroke="#ef4444" strokeWidth="1" strokeDasharray="6,4" opacity="0.6" />
             <text x={width - 8} y={toY(resistance) - 4} fill="#ef4444" fontSize="9" textAnchor="end" fontFamily="monospace">R: {formatPrice(resistance)}</text>
+          </>
+        )}
+
+        {/* Stop Loss line */}
+        {stopLoss && stopLoss >= yMin && stopLoss <= yMax && (
+          <>
+            <line x1="60" y1={toY(stopLoss)} x2={width - 10} y2={toY(stopLoss)} stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="8,4" opacity="0.8" />
+            <rect x={width - 90} y={toY(stopLoss) - 12} width="82" height="16" rx="3" fill="#f43f5e" opacity="0.2" />
+            <text x={width - 8} y={toY(stopLoss) + 1} fill="#f43f5e" fontSize="9" textAnchor="end" fontFamily="monospace" fontWeight="bold">
+              SL: {formatPrice(stopLoss)}
+            </text>
+          </>
+        )}
+
+        {/* Take Profit line */}
+        {takeProfit && takeProfit >= yMin && takeProfit <= yMax && (
+          <>
+            <line x1="60" y1={toY(takeProfit)} x2={width - 10} y2={toY(takeProfit)} stroke="#22c55e" strokeWidth="1.5" strokeDasharray="8,4" opacity="0.8" />
+            <rect x={width - 90} y={toY(takeProfit) - 12} width="82" height="16" rx="3" fill="#22c55e" opacity="0.2" />
+            <text x={width - 8} y={toY(takeProfit) + 1} fill="#22c55e" fontSize="9" textAnchor="end" fontFamily="monospace" fontWeight="bold">
+              TP: {formatPrice(takeProfit)}
+            </text>
           </>
         )}
 
