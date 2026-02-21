@@ -135,10 +135,9 @@ function PartialExitSelector({ config, onChange }: {
 
 export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, onInvertPosition, onPartialClose, asset }: TradePanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(25000);
-  // SL is now always enabled by default
-  const [slPercent, setSlPercent] = useState(3);
-  const [tpEnabled, setTpEnabled] = useState(false);
-  const [tpPercent, setTpPercent] = useState(5);
+  // SL and TP always enabled by default (educational: always use SL/TP)
+  const [slPercent, setSlPercent] = useState(2);
+  const [tpPercent, setTpPercent] = useState(4); // Default 1:2 R:R
   const [leverage, setLeverage] = useState(1);
   const [contracts, setContracts] = useState(1);
   const [partialConfig, setPartialConfig] = useState<PartialExitConfig>({
@@ -157,15 +156,19 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
   const computeSL = () => +(currentPrice * (1 - slPercent / 100)).toFixed(2);
   const computeShortSL = () => +(currentPrice * (1 + slPercent / 100)).toFixed(2);
 
-  // TP uses partialConfig TP2 if partial enabled, else simple TP
+  // TP uses partialConfig TP2 if partial enabled, else always-on simple TP
   const computeTP = () => {
     if (partialConfig.enabled) return +(currentPrice * (1 + partialConfig.tp2Percent / 100)).toFixed(2);
-    return tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
+    return +(currentPrice * (1 + tpPercent / 100)).toFixed(2);
   };
   const computeShortTP = () => {
     if (partialConfig.enabled) return +(currentPrice * (1 - partialConfig.tp2Percent / 100)).toFixed(2);
-    return tpEnabled ? +(currentPrice * (1 - tpPercent / 100)).toFixed(2) : undefined;
+    return +(currentPrice * (1 - tpPercent / 100)).toFixed(2);
   };
+
+  // R:R calculation
+  const riskReward = slPercent > 0 ? (tpPercent / slPercent).toFixed(1) : '∞';
+  const rrColor = parseFloat(riskReward) >= 2 ? 'text-emerald-400' : parseFloat(riskReward) >= 1.5 ? 'text-amber-400' : 'text-red-400';
 
   const liquidationPrice = leverage > 1
     ? +(currentPrice * (1 - 1 / leverage)).toFixed(2)
@@ -355,8 +358,8 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </div>
       )}
 
-      {/* SL (always active) + TP Controls */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      {/* SL (always active) + TP (always active) Controls */}
+      <div className="grid grid-cols-2 gap-3 mb-2">
         {/* Stop Loss — always active */}
         <div className="p-2.5 rounded-lg border bg-red-500/10 border-red-500/30">
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -376,13 +379,13 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
           </div>
         </div>
 
-        {/* Take Profit — optional simple mode */}
-        <div className={`p-2.5 rounded-lg border transition-all ${tpEnabled && !partialConfig.enabled ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
-          <button onClick={() => { setTpEnabled(!tpEnabled); if (partialConfig.enabled) setPartialConfig(p => ({ ...p, enabled: false })); }} className="flex items-center gap-1.5 w-full mb-1.5">
-            <Target className={`w-3.5 h-3.5 ${tpEnabled && !partialConfig.enabled ? 'text-emerald-400' : 'text-white/30'}`} />
-            <span className={`text-xs font-bold ${tpEnabled && !partialConfig.enabled ? 'text-emerald-400' : 'text-white/40'}`}>Take Profit</span>
-          </button>
-          {tpEnabled && !partialConfig.enabled && (
+        {/* Take Profit — always active */}
+        <div className="p-2.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Target className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-xs font-bold text-emerald-400">Take Profit (auto)</span>
+          </div>
+          {!partialConfig.enabled && (
             <>
               <div className="flex items-center gap-2">
                 <input
@@ -397,12 +400,29 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
               </div>
             </>
           )}
+          {partialConfig.enabled && (
+            <div className="text-[9px] text-cyan-400/50 mt-1">Usando alvos parciais (TP1/TP2)</div>
+          )}
         </div>
       </div>
 
+      {/* R:R Display */}
+      {!partialConfig.enabled && (
+        <div className="flex items-center justify-center gap-3 mb-3 py-2 px-3 rounded-lg bg-white/5 border border-white/10">
+          <span className="text-[10px] text-white/40">Risco: <span className="text-red-400 font-bold">{slPercent}%</span></span>
+          <span className="text-white/20">|</span>
+          <span className="text-[10px] text-white/40">Reward: <span className="text-emerald-400 font-bold">{tpPercent}%</span></span>
+          <span className="text-white/20">|</span>
+          <span className="text-[10px] text-white/40">R:R: <span className={`font-bold ${rrColor}`}>1:{riskReward}</span></span>
+          {parseFloat(riskReward) < 1.5 && (
+            <span className="text-[9px] text-red-400/70 italic">⚠ R:R baixo</span>
+          )}
+        </div>
+      )}
+
       {/* Partial Exit / Multi-target system */}
       <div className="mb-4">
-        <PartialExitSelector config={partialConfig} onChange={(c) => { setPartialConfig(c); if (c.enabled) setTpEnabled(false); }} />
+        <PartialExitSelector config={partialConfig} onChange={(c) => { setPartialConfig(c); }} />
       </div>
 
       {/* Buy/Sell buttons */}
