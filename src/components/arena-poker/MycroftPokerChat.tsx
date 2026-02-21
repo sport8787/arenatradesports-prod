@@ -17,7 +17,7 @@ interface MycroftPokerChatProps {
 }
 
 export default function MycroftPokerChat({ handContext }: MycroftPokerChatProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
