@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, RotateCcw, Activity, Trophy } from 'lucide-react';
+import { ArrowLeft, Shield, RotateCcw, Activity, Trophy, Users, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -11,7 +11,10 @@ import TrainingMode from '@/components/arena-poker/TrainingMode';
 import TrendsAlertPanel from '@/components/arena-poker/TrendsAlertPanel';
 import StreetContinuationTraining from '@/components/arena-poker/StreetContinuationTraining';
 import TournamentAnalysisModal from '@/components/arena-poker/TournamentAnalysisModal';
+import VillainProfilesPanel from '@/components/arena-poker/VillainProfilesPanel';
 import { parseSessionFile, parseHandHistory, type ParsedHand } from '@/lib/handHistoryParser';
+import { detectPlatform } from '@/lib/platformDetector';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 type Phase = 'import' | 'grid' | 'training' | 'street-training';
@@ -24,8 +27,74 @@ const ArenaPoker = () => {
   const [trainingContext, setTrainingContext] = useState<string | undefined>();
   const [showTrends, setShowTrends] = useState(false);
   const [showTournament, setShowTournament] = useState(false);
+  const [showVillains, setShowVillains] = useState(false);
+  const [savedFiles, setSavedFiles] = useState<{ id: string; filename: string; hands_count: number; platform: string; created_at: string }[]>([]);
+  const [showSavedFiles, setShowSavedFiles] = useState(false);
 
-  const handleImport = (content: string) => {
+  useEffect(() => {
+    loadSavedFiles();
+  }, []);
+
+  const loadSavedFiles = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('uploaded_hand_files')
+      .select('id, filename, hands_count, platform, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setSavedFiles(data);
+  };
+
+  const saveFileToDatabase = async (content: string, filename: string, handsCount: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Generate hash to prevent duplicates
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content.trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const fileHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const platform = detectPlatform(content);
+    const players = extractPlayerNames(content);
+
+    const { data: result, error } = await supabase
+      .from('uploaded_hand_files')
+      .upsert({
+        user_id: user.id,
+        filename,
+        platform,
+        raw_content: content,
+        hands_count: handsCount,
+        players_extracted: players,
+        file_hash: fileHash,
+      }, { onConflict: 'user_id,file_hash' })
+      .select('id')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        toast.info('Este arquivo já foi importado anteriormente.');
+      } else {
+        console.error('Save file error:', error);
+      }
+    }
+
+    await loadSavedFiles();
+    return result?.id || null;
+  };
+
+  const extractPlayerNames = (content: string): string[] => {
+    const names = new Set<string>();
+    const seatMatches = content.matchAll(/Seat \d+: (\S+)/g);
+    for (const m of seatMatches) {
+      names.add(m[1]);
+    }
+    return Array.from(names);
+  };
+
+  const handleImport = async (content: string) => {
     const parsed = parseSessionFile(content);
     if (parsed.length === 0) {
       const single = parseHandHistory(content);
@@ -33,6 +102,7 @@ const ArenaPoker = () => {
         setHands([single]);
         setPhase('grid');
         toast.success(`Sessão Importada: 1 mão detectada`);
+        saveFileToDatabase(content, `hand_${Date.now()}.txt`, 1);
         return;
       }
       toast.error('Nenhuma mão detectada. Verifique o formato do arquivo.');
@@ -41,6 +111,25 @@ const ArenaPoker = () => {
     setHands(parsed);
     setPhase('grid');
     toast.success(`Sessão Importada: ${parsed.length} mãos detectadas`);
+    saveFileToDatabase(content, `session_${Date.now()}.txt`, parsed.length);
+  };
+
+  const loadSavedFile = async (fileId: string) => {
+    const { data } = await supabase
+      .from('uploaded_hand_files')
+      .select('raw_content')
+      .eq('id', fileId)
+      .single();
+
+    if (data?.raw_content) {
+      const parsed = parseSessionFile(data.raw_content);
+      if (parsed.length > 0) {
+        setHands(parsed);
+        setPhase('grid');
+        setShowSavedFiles(false);
+        toast.success(`Sessão carregada: ${parsed.length} mãos`);
+      }
+    }
   };
 
   const resetAll = () => {
@@ -91,44 +180,100 @@ const ArenaPoker = () => {
               </h1>
             </div>
           </div>
-          {phase === 'grid' && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {phase === 'import' && savedFiles.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowTournament(true)}
-                className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-gold)_/_0.4)] text-[hsl(var(--arena-gold))] hover:bg-[hsl(var(--arena-gold)_/_0.1)]"
+                onClick={() => setShowSavedFiles(!showSavedFiles)}
+                className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
               >
-                <Trophy className="w-3 h-3 mr-1.5" />
-                Análise do Torneio
+                <FolderOpen className="w-3 h-3 mr-1.5" />
+                Sessões Salvas ({savedFiles.length})
               </Button>
-              {hands.length >= 3 && (
+            )}
+            {phase === 'grid' && (
+              <>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowTrends(true)}
+                  onClick={() => setShowVillains(true)}
                   className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
                 >
-                  <Activity className="w-3 h-3 mr-1.5" />
-                  Tendências
+                  <Users className="w-3 h-3 mr-1.5" />
+                  Vilões
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetAll}
-                className="font-mono text-xs uppercase tracking-wider border-border text-muted-foreground hover:text-foreground"
-              >
-                <RotateCcw className="w-3 h-3 mr-1.5" />
-                Nova Sessão
-              </Button>
-            </div>
-          )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTournament(true)}
+                  className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-gold)_/_0.4)] text-[hsl(var(--arena-gold))] hover:bg-[hsl(var(--arena-gold)_/_0.1)]"
+                >
+                  <Trophy className="w-3 h-3 mr-1.5" />
+                  Análise do Torneio
+                </Button>
+                {hands.length >= 3 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTrends(true)}
+                    className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                  >
+                    <Activity className="w-3 h-3 mr-1.5" />
+                    Tendências
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetAll}
+                  className="font-mono text-xs uppercase tracking-wider border-border text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1.5" />
+                  Nova Sessão
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-[1600px] mx-auto px-4 py-6">
-        {phase === 'import' && <FileImporter onImport={handleImport} />}
+        {phase === 'import' && (
+          <div className="space-y-6">
+            <FileImporter onImport={handleImport} />
+
+            {/* Saved files list */}
+            {showSavedFiles && savedFiles.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+                <h3 className="font-mono text-xs uppercase tracking-[0.15em] text-[hsl(var(--arena-cyan))] mb-3">
+                  Sessões Anteriores
+                </h3>
+                <div className="space-y-2">
+                  {savedFiles.map(file => (
+                    <div
+                      key={file.id}
+                      onClick={() => loadSavedFile(file.id)}
+                      className="border border-border/50 rounded-lg p-3 cursor-pointer hover:border-[hsl(var(--arena-cyan)_/_0.4)] hover:bg-[hsl(var(--arena-cyan)_/_0.02)] transition-all flex items-center justify-between"
+                    >
+                      <div>
+                        <span className="font-mono text-sm text-foreground">{file.filename}</span>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="font-mono text-[10px] text-muted-foreground">{file.hands_count} mãos</span>
+                          <span className="font-mono text-[10px] text-[hsl(var(--arena-cyan))]">{file.platform}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {new Date(file.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+                      <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
         {phase === 'grid' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <SessionImportSummary hands={hands} />
@@ -160,6 +305,13 @@ const ArenaPoker = () => {
         <TournamentAnalysisModal
           hands={hands}
           onClose={() => setShowTournament(false)}
+        />
+      )}
+
+      {showVillains && (
+        <VillainProfilesPanel
+          hands={hands}
+          onClose={() => setShowVillains(false)}
         />
       )}
     </div>
