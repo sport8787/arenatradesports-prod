@@ -20,59 +20,32 @@ interface VoiceMetrics {
   recordingDurationMs: number;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+function buildSystemPrompt(type: string, body: Record<string, unknown>): string {
+  const { questionText, correctAnswer, wrongOptions, userResponse, voiceMetrics } = body;
 
-  try {
-    const body = await req.json();
-    const { questionText, correctAnswer, type, wrongOptions, userResponse, metrics, voiceMetrics } = body;
+  if (type === 'verdict') {
+    const vm = voiceMetrics as VoiceMetrics | undefined;
+    const playerAnswerText = (userResponse as string) || 'Não informada';
+    const isCorrect = userResponse === correctAnswer;
 
-    if (!questionText) {
-      throw new Error('Missing questionText');
-    }
+    let forensicData = '';
+    if (vm && vm.responseLatencyMs > 0) {
+      const latencyDesc = vm.responseLatencyMs < 800 ? 'rápida' :
+                         vm.responseLatencyMs < 2000 ? 'moderada' : 'hesitante';
+      const pitchDesc = vm.pitchStability === 'stable' ? 'estável' :
+                       vm.pitchStability === 'micro-tremors' ? 'micro-tremores' : 'instável';
+      const speedDesc = vm.speechRateBPM > 180 ? 'acelerada' :
+                       vm.speechRateBPM > 100 ? 'normal' : 'lenta';
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured');
-    }
-
-    console.log(`Generating Mycroft ${type || 'bluff'} for:`, questionText);
-    console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
-    
-    // Log voice metrics if provided
-    if (voiceMetrics) {
-      console.log('🎙️ Voice Forensics Data:', voiceMetrics);
-    }
-
-    let systemPrompt: string;
-    
-    if (type === 'verdict') {
-      // FORENSIC VERDICT: Uses real captured voice data
-      const vm = voiceMetrics as VoiceMetrics | undefined;
-      const playerAnswerText = userResponse || 'Não informada';
-      const isCorrect = userResponse === correctAnswer;
-      
-      // Build forensic data string from real metrics
-      let forensicData = '';
-      if (vm && vm.responseLatencyMs > 0) {
-        const latencyDesc = vm.responseLatencyMs < 800 ? 'rápida' : 
-                           vm.responseLatencyMs < 2000 ? 'moderada' : 'hesitante';
-        const pitchDesc = vm.pitchStability === 'stable' ? 'estável' :
-                         vm.pitchStability === 'micro-tremors' ? 'micro-tremores' : 'instável';
-        const speedDesc = vm.speechRateBPM > 180 ? 'acelerada' :
-                         vm.speechRateBPM > 100 ? 'normal' : 'lenta';
-        
-        forensicData = `
+      forensicData = `
 DADOS FORENSES REAIS CAPTURADOS:
 - Latência: ${vm.responseLatencyMs}ms (${latencyDesc})
 - Pitch: ${pitchDesc} (${vm.avgPitch}Hz, variância ${vm.pitchVariance})
 - Velocidade: ${vm.speechRateBPM} palavras/min (${speedDesc})
 - Duração: ${Math.round(vm.recordingDurationMs / 1000)}s`;
-      }
-      
-      systemPrompt = `Você é o Mycroft, IA forense de análise vocal. MÁXIMO ${MAX_DYNAMIC_CHARS} CARACTERES.
+    }
+
+    return `Você é o Mycroft, IA forense de análise vocal. MÁXIMO ${MAX_DYNAMIC_CHARS} CARACTERES.
 
 ${forensicData || 'DADOS: Análise de padrões vocais em andamento.'}
 
@@ -89,21 +62,20 @@ ${vm ? `- CITE os números reais (latência ${vm.responseLatencyMs}ms, pitch ${v
 PROIBIDO: Introduções genéricas, apenas análise técnica direta.
 Responda em NO MÁXIMO ${MAX_DYNAMIC_CHARS} caracteres.`;
 
-    } else if (type === 'detector') {
-      const wrongOptionsText = wrongOptions?.join(', ') || 'opções incorretas não fornecidas';
-      
-      const voiceAlerts = [
-        "Escute a respiração: Mentirosos costumam prender o ar ou suspirar antes de começar a mentira.",
-        "Verifique a velocidade: Se ele falou rápido demais, está tentando impedir que vocês pensem.",
-        "Alerta de Detalhes: Se ele citou 'um amigo', 'um documentário' ou deu uma data muito específica, provavelmente é uma mentira ensaiada.",
-        "Tom de Voz: Se o final da frase ficou agudo (parecendo uma pergunta), ele está inseguro.",
-        "Pausas: O silêncio longo antes de responder indica que ele estava criando a história na hora.",
-        "Hesitações: Muitos 'hmm', 'tipo', 'então' indicam que o cérebro está fabricando informações.",
-        "Volume: Se ele abaixou a voz no meio da explicação, está menos confiante naquela parte.",
-      ];
-      const randomVoiceAlert = voiceAlerts[Math.floor(Math.random() * voiceAlerts.length)];
-      
-      systemPrompt = `Você é uma IA especialista em identificar mentiras através de padrões de fala e lógica argumentativa. O usuário (Desafiante) está ouvindo um áudio do suspeito.
+  } else if (type === 'detector') {
+    const wrongOptionsText = (wrongOptions as string[])?.join(', ') || 'opções incorretas não fornecidas';
+    const voiceAlerts = [
+      "Escute a respiração: Mentirosos costumam prender o ar ou suspirar antes de começar a mentira.",
+      "Verifique a velocidade: Se ele falou rápido demais, está tentando impedir que vocês pensem.",
+      "Alerta de Detalhes: Se ele citou 'um amigo', 'um documentário' ou deu uma data muito específica, provavelmente é uma mentira ensaiada.",
+      "Tom de Voz: Se o final da frase ficou agudo (parecendo uma pergunta), ele está inseguro.",
+      "Pausas: O silêncio longo antes de responder indica que ele estava criando a história na hora.",
+      "Hesitações: Muitos 'hmm', 'tipo', 'então' indicam que o cérebro está fabricando informações.",
+      "Volume: Se ele abaixou a voz no meio da explicação, está menos confiante naquela parte.",
+    ];
+    const randomVoiceAlert = voiceAlerts[Math.floor(Math.random() * voiceAlerts.length)];
+
+    return `Você é uma IA especialista em identificar mentiras através de padrões de fala e lógica argumentativa. O usuário (Desafiante) está ouvindo um áudio do suspeito.
 
 A Pergunta é: "${questionText}"
 Opções INCORRETAS (para eliminação): ${wrongOptionsText}
@@ -119,8 +91,9 @@ ${randomVoiceAlert}
 Tom de Voz: Seja cético, analítico e frio. Use termos como "Sinais indicam", "Alta probabilidade de fabricação", "Padrão vocal suspeito", "Análise fonética sugere".
 
 Responda de forma direta e técnica, no estilo perito forense. Máximo 80 palavras no total.`;
-    } else if (type === 'analytics') {
-      systemPrompt = `Você é o Mycroft Analytics, uma IA especialista em análise comportamental e detecção de blefes. Você está ajudando o júri a decidir se o jogador está blefando ou falando a verdade.
+
+  } else if (type === 'analytics') {
+    return `Você é o Mycroft Analytics, uma IA especialista em análise comportamental e detecção de blefes. Você está ajudando o júri a decidir se o jogador está blefando ou falando a verdade.
 
 A Pergunta é: "${questionText}"
 
@@ -129,8 +102,9 @@ Sua tarefa: Analise esta pergunta e forneça uma análise de risco de blefe em f
 2. "analysis": uma análise curta e perspicaz (máximo 30 palavras) sobre por que alguém poderia blefar nesta pergunta, considerando a dificuldade e o tipo de conhecimento necessário.
 
 Use um tom analítico e profissional. Responda APENAS com o JSON, sem markdown ou explicações.`;
-    } else {
-      systemPrompt = `Você é um Roteirista de Atuação e Coach de Mentiras. O usuário precisa gravar um áudio de 30 segundos enganando os amigos sobre uma pergunta de Trivia.
+
+  } else {
+    return `Você é um Roteirista de Atuação e Coach de Mentiras. O usuário precisa gravar um áudio de 30 segundos enganando os amigos sobre uma pergunta de Trivia.
 
 A Pergunta é: "${questionText}"
 A Resposta Correta é: "${correctAnswer}"
@@ -146,58 +120,92 @@ Regras de Estilo (Obrigatórias):
 Exemplo de Saída: "Mano, certeza absoluta que é a letra B. Eu vi um documentário na Netflix sobre isso semana passada... (pausa)... os caras explicavam exatamente esse processo. Pode confiar."
 
 NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
+  }
+}
+
+function buildUserMessage(type: string, body: Record<string, unknown>): string {
+  const { userResponse, correctAnswer } = body;
+  if (type === 'verdict') {
+    return `Análise forense (máx ${MAX_DYNAMIC_CHARS} chars). Resposta: "${userResponse}", Correto: "${correctAnswer}". Use os dados reais capturados.`;
+  } else if (type === 'detector') {
+    return 'Analise o suspeito e me dê uma eliminação + dica de pressão.';
+  } else if (type === 'analytics') {
+    return 'Analise o risco de blefe desta pergunta.';
+  }
+  return 'Me dê uma sugestão de blefe convincente.';
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    const { questionText, type, voiceMetrics } = body;
+
+    if (!questionText) {
+      throw new Error('Missing questionText');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const anthropicApiKey = Deno.env.get('VITE_ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC API KEY is not configured');
+    }
+
+    console.log(`Generating Mycroft ${type || 'bluff'} via Claude Sonnet for:`, questionText);
+    console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
+
+    if (voiceMetrics) {
+      console.log('🎙️ Voice Forensics Data:', voiceMetrics);
+    }
+
+    const systemPrompt = buildSystemPrompt(type || 'bluff', body);
+    const userMessage = buildUserMessage(type || 'bluff', body);
+
+    const maxTokens = type === 'verdict' ? 60 : 300;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: maxTokens,
+        system: systemPrompt,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: type === 'verdict'
-            ? `Análise forense (máx ${MAX_DYNAMIC_CHARS} chars). Resposta: "${userResponse}", Correto: "${correctAnswer}". Use os dados reais capturados.`
-            : type === 'detector' 
-              ? 'Analise o suspeito e me dê uma eliminação + dica de pressão.'
-              : type === 'analytics' 
-                ? 'Analise o risco de blefe desta pergunta.' 
-                : 'Me dê uma sugestão de blefe convincente.' 
-          }
+          { role: 'user', content: userMessage }
         ],
-        // CREDIT CONTROL: Reduced tokens for verdict to enforce 150 char limit
-        max_tokens: type === 'verdict' ? 60 : 150,
         temperature: type === 'analytics' ? 0.7 : 0.8,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      console.error('Anthropic API error:', response.status, errorText);
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content?.trim();
+    const content = data.content?.[0]?.text?.trim();
 
-    console.log('Mycroft response:', content);
+    console.log('Mycroft (Claude Sonnet) response:', content);
 
     if (type === 'verdict') {
-      // HARD LIMIT: Truncate to MAX_DYNAMIC_CHARS if exceeded
       let finalContent = content || '';
       if (finalContent.length > MAX_DYNAMIC_CHARS) {
         console.warn(`⚠️ Verdict exceeded ${MAX_DYNAMIC_CHARS} chars (${finalContent.length}), truncating...`);
-        // Find the last complete sentence within the limit
         const truncated = finalContent.substring(0, MAX_DYNAMIC_CHARS);
         const lastPeriod = truncated.lastIndexOf('.');
         finalContent = lastPeriod > 50 ? truncated.substring(0, lastPeriod + 1) : truncated + '...';
       }
-      
+
       console.log(`💸 Créditos Estimados para análise dinâmica: ${finalContent.length} caracteres`);
-      
-      return new Response(JSON.stringify({ 
+
+      return new Response(JSON.stringify({
         verdict: finalContent,
         charCount: finalContent.length,
         withinLimit: finalContent.length <= MAX_DYNAMIC_CHARS
@@ -216,7 +224,6 @@ NÃO dê explicações. Dê APENAS o texto para ele atuar.`;
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch {
-        // Fallback if JSON parsing fails
         return new Response(JSON.stringify({
           riskLevel: 50,
           analysis: content || 'Análise indisponível'
