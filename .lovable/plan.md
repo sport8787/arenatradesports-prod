@@ -1,150 +1,139 @@
-# 🎯 ARENA TRADER — Plano de Evolução
 
-## Estado Atual (v1.0)
-- ✅ Dashboard preto/dourado com gráfico de candlesticks SVG
-- ✅ 4 ativos (BTC, PETR4, VALE3, ITUB4)
-- ✅ Operações Long/Short com volumes fixos (10K-100K)
-- ✅ Mycroft Trader via Claude Sonnet (suporte, resistência, veredito forense)
-- ✅ Hórus Premium com provocações contextuais
-- ✅ Persistência de saldo (500K BC inicial) e histórico de trades
-- ✅ Alerta de bankroll (-10%)
 
----
+# Arena Trader: Analise do Documento vs Estado Atual e Plano de Implementacao
 
-## 📋 FASE 1 — Experiência de Trading (UX/Visual) ✅
+## O Que Ja Existe (e Supera o Documento)
 
-### 1.1 — Stop Loss & Take Profit ✅
-- ✅ Permitir definir limites ao abrir posição
-- ✅ Fechamento automático quando preço atinge SL/TP
-- ✅ Linhas visuais no gráfico (vermelho para SL, verde para TP)
-- ✅ Hórus comenta quando SL é acionado vs quando TP é atingido
+O projeto atual ja possui funcionalidades que o documento especifica para fases avancadas:
+- Dados de mercado reais (CoinGecko + Brapi) -- o documento sugeria isso apenas na Fase 4 (semana 14+)
+- Mycroft Trader com auditoria forense via Claude Sonnet
+- Mini Contratos (WIN/WDO) com zonas de milhar
+- Sistema de achievements e rankings
+- Alertas Telegram automaticos
+- Grafico de candlestick com indicadores tecnicos reais
 
-### 1.2 — Alavancagem (Leverage) ✅
-- ✅ Seletor de alavancagem: 1x, 2x, 5x, 10x
-- ✅ Multiplicador no cálculo de PnL
-- ✅ Alerta visual sobre risco em alavancagens altas
-- ✅ Liquidação forçada se PnL negativo exceder margem
+## O Que o Documento Traz de NOVO e Viavel
 
-### 1.3 — Timeframes & Velocidade de Simulação ✅
-- ✅ Seletor de velocidade: 1x, 2x, 5x (intervalo de tick: 3s, 1.5s, 0.6s)
-- ✅ Botão Pause/Play para congelar a simulação
+O documento descreve um **modo de jogo completamente diferente** do que ja existe. O Arena Trader atual e um **simulador de trading livre** (o jogador opera quando quer). O documento propoe um **Modo Temporada** -- um jogo baseado em **cenarios com perguntas A/B/C/D**, juri de IA, e ofertas "deal or no deal" do Horus.
 
-### 1.4 — Indicadores Técnicos no Gráfico ✅
-- ✅ Média Móvel Simples (SMA 9 / SMA 21) como linhas sobre o gráfico
-- ✅ Banda de Bollinger para volatilidade visual
-- ✅ RSI em sub-chart abaixo do candlestick
-- ✅ Toggle para ligar/desligar cada indicador
+Ambos os modos podem coexistir, tal como a Arena Poker ja tem o "Modo Treino" separado do modo principal.
 
 ---
 
-## 📋 FASE 2 — IA e Narrativa ✅
+## Plano de Implementacao: "Modo Temporada" (Season Mode)
 
-### 2.1 — Hórus TTS (Voz Real) ✅
-- ✅ Integrar ElevenLabs TTS para o Hórus narrar provocações
-- ✅ Voz George com stability 0.45, similarity 0.8, speed 1.1
-- ✅ Cache de áudio via cacheKey no storage
-- ✅ Visualização de waveform durante narração
+### FASE 1 -- Fundacao (Implementar Agora)
 
-### 2.2 — Mycroft Trader Detalhado ✅
-- ✅ Seção "Detecção de Blefe de Mercado" ao painel
-- ✅ Indicador visual de "Volume Real vs Burburinho"
-- ✅ Recomendação de aporte fracionado (% da banca ideal por operação)
-- ✅ Histórico de previsões do Mycroft (acertou/errou) com toggle
+**1. Tabelas de Base de Dados**
 
-### 2.3 — Eventos Narrativos do Hórus ✅
-- ✅ Flash Crash simulado: queda abrupta com narração dramática
-- ✅ Pump & Dump: alta artificial seguida de crash
-- ✅ "Notícias de última hora" fictícias que impactam preço
-- ✅ ~8% chance por tick, cooldown 45s entre eventos
+Criar as seguintes tabelas:
 
-### 2.4 — Alertas Inteligentes por Nível de Estresse ✅
-- ✅ Indicador visual de estresse (Baixo/Médio/Crítico) com barra de banca
-- ✅ Baixo: cor verde, sem pulsação
-- ✅ Médio: cor âmbar, label ATENÇÃO
-- ✅ Crítico: cor vermelha, borda pulsante, tela com classe pulse
+- `arena_trader_seasons` -- Sessoes de temporada (user_id, season_number, status, current_day, current_bankroll, initial_bankroll, started_at, ended_at, total_rounds, correct_answers, jury_convinced, offers_received, offers_accepted, tilt_warnings, ignored_warnings, all_in_moments)
+- `arena_trader_scenarios` -- Cenarios de mercado pre-configurados (title, description, option_a/b/c/d, correct_option, explanation, common_mistake, bankroll_multiplier_win/loss, difficulty, category)
+- `arena_trader_rounds` -- Rodadas individuais (session_id, day, scenario_id, chosen_option, is_correct, transcription, jury_votes JSONB, jury_convinced_count, bankroll_before/after, mycroft_analysis JSONB, tilt_detected, time_to_choose)
+- `horus_trader_offers` -- Ofertas deal-or-no-deal (session_id, trigger_type, offered_bankroll, accepted, next_round_result)
 
----
+**2. Seed de Cenarios (10 cenarios iniciais)**
 
-## 📋 FASE 3 — Gamificação e Competição ✅
+Criar 10 cenarios de mercado educacionais cobrindo:
+- Euforia pos-noticia (BTC ETF aprovado)
+- Crash repentino (Flash Crash)
+- Lateralizacao (mercado sem direcao)
+- FOMO em alta
+- Revenge trading apos perda
+- Cenarios especificos de Mini Contratos (milhar, correlacao)
 
-### 3.1 — Sistema de Conquistas (Achievements) ✅
-- ✅ "Primeira Operação" — Abrir primeira posição
-- ✅ "Sangue Frio" — Fechar com lucro após PnL negativo de -5K
-- ✅ "Lobo de Wall Street" — Acumular 1M BC
-- ✅ "Sardinha Sobrevivente" — Recuperar após perder 50% da banca
-- ✅ "Triple Kill" — 3 trades lucrativos em sequência
-- ✅ "Rei da Alavancagem" — Lucrar com 10x leverage
-- ✅ "Diversificado" — Operar em todos os 4 ativos
-- ✅ "Mestre do Short" — 3 shorts lucrativos
-- ✅ "Mãos de Diamante" — 20 trades sem zerar
-- ✅ "O Retorno" — Lucrar 50K após estar no negativo
+Cada cenario tem 4 opcoes, 1 correta, e explicacao pedagogica.
 
-### 3.2 — Ranking Arena Trader ✅
-- ✅ Página /arena-trader/rankings com Top 50 traders
-- ✅ Métricas: Win Rate, Saldo, Total P&L
-- ✅ Filtros por Saldo, Win Rate, P&L
-- ✅ Visual com medalhas para Top 3
+**3. Edge Function: `arena-trader-season`**
 
-### 3.3 — Desafios Diários do Hórus ✅
-- ✅ "Desafio Sniper": 3 trades com lucro em sequência
-- ✅ "Desafio Sobrevivência": Não perder >5% da banca em 10 trades
-- ✅ "Trader Ativo": Realizar 5 operações
-- ✅ Barras de progresso visual + recompensas em BC
+Nova funcao backend que gerencia:
+- Iniciar temporada (criar sessao, debitar 300 NT)
+- Buscar proximo cenario (aleatorio por dificuldade/dia)
+- Submeter resposta (calcular resultado, atualizar banca)
+- Verificar triggers de oferta Horus
 
----
+**4. Edge Function: `arena-trader-jury`**
 
-## 📋 FASE 4 — Dados Reais e Social ✅
+Juri de 3 IAs que avaliam a justificativa do jogador:
+- Conservador ("O Prudente") -- valoriza preservacao de capital
+- Agressivo ("O Tubarao") -- valoriza coragem e oportunidade
+- Neutro ("O Quant") -- valoriza logica e dados
 
-### 4.1 — Preços Reais (API CoinGecko + Brapi) ✅
-- ✅ Edge function fetch-live-prices busca BTC via CoinGecko (BRL) e PETR4/VALE3/ITUB4 via Brapi
-- ✅ Polling automático a cada 60s com hook useLivePrices
-- ✅ Indicador LIVE/SIMULADO no AssetSelector
-- ✅ Preço sobe → ciano; preço desce → vermelho neon
-- ✅ Variação 24h exibida por ativo
-- ✅ Candles gerados a partir do preço real como seed
-- ✅ Preço real passado ao Mycroft Trader para análise
+Utiliza Claude Sonnet para gerar votos CLARO/BLEFE com justificativa.
 
-### 4.2 — Múltiplas Posições Simultâneas ✅
-- ✅ Abrir posições em ativos diferentes simultaneamente
-- ✅ Dashboard de portfolio com PnL consolidado (PortfolioPanel)
-- ✅ Fechar posições individualmente via botão X
-- ✅ TraderBalanceHeader mostra PnL total de todas posições
-- ✅ Auto-close SL/TP/Liquidação em todas as posições
+**5. Tela do Modo Temporada (Frontend)**
 
-### 4.3 — Replay de Sessão ✅
-- ✅ Salvar snapshots de cada trade no banco (trader_session_snapshots)
-- ✅ SessionReplayPanel com histórico expandível
-- ✅ Análise do Mycroft embutida em cada trade passado
-- ✅ Métricas de win rate e PnL total da sessão
-
-### 4.4 — Social Feed ✅
-- ✅ Feed de trades públicos com realtime (trader_social_feed)
-- ✅ Botão "Compartilhar último trade" no dashboard
-- ✅ Sistema de likes e contagem de cópias
-- ✅ "Copy Trade" simplificado — seleciona ativo e tipo automaticamente
-- ✅ SocialFeedPanel com subscription realtime para novos trades
+Nova rota `/arena-trader/season` com:
+- Seletor entre "Trading Livre" (atual) e "Modo Temporada" (novo)
+- Tela de cenario com timer de 30 segundos
+- 4 botoes de opcao (A/B/C/D)
+- Gravacao de audio para justificativa (reutilizar AudioRecorder existente)
+- Animacao de deliberacao do juri (3 avatares)
+- Tela de resultado com feedback do Horus
+- Header mostrando Dia X/30 e banca atual
 
 ---
 
-## 🔧 Melhorias Técnicas Pendentes
+### FASE 2 -- Mecanicas Avancadas (Implementacao Seguinte)
 
-| Item | Prioridade |
-|------|-----------|
-| Volume bars abaixo do candlestick | Alta |
-| Responsividade mobile | Alta |
-| Label "Paper Trading / Simulação" | Alta |
-| Migrar SVG para canvas (performance) | Média |
-| Persistir histórico individual no DB | Média |
-| Animação de confetti no lucro grande | Baixa |
+**6. Oferta Horus (Deal or No Deal)**
+
+Triggers automaticos:
+- Banca dobrou (20k+ BC)
+- Sequencia 5+ vitorias
+- Ultima rodada (Dia 30)
+- Tilt detectado
+
+Modal dramatico com opcao de aceitar (sair com lucro) ou recusar (arriscar).
+
+**7. Tilt Detection (Mycroft)**
+
+Algoritmo que monitoriza:
+- Loss streak (2+ perdas seguidas)
+- Position size crescente apos perda (revenge trading)
+- Tempo de decisao a diminuir (impulsividade)
+- Tom de voz ansioso (via analise de audio existente)
+
+Score >= 50 = tilt detectado, Horus intervem.
+
+**8. Analise Fim de Temporada**
+
+Relatorio completo com:
+- Performance (ROI, dias sobrevividos, win rate)
+- Analise comportamental (position sizing, tilt moments, ofertas recusadas)
+- Replay de momentos criticos ("Se tivesse aceitado no Dia 8...")
+- Recomendacoes para proxima temporada
 
 ---
 
-## Ordem de Implementação Sugerida
-1. **Fase 1.1** (Stop Loss/Take Profit) — Mecânica essencial
-2. **Fase 1.4** (Indicadores SMA/Bollinger) — Visual profissional
-3. **Fase 2.1** (Hórus TTS) — Imersão narrativa
-4. **Fase 2.3** (Eventos narrativos) — Engajamento
-5. **Fase 3.1** (Achievements) — Retenção
-6. **Fase 1.2** (Alavancagem) — Complexidade progressiva
-7. **Fase 3.2** (Rankings) — Competição
-8. **Fase 4.1** (Preços reais) — Credibilidade
+### O Que NAO Faz Sentido Implementar (Incompativel com Tech Stack)
+
+- **Redis/MongoDB/Kafka** -- O projeto usa Lovable Cloud (PostgreSQL). JSONB cobre todos os casos de dados nao-estruturados.
+- **React Native** -- O projeto e web (React + Vite). Ja funciona em mobile via responsive design.
+- **Node.js + Express separado** -- Edge Functions do Lovable Cloud cobrem tudo.
+- **Socket.io/WebSocket** -- Realtime do Lovable Cloud substitui isto.
+- **AWS S3** -- Storage do Lovable Cloud ja armazena audios.
+
+---
+
+## Resumo de Prioridades
+
+| Prioridade | Feature | Complexidade |
+|---|---|---|
+| 1 | Tabelas DB (seasons, scenarios, rounds, offers) | Media |
+| 2 | Seed 10 cenarios educacionais | Baixa |
+| 3 | Edge Function season management | Alta |
+| 4 | Edge Function jury IA (3 perfis) | Media |
+| 5 | Frontend Modo Temporada (cenario + timer + opcoes) | Alta |
+| 6 | Oferta Horus (deal or no deal) | Media |
+| 7 | Tilt Detection | Media |
+| 8 | Analise fim de temporada | Media |
+
+## Detalhes Tecnicos
+
+- **Custo de API estimado**: Cada rodada usa ~3 chamadas Claude (1 por jurado) + 1 para Horus feedback = ~4 chamadas. Uma temporada de 30 dias = ~120 chamadas Claude por jogador.
+- **Banca inicial**: 10.000 BC (conforme documento, diferente dos 500k TC do modo livre)
+- **Custo por temporada**: 300 NT (debito automatico ao iniciar)
+- **Cenarios**: Armazenados em tabela PostgreSQL, com dificuldade progressiva (dias 1-10 facil, 11-20 medio, 21-30 dificil)
+
