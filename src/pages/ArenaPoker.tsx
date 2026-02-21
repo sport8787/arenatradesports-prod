@@ -30,6 +30,7 @@ const ArenaPoker = () => {
   const [showTournament, setShowTournament] = useState(false);
   const [showVillains, setShowVillains] = useState(false);
   const [showMycroftPoker, setShowMycroftPoker] = useState(false);
+  const [showKBTournament, setShowKBTournament] = useState(false);
   const [savedFiles, setSavedFiles] = useState<{ id: string; filename: string; hands_count: number; platform: string; created_at: string }[]>([]);
   const [showSavedFiles, setShowSavedFiles] = useState(false);
 
@@ -234,7 +235,16 @@ const ArenaPoker = () => {
                   className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-gold)_/_0.4)] text-[hsl(var(--arena-gold))] hover:bg-[hsl(var(--arena-gold)_/_0.1)]"
                 >
                   <Trophy className="w-3 h-3 mr-1.5" />
-                  Análise do Torneio
+                  Torneio
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowKBTournament(true)}
+                  className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                >
+                  <BookOpen className="w-3 h-3 mr-1.5" />
+                  Torneio KB
                 </Button>
                 {hands.length >= 3 && (
                   <Button
@@ -346,6 +356,14 @@ const ArenaPoker = () => {
         <VillainProfilesPanel
           hands={hands}
           onClose={() => setShowVillains(false)}
+        />
+      )}
+
+      {showKBTournament && (
+        <TournamentAnalysisModal
+          hands={hands}
+          onClose={() => setShowKBTournament(false)}
+          useKB
         />
       )}
     </div>

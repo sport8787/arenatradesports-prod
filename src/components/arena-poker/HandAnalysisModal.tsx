@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, Target, Brain, Crosshair, Swords, Zap, Database } from 'lucide-react';
+import { X, Trophy, Target, Brain, Crosshair, Swords, Zap, Database, BookOpen, Loader2 } from 'lucide-react';
 import { MonocleIcon, PharaohIcon } from './PersonaIcons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 import type { ParsedHand } from '@/lib/handHistoryParser';
 
 interface AnalysisResult {
@@ -69,6 +70,11 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraini
   const [isLoading, setIsLoading] = useState(false);
   const [fromCache, setFromCache] = useState(false);
   const horusPhrase = useRotatingPhrase(isLoading);
+  
+  // KB Analysis state
+  const [kbAnalysis, setKbAnalysis] = useState<any>(null);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbFromCache, setKbFromCache] = useState(false);
 
   const runAnalysis = async () => {
     setIsLoading(true);
@@ -92,6 +98,24 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraini
       toast.error('Falha ao analisar. Verifique sua conexão.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const runKBAnalysis = async () => {
+    setKbLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('arena-poker-kb-analyze', {
+        body: { handHistory: hand.raw },
+      });
+      if (error) throw error;
+      setKbFromCache(!!data?._cached);
+      setKbAnalysis(data);
+      toast.success(data?._cached ? 'Análise KB carregada do cache!' : 'Análise Mycroft Poker (KB) completa!');
+    } catch (err) {
+      console.error('KB Analysis failed:', err);
+      toast.error('Falha na análise Mycroft Poker. Tente novamente.');
+    } finally {
+      setKbLoading(false);
     }
   };
 
@@ -267,6 +291,90 @@ const HandAnalysisModal = ({ hand, onClose, onStartTraining, onStartStreetTraini
                     </div>
                   </div>
                 </section>
+
+                {/* ── MYCROFT POKER KB ANALYSIS ── */}
+                {!kbAnalysis && !kbLoading && (
+                  <div className="text-center py-6">
+                    <Button
+                      onClick={runKBAnalysis}
+                      className="bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(200_100%_40%)] text-white font-bold uppercase tracking-wider hover:brightness-110 font-mono text-sm px-8 py-3"
+                    >
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      Análise Mycroft Poker (KB)
+                    </Button>
+                    <p className="font-mono text-[10px] text-muted-foreground mt-2">
+                      Análise fundamentada nos livros da sua Knowledge Base
+                    </p>
+                  </div>
+                )}
+
+                {kbLoading && (
+                  <div className="border border-[hsl(var(--arena-cyan)_/_0.3)] rounded-xl p-6 bg-[hsl(var(--arena-cyan)_/_0.03)]">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Loader2 className="w-5 h-5 text-[hsl(var(--arena-cyan))] animate-spin" />
+                      <span className="font-mono text-sm text-[hsl(var(--arena-cyan))] uppercase tracking-wider font-bold">
+                        Mycroft consultando Knowledge Base...
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full bg-[hsl(var(--arena-cyan)_/_0.08)]" />
+                      <Skeleton className="h-4 w-3/4 bg-[hsl(var(--arena-cyan)_/_0.08)]" />
+                      <Skeleton className="h-4 w-5/6 bg-[hsl(var(--arena-cyan)_/_0.08)]" />
+                    </div>
+                  </div>
+                )}
+
+                {kbAnalysis && (
+                  <div className="border border-[hsl(var(--arena-cyan)_/_0.4)] rounded-xl p-6 bg-[hsl(var(--arena-cyan)_/_0.03)] space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-mono text-[20px] font-black uppercase tracking-[0.15em] text-[hsl(var(--arena-cyan))] flex items-center gap-3">
+                        <BookOpen className="w-6 h-6" />
+                        Mycroft Poker — Análise KB
+                      </h2>
+                      {kbAnalysis.nota !== undefined && (
+                        <span className={`font-mono text-3xl font-black ${getScoreColor(kbAnalysis.nota)}`}>
+                          {kbAnalysis.nota}
+                        </span>
+                      )}
+                    </div>
+
+                    {kbAnalysis.resumo_curto && (
+                      <p className="font-mono text-sm text-muted-foreground italic">"{kbAnalysis.resumo_curto}"</p>
+                    )}
+
+                    {kbAnalysis.analise_completa && (
+                      <div className="prose prose-sm prose-invert max-w-none max-h-[500px] overflow-y-auto pr-2
+                        [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-base [&_h1]:text-[hsl(var(--arena-cyan))]
+                        [&_h2]:text-sm [&_h2]:text-[hsl(var(--arena-cyan)_/_0.8)] [&_h3]:text-xs [&_h3]:text-[hsl(var(--arena-cyan)_/_0.7)]
+                        [&_li]:text-xs [&_strong]:text-[hsl(var(--arena-gold))]
+                        [&_code]:text-[hsl(var(--arena-cyan))] [&_code]:bg-[hsl(var(--arena-cyan)_/_0.1)] [&_code]:px-1 [&_code]:rounded
+                        [&_blockquote]:border-l-[hsl(var(--arena-gold))] [&_blockquote]:text-[hsl(var(--arena-gold)_/_0.8)]">
+                        <ReactMarkdown>{kbAnalysis.analise_completa}</ReactMarkdown>
+                      </div>
+                    )}
+
+                    {kbAnalysis.citacoes && kbAnalysis.citacoes.length > 0 && (
+                      <div className="border-t border-[hsl(var(--arena-cyan)_/_0.15)] pt-3">
+                        <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.5)] uppercase tracking-wider mb-2">Citações da KB</p>
+                        {kbAnalysis.citacoes.map((c: string, i: number) => (
+                          <p key={i} className="font-mono text-xs text-[hsl(var(--arena-gold)_/_0.7)] italic mb-1">📖 {c}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {kbAnalysis.conselho_horus && (
+                      <div className="border-t border-[hsl(var(--arena-gold)_/_0.2)] pt-3">
+                        <p className="font-mono text-sm font-bold text-[hsl(var(--arena-gold))]">
+                          🔱 "{kbAnalysis.conselho_horus}"
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="font-mono text-[10px] text-[hsl(var(--arena-cyan)_/_0.3)] uppercase tracking-widest text-right">
+                      {kbFromCache ? '📦 Cache' : '⚡ Nova'} — Mycroft Poker | Knowledge Base
+                    </p>
+                  </div>
+                )}
 
                 {/* Training Mode Buttons */}
                 {(onStartTraining || onStartStreetTraining) && (
