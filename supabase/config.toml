@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.mycroft-telegram]
 verify_jwt = false
+
+[functions.arena-trader-season]
+verify_jwt = false
+
+[functions.arena-trader-jury]
+verify_jwt = false
