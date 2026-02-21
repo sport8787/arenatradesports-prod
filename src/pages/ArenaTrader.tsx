@@ -238,7 +238,7 @@ export default function ArenaTrader() {
       if (pos.stopLoss) {
         const hitSL = pos.type === 'long' ? price <= pos.stopLoss : price >= pos.stopLoss;
         if (hitSL) {
-          setHorusMessage(`⛔ Stop Loss acionado em ${pos.asset.symbol}!`);
+          setHorusMessage(`⛔ Stop Loss bateu em ${pos.asset.symbol}. Pelo menos você não virou holder involuntário como os fracos.`);
           closePositionByIndex(index, price);
           return;
         }
@@ -491,10 +491,13 @@ export default function ArenaTrader() {
 
     const leverageMsg = leverage > 1 ? ` com ${leverage}x de alavancagem` : '';
     const multiMsg = positions.length > 0 ? ` Agora são ${positions.length + 1} posições abertas.` : '';
+    const slDist = stopLoss ? Math.abs((currentPrice - stopLoss) / currentPrice * 100).toFixed(1) : '?';
+    const tpDist = takeProfit ? Math.abs((takeProfit - currentPrice) / currentPrice * 100).toFixed(1) : '?';
+    const rrRatio = (stopLoss && takeProfit) ? (Math.abs(takeProfit - currentPrice) / Math.abs(currentPrice - stopLoss)).toFixed(1) : '?';
     setHorusMessage(
       type === 'long'
-        ? `Comprado em ${selectedAsset.symbol}${leverageMsg}!${multiMsg} Vamos ver se você tem estômago.`
-        : `Short em ${selectedAsset.symbol}${leverageMsg}...${multiMsg} Audacioso.`
+        ? `Comprado em ${selectedAsset.symbol}${leverageMsg}! SL: -${slDist}% | TP: +${tpDist}% | R:R 1:${rrRatio}.${multiMsg} Vamos ver se você tem estômago.`
+        : `Short em ${selectedAsset.symbol}${leverageMsg}! SL: -${slDist}% | TP: +${tpDist}% | R:R 1:${rrRatio}.${multiMsg} Audacioso.`
     );
 
     requestAnalysis();
