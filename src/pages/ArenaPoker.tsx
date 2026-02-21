@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, RotateCcw, Activity, Trophy, Users, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Shield, RotateCcw, Activity, Trophy, Users, FolderOpen, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -12,6 +12,7 @@ import TrendsAlertPanel from '@/components/arena-poker/TrendsAlertPanel';
 import StreetContinuationTraining from '@/components/arena-poker/StreetContinuationTraining';
 import TournamentAnalysisModal from '@/components/arena-poker/TournamentAnalysisModal';
 import VillainProfilesPanel from '@/components/arena-poker/VillainProfilesPanel';
+import MycroftPokerChat from '@/components/arena-poker/MycroftPokerChat';
 import { parseSessionFile, parseHandHistory, type ParsedHand } from '@/lib/handHistoryParser';
 import { detectPlatform } from '@/lib/platformDetector';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +29,7 @@ const ArenaPoker = () => {
   const [showTrends, setShowTrends] = useState(false);
   const [showTournament, setShowTournament] = useState(false);
   const [showVillains, setShowVillains] = useState(false);
+  const [showMycroftPoker, setShowMycroftPoker] = useState(false);
   const [savedFiles, setSavedFiles] = useState<{ id: string; filename: string; hands_count: number; platform: string; created_at: string }[]>([]);
   const [showSavedFiles, setShowSavedFiles] = useState(false);
 
@@ -181,19 +183,41 @@ const ArenaPoker = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {phase === 'import' && savedFiles.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSavedFiles(!showSavedFiles)}
-                className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
-              >
-                <FolderOpen className="w-3 h-3 mr-1.5" />
-                Sessões Salvas ({savedFiles.length})
-              </Button>
+            {phase === 'import' && (
+              <>
+                {savedFiles.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSavedFiles(!showSavedFiles)}
+                    className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                  >
+                    <FolderOpen className="w-3 h-3 mr-1.5" />
+                    Sessões Salvas ({savedFiles.length})
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMycroftPoker(!showMycroftPoker)}
+                  className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                >
+                  <BookOpen className="w-3 h-3 mr-1.5" />
+                  KB & Chat
+                </Button>
+              </>
             )}
             {phase === 'grid' && (
               <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMycroftPoker(!showMycroftPoker)}
+                  className="font-mono text-xs uppercase tracking-wider border-[hsl(var(--arena-cyan)_/_0.4)] text-[hsl(var(--arena-cyan))] hover:bg-[hsl(var(--arena-cyan)_/_0.1)]"
+                >
+                  <BookOpen className="w-3 h-3 mr-1.5" />
+                  KB & Chat
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -272,12 +296,22 @@ const ArenaPoker = () => {
                 </div>
               </motion.div>
             )}
+
+            {/* Mycroft Poker KB + Chat */}
+            {showMycroftPoker && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+                <MycroftPokerChat />
+              </motion.div>
+            )}
           </div>
         )}
         {phase === 'grid' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <SessionImportSummary hands={hands} />
             <HandGrid hands={hands} onSelectHand={setSelectedHand} />
+            {showMycroftPoker && (
+              <MycroftPokerChat />
+            )}
           </motion.div>
         )}
       </main>

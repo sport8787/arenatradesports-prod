@@ -1,0 +1,1 @@
+INSERT INTO storage.buckets (id, name, public) VALUES ('poker-knowledge-base', 'poker-knowledge-base', false) ON CONFLICT (id) DO NOTHING;
