@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy } from 'lucide-react';
+import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy, Share2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -18,6 +18,9 @@ import StressLevelIndicator from '@/components/arena-trader/StressLevelIndicator
 import AchievementsPanel from '@/components/arena-trader/AchievementsPanel';
 import AchievementToast from '@/components/arena-trader/AchievementToast';
 import DailyChallengesPanel from '@/components/arena-trader/DailyChallengesPanel';
+import PortfolioPanel from '@/components/arena-trader/PortfolioPanel';
+import SessionReplayPanel from '@/components/arena-trader/SessionReplayPanel';
+import SocialFeedPanel from '@/components/arena-trader/SocialFeedPanel';
 import { useMarketEvents } from '@/hooks/useMarketEvents';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import { checkAchievements, type Achievement, type TraderStats } from '@/services/traderAchievementsService';
@@ -56,6 +59,7 @@ export interface TradePosition {
   stopLoss?: number;
   takeProfit?: number;
   leverage?: number;
+  snapshotId?: string; // DB snapshot ID
 }
 
 function generateCandles(asset: Asset, count: number, startPrice?: number): Candle[] {
@@ -95,7 +99,8 @@ export default function ArenaTrader() {
   const [initialBalance] = useState(500000);
   const [selectedAsset, setSelectedAsset] = useState<Asset>(ASSETS[0]);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [position, setPosition] = useState<TradePosition | null>(null);
+  // Multiple positions support
+  const [positions, setPositions] = useState<TradePosition[]>([]);
   const [mycroftAnalysis, setMycroftAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [horusMessage, setHorusMessage] = useState('');
@@ -116,6 +121,22 @@ export default function ArenaTrader() {
   const [maxDrawdown, setMaxDrawdown] = useState(0);
   const [winStreak, setWinStreak] = useState(0);
   const [leverageHistory, setLeverageHistory] = useState<number[]>([]);
+  const [sessionId] = useState(() => crypto.randomUUID());
+
+  // Current position for the selected asset (for TradePanel compatibility)
+  const position = positions.find(p => p.asset.symbol === selectedAsset.symbol) || null;
+
+  // Current prices map for portfolio
+  const currentPrices: Record<string, number> = {};
+  ASSETS.forEach(a => {
+    if (a.symbol === selectedAsset.symbol && candles.length > 0) {
+      currentPrices[a.symbol] = candles[candles.length - 1].close;
+    } else if (livePrices[a.symbol]?.price) {
+      currentPrices[a.symbol] = livePrices[a.symbol].price;
+    } else {
+      currentPrices[a.symbol] = a.basePrice;
+    }
+  });
 
   // Load balance from DB
   useEffect(() => {
@@ -149,13 +170,11 @@ export default function ArenaTrader() {
     }
 
     intervalRef.current = setInterval(() => {
-      // Try triggering a market event
       const eventResult = tryTriggerEvent();
       if (eventResult) {
         setMarketEvent(eventResult.event);
         setHorusMessage(eventResult.horusMessage);
         setCandles(prev => applyEventToCandles(prev, eventResult.event, selectedAsset));
-        // Clear event after 5 seconds
         setTimeout(() => setMarketEvent(null), 5000);
         return;
       }
@@ -187,53 +206,67 @@ export default function ArenaTrader() {
     };
   }, [selectedAsset, speed, paused]);
 
-  // Check SL/TP/Liquidation auto-close
+  // Check SL/TP/Liquidation auto-close for ALL positions
   useEffect(() => {
-    if (!position || candles.length === 0) return;
-    const price = candles[candles.length - 1].close;
-    const leverage = position.leverage || 1;
+    if (positions.length === 0 || candles.length === 0) return;
 
-    // Check liquidation (margin exceeded)
-    if (leverage > 1) {
-      const priceChange = (price - position.entryPrice) / position.entryPrice;
-      const leveragedChange = priceChange * leverage;
-      const isLiquidated = position.type === 'long' ? leveragedChange <= -1 : -leveragedChange <= -1;
-      if (isLiquidated) {
-        setHorusMessage(`💀 LIQUIDAÇÃO FORÇADA em ${position.asset.symbol}! ${leverage}x de alavancagem sem proteção... O mercado cobrou a conta. Sua margem evaporou.`);
-        setTradeHistory(prev => [...prev, { pnl: -position.amount, asset: position.asset.symbol, type: position.type }]);
-        if (isAuthenticated && profile) {
-          supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: -position.amount, p_is_win: false });
+    const positionsToClose: number[] = [];
+
+    positions.forEach((pos, index) => {
+      const price = pos.asset.symbol === selectedAsset.symbol
+        ? candles[candles.length - 1].close
+        : (livePrices[pos.asset.symbol]?.price || pos.entryPrice);
+
+      const leverage = pos.leverage || 1;
+
+      // Liquidation check
+      if (leverage > 1) {
+        const priceChange = (price - pos.entryPrice) / pos.entryPrice;
+        const leveragedChange = priceChange * leverage;
+        const isLiquidated = pos.type === 'long' ? leveragedChange <= -1 : -leveragedChange <= -1;
+        if (isLiquidated) {
+          setHorusMessage(`💀 LIQUIDAÇÃO FORÇADA em ${pos.asset.symbol}! ${leverage}x sem proteção...`);
+          setTradeHistory(prev => [...prev, { pnl: -pos.amount, asset: pos.asset.symbol, type: pos.type }]);
+          if (isAuthenticated && profile) {
+            supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: -pos.amount, p_is_win: false });
+          }
+          toast({ title: `💀 Liquidado! -${pos.amount.toLocaleString()} BC`, variant: 'destructive' });
+          positionsToClose.push(index);
+          return;
         }
-        toast({ title: `💀 Liquidado! -${position.amount.toLocaleString()} BC`, variant: 'destructive' });
-        setPosition(null);
-        return;
       }
-    }
 
-    if (position.stopLoss) {
-      const hitSL = position.type === 'long' ? price <= position.stopLoss : price >= position.stopLoss;
-      if (hitSL) {
-        setHorusMessage(`⛔ Stop Loss acionado em ${position.asset.symbol}! O mercado não perdoa quem ignora a gestão de risco.`);
-        closePosition();
-        return;
+      // Stop Loss
+      if (pos.stopLoss) {
+        const hitSL = pos.type === 'long' ? price <= pos.stopLoss : price >= pos.stopLoss;
+        if (hitSL) {
+          setHorusMessage(`⛔ Stop Loss acionado em ${pos.asset.symbol}!`);
+          closePositionByIndex(index, price);
+          return;
+        }
       }
-    }
 
-    if (position.takeProfit) {
-      const hitTP = position.type === 'long' ? price >= position.takeProfit : price <= position.takeProfit;
-      if (hitTP) {
-        setHorusMessage(`🎯 Take Profit atingido em ${position.asset.symbol}! Lucro no bolso. Disciplina de trader profissional.`);
-        closePosition();
-        return;
+      // Take Profit
+      if (pos.takeProfit) {
+        const hitTP = pos.type === 'long' ? price >= pos.takeProfit : price <= pos.takeProfit;
+        if (hitTP) {
+          setHorusMessage(`🎯 Take Profit em ${pos.asset.symbol}! Lucro garantido.`);
+          closePositionByIndex(index, price);
+          return;
+        }
       }
+    });
+
+    if (positionsToClose.length > 0) {
+      setPositions(prev => prev.filter((_, i) => !positionsToClose.includes(i)));
     }
-  }, [candles, position]);
+  }, [candles, positions]);
 
   // Bankroll warning
   useEffect(() => {
     if (!bankrollWarningShown && balance <= initialBalance * 0.9 && balance < initialBalance) {
       setBankrollWarningShown(true);
-      setHorusMessage('Sua banca caiu 10%... Gestão de bankroll, meu caro. Até o jogador mais audacioso sabe a hora de recuar.');
+      setHorusMessage('Sua banca caiu 10%... Gestão de bankroll, meu caro.');
     }
   }, [balance, initialBalance, bankrollWarningShown]);
 
@@ -246,7 +279,6 @@ export default function ArenaTrader() {
   // Check achievements after trades
   useEffect(() => {
     if (tradeHistory.length === 0) return;
-    // Calculate win streak
     let streak = 0;
     for (let i = tradeHistory.length - 1; i >= 0; i--) {
       if (tradeHistory[i].pnl > 0) streak++;
@@ -280,6 +312,30 @@ export default function ArenaTrader() {
 
   const currentPrice = candles.length > 0 ? candles[candles.length - 1].close : selectedAsset.basePrice;
 
+  // Total unrealized PnL across all positions
+  const totalUnrealizedPnl = positions.reduce((sum, pos) => {
+    const price = currentPrices[pos.asset.symbol] || pos.entryPrice;
+    const leverage = pos.leverage || 1;
+    const change = (price - pos.entryPrice) / pos.entryPrice;
+    const leveragedChange = change * leverage;
+    const pnl = pos.type === 'long'
+      ? Math.floor(pos.amount * leveragedChange)
+      : Math.floor(pos.amount * -leveragedChange);
+    return sum + pnl;
+  }, 0);
+
+  // Unrealized PnL for current asset position only (for TradePanel)
+  const unrealizedPnl = position
+    ? (() => {
+        const leverage = position.leverage || 1;
+        const priceChange = (currentPrice - position.entryPrice) / position.entryPrice;
+        const leveragedChange = priceChange * leverage;
+        return position.type === 'long'
+          ? Math.floor(position.amount * leveragedChange)
+          : Math.floor(position.amount * -leveragedChange);
+      })()
+    : 0;
+
   const requestAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
     try {
@@ -291,11 +347,9 @@ export default function ArenaTrader() {
       const mycroft = data?.mycroft || null;
       setMycroftAnalysis(mycroft);
       if (data?.horus) setHorusMessage(data.horus);
-      // Update stress level from analysis
       if (mycroft?.alertaEstresse) {
         setStressLevel(mycroft.alertaEstresse as 'Baixo' | 'Médio' | 'Crítico');
       }
-      // Track prediction history
       if (mycroft?.statusMercado) {
         setPredictionHistory(prev => [...prev.slice(-20), {
           timestamp: Date.now(),
@@ -330,44 +384,88 @@ export default function ArenaTrader() {
       toast({ title: 'Saldo insuficiente', variant: 'destructive' });
       return;
     }
-    if (position) {
-      toast({ title: 'Feche a posição atual primeiro', variant: 'destructive' });
+    // Check if already has position on this asset
+    if (positions.find(p => p.asset.symbol === selectedAsset.symbol)) {
+      toast({ title: 'Já existe posição neste ativo. Feche primeiro.', variant: 'destructive' });
       return;
     }
 
-    setPosition({ type, asset: selectedAsset, entryPrice: currentPrice, amount, timestamp: Date.now(), stopLoss, takeProfit, leverage });
+    // Save snapshot to DB
+    let snapshotId: string | undefined;
+    if (isAuthenticated && profile) {
+      try {
+        const { data: snap } = await supabase.from('trader_session_snapshots').insert({
+          user_id: profile.user_id,
+          session_id: sessionId,
+          trade_type: type,
+          asset_symbol: selectedAsset.symbol,
+          entry_price: currentPrice,
+          amount,
+          leverage,
+          stop_loss: stopLoss || null,
+          take_profit: takeProfit || null,
+          candles_snapshot: JSON.parse(JSON.stringify(candles.slice(-10))),
+          mycroft_analysis: mycroftAnalysis ? JSON.parse(JSON.stringify(mycroftAnalysis)) : null,
+          horus_message: horusMessage || null,
+          status: 'open',
+        }).select('id').single();
+        snapshotId = snap?.id;
+      } catch (e) {
+        console.error('Error saving snapshot:', e);
+      }
+    }
+
+    const newPos: TradePosition = {
+      type, asset: selectedAsset, entryPrice: currentPrice, amount,
+      timestamp: Date.now(), stopLoss, takeProfit, leverage, snapshotId,
+    };
+
+    setPositions(prev => [...prev, newPos]);
     setBalance(prev => prev - amount);
     if (leverage > 1) setLeverageHistory(prev => [...prev, leverage]);
 
     const leverageMsg = leverage > 1 ? ` com ${leverage}x de alavancagem` : '';
+    const multiMsg = positions.length > 0 ? ` Agora são ${positions.length + 1} posições abertas.` : '';
     setHorusMessage(
       type === 'long'
-        ? `Comprado em ${selectedAsset.symbol}${leverageMsg}! Vamos ver se você tem estômago para segurar essa posição.`
-        : `Short em ${selectedAsset.symbol}${leverageMsg}... Audacioso. Apostar contra a multidão exige sangue frio.`
+        ? `Comprado em ${selectedAsset.symbol}${leverageMsg}!${multiMsg} Vamos ver se você tem estômago.`
+        : `Short em ${selectedAsset.symbol}${leverageMsg}...${multiMsg} Audacioso.`
     );
 
     requestAnalysis();
   };
 
-  const closePosition = async () => {
-    if (!position) return;
+  const closePositionByIndex = async (index: number, priceOverride?: number) => {
+    const pos = positions[index];
+    if (!pos) return;
 
-    const leverage = position.leverage || 1;
-    const priceChange = (currentPrice - position.entryPrice) / position.entryPrice;
+    const price = priceOverride || currentPrices[pos.asset.symbol] || pos.entryPrice;
+    const leverage = pos.leverage || 1;
+    const priceChange = (price - pos.entryPrice) / pos.entryPrice;
     const leveragedChange = priceChange * leverage;
-    const pnl = position.type === 'long'
-      ? Math.floor(position.amount * leveragedChange)
-      : Math.floor(position.amount * -leveragedChange);
+    const pnl = pos.type === 'long'
+      ? Math.floor(pos.amount * leveragedChange)
+      : Math.floor(pos.amount * -leveragedChange);
 
-    const newBalance = balance + position.amount + pnl;
+    const newBalance = balance + pos.amount + pnl;
     setBalance(newBalance);
 
     const isWin = pnl > 0;
-    setTradeHistory(prev => [...prev, { pnl, asset: position.asset.symbol, type: position.type }]);
+    setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
 
+    // Persist trade
     if (isAuthenticated && profile) {
       try {
         await supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: pnl, p_is_win: isWin });
+        // Update snapshot
+        if (pos.snapshotId) {
+          await supabase.from('trader_session_snapshots').update({
+            exit_price: price,
+            pnl,
+            closed_at: new Date().toISOString(),
+            status: 'closed',
+          }).eq('id', pos.snapshotId);
+        }
       } catch (e) {
         console.error('Error persisting trade:', e);
       }
@@ -375,29 +473,62 @@ export default function ArenaTrader() {
 
     toast({
       title: isWin ? `📈 +${pnl.toLocaleString()} BC` : `📉 ${pnl.toLocaleString()} BC`,
-      description: `${position.type === 'long' ? 'Long' : 'Short'} ${position.asset.symbol}${leverage > 1 ? ` (${leverage}x)` : ''} fechado`,
+      description: `${pos.type === 'long' ? 'Long' : 'Short'} ${pos.asset.symbol}${leverage > 1 ? ` (${leverage}x)` : ''} fechado`,
       variant: isWin ? 'default' : 'destructive',
     });
 
     setHorusMessage(
       isWin
-        ? `Lucro de ${pnl.toLocaleString()} BC! Nem todo mundo tem a coragem de fechar no verde.`
-        : `Prejuízo de ${Math.abs(pnl).toLocaleString()} BC. O mercado não perdoa hesitação.`
+        ? `Lucro de ${pnl.toLocaleString()} BC em ${pos.asset.symbol}! Nem todo mundo tem a coragem de fechar no verde.`
+        : `Prejuízo de ${Math.abs(pnl).toLocaleString()} BC em ${pos.asset.symbol}. O mercado não perdoa hesitação.`
     );
 
-    setPosition(null);
+    setPositions(prev => prev.filter((_, i) => i !== index));
   };
 
-  const unrealizedPnl = position
-    ? (() => {
-        const leverage = position.leverage || 1;
-        const priceChange = (currentPrice - position.entryPrice) / position.entryPrice;
-        const leveragedChange = priceChange * leverage;
-        return position.type === 'long'
-          ? Math.floor(position.amount * leveragedChange)
-          : Math.floor(position.amount * -leveragedChange);
-      })()
-    : 0;
+  const closePosition = async () => {
+    const idx = positions.findIndex(p => p.asset.symbol === selectedAsset.symbol);
+    if (idx === -1) return;
+    await closePositionByIndex(idx);
+  };
+
+  // Share trade to social feed
+  const shareTradeToFeed = async (trade: { pnl: number; asset: string; type: string }, comment?: string) => {
+    if (!isAuthenticated || !profile) {
+      toast({ title: 'Faça login para compartilhar trades', variant: 'destructive' });
+      return;
+    }
+    try {
+      const lastClosed = tradeHistory[tradeHistory.length - 1];
+      if (!lastClosed) return;
+
+      await supabase.from('trader_social_feed').insert({
+        user_id: profile.user_id,
+        username: profile.username || 'Trader',
+        trade_type: lastClosed.type,
+        asset_symbol: lastClosed.asset,
+        entry_price: currentPrice, // approximation
+        exit_price: currentPrice,
+        amount: 10000,
+        leverage: 1,
+        pnl: lastClosed.pnl,
+        pnl_percent: (lastClosed.pnl / 10000) * 100,
+        comment: comment || null,
+      });
+      toast({ title: '📤 Trade compartilhado no Social Feed!' });
+    } catch (e) {
+      console.error('Error sharing trade:', e);
+    }
+  };
+
+  // Copy trade handler from social feed
+  const handleCopyTrade = (type: 'long' | 'short', assetSymbol: string) => {
+    const asset = ASSETS.find(a => a.symbol === assetSymbol);
+    if (asset) {
+      setSelectedAsset(asset);
+      toast({ title: `Ativo selecionado: ${assetSymbol}. Abra a posição ${type.toUpperCase()}.` });
+    }
+  };
 
   const toggleIndicator = (key: 'sma9' | 'sma21' | 'bollinger' | 'rsi') => {
     setIndicators(prev => ({ ...prev, [key]: !prev[key] }));
@@ -406,7 +537,7 @@ export default function ArenaTrader() {
   return (
     <div className={`min-h-screen bg-[#0a0a0a] text-white ${stressLevel === 'Crítico' ? 'animate-pulse-subtle' : ''}`}>
       <MarketEventOverlay event={marketEvent} />
-      <TraderBalanceHeader balance={balance} unrealizedPnl={unrealizedPnl} />
+      <TraderBalanceHeader balance={balance} unrealizedPnl={totalUnrealizedPnl} />
 
       <div className="pt-16 px-3 pb-4 max-w-7xl mx-auto">
         {/* Top Bar */}
@@ -434,21 +565,27 @@ export default function ArenaTrader() {
         <AssetSelector
           assets={ASSETS}
           selectedAsset={selectedAsset}
-          onSelect={(asset) => {
-            if (!position) setSelectedAsset(asset);
-            else toast({ title: 'Feche a posição antes de trocar de ativo', variant: 'destructive' });
-          }}
+          onSelect={(asset) => setSelectedAsset(asset)}
           currentPrice={currentPrice}
           livePrices={livePrices}
           isLive={isLive}
           getPriceDirection={getPriceDirection}
         />
 
+        {/* Portfolio Panel (multi-positions) */}
+        <div className="mt-2">
+          <PortfolioPanel
+            positions={positions}
+            candles={{}}
+            currentPrices={currentPrices}
+            onClosePosition={closePositionByIndex}
+          />
+        </div>
+
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
           {/* Chart - 2 cols */}
           <div className="lg:col-span-2">
-            {/* Chart controls bar */}
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <SimulationControls speed={speed} onSpeedChange={setSpeed} paused={paused} onTogglePause={() => setPaused(!paused)} />
               <IndicatorToggles indicators={indicators} onToggle={toggleIndicator} />
@@ -476,6 +613,19 @@ export default function ArenaTrader() {
               onClosePosition={closePosition}
               asset={selectedAsset}
             />
+
+            {/* Share last trade button */}
+            {tradeHistory.length > 0 && isAuthenticated && (
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={() => shareTradeToFeed(tradeHistory[tradeHistory.length - 1])}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs hover:bg-amber-500/20 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  Compartilhar último trade
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right Panel */}
@@ -510,6 +660,10 @@ export default function ArenaTrader() {
                 </div>
               </div>
             )}
+
+            <SessionReplayPanel />
+
+            <SocialFeedPanel onCopyTrade={handleCopyTrade} />
 
             <DailyChallengesPanel tradeHistory={tradeHistory} balance={balance} initialBalance={initialBalance} />
 
