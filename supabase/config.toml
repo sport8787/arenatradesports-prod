@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.arena-trader-analyze]
 verify_jwt = false
+
+[functions.mycroft-telegram]
+verify_jwt = false
