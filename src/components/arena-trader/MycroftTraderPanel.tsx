@@ -9,6 +9,8 @@ interface MycroftTraderPanelProps {
     trend: string;
     verdict: string;
     riskLevel: number;
+    statusMercado?: string;
+    alertaEstresse?: string;
   } | null;
   isAnalyzing: boolean;
   onRequestAnalysis: () => void;
@@ -68,12 +70,24 @@ export default function MycroftTraderPanel({ analysis, isAnalyzing, onRequestAna
             </div>
           </div>
 
-          {/* Trend */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-white/40 uppercase">Tendência:</span>
-            <span className={`text-xs font-bold ${analysis.trend === 'bullish' ? 'text-emerald-400' : 'text-red-400'}`}>
-              {analysis.trend === 'bullish' ? '📈 Altista' : '📉 Baixista'}
-            </span>
+          {/* Status & Trend */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/40 uppercase">Tendência:</span>
+              <span className={`text-xs font-bold ${analysis.trend === 'bullish' ? 'text-emerald-400' : 'text-red-400'}`}>
+                {analysis.trend === 'bullish' ? '📈 Altista' : '📉 Baixista'}
+              </span>
+            </div>
+            {analysis.statusMercado && (
+              <span className={`text-[10px] font-orbitron font-bold px-2 py-0.5 rounded ${
+                analysis.statusMercado === 'BUY THE DIP' ? 'bg-emerald-500/20 text-emerald-400' :
+                analysis.statusMercado === 'SHORT' ? 'bg-red-500/20 text-red-400' :
+                analysis.statusMercado === 'SELL' ? 'bg-orange-500/20 text-orange-400' :
+                'bg-amber-500/20 text-amber-400'
+              }`}>
+                {analysis.statusMercado}
+              </span>
+            )}
           </div>
 
           {/* Risk Level */}

@@ -13,72 +13,125 @@ serve(async (req) => {
   try {
     const { asset, candles, currentPrice, balance, position } = await req.json();
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("VITE_ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC API KEY not configured");
     }
 
-    const candleSummary = candles.slice(-10).map((c: any) => 
-      `O:${c.open} H:${c.high} L:${c.low} C:${c.close}`
+    const candleSummary = candles.slice(-10).map((c: any) =>
+      `O:${c.open} H:${c.high} L:${c.low} C:${c.close} V:${c.volume}`
     ).join(' | ');
 
-    const prompt = `Você é o Mycroft Trader, um analista técnico forense frio e preciso para o jogo Blefador Milionário.
+    // Determine market sentiment from recent candles
+    const recentCandles = candles.slice(-5);
+    const avgClose = recentCandles.reduce((s: number, c: any) => s + c.close, 0) / recentCandles.length;
+    const sentimento = currentPrice > avgClose * 1.01 ? 'Euforia Compradora' :
+                       currentPrice < avgClose * 0.99 ? 'Pânico Vendedor' : 'Lateralização Neutra';
 
-Analise o ativo ${asset.symbol} (${asset.name}) com os seguintes dados:
-- Preço atual: ${currentPrice}
-- Últimas 10 velas: ${candleSummary}
-- Banca do jogador: ${balance.toLocaleString()} BC
-${position ? `- Posição aberta: ${position.type.toUpperCase()} a ${position.entryPrice}` : '- Sem posição aberta'}
+    const systemPrompt = `Você é o Mycroft Trader, o módulo de inteligência forense financeira do ecossistema 'Blefador Milionário'. Sua especialidade é análise técnica de alta precisão e detecção de padrões de manipulação em ativos como BTC, PETR4, VALE3 e ITUB4.
 
-Retorne um JSON com:
+LÓGICA DE ANÁLISE (O SCRIPT DO VENCEDOR):
+
+1. Mapeamento de Suporte e Resistência: Identifique as zonas onde o preço 'trava' (suporte) e onde encontra pressão de venda (resistência) baseado nos dados de velas fornecidos.
+
+2. Detecção de Blefe de Mercado: Analise se o volume atual indica uma capitulação real ou apenas um 'burburinho' para liquidação de sardinhas.
+
+3. Gestão de Banca (${balance.toLocaleString()} BC de 500.000 BC iniciais): Recomende aportes fracionados. Nunca sugira All-in; foque em Preço Médio e proteção de capital.
+
+IMPORTANTE: Retorne estritamente um JSON válido com estes campos:
 {
-  "mycroft": {
-    "support": <número - nível de suporte>,
-    "resistance": <número - nível de resistência>,
-    "trend": "bullish" ou "bearish",
-    "verdict": "<análise forense em 2-3 frases, técnica e fria>",
-    "riskLevel": <1-10>
+  "status_mercado": "BUY THE DIP" ou "HOLD" ou "SELL" ou "SHORT",
+  "analise_forense": "Texto técnico e frio de até 300 caracteres sobre suportes e volumes.",
+  "script_horus": "Texto provocativo para o Hórus ler, começando com 'Israel, o Mycroft detectou...', analisando o risco da banca de ${balance.toLocaleString()} BC. Máximo 2 frases.",
+  "niveis_criticos": {
+    "suporte": <número>,
+    "resistencia": <número>
   },
-  "horus": "<provocação teatral do Hórus sobre a operação em 1-2 frases, sarcástico e desafiador, em português>"
+  "alerta_de_estresse": "Baixo" ou "Médio" ou "Crítico"
 }`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.8,
-          },
-        }),
-      }
-    );
+    const userMessage = `Analise o ativo ${asset.symbol} (${asset.name}) no valor de ${currentPrice}.
+Sentimento atual: ${sentimento}.
+Últimas 10 velas: ${candleSummary}
+${position ? `Posição aberta: ${position.type.toUpperCase()} a ${position.entryPrice}` : 'Sem posição aberta.'}
+Banca atual: ${balance.toLocaleString()} BC.
+Forneça o relatório em JSON.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        system: systemPrompt,
+        messages: [
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.7,
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+      console.error("Anthropic API error:", response.status, errorText);
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
-    const geminiData = await response.json();
-    const textContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+    const anthropicData = await response.json();
+    const textContent = anthropicData.content?.[0]?.text;
+
     if (!textContent) {
-      throw new Error("No content from Gemini");
+      throw new Error("No content from Claude");
     }
 
-    const parsed = JSON.parse(textContent);
+    console.log("Mycroft Trader (Claude Sonnet) raw:", textContent);
 
-    return new Response(JSON.stringify(parsed), {
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonStr = textContent;
+    const jsonMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+
+    const parsed = JSON.parse(jsonStr);
+
+    // Map to the format expected by the frontend
+    const stressToRisk: Record<string, number> = {
+      'Baixo': 3,
+      'Médio': 6,
+      'Crítico': 9,
+    };
+
+    const statusToTrend: Record<string, string> = {
+      'BUY THE DIP': 'bullish',
+      'HOLD': 'bearish',
+      'SELL': 'bearish',
+      'SHORT': 'bearish',
+    };
+
+    const result = {
+      mycroft: {
+        support: parsed.niveis_criticos?.suporte || 0,
+        resistance: parsed.niveis_criticos?.resistencia || 0,
+        trend: statusToTrend[parsed.status_mercado] || 'bearish',
+        verdict: parsed.analise_forense || 'Análise indisponível.',
+        riskLevel: stressToRisk[parsed.alerta_de_estresse] || 5,
+        statusMercado: parsed.status_mercado,
+        alertaEstresse: parsed.alerta_de_estresse,
+      },
+      horus: parsed.script_horus || 'O mercado está em silêncio... Mas isso nunca dura.',
+    };
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Arena Trader analyze error:", error);
 
-    // Fallback response
     return new Response(JSON.stringify({
       mycroft: {
         support: 0,
@@ -86,6 +139,8 @@ Retorne um JSON com:
         trend: "bearish",
         verdict: "Análise temporariamente indisponível. Opere com cautela.",
         riskLevel: 5,
+        statusMercado: "HOLD",
+        alertaEstresse: "Médio",
       },
       horus: "O sistema está sobrecarregado... Mas um trader de verdade não depende de análises para agir.",
     }), {
