@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap, RefreshCw, Hash } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap, RefreshCw, Hash, Percent } from 'lucide-react';
 import type { Asset, TradePosition } from '@/pages/ArenaTrader';
 
 interface TradePanelProps {
@@ -8,10 +8,18 @@ interface TradePanelProps {
   position: TradePosition | null;
   currentPrice: number;
   unrealizedPnl: number;
-  onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage?: number) => void;
+  onOpenPosition: (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage?: number, partialConfig?: PartialExitConfig) => void;
   onClosePosition: () => void;
   onInvertPosition?: () => void;
+  onPartialClose?: (percent: number) => void;
   asset: Asset;
+}
+
+export interface PartialExitConfig {
+  enabled: boolean;
+  tp1Percent: number; // % distance from entry for first target
+  tp2Percent: number; // % distance from entry for second target
+  tp1ClosePercent: number; // % of position to close at TP1 (e.g. 50)
 }
 
 const TRADE_AMOUNTS = [
@@ -23,6 +31,7 @@ const TRADE_AMOUNTS = [
 
 const CONTRACT_OPTIONS = [1, 2, 5, 10];
 const LEVERAGE_OPTIONS = [1, 2, 5, 10];
+const PARTIAL_OPTIONS = [25, 50, 75];
 
 function FuturesContractSelector({ contracts, setContracts, pointValue, currentPrice }: {
   contracts: number; setContracts: (n: number) => void; pointValue: number; currentPrice: number;
@@ -61,25 +70,102 @@ function FuturesContractSelector({ contracts, setContracts, pointValue, currentP
   );
 }
 
-export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, onInvertPosition, asset }: TradePanelProps) {
+function PartialExitSelector({ config, onChange }: {
+  config: PartialExitConfig;
+  onChange: (c: PartialExitConfig) => void;
+}) {
+  return (
+    <div className={`p-2.5 rounded-lg border transition-all ${config.enabled ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
+      <button onClick={() => onChange({ ...config, enabled: !config.enabled })} className="flex items-center gap-1.5 w-full mb-1.5">
+        <Percent className={`w-3.5 h-3.5 ${config.enabled ? 'text-cyan-400' : 'text-white/30'}`} />
+        <span className={`text-xs font-bold ${config.enabled ? 'text-cyan-400' : 'text-white/40'}`}>Saída Parcial</span>
+      </button>
+      {config.enabled && (
+        <div className="space-y-2">
+          {/* TP1 */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-white/50">Alvo 1 (TP1)</span>
+              <span className="text-[10px] font-bold text-emerald-400">+{config.tp1Percent}%</span>
+            </div>
+            <input
+              type="range" min="0.5" max="5" step="0.5"
+              value={config.tp1Percent} onChange={(e) => onChange({ ...config, tp1Percent: +e.target.value })}
+              className="w-full h-1 accent-emerald-500"
+            />
+          </div>
+          {/* Close % at TP1 */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-white/50">Fechar no TP1</span>
+            </div>
+            <div className="flex gap-1.5">
+              {PARTIAL_OPTIONS.map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => onChange({ ...config, tp1ClosePercent: pct })}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-all ${
+                    config.tp1ClosePercent === pct
+                      ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-400'
+                      : 'bg-white/5 border border-white/10 text-white/40 hover:border-cyan-500/30'
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* TP2 */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-white/50">Alvo 2 (TP2) — resto</span>
+              <span className="text-[10px] font-bold text-emerald-400">+{config.tp2Percent}%</span>
+            </div>
+            <input
+              type="range" min="1" max="15" step="0.5"
+              value={config.tp2Percent} onChange={(e) => onChange({ ...config, tp2Percent: Math.max(+e.target.value, config.tp1Percent + 0.5) })}
+              className="w-full h-1 accent-emerald-500"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, onInvertPosition, onPartialClose, asset }: TradePanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(25000);
-  const [slEnabled, setSlEnabled] = useState(false);
-  const [tpEnabled, setTpEnabled] = useState(false);
+  // SL is now always enabled by default
   const [slPercent, setSlPercent] = useState(3);
+  const [tpEnabled, setTpEnabled] = useState(false);
   const [tpPercent, setTpPercent] = useState(5);
   const [leverage, setLeverage] = useState(1);
   const [contracts, setContracts] = useState(1);
+  const [partialConfig, setPartialConfig] = useState<PartialExitConfig>({
+    enabled: false,
+    tp1Percent: 2,
+    tp2Percent: 5,
+    tp1ClosePercent: 50,
+  });
 
   const isFutures = asset.category === 'futures';
 
-  // For futures, amount is based on contracts * margin (approx 15% of notional)
   const futuresMargin = isFutures ? Math.floor(contracts * currentPrice * (asset.pointValue || 1) * 0.15) : 0;
   const effectiveAmount = isFutures ? Math.max(futuresMargin, 5000) : selectedAmount;
 
-  const computeSL = () => slEnabled ? +(currentPrice * (1 - slPercent / 100)).toFixed(2) : undefined;
-  const computeTP = () => tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
-  const computeShortSL = () => slEnabled ? +(currentPrice * (1 + slPercent / 100)).toFixed(2) : undefined;
-  const computeShortTP = () => tpEnabled ? +(currentPrice * (1 - tpPercent / 100)).toFixed(2) : undefined;
+  // SL is always computed (auto)
+  const computeSL = () => +(currentPrice * (1 - slPercent / 100)).toFixed(2);
+  const computeShortSL = () => +(currentPrice * (1 + slPercent / 100)).toFixed(2);
+
+  // TP uses partialConfig TP2 if partial enabled, else simple TP
+  const computeTP = () => {
+    if (partialConfig.enabled) return +(currentPrice * (1 + partialConfig.tp2Percent / 100)).toFixed(2);
+    return tpEnabled ? +(currentPrice * (1 + tpPercent / 100)).toFixed(2) : undefined;
+  };
+  const computeShortTP = () => {
+    if (partialConfig.enabled) return +(currentPrice * (1 - partialConfig.tp2Percent / 100)).toFixed(2);
+    return tpEnabled ? +(currentPrice * (1 - tpPercent / 100)).toFixed(2) : undefined;
+  };
 
   const liquidationPrice = leverage > 1
     ? +(currentPrice * (1 - 1 / leverage)).toFixed(2)
@@ -113,6 +199,26 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
           </div>
         </div>
 
+        {/* SL/TP levels display */}
+        <div className="flex gap-2 mb-3">
+          {position.stopLoss && (
+            <div className="flex-1 bg-red-500/10 border border-red-500/20 rounded-lg px-2 py-1.5 text-center">
+              <div className="text-[9px] text-red-400/60">Stop Loss</div>
+              <div className="text-xs font-mono font-bold text-red-400">
+                R$ {position.stopLoss.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          )}
+          {position.takeProfit && (
+            <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2 py-1.5 text-center">
+              <div className="text-[9px] text-emerald-400/60">Take Profit</div>
+              <div className="text-xs font-mono font-bold text-emerald-400">
+                R$ {position.takeProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-xs text-white/40">P&L Não-Realizado</div>
@@ -124,7 +230,23 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Position Inversion Button (essential for Day Trade) */}
+            {/* Partial close buttons */}
+            {onPartialClose && (
+              <div className="flex gap-1">
+                {PARTIAL_OPTIONS.map((pct) => (
+                  <motion.button
+                    key={pct}
+                    onClick={() => onPartialClose(pct)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-2 py-2 bg-cyan-600/20 hover:bg-cyan-500/30 text-cyan-400 font-orbitron font-bold text-[9px] rounded-lg transition-colors border border-cyan-500/20"
+                    title={`Fechar ${pct}% da posição`}
+                  >
+                    {pct}%
+                  </motion.button>
+                ))}
+              </div>
+            )}
             {isFutures && onInvertPosition && (
               <motion.button
                 onClick={onInvertPosition}
@@ -172,7 +294,6 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
             <span className="font-orbitron text-xs text-amber-400">{selectedAmount.toLocaleString()} BC</span>
           </div>
 
-          {/* Amount selector */}
           <div className="flex gap-2 mb-3">
             {TRADE_AMOUNTS.map((opt) => (
               <button
@@ -195,7 +316,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </>
       )}
 
-      {/* Leverage selector (non-futures only, futures use contracts) */}
+      {/* Leverage selector (non-futures only) */}
       {!isFutures && (
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-2">
@@ -234,49 +355,60 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </div>
       )}
 
-      {/* SL/TP Controls */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {/* Stop Loss */}
-        <div className={`p-2.5 rounded-lg border transition-all ${slEnabled ? 'bg-red-500/10 border-red-500/30' : 'bg-white/5 border-white/10'}`}>
-          <button onClick={() => setSlEnabled(!slEnabled)} className="flex items-center gap-1.5 w-full mb-1.5">
-            <Shield className={`w-3.5 h-3.5 ${slEnabled ? 'text-red-400' : 'text-white/30'}`} />
-            <span className={`text-xs font-bold ${slEnabled ? 'text-red-400' : 'text-white/40'}`}>Stop Loss</span>
-          </button>
-          {slEnabled && (
-            <div className="flex items-center gap-2">
-              <input
-                type="range" min="1" max={isFutures ? 2 : 10} step="0.5"
-                value={slPercent} onChange={(e) => setSlPercent(+e.target.value)}
-                className="flex-1 h-1 accent-red-500"
-              />
-              <span className="text-xs font-bold text-red-400 w-8 text-right">-{slPercent}%</span>
-            </div>
-          )}
+      {/* SL (always active) + TP Controls */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {/* Stop Loss — always active */}
+        <div className="p-2.5 rounded-lg border bg-red-500/10 border-red-500/30">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Shield className="w-3.5 h-3.5 text-red-400" />
+            <span className="text-xs font-bold text-red-400">Stop Loss (auto)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="range" min="1" max={isFutures ? 2 : 10} step="0.5"
+              value={slPercent} onChange={(e) => setSlPercent(+e.target.value)}
+              className="flex-1 h-1 accent-red-500"
+            />
+            <span className="text-xs font-bold text-red-400 w-8 text-right">-{slPercent}%</span>
+          </div>
+          <div className="text-[9px] text-red-400/50 mt-1">
+            SL: R$ {(currentPrice * (1 - slPercent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </div>
         </div>
 
-        {/* Take Profit */}
-        <div className={`p-2.5 rounded-lg border transition-all ${tpEnabled ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
-          <button onClick={() => setTpEnabled(!tpEnabled)} className="flex items-center gap-1.5 w-full mb-1.5">
-            <Target className={`w-3.5 h-3.5 ${tpEnabled ? 'text-emerald-400' : 'text-white/30'}`} />
-            <span className={`text-xs font-bold ${tpEnabled ? 'text-emerald-400' : 'text-white/40'}`}>Take Profit</span>
+        {/* Take Profit — optional simple mode */}
+        <div className={`p-2.5 rounded-lg border transition-all ${tpEnabled && !partialConfig.enabled ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
+          <button onClick={() => { setTpEnabled(!tpEnabled); if (partialConfig.enabled) setPartialConfig(p => ({ ...p, enabled: false })); }} className="flex items-center gap-1.5 w-full mb-1.5">
+            <Target className={`w-3.5 h-3.5 ${tpEnabled && !partialConfig.enabled ? 'text-emerald-400' : 'text-white/30'}`} />
+            <span className={`text-xs font-bold ${tpEnabled && !partialConfig.enabled ? 'text-emerald-400' : 'text-white/40'}`}>Take Profit</span>
           </button>
-          {tpEnabled && (
-            <div className="flex items-center gap-2">
-              <input
-                type="range" min="1" max="20" step="0.5"
-                value={tpPercent} onChange={(e) => setTpPercent(+e.target.value)}
-                className="flex-1 h-1 accent-emerald-500"
-              />
-              <span className="text-xs font-bold text-emerald-400 w-8 text-right">+{tpPercent}%</span>
-            </div>
+          {tpEnabled && !partialConfig.enabled && (
+            <>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range" min="1" max="20" step="0.5"
+                  value={tpPercent} onChange={(e) => setTpPercent(+e.target.value)}
+                  className="flex-1 h-1 accent-emerald-500"
+                />
+                <span className="text-xs font-bold text-emerald-400 w-8 text-right">+{tpPercent}%</span>
+              </div>
+              <div className="text-[9px] text-emerald-400/50 mt-1">
+                TP: R$ {(currentPrice * (1 + tpPercent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+            </>
           )}
         </div>
+      </div>
+
+      {/* Partial Exit / Multi-target system */}
+      <div className="mb-4">
+        <PartialExitSelector config={partialConfig} onChange={(c) => { setPartialConfig(c); if (c.enabled) setTpEnabled(false); }} />
       </div>
 
       {/* Buy/Sell buttons */}
       <div className="grid grid-cols-2 gap-3">
         <motion.button
-          onClick={() => onOpenPosition('long', effectiveAmount, computeSL(), computeTP(), isFutures ? 1 : leverage)}
+          onClick={() => onOpenPosition('long', effectiveAmount, computeSL(), computeTP(), isFutures ? 1 : leverage, partialConfig.enabled ? partialConfig : undefined)}
           disabled={effectiveAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -295,7 +427,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </motion.button>
 
         <motion.button
-          onClick={() => onOpenPosition('short', effectiveAmount, computeShortSL(), computeShortTP(), isFutures ? 1 : leverage)}
+          onClick={() => onOpenPosition('short', effectiveAmount, computeShortSL(), computeShortTP(), isFutures ? 1 : leverage, partialConfig.enabled ? partialConfig : undefined)}
           disabled={effectiveAmount > balance}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

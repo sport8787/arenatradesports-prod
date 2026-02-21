@@ -67,6 +67,13 @@ export interface TradePosition {
   takeProfit?: number;
   leverage?: number;
   snapshotId?: string; // DB snapshot ID
+  partialConfig?: {
+    enabled: boolean;
+    tp1Percent: number;
+    tp2Percent: number;
+    tp1ClosePercent: number;
+  };
+  tp1Hit?: boolean; // Track if TP1 was already triggered
 }
 
 // No more generateCandles — real data only
@@ -237,7 +244,32 @@ export default function ArenaTrader() {
         }
       }
 
-      // Take Profit
+      // TP1 Partial close check
+      if (pos.partialConfig?.enabled && !pos.tp1Hit) {
+        const tp1Price = pos.type === 'long'
+          ? pos.entryPrice * (1 + pos.partialConfig.tp1Percent / 100)
+          : pos.entryPrice * (1 - pos.partialConfig.tp1Percent / 100);
+        const hitTP1 = pos.type === 'long' ? price >= tp1Price : price <= tp1Price;
+        if (hitTP1) {
+          const closePercent = pos.partialConfig.tp1ClosePercent;
+          const closeAmount = Math.floor(pos.amount * closePercent / 100);
+          const pnl = pos.type === 'long'
+            ? Math.floor(closeAmount * ((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1))
+            : Math.floor(closeAmount * -((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1));
+          setBalance(prev => prev + closeAmount + pnl);
+          setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
+          toast({ title: `🎯 TP1 atingido! ${closePercent}% fechado (+${pnl.toLocaleString()} BC)` });
+          setHorusMessage(`🎯 Alvo 1 em ${pos.asset.symbol}! Fechei ${closePercent}% com lucro. O resto segue até o TP2.`);
+          // Reduce position and mark tp1 hit
+          setPositions(prev => prev.map((p, i) => i === index
+            ? { ...p, amount: p.amount - closeAmount, tp1Hit: true }
+            : p
+          ));
+          return;
+        }
+      }
+
+      // Take Profit (TP2 or simple TP)
       if (pos.takeProfit) {
         const hitTP = pos.type === 'long' ? price >= pos.takeProfit : price <= pos.takeProfit;
         if (hitTP) {
@@ -411,7 +443,7 @@ export default function ArenaTrader() {
     }
   }, [selectedAsset]);
 
-  const openPosition = async (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage = 1) => {
+  const openPosition = async (type: 'long' | 'short', amount: number, stopLoss?: number, takeProfit?: number, leverage = 1, partialCfg?: { enabled: boolean; tp1Percent: number; tp2Percent: number; tp1ClosePercent: number }) => {
     if (amount > balance) {
       toast({ title: 'Saldo insuficiente', variant: 'destructive' });
       return;
@@ -450,6 +482,7 @@ export default function ArenaTrader() {
     const newPos: TradePosition = {
       type, asset: selectedAsset, entryPrice: currentPrice, amount,
       timestamp: Date.now(), stopLoss, takeProfit, leverage, snapshotId,
+      partialConfig: partialCfg, tp1Hit: false,
     };
 
     setPositions(prev => [...prev, newPos]);
@@ -536,6 +569,40 @@ export default function ArenaTrader() {
       openPosition(newType, pos.amount, pos.stopLoss, pos.takeProfit, pos.leverage);
       setHorusMessage(`🔄 Inversão executada! Agora ${newType.toUpperCase()} em ${selectedAsset.symbol}. Coragem ou loucura?`);
     }, 100);
+  };
+
+  // Partial close: close X% of current asset position manually
+  const partialClosePosition = async (percent: number) => {
+    const idx = positions.findIndex(p => p.asset.symbol === selectedAsset.symbol);
+    if (idx === -1) return;
+    const pos = positions[idx];
+    const closeAmount = Math.floor(pos.amount * percent / 100);
+    if (closeAmount <= 0) return;
+
+    const price = currentPrice;
+    const leverage = pos.leverage || 1;
+    const priceChange = (price - pos.entryPrice) / pos.entryPrice;
+    const leveragedChange = priceChange * leverage;
+    const pnl = pos.type === 'long'
+      ? Math.floor(closeAmount * leveragedChange)
+      : Math.floor(closeAmount * -leveragedChange);
+
+    setBalance(prev => prev + closeAmount + pnl);
+    setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
+
+    const remaining = pos.amount - closeAmount;
+    if (remaining <= 0) {
+      // Fully closed
+      setPositions(prev => prev.filter((_, i) => i !== idx));
+    } else {
+      setPositions(prev => prev.map((p, i) => i === idx ? { ...p, amount: remaining } : p));
+    }
+
+    toast({
+      title: pnl >= 0 ? `📈 Parcial +${pnl.toLocaleString()} BC (${percent}%)` : `📉 Parcial ${pnl.toLocaleString()} BC (${percent}%)`,
+      variant: pnl >= 0 ? 'default' : 'destructive',
+    });
+    setHorusMessage(`Saída parcial de ${percent}% em ${selectedAsset.symbol}. ${remaining > 0 ? 'O resto continua.' : 'Posição encerrada.'}`);
   };
 
   // Share trade to social feed
@@ -696,6 +763,7 @@ export default function ArenaTrader() {
               onOpenPosition={openPosition}
               onClosePosition={closePosition}
               onInvertPosition={selectedAsset.category === 'futures' ? invertPosition : undefined}
+              onPartialClose={partialClosePosition}
               asset={selectedAsset}
             />
 
