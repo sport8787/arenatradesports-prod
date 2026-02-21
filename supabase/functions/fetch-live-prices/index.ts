@@ -57,6 +57,32 @@ serve(async (req) => {
       console.error("Brapi error:", e);
     }
 
+    // Fetch Mini Contracts (WIN/WDO) via Brapi dynamic ticker
+    // Brapi accepts tickers like WINFUT, WDOFUT for the most liquid contract
+    try {
+      const futuresRes = await fetch(
+        `https://brapi.dev/api/quote/WINFUT,WDOFUT`,
+        { headers: { "Accept": "application/json" } }
+      );
+      if (futuresRes.ok) {
+        const futData = await futuresRes.json();
+        if (futData.results) {
+          for (const result of futData.results) {
+            const sym = result.symbol?.startsWith("WIN") ? "WIN" : result.symbol?.startsWith("WDO") ? "WDO" : null;
+            if (sym) {
+              prices[sym] = {
+                price: result.regularMarketPrice || 0,
+                change24h: result.regularMarketChangePercent || 0,
+                source: "brapi-futures",
+              };
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Brapi futures error:", e);
+    }
+
     return new Response(JSON.stringify({ prices, timestamp: Date.now() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
