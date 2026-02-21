@@ -71,7 +71,7 @@ export default function AssetSelector({ assets, selectedAsset, onSelect, current
                   'text-white/60'
                 }`}>
                   {asset.category === 'crypto'
-                    ? `$${displayPrice.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                    ? `R$${displayPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     : `R$${displayPrice.toFixed(2)}`
                   }
                 </div>
