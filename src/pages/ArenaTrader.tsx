@@ -204,6 +204,22 @@ export default function ArenaTrader() {
     };
   }, [selectedAsset, marketOpen, paused, fetchRealCandles]);
 
+  // Keep chart alive: update last candle with live price between API refreshes
+  useEffect(() => {
+    const livePrice = livePrices[selectedAsset.symbol]?.price;
+    if (!livePrice || candles.length === 0 || !marketOpen) return;
+
+    setCandles(prev => {
+      const updated = [...prev];
+      const last = { ...updated[updated.length - 1] };
+      last.close = livePrice;
+      last.high = Math.max(last.high, livePrice);
+      last.low = Math.min(last.low, livePrice);
+      updated[updated.length - 1] = last;
+      return updated;
+    });
+  }, [livePrices, selectedAsset.symbol, marketOpen]);
+
   // Check SL/TP/Liquidation auto-close for ALL positions
   useEffect(() => {
     if (positions.length === 0 || candles.length === 0) return;
