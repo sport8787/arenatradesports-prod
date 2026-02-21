@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy, Share2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy, Share2, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -115,6 +115,7 @@ export default function ArenaTrader() {
   const [winStreak, setWinStreak] = useState(0);
   const [leverageHistory, setLeverageHistory] = useState<number[]>([]);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [showKBChat, setShowKBChat] = useState(false);
 
   // Current position for the selected asset (for TradePanel compatibility)
   const position = positions.find(p => p.asset.symbol === selectedAsset.symbol) || null;
@@ -923,23 +924,25 @@ export default function ArenaTrader() {
               </div>
             )}
 
-            {/* Mycroft Analyst Chat */}
-            <MycroftAnalystChat
-              marketData={{
-                asset: selectedAsset.name,
-                symbol: selectedAsset.symbol,
-                timeframe,
-                price: currentPrice,
-                sma9: calculateSMA(candles, 9)[candles.length - 1] ?? null,
-                sma21: calculateSMA(candles, 21)[candles.length - 1] ?? null,
-                rsi: calculateRSI(candles, 14)[candles.length - 1] ?? null,
-                bollingerUpper: calculateBollingerBands(candles, 20)[candles.length - 1]?.upper ?? null,
-                bollingerLower: calculateBollingerBands(candles, 20)[candles.length - 1]?.lower ?? null,
-                volume: candles.length > 0 ? candles[candles.length - 1].volume : undefined,
-                change24h: livePrices[selectedAsset.symbol]?.change24h,
-                isLive,
-              }}
-            />
+            {/* Mycroft Analyst Chat (toggleable) */}
+            {showKBChat && (
+              <MycroftAnalystChat
+                marketData={{
+                  asset: selectedAsset.name,
+                  symbol: selectedAsset.symbol,
+                  timeframe,
+                  price: currentPrice,
+                  sma9: calculateSMA(candles, 9)[candles.length - 1] ?? null,
+                  sma21: calculateSMA(candles, 21)[candles.length - 1] ?? null,
+                  rsi: calculateRSI(candles, 14)[candles.length - 1] ?? null,
+                  bollingerUpper: calculateBollingerBands(candles, 20)[candles.length - 1]?.upper ?? null,
+                  bollingerLower: calculateBollingerBands(candles, 20)[candles.length - 1]?.lower ?? null,
+                  volume: candles.length > 0 ? candles[candles.length - 1].volume : undefined,
+                  change24h: livePrices[selectedAsset.symbol]?.change24h,
+                  isLive,
+                }}
+              />
+            )}
 
             <SessionReplayPanel />
 
@@ -957,6 +960,20 @@ export default function ArenaTrader() {
             >
               <Trophy className="w-4 h-4" />
               Modo Temporada
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowKBChat(prev => !prev)}
+              className={`w-full font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg ${
+                showKBChat
+                  ? 'bg-gradient-to-r from-purple-600 to-violet-500 text-white shadow-purple-600/20'
+                  : 'bg-gradient-to-r from-purple-600/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:from-purple-600/30 hover:to-violet-500/30 shadow-purple-600/10'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              {showKBChat ? 'Fechar KB & Chat' : 'Knowledge Base & Chat'}
             </motion.button>
 
             <motion.button
