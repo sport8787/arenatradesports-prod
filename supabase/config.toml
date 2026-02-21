@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.arena-poker-session-review]
 verify_jwt = false
+
+[functions.arena-trader-analyze]
+verify_jwt = false

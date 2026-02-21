@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight, Briefcase } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight, Briefcase, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
@@ -745,6 +745,51 @@ export default function Index() {
           ) : (
             <ChevronRight className="w-5 h-5 text-gold/60" />
           )}
+        </motion.button>
+
+        {/* ========== ARENA TRADER ========== */}
+        <motion.button
+          onClick={() => navigate('/arena-trader')}
+          disabled={loading}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="
+            w-full mt-3 relative overflow-hidden
+            bg-gradient-to-r from-amber-900/60 via-yellow-900/60 to-amber-900/60
+            border-2 border-amber-500/40 hover:border-amber-400
+            rounded-xl p-4
+            flex items-center gap-3
+            transition-all duration-300
+            hover:shadow-[0_6px_20px_rgba(245,158,11,0.3)]
+            disabled:opacity-50 disabled:cursor-not-allowed
+            group
+          "
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center"
+          >
+            <TrendingUp className="w-5 h-5 text-amber-400" />
+          </motion.div>
+          
+          <div className="flex-1 text-left">
+            <h3 className="font-orbitron text-sm font-bold text-amber-400 uppercase tracking-wide">
+              Arena Trader
+            </h3>
+            <p className="text-xs text-foreground/70">
+              Simule operações em BTC, PETR4, VALE3, ITUB4
+            </p>
+          </div>
+          
+          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">
+            NOVO
+          </span>
         </motion.button>
 
         {/* Founder Case Modal */}

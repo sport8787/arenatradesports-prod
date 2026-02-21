@@ -89,6 +89,54 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_trader_rankings: {
+        Row: {
+          atc_balance: number
+          best_trade_profit: number
+          created_at: string
+          id: string
+          losing_trades: number
+          total_profit_loss: number
+          total_sessions: number
+          total_trades: number
+          updated_at: string
+          user_id: string
+          username: string
+          winning_trades: number
+          worst_trade_loss: number
+        }
+        Insert: {
+          atc_balance?: number
+          best_trade_profit?: number
+          created_at?: string
+          id?: string
+          losing_trades?: number
+          total_profit_loss?: number
+          total_sessions?: number
+          total_trades?: number
+          updated_at?: string
+          user_id: string
+          username?: string
+          winning_trades?: number
+          worst_trade_loss?: number
+        }
+        Update: {
+          atc_balance?: number
+          best_trade_profit?: number
+          created_at?: string
+          id?: string
+          losing_trades?: number
+          total_profit_loss?: number
+          total_sessions?: number
+          total_trades?: number
+          updated_at?: string
+          user_id?: string
+          username?: string
+          winning_trades?: number
+          worst_trade_loss?: number
+        }
+        Relationships: []
+      }
       biometric_baselines: {
         Row: {
           blink_rate_deviation_threshold: number | null
@@ -1704,6 +1752,7 @@ export type Database = {
         Args: { p_recording_id: string }
         Returns: string
       }
+      get_trader_balance: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1740,6 +1789,10 @@ export type Database = {
       spend_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
+      }
+      update_trader_balance: {
+        Args: { p_amount: number; p_is_win?: boolean; p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
