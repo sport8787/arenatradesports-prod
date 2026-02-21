@@ -22,6 +22,7 @@ import DailyChallengesPanel from '@/components/arena-trader/DailyChallengesPanel
 import PortfolioPanel from '@/components/arena-trader/PortfolioPanel';
 import SessionReplayPanel from '@/components/arena-trader/SessionReplayPanel';
 import SocialFeedPanel from '@/components/arena-trader/SocialFeedPanel';
+import MycroftAnalystChat from '@/components/arena-trader/MycroftAnalystChat';
 import { useMarketEvents } from '@/hooks/useMarketEvents';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import { calculateSMA, calculateBollingerBands, calculateRSI } from '@/lib/technicalIndicators';
@@ -871,6 +872,24 @@ export default function ArenaTrader() {
                 </div>
               </div>
             )}
+
+            {/* Mycroft Analyst Chat */}
+            <MycroftAnalystChat
+              marketData={{
+                asset: selectedAsset.name,
+                symbol: selectedAsset.symbol,
+                timeframe,
+                price: currentPrice,
+                sma9: calculateSMA(candles, 9)[candles.length - 1] ?? null,
+                sma21: calculateSMA(candles, 21)[candles.length - 1] ?? null,
+                rsi: calculateRSI(candles, 14)[candles.length - 1] ?? null,
+                bollingerUpper: calculateBollingerBands(candles, 20)[candles.length - 1]?.upper ?? null,
+                bollingerLower: calculateBollingerBands(candles, 20)[candles.length - 1]?.lower ?? null,
+                volume: candles.length > 0 ? candles[candles.length - 1].volume : undefined,
+                change24h: livePrices[selectedAsset.symbol]?.change24h,
+                isLive,
+              }}
+            />
 
             <SessionReplayPanel />
 
