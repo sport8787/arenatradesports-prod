@@ -15,22 +15,39 @@ serve(async (req) => {
   try {
     const prices: Record<string, { price: number; change24h: number; source: string }> = {};
 
-    // Fetch BTC from CoinGecko (free, no key needed)
+    // Fetch BTC from Binance (real-time, no key needed)
     try {
+      // Get BTC/BRL price from Binance
       const btcRes = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true",
+        "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCBRL",
         { headers: { "Accept": "application/json" } }
       );
       if (btcRes.ok) {
         const btcData = await btcRes.json();
+        const currentPrice = parseFloat(btcData.lastPrice) || 0;
+        const priceChange = parseFloat(btcData.priceChangePercent) || 0;
         prices["BTC"] = {
-          price: btcData.bitcoin?.brl || 0,
-          change24h: btcData.bitcoin?.brl_24h_change || 0,
-          source: "coingecko",
+          price: currentPrice,
+          change24h: priceChange,
+          source: "binance",
         };
+      } else {
+        // Fallback to CoinGecko if Binance fails
+        const cgRes = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true",
+          { headers: { "Accept": "application/json" } }
+        );
+        if (cgRes.ok) {
+          const cgData = await cgRes.json();
+          prices["BTC"] = {
+            price: cgData.bitcoin?.brl || 0,
+            change24h: cgData.bitcoin?.brl_24h_change || 0,
+            source: "coingecko",
+          };
+        }
       }
     } catch (e) {
-      console.error("CoinGecko error:", e);
+      console.error("Binance/BTC error:", e);
     }
 
     // Fetch BR stocks from Brapi (free tier)

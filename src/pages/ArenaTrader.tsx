@@ -106,7 +106,7 @@ export default function ArenaTrader() {
   const [predictionHistory, setPredictionHistory] = useState<{ timestamp: number; asset: string; prediction: string; priceAtPrediction: number; correct?: boolean }[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { tryTriggerEvent, applyEventToCandles } = useMarketEvents();
-  const { prices: livePrices, isLive, getPriceDirection } = useLivePrices(60000);
+  const { prices: livePrices, isLive, getPriceDirection } = useLivePrices(15000); // 15s for real-time crypto
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [achievementToast, setAchievementToast] = useState<Achievement | null>(null);
   const [maxDrawdown, setMaxDrawdown] = useState(0);
