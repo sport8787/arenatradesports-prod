@@ -753,6 +753,16 @@ export default function ArenaTrader() {
             <DailyChallengesPanel tradeHistory={tradeHistory} balance={balance} initialBalance={initialBalance} />
 
             <AchievementsPanel unlockedIds={unlockedAchievements} />
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/arena-trader/season')}
+              className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-600/20"
+            >
+              <Trophy className="w-4 h-4" />
+              Modo Temporada
+            </motion.button>
           </div>
         </div>
       </div>
