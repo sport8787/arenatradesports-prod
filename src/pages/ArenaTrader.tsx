@@ -38,15 +38,16 @@ export interface Asset {
   category: 'crypto' | 'stock' | 'futures';
   pointValue?: number; // R$ per point (futures only)
   tickerPrefix?: string; // For dynamic ticker (e.g. 'WIN', 'WDO')
+  contractValue?: number; // Units per contract (e.g. 100 shares for stocks, 1 for BTC/futures)
 }
 
 export const ASSETS: Asset[] = [
-  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', basePrice: 67500, volatility: 0.04, category: 'crypto' },
-  { id: 'petr4', name: 'Petrobras', symbol: 'PETR4', basePrice: 38.50, volatility: 0.025, category: 'stock' },
-  { id: 'vale3', name: 'Vale', symbol: 'VALE3', basePrice: 62.80, volatility: 0.03, category: 'stock' },
-  { id: 'itub4', name: 'Itaú', symbol: 'ITUB4', basePrice: 34.20, volatility: 0.02, category: 'stock' },
-  { id: 'win', name: 'Mini Índice', symbol: 'WIN', basePrice: 131000, volatility: 0.008, category: 'futures', pointValue: 0.20, tickerPrefix: 'WIN' },
-  { id: 'wdo', name: 'Mini Dólar', symbol: 'WDO', basePrice: 5650, volatility: 0.006, category: 'futures', pointValue: 10.00, tickerPrefix: 'WDO' },
+  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', basePrice: 67500, volatility: 0.04, category: 'crypto', contractValue: 1 },
+  { id: 'petr4', name: 'Petrobras', symbol: 'PETR4', basePrice: 38.50, volatility: 0.025, category: 'stock', contractValue: 100 },
+  { id: 'vale3', name: 'Vale', symbol: 'VALE3', basePrice: 62.80, volatility: 0.03, category: 'stock', contractValue: 100 },
+  { id: 'itub4', name: 'Itaú', symbol: 'ITUB4', basePrice: 34.20, volatility: 0.02, category: 'stock', contractValue: 100 },
+  { id: 'win', name: 'Mini Índice', symbol: 'WIN', basePrice: 131000, volatility: 0.008, category: 'futures', pointValue: 0.20, tickerPrefix: 'WIN', contractValue: 1 },
+  { id: 'wdo', name: 'Mini Dólar', symbol: 'WDO', basePrice: 5650, volatility: 0.006, category: 'futures', pointValue: 10.00, tickerPrefix: 'WDO', contractValue: 1 },
 ];
 
 export interface Candle {
@@ -299,7 +300,10 @@ export default function ArenaTrader() {
   useEffect(() => {
     if (positions.length === 0 || candles.length === 0) return;
 
-    const positionsToClose: number[] = [];
+    // Collect actions to execute after the loop to avoid stale state issues
+    const autoCloseQueue: { index: number; price: number; reason: string }[] = [];
+    const tp1Queue: { index: number; price: number }[] = [];
+    const liquidationQueue: number[] = [];
 
     positions.forEach((pos, index) => {
       const price = pos.asset.symbol === selectedAsset.symbol
@@ -314,13 +318,7 @@ export default function ArenaTrader() {
         const leveragedChange = priceChange * leverage;
         const isLiquidated = pos.type === 'long' ? leveragedChange <= -1 : -leveragedChange <= -1;
         if (isLiquidated) {
-          setHorusMessage(`💀 LIQUIDAÇÃO FORÇADA em ${pos.asset.symbol}! ${leverage}x sem proteção...`);
-          setTradeHistory(prev => [...prev, { pnl: -pos.amount, asset: pos.asset.symbol, type: pos.type }]);
-          if (isAuthenticated && profile) {
-            supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: -pos.amount, p_is_win: false });
-          }
-          toast({ title: `💀 Liquidado! -${pos.amount.toLocaleString()} BC`, variant: 'destructive' });
-          positionsToClose.push(index);
+          liquidationQueue.push(index);
           return;
         }
       }
@@ -329,8 +327,7 @@ export default function ArenaTrader() {
       if (pos.stopLoss) {
         const hitSL = pos.type === 'long' ? price <= pos.stopLoss : price >= pos.stopLoss;
         if (hitSL) {
-          setHorusMessage(`⛔ Stop Loss bateu em ${pos.asset.symbol}. Pelo menos você não virou holder involuntário como os fracos.`);
-          closePositionByIndex(index, price);
+          autoCloseQueue.push({ index, price: pos.stopLoss, reason: 'SL' });
           return;
         }
       }
@@ -342,20 +339,7 @@ export default function ArenaTrader() {
           : pos.entryPrice * (1 - pos.partialConfig.tp1Percent / 100);
         const hitTP1 = pos.type === 'long' ? price >= tp1Price : price <= tp1Price;
         if (hitTP1) {
-          const closePercent = pos.partialConfig.tp1ClosePercent;
-          const closeAmount = Math.floor(pos.amount * closePercent / 100);
-          const pnl = pos.type === 'long'
-            ? Math.floor(closeAmount * ((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1))
-            : Math.floor(closeAmount * -((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1));
-          setBalance(prev => prev + closeAmount + pnl);
-          setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
-          toast({ title: `🎯 TP1 atingido! ${closePercent}% fechado (+${pnl.toLocaleString()} BC)` });
-          setHorusMessage(`🎯 Alvo 1 em ${pos.asset.symbol}! Fechei ${closePercent}% com lucro. O resto segue até o TP2.`);
-          // Reduce position and mark tp1 hit
-          setPositions(prev => prev.map((p, i) => i === index
-            ? { ...p, amount: p.amount - closeAmount, tp1Hit: true }
-            : p
-          ));
+          tp1Queue.push({ index, price });
           return;
         }
       }
@@ -364,17 +348,90 @@ export default function ArenaTrader() {
       if (pos.takeProfit) {
         const hitTP = pos.type === 'long' ? price >= pos.takeProfit : price <= pos.takeProfit;
         if (hitTP) {
-          setHorusMessage(`🎯 Take Profit em ${pos.asset.symbol}! Lucro garantido.`);
-          closePositionByIndex(index, price);
+          autoCloseQueue.push({ index, price: pos.takeProfit, reason: 'TP' });
           return;
         }
       }
     });
 
-    if (positionsToClose.length > 0) {
-      setPositions(prev => prev.filter((_, i) => !positionsToClose.includes(i)));
+    // Process liquidations
+    if (liquidationQueue.length > 0) {
+      liquidationQueue.forEach(idx => {
+        const pos = positions[idx];
+        setHorusMessage(`💀 LIQUIDAÇÃO FORÇADA em ${pos.asset.symbol}! ${pos.leverage}x sem proteção...`);
+        setTradeHistory(prev => [...prev, { pnl: -pos.amount, asset: pos.asset.symbol, type: pos.type }]);
+        if (isAuthenticated && profile) {
+          supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: -pos.amount, p_is_win: false });
+        }
+        toast({ title: `💀 Liquidado! -${pos.amount.toLocaleString()} BC`, variant: 'destructive' });
+      });
+      setPositions(prev => prev.filter((_, i) => !liquidationQueue.includes(i)));
     }
-  }, [candles, positions]);
+
+    // Process TP1 partial closes
+    if (tp1Queue.length > 0) {
+      tp1Queue.forEach(({ index, price }) => {
+        const pos = positions[index];
+        if (!pos.partialConfig) return;
+        const closePercent = pos.partialConfig.tp1ClosePercent;
+        const closeAmount = Math.floor(pos.amount * closePercent / 100);
+        const pnl = pos.type === 'long'
+          ? Math.floor(closeAmount * ((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1))
+          : Math.floor(closeAmount * -((price - pos.entryPrice) / pos.entryPrice) * (pos.leverage || 1));
+        setBalance(prev => prev + closeAmount + pnl);
+        setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
+        toast({ title: `🎯 TP1 atingido! ${closePercent}% fechado (+${pnl.toLocaleString()} BC)` });
+        setHorusMessage(`🎯 Alvo 1 em ${pos.asset.symbol}! Fechei ${closePercent}% com lucro. O resto segue até o TP2.`);
+      });
+      const tp1Indices = new Set(tp1Queue.map(t => t.index));
+      setPositions(prev => prev.map((p, i) => {
+        if (!tp1Indices.has(i) || !p.partialConfig) return p;
+        const closeAmount = Math.floor(p.amount * p.partialConfig.tp1ClosePercent / 100);
+        return { ...p, amount: p.amount - closeAmount, tp1Hit: true };
+      }));
+    }
+
+    // Process SL/TP auto-closes
+    if (autoCloseQueue.length > 0) {
+      autoCloseQueue.forEach(({ index, price, reason }) => {
+        const pos = positions[index];
+        const leverage = pos.leverage || 1;
+        const priceChange = (price - pos.entryPrice) / pos.entryPrice;
+        const leveragedChange = priceChange * leverage;
+        const pnl = pos.type === 'long'
+          ? Math.floor(pos.amount * leveragedChange)
+          : Math.floor(pos.amount * -leveragedChange);
+        const isWin = pnl > 0;
+
+        setBalance(prev => prev + pos.amount + pnl);
+        setTradeHistory(prev => [...prev, { pnl, asset: pos.asset.symbol, type: pos.type }]);
+
+        if (isAuthenticated && profile) {
+          supabase.rpc('update_trader_balance', { p_user_id: profile.user_id, p_amount: pnl, p_is_win: isWin });
+          if (pos.snapshotId) {
+            supabase.from('trader_session_snapshots').update({
+              exit_price: price, pnl, closed_at: new Date().toISOString(), status: 'closed',
+            }).eq('id', pos.snapshotId);
+          }
+        }
+
+        const emoji = reason === 'SL' ? '⛔' : '🎯';
+        const label = reason === 'SL' ? 'Stop Loss' : 'Take Profit';
+        toast({
+          title: `${emoji} ${label} ${isWin ? '+' : ''}${pnl.toLocaleString()} BC`,
+          description: `${pos.type.toUpperCase()} ${pos.asset.symbol} fechado automaticamente`,
+          variant: isWin ? 'default' : 'destructive',
+        });
+        setHorusMessage(
+          reason === 'SL'
+            ? `⛔ Stop Loss bateu em ${pos.asset.symbol}. Pelo menos você não virou holder involuntário.`
+            : `🎯 Take Profit em ${pos.asset.symbol}! Lucro garantido. Disciplina é poder.`
+        );
+      });
+      const closeIndices = new Set(autoCloseQueue.map(q => q.index));
+      setPositions(prev => prev.filter((_, i) => !closeIndices.has(i)));
+    }
+  }, [candles, positions, livePrices, selectedAsset, isAuthenticated, profile]);
 
   // Bankroll warning
   useEffect(() => {
