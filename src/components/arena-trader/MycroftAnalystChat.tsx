@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
+import { extractTextFromPdf } from '@/services/pdfExtractService';
 
 interface MarketData {
   asset?: string;
@@ -69,8 +70,6 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
     let uploaded = 0;
 
     for (const file of Array.from(files)) {
-      // Convert PDF to text note: we store as .txt since edge functions can't parse PDFs
-      // User should upload .txt extracts or we handle text files directly
       const ext = file.name.split('.').pop()?.toLowerCase();
       
       if (!['txt', 'md', 'csv', 'pdf'].includes(ext || '')) {
@@ -79,9 +78,31 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
       }
 
       try {
+        let uploadFile: File | Blob = file;
+        let uploadName = file.name;
+
+        // Auto-convert PDF to TXT
+        if (ext === 'pdf') {
+          toast({ title: `📄 Convertendo ${file.name} para texto...` });
+          try {
+            const text = await extractTextFromPdf(file);
+            if (!text || text.trim().length < 50) {
+              toast({ title: `⚠️ ${file.name}: PDF sem texto extraível (escaneado?). Tente um PDF com texto selecionável.`, variant: 'destructive' });
+              continue;
+            }
+            uploadFile = new Blob([text], { type: 'text/plain' });
+            uploadName = file.name.replace(/\.pdf$/i, '.txt');
+            toast({ title: `✅ ${file.name} convertido (${(text.length / 1024).toFixed(0)}KB de texto)` });
+          } catch (pdfErr) {
+            console.error('PDF conversion error:', pdfErr);
+            toast({ title: `❌ Erro ao converter ${file.name}. Tente converter manualmente.`, variant: 'destructive' });
+            continue;
+          }
+        }
+
         const { error } = await supabase.storage
           .from('knowledge-base')
-          .upload(file.name, file, { upsert: true });
+          .upload(uploadName, uploadFile, { upsert: true });
 
         if (error) throw error;
         uploaded++;
@@ -235,7 +256,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                     )}
 
                     <p className="text-[9px] text-white/30">
-                      💡 Envie seus PDFs de cursos e livros de trade. O Mycroft extrairá o conteúdo automaticamente para usar como referência nas análises.
+                      💡 Envie seus PDFs de cursos e livros de trade. O sistema converte automaticamente para texto (.txt) antes de armazenar. O Mycroft usará como referência nas análises.
                     </p>
                   </motion.div>
                 )}
