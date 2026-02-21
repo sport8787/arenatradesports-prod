@@ -246,7 +246,32 @@ serve(async (req) => {
 
         // Check Horus offer trigger
         const updatedSession = { ...session, ...updateData };
-        const horusOffer = !isBankrupt && !isCompleted ? checkHorusOfferTrigger(updatedSession) : null;
+        let horusOffer = null;
+        if (!isBankrupt && !isCompleted) {
+          const trigger = checkHorusOfferTrigger(updatedSession);
+          if (trigger) {
+            // Persist offer to horus_trader_offers table
+            const { data: savedOffer } = await supabase
+              .from('horus_trader_offers')
+              .insert({
+                session_id: sessionId,
+                trigger_type: trigger.trigger,
+                offered_bankroll: trigger.offer,
+                current_bankroll_at_offer: bankrollAfter,
+                day_offered: session.current_day,
+              })
+              .select('id')
+              .single();
+
+            horusOffer = { ...trigger, offerId: savedOffer?.id };
+
+            // Update offers_received
+            await supabase
+              .from('arena_trader_seasons')
+              .update({ offers_received: (session.offers_received || 0) + 1 })
+              .eq('id', sessionId);
+          }
+        }
 
         return new Response(JSON.stringify({
           isCorrect,
@@ -266,6 +291,7 @@ serve(async (req) => {
       case 'accept_offer': {
         const { sessionId, offerId, accepted } = body;
         
+        // Update the offer record
         await supabase
           .from('horus_trader_offers')
           .update({ accepted })
@@ -278,12 +304,19 @@ serve(async (req) => {
             .eq('id', offerId)
             .single();
 
+          // Get current session for offers_accepted count
+          const { data: currentSession } = await supabase
+            .from('arena_trader_seasons')
+            .select('offers_accepted')
+            .eq('id', sessionId)
+            .single();
+
           await supabase
             .from('arena_trader_seasons')
             .update({ 
               status: 'completed',
               current_bankroll: offer?.offered_bankroll || 0,
-              offers_accepted: supabase.rpc ? 1 : 1,
+              offers_accepted: (currentSession?.offers_accepted || 0) + 1,
               ended_at: new Date().toISOString(),
             })
             .eq('id', sessionId);
@@ -291,6 +324,116 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ accepted }), 
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      case 'get_season_analysis': {
+        const { sessionId } = body;
+        
+        // Get season data
+        const { data: seasonData } = await supabase
+          .from('arena_trader_seasons')
+          .select('*')
+          .eq('id', sessionId)
+          .single();
+
+        if (!seasonData) throw new Error('Season not found');
+
+        // Get all rounds for this season
+        const { data: rounds } = await supabase
+          .from('arena_trader_rounds')
+          .select('*, arena_trader_scenarios(*)')
+          .eq('session_id', sessionId)
+          .order('day', { ascending: true });
+
+        // Get offers
+        const { data: offers } = await supabase
+          .from('horus_trader_offers')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('day_offered', { ascending: true });
+
+        // Analyze patterns
+        const roundsList = rounds || [];
+        const bankrollHistory = roundsList.map(r => ({
+          day: r.day,
+          bankroll: r.bankroll_after,
+          isCorrect: r.is_correct,
+          tilt: r.tilt_detected,
+          timeToChoose: r.time_to_choose,
+        }));
+
+        // Find critical moments
+        const criticalMoments: any[] = [];
+        
+        // Biggest win
+        const biggestWin = roundsList.reduce((best, r) => {
+          const gain = r.bankroll_after - r.bankroll_before;
+          return gain > (best?.gain || 0) ? { ...r, gain } : best;
+        }, null as any);
+        if (biggestWin) criticalMoments.push({ type: 'biggest_win', day: biggestWin.day, gain: biggestWin.gain });
+
+        // Biggest loss
+        const biggestLoss = roundsList.reduce((worst, r) => {
+          const loss = r.bankroll_before - r.bankroll_after;
+          return loss > (worst?.loss || 0) ? { ...r, loss } : worst;
+        }, null as any);
+        if (biggestLoss) criticalMoments.push({ type: 'biggest_loss', day: biggestLoss.day, loss: biggestLoss.loss });
+
+        // Tilt moments
+        const tiltMoments = roundsList.filter(r => r.tilt_detected);
+        tiltMoments.forEach(r => criticalMoments.push({ type: 'tilt', day: r.day }));
+
+        // Declined offers analysis
+        const declinedOffers = (offers || []).filter(o => o.accepted === false);
+        declinedOffers.forEach(o => {
+          const nextRound = roundsList.find(r => r.day === o.day_offered + 1);
+          criticalMoments.push({
+            type: 'declined_offer',
+            day: o.day_offered,
+            offeredAmount: o.offered_bankroll,
+            actualResult: nextRound?.is_correct ? 'won_next' : 'lost_next',
+          });
+        });
+
+        // Category performance
+        const categoryStats: Record<string, { correct: number; total: number }> = {};
+        roundsList.forEach(r => {
+          const cat = r.arena_trader_scenarios?.category || 'unknown';
+          if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 };
+          categoryStats[cat].total++;
+          if (r.is_correct) categoryStats[cat].correct++;
+        });
+
+        // Avg decision time
+        const avgTimeToChoose = roundsList.length > 0
+          ? Math.floor(roundsList.reduce((sum, r) => sum + (r.time_to_choose || 30000), 0) / roundsList.length)
+          : 0;
+
+        // Fastest/slowest decisions
+        const fastDecisions = roundsList.filter(r => (r.time_to_choose || 30000) < 5000).length;
+
+        return new Response(JSON.stringify({
+          season: seasonData,
+          bankrollHistory,
+          criticalMoments,
+          categoryStats,
+          avgTimeToChoose,
+          fastDecisions,
+          totalOffers: (offers || []).length,
+          offersAccepted: (offers || []).filter(o => o.accepted).length,
+          offersDeclined: declinedOffers.length,
+          tiltMoments: tiltMoments.length,
+          roundsDetail: roundsList.map(r => ({
+            day: r.day,
+            scenario: r.arena_trader_scenarios?.title,
+            category: r.arena_trader_scenarios?.category,
+            correct: r.is_correct,
+            bankrollBefore: r.bankroll_before,
+            bankrollAfter: r.bankroll_after,
+            juryConvinced: r.jury_convinced_count,
+            tilt: r.tilt_detected,
+          })),
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       case 'get_active_season': {
