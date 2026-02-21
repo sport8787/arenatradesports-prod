@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, X, Wallet, Shield, Target, Zap, RefreshCw, Hash, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Shield, Target, Zap, RefreshCw, Hash, Percent } from 'lucide-react';
 import type { Asset, TradePosition } from '@/pages/ArenaTrader';
 
 interface TradePanelProps {
@@ -17,37 +17,47 @@ interface TradePanelProps {
 
 export interface PartialExitConfig {
   enabled: boolean;
-  tp1Percent: number; // % distance from entry for first target
-  tp2Percent: number; // % distance from entry for second target
-  tp1ClosePercent: number; // % of position to close at TP1 (e.g. 50)
+  tp1Percent: number;
+  tp2Percent: number;
+  tp1ClosePercent: number;
 }
 
-const TRADE_AMOUNTS = [
-  { label: '10K', value: 10000 },
-  { label: '25K', value: 25000 },
-  { label: '50K', value: 50000 },
-  { label: '100K', value: 100000 },
-];
-
-const CONTRACT_OPTIONS = [1, 2, 5, 10];
 const LEVERAGE_OPTIONS = [1, 2, 5, 10];
 const PARTIAL_OPTIONS = [25, 50, 75];
 
-function FuturesContractSelector({ contracts, setContracts, pointValue, currentPrice }: {
-  contracts: number; setContracts: (n: number) => void; pointValue: number; currentPrice: number;
+function getContractOptions(asset: Asset): number[] {
+  if (asset.category === 'futures') return [1, 2, 5, 10];
+  if (asset.category === 'crypto') return [1, 2, 5, 10];
+  // Stocks: lots of 100 shares
+  return [1, 2, 5, 10];
+}
+
+function getContractLabel(asset: Asset): string {
+  if (asset.category === 'futures') return 'Contratos';
+  if (asset.category === 'crypto') return 'Contratos';
+  return 'Lotes (100 ações)';
+}
+
+function ContractSelector({ contracts, setContracts, asset, currentPrice }: {
+  contracts: number; setContracts: (n: number) => void; asset: Asset; currentPrice: number;
 }) {
-  const totalExposure = contracts * currentPrice * pointValue;
+  const contractOptions = getContractOptions(asset);
+  const unitValue = asset.category === 'futures'
+    ? currentPrice * (asset.pointValue || 1)
+    : currentPrice * (asset.contractValue || 1);
+  const totalExposure = contracts * unitValue;
+
   return (
     <div className="mb-3">
       <div className="flex items-center gap-1.5 mb-2">
         <Hash className="w-3.5 h-3.5 text-amber-400" />
-        <span className="text-xs font-bold text-white/60">Nº de Contratos</span>
+        <span className="text-xs font-bold text-white/60">{getContractLabel(asset)}</span>
         <span className="text-[10px] text-amber-400/70 ml-auto">
           Exposição: R$ {totalExposure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
       </div>
       <div className="flex gap-2">
-        {CONTRACT_OPTIONS.map((n) => (
+        {contractOptions.map((n) => (
           <button
             key={n}
             onClick={() => setContracts(n)}
@@ -63,8 +73,15 @@ function FuturesContractSelector({ contracts, setContracts, pointValue, currentP
           </button>
         ))}
       </div>
-      <div className="mt-1 text-[9px] text-white/30">
-        Valor do ponto: R$ {pointValue.toFixed(2)}
+      <div className="mt-1 flex justify-between text-[9px] text-white/30">
+        <span>
+          {asset.category === 'futures'
+            ? `Valor do ponto: R$ ${(asset.pointValue || 1).toFixed(2)}`
+            : asset.category === 'crypto'
+            ? `1 contrato = 1 ${asset.symbol}`
+            : `1 lote = 100 ações`}
+        </span>
+        <span>Valor unitário: R$ {unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
       </div>
     </div>
   );
@@ -82,7 +99,6 @@ function PartialExitSelector({ config, onChange }: {
       </button>
       {config.enabled && (
         <div className="space-y-2">
-          {/* TP1 */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-white/50">Alvo 1 (TP1)</span>
@@ -94,7 +110,6 @@ function PartialExitSelector({ config, onChange }: {
               className="w-full h-1 accent-emerald-500"
             />
           </div>
-          {/* Close % at TP1 */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-white/50">Fechar no TP1</span>
@@ -115,7 +130,6 @@ function PartialExitSelector({ config, onChange }: {
               ))}
             </div>
           </div>
-          {/* TP2 */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-white/50">Alvo 2 (TP2) — resto</span>
@@ -134,10 +148,8 @@ function PartialExitSelector({ config, onChange }: {
 }
 
 export default function TradePanel({ balance, position, currentPrice, unrealizedPnl, onOpenPosition, onClosePosition, onInvertPosition, onPartialClose, asset }: TradePanelProps) {
-  const [selectedAmount, setSelectedAmount] = useState(25000);
-  // SL and TP always enabled by default (educational: always use SL/TP)
   const [slPercent, setSlPercent] = useState(2);
-  const [tpPercent, setTpPercent] = useState(4); // Default 1:2 R:R
+  const [tpPercent, setTpPercent] = useState(4);
   const [leverage, setLeverage] = useState(1);
   const [contracts, setContracts] = useState(1);
   const [partialConfig, setPartialConfig] = useState<PartialExitConfig>({
@@ -149,14 +161,19 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
 
   const isFutures = asset.category === 'futures';
 
-  const futuresMargin = isFutures ? Math.floor(contracts * currentPrice * (asset.pointValue || 1) * 0.15) : 0;
-  const effectiveAmount = isFutures ? Math.max(futuresMargin, 5000) : selectedAmount;
+  // Calculate amount based on contracts × unit value
+  const effectiveAmount = useMemo(() => {
+    if (isFutures) {
+      const margin = Math.floor(contracts * currentPrice * (asset.pointValue || 1) * 0.15);
+      return Math.max(margin, 5000);
+    }
+    const unitValue = currentPrice * (asset.contractValue || 1);
+    return Math.floor(contracts * unitValue);
+  }, [contracts, currentPrice, asset, isFutures]);
 
-  // SL is always computed (auto)
   const computeSL = () => +(currentPrice * (1 - slPercent / 100)).toFixed(2);
   const computeShortSL = () => +(currentPrice * (1 + slPercent / 100)).toFixed(2);
 
-  // TP uses partialConfig TP2 if partial enabled, else always-on simple TP
   const computeTP = () => {
     if (partialConfig.enabled) return +(currentPrice * (1 + partialConfig.tp2Percent / 100)).toFixed(2);
     return +(currentPrice * (1 + tpPercent / 100)).toFixed(2);
@@ -166,7 +183,6 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
     return +(currentPrice * (1 - tpPercent / 100)).toFixed(2);
   };
 
-  // R:R calculation
   const riskReward = slPercent > 0 ? (tpPercent / slPercent).toFixed(1) : '∞';
   const rrColor = parseFloat(riskReward) >= 2 ? 'text-emerald-400' : parseFloat(riskReward) >= 1.5 ? 'text-amber-400' : 'text-red-400';
 
@@ -233,7 +249,6 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Partial close buttons */}
             {onPartialClose && (
               <div className="flex gap-1">
                 {PARTIAL_OPTIONS.map((pct) => (
@@ -279,45 +294,19 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
 
   return (
     <div className="mt-3 bg-[#111111] border border-amber-900/30 rounded-xl p-4">
-      {/* Futures: Contract selector */}
-      {isFutures ? (
-        <FuturesContractSelector
-          contracts={contracts}
-          setContracts={setContracts}
-          pointValue={asset.pointValue || 1}
-          currentPrice={currentPrice}
-        />
-      ) : (
-        <>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-amber-400/60" />
-              <span className="text-xs text-white/40">Volume da operação:</span>
-            </div>
-            <span className="font-orbitron text-xs text-amber-400">{selectedAmount.toLocaleString()} BC</span>
-          </div>
+      {/* Contract selector for ALL assets */}
+      <ContractSelector
+        contracts={contracts}
+        setContracts={setContracts}
+        asset={asset}
+        currentPrice={currentPrice}
+      />
 
-          <div className="flex gap-2 mb-3">
-            {TRADE_AMOUNTS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setSelectedAmount(opt.value)}
-                disabled={opt.value > balance}
-                className={`
-                  flex-1 py-1.5 rounded-lg text-xs font-bold transition-all
-                  ${selectedAmount === opt.value
-                    ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400'
-                    : 'bg-white/5 border border-white/10 text-white/50 hover:border-amber-500/30'
-                  }
-                  disabled:opacity-30 disabled:cursor-not-allowed
-                `}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {/* Effective amount display */}
+      <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10">
+        <span className="text-[10px] text-white/50">Volume da operação:</span>
+        <span className="font-orbitron text-xs text-amber-400 font-bold">{effectiveAmount.toLocaleString()} BC</span>
+      </div>
 
       {/* Leverage selector (non-futures only) */}
       {!isFutures && (
@@ -360,7 +349,6 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
 
       {/* SL (always active) + TP (always active) Controls */}
       <div className="grid grid-cols-2 gap-3 mb-2">
-        {/* Stop Loss — always active */}
         <div className="p-2.5 rounded-lg border bg-red-500/10 border-red-500/30">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Shield className="w-3.5 h-3.5 text-red-400" />
@@ -379,7 +367,6 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
           </div>
         </div>
 
-        {/* Take Profit — always active */}
         <div className="p-2.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Target className="w-3.5 h-3.5 text-emerald-400" />
@@ -420,7 +407,7 @@ export default function TradePanel({ balance, position, currentPrice, unrealized
         </div>
       )}
 
-      {/* Partial Exit / Multi-target system */}
+      {/* Partial Exit */}
       <div className="mb-4">
         <PartialExitSelector config={partialConfig} onChange={(c) => { setPartialConfig(c); }} />
       </div>
