@@ -86,6 +86,7 @@ export default function ArenaTrader() {
   const [balance, setBalance] = useState(500000);
   const [initialBalance] = useState(500000);
   const [selectedAsset, setSelectedAsset] = useState<Asset>(ASSETS[0]);
+  const [timeframe, setTimeframe] = useState<'5m' | '15m' | '30m' | '1h'>('15m');
   const [candles, setCandles] = useState<Candle[]>([]);
   // Multiple positions support
   const [positions, setPositions] = useState<TradePosition[]>([]);
@@ -152,7 +153,7 @@ export default function ArenaTrader() {
     setLoadingCandles(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-historical-candles', {
-        body: { symbol: asset.symbol, category: asset.category },
+        body: { symbol: asset.symbol, category: asset.category, timeframe },
       });
       if (error) throw error;
 
@@ -181,12 +182,12 @@ export default function ArenaTrader() {
     } finally {
       setLoadingCandles(false);
     }
-  }, [livePrices]);
+  }, [livePrices, timeframe]);
 
-  // Load real candles on asset change
+  // Load real candles on asset or timeframe change
   useEffect(() => {
     fetchRealCandles(selectedAsset);
-  }, [selectedAsset]);
+  }, [selectedAsset, timeframe]);
 
   // Refresh candles periodically (every 60s) when market is open
   useEffect(() => {
@@ -213,7 +214,8 @@ export default function ArenaTrader() {
       const updated = [...prev];
       const lastCandle = updated[updated.length - 1];
       const now = Date.now();
-      const candleInterval = 30 * 60 * 1000; // 30min candle interval (matches CoinGecko OHLC)
+      const candleIntervalMap = { '5m': 5 * 60 * 1000, '15m': 15 * 60 * 1000, '30m': 30 * 60 * 1000, '1h': 60 * 60 * 1000 };
+      const candleInterval = candleIntervalMap[timeframe] || 30 * 60 * 1000;
       const timeSinceLastCandle = now - lastCandle.time;
 
       if (timeSinceLastCandle > candleInterval) {
@@ -239,7 +241,7 @@ export default function ArenaTrader() {
       }
       return updated;
     });
-  }, [livePrices, selectedAsset.symbol, marketOpen]);
+  }, [livePrices, selectedAsset.symbol, marketOpen, timeframe]);
 
   // Check SL/TP/Liquidation auto-close for ALL positions
   useEffect(() => {
@@ -767,6 +769,22 @@ export default function ArenaTrader() {
                 {loadingCandles && (
                   <span className="text-[10px] text-amber-400/60 animate-pulse">Carregando...</span>
                 )}
+                {/* Timeframe Selector */}
+                <div className="flex items-center gap-1 ml-2 bg-black/40 rounded-lg p-0.5 border border-amber-900/30">
+                  {(['5m', '15m', '30m', '1h'] as const).map(tf => (
+                    <button
+                      key={tf}
+                      onClick={() => setTimeframe(tf)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        timeframe === tf
+                          ? 'bg-amber-500/30 text-amber-400 shadow-sm shadow-amber-500/20'
+                          : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                      }`}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
               </div>
               <IndicatorToggles indicators={indicators} onToggle={toggleIndicator} />
             </div>
