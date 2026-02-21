@@ -763,6 +763,16 @@ export default function ArenaTrader() {
               <Trophy className="w-4 h-4" />
               Modo Temporada
             </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/arena-poker')}
+              className="w-full bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(195,100%,50%)] hover:from-[hsl(195,100%,50%)] hover:to-[hsl(var(--arena-cyan))] text-black font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[hsl(var(--arena-cyan)_/_0.2)]"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Arena Poker
+            </motion.button>
           </div>
         </div>
       </div>
