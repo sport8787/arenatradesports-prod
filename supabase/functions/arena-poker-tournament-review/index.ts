@@ -161,7 +161,7 @@ serve(async (req) => {
     const cached = await getCache(cacheKey);
     if (cached) {
       return new Response(
-        JSON.stringify(cached),
+        JSON.stringify({ ...cached, _cached: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "HIT" } }
       );
     }
@@ -178,7 +178,7 @@ serve(async (req) => {
     setCache(cacheKey, "arena-poker-tournament-review", result);
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ ...result, _cached: false }),
       { headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" } }
     );
   } catch (e) {
