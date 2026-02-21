@@ -149,6 +149,56 @@ export default function ArenaTrader() {
     loadBalance();
   }, [isAuthenticated, profile]);
 
+  // Restore open positions from DB on page load
+  useEffect(() => {
+    const restorePositions = async () => {
+      if (!isAuthenticated || !profile) return;
+      try {
+        const { data: openSnaps, error } = await supabase
+          .from('trader_session_snapshots')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .eq('status', 'open')
+          .order('opened_at', { ascending: true });
+
+        if (error || !openSnaps || openSnaps.length === 0) return;
+
+        const restored: TradePosition[] = [];
+        for (const snap of openSnaps) {
+          const asset = ASSETS.find(a => a.symbol === snap.asset_symbol);
+          if (!asset) continue;
+          // Skip if we already have a position on this asset
+          if (restored.find(p => p.asset.symbol === asset.symbol)) continue;
+
+          restored.push({
+            type: snap.trade_type as 'long' | 'short',
+            asset,
+            entryPrice: Number(snap.entry_price),
+            amount: snap.amount,
+            timestamp: new Date(snap.opened_at).getTime(),
+            stopLoss: snap.stop_loss ? Number(snap.stop_loss) : undefined,
+            takeProfit: snap.take_profit ? Number(snap.take_profit) : undefined,
+            leverage: snap.leverage || 1,
+            snapshotId: snap.id,
+            tp1Hit: false,
+          });
+        }
+
+        if (restored.length > 0) {
+          setPositions(restored);
+          // Deduct amounts from balance to avoid double-counting
+          const totalLocked = restored.reduce((s, p) => s + p.amount, 0);
+          setBalance(prev => prev - totalLocked);
+          toast({ title: `🔄 ${restored.length} posição(ões) restaurada(s)` });
+          console.log(`[ArenaTrader] Restored ${restored.length} open positions from DB`);
+        }
+      } catch (e) {
+        console.error('Error restoring positions:', e);
+      }
+    };
+    restorePositions();
+  }, [isAuthenticated, profile]);
+
   // Fetch REAL candles from API
   const fetchRealCandles = useCallback(async (asset: Asset) => {
     setLoadingCandles(true);
