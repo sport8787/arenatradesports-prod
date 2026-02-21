@@ -13,6 +13,9 @@ import TradePanel from '@/components/arena-trader/TradePanel';
 import TraderBalanceHeader from '@/components/arena-trader/TraderBalanceHeader';
 import SimulationControls from '@/components/arena-trader/SimulationControls';
 import IndicatorToggles from '@/components/arena-trader/IndicatorToggles';
+import MarketEventOverlay, { type MarketEvent } from '@/components/arena-trader/MarketEventOverlay';
+import StressLevelIndicator from '@/components/arena-trader/StressLevelIndicator';
+import { useMarketEvents } from '@/hooks/useMarketEvents';
 
 export interface Asset {
   id: string;
@@ -97,7 +100,11 @@ export default function ArenaTrader() {
   const [speed, setSpeed] = useState(1);
   const [paused, setPaused] = useState(false);
   const [indicators, setIndicators] = useState({ sma9: false, sma21: false, bollinger: false, rsi: false });
+  const [marketEvent, setMarketEvent] = useState<MarketEvent | null>(null);
+  const [stressLevel, setStressLevel] = useState<'Baixo' | 'Médio' | 'Crítico'>('Baixo');
+  const [predictionHistory, setPredictionHistory] = useState<{ timestamp: number; asset: string; prediction: string; priceAtPrediction: number; correct?: boolean }[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { tryTriggerEvent, applyEventToCandles } = useMarketEvents();
 
   // Load balance from DB
   useEffect(() => {
@@ -130,6 +137,17 @@ export default function ArenaTrader() {
     }
 
     intervalRef.current = setInterval(() => {
+      // Try triggering a market event
+      const eventResult = tryTriggerEvent();
+      if (eventResult) {
+        setMarketEvent(eventResult.event);
+        setHorusMessage(eventResult.horusMessage);
+        setCandles(prev => applyEventToCandles(prev, eventResult.event, selectedAsset));
+        // Clear event after 5 seconds
+        setTimeout(() => setMarketEvent(null), 5000);
+        return;
+      }
+
       setCandles(prev => {
         if (prev.length === 0) return prev;
         const lastCandle = prev[prev.length - 1];
@@ -217,8 +235,22 @@ export default function ArenaTrader() {
         body: { asset: selectedAsset, candles: recentCandles, currentPrice, balance, position },
       });
       if (error) throw error;
-      setMycroftAnalysis(data?.mycroft || null);
+      const mycroft = data?.mycroft || null;
+      setMycroftAnalysis(mycroft);
       if (data?.horus) setHorusMessage(data.horus);
+      // Update stress level from analysis
+      if (mycroft?.alertaEstresse) {
+        setStressLevel(mycroft.alertaEstresse as 'Baixo' | 'Médio' | 'Crítico');
+      }
+      // Track prediction history
+      if (mycroft?.statusMercado) {
+        setPredictionHistory(prev => [...prev.slice(-20), {
+          timestamp: Date.now(),
+          asset: selectedAsset.symbol,
+          prediction: mycroft.statusMercado,
+          priceAtPrediction: currentPrice,
+        }]);
+      }
     } catch (e) {
       console.error('Analysis error:', e);
       setMycroftAnalysis({
@@ -318,7 +350,8 @@ export default function ArenaTrader() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className={`min-h-screen bg-[#0a0a0a] text-white ${stressLevel === 'Crítico' ? 'animate-pulse-subtle' : ''}`}>
+      <MarketEventOverlay event={marketEvent} />
       <TraderBalanceHeader balance={balance} unrealizedPnl={unrealizedPnl} />
 
       <div className="pt-16 px-3 pb-4 max-w-7xl mx-auto">
@@ -385,6 +418,8 @@ export default function ArenaTrader() {
 
           {/* Right Panel */}
           <div className="space-y-4">
+            <StressLevelIndicator level={stressLevel} balance={balance} initialBalance={initialBalance} />
+
             <HorusTraderVoice message={horusMessage} muted={horusMuted} />
 
             <MycroftTraderPanel
@@ -392,6 +427,7 @@ export default function ArenaTrader() {
               isAnalyzing={isAnalyzing}
               onRequestAnalysis={requestAnalysis}
               asset={selectedAsset}
+              predictionHistory={predictionHistory}
             />
 
             {tradeHistory.length > 0 && (
