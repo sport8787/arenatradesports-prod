@@ -201,6 +201,9 @@ Proveniência dos dados: ${dataProvenance}.
 ${position ? `Posição aberta: ${position.type.toUpperCase()} a ${position.entryPrice}, alavancagem ${position.leverage || 1}x` : 'Sem posição aberta.'}
 Banca atual: ${balance.toLocaleString()} TC.
 ${techSummary}
+
+PERGUNTA PRINCIPAL DO USUÁRIO: Posso entrar agora? Devo fazer uma entrada de COMPRA ou de VENDA neste momento? Se sim, em qual direção e com quais parâmetros? Se NÃO, explique claramente por que não e o que o usuário deve aguardar antes de entrar.
+
 Forneça o relatório forense completo em JSON.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
