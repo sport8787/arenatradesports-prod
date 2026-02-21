@@ -956,34 +956,46 @@ export default function ArenaTrader() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate('/arena-trader/season')}
-              className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-600/20"
+              className="w-full relative overflow-hidden bg-gradient-to-r from-amber-900/60 via-yellow-900/60 to-amber-900/60 border-2 border-amber-500/40 hover:border-amber-400 rounded-xl p-3 flex items-center gap-3 transition-all duration-300 hover:shadow-[0_6px_20px_rgba(245,158,11,0.3)] group"
             >
-              <Trophy className="w-4 h-4" />
-              Modo Temporada
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="font-orbitron text-xs font-bold text-amber-400 uppercase tracking-wider">Modo Temporada</span>
             </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setShowKBChat(prev => !prev)}
-              className={`w-full font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg ${
+              className={`w-full relative overflow-hidden border-2 rounded-xl p-3 flex items-center gap-3 transition-all duration-300 group ${
                 showKBChat
-                  ? 'bg-gradient-to-r from-purple-600 to-violet-500 text-white shadow-purple-600/20'
-                  : 'bg-gradient-to-r from-purple-600/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:from-purple-600/30 hover:to-violet-500/30 shadow-purple-600/10'
+                  ? 'bg-gradient-to-r from-amber-900/80 via-yellow-900/80 to-amber-900/80 border-amber-400 shadow-[0_6px_20px_rgba(245,158,11,0.3)]'
+                  : 'bg-gradient-to-r from-amber-900/40 via-yellow-900/40 to-amber-900/40 border-amber-500/30 hover:border-amber-400 hover:shadow-[0_6px_20px_rgba(245,158,11,0.3)]'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              {showKBChat ? 'Fechar KB & Chat' : 'Knowledge Base & Chat'}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="flex-1 text-left">
+                <span className="font-orbitron text-xs font-bold text-amber-400 uppercase tracking-wider">Knowledge Base</span>
+                <p className="text-[10px] text-white/50">Ensine o Mycroft com PDFs</p>
+              </div>
             </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate('/arena-poker')}
-              className="w-full bg-gradient-to-r from-[hsl(var(--arena-cyan))] to-[hsl(195,100%,50%)] hover:from-[hsl(195,100%,50%)] hover:to-[hsl(var(--arena-cyan))] text-black font-orbitron font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[hsl(var(--arena-cyan)_/_0.2)]"
+              className="w-full relative overflow-hidden bg-gradient-to-r from-amber-900/40 via-yellow-900/40 to-amber-900/40 border-2 border-amber-500/30 hover:border-amber-400 rounded-xl p-3 flex items-center gap-3 transition-all duration-300 hover:shadow-[0_6px_20px_rgba(245,158,11,0.3)] group"
             >
-              <BarChart3 className="w-4 h-4" />
-              Arena Poker
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="font-orbitron text-xs font-bold text-amber-400 uppercase tracking-wider">Arena Poker</span>
             </motion.button>
           </div>
         </div>
