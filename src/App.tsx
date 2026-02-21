@@ -24,6 +24,7 @@ import ArenaPoker from "./pages/ArenaPoker";
 import ArenaPokerRankings from "./pages/ArenaPokerRankings";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
+import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -81,6 +82,7 @@ const App = () => {
               <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} />
               <Route path="/arena-trader" element={<ArenaTrader />} />
               <Route path="/arena-trader/rankings" element={<ArenaTraderRankings />} />
+              <Route path="/arena-trader/season" element={<ArenaTraderSeason />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

@@ -137,6 +137,198 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_trader_rounds: {
+        Row: {
+          bankroll_after: number
+          bankroll_before: number
+          chosen_option: string
+          created_at: string
+          day: number
+          id: string
+          is_correct: boolean
+          jury_convinced_count: number
+          jury_votes: Json | null
+          mycroft_analysis: Json | null
+          scenario_id: string
+          session_id: string
+          tilt_detected: boolean
+          time_to_choose: number | null
+          transcription: string | null
+        }
+        Insert: {
+          bankroll_after: number
+          bankroll_before: number
+          chosen_option: string
+          created_at?: string
+          day: number
+          id?: string
+          is_correct?: boolean
+          jury_convinced_count?: number
+          jury_votes?: Json | null
+          mycroft_analysis?: Json | null
+          scenario_id: string
+          session_id: string
+          tilt_detected?: boolean
+          time_to_choose?: number | null
+          transcription?: string | null
+        }
+        Update: {
+          bankroll_after?: number
+          bankroll_before?: number
+          chosen_option?: string
+          created_at?: string
+          day?: number
+          id?: string
+          is_correct?: boolean
+          jury_convinced_count?: number
+          jury_votes?: Json | null
+          mycroft_analysis?: Json | null
+          scenario_id?: string
+          session_id?: string
+          tilt_detected?: boolean
+          time_to_choose?: number | null
+          transcription?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_trader_rounds_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "arena_trader_scenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_trader_rounds_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "arena_trader_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_trader_scenarios: {
+        Row: {
+          bankroll_multiplier_loss: number
+          bankroll_multiplier_win: number
+          category: string
+          common_mistake: string | null
+          correct_option: string
+          created_at: string
+          description: string
+          difficulty: string
+          explanation: string
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          title: string
+        }
+        Insert: {
+          bankroll_multiplier_loss?: number
+          bankroll_multiplier_win?: number
+          category?: string
+          common_mistake?: string | null
+          correct_option: string
+          created_at?: string
+          description: string
+          difficulty?: string
+          explanation: string
+          id?: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          title: string
+        }
+        Update: {
+          bankroll_multiplier_loss?: number
+          bankroll_multiplier_win?: number
+          category?: string
+          common_mistake?: string | null
+          correct_option?: string
+          created_at?: string
+          description?: string
+          difficulty?: string
+          explanation?: string
+          id?: string
+          option_a?: string
+          option_b?: string
+          option_c?: string
+          option_d?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      arena_trader_seasons: {
+        Row: {
+          all_in_moments: number
+          best_win_streak: number
+          correct_answers: number
+          current_bankroll: number
+          current_day: number
+          ended_at: string | null
+          id: string
+          ignored_warnings: number
+          initial_bankroll: number
+          jury_convinced: number
+          loss_streak: number
+          offers_accepted: number
+          offers_received: number
+          season_number: number
+          started_at: string
+          status: string
+          tilt_warnings: number
+          total_rounds: number
+          user_id: string
+          win_streak: number
+        }
+        Insert: {
+          all_in_moments?: number
+          best_win_streak?: number
+          correct_answers?: number
+          current_bankroll?: number
+          current_day?: number
+          ended_at?: string | null
+          id?: string
+          ignored_warnings?: number
+          initial_bankroll?: number
+          jury_convinced?: number
+          loss_streak?: number
+          offers_accepted?: number
+          offers_received?: number
+          season_number?: number
+          started_at?: string
+          status?: string
+          tilt_warnings?: number
+          total_rounds?: number
+          user_id: string
+          win_streak?: number
+        }
+        Update: {
+          all_in_moments?: number
+          best_win_streak?: number
+          correct_answers?: number
+          current_bankroll?: number
+          current_day?: number
+          ended_at?: string | null
+          id?: string
+          ignored_warnings?: number
+          initial_bankroll?: number
+          jury_convinced?: number
+          loss_streak?: number
+          offers_accepted?: number
+          offers_received?: number
+          season_number?: number
+          started_at?: string
+          status?: string
+          tilt_warnings?: number
+          total_rounds?: number
+          user_id?: string
+          win_streak?: number
+        }
+        Relationships: []
+      }
       biometric_baselines: {
         Row: {
           blink_rate_deviation_threshold: number | null
@@ -414,6 +606,50 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      horus_trader_offers: {
+        Row: {
+          accepted: boolean | null
+          created_at: string
+          current_bankroll_at_offer: number
+          day_offered: number
+          id: string
+          next_round_result: string | null
+          offered_bankroll: number
+          session_id: string
+          trigger_type: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string
+          current_bankroll_at_offer: number
+          day_offered: number
+          id?: string
+          next_round_result?: string | null
+          offered_bankroll: number
+          session_id: string
+          trigger_type: string
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string
+          current_bankroll_at_offer?: number
+          day_offered?: number
+          id?: string
+          next_round_result?: string | null
+          offered_bankroll?: number
+          session_id?: string
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "horus_trader_offers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "arena_trader_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       matches: {
         Row: {
