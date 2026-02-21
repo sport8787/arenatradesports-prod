@@ -130,34 +130,34 @@ ${knowledgeBaseContent}
 ━━━ FIM DA KNOWLEDGE BASE ━━━
 ` : '';
 
-    const systemPrompt = `Você é o Mycroft Trader, o módulo de inteligência forense financeira do ecossistema 'Blefador Milionário'. Você opera como um analista institucional de alta precisão.
+    const systemPrompt = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IDENTIDADE E FUNÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Você é MYCROFT TRADER, inteligência artificial de análise técnica profissional do ecossistema "Blefador Milionário". Perito forense financeiro — técnico, preciso, frio e calculista.
 
 ${kbSection}
 
-🛡️ PROTOCOLO DE AUDITORIA FORENSE — Execute ANTES de qualquer sinal:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DIRETRIZES DE ANÁLISE (OBRIGATÓRIAS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. VALIDAÇÃO DE PROVENIÊNCIA:
-Status da API: ${dataProvenance}.
-${confiancaModifier}
+1. **TIMEFRAME É CRÍTICO** - Análise SEMPRE considera o timeframe atual.
+2. **CONFLUÊNCIA** - NUNCA analise 1 indicador sozinho. Busque 3+ fatores. Score: 0-10.
+3. **RISK:REWARD** - Setup SÓ É VÁLIDO se R:R ≥ 1:1.5. Stop loss técnico.
+4. **CITE FONTES DA KB** - "Segundo Nison...", "Como Douglas ensina..."
+5. **COMPLIANCE CVM** - Diga "Confluência de compra/venda", nunca "Compre"/"Venda".
 
-2. FILTRO DE CONFLUÊNCIA TÉCNICA (OBRIGATÓRIO):
-Uma decisão de compra ou venda SÓ É VALIDADA se houver cruzamento de pelo menos 3 indicadores:
-- SMA 9/21: Preço acima/abaixo das médias (cruzamento golden cross / death cross).
-- Bollinger: Preço nas extremidades com estreitamento ou expansão das bandas.
-- RSI: Sobrecompra (>70) ou sobrevenda (<30).
-Se menos de 3 indicadores confirmarem, o sinal é HOLD obrigatório. Informe quantos indicadores confirmaram (0-4).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROTOCOLO FORENSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-3. AUDITORIA DE LIQUIDEZ:
-Verifique se variação de preço é acompanhada por volume. Preço que sobe sem volume = "blefe de exaustão".
+1. PROVENIÊNCIA: ${dataProvenance}. ${confiancaModifier}
+2. CONFLUÊNCIA: SMA 9/21 + Bollinger + RSI + Volume. Menos de 3 = HOLD.
+3. LIQUIDEZ: Preço sem volume = "blefe de exaustão".
+4. BANCA (${balance.toLocaleString()} TC): Risco máx 1% = ${Math.floor(balance * 0.01).toLocaleString()} TC/trade.
 
-4. CÁLCULO DE RISCO DE BANCA (${balance.toLocaleString()} TC de 500.000 TC):
-Toda sugestão DEVE vir com Position Sizing rigoroso:
-- NUNCA sugerir entrada que comprometa mais de 1% do saldo num único Stop Loss.
-- Calcule: Risco máximo = ${Math.floor(balance * 0.01).toLocaleString()} TC por trade.
-- Sugira size, SL e TP concretos em valores absolutos.
-
-📈 INTERPRETAÇÃO DE FLUXO INSTITUCIONAL (variação 24h = ${(change24h || 0).toFixed(2)}%):
-Classificação atual: ${classeInstitucional}.
+📈 FLUXO INSTITUCIONAL (${(change24h || 0).toFixed(2)}%): ${classeInstitucional}.
 
 ${futuresRules}
 
@@ -166,18 +166,16 @@ ${techSummary}
 RETORNE estritamente um JSON válido:
 {
   "status_mercado": "BUY THE DIP" ou "HOLD" ou "SELL" ou "SHORT",
-  "analise_forense": "Texto técnico de até 400 caracteres.",
+  "analise_detalhada": "Análise COMPLETA em markdown incluindo: 📈 SITUAÇÃO ATUAL, 🔍 ANÁLISE TÉCNICA (cada indicador), 📖 FUNDAMENTAÇÃO citando livros da KB, ⚖️ GESTÃO DE RISCO (entry/SL/TP/RR), ⚠️ AVISOS. Mínimo 800 chars.",
+  "analise_forense": "Resumo técnico de até 200 chars.",
   "script_horus": "Texto provocativo para o Hórus, máximo 2 frases. ${isFutures ? 'FOQUE no Stop Loss e nas zonas de milhar.' : 'DEVE incorporar a leitura institucional.'}",
-  "niveis_criticos": {
-    "suporte": <número>,
-    "resistencia": <número>
-  },
+  "niveis_criticos": { "suporte": <número>, "resistencia": <número> },
   "alerta_de_estresse": "Baixo" ou "Médio" ou "Crítico",
   "blefe_de_mercado": true ou false,
   "volume_real_pct": <número 0-100>,
   "volume_burburinho_pct": <número 0-100>,
-  "recomendacao_aporte": "Texto curto com size exato, SL e TP.",
-  "confluencia_score": <número 0-4>,
+  "recomendacao_aporte": "Texto curto com size, SL e TP.",
+  "confluencia_score": <número 0-10>,
   "indicadores_confirmados": ["lista dos indicadores que confirmam"],
   "status_institucional": "ACUMULAÇÃO" ou "DISTRIBUIÇÃO" ou "NEUTRO",
   "classe_fluxo": "${classeInstitucional}",
@@ -214,7 +212,7 @@ Forneça o relatório forense completo em JSON.`;
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1100,
+        max_tokens: 3000,
         system: systemPrompt,
         messages: [
           { role: 'user', content: userMessage }
@@ -258,7 +256,8 @@ Forneça o relatório forense completo em JSON.`;
         support: parsed.niveis_criticos?.suporte || 0,
         resistance: parsed.niveis_criticos?.resistencia || 0,
         trend: statusToTrend[parsed.status_mercado] || 'bearish',
-        verdict: parsed.analise_forense || 'Análise indisponível.',
+        verdict: parsed.analise_detalhada || parsed.analise_forense || 'Análise indisponível.',
+        verdictShort: parsed.analise_forense || 'Análise indisponível.',
         riskLevel: stressToRisk[parsed.alerta_de_estresse] || 5,
         statusMercado: parsed.status_mercado,
         alertaEstresse: parsed.alerta_de_estresse,
@@ -266,7 +265,7 @@ Forneça o relatório forense completo em JSON.`;
         volumeReal: parsed.volume_real_pct ?? 50,
         volumeBurburinho: parsed.volume_burburinho_pct ?? 50,
         recomendacaoAporte: parsed.recomendacao_aporte || null,
-        confluenciaScore: parsed.confluencia_score ?? 0,
+        confluenciaScore: parsed.confluencia_score ?? 0, // Now 0-10 scale
         indicadoresConfirmados: parsed.indicadores_confirmados || [],
         statusInstitucional: parsed.status_institucional || 'NEUTRO',
         classeFluxo: parsed.classe_fluxo || 'NEUTRO',

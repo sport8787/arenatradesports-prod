@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import { Bot, RefreshCw, Shield, Target, AlertTriangle, TrendingUp, TrendingDown, Eye, History, ChevronDown, ChevronUp, CheckCircle, XCircle, Building2, Crosshair, ShieldCheck } from 'lucide-react';
 import type { Asset } from '@/pages/ArenaTrader';
 
@@ -62,16 +63,16 @@ function ProvenanceBadge({ proveniencia, confianca }: { proveniencia?: string; c
 
 function ConfluenceIndicator({ score, indicators }: { score?: number; indicators?: string[] }) {
   if (score === undefined) return null;
-  const color = score >= 3 ? 'emerald' : score >= 2 ? 'amber' : 'red';
+  const color = score >= 7 ? 'emerald' : score >= 4 ? 'amber' : 'red';
   return (
     <div className={`rounded-lg p-2.5 border bg-${color}-500/5 border-${color}-500/20`}>
       <div className="flex items-center gap-2 mb-1.5">
         <Crosshair className={`w-3.5 h-3.5 text-${color}-400`} />
         <span className="text-[10px] font-bold text-cyan-400 uppercase">Confluência Técnica</span>
-        <span className={`ml-auto text-xs font-orbitron font-bold text-${color}-400`}>{score}/4</span>
+        <span className={`ml-auto text-xs font-orbitron font-bold text-${color}-400`}>{score}/10</span>
       </div>
-      {score < 3 && (
-        <p className="text-[9px] text-red-400/80 mb-1.5">⚠️ Sinal NÃO validado (mínimo 3 indicadores)</p>
+      {score < 5 && (
+        <p className="text-[9px] text-red-400/80 mb-1.5">⚠️ Confluência insuficiente para setup válido</p>
       )}
       {indicators && indicators.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
@@ -309,10 +310,10 @@ export default function MycroftTraderPanel({ analysis, isAnalyzing, onRequestAna
           </div>
 
           {/* Verdict */}
-          <div className="bg-white/5 rounded-lg p-3 border-l-2 border-cyan-400/50">
-            <p className="text-xs text-white/70 leading-relaxed italic">
-              "{analysis.verdict}"
-            </p>
+          <div className="bg-white/5 rounded-lg p-3 border-l-2 border-cyan-400/50 max-h-80 overflow-y-auto">
+            <div className="prose prose-sm prose-invert prose-p:text-white/70 prose-p:text-xs prose-p:leading-relaxed prose-headings:text-cyan-400 prose-headings:text-xs prose-headings:font-bold prose-strong:text-white/90 prose-li:text-white/60 prose-li:text-[11px] prose-ul:my-1 prose-ol:my-1 prose-p:my-1">
+              <ReactMarkdown>{analysis.verdict}</ReactMarkdown>
+            </div>
           </div>
 
           {/* Prediction History */}
