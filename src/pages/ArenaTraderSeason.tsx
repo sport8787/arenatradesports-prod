@@ -50,6 +50,19 @@ interface JuryVote {
   reasoning: string;
 }
 
+interface SeasonAnalysis {
+  bankrollHistory: { day: number; bankroll: number; isCorrect: boolean; tilt: boolean }[];
+  criticalMoments: { type: string; day: number; gain?: number; loss?: number; offeredAmount?: number; actualResult?: string }[];
+  categoryStats: Record<string, { correct: number; total: number }>;
+  avgTimeToChoose: number;
+  fastDecisions: number;
+  totalOffers: number;
+  offersAccepted: number;
+  offersDeclined: number;
+  tiltMoments: number;
+  roundsDetail: any[];
+}
+
 type GamePhase = 'menu' | 'loading' | 'scenario' | 'jury' | 'result' | 'horus_offer' | 'season_end';
 
 const TIMER_SECONDS = 30;
@@ -70,6 +83,7 @@ export default function ArenaTraderSeason() {
   const [horusOffer, setHorusOffer] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [juryDeliberating, setJuryDeliberating] = useState(false);
+  const [seasonAnalysis, setSeasonAnalysis] = useState<SeasonAnalysis | null>(null);
   const startTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -217,6 +231,7 @@ export default function ArenaTraderSeason() {
       setHorusOffer(result.horusOffer);
       setPhase('horus_offer');
     } else if (result?.seasonStatus !== 'active') {
+      loadSeasonAnalysis(season.id);
       setPhase('season_end');
     } else {
       setPhase('result');
@@ -237,17 +252,34 @@ export default function ArenaTraderSeason() {
     if (season && season.current_day <= 30) {
       loadNextScenario(season.id, season.current_day);
     } else {
+      if (season) loadSeasonAnalysis(season.id);
       setPhase('season_end');
     }
   };
 
   const handleHorusResponse = async (accepted: boolean) => {
+    if (horusOffer?.offerId && season) {
+      await supabase.functions.invoke('arena-trader-season', {
+        body: { action: 'accept_offer', sessionId: season.id, offerId: horusOffer.offerId, accepted },
+      });
+    }
     if (accepted) {
+      setSeason(prev => prev ? { ...prev, current_bankroll: horusOffer?.offer || prev.current_bankroll, status: 'completed' } : null);
       toast.success('Você aceitou a oferta do Hórus! Temporada encerrada.');
+      loadSeasonAnalysis(season!.id);
       setPhase('season_end');
     } else {
       toast('Recusou o Hórus! Coragem ou loucura? 🔥');
       setPhase('result');
+    }
+  };
+
+  const loadSeasonAnalysis = async (sessionId: string) => {
+    const { data } = await supabase.functions.invoke('arena-trader-season', {
+      body: { action: 'get_season_analysis', sessionId },
+    });
+    if (data && !data.error) {
+      setSeasonAnalysis(data);
     }
   };
 
@@ -532,7 +564,7 @@ export default function ArenaTraderSeason() {
             </motion.div>
           )}
 
-          {/* SEASON END */}
+          {/* SEASON END - Enhanced Analysis */}
           {phase === 'season_end' && season && (
             <motion.div key="end" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="text-center space-y-4">
@@ -542,6 +574,7 @@ export default function ArenaTraderSeason() {
                 </h2>
               </div>
 
+              {/* Core Stats */}
               <div className="bg-amber-950/20 border border-amber-900/30 rounded-xl p-6 grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-amber-400/60">Banca Final:</span><br/><span className="text-xl font-bold text-amber-400">{season.current_bankroll.toLocaleString()} BC</span></div>
                 <div><span className="text-amber-400/60">ROI:</span><br/><span className={`text-xl font-bold ${season.current_bankroll > season.initial_bankroll ? 'text-green-400' : 'text-red-400'}`}>
@@ -553,8 +586,144 @@ export default function ArenaTraderSeason() {
                 <div><span className="text-amber-400/60">Alertas de Tilt:</span><br/><span className="font-bold">{season.tilt_warnings}</span></div>
               </div>
 
+              {/* Enhanced Analysis */}
+              {seasonAnalysis && (
+                <>
+                  {/* Bankroll Timeline */}
+                  <div className="bg-amber-950/10 border border-amber-900/20 rounded-xl p-5 space-y-3">
+                    <h3 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" /> Evolução da Banca
+                    </h3>
+                    <div className="flex items-end gap-1 h-20">
+                      {seasonAnalysis.bankrollHistory.map((h, i) => {
+                        const maxB = Math.max(...seasonAnalysis.bankrollHistory.map(x => x.bankroll), season.initial_bankroll);
+                        const height = Math.max(4, (h.bankroll / maxB) * 80);
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                            <div
+                              className={`w-full rounded-t-sm ${h.isCorrect ? 'bg-green-500/60' : 'bg-red-500/60'} ${h.tilt ? 'ring-1 ring-red-400' : ''}`}
+                              style={{ height: `${height}px` }}
+                              title={`Dia ${h.day}: ${h.bankroll.toLocaleString()} BC`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between text-[10px] text-amber-400/40">
+                      <span>Dia 1</span>
+                      <span>Dia {seasonAnalysis.bankrollHistory.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Category Performance */}
+                  {Object.keys(seasonAnalysis.categoryStats).length > 0 && (
+                    <div className="bg-amber-950/10 border border-amber-900/20 rounded-xl p-5 space-y-3">
+                      <h3 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                        <Target className="w-4 h-4" /> Performance por Categoria
+                      </h3>
+                      <div className="space-y-2">
+                        {Object.entries(seasonAnalysis.categoryStats).map(([cat, stats]) => {
+                          const pct = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+                          return (
+                            <div key={cat} className="flex items-center gap-3">
+                              <span className="text-xs text-amber-400/60 w-28 capitalize">{cat}</span>
+                              <div className="flex-1 h-2 bg-amber-950/40 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs font-mono text-amber-400">{stats.correct}/{stats.total}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Critical Moments */}
+                  {seasonAnalysis.criticalMoments.length > 0 && (
+                    <div className="bg-amber-950/10 border border-amber-900/20 rounded-xl p-5 space-y-3">
+                      <h3 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                        <Zap className="w-4 h-4" /> Momentos Críticos
+                      </h3>
+                      <div className="space-y-2">
+                        {seasonAnalysis.criticalMoments.slice(0, 5).map((m, i) => (
+                          <div key={i} className="flex items-center gap-3 text-xs">
+                            <span className="text-amber-400/50 w-14">Dia {m.day}</span>
+                            {m.type === 'biggest_win' && (
+                              <span className="text-green-400">💰 Maior ganho: +{m.gain?.toLocaleString()} BC</span>
+                            )}
+                            {m.type === 'biggest_loss' && (
+                              <span className="text-red-400">📉 Maior perda: -{m.loss?.toLocaleString()} BC</span>
+                            )}
+                            {m.type === 'tilt' && (
+                              <span className="text-red-400">⚡ Tilt detectado</span>
+                            )}
+                            {m.type === 'declined_offer' && (
+                              <span className={m.actualResult === 'won_next' ? 'text-green-400' : 'text-red-400'}>
+                                🦅 Recusou {m.offeredAmount?.toLocaleString()} BC → {m.actualResult === 'won_next' ? 'Acertou depois ✅' : 'Errou depois ❌'}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Behavioral Summary */}
+                  <div className="bg-amber-950/10 border border-amber-900/20 rounded-xl p-5 space-y-3">
+                    <h3 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                      <Brain className="w-4 h-4" /> Análise Comportamental
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-amber-400/50">Tempo Médio de Decisão</span>
+                        <p className="font-bold text-amber-400">{(seasonAnalysis.avgTimeToChoose / 1000).toFixed(1)}s</p>
+                      </div>
+                      <div>
+                        <span className="text-amber-400/50">Decisões Impulsivas (&lt;5s)</span>
+                        <p className={`font-bold ${seasonAnalysis.fastDecisions > 5 ? 'text-red-400' : 'text-green-400'}`}>{seasonAnalysis.fastDecisions}</p>
+                      </div>
+                      <div>
+                        <span className="text-amber-400/50">Ofertas do Hórus</span>
+                        <p className="font-bold text-amber-400">{seasonAnalysis.totalOffers} ({seasonAnalysis.offersAccepted} aceitas)</p>
+                      </div>
+                      <div>
+                        <span className="text-amber-400/50">Momentos de Tilt</span>
+                        <p className={`font-bold ${seasonAnalysis.tiltMoments > 3 ? 'text-red-400' : 'text-amber-400'}`}>{seasonAnalysis.tiltMoments}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div className="bg-amber-950/10 border border-amber-900/20 rounded-xl p-5 space-y-2">
+                    <h3 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                      <Shield className="w-4 h-4" /> Recomendações
+                    </h3>
+                    <ul className="text-xs text-amber-400/70 space-y-1.5">
+                      {seasonAnalysis.fastDecisions > 3 && (
+                        <li>⚠️ Muitas decisões impulsivas. Respire antes de clicar — use os 30 segundos completos.</li>
+                      )}
+                      {seasonAnalysis.tiltMoments > 2 && (
+                        <li>🧠 Tilt recorrente detectado. Considere aceitar as ofertas do Hórus após sequências de perda.</li>
+                      )}
+                      {Object.entries(seasonAnalysis.categoryStats).some(([, s]) => s.total >= 2 && s.correct / s.total < 0.4) && (
+                        <li>📚 Performance fraca em algumas categorias. Estude os cenários que mais errou.</li>
+                      )}
+                      {seasonAnalysis.offersDeclined > 0 && (
+                        <li>🦅 Você recusou {seasonAnalysis.offersDeclined} oferta(s) do Hórus. Avalie se o risco compensou.</li>
+                      )}
+                      {season.current_bankroll > season.initial_bankroll && (
+                        <li>✅ Lucro positivo! Continue aprimorando sua disciplina para temporadas ainda melhores.</li>
+                      )}
+                      {season.current_bankroll <= 0 && (
+                        <li>💀 Banca zerada. Foco em preservação de capital na próxima temporada.</li>
+                      )}
+                    </ul>
+                  </div>
+                </>
+              )}
+
               <div className="flex gap-4">
-                <Button onClick={() => { setSeason(null); setPhase('menu'); }} className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold">
+                <Button onClick={() => { setSeason(null); setSeasonAnalysis(null); setPhase('menu'); }} className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold">
                   Nova Temporada
                 </Button>
                 <Button onClick={() => navigate('/arena-trader')} variant="outline" className="flex-1 border-amber-700 text-amber-400">
