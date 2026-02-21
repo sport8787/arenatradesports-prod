@@ -1,0 +1,146 @@
+import { useMemo } from 'react';
+import type { Candle, Asset, TradePosition } from '@/pages/ArenaTrader';
+
+interface CandlestickChartProps {
+  candles: Candle[];
+  asset: Asset;
+  position: TradePosition | null;
+  support?: number;
+  resistance?: number;
+}
+
+export default function CandlestickChart({ candles, asset, position, support, resistance }: CandlestickChartProps) {
+  const { bars, yMin, yMax, width, height } = useMemo(() => {
+    if (candles.length === 0) return { bars: [], yMin: 0, yMax: 0, width: 800, height: 400 };
+
+    const w = 800;
+    const h = 400;
+    const pad = 60;
+    const allPrices = candles.flatMap(c => [c.high, c.low]);
+    const min = Math.min(...allPrices) * 0.998;
+    const max = Math.max(...allPrices) * 1.002;
+    const barWidth = Math.max(4, (w - pad * 2) / candles.length - 2);
+
+    const mapped = candles.map((c, i) => {
+      const x = pad + i * ((w - pad * 2) / candles.length) + barWidth / 2;
+      const toY = (price: number) => h - pad - ((price - min) / (max - min)) * (h - pad * 2);
+      const isGreen = c.close >= c.open;
+
+      return {
+        x,
+        openY: toY(c.open),
+        closeY: toY(c.close),
+        highY: toY(c.high),
+        lowY: toY(c.low),
+        isGreen,
+        barWidth,
+        candle: c,
+      };
+    });
+
+    return { bars: mapped, yMin: min, yMax: max, width: w, height: h };
+  }, [candles]);
+
+  const toY = (price: number) => {
+    const pad = 60;
+    return height - pad - ((price - yMin) / (yMax - yMin)) * (height - pad * 2);
+  };
+
+  const formatPrice = (p: number) => asset.category === 'crypto' ? p.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) : p.toFixed(2);
+
+  // Y-axis labels
+  const yLabels = useMemo(() => {
+    const count = 6;
+    const labels = [];
+    for (let i = 0; i <= count; i++) {
+      const price = yMin + (yMax - yMin) * (i / count);
+      labels.push({ price, y: toY(price) });
+    }
+    return labels;
+  }, [yMin, yMax]);
+
+  const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
+
+  return (
+    <div className="w-full h-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-orbitron text-sm font-bold text-amber-400">{asset.symbol}</span>
+        <span className="font-orbitron text-lg font-bold text-white">
+          {asset.category === 'crypto' ? 'R$ ' : 'R$ '}{formatPrice(lastPrice)}
+        </span>
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[calc(100%-30px)]" preserveAspectRatio="none">
+        {/* Grid lines */}
+        {yLabels.map((l, i) => (
+          <g key={i}>
+            <line x1="60" y1={l.y} x2={width - 10} y2={l.y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            <text x="55" y={l.y + 4} fill="rgba(255,255,255,0.3)" fontSize="10" textAnchor="end" fontFamily="monospace">
+              {formatPrice(l.price)}
+            </text>
+          </g>
+        ))}
+
+        {/* Support line */}
+        {support && support >= yMin && support <= yMax && (
+          <>
+            <line x1="60" y1={toY(support)} x2={width - 10} y2={toY(support)} stroke="#10b981" strokeWidth="1" strokeDasharray="6,4" opacity="0.6" />
+            <text x={width - 8} y={toY(support) - 4} fill="#10b981" fontSize="9" textAnchor="end" fontFamily="monospace">S: {formatPrice(support)}</text>
+          </>
+        )}
+
+        {/* Resistance line */}
+        {resistance && resistance >= yMin && resistance <= yMax && (
+          <>
+            <line x1="60" y1={toY(resistance)} x2={width - 10} y2={toY(resistance)} stroke="#ef4444" strokeWidth="1" strokeDasharray="6,4" opacity="0.6" />
+            <text x={width - 8} y={toY(resistance) - 4} fill="#ef4444" fontSize="9" textAnchor="end" fontFamily="monospace">R: {formatPrice(resistance)}</text>
+          </>
+        )}
+
+        {/* Entry price line */}
+        {position && position.entryPrice >= yMin && position.entryPrice <= yMax && (
+          <>
+            <line x1="60" y1={toY(position.entryPrice)} x2={width - 10} y2={toY(position.entryPrice)} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4,4" opacity="0.8" />
+            <text x={width - 8} y={toY(position.entryPrice) - 4} fill="#f59e0b" fontSize="9" textAnchor="end" fontFamily="monospace">
+              Entrada: {formatPrice(position.entryPrice)}
+            </text>
+          </>
+        )}
+
+        {/* Candlesticks */}
+        {bars.map((bar, i) => (
+          <g key={i}>
+            {/* Wick */}
+            <line
+              x1={bar.x}
+              y1={bar.highY}
+              x2={bar.x}
+              y2={bar.lowY}
+              stroke={bar.isGreen ? '#10b981' : '#ef4444'}
+              strokeWidth="1"
+              opacity="0.7"
+            />
+            {/* Body */}
+            <rect
+              x={bar.x - bar.barWidth / 2}
+              y={Math.min(bar.openY, bar.closeY)}
+              width={bar.barWidth}
+              height={Math.max(1, Math.abs(bar.closeY - bar.openY))}
+              fill={bar.isGreen ? '#10b981' : '#ef4444'}
+              rx="1"
+            />
+          </g>
+        ))}
+
+        {/* Current price indicator */}
+        {candles.length > 0 && (
+          <g>
+            <circle cx={width - 20} cy={toY(lastPrice)} r="4" fill="#f59e0b">
+              <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}

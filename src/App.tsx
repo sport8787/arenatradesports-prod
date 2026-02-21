@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaPoker from "./pages/ArenaPoker";
 import ArenaPokerRankings from "./pages/ArenaPokerRankings";
+import ArenaTrader from "./pages/ArenaTrader";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -77,6 +78,7 @@ const App = () => {
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/arena-poker" element={<ArenaPoker />} />
               <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} />
+              <Route path="/arena-trader" element={<ArenaTrader />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
