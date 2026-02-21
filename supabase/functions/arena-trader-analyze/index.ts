@@ -163,10 +163,18 @@ ${futuresRules}
 
 ${techSummary}
 
+REGRA MAIS IMPORTANTE — VEREDITO DE ENTRADA:
+Você DEVE responder CLARAMENTE se o usuário deve ou não entrar AGORA. O campo "veredito_entrada" é OBRIGATÓRIO e deve conter uma das seguintes opções:
+- "ENTRADA COMPRA AGORA" — se há confluência suficiente para comprar
+- "ENTRADA VENDA AGORA" — se há confluência suficiente para vender/shortar  
+- "NÃO ENTRAR — AGUARDAR" — se não há setup válido, explicando o que aguardar
+O campo "analise_detalhada" DEVE terminar com uma seção "━━━ 🏁 VEREDITO FINAL ━━━" que repita o veredito e justifique em 2-3 frases.
+
 RETORNE estritamente um JSON válido:
 {
   "status_mercado": "BUY THE DIP" ou "HOLD" ou "SELL" ou "SHORT",
-  "analise_detalhada": "Análise COMPLETA em markdown incluindo: 📈 SITUAÇÃO ATUAL, 🔍 ANÁLISE TÉCNICA (cada indicador), 📖 FUNDAMENTAÇÃO citando livros da KB, ⚖️ GESTÃO DE RISCO (entry/SL/TP/RR), ⚠️ AVISOS. Mínimo 800 chars.",
+  "veredito_entrada": "ENTRADA COMPRA AGORA" ou "ENTRADA VENDA AGORA" ou "NÃO ENTRAR — AGUARDAR",
+  "analise_detalhada": "Análise COMPLETA em markdown incluindo: 📈 SITUAÇÃO ATUAL, 🔍 ANÁLISE TÉCNICA (cada indicador), 📖 FUNDAMENTAÇÃO citando livros da KB, ⚖️ GESTÃO DE RISCO (entry/SL/TP/RR), ⚠️ AVISOS, e OBRIGATORIAMENTE ━━━ 🏁 VEREDITO FINAL ━━━ com a decisão clara de entrar ou não. Mínimo 800 chars.",
   "analise_forense": "Resumo técnico de até 200 chars.",
   "script_horus": "Texto provocativo para o Hórus, máximo 2 frases. ${isFutures ? 'FOQUE no Stop Loss e nas zonas de milhar.' : 'DEVE incorporar a leitura institucional.'}",
   "niveis_criticos": { "suporte": <número>, "resistencia": <número> },
@@ -263,6 +271,7 @@ Forneça o relatório forense completo em JSON.`;
         verdictShort: parsed.analise_forense || 'Análise indisponível.',
         riskLevel: stressToRisk[parsed.alerta_de_estresse] || 5,
         statusMercado: parsed.status_mercado,
+        vereditoEntrada: parsed.veredito_entrada || 'NÃO ENTRAR — AGUARDAR',
         alertaEstresse: parsed.alerta_de_estresse,
         blefeDeMercado: parsed.blefe_de_mercado ?? false,
         volumeReal: parsed.volume_real_pct ?? 50,
