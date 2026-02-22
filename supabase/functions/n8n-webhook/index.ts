@@ -39,17 +39,110 @@ serve(async (req) => {
       );
     }
 
-    // ---- live_match ----
+    // ---- live_match (auto-triggers Mycroft analysis) ----
     if (type === "live_match") {
       const { data, error } = await supabase
         .from("live_matches")
         .upsert(payload, { onConflict: "match_id" })
-        .select("id")
+        .select("*")
         .single();
 
       if (error) throw error;
+
+      const match = data;
+      console.log(`[n8n-webhook] live_match upserted: ${match.home_team} vs ${match.away_team} (${match.minute}')`);
+
+      // Auto-trigger Mycroft analysis if not already done
+      if (!match.mycroft_analysis_id) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+          console.log(`[n8n-webhook] Auto-triggering Mycroft analysis for ${match.match_id}`);
+
+          const analysisResponse = await fetch(
+            `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify({
+                match: {
+                  home: match.home_team,
+                  away: match.away_team,
+                  scoreHome: match.score_home ?? 0,
+                  scoreAway: match.score_away ?? 0,
+                  minute: match.minute ?? 0,
+                  period: match.period ?? "First Half",
+                  championship: match.championship ?? "Unknown",
+                  match_id: match.match_id,
+                  stats: match.stats ?? {},
+                  bankroll: 10000,
+                },
+              }),
+            }
+          );
+
+          if (analysisResponse.ok) {
+            const analysis = await analysisResponse.json();
+            console.log(`[n8n-webhook] Mycroft verdict: ${analysis.verdict} | Confidence: ${analysis.confidence}%`);
+
+            // Save analysis
+            const { data: analysisRow } = await supabase
+              .from("mycroft_analyses")
+              .insert({
+                match_id: match.match_id,
+                verdict: analysis.verdict || "AGUARDAR",
+                market: analysis.market || "N/A",
+                thesis: analysis.thesis || "",
+                odd: analysis.odd ?? null,
+                confidence: analysis.confidence ?? 0,
+                risk_management: analysis.risk ?? null,
+                alerts: analysis.alerts ?? [],
+                fundamentation: { stats: analysis.stats ?? {} },
+              })
+              .select("id")
+              .single();
+
+            if (analysisRow) {
+              await supabase
+                .from("live_matches")
+                .update({
+                  mycroft_analysis_id: analysisRow.id,
+                  mycroft_status: "done",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("match_id", match.match_id);
+
+              // Auto-create signal if APROVADO
+              if (analysis.verdict === "APROVADO") {
+                await supabase.from("signals_sent").insert({
+                  match_id: match.match_id,
+                  analysis_id: analysisRow.id,
+                });
+                console.log(`[n8n-webhook] Signal created for ${match.match_id}`);
+              }
+
+              return new Response(
+                JSON.stringify({ ok: true, inserted_id: match.id, analysis_id: analysisRow.id, verdict: analysis.verdict }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          } else {
+            const errText = await analysisResponse.text();
+            console.error(`[n8n-webhook] Mycroft failed [${analysisResponse.status}]:`, errText);
+            await supabase.from("live_matches").update({ mycroft_status: "failed" }).eq("match_id", match.match_id);
+          }
+        } catch (e) {
+          console.error("[n8n-webhook] Auto-analysis error:", e);
+          await supabase.from("live_matches").update({ mycroft_status: "failed" }).eq("match_id", match.match_id);
+        }
+      }
+
       return new Response(
-        JSON.stringify({ ok: true, inserted_id: data?.id }),
+        JSON.stringify({ ok: true, inserted_id: match.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
