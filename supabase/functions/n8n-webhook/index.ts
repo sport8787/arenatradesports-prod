@@ -41,9 +41,12 @@ serve(async (req) => {
 
     // ---- live_match (auto-triggers Mycroft analysis) ----
     if (type === "live_match") {
+      // Remove fields we manage internally so n8n can't overwrite them
+      const { mycroft_status, mycroft_analysis_id, ...safePayload } = payload;
+
       const { data, error } = await supabase
         .from("live_matches")
-        .upsert(payload, { onConflict: "match_id" })
+        .upsert(safePayload, { onConflict: "match_id" })
         .select("*")
         .single();
 
