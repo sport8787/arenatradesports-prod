@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,7 @@ interface MatchData {
   minute: number;
   period: string;
   championship: string;
+  match_id?: string;
   stats?: {
     attacks_home?: number;
     attacks_away?: number;
@@ -26,10 +28,64 @@ interface MatchData {
   bankroll?: number;
 }
 
-function buildPrompt(match: MatchData): string {
+function getSupabaseAdmin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+}
+
+async function loadKnowledgeBase(): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  const contents: string[] = [];
+  try {
+    const { data: files } = await supabase.storage.from("sports-knowledge-base").list("", { limit: 50 });
+    if (files) {
+      for (const file of files) {
+        if (!file.name || file.name.length === 0) continue;
+        try {
+          const ext = file.name.split(".").pop()?.toLowerCase();
+          if (!["txt", "md", "csv"].includes(ext || "")) continue;
+          const { data: fileData } = await supabase.storage.from("sports-knowledge-base").download(file.name);
+          if (!fileData) continue;
+          const text = await fileData.text();
+          contents.push(`\n━━━ ${file.name} ━━━\n${text.substring(0, 80000)}`);
+        } catch (e) {
+          console.error(`Error reading ${file.name}:`, e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Sports KB loading error:", e);
+  }
+  console.log(`📚 Sports KB loaded: ${contents.length} files, ${contents.join("").length} chars`);
+  return contents.join("\n\n");
+}
+
+function buildPrompt(match: MatchData, knowledgeBase: string): string {
   const stats = match.stats || {};
+  
+  const kbSection = knowledgeBase
+    ? `
+═══════════════════════════════════════
+BASE DE CONHECIMENTO (KB):
+═══════════════════════════════════════
+${knowledgeBase}
+═══════════════════════════════════════
+FIM DA KB
+═══════════════════════════════════════
+
+INSTRUÇÃO CRÍTICA: Fundamente TODA análise nos conceitos dos documentos acima.
+- CITE autores e livros quando aplicável
+- APLIQUE os conceitos diretamente ao contexto do jogo
+- IDENTIFIQUE padrões que os livros descrevem
+`
+    : "";
+
   return `
 Você é o MYCROFT, um analista forense esportivo de elite para trading esportivo ao vivo.
+
+${kbSection}
 
 Analise o jogo abaixo e forneça um veredito completo para o trader.
 
@@ -71,7 +127,7 @@ Analise o contexto e responda APENAS com um JSON válido (sem markdown, sem expl
     "shots_home": ${stats.shots_home ?? 3},
     "shots_away": ${stats.shots_away ?? 2}
   },
-  "thesis": "Explicação detalhada da sua análise (3-5 parágrafos). Inclua: padrão detectado, referência a conceitos de trading esportivo, gestão emocional, e citação de autores como Mark Douglas, Nassim Taleb ou conceitos de probabilidade.",
+  "thesis": "Explicação detalhada da sua análise (3-5 parágrafos). Inclua: padrão detectado, referência a conceitos da KB ou de trading esportivo, gestão emocional, e citação de autores como Mark Douglas, Nassim Taleb ou conceitos de probabilidade. Fundamente nos documentos da KB quando disponíveis.",
   "risk": {
     "stake_percent": 1-5,
     "stake_value": valor em reais baseado na banca,
@@ -80,7 +136,8 @@ Analise o contexto e responda APENAS com um JSON válido (sem markdown, sem expl
     "target": "alvo (ex: Gol antes do intervalo)",
     "rr": "risk:reward ratio (ex: 1:1.95)",
     "ev": "expected value estimado (ex: +35%)"
-  }
+  },
+  "alerts": ["Lista de alertas e riscos identificados"]
 }
 
 REGRAS:
@@ -90,6 +147,7 @@ REGRAS:
 - Stake nunca deve ser > 5% da banca
 - Seja conservador nas odds estimadas
 - A thesis deve ser fundamentada e educativa
+- Se a KB tiver material relevante, CITE-O na thesis
 `.trim();
 }
 
@@ -99,9 +157,9 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('VITE_ANTHROPIC_API_KEY');
-    if (!apiKey) {
-      console.error('[MycroftSports] ANTHROPIC_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('[MycroftSports] LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -118,37 +176,52 @@ serve(async (req) => {
 
     console.log(`[MycroftSports] Analyzing: ${match.home} vs ${match.away} (${match.minute}')`);
 
-    const prompt = buildPrompt(match);
+    // Load KB
+    const knowledgeBase = await loadKnowledgeBase();
+    const prompt = buildPrompt(match, knowledgeBase);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1200,
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only.' },
+          { role: 'user', content: prompt },
+        ],
         temperature: 0.6,
-        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] Anthropic API error ${response.status}:`, errorText);
+      console.error(`[MycroftSports] AI Gateway error ${response.status}:`, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'Payment required' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Anthropic API error: ${response.status}` }),
+        JSON.stringify({ error: `AI Gateway error: ${response.status}` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    const rawText = data.content
-      ?.filter((block: any) => block.type === 'text')
-      ?.map((block: any) => block.text)
-      ?.join('\n') || '';
+    const rawText = data.choices?.[0]?.message?.content || '';
 
     console.log('[MycroftSports] Raw response:', rawText.substring(0, 200));
 

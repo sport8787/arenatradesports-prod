@@ -54,7 +54,151 @@ serve(async (req) => {
       );
     }
 
-    // ---- mycroft_analysis ----
+    // ---- analyze_match: triggers Mycroft analysis automatically ----
+    if (type === "analyze_match") {
+      const {
+        match_id,
+        home_team,
+        away_team,
+        score_home,
+        score_away,
+        minute,
+        period,
+        championship,
+        stats,
+        bankroll,
+      } = payload;
+
+      if (!match_id || !home_team || !away_team) {
+        return new Response(
+          JSON.stringify({ error: "Missing required fields: match_id, home_team, away_team" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[n8n-webhook] analyze_match: ${home_team} vs ${away_team} (${minute}')`);
+
+      // Call mycroft-sports-analysis edge function
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+      const analysisResponse = await fetch(
+        `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            match: {
+              home: home_team,
+              away: away_team,
+              scoreHome: score_home ?? 0,
+              scoreAway: score_away ?? 0,
+              minute: minute ?? 0,
+              period: period ?? "First Half",
+              championship: championship ?? "Unknown",
+              match_id,
+              stats: stats ?? {},
+              bankroll: bankroll ?? 500,
+            },
+          }),
+        }
+      );
+
+      if (!analysisResponse.ok) {
+        const errText = await analysisResponse.text();
+        console.error(`[n8n-webhook] Mycroft analysis failed [${analysisResponse.status}]:`, errText);
+        
+        // Update match status to failed
+        await supabase
+          .from("live_matches")
+          .update({ mycroft_status: "failed" })
+          .eq("match_id", match_id);
+
+        return new Response(
+          JSON.stringify({ ok: false, error: `Mycroft analysis failed: ${analysisResponse.status}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const analysis = await analysisResponse.json();
+      console.log(`[n8n-webhook] Mycroft verdict: ${analysis.verdict} | Confidence: ${analysis.confidence}%`);
+
+      // Insert analysis into mycroft_analyses
+      const { data: analysisRow, error: analysisError } = await supabase
+        .from("mycroft_analyses")
+        .insert({
+          match_id,
+          verdict: analysis.verdict || "AGUARDAR",
+          market: analysis.market || "N/A",
+          thesis: analysis.thesis || "",
+          odd: analysis.odd ?? null,
+          confidence: analysis.confidence ?? 0,
+          risk_management: analysis.risk ?? null,
+          alerts: analysis.alerts ?? [],
+          fundamentation: {
+            stats: analysis.stats ?? {},
+          },
+        })
+        .select("id")
+        .single();
+
+      if (analysisError) {
+        console.error("[n8n-webhook] Error inserting analysis:", analysisError);
+        throw analysisError;
+      }
+
+      const analysisId = analysisRow?.id;
+
+      // Update live_match with analysis reference
+      await supabase
+        .from("live_matches")
+        .update({
+          mycroft_analysis_id: analysisId,
+          mycroft_status: "done",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("match_id", match_id);
+
+      // Auto-create signal if verdict is APROVADO
+      if (analysis.verdict === "APROVADO") {
+        const { data: signalData } = await supabase
+          .from("signals_sent")
+          .insert({
+            match_id,
+            analysis_id: analysisId,
+          })
+          .select("id")
+          .single();
+
+        console.log(`[n8n-webhook] Signal created: ${signalData?.id}`);
+
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            analysis_id: analysisId,
+            signal_id: signalData?.id,
+            verdict: analysis.verdict,
+            confidence: analysis.confidence,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          analysis_id: analysisId,
+          verdict: analysis.verdict,
+          confidence: analysis.confidence,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- mycroft_analysis (manual insert) ----
     if (type === "mycroft_analysis") {
       const { data, error } = await supabase
         .from("mycroft_analyses")
