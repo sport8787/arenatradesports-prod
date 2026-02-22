@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
+import { RequireSubscription } from "@/components/RequireSubscription";
 import LandingPage from "./pages/LandingPage";
+import Paywall from "./pages/Paywall";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import GameRoom from "./pages/GameRoom";
@@ -81,11 +83,12 @@ const App = () => {
               {/* <Route path="/admin/questions" element={<AdminQuestions />} /> */}
               {/* <Route path="/admin/founder-cases" element={<AdminFounderCases />} /> */}
               <Route path="/privacidade" element={<PrivacyPolicy />} />
+              <Route path="/paywall" element={<Paywall />} />
               {/* <Route path="/arena-poker" element={<ArenaPoker />} /> */}
               {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
-              <Route path="/arena-trader" element={<ArenaTrader />} />
-              <Route path="/arena-trader/rankings" element={<ArenaTraderRankings />} />
-              <Route path="/arena-trader/season" element={<ArenaTraderSeason />} />
+              <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
+              <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
+              <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
