@@ -1,38 +1,78 @@
 import { useSubscription } from '@/hooks/useSubscription';
-import { Clock, AlertTriangle, Crown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 export function TrialBanner() {
-  const { subscription, loading, daysLeft, isTrialActive, isTrialExpired, isPaid } = useSubscription();
+  const { isTrialActive, isTrialExpired, daysLeft, isPaid, loading } = useSubscription();
 
-  if (loading || !subscription) return null;
-  if (isPaid) return null;
+  if (loading || isPaid) return null;
+  if (!isTrialActive && !isTrialExpired) return null;
 
-  if (isTrialExpired) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full bg-destructive/10 border border-destructive/30 text-destructive px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium"
-      >
-        <AlertTriangle className="w-4 h-4" />
-        Seu trial expirou. Assine um plano para continuar usando.
-      </motion.div>
-    );
-  }
+  const isUrgent = daysLeft <= 2;
+  const isWarning = daysLeft <= 4 && daysLeft > 2;
 
-  if (isTrialActive) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full bg-primary/10 border border-primary/30 text-primary px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium"
-      >
-        <Clock className="w-4 h-4" />
-        Trial gratuito — {daysLeft} {daysLeft === 1 ? 'dia restante' : 'dias restantes'}
-      </motion.div>
-    );
-  }
+  const bgClass = isTrialExpired || isUrgent
+    ? 'bg-red-500/10 border-red-500/40'
+    : isWarning
+    ? 'bg-yellow-500/10 border-yellow-500/40'
+    : 'bg-blue-500/10 border-blue-500/40';
 
-  return null;
+  const textClass = isTrialExpired || isUrgent
+    ? 'text-red-400'
+    : isWarning
+    ? 'text-yellow-400'
+    : 'text-blue-400';
+
+  const iconClass = textClass;
+
+  const urgencyText = isTrialExpired
+    ? '🚫 Trial expirado'
+    : isUrgent
+    ? '🔥 URGENTE'
+    : isWarning
+    ? '⚠️ ATENÇÃO'
+    : '⏰';
+
+  const message = isTrialExpired
+    ? 'Seu trial expirou. Assine para continuar.'
+    : `Seu trial termina em ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'}`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        'w-full border-b px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium z-50',
+        bgClass,
+        isUrgent && 'animate-pulse'
+      )}
+    >
+      {isTrialExpired || isUrgent ? (
+        <AlertTriangle className={cn('w-4 h-4 shrink-0', iconClass)} />
+      ) : (
+        <Clock className={cn('w-4 h-4 shrink-0', iconClass)} />
+      )}
+
+      <span className={textClass}>
+        {urgencyText} — {message}
+      </span>
+
+      <Link to="/upgrade">
+        <Button
+          size="sm"
+          variant={isUrgent || isTrialExpired ? 'default' : 'outline'}
+          className={cn(
+            'h-7 text-xs gap-1',
+            !(isUrgent || isTrialExpired) && 'border-current'
+          )}
+        >
+          <Sparkles className="w-3 h-3" />
+          Assinar com 50% OFF
+        </Button>
+      </Link>
+    </motion.div>
+  );
 }
