@@ -107,14 +107,17 @@ export default function ArenaTraderSports() {
   };
 
   const filtered = useMemo(() => {
-    return allMatches.filter(m => {
-      if (statusFilter !== 'all') {
-        const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
-        if (effectiveStatus !== statusFilter) return false;
-      }
-      if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
-      return true;
-    });
+    const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, AGUARDAR: 1, analyzing: 1, VETADO: 2, no_value: 2 };
+    return allMatches
+      .filter(m => {
+        if (statusFilter !== 'all') {
+          const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
+          if (effectiveStatus !== statusFilter) return false;
+        }
+        if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+        return true;
+      })
+      .sort((a, b) => (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3));
   }, [statusFilter, selectedChampionships, allMatches]);
 
   return (
