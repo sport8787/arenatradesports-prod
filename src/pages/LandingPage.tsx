@@ -524,7 +524,7 @@ export default function LandingPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8"
           >
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Novo: Análise de Micro-Expressões com IA</span>
+            <span className="text-sm font-medium text-primary">Arena Trader Financeiro — Simulador de Operações</span>
           </motion.div>
 
           {/* Main Title */}
@@ -534,10 +534,10 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.1 }}
             className="font-orbitron text-4xl md:text-6xl lg:text-7xl font-black text-foreground mb-6"
           >
-            <span className="text-primary">MILLIONAIRE</span>
+            <span className="text-primary">ARENA</span>
             <br />
             <span className="bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
-              BLUFF ARENA
+              TRADER FINANCEIRO
             </span>
           </motion.h1>
 
@@ -548,8 +548,8 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10"
           >
-            O primeiro game show com <span className="text-mycroft-green font-semibold">detector de mentiras por IA</span>. 
-            Responda, blufe, e engane os jurados — se conseguir.
+            Simule operações em <span className="text-mycroft-green font-semibold">BTC, PETR4, VALE3, ITUB4</span> e mais. 
+            Treine suas habilidades de trading com IA.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -877,10 +877,10 @@ export default function LandingPage() {
           className="relative max-w-3xl mx-auto text-center"
         >
           <h2 className="font-orbitron text-3xl md:text-5xl font-bold text-foreground mb-6">
-            Pronto para <span className="text-primary">blefar</span>?
+            Pronto para <span className="text-primary">operar</span>?
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Entre na arena e descubra se você consegue enganar a IA e os outros jogadores.
+            Entre na arena e teste suas habilidades de trading com dados reais.
           </p>
 
           <Button
