@@ -1,1 +1,4 @@
 project_id = "affquongjlhmusxzohjl"
+
+[functions.mycroft-sports-analysis]
+verify_jwt = false
