@@ -90,7 +90,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <h1 className="font-orbitron text-base md:text-lg font-bold text-primary truncate">
-            Arena Trader Esportivo
+            Arena Trader Sports
           </h1>
 
           <div className="hidden md:flex items-center gap-5">

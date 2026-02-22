@@ -23,6 +23,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showNicknameSetup, setShowNicknameSetup] = useState(false);
   const [newNickname, setNewNickname] = useState('');
+  const [guestNickname, setGuestNickname] = useState('');
+  const [showGuestNicknameInput, setShowGuestNicknameInput] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signIn, signUp, signInWithGoogle, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
@@ -33,7 +35,7 @@ const Auth = () => {
       if (profile.username === 'Jogador') {
         setShowNicknameSetup(true);
       } else {
-        navigate('/arena-trader');
+        navigate('/arena-trader-sports');
       }
     }
   }, [isAuthenticated, loading, profile, navigate]);
@@ -90,7 +92,7 @@ const Auth = () => {
         } else {
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso' });
-          navigate('/arena-trader');
+          navigate('/arena-trader-sports');
         }
       } else {
         const { error } = await signUp(email, password, username);
@@ -103,7 +105,7 @@ const Auth = () => {
         } else {
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Blefador!' });
-          navigate('/arena-trader');
+          navigate('/arena-trader-sports');
         }
       }
     } finally {
@@ -120,11 +122,7 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const [guestNickname, setGuestNickname] = useState('');
-  const [showGuestNicknameInput, setShowGuestNicknameInput] = useState(false);
-
   const handleGuestMode = () => {
-    // Mostra input de nickname ao invés de entrar direto
     setShowGuestNicknameInput(true);
   };
 
@@ -137,7 +135,7 @@ const Auth = () => {
     
     sessionStorage.setItem('guestMode', 'true');
     sessionStorage.setItem('guestNickname', guestNickname);
-    navigate('/arena-trader');
+    navigate('/arena-trader-sports');
   };
 
   const handleSaveNickname = async () => {
@@ -155,7 +153,7 @@ const Auth = () => {
       toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
     } else {
       toast({ title: 'Nickname salvo!', description: `Bem-vindo, ${newNickname}!` });
-      navigate('/arena-trader');
+      navigate('/arena-trader-sports');
     }
   };
 
