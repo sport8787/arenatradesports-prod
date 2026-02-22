@@ -190,8 +190,9 @@ PADRÕES DE APROVAÇÃO:
 - Placar já alto demais (3-2 no min 35)
 
 ⏳ AGUARDAR quando:
-- Padrão emergindo mas ainda fraco (min 20-25)
-- Precisa mais 5-10min pra confirmar tendência
+- Dados insuficientes (todas stats zeradas ou desconhecidas)
+- Jogo pausado/interrompido
+- NUNCA use AGUARDAR como desculpa para não decidir. Se tem dados, DECIDA: APROVADO ou VETADO.
 
 ═══════════════════════════════════════
 GESTÃO DE RISCO:
@@ -303,7 +304,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only.' },
+          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros.' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.6,
