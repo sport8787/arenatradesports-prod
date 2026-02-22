@@ -67,7 +67,8 @@ export function useSubscription() {
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaid = subscription?.plan === 'base' || subscription?.plan === 'premium';
-  const hasAccess = isTrialActive || isPaid;
+  // Temporarily grant access to all users regardless of subscription status
+  const hasAccess = true;
 
   return {
     subscription,
