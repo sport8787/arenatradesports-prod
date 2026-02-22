@@ -35,6 +35,75 @@ function getSupabaseAdmin() {
   );
 }
 
+function statsAreEmpty(stats: MatchData['stats']): boolean {
+  if (!stats) return true;
+  const vals = [
+    stats.attacks_home, stats.attacks_away,
+    stats.possession_home, stats.possession_away,
+    stats.shots_home, stats.shots_away,
+  ];
+  return vals.every(v => !v || v === 0);
+}
+
+function findStat(stats: any[], type: string): string | null {
+  const stat = stats.find((s: any) => s.type === type);
+  return stat?.value ?? null;
+}
+
+async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['stats'] | null> {
+  const apiKey = Deno.env.get('API_FOOTBALL_KEY');
+  if (!apiKey) {
+    console.warn('[MycroftSports] API_FOOTBALL_KEY not configured, skipping live stats fetch');
+    return null;
+  }
+
+  try {
+    console.log(`[MycroftSports] Fetching live stats from API-Football for fixture ${fixtureId}`);
+    const res = await fetch(
+      `https://v3.football.api-sports.io/fixtures/statistics?fixture=${fixtureId}`,
+      { headers: { 'x-apisports-key': apiKey } }
+    );
+
+    if (!res.ok) {
+      console.error(`[MycroftSports] API-Football error ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const teams = data.response;
+    if (!teams || teams.length < 2) {
+      console.warn('[MycroftSports] API-Football returned no team stats');
+      return null;
+    }
+
+    // teams[0] = home, teams[1] = away
+    const homeStats = teams[0].statistics || [];
+    const awayStats = teams[1].statistics || [];
+
+    const parsePct = (val: string | null): number => {
+      if (!val) return 0;
+      return parseInt(val.replace('%', ''), 10) || 0;
+    };
+
+    const result = {
+      attacks_home: parseInt(findStat(homeStats, 'Dangerous Attacks') || '0', 10),
+      attacks_away: parseInt(findStat(awayStats, 'Dangerous Attacks') || '0', 10),
+      possession_home: parsePct(findStat(homeStats, 'Ball Possession')),
+      possession_away: parsePct(findStat(awayStats, 'Ball Possession')),
+      shots_home: parseInt(findStat(homeStats, 'Shots on Goal') || '0', 10),
+      shots_away: parseInt(findStat(awayStats, 'Shots on Goal') || '0', 10),
+      xG_home: parseFloat(findStat(homeStats, 'expected_goals') || '0'),
+      xG_away: parseFloat(findStat(awayStats, 'expected_goals') || '0'),
+    };
+
+    console.log(`[MycroftSports] API-Football stats fetched:`, JSON.stringify(result));
+    return result;
+  } catch (e) {
+    console.error('[MycroftSports] API-Football fetch error:', e);
+    return null;
+  }
+}
+
 async function loadKnowledgeBase(): Promise<string> {
   const supabase = getSupabaseAdmin();
   const contents: string[] = [];
@@ -290,6 +359,26 @@ serve(async (req) => {
     }
 
     console.log(`[MycroftSports] Analyzing: ${match.home} vs ${match.away} (${match.minute}')`);
+
+    // If stats are empty/zero, try fetching from API-Football
+    if (statsAreEmpty(match.stats) && match.match_id) {
+      console.log(`[MycroftSports] Stats are empty, fetching from API-Football...`);
+      const liveStats = await fetchStatsFromApiFootball(match.match_id);
+      if (liveStats && !statsAreEmpty(liveStats)) {
+        match.stats = liveStats;
+        console.log(`[MycroftSports] Using API-Football stats successfully`);
+        
+        // Also update live_matches table with fresh stats
+        try {
+          const supabase = getSupabaseAdmin();
+          await supabase.from('live_matches').update({ stats: liveStats, updated_at: new Date().toISOString() }).eq('match_id', match.match_id);
+        } catch (e) {
+          console.warn('[MycroftSports] Failed to update live_matches stats:', e);
+        }
+      } else {
+        console.warn(`[MycroftSports] API-Football also returned no stats`);
+      }
+    }
 
     // Load KB
     const knowledgeBase = await loadKnowledgeBase();
