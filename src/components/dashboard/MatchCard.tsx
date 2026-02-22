@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowRight, Loader2, AlertTriangle, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,16 @@ const championshipColors: Record<string, string> = {
   green: 'bg-success/20 text-green-400 border-success/30',
   red: 'bg-destructive/20 text-red-400 border-destructive/30',
 };
+
+const isUrl = (s: string) => s.startsWith('http://') || s.startsWith('https://');
+
+function TeamLogo({ logo, team }: { logo: string; team: string }) {
+  const [imgError, setImgError] = useState(false);
+  if (isUrl(logo) && !imgError) {
+    return <img src={logo} alt={team} className="w-8 h-8 object-contain rounded-full" onError={() => setImgError(true)} />;
+  }
+  return <span className="text-2xl">{logo || '⚽'}</span>;
+}
 
 interface MatchCardProps {
   match: Match;
@@ -73,7 +84,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         {/* Teams + Score */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <span className="text-2xl">{match.homeLogo}</span>
+            <TeamLogo logo={match.homeLogo} team={match.home} />
             <span className="text-sm font-semibold text-foreground truncate max-w-full">{match.home}</span>
           </div>
 
@@ -84,7 +95,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           </div>
 
           <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <span className="text-2xl">{match.awayLogo}</span>
+            <TeamLogo logo={match.awayLogo} team={match.away} />
             <span className="text-sm font-semibold text-foreground truncate max-w-full">{match.away}</span>
           </div>
         </div>
