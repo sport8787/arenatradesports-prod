@@ -42,8 +42,6 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   mycroftStatus: (lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
 });
 
-const championships = ['Copa do Mundo', 'Champions League', 'Brasileirão', 'La Liga'];
-
 type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
 
 export default function ArenaTraderSports() {
@@ -62,6 +60,18 @@ export default function ArenaTraderSports() {
     }
     return mockMatches;
   }, [liveMatches]);
+
+  // Dynamic championships from real data
+  const championships = useMemo(() => {
+    const counts = new Map<string, number>();
+    allMatches.forEach(m => {
+      counts.set(m.championship, (counts.get(m.championship) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name);
+  }, [allMatches]);
 
   const toggleChampionship = (c: string) => {
     setSelectedChampionships(prev =>
@@ -94,8 +104,12 @@ export default function ArenaTraderSports() {
 
   const filtered = useMemo(() => {
     return allMatches.filter(m => {
-      if (statusFilter !== 'all' && m.status !== statusFilter) return false;
-      if (selectedChampionships.length > 0 && !selectedChampionships.some(c => m.championship.includes(c))) return false;
+      if (statusFilter !== 'all') {
+        // Map halftime to live for filtering
+        const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
+        if (effectiveStatus !== statusFilter) return false;
+      }
+      if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
       return true;
     });
   }, [statusFilter, selectedChampionships, allMatches]);
