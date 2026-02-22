@@ -1772,6 +1772,51 @@ export type Database = {
           },
         ]
       }
+      user_bankroll: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          green_bets: number | null
+          id: string
+          initial_balance: number | null
+          red_bets: number | null
+          total_bets: number | null
+          total_profit: number | null
+          total_staked: number | null
+          updated_at: string | null
+          user_id: string
+          win_rate: number | null
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id: string
+          win_rate?: number | null
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id?: string
+          win_rate?: number | null
+        }
+        Relationships: []
+      }
       user_question_history: {
         Row: {
           created_at: string
@@ -2055,6 +2100,59 @@ export type Database = {
             columns: ["villain_profile_id"]
             isOneToOne: false
             referencedRelation: "villain_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      virtual_bets: {
+        Row: {
+          id: string
+          market: string
+          match_id: string
+          match_name: string
+          odd: number
+          placed_at: string | null
+          profit_loss: number | null
+          settled_at: string | null
+          signal_id: string | null
+          stake: number
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          market: string
+          match_id: string
+          match_name: string
+          odd: number
+          placed_at?: string | null
+          profit_loss?: number | null
+          settled_at?: string | null
+          signal_id?: string | null
+          stake: number
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          market?: string
+          match_id?: string
+          match_name?: string
+          odd?: number
+          placed_at?: string | null
+          profit_loss?: number | null
+          settled_at?: string | null
+          signal_id?: string | null
+          stake?: number
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_bets_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "mycroft_analyses"
             referencedColumns: ["id"]
           },
         ]
