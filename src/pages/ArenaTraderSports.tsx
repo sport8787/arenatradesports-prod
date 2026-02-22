@@ -11,11 +11,11 @@ import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
-  { id: '1', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Brasil', away: 'Argentina', homeLogo: '🇧🇷', awayLogo: '🇦🇷', scoreHome: 2, scoreAway: 1, minute: 34, period: '1º Tempo', status: 'live', mycroftStatus: 'opportunity' },
-  { id: '2', championship: 'Champions League', championshipColor: 'blue', home: 'Real Madrid', away: 'Barcelona', homeLogo: '⚪', awayLogo: '🔴', scoreHome: 0, scoreAway: 0, minute: 23, period: '1º Tempo', status: 'live', mycroftStatus: 'analyzing' },
-  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'no_value' },
-  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 0, minute: 0, period: 'Início 21:00', status: 'scheduled', mycroftStatus: 'no_value' },
-  { id: '5', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Alemanha', away: 'França', homeLogo: '🇩🇪', awayLogo: '🇫🇷', scoreHome: 3, scoreAway: 2, minute: 90, period: 'Encerrado', status: 'finished', mycroftStatus: 'no_value' },
+  { id: '1', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Brasil', away: 'Argentina', homeLogo: '🇧🇷', awayLogo: '🇦🇷', scoreHome: 2, scoreAway: 1, minute: 34, period: '1º Tempo', status: 'live', mycroftStatus: 'APROVADO' },
+  { id: '2', championship: 'Champions League', championshipColor: 'blue', home: 'Real Madrid', away: 'Barcelona', homeLogo: '⚪', awayLogo: '🔴', scoreHome: 0, scoreAway: 0, minute: 23, period: '1º Tempo', status: 'live', mycroftStatus: 'AGUARDAR' },
+  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'VETADO' },
+  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 0, minute: 0, period: 'Início 21:00', status: 'scheduled', mycroftStatus: 'VETADO' },
+  { id: '5', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Alemanha', away: 'França', homeLogo: '🇩🇪', awayLogo: '🇫🇷', scoreHome: 3, scoreAway: 2, minute: 90, period: 'Encerrado', status: 'finished', mycroftStatus: 'VETADO' },
 ];
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
@@ -39,7 +39,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   minute: lm.minute ?? 0,
   period: lm.period ?? '',
   status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
-  mycroftStatus: (lm.mycroft_status || 'no_value') as Match['mycroftStatus'],
+  mycroftStatus: (lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
 });
 
 const championships = ['Copa do Mundo', 'Champions League', 'Brasileirão', 'La Liga'];

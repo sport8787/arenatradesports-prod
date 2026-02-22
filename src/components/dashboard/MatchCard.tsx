@@ -15,7 +15,7 @@ export interface Match {
   minute: number;
   period: string;
   status: 'live' | 'scheduled' | 'finished';
-  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity';
+  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'AGUARDAR' | 'VETADO';
 }
 
 const championshipColors: Record<string, string> = {
@@ -102,25 +102,25 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         <div className="space-y-2">
           <span className="text-xs text-muted-foreground font-orbitron uppercase tracking-wider">🤖 Status Mycroft</span>
 
-          {match.mycroftStatus === 'analyzing' && (
+          {(match.mycroftStatus === 'analyzing' || match.mycroftStatus === 'AGUARDAR') && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/20">
               <Loader2 className="w-4 h-4 text-warning animate-spin" />
-              <span className="text-sm text-warning font-medium">Mycroft analisando...</span>
+              <span className="text-sm text-warning font-medium uppercase font-orbitron">AGUARDAR...</span>
             </div>
           )}
 
-          {match.mycroftStatus === 'no_value' && (
+          {(match.mycroftStatus === 'no_value' || match.mycroftStatus === 'VETADO') && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
               <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground font-medium">Sem valor detectado</span>
+              <span className="text-sm text-muted-foreground font-medium uppercase font-orbitron">VETADO</span>
             </div>
           )}
 
-          {match.mycroftStatus === 'opportunity' && (
+          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO') && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/30">
                 <Target className="w-4 h-4 text-success" />
-                <span className="text-sm text-success font-bold">🎯 Oportunidade Detectada</span>
+                <span className="text-sm text-success font-bold uppercase font-orbitron">APROVADO</span>
               </div>
               <motion.button
                 whileHover={{ scale: 1.02 }}
