@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Wallet, TrendingUp, Dumbbell, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
+import AnalysisModal from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
 import { cn } from '@/lib/utils';
 
@@ -94,11 +94,21 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const toggleChampionship = (c: string) => {
     setSelectedChampionships(prev =>
       prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
     );
+  };
+
+  const handleViewAnalysis = (matchId: string) => {
+    const match = mockMatches.find(m => m.id === matchId);
+    if (match) {
+      setSelectedMatch(match);
+      setIsModalOpen(true);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -176,7 +186,7 @@ export default function Dashboard() {
                 key={match.id}
                 match={match}
                 index={i}
-                onAnalysisClick={id => console.log('Open analysis for', id)}
+                onAnalysisClick={handleViewAnalysis}
               />
             ))}
           </div>
@@ -196,6 +206,13 @@ export default function Dashboard() {
           </motion.div>
         )}
       </main>
+
+      {/* Analysis Modal */}
+      <AnalysisModal
+        match={selectedMatch}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }
