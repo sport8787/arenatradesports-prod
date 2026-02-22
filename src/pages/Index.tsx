@@ -581,9 +581,9 @@ export default function Index() {
           </motion.div>
         )}
 
-        {/* ========== CTA PRINCIPAL - ARENA TRADER FINANCEIRO ========== */}
+        {/* ========== CTA PRINCIPAL - ARENA TRADER SPORTS ========== */}
         <motion.button
-          onClick={() => navigate('/arena-trader')}
+          onClick={() => navigate('/arena-trader-sports')}
           disabled={loading}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -592,12 +592,12 @@ export default function Index() {
           whileTap={{ scale: 0.98 }}
           className="
             w-full mt-6 relative overflow-hidden
-            bg-gradient-to-r from-amber-900/80 via-yellow-900/60 to-amber-900/80
-            border-2 border-amber-500/60 hover:border-amber-400
+            bg-gradient-to-r from-primary/80 via-primary/60 to-primary/80
+            border-2 border-primary/60 hover:border-primary
             rounded-2xl p-5
             flex items-center gap-4
             transition-all duration-300
-            hover:shadow-[0_8px_30px_rgba(245,158,11,0.5)]
+            hover:shadow-[0_8px_30px_rgba(212,175,55,0.5)]
             disabled:opacity-50 disabled:cursor-not-allowed
             group
           "
@@ -609,22 +609,22 @@ export default function Index() {
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            📈
+            ⚽
           </motion.span>
           
           <div className="flex-1 text-left">
-            <h2 className="font-orbitron text-xl font-bold text-amber-400 uppercase tracking-wide flex items-center gap-2">
-              Arena Trader
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-mono tracking-wider">
-                FINANCEIRO
+            <h2 className="font-orbitron text-xl font-bold text-primary uppercase tracking-wide flex items-center gap-2">
+              Arena Trader Sports
+              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30 font-mono tracking-wider">
+                MAIN
               </span>
             </h2>
             <p className="text-sm text-foreground/80">
-              Simule operações em BTC, PETR4, VALE3, ITUB4
+              Analise sinais do Mycroft para futebol em tempo real
             </p>
           </div>
           
-          <ChevronRight className="w-6 h-6 text-amber-400" />
+          <ChevronRight className="w-6 h-6 text-primary" />
         </motion.button>
 
         {/* HIDDEN: Ações de criar/entrar sala do Blefador - código mantido para reuso */}
@@ -727,9 +727,9 @@ export default function Index() {
           className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t border-border/50 py-3 px-4"
         >
           <div className="flex items-center justify-around max-w-md mx-auto">
-            <Link to="/arena-trader" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/arena-trader-sports" className="flex flex-col items-center gap-1 text-primary hover:text-primary/80 transition-colors">
               <TrendingUp className="w-5 h-5" />
-              <span className="text-xs">Arena Trader</span>
+              <span className="text-xs">Sports Arena</span>
             </Link>
             <Link to="/arena-trader/rankings" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
               <Trophy className="w-5 h-5" />
