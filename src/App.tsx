@@ -29,6 +29,7 @@ import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import Dashboard from "./pages/Dashboard";
+import ModoTreino from "./pages/ModoTreino";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -88,6 +89,7 @@ const App = () => {
               <Route path="/dashboard" element={<RequireSubscription><Dashboard /></RequireSubscription>} />
               {/* <Route path="/arena-poker" element={<ArenaPoker />} /> */}
               {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
+              <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
