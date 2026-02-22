@@ -55,8 +55,12 @@ serve(async (req) => {
       const match = data;
       console.log(`[n8n-webhook] live_match upserted: ${match.home_team} vs ${match.away_team} (${match.minute}')`);
 
-      // Auto-trigger Mycroft analysis if not already done
-      if (!match.mycroft_analysis_id) {
+      // Auto-trigger Mycroft analysis when match is in analysis window (min 20+)
+      // Allow re-analysis if previous verdict was AGUARDAR
+      const matchMinute = match.minute ?? 0;
+      const shouldAnalyze = matchMinute >= 20 && (!match.mycroft_analysis_id || match.mycroft_status === "aguardar");
+      
+      if (shouldAnalyze) {
         try {
           const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
           const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -110,11 +114,13 @@ serve(async (req) => {
               .single();
 
             if (analysisRow) {
+              // AGUARDAR uses "aguardar" status to allow re-analysis later
+              const statusToSet = analysis.verdict === "AGUARDAR" ? "aguardar" : "done";
               await supabase
                 .from("live_matches")
                 .update({
                   mycroft_analysis_id: analysisRow.id,
-                  mycroft_status: "done",
+                  mycroft_status: statusToSet,
                   updated_at: new Date().toISOString(),
                 })
                 .eq("match_id", match.match_id);
