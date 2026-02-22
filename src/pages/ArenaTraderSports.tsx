@@ -4,10 +4,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
-import AnalysisModal from '@/components/dashboard/AnalysisModal';
+import AnalysisModal, { type MycroftAnalysisData } from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
 import { cn } from '@/lib/utils';
-import { useLiveMatches } from '@/hooks/useLiveMatches';
+import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -26,7 +26,7 @@ const getChampionshipColor = (name: string): Match['championshipColor'] => {
   return 'red';
 };
 
-const mapLiveMatchToMatch = (lm: any): Match => ({
+const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   id: lm.id,
   championship: lm.championship,
   championshipColor: getChampionshipColor(lm.championship),
@@ -46,12 +46,13 @@ const championships = ['Copa do Mundo', 'Champions League', 'Brasileirão', 'La 
 
 type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
 
-export default function Dashboard() {
+export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading } = useLiveMatches();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Use real data if available, fallback to mock
@@ -70,10 +71,25 @@ export default function Dashboard() {
 
   const handleViewAnalysis = (matchId: string) => {
     const match = allMatches.find(m => m.id === matchId);
-    if (match) {
-      setSelectedMatch(match);
-      setIsModalOpen(true);
-    }
+    if (!match) return;
+
+    // Find the corresponding LiveMatch to get its mycroft_analysis
+    const liveMatch = liveMatches.find(lm => lm.id === matchId);
+    const analysis = liveMatch?.mycroft_analysis ? {
+      id: liveMatch.mycroft_analysis.id,
+      verdict: liveMatch.mycroft_analysis.verdict,
+      market: liveMatch.mycroft_analysis.market,
+      odd: liveMatch.mycroft_analysis.odd,
+      confidence: liveMatch.mycroft_analysis.confidence,
+      thesis: liveMatch.mycroft_analysis.thesis,
+      fundamentation: liveMatch.mycroft_analysis.fundamentation,
+      risk_management: liveMatch.mycroft_analysis.risk_management,
+      alerts: liveMatch.mycroft_analysis.alerts || [],
+    } as MycroftAnalysisData : null;
+
+    setSelectedMatch(match);
+    setSelectedAnalysis(analysis);
+    setIsModalOpen(true);
   };
 
   const filtered = useMemo(() => {
@@ -183,9 +199,10 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Analysis Modal */}
+      {/* Analysis Modal - reads from Supabase, no edge function calls */}
       <AnalysisModal
         match={selectedMatch}
+        analysis={selectedAnalysis}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
