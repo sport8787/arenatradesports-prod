@@ -50,8 +50,8 @@ serve(async (req) => {
     const { query, matchContext, conversationHistory } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const knowledgeBaseContent = await loadKnowledgeBase();
 
@@ -93,53 +93,10 @@ ${matchContext}
 DIRETRIZES DE ANÁLISE (OBRIGATÓRIAS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. **BASEADO EM DADOS**
-   - Use estatísticas reais: xG, ataques perigosos, posse, chutes ao gol
-   - Calcule EV (Expected Value) quando possível
-   - Sempre cite o motivo estatístico por trás do veredito
-
-2. **GESTÃO DE RISCO OBRIGATÓRIA**
-   - Stake sizing baseado na banca (nunca > 5%)
-   - Risk:Reward ratio em toda recomendação
-   - Stop loss e critérios de saída claros
-
-3. **CITE SUAS FONTES**
-   - Quando aplicar conceito dos livros da KB, CITE
-   - Ex: "Segundo Nassim Taleb, a assimetria favorável aqui..."
-   - Ex: "Mark Douglas diria que esse é um setup de alta probabilidade..."
-
-4. **ANTI-GAMBLING**
-   - Não incentive apostas por emoção ou viés de torcida
-   - Se detectar tilt ou FOMO, avise imediatamente
-   - Foque em value betting e gestão de banca
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FORMATO DE RESPOSTA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Para análises de jogos, use quando aplicável:
-
-⚽ ANÁLISE — [JOGO] [MINUTO]'
-
-━━━ 📋 RESUMO DO JOGO ━━━
-[Fatos objetivos: placar, estatísticas, momento]
-
-━━━ 🔍 DIAGNÓSTICO MYCROFT ━━━
-[Avaliação técnica: padrões detectados, odds vs probabilidade real]
-
-━━━ 📊 MÉTRICAS ━━━
-[xG, ataques, posse, chutes, tendências]
-
-━━━ 💰 RECOMENDAÇÃO ━━━
-[Mercado, odd, stake, entry, stop, target, R:R, EV]
-
-━━━ ⚠️ ALERTAS ━━━
-[Riscos, armadilhas, sinais de cautela]
-
-━━━ 📏 REGRA DE BOLSO ━━━
-[Heurística prática para situações similares]
-
-Para PERGUNTAS GERAIS, adapte mas mantenha tom técnico e citações.
+1. **BASEADO EM DADOS** - Use estatísticas reais: xG, ataques perigosos, posse, chutes ao gol. Calcule EV quando possível.
+2. **GESTÃO DE RISCO OBRIGATÓRIA** - Stake sizing baseado na banca (nunca > 5%). Risk:Reward ratio. Stop loss e critérios de saída.
+3. **CITE SUAS FONTES** - Quando aplicar conceito dos livros da KB, CITE autores e livros.
+4. **ANTI-GAMBLING** - Não incentive apostas por emoção. Se detectar tilt ou FOMO, avise imediatamente.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REGRAS DE RESPOSTA
@@ -147,47 +104,56 @@ REGRAS DE RESPOSTA
 
 - Detecte automaticamente qual persona é mais adequada
 - Sempre comece com [MYCROFT] ou [HÓRUS] para indicar quem fala
-- Se ambos os aspectos forem relevantes, use as duas personas
 - Mantenha respostas concisas e acionáveis
 - Responda SEMPRE em português brasileiro
 
 TOM: Direto, estilo trader profissional. Sem enrolação. Foco em EV positivo e disciplina.`;
 
-    // Build Gemini contents
-    const geminiContents = [
-      { role: "user", parts: [{ text: systemPrompt }] },
-      { role: "model", parts: [{ text: "Mycroft Sports online. Pronto para análise forense de trading esportivo." }] },
+    // Build messages for OpenAI-compatible API
+    const messages: { role: string; content: string }[] = [
+      { role: "system", content: systemPrompt },
     ];
 
     if (conversationHistory && Array.isArray(conversationHistory)) {
       for (const msg of conversationHistory.slice(-10)) {
-        geminiContents.push({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content }],
+        messages.push({
+          role: msg.role === "assistant" ? "assistant" : "user",
+          content: msg.content,
         });
       }
     }
 
-    geminiContents.push({ role: "user", parts: [{ text: query }] });
+    messages.push({ role: "user", content: query });
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: geminiContents }),
-      }
-    );
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
 
     if (!response.ok) {
       const status = response.status;
       const body = await response.text();
-      console.error(`Gemini sports chat error [${status}]:`, body);
+      console.error(`[MycroftSportsChat] AI Gateway error [${status}]:`, body);
 
       if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded", response: "⚠️ Limite de requisições atingido. Tente novamente em alguns segundos." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required", response: "⚠️ Créditos insuficientes. Adicione créditos ao workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
@@ -198,7 +164,7 @@ TOM: Direto, estilo trader profissional. Sem enrolação. Foco em EV positivo e 
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sem resposta.";
+    const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
     return new Response(
       JSON.stringify({ response: text }),
