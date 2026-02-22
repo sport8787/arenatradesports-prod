@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight } from 'lucide-react';
+import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
+import { useBankroll } from '@/hooks/useBankroll';
 import type { Match } from '@/components/dashboard/MatchCard';
 
 export interface MycroftAnalysisData {
@@ -36,12 +38,13 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const { recordAction } = useSignalHistory();
+  const { bankroll, placeBet, dismissBet, recommendedStake } = useBankroll();
+  const [placing, setPlacing] = useState(false);
 
   if (!match) return null;
 
   const vc = analysis ? verdictConfig[analysis.verdict] || verdictConfig['AGUARDAR'] : null;
 
-  // Extract risk management from the analysis (populated by n8n/Mycroft)
   const risk = analysis?.risk_management as {
     stake_percent?: number;
     stake_value?: number;
@@ -52,7 +55,6 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     ev?: string;
   } | null;
 
-  // Extract stats from fundamentation (populated by n8n/Mycroft)
   const stats = analysis?.fundamentation as {
     attacks_home?: number;
     attacks_away?: number;
@@ -74,17 +76,41 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
   };
 
   const handleEntered = async () => {
-    if (analysis?.id) {
-      await recordAction(analysis.id, 'entered', risk?.stake_value);
+    if (!analysis) return;
+    setPlacing(true);
+
+    // Place virtual bet
+    const result = await placeBet({
+      id: analysis.id,
+      match_id: match.id,
+      market: analysis.market,
+      odd: analysis.odd,
+      home_team: match.home,
+      away_team: match.away,
+    });
+
+    if (result.success) {
+      // Also record in signal history
+      if (analysis.id) {
+        await recordAction(analysis.id, 'entered', result.stake);
+      }
+      toast({
+        title: '💰 Entrada registrada!',
+        description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
+      });
+      onClose();
+    } else {
+      toast({ title: '❌ Erro', description: result.error });
     }
-    toast({ title: '✅ Entrada registrada!', description: 'Boa sorte!' });
-    onClose();
+
+    setPlacing(false);
   };
 
   const handleDismissed = async () => {
     if (analysis?.id) {
       await recordAction(analysis.id, 'dismissed');
     }
+    await dismissBet();
     onClose();
   };
 
@@ -112,6 +138,9 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     { icon: Scale, label: 'R:R', value: risk.rr ?? '-' },
     { icon: ArrowUpRight, label: 'EV', value: risk.ev ?? '-' },
   ] : [];
+
+  const insufficientBalance = bankroll ? recommendedStake > bankroll.balance : false;
+  const balanceAfter = bankroll ? bankroll.balance - recommendedStake : 0;
 
   const content = (
     <div className="space-y-6 p-5 pb-28 md:pb-5 overflow-y-auto flex-1">
@@ -232,17 +261,56 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
             </motion.div>
           )}
 
-          {/* Actions (desktop) */}
-          <motion.div variants={fadeUp} className="hidden md:flex gap-3">
-            <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent/20 border border-accent/30 text-accent font-orbitron text-sm font-bold uppercase hover:bg-accent/30 transition-colors">
-              <Copy className="w-4 h-4" /> Copiar Entrada
-            </button>
-            <button onClick={handleEntered} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-sm font-bold uppercase hover:brightness-110 transition-all">
-              <Check className="w-4 h-4" /> Entrei
-            </button>
-            <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-sm font-bold uppercase hover:bg-secondary/50 transition-colors">
-              <Ban className="w-4 h-4" /> Dispensar
-            </button>
+          {/* Bankroll Preview + Actions (desktop) */}
+          <motion.div variants={fadeUp} className="hidden md:block space-y-4">
+            {/* Bankroll preview */}
+            {bankroll && (
+              <div className="bg-secondary/30 border border-border rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-orbitron uppercase text-muted-foreground">
+                  <Wallet className="w-4 h-4" /> Banca Virtual
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Banca atual:</span>
+                    <span className="ml-2 font-orbitron font-bold text-foreground">
+                      R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Após entrada:</span>
+                    <span className={cn('ml-2 font-orbitron font-bold', insufficientBalance ? 'text-destructive' : 'text-foreground')}>
+                      R$ {balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+                {insufficientBalance && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Saldo insuficiente para esta entrada
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent/20 border border-accent/30 text-accent font-orbitron text-sm font-bold uppercase hover:bg-accent/30 transition-colors">
+                <Copy className="w-4 h-4" /> Copiar Entrada
+              </button>
+              <button
+                onClick={handleEntered}
+                disabled={placing || insufficientBalance}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-sm font-bold uppercase hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4" /> {placing ? 'Registrando...' : '💰 ENTREI'}
+                </span>
+                <span className="text-[10px] opacity-80">
+                  R$ {recommendedStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </button>
+              <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-sm font-bold uppercase hover:bg-secondary/50 transition-colors">
+                <Ban className="w-4 h-4" /> Dispensar
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}
@@ -289,16 +357,33 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
 
             {/* Mobile fixed bottom actions */}
             {isMobile && analysis && (
-              <div className="fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-lg border-t border-border flex gap-2 z-50">
-                <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-accent/20 border border-accent/30 text-accent font-orbitron text-xs font-bold uppercase">
-                  <Copy className="w-3.5 h-3.5" /> Copiar
-                </button>
-                <button onClick={handleEntered} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-xs font-bold uppercase">
-                  <Check className="w-3.5 h-3.5" /> Entrei
-                </button>
-                <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-xs font-bold uppercase">
-                  <Ban className="w-3.5 h-3.5" /> Dispensar
-                </button>
+              <div className="fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-lg border-t border-border space-y-2 z-50">
+                {/* Bankroll preview mobile */}
+                {bankroll && (
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <span className="text-muted-foreground">
+                      Banca: <span className="font-bold text-foreground">R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      Stake: <span className="font-bold text-primary">R$ {recommendedStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-accent/20 border border-accent/30 text-accent font-orbitron text-xs font-bold uppercase">
+                    <Copy className="w-3.5 h-3.5" /> Copiar
+                  </button>
+                  <button
+                    onClick={handleEntered}
+                    disabled={placing || insufficientBalance}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-xs font-bold uppercase disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5" /> {placing ? '...' : '💰 Entrei'}
+                  </button>
+                  <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-xs font-bold uppercase">
+                    <Ban className="w-3.5 h-3.5" /> Dispensar
+                  </button>
+                </div>
               </div>
             )}
           </motion.div>
