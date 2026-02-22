@@ -67,19 +67,20 @@ const App = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/lobby" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/room/:roomId" element={<GameRoom />} />
-              <Route path="/single-player" element={<SinglePlayerRoom />} />
-              <Route path="/presenter-room/:roomId" element={<PresenterRoom />} />
-              <Route path="/player-screen/:roomId" element={<PlayerScreen />} />
-              <Route path="/rankings" element={<RankingsPage />} />
-              <Route path="/mercado-negro" element={<BlackMarket />} />
-              <Route path="/como-ganhar-bc" element={<HowToEarnBC />} />
-              <Route path="/como-jogar" element={<HowToPlay />} />
-              <Route path="/admin/questions" element={<AdminQuestions />} />
-              <Route path="/admin/founder-cases" element={<AdminFounderCases />} />
+              {/* HIDDEN: Arenas não-financeiras - código mantido para reuso futuro */}
+              {/* <Route path="/room/:roomId" element={<GameRoom />} /> */}
+              {/* <Route path="/single-player" element={<SinglePlayerRoom />} /> */}
+              {/* <Route path="/presenter-room/:roomId" element={<PresenterRoom />} /> */}
+              {/* <Route path="/player-screen/:roomId" element={<PlayerScreen />} /> */}
+              {/* <Route path="/rankings" element={<RankingsPage />} /> */}
+              {/* <Route path="/mercado-negro" element={<BlackMarket />} /> */}
+              {/* <Route path="/como-ganhar-bc" element={<HowToEarnBC />} /> */}
+              {/* <Route path="/como-jogar" element={<HowToPlay />} /> */}
+              {/* <Route path="/admin/questions" element={<AdminQuestions />} /> */}
+              {/* <Route path="/admin/founder-cases" element={<AdminFounderCases />} /> */}
               <Route path="/privacidade" element={<PrivacyPolicy />} />
-              <Route path="/arena-poker" element={<ArenaPoker />} />
-              <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} />
+              {/* <Route path="/arena-poker" element={<ArenaPoker />} /> */}
+              {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
               <Route path="/arena-trader" element={<ArenaTrader />} />
               <Route path="/arena-trader/rankings" element={<ArenaTraderRankings />} />
               <Route path="/arena-trader/season" element={<ArenaTraderSeason />} />

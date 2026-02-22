@@ -581,9 +581,9 @@ export default function Index() {
           </motion.div>
         )}
 
-        {/* ========== CTA PRINCIPAL ========== */}
+        {/* ========== CTA PRINCIPAL - ARENA TRADER FINANCEIRO ========== */}
         <motion.button
-          onClick={handleChallengeHorus}
+          onClick={() => navigate('/arena-trader')}
           disabled={loading}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -592,12 +592,12 @@ export default function Index() {
           whileTap={{ scale: 0.98 }}
           className="
             w-full mt-6 relative overflow-hidden
-            bg-gradient-to-r from-purple-900/80 via-primary/60 to-purple-900/80
-            border-2 border-gold/60 hover:border-gold
+            bg-gradient-to-r from-amber-900/80 via-yellow-900/60 to-amber-900/80
+            border-2 border-amber-500/60 hover:border-amber-400
             rounded-2xl p-5
             flex items-center gap-4
             transition-all duration-300
-            hover:shadow-[0_8px_30px_rgba(139,0,255,0.5)]
+            hover:shadow-[0_8px_30px_rgba(245,158,11,0.5)]
             disabled:opacity-50 disabled:cursor-not-allowed
             group
           "
@@ -609,188 +609,27 @@ export default function Index() {
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            ⚡
+            📈
           </motion.span>
           
           <div className="flex-1 text-left">
-            <h2 className="font-orbitron text-xl font-bold text-gold uppercase tracking-wide">
-              Desafie o Hórus
+            <h2 className="font-orbitron text-xl font-bold text-amber-400 uppercase tracking-wide flex items-center gap-2">
+              Arena Trader
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-mono tracking-wider">
+                FINANCEIRO
+              </span>
             </h2>
             <p className="text-sm text-foreground/80">
-              5 rodadas • ~5 minutos • 100 BC
-            </p>
-          </div>
-          
-          <ChevronRight className="w-6 h-6 text-gold" />
-        </motion.button>
-
-        {/* ========== AÇÕES SECUNDÁRIAS ========== */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-2 gap-3 mt-4"
-        >
-          <button
-            onClick={createRoom}
-            disabled={loading}
-            className="bg-background/30 border border-border/50 hover:border-gold/50 hover:bg-gold/5 rounded-xl p-4 flex items-center justify-center gap-2 transition-all"
-          >
-            <span className="text-lg">🔥</span>
-            <span className="text-sm font-medium text-foreground">Criar Mesa</span>
-          </button>
-          
-          <button
-            onClick={() => setShowJoinForm(true)}
-            disabled={loading}
-            className="bg-background/30 border border-border/50 hover:border-gold/50 hover:bg-gold/5 rounded-xl p-4 flex items-center justify-center gap-2 transition-all"
-          >
-            <span className="text-lg">🚪</span>
-            <span className="text-sm font-medium text-foreground">Entrar</span>
-          </button>
-        </motion.div>
-
-        {/* ========== MODO APRESENTADOR ========== */}
-        <motion.button
-          onClick={() => {
-            if (founderCase.hasFounderCase) {
-              // Criar sala de apresentador
-              const createPresenterRoom = async () => {
-                setLoading(true);
-                try {
-                  const sessionId = getOrCreateSessionId();
-                  const roomPin = generatePin();
-                  const nickname = isGuest ? guestNickname : profile?.username || 'Apresentador';
-
-                  const { data: room, error: roomError } = await supabase
-                    .from('rooms')
-                    .insert({ 
-                      pin: roomPin, 
-                      host_id: sessionId,
-                      mode: 'presenter'
-                    })
-                    .select()
-                    .single();
-
-                  if (roomError) throw roomError;
-
-                  // Criar registro do apresentador
-                  const { error: playerError } = await supabase.from('players').insert({
-                    room_id: room.id,
-                    nickname: nickname,
-                    session_id: sessionId,
-                    is_host: true,
-                    role: 'presenter'
-                  });
-
-                  if (playerError) {
-                    await supabase.from('rooms').delete().eq('id', room.id);
-                    throw playerError;
-                  }
-
-                  navigate(`/presenter-room/${room.id}`);
-                } catch (error) {
-                  console.error(error);
-                  toast({ title: 'Erro ao criar sala', variant: 'destructive' });
-                } finally {
-                  setLoading(false);
-                }
-              };
-              createPresenterRoom();
-            } else {
-              setShowFounderCaseModal(true);
-            }
-          }}
-          disabled={loading || founderCase.loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-3 relative overflow-hidden
-            bg-gradient-to-r from-purple-900/60 via-blue-900/60 to-purple-900/60
-            border-2 border-gold/40 hover:border-gold
-            rounded-xl p-4
-            flex items-center gap-3
-            transition-all duration-300
-            hover:shadow-[0_6px_20px_rgba(212,175,55,0.3)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <motion.div
-            animate={{ rotate: founderCase.hasFounderCase ? [0, -5, 5, 0] : 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center"
-          >
-            <Briefcase className="w-5 h-5 text-gold" />
-          </motion.div>
-          
-          <div className="flex-1 text-left">
-            <h3 className="font-orbitron text-sm font-bold text-gold uppercase tracking-wide">
-              Modo Apresentador
-            </h3>
-            <p className="text-xs text-foreground/70">
-              {founderCase.hasFounderCase ? 'Controle o jogo ao vivo' : 'Requer Maleta Fundador'}
-            </p>
-          </div>
-          
-          {founderCase.hasFounderCase ? (
-            <span className="text-xs bg-success/20 text-success px-2 py-1 rounded-full border border-success/30">
-              ✓ Ativo
-            </span>
-          ) : (
-            <ChevronRight className="w-5 h-5 text-gold/60" />
-          )}
-        </motion.button>
-
-        {/* ========== ARENA TRADER ========== */}
-        <motion.button
-          onClick={() => navigate('/arena-trader')}
-          disabled={loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.38 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-3 relative overflow-hidden
-            bg-gradient-to-r from-amber-900/60 via-yellow-900/60 to-amber-900/60
-            border-2 border-amber-500/40 hover:border-amber-400
-            rounded-xl p-4
-            flex items-center gap-3
-            transition-all duration-300
-            hover:shadow-[0_6px_20px_rgba(245,158,11,0.3)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center"
-          >
-            <TrendingUp className="w-5 h-5 text-amber-400" />
-          </motion.div>
-          
-          <div className="flex-1 text-left">
-            <h3 className="font-orbitron text-sm font-bold text-amber-400 uppercase tracking-wide">
-              Arena Trader
-            </h3>
-            <p className="text-xs text-foreground/70">
               Simule operações em BTC, PETR4, VALE3, ITUB4
             </p>
           </div>
           
-          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">
-            NOVO
-          </span>
+          <ChevronRight className="w-6 h-6 text-amber-400" />
         </motion.button>
+
+        {/* HIDDEN: Ações de criar/entrar sala do Blefador - código mantido para reuso */}
+
+        {/* HIDDEN: Modo Apresentador e Arena Trader duplicada - código mantido */}
 
         {/* Founder Case Modal */}
         <FounderCaseModal
@@ -888,25 +727,25 @@ export default function Index() {
           className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t border-border/50 py-3 px-4"
         >
           <div className="flex items-center justify-around max-w-md mx-auto">
-            <Link to="/como-jogar" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <HelpCircle className="w-5 h-5" />
-              <span className="text-xs">Como Jogar</span>
+            <Link to="/arena-trader" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <TrendingUp className="w-5 h-5" />
+              <span className="text-xs">Arena Trader</span>
             </Link>
-            <Link to="/rankings" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/arena-trader/rankings" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
               <Trophy className="w-5 h-5" />
               <span className="text-xs">Ranking</span>
             </Link>
-            <Link to="/mercado-negro" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <ShoppingCart className="w-5 h-5" />
-              <span className="text-xs">Loja</span>
+            <Link to="/arena-trader/season" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <Sparkles className="w-5 h-5" />
+              <span className="text-xs">Temporada</span>
             </Link>
           </div>
         </motion.footer>
 
-        {/* Powered by Mycroft */}
+        {/* Powered by Bluffer Entertainment */}
         <div className="flex items-center gap-2 justify-center mt-8 mb-16">
-          <Bot className="w-4 h-4 text-mycroft-green" />
-          <span className="text-xs text-muted-foreground">Powered by Mycroft AI</span>
+          <TrendingUp className="w-4 h-4 text-amber-400" />
+          <span className="text-xs text-muted-foreground">Bluffer Entertainment</span>
         </div>
 
         {/* Audio Preload Indicator */}
