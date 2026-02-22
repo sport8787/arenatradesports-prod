@@ -28,6 +28,7 @@ import ArenaPokerRankings from "./pages/ArenaPokerRankings";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
+import Dashboard from "./pages/Dashboard";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -84,6 +85,7 @@ const App = () => {
               {/* <Route path="/admin/founder-cases" element={<AdminFounderCases />} /> */}
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/paywall" element={<Paywall />} />
+              <Route path="/dashboard" element={<RequireSubscription><Dashboard /></RequireSubscription>} />
               {/* <Route path="/arena-poker" element={<ArenaPoker />} /> */}
               {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
