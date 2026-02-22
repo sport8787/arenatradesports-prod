@@ -141,7 +141,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader')}>
+          <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
             <Dumbbell className="w-4 h-4 mr-1" />
             Modo Treino
           </GoldButton>
