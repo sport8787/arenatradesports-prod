@@ -651,6 +651,74 @@ export type Database = {
           },
         ]
       }
+      live_matches: {
+        Row: {
+          away_logo: string | null
+          away_team: string
+          championship: string
+          created_at: string | null
+          home_logo: string | null
+          home_team: string
+          id: string
+          match_id: string
+          minute: number | null
+          mycroft_analysis_id: string | null
+          mycroft_status: string | null
+          period: string | null
+          score_away: number | null
+          score_home: number | null
+          stats: Json | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          away_logo?: string | null
+          away_team: string
+          championship: string
+          created_at?: string | null
+          home_logo?: string | null
+          home_team: string
+          id?: string
+          match_id: string
+          minute?: number | null
+          mycroft_analysis_id?: string | null
+          mycroft_status?: string | null
+          period?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          stats?: Json | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          away_logo?: string | null
+          away_team?: string
+          championship?: string
+          created_at?: string | null
+          home_logo?: string | null
+          home_team?: string
+          id?: string
+          match_id?: string
+          minute?: number | null
+          mycroft_analysis_id?: string | null
+          mycroft_status?: string | null
+          period?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          stats?: Json | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_matches_mycroft_analysis_id_fkey"
+            columns: ["mycroft_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "mycroft_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           app_version: string | null
@@ -715,6 +783,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mycroft_analyses: {
+        Row: {
+          alerts: string[] | null
+          confidence: number | null
+          created_at: string | null
+          fundamentation: Json | null
+          id: string
+          market: string
+          match_id: string
+          odd: number | null
+          risk_management: Json | null
+          thesis: string
+          verdict: string
+        }
+        Insert: {
+          alerts?: string[] | null
+          confidence?: number | null
+          created_at?: string | null
+          fundamentation?: Json | null
+          id?: string
+          market: string
+          match_id: string
+          odd?: number | null
+          risk_management?: Json | null
+          thesis: string
+          verdict: string
+        }
+        Update: {
+          alerts?: string[] | null
+          confidence?: number | null
+          created_at?: string | null
+          fundamentation?: Json | null
+          id?: string
+          market?: string
+          match_id?: string
+          odd?: number | null
+          risk_management?: Json | null
+          thesis?: string
+          verdict?: string
+        }
+        Relationships: []
       }
       players: {
         Row: {
@@ -982,6 +1092,44 @@ export type Database = {
             columns: ["current_question_id"]
             isOneToOne: false
             referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signals_sent: {
+        Row: {
+          analysis_id: string | null
+          created_at: string | null
+          id: string
+          match_id: string | null
+          sent_telegram: boolean | null
+          sent_whatsapp: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_id?: string | null
+          sent_telegram?: boolean | null
+          sent_whatsapp?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          analysis_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_id?: string | null
+          sent_telegram?: boolean | null
+          sent_whatsapp?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_sent_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "mycroft_analyses"
             referencedColumns: ["id"]
           },
         ]
@@ -1572,6 +1720,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_actions: {
+        Row: {
+          action: string
+          analysis_id: string | null
+          created_at: string | null
+          id: string
+          profit_loss: number | null
+          result: string | null
+          signal_id: string | null
+          stake_amount: number | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          analysis_id?: string | null
+          created_at?: string | null
+          id?: string
+          profit_loss?: number | null
+          result?: string | null
+          signal_id?: string | null
+          stake_amount?: number | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          analysis_id?: string | null
+          created_at?: string | null
+          id?: string
+          profit_loss?: number | null
+          result?: string | null
+          signal_id?: string | null
+          stake_amount?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_actions_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "mycroft_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_actions_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "signals_sent"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_question_history: {
         Row: {
