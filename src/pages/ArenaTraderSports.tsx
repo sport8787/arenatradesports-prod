@@ -7,8 +7,10 @@ import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
 import AnalysisModal, { type MycroftAnalysisData } from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
+import BankrollWidget from '@/components/arena-trader/BankrollWidget';
 import { cn } from '@/lib/utils';
 import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
+import { useBankroll } from '@/hooks/useBankroll';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -48,6 +50,7 @@ type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading } = useLiveMatches();
+  const { bankroll, loading: bankrollLoading } = useBankroll();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -85,7 +88,6 @@ export default function ArenaTraderSports() {
     const match = allMatches.find(m => m.id === matchId);
     if (!match) return;
 
-    // Find the corresponding LiveMatch to get its mycroft_analysis
     const liveMatch = liveMatches.find(lm => lm.id === matchId);
     const analysis = liveMatch?.mycroft_analysis ? {
       id: liveMatch.mycroft_analysis.id,
@@ -107,7 +109,6 @@ export default function ArenaTraderSports() {
   const filtered = useMemo(() => {
     return allMatches.filter(m => {
       if (statusFilter !== 'all') {
-        // Map halftime to live for filtering
         const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
         if (effectiveStatus !== statusFilter) return false;
       }
@@ -126,16 +127,22 @@ export default function ArenaTraderSports() {
           </h1>
 
           <div className="hidden md:flex items-center gap-5">
-            <div className="flex items-center gap-1.5 text-sm">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">Banca:</span>
-              <span className="font-orbitron font-bold text-foreground">R$ 500,00</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-sm">
-              <TrendingUp className="w-4 h-4 text-success" />
-              <span className="text-muted-foreground">Win Rate:</span>
-              <span className="font-orbitron font-bold text-success">68%</span>
-            </div>
+            {bankroll && (
+              <>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span className="text-muted-foreground">Banca:</span>
+                  <span className="font-orbitron font-bold text-foreground">
+                    R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <TrendingUp className="w-4 h-4 text-success" />
+                  <span className="text-muted-foreground">Win Rate:</span>
+                  <span className="font-orbitron font-bold text-success">{bankroll.win_rate.toFixed(0)}%</span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -155,32 +162,39 @@ export default function ArenaTraderSports() {
         </div>
       </header>
 
-      {/* Filters */}
-      <div className="container mx-auto px-4 py-4 space-y-3">
-        <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
-          <TabsList className="bg-secondary/50">
-            <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="live">Ao Vivo</TabsTrigger>
-            <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
-            <TabsTrigger value="finished">Finalizados</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="container mx-auto px-4 py-4 space-y-4">
+        {/* Bankroll Widget */}
+        {bankroll && !bankrollLoading && (
+          <BankrollWidget bankroll={bankroll} />
+        )}
 
-        <div className="flex flex-wrap gap-2">
-          {championships.map(c => (
-            <button
-              key={c}
-              onClick={() => toggleChampionship(c)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-medium border transition-all',
-                selectedChampionships.includes(c)
-                  ? 'border-success bg-success/10 text-success'
-                  : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground'
-              )}
-            >
-              {c}
-            </button>
-          ))}
+        {/* Filters */}
+        <div className="space-y-3">
+          <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
+            <TabsList className="bg-secondary/50">
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="live">Ao Vivo</TabsTrigger>
+              <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
+              <TabsTrigger value="finished">Finalizados</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex flex-wrap gap-2">
+            {championships.map(c => (
+              <button
+                key={c}
+                onClick={() => toggleChampionship(c)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                  selectedChampionships.includes(c)
+                    ? 'border-success bg-success/10 text-success'
+                    : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground'
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -219,7 +233,7 @@ export default function ArenaTraderSports() {
         )}
       </main>
 
-      {/* Analysis Modal - reads from Supabase, no edge function calls */}
+      {/* Analysis Modal */}
       <AnalysisModal
         match={selectedMatch}
         analysis={selectedAnalysis}
