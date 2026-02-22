@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { TrialBanner } from "@/components/TrialBanner";
 import LandingPage from "./pages/LandingPage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -63,6 +64,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <TrialBanner />
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/lobby" element={<Index />} />
