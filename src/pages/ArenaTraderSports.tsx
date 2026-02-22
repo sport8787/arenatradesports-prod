@@ -42,7 +42,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   minute: lm.minute ?? 0,
   period: lm.period ?? '',
   status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
-  mycroftStatus: (lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
+  mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
 });
 
 type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
