@@ -1,0 +1,117 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-n8n-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Auth via x-n8n-token header
+    const token = req.headers.get("x-n8n-token");
+    const expectedToken = Deno.env.get("N8N_WEBHOOK_TOKEN");
+
+    if (!expectedToken || token !== expectedToken) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Service role client for internal writes
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { type, payload } = await req.json();
+
+    if (!type || !payload) {
+      return new Response(
+        JSON.stringify({ error: "Missing type or payload" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- live_match ----
+    if (type === "live_match") {
+      const { data, error } = await supabase
+        .from("live_matches")
+        .upsert(payload, { onConflict: "match_id" })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      return new Response(
+        JSON.stringify({ ok: true, inserted_id: data?.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- mycroft_analysis ----
+    if (type === "mycroft_analysis") {
+      const { data, error } = await supabase
+        .from("mycroft_analyses")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      return new Response(
+        JSON.stringify({ ok: true, inserted_id: data?.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ---- signal_sent ----
+    if (type === "signal_sent") {
+      // Deduplication: check if same match_id + analysis_id exists in last 10 min
+      if (payload.match_id && payload.analysis_id) {
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: existing } = await supabase
+          .from("signals_sent")
+          .select("id")
+          .eq("match_id", payload.match_id)
+          .eq("analysis_id", payload.analysis_id)
+          .gte("created_at", tenMinAgo)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          return new Response(
+            JSON.stringify({ ok: true, deduped: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("signals_sent")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      return new Response(
+        JSON.stringify({ ok: true, inserted_id: data?.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ error: `Unknown type: ${type}` }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("n8n-webhook error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
