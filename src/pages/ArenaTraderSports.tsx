@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
 import AnalysisModal, { type MycroftAnalysisData } from '@/components/dashboard/AnalysisModal';
@@ -49,7 +51,7 @@ type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
-  const { matches: liveMatches, loading } = useLiveMatches();
+  const { matches: liveMatches, loading, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading } = useBankroll();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
@@ -57,6 +59,22 @@ export default function ArenaTraderSports() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+
+  const handleFetchLiveMatches = useCallback(async () => {
+    setIsFetching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-live-matches');
+      if (error) throw error;
+      toast.success(`${data.total_matches} jogos sincronizados, ${data.analyzed} analisados`);
+      refetch();
+    } catch (e) {
+      console.error('Fetch live matches error:', e);
+      toast.error('Erro ao buscar jogos ao vivo');
+    } finally {
+      setIsFetching(false);
+    }
+  }, [refetch]);
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
@@ -149,6 +167,10 @@ export default function ArenaTraderSports() {
           </div>
 
           <div className="flex items-center gap-2">
+            <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
+              <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
+              {isFetching ? 'Buscando...' : 'Buscar Jogos'}
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               KB & Chat
