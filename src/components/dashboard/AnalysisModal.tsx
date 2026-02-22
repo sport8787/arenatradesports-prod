@@ -6,6 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
 
 interface AnalysisData {
@@ -50,6 +51,7 @@ interface AnalysisModalProps {
 export default function AnalysisModal({ match, isOpen, onClose }: AnalysisModalProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { recordAction } = useSignalHistory();
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,10 +105,17 @@ export default function AnalysisModal({ match, isOpen, onClose }: AnalysisModalP
   const handleCopy = () => {
     if (!analysis) return;
     navigator.clipboard.writeText(analysis.risk.entry);
+    // Record copy action in backend
+    if (match?.id) {
+      recordAction(match.id, 'copied');
+    }
     toast({ title: '📋 Copiado!', description: analysis.risk.entry });
   };
 
-  const handleEntered = () => {
+  const handleEntered = async () => {
+    if (match?.id) {
+      await recordAction(match.id, 'entered', analysis?.risk?.stake_value);
+    }
     toast({ title: '✅ Entrada registrada!', description: 'Boa sorte!' });
     onClose();
   };

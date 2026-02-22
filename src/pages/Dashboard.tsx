@@ -1,90 +1,46 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3 } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
 import AnalysisModal from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
 import { cn } from '@/lib/utils';
+import { useLiveMatches } from '@/hooks/useLiveMatches';
 
+// Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
-  {
-    id: '1',
-    championship: 'Copa do Mundo 2026',
-    championshipColor: 'yellow',
-    home: 'Brasil',
-    away: 'Argentina',
-    homeLogo: '🇧🇷',
-    awayLogo: '🇦🇷',
-    scoreHome: 2,
-    scoreAway: 1,
-    minute: 34,
-    period: '1º Tempo',
-    status: 'live',
-    mycroftStatus: 'opportunity',
-  },
-  {
-    id: '2',
-    championship: 'Champions League',
-    championshipColor: 'blue',
-    home: 'Real Madrid',
-    away: 'Barcelona',
-    homeLogo: '⚪',
-    awayLogo: '🔴',
-    scoreHome: 0,
-    scoreAway: 0,
-    minute: 23,
-    period: '1º Tempo',
-    status: 'live',
-    mycroftStatus: 'analyzing',
-  },
-  {
-    id: '3',
-    championship: 'Brasileirão',
-    championshipColor: 'green',
-    home: 'Flamengo',
-    away: 'Palmeiras',
-    homeLogo: '🔴⚫',
-    awayLogo: '🟢',
-    scoreHome: 1,
-    scoreAway: 1,
-    minute: 67,
-    period: '2º Tempo',
-    status: 'live',
-    mycroftStatus: 'no_value',
-  },
-  {
-    id: '4',
-    championship: 'La Liga',
-    championshipColor: 'red',
-    home: 'Atlético Madrid',
-    away: 'Sevilla',
-    homeLogo: '🔴⚪',
-    awayLogo: '⚪🔴',
-    scoreHome: 0,
-    scoreAway: 0,
-    minute: 0,
-    period: 'Início 21:00',
-    status: 'scheduled',
-    mycroftStatus: 'no_value',
-  },
-  {
-    id: '5',
-    championship: 'Copa do Mundo 2026',
-    championshipColor: 'yellow',
-    home: 'Alemanha',
-    away: 'França',
-    homeLogo: '🇩🇪',
-    awayLogo: '🇫🇷',
-    scoreHome: 3,
-    scoreAway: 2,
-    minute: 90,
-    period: 'Encerrado',
-    status: 'finished',
-    mycroftStatus: 'no_value',
-  },
+  { id: '1', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Brasil', away: 'Argentina', homeLogo: '🇧🇷', awayLogo: '🇦🇷', scoreHome: 2, scoreAway: 1, minute: 34, period: '1º Tempo', status: 'live', mycroftStatus: 'opportunity' },
+  { id: '2', championship: 'Champions League', championshipColor: 'blue', home: 'Real Madrid', away: 'Barcelona', homeLogo: '⚪', awayLogo: '🔴', scoreHome: 0, scoreAway: 0, minute: 23, period: '1º Tempo', status: 'live', mycroftStatus: 'analyzing' },
+  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'no_value' },
+  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 0, minute: 0, period: 'Início 21:00', status: 'scheduled', mycroftStatus: 'no_value' },
+  { id: '5', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Alemanha', away: 'França', homeLogo: '🇩🇪', awayLogo: '🇫🇷', scoreHome: 3, scoreAway: 2, minute: 90, period: 'Encerrado', status: 'finished', mycroftStatus: 'no_value' },
 ];
+
+const getChampionshipColor = (name: string): Match['championshipColor'] => {
+  const lower = name.toLowerCase();
+  if (lower.includes('copa')) return 'yellow';
+  if (lower.includes('champions') || lower.includes('liga')) return 'blue';
+  if (lower.includes('brasileir')) return 'green';
+  return 'red';
+};
+
+const mapLiveMatchToMatch = (lm: any): Match => ({
+  id: lm.id,
+  championship: lm.championship,
+  championshipColor: getChampionshipColor(lm.championship),
+  home: lm.home_team,
+  away: lm.away_team,
+  homeLogo: lm.home_logo || '⚽',
+  awayLogo: lm.away_logo || '⚽',
+  scoreHome: lm.score_home ?? 0,
+  scoreAway: lm.score_away ?? 0,
+  minute: lm.minute ?? 0,
+  period: lm.period ?? '',
+  status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
+  mycroftStatus: (lm.mycroft_status || 'no_value') as Match['mycroftStatus'],
+});
 
 const championships = ['Copa do Mundo', 'Champions League', 'Brasileirão', 'La Liga'];
 
@@ -92,10 +48,19 @@ type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { matches: liveMatches, loading } = useLiveMatches();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Use real data if available, fallback to mock
+  const allMatches = useMemo(() => {
+    if (liveMatches.length > 0) {
+      return liveMatches.map(mapLiveMatchToMatch);
+    }
+    return mockMatches;
+  }, [liveMatches]);
 
   const toggleChampionship = (c: string) => {
     setSelectedChampionships(prev =>
@@ -104,7 +69,7 @@ export default function Dashboard() {
   };
 
   const handleViewAnalysis = (matchId: string) => {
-    const match = mockMatches.find(m => m.id === matchId);
+    const match = allMatches.find(m => m.id === matchId);
     if (match) {
       setSelectedMatch(match);
       setIsModalOpen(true);
@@ -112,12 +77,12 @@ export default function Dashboard() {
   };
 
   const filtered = useMemo(() => {
-    return mockMatches.filter(m => {
+    return allMatches.filter(m => {
       if (statusFilter !== 'all' && m.status !== statusFilter) return false;
       if (selectedChampionships.length > 0 && !selectedChampionships.some(c => m.championship.includes(c))) return false;
       return true;
     });
-  }, [statusFilter, selectedChampionships]);
+  }, [statusFilter, selectedChampionships, allMatches]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -185,7 +150,12 @@ export default function Dashboard() {
 
       {/* Grid */}
       <main className="container mx-auto px-4 pb-8">
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-sm text-muted-foreground font-orbitron">Carregando jogos...</p>
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map((match, i) => (
               <MatchCard
