@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2 } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
 import AnalysisModal, { type MycroftAnalysisData } from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
+import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { cn } from '@/lib/utils';
 import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 
@@ -52,6 +53,7 @@ export default function ArenaTraderSports() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
@@ -137,6 +139,10 @@ export default function ArenaTraderSports() {
           </div>
 
           <div className="flex items-center gap-2">
+            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
+              <Brain className="w-4 h-4 mr-1" />
+              KB & Chat
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
@@ -219,6 +225,12 @@ export default function ArenaTraderSports() {
         analysis={selectedAnalysis}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* Mycroft Sports KB + Chat */}
+      <MycroftSportsChat
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
       />
     </div>
   );
