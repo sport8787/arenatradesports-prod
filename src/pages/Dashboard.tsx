@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
 import AnalysisModal from '@/components/dashboard/AnalysisModal';
@@ -141,10 +141,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
-            <Dumbbell className="w-4 h-4 mr-1" />
-            Modo Treino
-          </GoldButton>
+          <div className="flex items-center gap-2">
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
+              <BarChart3 className="w-4 h-4 mr-1" />
+              Histórico
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
+              <Dumbbell className="w-4 h-4 mr-1" />
+              Treino
+            </GoldButton>
+          </div>
         </div>
       </header>
 
