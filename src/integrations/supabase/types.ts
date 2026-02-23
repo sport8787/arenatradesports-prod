@@ -1096,6 +1096,57 @@ export type Database = {
           },
         ]
       }
+      scheduled_games: {
+        Row: {
+          away_team: string
+          check_time: string
+          created_at: string | null
+          event_id: string | null
+          home_team: string
+          id: string
+          league_name: string
+          match_date: string
+          match_datetime: string
+          match_id: string | null
+          match_time: string
+          relevance_score: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          away_team: string
+          check_time: string
+          created_at?: string | null
+          event_id?: string | null
+          home_team: string
+          id?: string
+          league_name: string
+          match_date: string
+          match_datetime: string
+          match_id?: string | null
+          match_time: string
+          relevance_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          away_team?: string
+          check_time?: string
+          created_at?: string | null
+          event_id?: string | null
+          home_team?: string
+          id?: string
+          league_name?: string
+          match_date?: string
+          match_datetime?: string
+          match_id?: string | null
+          match_time?: string
+          relevance_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       signals_sent: {
         Row: {
           analysis_id: string | null
@@ -2434,7 +2485,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      next_games_to_check: {
+        Row: {
+          away_team: string | null
+          check_time: string | null
+          created_at: string | null
+          event_id: string | null
+          home_team: string | null
+          id: string | null
+          league_name: string | null
+          match_date: string | null
+          match_datetime: string | null
+          match_id: string | null
+          match_time: string | null
+          relevance_score: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          away_team?: string | null
+          check_time?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          home_team?: string | null
+          id?: string | null
+          league_name?: string | null
+          match_date?: string | null
+          match_datetime?: string | null
+          match_id?: string | null
+          match_time?: string | null
+          relevance_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          away_team?: string | null
+          check_time?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          home_team?: string | null
+          id?: string | null
+          league_name?: string | null
+          match_date?: string | null
+          match_datetime?: string | null
+          match_id?: string | null
+          match_time?: string | null
+          relevance_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_rank_title: { Args: { coins: number }; Returns: string }
