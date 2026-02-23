@@ -97,9 +97,11 @@ serve(async (req) => {
       );
     }
 
-    const data = await res.json();
+    const rawText = await res.text();
+    console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
+    const data = JSON.parse(rawText);
     const fixtures = data.response || [];
-    console.log(`[FetchLive] Found ${fixtures.length} live matches`);
+    console.log(`[FetchLive] Found ${fixtures.length} live matches, errors: ${JSON.stringify(data.errors)}, results: ${data.results}`);
 
     const results: any[] = [];
     let analyzedCount = 0;
