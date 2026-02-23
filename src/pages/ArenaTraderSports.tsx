@@ -89,13 +89,24 @@ export default function ArenaTraderSports() {
 
   // Dynamic championships from real data
   const championships = useMemo(() => {
+    const priorityOrder = [
+      'brasileirão', 'brasileiro serie b', 'premier league',
+      'bundesliga', 'la liga', 'ligue 1', 'serie a',
+    ];
     const counts = new Map<string, number>();
     allMatches.forEach(m => {
       counts.set(m.championship, (counts.get(m.championship) || 0) + 1);
     });
     return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
+      .sort((a, b) => {
+        const aIdx = priorityOrder.findIndex(p => a[0].toLowerCase().includes(p));
+        const bIdx = priorityOrder.findIndex(p => b[0].toLowerCase().includes(p));
+        const aPrio = aIdx >= 0 ? aIdx : 100;
+        const bPrio = bIdx >= 0 ? bIdx : 100;
+        if (aPrio !== bPrio) return aPrio - bPrio;
+        return b[1] - a[1];
+      })
+      .slice(0, 10)
       .map(([name]) => name);
   }, [allMatches]);
 
