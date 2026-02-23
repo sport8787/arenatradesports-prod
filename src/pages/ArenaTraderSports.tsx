@@ -49,7 +49,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
 });
 
-type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
@@ -131,6 +131,7 @@ export default function ArenaTraderSports() {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, AGUARDAR: 1, analyzing: 1, VETADO: 2, no_value: 2 };
     return allMatches
       .filter(m => {
+        if (statusFilter === 'proximos') return false; // handled by ScheduledGamesSection
         if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
@@ -201,6 +202,7 @@ export default function ArenaTraderSports() {
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="proximos">Próximos Jogos</TabsTrigger>
               <TabsTrigger value="live">Ao Vivo</TabsTrigger>
               <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
               <TabsTrigger value="finished">Finalizados</TabsTrigger>
@@ -224,8 +226,10 @@ export default function ArenaTraderSports() {
             ))}
         </div>
 
-        {/* Scheduled Games Section */}
-        <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} />
+        {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
+        {statusFilter === 'proximos' && (
+          <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} />
+        )}
       </div>
       </div>
 
