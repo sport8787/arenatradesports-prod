@@ -248,13 +248,33 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${analyzedCount} analyzed`);
+    // 6. Mark matches no longer live as 'finished'
+    const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
+    const { data: currentLive } = await supabase
+      .from('live_matches')
+      .select('match_id')
+      .eq('status', 'live');
+
+    const staleIds = (currentLive || [])
+      .map((m: any) => m.match_id)
+      .filter((id: string) => !liveMatchIds.includes(id));
+
+    if (staleIds.length > 0) {
+      await supabase
+        .from('live_matches')
+        .update({ status: 'finished', updated_at: new Date().toISOString() })
+        .in('match_id', staleIds);
+      console.log(`[FetchLive] Marked ${staleIds.length} matches as finished`);
+    }
+
+    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${analyzedCount} analyzed, ${staleIds.length} finished`);
 
     return new Response(
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
         analyzed: analyzedCount,
+        finished: staleIds.length,
         matches: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
