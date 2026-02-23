@@ -627,6 +627,43 @@ export default function Index() {
           <ChevronRight className="w-6 h-6 text-primary" />
         </motion.button>
 
+        {/* ========== CTA SECUNDÁRIO - ARENA TRADER FINANCEIRO ========== */}
+        <motion.button
+          onClick={() => navigate('/arena-trader')}
+          disabled={loading}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ scale: 1.02, y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          className="
+            w-full mt-3 relative overflow-hidden
+            bg-gradient-to-r from-accent/20 via-accent/10 to-accent/20
+            border border-accent/40 hover:border-accent/70
+            rounded-2xl p-4
+            flex items-center gap-4
+            transition-all duration-300
+            hover:shadow-[0_6px_25px_rgba(139,92,246,0.3)]
+            disabled:opacity-50 disabled:cursor-not-allowed
+            group
+          "
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          
+          <span className="text-3xl">📈</span>
+          
+          <div className="flex-1 text-left">
+            <h3 className="font-orbitron text-base font-bold text-accent uppercase tracking-wide">
+              Arena Trader Financeiro
+            </h3>
+            <p className="text-xs text-foreground/60">
+              Simulador de trades • Cripto & Forex
+            </p>
+          </div>
+          
+          <ChevronRight className="w-5 h-5 text-accent/60" />
+        </motion.button>
+
         {/* HIDDEN: Ações de criar/entrar sala do Blefador - código mantido para reuso */}
 
         {/* HIDDEN: Modo Apresentador e Arena Trader duplicada - código mantido */}
