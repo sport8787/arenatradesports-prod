@@ -13,6 +13,8 @@ import BankrollWidget from '@/components/arena-trader/BankrollWidget';
 import { cn } from '@/lib/utils';
 import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 import { useBankroll } from '@/hooks/useBankroll';
+import { useScheduledGames } from '@/hooks/useScheduledGames';
+import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -53,6 +55,7 @@ export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading } = useBankroll();
+  const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -219,8 +222,11 @@ export default function ArenaTraderSports() {
                 {c}
               </button>
             ))}
-          </div>
         </div>
+
+        {/* Scheduled Games Section */}
+        <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} />
+      </div>
       </div>
 
       {/* Grid */}
