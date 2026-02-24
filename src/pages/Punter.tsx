@@ -1,0 +1,362 @@
+import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Target, Loader2, BarChart3, Calendar, DollarSign, 
+  CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
+  Wallet, ArrowLeft
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useBankroll } from '@/hooks/useBankroll';
+import GoldButton from '@/components/game/GoldButton';
+import BankrollWidget from '@/components/arena-trader/BankrollWidget';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+
+interface PunterSignal {
+  match: {
+    home_team: string;
+    away_team: string;
+    commence_time: string;
+    league: string;
+  };
+  recommendation: {
+    verdict: string;
+    market: string;
+    bookmaker: string;
+    odd: number;
+    fair_odd: number;
+    value_percentage: number;
+    confidence: number;
+    stake_percentage: number;
+    thesis: string;
+    analysis: string;
+    risk_factors: string;
+  };
+}
+
+export default function PunterPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { bankroll, loading: bankrollLoading } = useBankroll();
+  const [loading, setLoading] = useState(false);
+  const [signals, setSignals] = useState<PunterSignal[]>([]);
+  const [totalAnalyzed, setTotalAnalyzed] = useState(0);
+  const [totalApproved, setTotalApproved] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const analyzeGames = async () => {
+    if (!user) {
+      setError('Você precisa estar logado para analisar jogos');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('mycroft-punter-analysis', {
+        body: {
+          sport: 'soccer_brazil_campeonato',
+          hours_ahead: 48,
+          bookmakers: ['bet365', 'pinnacle', 'betfair'],
+          min_value: 5
+        }
+      });
+      if (fnError) throw fnError;
+      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
+      setSignals(data.signals || []);
+      setTotalAnalyzed(data.total_analyzed || 0);
+      setTotalApproved(data.total_approved || 0);
+      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos analisados`);
+    } catch (err: any) {
+      console.error('Erro ao analisar jogos:', err);
+      setError(err.message || 'Erro ao conectar com Mycroft Punter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const placeBet = useCallback(async (signal: PunterSignal) => {
+    if (!bankroll || !user) {
+      toast.error('Banca não carregada');
+      return;
+    }
+    const stakePercent = signal.recommendation.stake_percentage || 3;
+    const stake = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
+    if (stake > bankroll.balance || stake <= 0) {
+      toast.error('Saldo insuficiente');
+      return;
+    }
+    const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
+
+    // Insert bet
+    const { error: betError } = await supabase
+      .from('virtual_bets_punter')
+      .insert({
+        user_id: user.id,
+        match_id: `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_'),
+        match_name: matchName,
+        market: signal.recommendation.market,
+        odd: signal.recommendation.odd,
+        stake: stake,
+        status: 'pending',
+      });
+    if (betError) {
+      toast.error(betError.message);
+      return;
+    }
+    // Update bankroll
+    await supabase.from('user_bankroll').update({
+      balance: bankroll.balance - stake,
+      total_staked: bankroll.total_staked + stake,
+      total_bets: bankroll.total_bets + 1,
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id);
+
+    toast.success(`Aposta de R$ ${stake.toFixed(2)} registrada em ${matchName}`);
+  }, [bankroll, user]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Target className="w-6 h-6 text-success" />
+              <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
+                Arena Punter
+              </h1>
+            </div>
+          </div>
+          {bankroll && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Wallet className="w-4 h-4 text-primary" />
+              <span className="font-orbitron font-bold text-foreground">
+                R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-4 space-y-4 max-w-4xl">
+        {/* Bankroll Widget */}
+        {bankroll && !bankrollLoading && <BankrollWidget bankroll={bankroll} />}
+
+        {/* Info Banner */}
+        <Card className="border-success/30 bg-success/5">
+          <CardContent className="p-4">
+            <p className="text-sm text-foreground/80">
+              <span className="font-bold text-success">Value Betting Pré-Jogo</span> — Mycroft Punter analisa jogos 
+              futuros e identifica odds com value positivo. Stake recomendado: 2-5% da banca baseado em confiança e value.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Analyze Button */}
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-orbitron">Analisar Jogos Programados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GoldButton onClick={analyzeGames} disabled={loading} className="w-full">
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com IA...</>
+              ) : (
+                <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos (próximas 48h)</>
+              )}
+            </GoldButton>
+
+            {totalAnalyzed > 0 && !loading && (
+              <div className="mt-3 flex gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Analisados:</span>
+                  <Badge variant="secondary">{totalAnalyzed}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Aprovados:</span>
+                  <Badge className="bg-success text-success-foreground">{totalApproved}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Taxa:</span>
+                  <span className="font-bold text-success">
+                    {((totalApproved / totalAnalyzed) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Error */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Signals */}
+        {signals.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
+              <CheckCircle2 className="w-5 h-5 text-success" />
+              Sinais Aprovados ({signals.length})
+            </h2>
+            {signals.map((signal, index) => (
+              <SignalCard key={index} signal={signal} onPlaceBet={() => placeBet(signal)} bankroll={bankroll} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty states */}
+        {!loading && signals.length === 0 && totalAnalyzed > 0 && (
+          <Card className="border-dashed border-border">
+            <CardContent className="pt-6 text-center">
+              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="font-bold text-lg mb-1 text-foreground">Nenhum Sinal Aprovado</h3>
+              <p className="text-muted-foreground text-sm">
+                {totalAnalyzed} jogos analisados, nenhum com value ≥5%. Tente mais tarde.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && signals.length === 0 && totalAnalyzed === 0 && (
+          <Card className="border-dashed border-border">
+            <CardContent className="pt-6 text-center">
+              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="font-bold text-lg mb-1 text-foreground">Pronto para Começar</h3>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Clique em "Analisar Jogos" para o Mycroft Punter buscar oportunidades de value betting.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Signal Card Component
+function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; onPlaceBet: () => void; bankroll: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const commenceDate = new Date(signal.match.commence_time);
+  const isToday = commenceDate.toDateString() === new Date().toDateString();
+  const stakePercent = signal.recommendation.stake_percentage || 3;
+  const stakeValue = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <Card className="border-success/30 hover:border-success/50 transition-all">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <CardTitle className="text-lg mb-1 text-foreground">
+                {signal.match.home_team} vs {signal.match.away_team}
+              </CardTitle>
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                    {' às '}
+                    {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-orbitron font-bold text-success">
+                +{signal.recommendation.value_percentage?.toFixed(1)}%
+              </div>
+              <div className="text-xs text-muted-foreground">Value</div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
+            <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
+            <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
+            <InfoBox label="Stake" value={`${stakePercent}% (R$ ${stakeValue.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+          </div>
+
+          {/* Confidence Bar */}
+          <div>
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-muted-foreground">Confiança</span>
+              <span className="font-bold text-foreground">{signal.recommendation.confidence}%</span>
+            </div>
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-success to-primary rounded-full transition-all"
+                style={{ width: `${signal.recommendation.confidence}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Thesis */}
+          <div className="bg-secondary/30 rounded-lg p-3">
+            <p className="text-sm font-medium text-foreground mb-1">💡 Tese:</p>
+            <p className="text-sm text-foreground/80">{signal.recommendation.thesis}</p>
+          </div>
+
+          {/* Bet Button */}
+          <GoldButton onClick={onPlaceBet} className="w-full" disabled={!bankroll || stakeValue <= 0}>
+            <DollarSign className="w-4 h-4 mr-1" />
+            ENTREI — Apostar R$ {stakeValue.toFixed(2)} ({stakePercent}% da banca)
+          </GoldButton>
+
+          {/* Expand */}
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="w-full text-muted-foreground">
+            {expanded ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
+            {expanded ? 'Ocultar' : 'Ver'} Análise Completa
+          </Button>
+
+          {expanded && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3 pt-2 border-t border-border">
+              <div>
+                <p className="text-sm font-bold text-foreground mb-1">📊 Análise Detalhada:</p>
+                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.analysis}</p>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground mb-1">⚠️ Fatores de Risco:</p>
+                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.risk_factors}</p>
+              </div>
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                <p className="text-sm font-bold text-foreground mb-1">📐 Cálculo de Value:</p>
+                <div className="text-sm text-foreground/80 space-y-1">
+                  <div>Odd oferecida: <span className="font-mono">{signal.recommendation.odd}</span> → Prob. implícita: <span className="font-mono">{(100 / signal.recommendation.odd).toFixed(1)}%</span></div>
+                  <div>Odd justa estimada: <span className="font-mono">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
+                  <div className="font-bold text-success">Value: {signal.recommendation.value_percentage?.toFixed(1)}%</div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+function InfoBox({ label, value, icon, highlight = false }: { label: string; value: string | number; icon?: React.ReactNode; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg p-2 ${highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30'}`}>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className={`text-sm font-bold ${highlight ? 'text-success text-base' : 'text-foreground'}`}>{value}</div>
+    </div>
+  );
+}
