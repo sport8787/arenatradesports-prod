@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -158,9 +158,14 @@ export default function ArenaTraderSports() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <h1 className="font-orbitron text-base md:text-lg font-bold text-primary truncate">
-            Arena Trader Sports
-          </h1>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="font-orbitron text-base md:text-lg font-bold text-primary truncate">
+              Arena Trader Sports
+            </h1>
+          </div>
 
           <div className="hidden md:flex items-center gap-5">
             {bankroll && (
