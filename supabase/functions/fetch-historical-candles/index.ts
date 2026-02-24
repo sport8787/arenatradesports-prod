@@ -138,53 +138,66 @@ serve(async (req) => {
         }
       }
     } else if (category === "futures") {
-      const ticker = symbol === "WIN" ? "WINFUT" : "WDOFUT";
+      const BRAPI_TOKEN = Deno.env.get("BRAPI_TOKEN") || "";
+      
+      // WIN tracks Ibovespa (^BVSP) 1:1. WDO tracks USD/BRL × 1000.
+      const ticker = symbol === "WIN" ? "%5EBVSP" : "USDBRL=X";
+      const isWDO = symbol === "WDO";
+      
+      console.log(`Futures candles proxy ticker: ${ticker} for ${symbol}`);
       const { range, interval } = getBrapiParams(timeframe);
       try {
         const res = await fetch(
-          `https://brapi.dev/api/quote/${ticker}?range=${range}&interval=${interval}&fundamental=false`,
+          `https://brapi.dev/api/quote/${ticker}?range=${range}&interval=${interval}&fundamental=false&token=${BRAPI_TOKEN}`,
           { headers: { Accept: "application/json" } }
         );
         if (res.ok) {
           const data = await res.json();
           const result = data.results?.[0];
           if (result?.historicalDataPrice && result.historicalDataPrice.length > 0) {
-            candles = result.historicalDataPrice.map((d: any) => ({
-              time: d.date * 1000, open: d.open, high: d.high, low: d.low, close: d.close, volume: d.volume || 0,
+            candles = result.historicalDataPrice
+              .filter((d: any) => d.close > 0 && d.open > 0) // Filter out zero-value candles
+              .map((d: any) => ({
+              time: d.date * 1000,
+              open: isWDO ? Math.round(d.open * 1000 * 100) / 100 : Math.round(d.open),
+              high: isWDO ? Math.round(d.high * 1000 * 100) / 100 : Math.round(d.high),
+              low: isWDO ? Math.round(d.low * 1000 * 100) / 100 : Math.round(d.low),
+              close: isWDO ? Math.round(d.close * 1000 * 100) / 100 : Math.round(d.close),
+              volume: d.volume || 0,
             }));
           }
           if (result?.regularMarketPrice) {
-            const cp = result.regularMarketPrice;
-            const pc = result.regularMarketPreviousClose || cp;
+            const cp = isWDO ? Math.round(result.regularMarketPrice * 1000 * 100) / 100 : Math.round(result.regularMarketPrice);
+            const pc = result.regularMarketPreviousClose 
+              ? (isWDO ? Math.round(result.regularMarketPreviousClose * 1000 * 100) / 100 : Math.round(result.regularMarketPreviousClose))
+              : cp;
             if (candles.length === 0) {
               candles.push({ time: Date.now() - 86400000, open: pc, high: pc * 1.002, low: pc * 0.998, close: pc, volume: 0 });
             }
-            candles.push({ time: Date.now(), open: result.regularMarketOpen || pc, high: result.regularMarketDayHigh || cp, low: result.regularMarketDayLow || cp, close: cp, volume: result.regularMarketVolume || 0 });
+            const openP = result.regularMarketOpen 
+              ? (isWDO ? Math.round(result.regularMarketOpen * 1000 * 100) / 100 : Math.round(result.regularMarketOpen))
+              : pc;
+            const highP = result.regularMarketDayHigh
+              ? (isWDO ? Math.round(result.regularMarketDayHigh * 1000 * 100) / 100 : Math.round(result.regularMarketDayHigh))
+              : cp;
+            const lowP = result.regularMarketDayLow
+              ? (isWDO ? Math.round(result.regularMarketDayLow * 1000 * 100) / 100 : Math.round(result.regularMarketDayLow))
+              : cp;
+            candles.push({ time: Date.now(), open: openP, high: highP, low: lowP, close: cp, volume: result.regularMarketVolume || 0 });
           }
-        }
-
-        if (candles.length === 0) {
-          const fb = await fetch(`https://brapi.dev/api/quote/${ticker}`, { headers: { Accept: "application/json" } });
-          if (fb.ok) {
-            const fbData = await fb.json();
-            const r = fbData.results?.[0];
-            if (r?.regularMarketPrice) {
-              const cp = r.regularMarketPrice;
-              const pc = r.regularMarketPreviousClose || cp;
-              candles.push({ time: Date.now() - 86400000, open: pc, high: pc * 1.002, low: pc * 0.998, close: pc, volume: 0 });
-              candles.push({ time: Date.now(), open: r.regularMarketOpen || pc, high: r.regularMarketDayHigh || cp, low: r.regularMarketDayLow || cp, close: cp, volume: r.regularMarketVolume || 0 });
-            }
-          }
+        } else {
+          console.error("Brapi proxy candles status:", res.status, await res.text());
         }
       } catch (e) {
-        console.error("Brapi futures error:", e);
+        console.error("Brapi futures proxy error:", e);
       }
     } else {
       // BR stocks via Brapi
+      const BRAPI_TOKEN = Deno.env.get("BRAPI_TOKEN") || "";
       const { range, interval } = getBrapiParams(timeframe);
       try {
         const res = await fetch(
-          `https://brapi.dev/api/quote/${symbol}?range=${range}&interval=${interval}&fundamental=false`,
+          `https://brapi.dev/api/quote/${symbol}?range=${range}&interval=${interval}&fundamental=false&token=${BRAPI_TOKEN}`,
           { headers: { Accept: "application/json" } }
         );
         if (res.ok) {
