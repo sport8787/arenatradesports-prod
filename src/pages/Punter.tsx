@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft
+  Wallet, ArrowLeft, Brain, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import BankrollWidget from '@/components/arena-trader/BankrollWidget';
+import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,6 +49,23 @@ export default function PunterPage() {
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
   const [totalApproved, setTotalApproved] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [pendingBets, setPendingBets] = useState<any[]>([]);
+
+  // Load pending bets on mount
+  useEffect(() => {
+    const loadPendingBets = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('virtual_bets_punter')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (!error && data) setPendingBets(data);
+    };
+    loadPendingBets();
+  }, [user]);
 
   const analyzeGames = async () => {
     if (!user) {
@@ -117,6 +135,14 @@ export default function PunterPage() {
     }).eq('user_id', user.id);
 
     toast.success(`Aposta de R$ ${stake.toFixed(2)} registrada em ${matchName}`);
+    // Refresh pending bets
+    const { data: updated } = await supabase
+      .from('virtual_bets_punter')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (updated) setPendingBets(updated);
   }, [bankroll, user]);
 
   return (
@@ -135,14 +161,20 @@ export default function PunterPage() {
               </h1>
             </div>
           </div>
-          {bankroll && (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="font-orbitron font-bold text-foreground">
-                R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {bankroll && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="font-orbitron font-bold text-foreground">
+                  R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
+              <Brain className="w-4 h-4 mr-1" />
+              KB
+            </GoldButton>
+          </div>
         </div>
       </header>
 
@@ -240,7 +272,40 @@ export default function PunterPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Pending Bets */}
+        {pendingBets.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
+              <Clock className="w-5 h-5 text-primary" />
+              Apostas Pendentes ({pendingBets.length})
+            </h2>
+            {pendingBets.map((bet) => (
+              <Card key={bet.id} className="border-primary/30">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-foreground">{bet.match_name}</p>
+                      <p className="text-sm text-muted-foreground">{bet.market}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-orbitron font-bold text-primary">R$ {bet.stake.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">Odd: {bet.odd}</p>
+                    </div>
+                  </div>
+                  <Badge className="mt-2 bg-primary/10 text-primary border-primary/30">Pendente</Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* KB Chat */}
+      <MycroftSportsChat
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 }
