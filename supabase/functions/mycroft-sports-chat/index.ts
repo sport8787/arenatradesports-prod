@@ -41,6 +41,112 @@ async function loadKnowledgeBase(): Promise<string> {
   return contents.join("\n\n");
 }
 
+/**
+ * Auto-lookup match data from DB when user mentions team names.
+ * Searches scheduled_games, live_matches, and mycroft_analyses.
+ */
+async function lookupMatchContext(query: string): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  const parts: string[] = [];
+
+  // Extract potential team names (words with 3+ chars, capitalized or common team patterns)
+  const queryLower = query.toLowerCase();
+
+  try {
+    // 1. Search scheduled_games
+    const { data: scheduled } = await supabase
+      .from("scheduled_games")
+      .select("*")
+      .order("match_datetime", { ascending: true })
+      .limit(50);
+
+    const matchedScheduled = (scheduled || []).filter((g: any) => {
+      const home = g.home_team?.toLowerCase() || "";
+      const away = g.away_team?.toLowerCase() || "";
+      const league = g.league_name?.toLowerCase() || "";
+      return queryLower.split(/\s+/).some((word: string) =>
+        word.length >= 3 && (home.includes(word) || away.includes(word) || league.includes(word))
+      );
+    });
+
+    if (matchedScheduled.length > 0) {
+      parts.push("━━━ JOGOS AGENDADOS ENCONTRADOS ━━━");
+      for (const g of matchedScheduled.slice(0, 5)) {
+        parts.push(`• ${g.home_team} vs ${g.away_team} | Liga: ${g.league_name} | Data: ${g.match_date} ${g.match_time} | Status: ${g.status || "scheduled"} | Relevância: ${g.relevance_score || 0}/5`);
+      }
+    }
+
+    // 2. Search live_matches
+    const { data: live } = await supabase
+      .from("live_matches")
+      .select("*, mycroft_analyses(*)")
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    const matchedLive = (live || []).filter((m: any) => {
+      const home = m.home_team?.toLowerCase() || "";
+      const away = m.away_team?.toLowerCase() || "";
+      const champ = m.championship?.toLowerCase() || "";
+      return queryLower.split(/\s+/).some((word: string) =>
+        word.length >= 3 && (home.includes(word) || away.includes(word) || champ.includes(word))
+      );
+    });
+
+    if (matchedLive.length > 0) {
+      parts.push("━━━ JOGOS AO VIVO / RECENTES ━━━");
+      for (const m of matchedLive.slice(0, 5)) {
+        const stats = m.stats || {};
+        parts.push([
+          `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}`,
+          `  Liga: ${m.championship} | Min: ${m.minute || "-"} | Período: ${m.period || "-"} | Status: ${m.status}`,
+          stats.attacks_home != null ? `  Ataques: ${stats.attacks_home} x ${stats.attacks_away} | Posse: ${stats.possession_home}% x ${stats.possession_away}% | Chutes: ${stats.shots_home} x ${stats.shots_away}` : "",
+          stats.xG_home != null ? `  xG: ${stats.xG_home} x ${stats.xG_away}` : "",
+        ].filter(Boolean).join("\n"));
+
+        // Include Mycroft analysis if available
+        const analysis = m.mycroft_analyses;
+        if (analysis) {
+          parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
+          if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis}`);
+          if (analysis.alerts?.length) parts.push(`  Alertas: ${analysis.alerts.join(", ")}`);
+        }
+      }
+    }
+
+    // 3. Search punter_analyses for pre-game analyses
+    const { data: punterAnalyses } = await supabase
+      .from("punter_analyses")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    const matchedPunter = (punterAnalyses || []).filter((a: any) => {
+      const home = a.home_team?.toLowerCase() || "";
+      const away = a.away_team?.toLowerCase() || "";
+      return queryLower.split(/\s+/).some((word: string) =>
+        word.length >= 3 && (home.includes(word) || away.includes(word))
+      );
+    });
+
+    if (matchedPunter.length > 0) {
+      parts.push("━━━ ANÁLISES PRÉ-JOGO (PUNTER) ━━━");
+      for (const a of matchedPunter.slice(0, 3)) {
+        parts.push([
+          `• ${a.home_team} vs ${a.away_team} | Liga: ${a.league}`,
+          `  Mercado: ${a.market} | Odd: ${a.odd} @ ${a.bookmaker} | Veredito: ${a.verdict}`,
+          `  Value: ${a.value_percentage}% | Prob. Estimada: ${a.estimated_probability}% | Confiança: ${a.confidence}%`,
+          a.thesis ? `  Tese: ${a.thesis}` : "",
+        ].filter(Boolean).join("\n"));
+      }
+    }
+  } catch (e) {
+    console.error("Match lookup error:", e);
+  }
+
+  if (parts.length === 0) return "";
+  return "\n" + parts.join("\n") + "\n";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,7 +159,13 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const knowledgeBaseContent = await loadKnowledgeBase();
+    // Load KB and auto-lookup match data in parallel
+    const [knowledgeBaseContent, autoMatchContext] = await Promise.all([
+      loadKnowledgeBase(),
+      lookupMatchContext(query),
+    ]);
+
+    const combinedMatchContext = [matchContext, autoMatchContext].filter(Boolean).join("\n");
 
     const systemPrompt = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IDENTIDADE E FUNÇÃO
@@ -83,10 +195,12 @@ INSTRUÇÃO CRÍTICA: Você DEVE fundamentar TODA análise nos conceitos dos doc
 - IDENTIFIQUE violações dos princípios ensinados
 ` : "Nenhum documento na KB ainda. Use seu conhecimento geral de trading esportivo, probabilidade e gestão de risco."}
 
-${matchContext ? `
-━━━ CONTEXTO DO JOGO ANALISADO ━━━
-${matchContext}
-━━━ FIM DO CONTEXTO ━━━
+${combinedMatchContext ? `
+━━━ DADOS DE JOGOS DO BANCO DE DADOS ━━━
+${combinedMatchContext}
+━━━ FIM DOS DADOS ━━━
+
+INSTRUÇÃO: Use esses dados reais do banco de dados para fundamentar sua análise. Se o usuário perguntar sobre um jogo específico, use as informações acima.
 ` : ""}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -106,10 +220,10 @@ REGRAS DE RESPOSTA
 - Sempre comece com [MYCROFT] ou [HÓRUS] para indicar quem fala
 - Mantenha respostas concisas e acionáveis
 - Responda SEMPRE em português brasileiro
+- Quando o usuário perguntar sobre um jogo específico (ex: "analisa São Paulo x Palmeiras"), BUSQUE os dados do jogo no contexto fornecido acima e faça uma análise completa
 
 TOM: Direto, estilo trader profissional. Sem enrolação. Foco em EV positivo e disciplina.`;
 
-    // Build messages for OpenAI-compatible API
     const messages: { role: string; content: string }[] = [
       { role: "system", content: systemPrompt },
     ];
