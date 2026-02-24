@@ -3,10 +3,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-n8n-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-n8n-token',
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -23,27 +24,40 @@ serve(async (req) => {
       )
     }
 
+    // Parse body
     const { type, payload } = await req.json()
 
+    // Cria cliente Supabase
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { persistSession: false } }
+      {
+        auth: {
+          persistSession: false,
+        },
+      }
     )
 
+    // Router baseado no type
     switch (type) {
       case 'live_match':
         return await handleLiveMatch(supabaseClient, payload, corsHeaders)
+      
       case 'mycroft_analysis':
         return await handleMycroftAnalysis(supabaseClient, payload, corsHeaders)
+      
       case 'signal_sent':
         return await handleSignalSent(supabaseClient, payload, corsHeaders)
+      
       case 'scheduled_games':
         return await handleScheduledGames(supabaseClient, payload, corsHeaders)
+      
       case 'get_scheduled_games':
         return await handleGetScheduledGames(supabaseClient, payload, corsHeaders)
+      
       case 'mark_checking':
         return await handleMarkChecking(supabaseClient, payload, corsHeaders)
+      
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid webhook type' }),
@@ -54,7 +68,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error)
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -86,6 +100,7 @@ async function handleLiveMatch(supabaseClient: any, payload: any, corsHeaders: a
 
   if (error) throw error
 
+  // Dispara análise Mycroft (se ainda não analisado)
   const match = data[0]
   if (match.mycroft_status === 'pending') {
     await triggerMycroftAnalysis(supabaseClient, match)
@@ -117,17 +132,22 @@ async function handleMycroftAnalysis(supabaseClient: any, payload: any, corsHead
 
   if (error) throw error
 
+  // Atualiza status do jogo
   await supabaseClient
     .from('live_matches')
     .update({ mycroft_status: 'done' })
     .eq('match_id', payload.match_id)
 
+  // Se aprovado, cria sinal
   if (payload.verdict === 'APROVADO') {
     await supabaseClient
       .from('signals_sent')
       .insert({
         match_id: payload.match_id,
-        analysis_id: data[0]?.id,
+        market: payload.market,
+        odd: payload.odd,
+        confidence: payload.confidence,
+        sent_at: new Date().toISOString()
       })
   }
 
@@ -143,7 +163,8 @@ async function handleSignalSent(supabaseClient: any, payload: any, corsHeaders: 
     .from('signals_sent')
     .insert({
       match_id: payload.match_id,
-      analysis_id: payload.analysis_id || null,
+      channel: payload.channel || 'telegram',
+      sent_at: new Date().toISOString()
     })
     .select()
 
@@ -157,6 +178,7 @@ async function handleSignalSent(supabaseClient: any, payload: any, corsHeaders: 
 
 // Handler: scheduled_games (salvar jogos programados do dia)
 async function handleScheduledGames(supabaseClient: any, payload: any, corsHeaders: any) {
+  // Payload é array de jogos
   const games = payload.games || []
 
   if (games.length === 0) {
@@ -166,7 +188,7 @@ async function handleScheduledGames(supabaseClient: any, payload: any, corsHeade
     )
   }
 
-  // Limpa jogos antigos (>2 dias)
+  // 1. Limpa jogos antigos (>2 dias)
   const twoDaysAgo = new Date()
   twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
   
@@ -175,7 +197,7 @@ async function handleScheduledGames(supabaseClient: any, payload: any, corsHeade
     .delete()
     .lt('match_date', twoDaysAgo.toISOString().split('T')[0])
 
-  // Insere novos jogos (com upsert pra evitar duplicatas)
+  // 2. Insere novos jogos (com upsert pra evitar duplicatas)
   const { data, error } = await supabaseClient
     .from('scheduled_games')
     .upsert(
@@ -205,22 +227,26 @@ async function handleScheduledGames(supabaseClient: any, payload: any, corsHeade
   }
 
   return new Response(
-    JSON.stringify({ success: true, inserted: data.length, games: data }),
+    JSON.stringify({ 
+      success: true, 
+      inserted: data.length,
+      games: data 
+    }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
 }
 
 // Handler: get_scheduled_games (buscar jogos pra checar)
-async function handleGetScheduledGames(supabaseClient: any, _payload: any, corsHeaders: any) {
+async function handleGetScheduledGames(supabaseClient: any, payload: any, corsHeaders: any) {
   const now = new Date()
   const in15min = new Date(now.getTime() + 15 * 60 * 1000)
-  const ago5min = new Date(now.getTime() - 5 * 60 * 1000)
+  const ago60min = new Date(now.getTime() - 60 * 60 * 1000)  // Janela de 1 hora antes
 
   const { data, error } = await supabaseClient
     .from('scheduled_games')
     .select('*')
     .lte('check_time', in15min.toISOString())
-    .gte('check_time', ago5min.toISOString())
+    .gte('check_time', ago60min.toISOString())
     .eq('status', 'scheduled')
     .order('check_time', { ascending: true })
     .order('relevance_score', { ascending: false })
@@ -229,7 +255,11 @@ async function handleGetScheduledGames(supabaseClient: any, _payload: any, corsH
   if (error) throw error
 
   return new Response(
-    JSON.stringify({ success: true, count: data.length, games: data }),
+    JSON.stringify({ 
+      success: true, 
+      count: data.length,
+      games: data 
+    }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
 }
@@ -257,7 +287,11 @@ async function handleMarkChecking(supabaseClient: any, payload: any, corsHeaders
   if (error) throw error
 
   return new Response(
-    JSON.stringify({ success: true, updated: data.length, games: data }),
+    JSON.stringify({ 
+      success: true, 
+      updated: data.length,
+      games: data 
+    }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
 }
@@ -287,9 +321,9 @@ Placar: ${match.score_home} x ${match.score_away}
 Minuto: ${match.minute}'
 
 Estatísticas:
-- Posse: ${match.stats?.possession_home || 0}% x ${match.stats?.possession_away || 0}%
-- Ataques: ${match.stats?.attacks_home || 0} x ${match.stats?.attacks_away || 0}
-- Chutes: ${match.stats?.shots_home || 0} x ${match.stats?.shots_away || 0}
+- Posse: ${match.stats.possession_home}% x ${match.stats.possession_away}%
+- Ataques: ${match.stats.attacks_home} x ${match.stats.attacks_away}
+- Chutes: ${match.stats.shots_home} x ${match.stats.shots_away}
 
 Retorne sua análise em JSON.`
           }]
@@ -301,6 +335,9 @@ Retorne sua análise em JSON.`
       console.error('Mycroft API error:', await response.text())
       return
     }
+
+    // Nota: Aqui você precisaria implementar polling ou webhook
+    // pra pegar o resultado do assistant quando terminar
     
   } catch (error) {
     console.error('Error triggering Mycroft:', error)
