@@ -21,13 +21,15 @@ export function useScheduledGames() {
   const [loading, setLoading] = useState(true);
 
   const fetchGames = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const cutoff = twoDaysAgo.toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('scheduled_games')
       .select('*')
-      .gte('match_date', today)
+      .gte('match_date', cutoff)
       .order('match_datetime', { ascending: true })
-      .limit(20);
+      .limit(50);
 
     if (error) {
       console.error('Error fetching scheduled games:', error);
