@@ -927,6 +927,140 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_analyses: {
+        Row: {
+          analysis: string | null
+          analyzed_by: string | null
+          away_team: string
+          bookmaker: string
+          commence_time: string
+          confidence: number | null
+          created_at: string | null
+          estimated_probability: number | null
+          fair_odd: number | null
+          home_team: string
+          id: string
+          implied_probability: number | null
+          league: string
+          market: string
+          match_id: string
+          odd: number
+          risk_factors: string | null
+          stake_percentage: number | null
+          thesis: string | null
+          value_percentage: number | null
+          verdict: string
+        }
+        Insert: {
+          analysis?: string | null
+          analyzed_by?: string | null
+          away_team: string
+          bookmaker: string
+          commence_time: string
+          confidence?: number | null
+          created_at?: string | null
+          estimated_probability?: number | null
+          fair_odd?: number | null
+          home_team: string
+          id?: string
+          implied_probability?: number | null
+          league: string
+          market: string
+          match_id: string
+          odd: number
+          risk_factors?: string | null
+          stake_percentage?: number | null
+          thesis?: string | null
+          value_percentage?: number | null
+          verdict: string
+        }
+        Update: {
+          analysis?: string | null
+          analyzed_by?: string | null
+          away_team?: string
+          bookmaker?: string
+          commence_time?: string
+          confidence?: number | null
+          created_at?: string | null
+          estimated_probability?: number | null
+          fair_odd?: number | null
+          home_team?: string
+          id?: string
+          implied_probability?: number | null
+          league?: string
+          market?: string
+          match_id?: string
+          odd?: number
+          risk_factors?: string | null
+          stake_percentage?: number | null
+          thesis?: string | null
+          value_percentage?: number | null
+          verdict?: string
+        }
+        Relationships: []
+      }
+      punter_signals: {
+        Row: {
+          analysis_id: string | null
+          bookmaker: string
+          created_at: string | null
+          id: string
+          market: string
+          match_id: string
+          odd: number
+          profit_loss: number | null
+          result: string | null
+          resulted_at: string | null
+          sent_at: string | null
+          stake_percentage: number | null
+          status: string | null
+          updated_at: string | null
+          value_percentage: number | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          bookmaker: string
+          created_at?: string | null
+          id?: string
+          market: string
+          match_id: string
+          odd: number
+          profit_loss?: number | null
+          result?: string | null
+          resulted_at?: string | null
+          sent_at?: string | null
+          stake_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
+          value_percentage?: number | null
+        }
+        Update: {
+          analysis_id?: string | null
+          bookmaker?: string
+          created_at?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          odd?: number
+          profit_loss?: number | null
+          result?: string | null
+          resulted_at?: string | null
+          sent_at?: string | null
+          stake_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
+          value_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "punter_signals_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "punter_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       questions: {
         Row: {
           category: string
@@ -2204,6 +2338,62 @@ export type Database = {
             columns: ["signal_id"]
             isOneToOne: false
             referencedRelation: "mycroft_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      virtual_bets_punter: {
+        Row: {
+          created_at: string | null
+          id: string
+          market: string
+          match_id: string
+          match_name: string
+          odd: number
+          profit_loss: number | null
+          result: string | null
+          signal_id: string | null
+          stake: number
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          market: string
+          match_id: string
+          match_name: string
+          odd: number
+          profit_loss?: number | null
+          result?: string | null
+          signal_id?: string | null
+          stake: number
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          match_name?: string
+          odd?: number
+          profit_loss?: number | null
+          result?: string | null
+          signal_id?: string | null
+          stake?: number
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_bets_punter_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "punter_signals"
             referencedColumns: ["id"]
           },
         ]
