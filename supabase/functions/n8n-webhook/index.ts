@@ -296,50 +296,213 @@ async function handleMarkChecking(supabaseClient: any, payload: any, corsHeaders
   )
 }
 
-// Helper: Dispara análise Mycroft
+// Helper: Dispara análise Mycroft via Gemini (Lovable AI Gateway)
 async function triggerMycroftAnalysis(supabaseClient: any, match: any) {
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
-    
-    const response = await fetch('https://api.openai.com/v1/threads/runs', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-        'OpenAI-Beta': 'assistants=v2'
-      },
-      body: JSON.stringify({
-        assistant_id: 'asst_XWcpEmMgF0PsqyVlGlNs4oA7',
-        thread: {
-          messages: [{
-            role: 'user',
-            content: `Analise este jogo:
+    console.log(`[Mycroft] Analisando: ${match.home_team} vs ${match.away_team} (${match.minute}')`)
 
-${match.home_team} vs ${match.away_team}
-${match.championship}
-Placar: ${match.score_home} x ${match.score_away}
-Minuto: ${match.minute}'
+    // 1. Carregar Knowledge Base
+    let kbContent = ''
+    const { data: kbData, error: kbError } = await supabaseClient.storage
+      .from('sports-knowledge-base')
+      .download('ricardo-santos-methodology.md')
 
-Estatísticas:
-- Posse: ${match.stats.possession_home}% x ${match.stats.possession_away}%
-- Ataques: ${match.stats.attacks_home} x ${match.stats.attacks_away}
-- Chutes: ${match.stats.shots_home} x ${match.stats.shots_away}
+    if (kbError || !kbData) {
+      console.warn('[Mycroft] KB não encontrada, usando fallback mínimo')
+      kbContent = `Metodologia Ricardo Santos:
+- Assimetria mínima: 2x-3x já é suficiente
+- Padrões: Back Favorito 1T (20-40min, odds 1.70-2.30), Lay Favorito 2T (empatado 60min+), Under (jogos mortos)
+- Gestão: 5% da banca, stop loss claro
+- Calibração: 30-40% de aprovação`
+    } else {
+      kbContent = await kbData.text()
+      console.log('[Mycroft] KB carregada:', kbContent.length, 'caracteres')
+    }
 
-Retorne sua análise em JSON.`
-          }]
-        }
-      })
+    // 2. Carregar prompt customizado (opcional)
+    let customPrompt = ''
+    const { data: promptData, error: promptError } = await supabaseClient.storage
+      .from('sports-knowledge-base')
+      .download('prompt_mycroft.txt')
+
+    if (!promptError && promptData) {
+      customPrompt = await promptData.text()
+      console.log('[Mycroft] Prompt customizado carregado')
+    } else {
+      customPrompt = `Você é Mycroft, o analista de apostas esportivas da Arena Trader.
+Sua missão é analisar jogos ao vivo e identificar oportunidades baseadas em ASSIMETRIA estatística.
+
+REGRAS DE APROVAÇÃO:
+1. ASSIMETRIA mínima: 2x-3x diferença
+2. Target: 30-40% de aprovação
+3. Padrões principais: Back Favorito 1T, Lay Favorito 2T, Under
+4. Se vetando >70%, você NÃO está calibrado
+
+Retorne APENAS JSON válido, sem preamble ou markdown.`
+    }
+
+    // 3. Calcular assimetria
+    const stats = match.stats || {}
+    const safeDivide = (a: number, b: number) => (b > 0 ? a / b : 1)
+    const possessionRatio = Math.max(
+      safeDivide(stats.possession_home || 50, stats.possession_away || 50),
+      safeDivide(stats.possession_away || 50, stats.possession_home || 50)
+    )
+    const attacksRatio = Math.max(
+      safeDivide(stats.attacks_home || 0, stats.attacks_away || 1),
+      safeDivide(stats.attacks_away || 0, stats.attacks_home || 1)
+    )
+    const shotsRatio = Math.max(
+      safeDivide(stats.shots_home || 0, stats.shots_away || 1),
+      safeDivide(stats.shots_away || 0, stats.shots_home || 1)
+    )
+    const maxAssimetria = Math.max(possessionRatio, attacksRatio, shotsRatio)
+
+    console.log('[Mycroft] Assimetrias:', {
+      posse: possessionRatio.toFixed(2),
+      ataques: attacksRatio.toFixed(2),
+      chutes: shotsRatio.toFixed(2),
+      max: maxAssimetria.toFixed(2)
     })
 
-    if (!response.ok) {
-      console.error('Mycroft API error:', await response.text())
+    // 4. Montar prompt
+    const analysisPrompt = `
+${customPrompt}
+
+═══════════════════════════════════════
+JOGO AO VIVO - ANÁLISE
+═══════════════════════════════════════
+
+🏆 LIGA: ${match.championship}
+⚽ TIMES: ${match.home_team} vs ${match.away_team}
+📊 PLACAR: ${match.score_home} x ${match.score_away}
+⏱️ MINUTO: ${match.minute}' (${match.period})
+
+ESTATÍSTICAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 Posse: ${stats.possession_home}% x ${stats.possession_away}% (${possessionRatio.toFixed(2)}x)
+⚡ Ataques: ${stats.attacks_home} x ${stats.attacks_away} (${attacksRatio.toFixed(2)}x)
+🎯 Chutes: ${stats.shots_home} x ${stats.shots_away} (${shotsRatio.toFixed(2)}x)
+🔥 ASSIMETRIA MÁXIMA: ${maxAssimetria.toFixed(2)}x
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KNOWLEDGE BASE:
+${kbContent}
+
+═══════════════════════════════════════
+INSTRUÇÕES DE RESPOSTA
+═══════════════════════════════════════
+Retorne APENAS JSON válido:
+{
+  "verdict": "APROVADO" ou "VETADO",
+  "market": "Over 0.5 HT" | "Back Casa 1T" | "Lay Favorito 2T" | "Under" | null,
+  "odd": 1.85,
+  "confidence": 75,
+  "thesis": "Tese principal (2-3 linhas)",
+  "fundamentation": "Dados estatísticos",
+  "risk_management": "Gestão de risco",
+  "alerts": "Alertas importantes"
+}
+
+ANALISE AGORA:`
+
+    // 5. Chamar Gemini
+    console.log('[Mycroft] Chamando Gemini...')
+    const geminiResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') ?? ''
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: analysisPrompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+        })
+      }
+    )
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text()
+      console.error('[Mycroft] Erro Gemini:', errorText)
       return
     }
 
-    // Nota: Aqui você precisaria implementar polling ou webhook
-    // pra pegar o resultado do assistant quando terminar
-    
+    const geminiData = await geminiResponse.json()
+    const analysisText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!analysisText) {
+      console.error('[Mycroft] Gemini não retornou análise válida')
+      return
+    }
+
+    console.log('[Mycroft] Resposta recebida:', analysisText.substring(0, 200))
+
+    // Parse JSON
+    const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    let analysis
+    try {
+      analysis = JSON.parse(cleanJson)
+    } catch (parseError) {
+      console.error('[Mycroft] Erro ao parsear JSON:', cleanJson)
+      return
+    }
+
+    console.log('[Mycroft] Resultado:', analysis.verdict, '-', analysis.market)
+
+    // 6. Salvar análise no banco
+    const { data: analysisData, error: analysisError } = await supabaseClient
+      .from('mycroft_analyses')
+      .insert({
+        match_id: match.match_id,
+        verdict: analysis.verdict,
+        market: analysis.market || 'N/A',
+        odd: analysis.odd,
+        confidence: analysis.confidence,
+        thesis: analysis.thesis || '',
+        fundamentation: analysis.fundamentation,
+        risk_management: analysis.risk_management,
+        alerts: analysis.alerts ? (Array.isArray(analysis.alerts) ? analysis.alerts : [analysis.alerts]) : [],
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (analysisError) {
+      console.error('[Mycroft] Erro ao salvar análise:', analysisError)
+      return
+    }
+
+    console.log('[Mycroft] Análise salva em mycroft_analyses')
+
+    // 7. Atualizar status do jogo
+    await supabaseClient
+      .from('live_matches')
+      .update({ 
+        mycroft_status: 'done',
+        mycroft_analysis_id: analysisData.id
+      })
+      .eq('match_id', match.match_id)
+
+    console.log('[Mycroft] Status atualizado para done')
+
+    // 8. Se APROVADO, criar sinal
+    if (analysis.verdict === 'APROVADO') {
+      await supabaseClient
+        .from('signals_sent')
+        .insert({
+          match_id: match.match_id,
+          analysis_id: analysisData.id,
+          sent_telegram: false,
+          sent_whatsapp: false
+        })
+
+      console.log('[Mycroft] ✅ Sinal APROVADO registrado')
+    } else {
+      console.log('[Mycroft] ❌ Sinal VETADO - não registrado')
+    }
+
   } catch (error) {
-    console.error('Error triggering Mycroft:', error)
+    console.error('[Mycroft] Erro na análise:', error)
   }
 }
