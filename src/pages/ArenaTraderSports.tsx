@@ -48,6 +48,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   period: lm.period ?? '',
   status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
   mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
+  matchId: lm.match_id,
 });
 
 type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'simulado';
@@ -162,10 +163,12 @@ export default function ArenaTraderSports() {
         if (statusFilter === 'proximos') return false;
         // In "simulado" mode, show only sim_ matches
         if (statusFilter === 'simulado') {
-          if (!m.id.startsWith('sim_')) return false;
+          if (!m.matchId?.startsWith('sim_')) return false;
           if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
           return true;
         }
+        // In all other tabs, exclude sim_ matches
+        if (m.matchId?.startsWith('sim_')) return false;
         if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
