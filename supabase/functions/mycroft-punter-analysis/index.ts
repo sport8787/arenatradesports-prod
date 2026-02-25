@@ -20,48 +20,78 @@ serve(async (req) => {
 
     const requestBody = await req.json()
     const {
-      sport = 'soccer_brazil_campeonato',
+      sports = [
+        'soccer_brazil_campeonato',
+        'soccer_brazil_serie_b',
+        'soccer_conmebol_copa_libertadores',
+        'soccer_conmebol_copa_sudamericana',
+        'soccer_uefa_champs_league',
+        'soccer_uefa_europa_league',
+        'soccer_epl',
+        'soccer_spain_la_liga',
+        'soccer_italy_serie_a',
+        'soccer_germany_bundesliga',
+        'soccer_france_ligue_one',
+        'soccer_argentina_primera_division',
+      ],
+      // Allow single sport override for backwards compat
+      sport = null as string | null,
       hours_ahead = 48,
       bookmakers = ['bet365', 'pinnacle', 'betfair'],
       min_value = 5
     } = requestBody
 
-    console.log(`[Mycroft Punter] Sport: ${sport}, Hours: ${hours_ahead}h, Min Value: ${min_value}%`)
+    // If single sport provided, use it; otherwise use full list
+    const leaguesToScan: string[] = sport ? [sport] : sports
 
-    // 1. Busca jogos futuros (The Odds API)
+    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%`)
+
+    // 1. Busca jogos futuros (The Odds API) - múltiplas ligas
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
     if (!oddsApiKey) throw new Error('THE_ODDS_API_KEY not configured')
 
-    const oddsResponse = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sport}/odds?` +
-      `apiKey=${oddsApiKey}` +
-      `&regions=br,eu` +
-      `&markets=h2h,spreads,totals` +
-      `&bookmakers=${bookmakers.join(',')}` +
-      `&oddsFormat=decimal`,
-      { method: 'GET', headers: { 'Accept': 'application/json' } }
-    )
-
-    if (!oddsResponse.ok) {
-      throw new Error(`The Odds API error: ${oddsResponse.status}`)
-    }
-
-    const games = await oddsResponse.json()
-    console.log(`[Mycroft Punter] ${games.length} jogos encontrados`)
-
-    // Filtra jogos nas próximas X horas
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
-    const upcomingGames = games.filter((game: any) => {
-      const commenceTime = new Date(game.commence_time)
-      return commenceTime > now && commenceTime <= maxTime
-    })
+    const allUpcomingGames: any[] = []
 
-    console.log(`[Mycroft Punter] ${upcomingGames.length} jogos nas próximas ${hours_ahead}h`)
+    for (const league of leaguesToScan) {
+      try {
+        const oddsResponse = await fetch(
+          `https://api.the-odds-api.com/v4/sports/${league}/odds?` +
+          `apiKey=${oddsApiKey}` +
+          `&regions=br,eu` +
+          `&markets=h2h,spreads,totals` +
+          `&bookmakers=${bookmakers.join(',')}` +
+          `&oddsFormat=decimal`,
+          { method: 'GET', headers: { 'Accept': 'application/json' } }
+        )
+
+        if (!oddsResponse.ok) {
+          console.warn(`[Mycroft Punter] Skipping ${league}: HTTP ${oddsResponse.status}`)
+          continue
+        }
+
+        const games = await oddsResponse.json()
+        const upcoming = games.filter((game: any) => {
+          const commenceTime = new Date(game.commence_time)
+          return commenceTime > now && commenceTime <= maxTime
+        })
+
+        if (upcoming.length > 0) {
+          console.log(`[Mycroft Punter] ${league}: ${upcoming.length} jogos`)
+          allUpcomingGames.push(...upcoming)
+        }
+      } catch (err) {
+        console.warn(`[Mycroft Punter] Erro ao buscar ${league}:`, err)
+      }
+    }
+
+    const upcomingGames = allUpcomingGames
+    console.log(`[Mycroft Punter] Total: ${upcomingGames.length} jogos nas próximas ${hours_ahead}h (${leaguesToScan.length} ligas)`)
 
     if (upcomingGames.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, signals: [], total_analyzed: 0, total_approved: 0, message: `Nenhum jogo nas próximas ${hours_ahead}h` }),
+        JSON.stringify({ success: true, signals: [], total_analyzed: 0, total_approved: 0, leagues_scanned: leaguesToScan.length, message: `Nenhum jogo nas próximas ${hours_ahead}h em ${leaguesToScan.length} ligas` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -123,7 +153,7 @@ METODOLOGIA: Danilo Pereira, Netuno, análise probabilística.`
     console.log(`[Mycroft Punter] Análise completa: ${approvedSignals.length}/${totalAnalyzed} aprovados`)
 
     return new Response(
-      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, timestamp: new Date().toISOString() }),
+      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
