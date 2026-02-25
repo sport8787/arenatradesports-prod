@@ -22,6 +22,8 @@ interface FixtureStats {
   possession_away: number;
   shots_home: number;
   shots_away: number;
+  shots_total_home: number;
+  shots_total_away: number;
   xG_home: number;
   xG_away: number;
 }
@@ -57,6 +59,8 @@ async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<Fix
       possession_away: parsePct(findStat(awayStats, 'Ball Possession')),
       shots_home: parseInt(findStat(homeStats, 'Shots on Goal') || '0', 10),
       shots_away: parseInt(findStat(awayStats, 'Shots on Goal') || '0', 10),
+      shots_total_home: parseInt(findStat(homeStats, 'Total Shots') || '0', 10),
+      shots_total_away: parseInt(findStat(awayStats, 'Total Shots') || '0', 10),
       xG_home: parseFloat(findStat(homeStats, 'expected_goals') || '0'),
       xG_away: parseFloat(findStat(awayStats, 'expected_goals') || '0'),
     };
