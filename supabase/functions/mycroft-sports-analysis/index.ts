@@ -18,6 +18,8 @@ interface MatchData {
   stats?: {
     attacks_home?: number;
     attacks_away?: number;
+    dangerous_attacks_home?: number;
+    dangerous_attacks_away?: number;
     xG_home?: number;
     xG_away?: number;
     possession_home?: number;
@@ -26,6 +28,8 @@ interface MatchData {
     shots_away?: number;
     shots_total_home?: number;
     shots_total_away?: number;
+    shots_on_target_home?: number;
+    shots_on_target_away?: number;
   };
   bankroll?: number;
 }
@@ -41,10 +45,17 @@ function statsAreEmpty(stats: MatchData['stats']): boolean {
   if (!stats) return true;
   const vals = [
     stats.attacks_home, stats.attacks_away,
+    stats.dangerous_attacks_home, stats.dangerous_attacks_away,
     stats.possession_home, stats.possession_away,
     stats.shots_home, stats.shots_away,
+    stats.shots_total_home, stats.shots_total_away,
   ];
   return vals.every(v => !v || v === 0);
+}
+
+function parsePct(val: string | null): number {
+  if (!val) return 0;
+  return parseInt(val.replace('%', ''), 10) || 0;
 }
 
 function findStat(stats: any[], type: string): string | null {
@@ -86,13 +97,22 @@ async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['
       return parseInt(val.replace('%', ''), 10) || 0;
     };
 
+    const shotsInsideHome = parseInt(findStat(homeStats, 'Shots insidebox') || '0', 10);
+    const shotsInsideAway = parseInt(findStat(awayStats, 'Shots insidebox') || '0', 10);
+    
     const result = {
-      attacks_home: parseInt(findStat(homeStats, 'Dangerous Attacks') || '0', 10),
-      attacks_away: parseInt(findStat(awayStats, 'Dangerous Attacks') || '0', 10),
+      attacks_home: shotsInsideHome + parseInt(findStat(homeStats, 'Shots outsidebox') || '0', 10),
+      attacks_away: shotsInsideAway + parseInt(findStat(awayStats, 'Shots outsidebox') || '0', 10),
+      dangerous_attacks_home: shotsInsideHome,
+      dangerous_attacks_away: shotsInsideAway,
       possession_home: parsePct(findStat(homeStats, 'Ball Possession')),
       possession_away: parsePct(findStat(awayStats, 'Ball Possession')),
       shots_home: parseInt(findStat(homeStats, 'Shots on Goal') || '0', 10),
       shots_away: parseInt(findStat(awayStats, 'Shots on Goal') || '0', 10),
+      shots_total_home: parseInt(findStat(homeStats, 'Total Shots') || '0', 10),
+      shots_total_away: parseInt(findStat(awayStats, 'Total Shots') || '0', 10),
+      shots_on_target_home: parseInt(findStat(homeStats, 'Shots on Goal') || '0', 10),
+      shots_on_target_away: parseInt(findStat(awayStats, 'Shots on Goal') || '0', 10),
       xG_home: parseFloat(findStat(homeStats, 'expected_goals') || '0'),
       xG_away: parseFloat(findStat(awayStats, 'expected_goals') || '0'),
     };
@@ -177,9 +197,10 @@ Minuto: ${match.minute}' | ${match.period}
 ESTATÍSTICAS:
 ═══════════════════════════════════════
 Posse: ${stats.possession_home ?? '?'}% vs ${stats.possession_away ?? '?'}%
-Ataques Perigosos: ${stats.attacks_home ?? '?'} vs ${stats.attacks_away ?? '?'}
+Ataques Totais: ${stats.attacks_home ?? '?'} vs ${stats.attacks_away ?? '?'}
+Ataques Perigosos: ${stats.dangerous_attacks_home ?? stats.attacks_home ?? '?'} vs ${stats.dangerous_attacks_away ?? stats.attacks_away ?? '?'}
 Chutes (Total): ${stats.shots_total_home ?? stats.shots_home ?? '?'} vs ${stats.shots_total_away ?? stats.shots_away ?? '?'}
-Chutes no Gol: ${stats.shots_home ?? '?'} vs ${stats.shots_away ?? '?'}
+Chutes no Gol: ${stats.shots_on_target_home ?? stats.shots_home ?? '?'} vs ${stats.shots_on_target_away ?? stats.shots_away ?? '?'}
 xG: ${stats.xG_home ?? '?'} vs ${stats.xG_away ?? '?'}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
