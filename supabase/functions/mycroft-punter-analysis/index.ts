@@ -140,7 +140,7 @@ METODOLOGIA: Danilo Pereira, Netuno, análise probabilística.`
               home_team: game.home_team,
               away_team: game.away_team,
               commence_time: game.commence_time,
-              league: sport
+              league: game.sport_title || 'Unknown'
             },
             recommendation: analysis
           })
