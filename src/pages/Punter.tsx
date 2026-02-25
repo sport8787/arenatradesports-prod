@@ -51,6 +51,7 @@ export default function PunterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
+  const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
 
   // Load pending bets on mount
   useEffect(() => {
@@ -75,10 +76,10 @@ export default function PunterPage() {
     setLoading(true);
     setError(null);
     try {
+      const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
       const { data, error: fnError } = await supabase.functions.invoke('mycroft-punter-analysis', {
         body: {
-          sport: 'soccer_brazil_campeonato',
-          hours_ahead: 48,
+          hours_ahead: hoursAhead,
           bookmakers: ['bet365', 'pinnacle', 'betfair'],
           min_value: 5
         }
@@ -195,14 +196,36 @@ export default function PunterPage() {
         {/* Analyze Button */}
         <Card className="border-primary/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-orbitron">Analisar Jogos Programados</CardTitle>
+            <CardTitle className="text-base font-orbitron">Analisar Jogos (Todas as Ligas)</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {/* Time Window Toggle */}
+            <div className="flex gap-2">
+              <Button
+                variant={timeWindow === '15min' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('15min')}
+                className="flex-1"
+              >
+                <Clock className="w-3.5 h-3.5 mr-1" />
+                Próximos 15 min
+              </Button>
+              <Button
+                variant={timeWindow === '48h' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('48h')}
+                className="flex-1"
+              >
+                <Calendar className="w-3.5 h-3.5 mr-1" />
+                Próximas 48h
+              </Button>
+            </div>
+
             <GoldButton onClick={analyzeGames} disabled={loading} className="w-full">
               {loading ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com IA...</>
               ) : (
-                <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos (próximas 48h)</>
+                <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos ({timeWindow === '15min' ? 'próximos 15 min' : 'próximas 48h'})</>
               )}
             </GoldButton>
 
