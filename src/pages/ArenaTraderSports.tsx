@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 import { useBankroll } from '@/hooks/useBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
+import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -49,7 +50,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
   mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
 });
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'simulado';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
@@ -158,7 +159,7 @@ export default function ArenaTraderSports() {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, AGUARDAR: 1, analyzing: 1, VETADO: 2, no_value: 2 };
     return allMatches
       .filter(m => {
-        if (statusFilter === 'proximos') return false; // handled by ScheduledGamesSection
+        if (statusFilter === 'proximos' || statusFilter === 'simulado') return false;
         if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
@@ -242,25 +243,36 @@ export default function ArenaTraderSports() {
               <TabsTrigger value="live">Ao Vivo</TabsTrigger>
               <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
               <TabsTrigger value="finished">Finalizados</TabsTrigger>
+              <TabsTrigger value="simulado" className="gap-1">
+                <FlaskConical className="w-3 h-3" />
+                Simulado
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <div className="flex flex-wrap gap-2">
-            {championships.map(c => (
-              <button
-                key={c}
-                onClick={() => toggleChampionship(c)}
-                className={cn(
-                  'px-3 py-1 rounded-full text-xs font-medium border transition-all',
-                  selectedChampionships.includes(c)
-                    ? 'border-success bg-success/10 text-success'
-                    : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground'
-                )}
-              >
-                {c}
-              </button>
-            ))}
-        </div>
+          {/* Simulation Panel - shown when "Simulado" tab is active */}
+          {statusFilter === 'simulado' && (
+            <SimulationPanel />
+          )}
+
+          {statusFilter !== 'simulado' && (
+            <div className="flex flex-wrap gap-2">
+              {championships.map(c => (
+                <button
+                  key={c}
+                  onClick={() => toggleChampionship(c)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                    selectedChampionships.includes(c)
+                      ? 'border-success bg-success/10 text-success'
+                      : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground'
+                  )}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
 
         {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
         {statusFilter === 'proximos' && (
