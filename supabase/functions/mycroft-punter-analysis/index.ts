@@ -72,9 +72,11 @@ serve(async (req) => {
         }
 
         const games = await oddsResponse.json()
+        // Include games already started (up to 3h ago) + future games within window
+        const liveWindow = new Date(now.getTime() - 3 * 60 * 60 * 1000)
         const upcoming = games.filter((game: any) => {
           const commenceTime = new Date(game.commence_time)
-          return commenceTime > now && commenceTime <= maxTime
+          return commenceTime >= liveWindow && commenceTime <= maxTime
         })
 
         if (upcoming.length > 0) {
