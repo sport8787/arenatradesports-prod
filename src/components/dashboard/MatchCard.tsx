@@ -17,6 +17,7 @@ export interface Match {
   period: string;
   status: 'live' | 'scheduled' | 'finished';
   mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'AGUARDAR' | 'VETADO';
+  matchId?: string;
 }
 
 const championshipColors: Record<string, string> = {
