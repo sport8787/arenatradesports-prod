@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +63,7 @@ export default function ArenaTraderSports() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isFetchingV2, setIsFetchingV2] = useState(false);
 
   const handleFetchLiveMatches = useCallback(async () => {
     setIsFetching(true);
@@ -76,6 +77,21 @@ export default function ArenaTraderSports() {
       toast.error('Erro ao buscar jogos ao vivo');
     } finally {
       setIsFetching(false);
+    }
+  }, [refetch]);
+
+  const handleFetchV2 = useCallback(async () => {
+    setIsFetchingV2(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-live-matches-v2');
+      if (error) throw error;
+      toast.success(`API 2: ${data.total_matches} ao vivo, ${data.scheduled} agendados`);
+      refetch();
+    } catch (e) {
+      console.error('Fetch V2 error:', e);
+      toast.error('Erro ao buscar jogos (API 2)');
+    } finally {
+      setIsFetchingV2(false);
     }
   }, [refetch]);
 
@@ -190,6 +206,10 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
               {isFetching ? 'Buscando...' : 'Buscar Jogos'}
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
+              <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
+              {isFetchingV2 ? 'Buscando...' : 'API 2'}
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
