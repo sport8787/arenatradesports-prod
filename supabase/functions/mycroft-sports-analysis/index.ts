@@ -24,6 +24,8 @@ interface MatchData {
     possession_away?: number;
     shots_home?: number;
     shots_away?: number;
+    shots_total_home?: number;
+    shots_total_away?: number;
   };
   bankroll?: number;
 }
@@ -174,10 +176,11 @@ Minuto: ${match.minute}' | ${match.period}
 ═══════════════════════════════════════
 ESTATÍSTICAS:
 ═══════════════════════════════════════
-Ataques perigosos: ${stats.attacks_home ?? '?'} vs ${stats.attacks_away ?? '?'}
-xG: ${stats.xG_home ?? '?'} vs ${stats.xG_away ?? '?'}
 Posse: ${stats.possession_home ?? '?'}% vs ${stats.possession_away ?? '?'}%
-Chutes ao gol: ${stats.shots_home ?? '?'} vs ${stats.shots_away ?? '?'}
+Ataques Perigosos: ${stats.attacks_home ?? '?'} vs ${stats.attacks_away ?? '?'}
+Chutes (Total): ${stats.shots_total_home ?? stats.shots_home ?? '?'} vs ${stats.shots_total_away ?? stats.shots_away ?? '?'}
+Chutes no Gol: ${stats.shots_home ?? '?'} vs ${stats.shots_away ?? '?'}
+xG: ${stats.xG_home ?? '?'} vs ${stats.xG_away ?? '?'}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
 `;

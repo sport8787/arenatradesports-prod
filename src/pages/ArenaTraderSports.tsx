@@ -85,7 +85,7 @@ export default function ArenaTraderSports() {
     try {
       const { data, error } = await supabase.functions.invoke('fetch-live-matches-v2');
       if (error) throw error;
-      toast.success(`API 2: ${data.total_matches} ao vivo, ${data.scheduled} agendados`);
+      toast.success(`API 2: ${data.total_matches} ao vivo, ${data.analyzed} analisados, ${data.scheduled} agendados`);
       refetch();
     } catch (e) {
       console.error('Fetch V2 error:', e);
