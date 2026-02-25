@@ -159,7 +159,13 @@ export default function ArenaTraderSports() {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, AGUARDAR: 1, analyzing: 1, VETADO: 2, no_value: 2 };
     return allMatches
       .filter(m => {
-        if (statusFilter === 'proximos' || statusFilter === 'simulado') return false;
+        if (statusFilter === 'proximos') return false;
+        // In "simulado" mode, show only sim_ matches
+        if (statusFilter === 'simulado') {
+          if (!m.id.startsWith('sim_')) return false;
+          if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+          return true;
+        }
         if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
@@ -252,7 +258,7 @@ export default function ArenaTraderSports() {
 
           {/* Simulation Panel - shown when "Simulado" tab is active */}
           {statusFilter === 'simulado' && (
-            <SimulationPanel />
+            <SimulationPanel onFetched={refetch} />
           )}
 
           {statusFilter !== 'simulado' && (
