@@ -18,52 +18,81 @@ function getSupabaseAdmin() {
 interface FixtureStats {
   attacks_home: number;
   attacks_away: number;
+  dangerous_attacks_home: number;
+  dangerous_attacks_away: number;
   possession_home: number;
   possession_away: number;
   shots_home: number;
   shots_away: number;
   shots_total_home: number;
   shots_total_away: number;
+  shots_on_target_home: number;
+  shots_on_target_away: number;
   xG_home: number;
   xG_away: number;
 }
 
-function findStat(stats: any[], type: string): string | null {
-  const stat = stats.find((s: any) => s.type === type);
-  return stat?.value ?? null;
-}
-
-function parsePct(val: string | null): number {
-  if (!val) return 0;
-  return parseInt(val.replace('%', ''), 10) || 0;
+// Robust stat getter from uploaded fix - handles null, string percentages, numbers
+function getStat(stats: any[], type: string): number {
+  const found = stats.find((s: any) => s.type === type);
+  if (!found) return 0;
+  const value = found.value;
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'string') {
+    return parseInt(value.replace('%', ''), 10) || 0;
+  }
+  return typeof value === 'number' ? value : 0;
 }
 
 async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<FixtureStats | null> {
   try {
+    console.log(`[FetchLive] 🔍 Fetching stats for fixture ${fixtureId}...`);
     const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
+      return null;
+    }
 
     const data = await res.json();
     const teams = data.response;
-    if (!teams || teams.length < 2) return null;
+    if (!teams || teams.length < 2) {
+      console.warn(`[FetchLive] No team stats returned for fixture ${fixtureId}`);
+      return null;
+    }
 
     const homeStats = teams[0].statistics || [];
     const awayStats = teams[1].statistics || [];
 
-    return {
-      attacks_home: parseInt(findStat(homeStats, 'Dangerous Attacks') || '0', 10),
-      attacks_away: parseInt(findStat(awayStats, 'Dangerous Attacks') || '0', 10),
-      possession_home: parsePct(findStat(homeStats, 'Ball Possession')),
-      possession_away: parsePct(findStat(awayStats, 'Ball Possession')),
-      shots_home: parseInt(findStat(homeStats, 'Shots on Goal') || '0', 10),
-      shots_away: parseInt(findStat(awayStats, 'Shots on Goal') || '0', 10),
-      shots_total_home: parseInt(findStat(homeStats, 'Total Shots') || '0', 10),
-      shots_total_away: parseInt(findStat(awayStats, 'Total Shots') || '0', 10),
-      xG_home: parseFloat(findStat(homeStats, 'expected_goals') || '0'),
-      xG_away: parseFloat(findStat(awayStats, 'expected_goals') || '0'),
+    // Log raw stat types for debugging
+    const statTypes = homeStats.map((s: any) => `${s.type}: ${s.value}`).join(', ');
+    console.log(`[FetchLive] 📊 Raw home stats for ${fixtureId}: ${statTypes.substring(0, 300)}`);
+
+    // API-Football uses 'Shots insidebox' as proxy for dangerous attacks (no 'Dangerous Attacks' field)
+    const shotsInsideHome = getStat(homeStats, 'Shots insidebox');
+    const shotsInsideAway = getStat(awayStats, 'Shots insidebox');
+    
+    const result: FixtureStats = {
+      attacks_home: shotsInsideHome + getStat(homeStats, 'Shots outsidebox'),
+      attacks_away: shotsInsideAway + getStat(awayStats, 'Shots outsidebox'),
+      dangerous_attacks_home: shotsInsideHome,
+      dangerous_attacks_away: shotsInsideAway,
+      possession_home: getStat(homeStats, 'Ball Possession'),
+      possession_away: getStat(awayStats, 'Ball Possession'),
+      shots_home: getStat(homeStats, 'Shots on Goal'),
+      shots_away: getStat(awayStats, 'Shots on Goal'),
+      shots_total_home: getStat(homeStats, 'Total Shots'),
+      shots_total_away: getStat(awayStats, 'Total Shots'),
+      shots_on_target_home: getStat(homeStats, 'Shots on Goal'),
+      shots_on_target_away: getStat(awayStats, 'Shots on Goal'),
+      xG_home: parseFloat(String(getStat(homeStats, 'expected_goals'))) || 0,
+      xG_away: parseFloat(String(getStat(awayStats, 'expected_goals'))) || 0,
     };
+
+    console.log(`[FetchLive] 📊 Parsed stats: Posse ${result.possession_home}%-${result.possession_away}% | Ataques ${result.attacks_home}-${result.attacks_away} | Perigosos ${result.dangerous_attacks_home}-${result.dangerous_attacks_away} | Chutes ${result.shots_total_home}-${result.shots_total_away} (Gol: ${result.shots_home}-${result.shots_away})`);
+
+    return result;
   } catch (e) {
     console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
     return null;
@@ -110,7 +139,7 @@ serve(async (req) => {
     const results: any[] = [];
     let analyzedCount = 0;
 
-    // 2. Process each fixture
+    // 2. Process each fixture - only fetch stats for matches >= 20 min to save API calls
     for (const fixture of fixtures) {
       const fixtureId = String(fixture.fixture.id);
       const minute = fixture.fixture.status?.elapsed ?? 0;
@@ -132,8 +161,11 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // 3. Fetch stats for this fixture
-      const stats = await fetchFixtureStats(fixture.fixture.id, apiKey);
+      // 3. Only fetch stats for matches >= 20 min (save API quota)
+      let stats: FixtureStats | null = null;
+      if (minute >= 20) {
+        stats = await fetchFixtureStats(fixture.fixture.id, apiKey);
+      }
 
       // 4. Upsert match (preserve mycroft fields)
       const { data: existing } = await supabase
@@ -157,8 +189,13 @@ serve(async (req) => {
         .from('live_matches')
         .upsert(upsertData, { onConflict: 'match_id' });
 
-      // 5. Auto-trigger Mycroft if match is >= 20 min and not yet analyzed (or was AGUARDAR)
-      const shouldAnalyze = minute >= 20 && stats &&
+      // 5. Auto-trigger Mycroft if match is >= 20 min, has non-zero stats, and not yet analyzed
+      const hasRealStats = stats && (
+        (stats.attacks_home + stats.attacks_away) > 0 ||
+        (stats.shots_total_home + stats.shots_total_away) > 0 ||
+        (stats.possession_home + stats.possession_away) > 0
+      );
+      const shouldAnalyze = minute >= 20 && hasRealStats &&
         (!existing?.mycroft_analysis_id || existing?.mycroft_status === 'aguardar');
 
       if (shouldAnalyze) {
