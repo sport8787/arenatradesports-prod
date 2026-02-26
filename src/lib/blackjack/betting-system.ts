@@ -63,10 +63,11 @@ export function getOptimalBet(
   }
 
   if (trueCount < 0) {
-    const safeBet = Math.min(config.baseUnit, bankroll * 0.1);
+    // Respect martingale progression even with negative TC
+    const safeBet = Math.min(martingaleBet, bankroll * 0.1);
     return {
-      amount: safeBet, units: 1,
-      reason: `TC ${trueCount}: Baralho desfavorável`, basedOn: 'true_count',
+      amount: Math.max(safeBet, config.baseUnit), units: Math.max(safeBet, config.baseUnit) / config.baseUnit,
+      reason: `TC ${trueCount}: Baralho desfavorável`, basedOn: 'both',
       warning: 'Considere sair da mesa.'
     };
   }
