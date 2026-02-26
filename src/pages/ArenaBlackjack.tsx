@@ -30,7 +30,7 @@ import {
 } from '@/lib/blackjack/betting-system';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'select_player' | 'action' | 'hit_card' | 'select_dealer2' | 'result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'select_dealer2' | 'result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -213,7 +213,28 @@ export default function ArenaBlackjack() {
   const handleSelectDealerUpCard = (card: string) => {
     setDealerCards([card]);
     addToCount([card]);
-    setHandStep('select_player');
+    if (card === 'A') {
+      setHandStep('insurance_check');
+    } else {
+      setHandStep('select_player');
+    }
+  };
+
+  const handleInsuranceResponse = (dealerHasBJ: boolean, holeCard: string) => {
+    // Add the hole card for counting
+    const newDealerCards = [...dealerCards, holeCard];
+    setDealerCards(newDealerCards);
+    addToCount([holeCard]);
+    if (dealerHasBJ) {
+      // Dealer BJ → hand over, go to result (auto-loss unless player also has BJ)
+      setHandStep('result');
+    } else {
+      // No dealer BJ → continue normally, but we already know the hole card
+      // Remove the hole card from dealerCards so the flow stays normal
+      // Actually keep it hidden — reset to just upcard, count already updated
+      setDealerCards([dealerCards[0]]);
+      setHandStep('select_player');
+    }
   };
 
   const handleSelectPlayerCard = (card: string) => {
@@ -506,6 +527,7 @@ export default function ArenaBlackjack() {
   // ═══ PLAYING PHASE ═══
   const { total: playerTotal } = playerCards.length > 0 ? calculateHandTotal(playerCards) : { total: 0 };
   const isBust = playerTotal > 21;
+  const isDealerBJ = dealerCards.length === 2 && playerCards.length === 0 && calculateHandTotal(dealerCards).total === 21;
 
   return (
     <div className="min-h-screen bg-background p-3 pb-6">
@@ -615,6 +637,38 @@ export default function ArenaBlackjack() {
               </>
             )}
 
+            {/* STEP 1b: Insurance check when dealer shows Ace */}
+            {handStep === 'insurance_check' && (
+              <>
+                <StepLabel text="🛡️ Dealer mostra Ás — Seguro?" active />
+                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-center space-y-3">
+                  <p className="text-sm font-bold text-destructive">❌ RECUSE O SEGURO</p>
+                  <p className="text-xs text-muted-foreground">Estatisticamente o seguro é sempre um mau negócio para o jogador.</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-center font-semibold text-foreground">O Dealer fez Blackjack?</p>
+                  <p className="text-xs text-center text-muted-foreground mb-2">Selecione a segunda carta do dealer para a contagem:</p>
+                  <div className="grid grid-cols-7 gap-2">
+                    {['A','2','3','4','5','6','7','8','9','10','J','Q','K'].map(v => {
+                      const isTenValue = ['10','J','Q','K'].includes(v);
+                      return (
+                        <motion.button key={`ins-${v}`} whileTap={{ scale: 0.9 }}
+                          onClick={() => handleInsuranceResponse(isTenValue, v)}
+                          className={`py-3 rounded-lg font-bold text-sm border transition-all ${
+                            isTenValue
+                              ? 'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30'
+                              : 'bg-secondary/50 border-border text-foreground hover:bg-secondary'
+                          }`}>
+                          {v}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-center text-muted-foreground">Cartas vermelhas = Dealer fez BJ (10, J, Q, K)</p>
+                </div>
+              </>
+            )}
+
             {/* STEP 2: Select player initial cards (need at least 2) */}
             {handStep === 'select_player' && (
               <>
@@ -703,7 +757,18 @@ export default function ArenaBlackjack() {
             {/* STEP 5: Result */}
             {handStep === 'result' && (
               <>
-                {isBust ? (
+                {isDealerBJ ? (
+                  <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                    className="text-center p-4 rounded-xl bg-[hsl(var(--destructive)_/_0.1)] border border-[hsl(var(--destructive)_/_0.3)] space-y-3">
+                    <div className="text-3xl font-orbitron font-bold text-[hsl(var(--destructive))]">🃏 DEALER BLACKJACK</div>
+                    <div className="text-sm text-muted-foreground">Dealer: A + {dealerCards[1]} = 21</div>
+                    <motion.button whileTap={{ scale: 0.95 }}
+                      onClick={() => handleResult('loss')}
+                      className="w-full py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all">
+                      ❌ PERDI — Próxima mão
+                    </motion.button>
+                  </motion.div>
+                ) : isBust ? (
                   <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}
                     className="text-center p-4 rounded-xl bg-[hsl(var(--destructive)_/_0.1)] border border-[hsl(var(--destructive)_/_0.3)]">
                     <div className="text-3xl font-orbitron font-bold text-[hsl(var(--destructive))]">💥 BUST!</div>
@@ -713,34 +778,36 @@ export default function ArenaBlackjack() {
                   <StepLabel text="📍 Resultado da mão" active />
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  {!isBust && (
+                {!isDealerBJ && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {!isBust && (
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => handleResult('blackjack')}
+                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all">
+                        🃏 BJ
+                      </motion.button>
+                    )}
+                    {!isBust && (
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => handleResult('win')}
+                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--success))] text-white hover:bg-[hsl(var(--success)_/_0.8)] transition-all">
+                        ✅ GANHEI
+                      </motion.button>
+                    )}
                     <motion.button whileTap={{ scale: 0.95 }}
-                      onClick={() => handleResult('blackjack')}
-                      className="py-5 rounded-xl font-orbitron font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all">
-                      🃏 BJ
+                      onClick={() => handleResult('loss')}
+                      className={`py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all ${isBust ? 'col-span-2' : ''}`}>
+                      ❌ PERDI
                     </motion.button>
-                  )}
-                  {!isBust && (
-                    <motion.button whileTap={{ scale: 0.95 }}
-                      onClick={() => handleResult('win')}
-                      className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--success))] text-white hover:bg-[hsl(var(--success)_/_0.8)] transition-all">
-                      ✅ GANHEI
-                    </motion.button>
-                  )}
-                  <motion.button whileTap={{ scale: 0.95 }}
-                    onClick={() => handleResult('loss')}
-                    className={`py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all ${isBust ? 'col-span-2' : ''}`}>
-                    ❌ PERDI
-                  </motion.button>
-                  {!isBust && (
-                    <motion.button whileTap={{ scale: 0.95 }}
-                      onClick={() => handleResult('push')}
-                      className="py-5 rounded-xl font-orbitron font-bold text-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-all border border-border">
-                      🤝 EMPATE
-                    </motion.button>
-                  )}
-                </div>
+                    {!isBust && (
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => handleResult('push')}
+                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-all border border-border">
+                        🤝 EMPATE
+                      </motion.button>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </CardContent>
