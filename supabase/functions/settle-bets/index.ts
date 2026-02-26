@@ -174,15 +174,13 @@ Deno.serve(async (req) => {
       const betResult = result.isGreen ? 'green' : 'red';
 
       // Update bet record
+      const updatePayload = bet.table === 'virtual_bets'
+        ? { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() }
+        : { status: 'settled', result: betResult, profit_loss: profitLoss, updated_at: new Date().toISOString() };
+
       const { error: updateErr } = await supabase
         .from(bet.table)
-        .update({
-          status: 'settled',
-          result: bet.table === 'virtual_bets_punter' ? betResult : undefined,
-          profit_loss: profitLoss,
-          settled_at: bet.table === 'virtual_bets' ? new Date().toISOString() : undefined,
-          updated_at: bet.table === 'virtual_bets_punter' ? new Date().toISOString() : undefined,
-        })
+        .update(updatePayload)
         .eq('id', bet.id);
 
       if (updateErr) {
