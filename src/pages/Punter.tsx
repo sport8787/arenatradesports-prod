@@ -1,14 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft, Brain, Clock
+  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -52,6 +55,10 @@ export default function PunterPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyBets, setHistoryBets] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
 
   // Load pending bets on mount
   useEffect(() => {
@@ -67,6 +74,23 @@ export default function PunterPage() {
     };
     loadPendingBets();
   }, [user]);
+
+  const fetchHistory = useCallback(async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('virtual_bets_punter')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setHistoryBets(data || []);
+    setHistoryLoading(false);
+  }, [user]);
+
+  const openHistory = () => {
+    setIsHistoryOpen(true);
+    fetchHistory();
+  };
 
   const analyzeGames = async () => {
     if (!user) {
@@ -171,6 +195,10 @@ export default function PunterPage() {
                 </span>
               </div>
             )}
+            <GoldButton size="sm" variant="outline" onClick={openHistory}>
+              <History className="w-4 h-4 mr-1" />
+              Histórico
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               KB
@@ -329,6 +357,16 @@ export default function PunterPage() {
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
       />
+
+      {/* Punter History Sheet */}
+      <PunterHistorySheet
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        bets={historyBets}
+        loading={historyLoading}
+        filter={historyFilter}
+        onFilterChange={setHistoryFilter}
+      />
     </div>
   );
 }
@@ -446,5 +484,140 @@ function InfoBox({ label, value, icon, highlight = false }: { label: string; val
       </div>
       <div className={`text-sm font-bold ${highlight ? 'text-success text-base' : 'text-foreground'}`}>{value}</div>
     </div>
+  );
+}
+
+// Punter History Sheet
+function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange }: {
+  isOpen: boolean;
+  onClose: () => void;
+  bets: any[];
+  loading: boolean;
+  filter: 'all' | 'pending' | 'green' | 'red';
+  onFilterChange: (f: 'all' | 'pending' | 'green' | 'red') => void;
+}) {
+  const filtered = bets.filter(b => {
+    if (filter === 'all') return true;
+    if (filter === 'pending') return b.status === 'pending';
+    if (filter === 'green') return b.status === 'green' || b.result === 'green';
+    if (filter === 'red') return b.status === 'red' || b.result === 'red';
+    return true;
+  });
+
+  const greens = bets.filter(b => b.status === 'green' || b.result === 'green').length;
+  const reds = bets.filter(b => b.status === 'red' || b.result === 'red').length;
+  const totalPL = bets.reduce((sum: number, b: any) => sum + (parseFloat(b.profit_loss) || 0), 0);
+
+  const formatDate = (d: string) => {
+    const date = new Date(d);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="font-orbitron flex items-center gap-2">
+            <History className="w-5 h-5 text-primary" />
+            Histórico Punter
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-4 space-y-4">
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-secondary/30 rounded-lg p-2 text-center">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="font-orbitron font-bold text-foreground">{bets.length}</p>
+            </div>
+            <div className="bg-success/10 rounded-lg p-2 text-center">
+              <p className="text-xs text-muted-foreground">Green</p>
+              <p className="font-orbitron font-bold text-success">{greens}</p>
+            </div>
+            <div className="bg-destructive/10 rounded-lg p-2 text-center">
+              <p className="text-xs text-muted-foreground">Red</p>
+              <p className="font-orbitron font-bold text-destructive">{reds}</p>
+            </div>
+            <div className={cn("rounded-lg p-2 text-center", totalPL >= 0 ? 'bg-success/10' : 'bg-destructive/10')}>
+              <p className="text-xs text-muted-foreground">P/L</p>
+              <p className={cn("font-orbitron font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
+                R$ {totalPL.toFixed(0)}
+              </p>
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <Tabs value={filter} onValueChange={v => onFilterChange(v as any)}>
+            <TabsList className="bg-secondary/50 w-full">
+              <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
+              <TabsTrigger value="pending" className="flex-1">Pendentes</TabsTrigger>
+              <TabsTrigger value="green" className="flex-1">Green</TabsTrigger>
+              <TabsTrigger value="red" className="flex-1">Red</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Bet list */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Clock className="w-5 h-5 text-primary animate-spin" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Nenhuma aposta encontrada</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <AnimatePresence>
+                {filtered.map((bet: any, i: number) => {
+                  const status = bet.result || bet.status;
+                  return (
+                    <motion.div
+                      key={bet.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      className={cn(
+                        "bg-card border rounded-xl p-3 space-y-1.5",
+                        status === 'green' ? 'border-success/40' :
+                        status === 'red' ? 'border-destructive/40' :
+                        'border-border'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-orbitron text-sm font-bold text-foreground truncate max-w-[180px]">
+                          {bet.match_name || bet.match_id}
+                        </span>
+                        {status === 'green' ? (
+                          <Badge className="bg-success/20 text-success border-success/30 text-[10px]">GREEN ✅</Badge>
+                        ) : status === 'red' ? (
+                          <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">RED ❌</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-warning border-warning/30 text-[10px]">PENDENTE ⏳</Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        <span>{bet.market}</span>
+                        <span>Odd: {parseFloat(bet.odd).toFixed(2)}</span>
+                        <span>R$ {parseFloat(bet.stake).toFixed(2)}</span>
+                        <span>{formatDate(bet.created_at)}</span>
+                      </div>
+                      {bet.profit_loss != null && status !== 'pending' && (
+                        <p className={cn(
+                          "text-sm font-orbitron font-bold",
+                          parseFloat(bet.profit_loss) >= 0 ? 'text-success' : 'text-destructive'
+                        )}>
+                          {parseFloat(bet.profit_loss) >= 0 ? '+' : ''}R$ {parseFloat(bet.profit_loss).toFixed(2)}
+                        </p>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
