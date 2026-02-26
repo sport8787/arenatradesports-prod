@@ -149,6 +149,16 @@ export function useBankroll() {
     return { success: true };
   }, []);
 
+  const settleBets = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('settle-bets');
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }, []);
+
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
   return {
@@ -156,6 +166,7 @@ export function useBankroll() {
     loading,
     placeBet,
     dismissBet,
+    settleBets,
     recommendedStake,
   };
 }
