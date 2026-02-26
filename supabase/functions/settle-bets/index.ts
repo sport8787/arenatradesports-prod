@@ -54,8 +54,11 @@ Deno.serve(async (req) => {
       'soccer_italy_serie_a',
       'soccer_france_ligue_one',
       'soccer_uefa_champs_league',
+      'soccer_uefa_europa_league',
+      'soccer_uefa_europa_conference_league',
       'soccer_conmebol_libertadores',
       'soccer_south_america_copa_sudamericana',
+      'soccer_argentina_primera_division',
     ];
 
     const allScores: any[] = [];
@@ -79,10 +82,11 @@ Deno.serve(async (req) => {
     const completedGames = allScores.filter((g: any) => g.completed === true && g.scores);
 
     console.log(`${completedGames.length} completed games found`);
-
     // 3. Build a lookup map: normalize team names for matching
     const normalize = (name: string) =>
       name.toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\d{4}-\d{2}-\d{2}t[\d:z]+/gi, '')
         .replace(/[^a-záàãâéêíóôõúüç\s]/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
