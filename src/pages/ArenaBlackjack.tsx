@@ -25,9 +25,16 @@ import {
   type CountingState, type SessionStats, type TrapDetection
 } from '@/lib/blackjack/counting-and-trap';
 import {
-  calculateNextBet, getOptimalBet, shouldStopBetting,
-  calculateProfit, validateBettingConfig, type BettingConfig
-} from '@/lib/blackjack/betting-system';
+  type BettingMode,
+  type BettingConfig as HybridBettingConfig,
+  type BettingState,
+  type BetRecommendation,
+  getOptimalBet as getHybridOptimalBet,
+  calculatePlayerEdge,
+} from '@/lib/hybrid-betting-system';
+import { calculateProfit } from '@/lib/blackjack/betting-system';
+import { MiniHybridDisplay } from '@/components/arena-blackjack/HybridBettingDisplay';
+import { BettingSystemSelector } from '@/components/arena-blackjack/BettingSystemSelector';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
 type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
@@ -49,7 +56,6 @@ const VARIANTS = [
   { value: 'double_exposure', label: 'Double Exposure', decks: 8 },
 ];
 
-// Simple value-only card button grid (no suits)
 function ValueCardGrid({ onSelect, disabled }: { onSelect: (val: string) => void; disabled?: boolean }) {
   return (
     <div className="grid grid-cols-7 gap-2">
@@ -58,7 +64,7 @@ function ValueCardGrid({ onSelect, disabled }: { onSelect: (val: string) => void
           key={v}
           whileTap={{ scale: 0.9 }}
           disabled={disabled}
-          onClick={() => onSelect(v + 'S')} // append dummy suit for engine compatibility
+          onClick={() => onSelect(v + 'S')}
           className={`h-12 rounded-lg text-base font-bold transition-all
             ${disabled
               ? 'bg-muted/30 text-muted-foreground/30 cursor-not-allowed'
@@ -72,7 +78,6 @@ function ValueCardGrid({ onSelect, disabled }: { onSelect: (val: string) => void
   );
 }
 
-// Mini card display (value only)
 function MiniCard({ card }: { card: string }) {
   const rank = card.slice(0, -1);
   const isRed = ['H', 'D'].includes(card.slice(-1));
@@ -89,7 +94,6 @@ function MiniCard({ card }: { card: string }) {
   );
 }
 
-// Step indicator with label
 function StepLabel({ text, active }: { text: string; active?: boolean }) {
   return (
     <motion.div
@@ -125,20 +129,34 @@ export default function ArenaBlackjack() {
   const [handStep, setHandStep] = useState<HandStep>('select_dealer');
 
   // Config
-  const [config, setConfig] = useState<BettingConfig & { casino: string; variant: string; decks: number; initialBankroll: number }>({
+  const [config, setConfig] = useState({
     casino: 'Online', variant: 'classic', decks: 6,
     initialBankroll: 500, baseUnit: 5, increment: 2,
     maxBet: 50, stopLoss: 100, stopWin: 150,
     blackjackPayout: 1.5, useCounting: true,
   });
 
+  // Hybrid betting config
+  const [bettingMode, setBettingMode] = useState<BettingMode>('hybrid');
+  const [kellyFraction, setKellyFraction] = useState<0.25 | 0.5 | 1.0>(0.5);
+
   // Game state
   const [bankroll, setBankroll] = useState(500);
   const [playerCards, setPlayerCards] = useState<string[]>([]);
-  const [dealerCards, setDealerCards] = useState<string[]>([]); // [upcard, hole card]
+  const [dealerCards, setDealerCards] = useState<string[]>([]);
   const [currentBet, setCurrentBet] = useState(5);
-  const [lastWinBet, setLastWinBet] = useState(5);
   const [lastAction, setLastAction] = useState<Action | null>(null);
+
+  // Hybrid betting state
+  const [bettingState, setBettingState] = useState<BettingState>({
+    currentBet: 5,
+    lastWinBet: 5,
+    consecutiveLosses: 0,
+    consecutiveWins: 0,
+    totalHands: 0,
+    totalProfit: 0,
+  });
+  const [lastResult, setLastResult] = useState<'win' | 'loss' | 'push' | null>(null);
 
   // Split state
   const [splitMode, setSplitMode] = useState(false);
@@ -156,7 +174,6 @@ export default function ArenaBlackjack() {
   const [handsLost, setHandsLost] = useState(0);
   const [consecutiveLosses, setConsecutiveLosses] = useState(0);
   const [resultHistory, setResultHistory] = useState<('win' | 'loss' | 'push')[]>([]);
-  const [lastResult, setLastResult] = useState<HandResult | null>(null);
 
   // UI
   const [trapDetection, setTrapDetection] = useState<TrapDetection | null>(null);
@@ -181,9 +198,39 @@ export default function ArenaBlackjack() {
   const countIndicator = getCountIndicator(countingState.trueCount);
   const canShowDecision = activeCards.length >= 2 && dealerCards.length >= 1;
   const decision = canShowDecision ? getOptimalDecision(hand, dealerCards[0], countingState.trueCount) : null;
-  const optimalBet = getOptimalBet(config, currentBet, countingState.trueCount, bankroll);
   const profit = bankroll - config.initialBankroll;
   const roi = config.initialBankroll > 0 ? ((profit / config.initialBankroll) * 100).toFixed(1) : '0';
+
+  // ═══ Hybrid bet recommendation ═══
+  const hybridConfig: HybridBettingConfig = {
+    mode: bettingMode,
+    baseUnit: config.baseUnit,
+    bankroll,
+    initialBankroll: config.initialBankroll,
+    increment: config.increment,
+    maxBet: config.maxBet,
+    kellyFraction,
+    stopLoss: config.stopLoss,
+    stopWin: config.stopWin,
+    blackjackPayout: config.blackjackPayout,
+    hybridConfig: {
+      protectiveThreshold: -1,
+      recoveryThreshold: 0,
+      attackThreshold: 2,
+    },
+  };
+
+  let hybridRecommendation: BetRecommendation | null = null;
+  try {
+    hybridRecommendation = getHybridOptimalBet(
+      hybridConfig,
+      bettingState,
+      countingState.trueCount,
+      lastResult
+    );
+  } catch {
+    // stop loss/win reached — handled elsewhere
+  }
 
   // ═══ Card counting helper ═══
   const addToCount = useCallback((cards: string[]) => {
@@ -193,15 +240,60 @@ export default function ArenaBlackjack() {
     setDecksRemaining(estimateDecksRemaining(config.decks, cardsSeen + cards.length));
   }, [runningCount, cardsSeen, config.decks]);
 
+  // ═══ Update betting state after result ═══
+  const updateBettingState = (result: HandResult, bet: number) => {
+    const mappedResult = result === 'blackjack' ? 'win' : result;
+    const profitAmount = calculateProfit(result, bet, config.blackjackPayout);
+
+    setBettingState(prev => {
+      const newState = { ...prev };
+      newState.totalHands++;
+      newState.totalProfit += profitAmount;
+      
+      if (mappedResult === 'win') {
+        newState.consecutiveLosses = 0;
+        newState.consecutiveWins++;
+        newState.lastWinBet = bet;
+      } else if (mappedResult === 'loss') {
+        newState.consecutiveLosses++;
+        newState.consecutiveWins = 0;
+      }
+      
+      // Get next recommended bet
+      try {
+        const nextConfig: HybridBettingConfig = {
+          ...hybridConfig,
+          bankroll: bankroll + profitAmount,
+        };
+        const nextRec = getHybridOptimalBet(
+          nextConfig,
+          newState,
+          countingState.trueCount,
+          mappedResult
+        );
+        newState.currentBet = nextRec.amount;
+      } catch {
+        newState.currentBet = config.baseUnit;
+      }
+      
+      return newState;
+    });
+
+    setLastResult(mappedResult);
+  };
+
   // ═══ Handlers ═══
   const startSession = async () => {
-    const validation = validateBettingConfig(config, config.initialBankroll);
-    if (!validation.valid) { validation.errors.forEach(e => toast.error(e)); return; }
-    validation.warnings.forEach(w => toast.warning(w));
-
     setBankroll(config.initialBankroll);
     setCurrentBet(config.baseUnit);
-    setLastWinBet(config.baseUnit);
+    setBettingState({
+      currentBet: config.baseUnit,
+      lastWinBet: config.baseUnit,
+      consecutiveLosses: 0,
+      consecutiveWins: 0,
+      totalHands: 0,
+      totalProfit: 0,
+    });
     setDecksRemaining(config.decks);
     setRunningCount(0); setCardsSeen(0);
     setHandsPlayed(0); setHandsWon(0); setHandsLost(0);
@@ -236,17 +328,12 @@ export default function ArenaBlackjack() {
   };
 
   const handleInsuranceResponse = (dealerHasBJ: boolean, holeCard: string) => {
-    // Add the hole card for counting
     const newDealerCards = [...dealerCards, holeCard];
     setDealerCards(newDealerCards);
     addToCount([holeCard]);
     if (dealerHasBJ) {
-      // Dealer BJ → hand over, go to result (auto-loss unless player also has BJ)
       setHandStep('result');
     } else {
-      // No dealer BJ → continue normally, but we already know the hole card
-      // Remove the hole card from dealerCards so the flow stays normal
-      // Actually keep it hidden — reset to just upcard, count already updated
       setDealerCards([dealerCards[0]]);
       setHandStep('select_player');
     }
@@ -264,11 +351,9 @@ export default function ArenaBlackjack() {
   const handleAction = (action: Action) => {
     setLastAction(action);
     if (splitMode) {
-      // Actions within a split hand
       if (action === 'hit') {
         setHandStep('split_hit_card');
       } else if (action === 'double') {
-        // Double within split: double this hand's bet
         setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, bet: h.bet * 2, doubled: true } : h));
         setHandStep('split_double_card');
       } else if (action === 'stand') {
@@ -314,7 +399,6 @@ export default function ArenaBlackjack() {
     addToCount([card]);
     const { total } = calculateHandTotal(newCards);
     if (total > 21) {
-      // Bust on this split hand → mark as loss and move to next
       setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards, result: 'loss' } : h));
       advanceToNextSplitHand();
     } else {
@@ -330,13 +414,11 @@ export default function ArenaBlackjack() {
     if (total > 21) {
       setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards, result: 'loss' } : h));
     }
-    // After double, must stand → advance
     advanceToNextSplitHand();
   };
 
   const advanceToNextSplitHand = () => {
     if (activeSplitHand === 0) {
-      // Move to hand 2
       setActiveSplitHand(1);
       if (splitHands[1].cards.length < 2) {
         setHandStep('split_select_card');
@@ -345,47 +427,44 @@ export default function ArenaBlackjack() {
         setHandStep('split_action');
       }
     } else {
-      // Both hands done → go to dealer
       setHandStep('select_dealer2');
     }
   };
 
   const handleSplitResults = async () => {
-    // Process results for each split hand
-    let totalProfit = 0;
+    let totalProfitAmount = 0;
     for (const sh of splitHands) {
       if (sh.result) {
-        totalProfit += calculateProfit(sh.result, sh.bet, config.blackjackPayout);
+        totalProfitAmount += calculateProfit(sh.result, sh.bet, config.blackjackPayout);
       }
     }
-    const newBankroll = bankroll + totalProfit;
+    const newBankroll = bankroll + totalProfitAmount;
     setBankroll(newBankroll);
 
     const totalBet = splitHands.reduce((s, h) => s + h.bet, 0);
-    const overallResult: HandResult = totalProfit > 0 ? 'win' : totalProfit < 0 ? 'loss' : 'push';
+    const overallResult: HandResult = totalProfitAmount > 0 ? 'win' : totalProfitAmount < 0 ? 'loss' : 'push';
 
-    const { newBet, newLastWinBet } = calculateNextBet(config, overallResult, totalBet, lastWinBet);
-    setCurrentBet(newBet);
-    setLastWinBet(newLastWinBet);
+    updateBettingState(overallResult, totalBet);
+    setCurrentBet(bettingState.currentBet);
 
     setHandsPlayed(prev => prev + 1);
     if (overallResult === 'win') { setHandsWon(prev => prev + 1); setConsecutiveLosses(0); }
     else if (overallResult === 'loss') { setHandsLost(prev => prev + 1); setConsecutiveLosses(prev => prev + 1); }
 
     const mappedResult = overallResult;
-    setResultHistory(prev => [...prev.slice(-19), mappedResult]);
-    setLastResult(overallResult);
+    setResultHistory(prev => [...prev.slice(-19), mappedResult as 'win' | 'loss' | 'push']);
 
     // Check stop
-    const stopCheck = shouldStopBetting(config, newBankroll, config.initialBankroll);
-    if (stopCheck.shouldStop) {
-      setStopReason(stopCheck.reason);
+    const profitNow = newBankroll - config.initialBankroll;
+    if ((Math.abs(profitNow) >= config.stopLoss && profitNow < 0) || profitNow >= config.stopWin) {
+      setStopReason(profitNow >= config.stopWin ? 'stop_win' : 'stop_loss');
       setPhase('stopped');
       return;
     }
 
     resetHand();
   };
+
   const handleDoubleCard = (card: string) => {
     const newCards = [...playerCards, card];
     setPlayerCards(newCards);
@@ -409,10 +488,8 @@ export default function ArenaBlackjack() {
     const newDealerCards = [...dealerCards, card];
     setDealerCards(newDealerCards);
     addToCount([card]);
-    // Dealer must draw until 17+
     const { total: dealerTotal } = calculateHandTotal(newDealerCards);
     if (dealerTotal < 17) {
-      // Stay in select_dealer2 to get more cards
       setHandStep('select_dealer2');
     } else {
       setHandStep(splitMode ? 'split_result' : 'result');
@@ -424,9 +501,7 @@ export default function ArenaBlackjack() {
     const newBankroll = bankroll + profitAmount;
     setBankroll(newBankroll);
 
-    const { newBet, newLastWinBet } = calculateNextBet(config, result, currentBet, lastWinBet);
-    setCurrentBet(newBet);
-    setLastWinBet(newLastWinBet);
+    updateBettingState(result, currentBet);
 
     setHandsPlayed(prev => prev + 1);
     if (result === 'win' || result === 'blackjack') { setHandsWon(prev => prev + 1); setConsecutiveLosses(0); }
@@ -434,7 +509,6 @@ export default function ArenaBlackjack() {
 
     const mappedResult = result === 'blackjack' ? 'win' : result;
     setResultHistory(prev => [...prev.slice(-19), mappedResult as 'win' | 'loss' | 'push']);
-    setLastResult(result);
 
     // Trap detection
     const stats: SessionStats = {
@@ -475,9 +549,9 @@ export default function ArenaBlackjack() {
     }
 
     // Check stop
-    const stopCheck = shouldStopBetting(config, newBankroll, config.initialBankroll);
-    if (stopCheck.shouldStop) {
-      setStopReason(stopCheck.reason);
+    const profitNow = newBankroll - config.initialBankroll;
+    if ((Math.abs(profitNow) >= config.stopLoss && profitNow < 0) || profitNow >= config.stopWin) {
+      setStopReason(profitNow >= config.stopWin ? 'stop_win' : 'stop_loss');
       setPhase('stopped');
       if (sessionId) {
         await supabase.from('blackjack_sessions').update({
@@ -487,7 +561,6 @@ export default function ArenaBlackjack() {
       return;
     }
 
-    // Reset for next hand
     resetHand();
   };
 
@@ -498,6 +571,10 @@ export default function ArenaBlackjack() {
     setSplitMode(false);
     setSplitHands([]);
     setActiveSplitHand(0);
+    // Set currentBet from hybrid recommendation
+    if (hybridRecommendation) {
+      setCurrentBet(hybridRecommendation.amount);
+    }
   };
 
   const resetShoe = () => {
@@ -548,7 +625,7 @@ export default function ArenaBlackjack() {
             </Button>
             <div>
               <h1 className="font-orbitron text-xl text-primary">Arena Blackjack</h1>
-              <p className="text-xs text-muted-foreground">Assistente Inteligente • Hi-Lo + Martingale</p>
+              <p className="text-xs text-muted-foreground">Assistente Inteligente • Hi-Lo + Sistema Híbrido</p>
             </div>
           </div>
 
@@ -558,6 +635,20 @@ export default function ArenaBlackjack() {
               ⚠️ Ferramenta EDUCACIONAL. Não garante lucro. Jogue com responsabilidade. +18.
             </AlertDescription>
           </Alert>
+
+          {/* Betting System Selector */}
+          <BettingSystemSelector
+            initialBankroll={config.initialBankroll}
+            baseUnit={config.baseUnit}
+            increment={config.increment}
+            maxBet={config.maxBet}
+            stopLoss={config.stopLoss}
+            stopWin={config.stopWin}
+            onConfigChange={(mode, fraction) => {
+              setBettingMode(mode);
+              setKellyFraction(fraction);
+            }}
+          />
 
           <Card className="luxury-card">
             <CardHeader>
@@ -722,6 +813,11 @@ export default function ArenaBlackjack() {
           </div>
         )}
 
+        {/* Hybrid Betting Display - Mini */}
+        {hybridRecommendation && handStep === 'select_dealer' && (
+          <MiniHybridDisplay recommendation={hybridRecommendation} />
+        )}
+
         {/* Cards display - Dealer & Player side by side */}
         <div className="grid grid-cols-2 gap-3">
           {/* Dealer */}
@@ -793,7 +889,6 @@ export default function ArenaBlackjack() {
         <Card className="luxury-card">
           <CardContent className="py-4 space-y-3">
             
-            {/* STEP 1: Select dealer up card */}
             {handStep === 'select_dealer' && (
               <>
                 <StepLabel text="📍 Selecione a carta do Dealer" active />
@@ -801,7 +896,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 1b: Insurance check when dealer shows Ace */}
             {handStep === 'insurance_check' && (
               <>
                 <StepLabel text="🛡️ Dealer mostra Ás — Seguro?" active />
@@ -833,7 +927,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 2: Select player initial cards (need at least 2) */}
             {handStep === 'select_player' && (
               <>
                 <StepLabel text={`📍 Suas cartas (${playerCards.length}/2 mínimo)`} active />
@@ -848,10 +941,8 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 3: Show decision + action buttons (normal & split modes) */}
             {(handStep === 'action' || handStep === 'split_action') && decision && (
               <>
-                {/* Decision display */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -875,7 +966,6 @@ export default function ArenaBlackjack() {
                   <div className="text-xs text-muted-foreground mt-1">{decision.explanation}</div>
                 </motion.div>
 
-                {/* Action buttons - prominent */}
                 <div className="grid grid-cols-2 gap-2">
                   {(['hit', 'stand', 'double', 'split', 'surrender'] as Action[])
                     .filter(a => {
@@ -900,14 +990,12 @@ export default function ArenaBlackjack() {
                     ))}
                 </div>
 
-                {/* Undo button */}
                 <Button variant="ghost" size="sm" className="w-full text-xs" onClick={resetHand}>
                   <RotateCcw className="w-3 h-3 mr-1" /> Recomeçar mão
                 </Button>
               </>
             )}
 
-            {/* STEP 3b: Hit → select new card */}
             {handStep === 'hit_card' && (
               <>
                 <StepLabel text="📍 Selecione a carta recebida" active />
@@ -915,7 +1003,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 3c: Double → select the one card received */}
             {handStep === 'double_card' && (
               <>
                 <StepLabel text={`💰 DOBROU! Aposta: R$${currentBet.toFixed(0)} — Selecione a carta recebida`} active />
@@ -926,7 +1013,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* SPLIT: Select second card for active split hand */}
             {handStep === 'split_select_card' && (
               <>
                 <StepLabel text={`✂️ Mão ${activeSplitHand + 1} — Selecione a 2ª carta recebida`} active />
@@ -937,7 +1023,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* SPLIT: Hit card for active split hand */}
             {handStep === 'split_hit_card' && (
               <>
                 <StepLabel text={`✂️ Mão ${activeSplitHand + 1} — Selecione a carta recebida`} active />
@@ -945,7 +1030,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* SPLIT: Double card for active split hand */}
             {handStep === 'split_double_card' && (
               <>
                 <StepLabel text={`💰 Mão ${activeSplitHand + 1} DOBROU! R$${splitHands[activeSplitHand]?.bet} — Selecione a carta`} active />
@@ -963,7 +1047,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 5: Result */}
             {handStep === 'result' && (
               <>
                 {isDealerBJ ? (
@@ -1020,7 +1103,6 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* SPLIT RESULT: Set results for each split hand */}
             {handStep === 'split_result' && (
               <>
                 <StepLabel text="📍 Resultado das mãos separadas" active />
@@ -1095,13 +1177,13 @@ export default function ArenaBlackjack() {
             <motion.div
               initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className={`text-center py-2 rounded-lg font-orbitron text-xs ${
-                lastResult === 'win' || lastResult === 'blackjack'
+                lastResult === 'win'
                   ? 'bg-[hsl(var(--success)_/_0.15)] text-[hsl(var(--success))]'
                   : lastResult === 'loss'
                   ? 'bg-[hsl(var(--destructive)_/_0.15)] text-[hsl(var(--destructive))]'
                   : 'bg-muted/30 text-muted-foreground'
               }`}>
-              Última: {lastResult === 'blackjack' ? '🃏 BJ!' : lastResult === 'win' ? '✅ Win' : lastResult === 'loss' ? '❌ Loss' : '🤝 Push'}
+              Última: {lastResult === 'win' ? '✅ Win' : lastResult === 'loss' ? '❌ Loss' : '🤝 Push'}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1121,9 +1203,9 @@ export default function ArenaBlackjack() {
           )}
         </AnimatePresence>
 
-        {/* Bet warning */}
-        {optimalBet.warning && (
-          <div className="text-center text-xs text-[hsl(var(--warning))]">⚠️ {optimalBet.warning}</div>
+        {/* Hybrid bet warning */}
+        {hybridRecommendation?.warning && (
+          <div className="text-center text-xs text-[hsl(var(--warning))]">⚠️ {hybridRecommendation.warning}</div>
         )}
       </div>
     </div>
