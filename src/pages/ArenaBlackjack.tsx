@@ -228,7 +228,7 @@ export default function ArenaBlackjack() {
   const handleSelectDealerUpCard = (card: string) => {
     setDealerCards([card]);
     addToCount([card]);
-    if (card === 'A') {
+    if (card === 'A' || card === 'AS') {
       setHandStep('insurance_check');
     } else {
       setHandStep('select_player');
