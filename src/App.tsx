@@ -11,28 +11,16 @@ import LandingPage from "./pages/LandingPage";
 import Paywall from "./pages/Paywall";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import GameRoom from "./pages/GameRoom";
-import SinglePlayerRoom from "./pages/SinglePlayerRoom";
-import RankingsPage from "./pages/RankingsPage";
-import BlackMarket from "./pages/BlackMarket";
-import HowToEarnBC from "./pages/HowToEarnBC";
-import HowToPlay from "./pages/HowToPlay";
-import AdminQuestions from "./pages/AdminQuestions";
-import AdminFounderCases from "./pages/AdminFounderCases";
-import PresenterRoom from "./pages/PresenterRoom";
-import PlayerScreen from "./pages/PlayerScreen";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import ArenaPoker from "./pages/ArenaPoker";
-import ArenaPokerRankings from "./pages/ArenaPokerRankings";
-import ArenaTrader from "./pages/ArenaTrader";
-import ArenaTraderRankings from "./pages/ArenaTraderRankings";
-import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
-import Punter from "./pages/Punter";
 import BetHistory from "./pages/BetHistory";
+import Punter from "./pages/Punter";
+import ArenaTrader from "./pages/ArenaTrader";
+import ArenaTraderRankings from "./pages/ArenaTraderRankings";
+import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import ArenaBlackjack from "./pages/ArenaBlackjack";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
@@ -45,22 +33,12 @@ if (typeof window !== 'undefined') {
     const stats = getAudioCacheStats();
     const horusProgress = getHorusCacheProgress();
     console.log('📊 AUDIO CACHE STATS:', stats);
-    console.log(`   🟢 Cache Hits: ${stats.cacheHits}`);
-    console.log(`   🔴 Cache Misses: ${stats.cacheMisses}`);
-    console.log(`   ⛔ Blocked Duplicates: ${stats.blockedDuplicates}`);
-    console.log(`   💰 Credits Saved: ${stats.estimatedCreditsSaved} chars`);
-    console.log(`   📁 Memory Cache Size: ${stats.memoryCacheSize}`);
-    console.log(`   🔒 Session Requests: ${stats.sessionRequests}`);
-    console.log(`   🦅 Horus Pre-cache: ${horusProgress.cached}/${horusProgress.total} (${horusProgress.completed ? 'complete' : 'in progress'})`);
     return { ...stats, horusProgress };
   };
   console.log('💡 Debug: Call window.getAudioCacheStats() to view audio cache statistics');
 }
 
 const App = () => {
-  // NOTE: Pre-cache was DISABLED from automatic startup
-  // The pre-cache now only runs when user enters a game room (SinglePlayerRoom/GameRoom)
-  // This prevents ElevenLabs credit consumption on the landing page
   useEffect(() => {
     console.log('[App] 🎭 Pre-cache DISABLED on startup - will run only when entering a game room');
   }, []);
@@ -77,22 +55,9 @@ const App = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/lobby" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              {/* HIDDEN: Arenas não-financeiras - código mantido para reuso futuro */}
-              {/* <Route path="/room/:roomId" element={<GameRoom />} /> */}
-              {/* <Route path="/single-player" element={<SinglePlayerRoom />} /> */}
-              {/* <Route path="/presenter-room/:roomId" element={<PresenterRoom />} /> */}
-              {/* <Route path="/player-screen/:roomId" element={<PlayerScreen />} /> */}
-              {/* <Route path="/rankings" element={<RankingsPage />} /> */}
-              {/* <Route path="/mercado-negro" element={<BlackMarket />} /> */}
-              {/* <Route path="/como-ganhar-bc" element={<HowToEarnBC />} /> */}
-              {/* <Route path="/como-jogar" element={<HowToPlay />} /> */}
-              {/* <Route path="/admin/questions" element={<AdminQuestions />} /> */}
-              {/* <Route path="/admin/founder-cases" element={<AdminFounderCases />} /> */}
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/paywall" element={<Paywall />} />
               <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
-              {/* <Route path="/arena-poker" element={<ArenaPoker />} /> */}
-              {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
               <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
