@@ -30,7 +30,7 @@ import {
 } from '@/lib/blackjack/betting-system';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'select_dealer2' | 'result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'select_dealer2' | 'result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -250,14 +250,26 @@ export default function ArenaBlackjack() {
     setLastAction(action);
     if (action === 'hit') {
       setHandStep('hit_card');
-    } else if (action === 'stand' || action === 'double' || action === 'surrender') {
-      // After stand/double/surrender → ask dealer's 2nd card
+    } else if (action === 'double') {
+      // Double: double the bet, then ask for the one card the player receives
+      setCurrentBet(prev => prev * 2);
+      setHandStep('double_card');
+    } else if (action === 'stand' || action === 'surrender') {
+      // After stand/surrender → ask dealer's 2nd card
       setHandStep('select_dealer2');
     } else if (action === 'split') {
       // Simplified: just continue, user re-enters cards
       toast.info('Separe as mãos e jogue cada uma.');
       resetHand();
     }
+  };
+
+  const handleDoubleCard = (card: string) => {
+    const newCards = [...playerCards, card];
+    setPlayerCards(newCards);
+    addToCount([card]);
+    // After double, player gets exactly 1 card then must stand → go to dealer
+    setHandStep('select_dealer2');
   };
 
   const handleHitCard = (card: string) => {
@@ -556,7 +568,7 @@ export default function ArenaBlackjack() {
             <div className="text-[9px] text-muted-foreground">Banca</div>
           </div>
           <div>
-            <div className="text-base font-orbitron font-bold text-primary">R${optimalBet.amount.toFixed(0)}</div>
+            <div className="text-base font-orbitron font-bold text-primary">R${currentBet.toFixed(0)}</div>
             <div className="text-[9px] text-muted-foreground">Aposta</div>
           </div>
           <div>
@@ -746,7 +758,17 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 4: Select dealer hole card */}
+            {/* STEP 3c: Double → select the one card received */}
+            {handStep === 'double_card' && (
+              <>
+                <StepLabel text={`💰 DOBROU! Aposta: R$${currentBet.toFixed(0)} — Selecione a carta recebida`} active />
+                <div className="p-3 rounded-xl bg-[hsl(var(--warning)_/_0.1)] border border-[hsl(var(--warning)_/_0.3)] text-center mb-2">
+                  <p className="text-xs text-muted-foreground">Você dobrou a aposta. Recebe apenas <b>1 carta</b> e deve parar.</p>
+                </div>
+                <ValueCardGrid onSelect={handleDoubleCard} />
+              </>
+            )}
+
             {handStep === 'select_dealer2' && (
               <>
                 <StepLabel text={`📍 Carta do Dealer${dealerCards.length >= 2 ? ` (total: ${calculateHandTotal(dealerCards).total})` : ''} — precisa de 17+`} active />
