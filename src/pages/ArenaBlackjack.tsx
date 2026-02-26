@@ -254,9 +254,17 @@ export default function ArenaBlackjack() {
   };
 
   const handleSelectDealerHoleCard = (card: string) => {
-    setDealerCards(prev => [...prev, card]);
+    const newDealerCards = [...dealerCards, card];
+    setDealerCards(newDealerCards);
     addToCount([card]);
-    setHandStep('result');
+    // Dealer must draw until 17+
+    const { total: dealerTotal } = calculateHandTotal(newDealerCards);
+    if (dealerTotal < 17) {
+      // Stay in select_dealer2 to get more cards
+      setHandStep('select_dealer2');
+    } else {
+      setHandStep('result');
+    }
   };
 
   const handleResult = async (result: HandResult) => {
@@ -562,8 +570,10 @@ export default function ArenaBlackjack() {
         <div className="grid grid-cols-2 gap-3">
           {/* Dealer */}
           <div className="p-3 rounded-lg bg-secondary/20 border border-border text-center">
-            <div className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider">Dealer</div>
-            <div className="flex justify-center gap-1 min-h-[56px] items-center">
+            <div className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider">
+              Dealer {dealerCards.length >= 2 && (() => { const { total } = calculateHandTotal(dealerCards); return <span className="text-foreground font-bold">({total})</span>; })()}
+            </div>
+            <div className="flex justify-center gap-1 min-h-[56px] items-center flex-wrap">
               {dealerCards.length > 0 ? (
                 dealerCards.map((c, i) => <MiniCard key={i} card={c} />)
               ) : (
@@ -685,7 +695,7 @@ export default function ArenaBlackjack() {
             {/* STEP 4: Select dealer hole card */}
             {handStep === 'select_dealer2' && (
               <>
-                <StepLabel text="📍 Segunda carta do Dealer" active />
+                <StepLabel text={`📍 Carta do Dealer${dealerCards.length >= 2 ? ` (total: ${calculateHandTotal(dealerCards).total})` : ''} — precisa de 17+`} active />
                 <ValueCardGrid onSelect={handleSelectDealerHoleCard} />
               </>
             )}
