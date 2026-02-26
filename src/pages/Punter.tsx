@@ -46,7 +46,7 @@ interface PunterSignal {
 export default function PunterPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { bankroll, loading: bankrollLoading } = useBankroll();
+  const { bankroll, loading: bankrollLoading, settleBets } = useBankroll();
   const [loading, setLoading] = useState(false);
   const [signals, setSignals] = useState<PunterSignal[]>([]);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
@@ -59,6 +59,7 @@ export default function PunterPage() {
   const [historyBets, setHistoryBets] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
+  const [settlingBets, setSettlingBets] = useState(false);
 
   // Load pending bets on mount
   useEffect(() => {
@@ -90,6 +91,35 @@ export default function PunterPage() {
   const openHistory = () => {
     setIsHistoryOpen(true);
     fetchHistory();
+  };
+
+  const handleSettleBets = async () => {
+    if (!user) return;
+    setSettlingBets(true);
+
+    const result = await settleBets();
+    if (!result.success) {
+      toast.error(result.error || 'Erro ao liquidar apostas');
+      setSettlingBets(false);
+      return;
+    }
+
+    toast.success('Apostas liquidadas! Histórico e pendências atualizados.');
+
+    const { data } = await supabase
+      .from('virtual_bets_punter')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    setPendingBets(data || []);
+
+    if (isHistoryOpen) {
+      await fetchHistory();
+    }
+
+    setSettlingBets(false);
   };
 
   const analyzeGames = async () => {
@@ -198,6 +228,10 @@ export default function PunterPage() {
             <GoldButton size="sm" variant="outline" onClick={openHistory}>
               <History className="w-4 h-4 mr-1" />
               Histórico
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={handleSettleBets} disabled={settlingBets}>
+              {settlingBets ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              Liquidar
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
