@@ -250,6 +250,10 @@ export default function ArenaTraderSports() {
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/apostas')}>
+              <Wallet className="w-4 h-4 mr-1" />
+              Apostas
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
               <Dumbbell className="w-4 h-4 mr-1" />
               Treino
