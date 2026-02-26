@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +56,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading } = useBankroll();
+  const { bankroll, loading: bankrollLoading, settleBets } = useBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
@@ -66,6 +66,7 @@ export default function ArenaTraderSports() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isFetchingV2, setIsFetchingV2] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
 
   const handleFetchLiveMatches = useCallback(async () => {
     setIsFetching(true);
@@ -96,6 +97,22 @@ export default function ArenaTraderSports() {
       setIsFetchingV2(false);
     }
   }, [refetch]);
+
+  const handleSettleBets = useCallback(async () => {
+    setIsSettling(true);
+    try {
+      const result = await settleBets();
+      if (result.success) {
+        toast.success(result.data?.message || 'Apostas liquidadas!');
+      } else {
+        toast.error(result.error || 'Erro ao liquidar apostas');
+      }
+    } catch (e) {
+      toast.error('Erro ao liquidar apostas');
+    } finally {
+      setIsSettling(false);
+    }
+  }, [settleBets]);
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
@@ -220,6 +237,10 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
               <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
               {isFetchingV2 ? 'Buscando...' : 'API 2'}
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
+              <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
+              {isSettling ? 'Liquidando...' : 'Liquidar Apostas'}
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />

@@ -1,0 +1,274 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // 1. Get all pending bets from both tables
+    const { data: pendingBets } = await supabase
+      .from('virtual_bets')
+      .select('*')
+      .eq('status', 'pending');
+
+    const { data: pendingPunterBets } = await supabase
+      .from('virtual_bets_punter')
+      .select('*')
+      .eq('status', 'pending');
+
+    // Also get pending punter_signals
+    const { data: pendingSignals } = await supabase
+      .from('punter_signals')
+      .select('*')
+      .eq('status', 'pending');
+
+    const allPending = [
+      ...(pendingBets || []).map(b => ({ ...b, table: 'virtual_bets' })),
+      ...(pendingPunterBets || []).map(b => ({ ...b, table: 'virtual_bets_punter' })),
+    ];
+
+    if (allPending.length === 0 && (!pendingSignals || pendingSignals.length === 0)) {
+      return new Response(JSON.stringify({ message: 'Nenhuma aposta pendente', settled: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2. Fetch completed scores from The Odds API for soccer leagues
+    const leagues = [
+      'soccer_brazil_campeonato',
+      'soccer_brazil_serie_b',
+      'soccer_epl',
+      'soccer_spain_la_liga',
+      'soccer_germany_bundesliga',
+      'soccer_italy_serie_a',
+      'soccer_france_ligue_one',
+      'soccer_uefa_champs_league',
+      'soccer_conmebol_libertadores',
+      'soccer_south_america_copa_sudamericana',
+    ];
+
+    const allScores: any[] = [];
+    for (const league of leagues) {
+      try {
+        const res = await fetch(
+          `https://api.the-odds-api.com/v4/sports/${league}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          allScores.push(...data);
+        }
+      } catch (e) {
+        console.error(`Error fetching scores for ${league}:`, e);
+      }
+    }
+
+    console.log(`Fetched ${allScores.length} scores from ${leagues.length} leagues`);
+
+    // Filter only completed games
+    const completedGames = allScores.filter((g: any) => g.completed === true && g.scores);
+
+    console.log(`${completedGames.length} completed games found`);
+
+    // 3. Build a lookup map: normalize team names for matching
+    const normalize = (name: string) =>
+      name.toLowerCase()
+        .replace(/[^a-záàãâéêíóôõúüç\s]/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Match function: tries to match a bet's match_name/match_id with a completed game
+    const findResult = (matchName: string, market: string) => {
+      const normalizedMatch = normalize(matchName);
+
+      for (const game of completedGames) {
+        const homeNorm = normalize(game.home_team);
+        const awayNorm = normalize(game.away_team);
+
+        // Check if this game matches the bet
+        const matchesBet =
+          normalizedMatch.includes(homeNorm) ||
+          normalizedMatch.includes(awayNorm) ||
+          (homeNorm.split(' ').some((w: string) => w.length > 3 && normalizedMatch.includes(w)) &&
+           awayNorm.split(' ').some((w: string) => w.length > 3 && normalizedMatch.includes(w)));
+
+        if (!matchesBet) continue;
+
+        // Parse scores
+        const homeScore = game.scores?.find((s: any) => s.name === game.home_team)?.score;
+        const awayScore = game.scores?.find((s: any) => s.name === game.away_team)?.score;
+
+        if (homeScore == null || awayScore == null) continue;
+
+        const h = parseInt(homeScore);
+        const a = parseInt(awayScore);
+        const totalGoals = h + a;
+
+        // Determine if bet is GREEN based on market
+        const marketLower = market.toLowerCase();
+        let isGreen = false;
+
+        if (marketLower === 'casa' || marketLower === 'home' || marketLower === '1') {
+          isGreen = h > a;
+        } else if (marketLower === 'fora' || marketLower === 'away' || marketLower === '2') {
+          isGreen = a > h;
+        } else if (marketLower === 'empate' || marketLower === 'draw' || marketLower === 'x') {
+          isGreen = h === a;
+        } else if (marketLower.includes('over')) {
+          const line = parseFloat(marketLower.replace(/[^0-9.]/g, '')) || 2.5;
+          // Handle HT markets
+          if (marketLower.includes('ht') || marketLower.includes('1t')) {
+            // We don't have HT scores from this API, skip for now
+            return null;
+          }
+          isGreen = totalGoals > line;
+        } else if (marketLower.includes('under')) {
+          const line = parseFloat(marketLower.replace(/[^0-9.]/g, '')) || 2.5;
+          if (marketLower.includes('ht') || marketLower.includes('1t')) {
+            return null;
+          }
+          isGreen = totalGoals < line;
+        } else if (marketLower.includes('btts') || marketLower.includes('ambas')) {
+          isGreen = h > 0 && a > 0;
+        } else {
+          // Unknown market, skip
+          return null;
+        }
+
+        return {
+          isGreen,
+          homeTeam: game.home_team,
+          awayTeam: game.away_team,
+          scoreHome: h,
+          scoreAway: a,
+        };
+      }
+
+      return null;
+    };
+
+    // 4. Settle bets
+    let settledCount = 0;
+    const results: any[] = [];
+
+    for (const bet of allPending) {
+      const matchRef = bet.match_name || bet.match_id || '';
+      const result = findResult(matchRef, bet.market);
+
+      if (!result) continue;
+
+      const profitLoss = result.isGreen
+        ? parseFloat((bet.stake * (bet.odd - 1)).toFixed(2))
+        : -parseFloat(bet.stake);
+
+      const betResult = result.isGreen ? 'green' : 'red';
+
+      // Update bet record
+      const { error: updateErr } = await supabase
+        .from(bet.table)
+        .update({
+          status: 'settled',
+          result: bet.table === 'virtual_bets_punter' ? betResult : undefined,
+          profit_loss: profitLoss,
+          settled_at: bet.table === 'virtual_bets' ? new Date().toISOString() : undefined,
+          updated_at: bet.table === 'virtual_bets_punter' ? new Date().toISOString() : undefined,
+        })
+        .eq('id', bet.id);
+
+      if (updateErr) {
+        console.error(`Error updating bet ${bet.id}:`, updateErr);
+        continue;
+      }
+
+      // Update bankroll
+      const balanceChange = result.isGreen
+        ? bet.stake * bet.odd // Return stake + profit
+        : 0; // Stake already deducted
+
+      const { data: currentBankroll } = await supabase
+        .from('user_bankroll')
+        .select('*')
+        .eq('user_id', bet.user_id)
+        .single();
+
+      if (currentBankroll) {
+        await supabase
+          .from('user_bankroll')
+          .update({
+            balance: parseFloat((currentBankroll.balance + balanceChange).toFixed(2)),
+            total_profit: parseFloat((currentBankroll.total_profit + profitLoss).toFixed(2)),
+            green_bets: currentBankroll.green_bets + (result.isGreen ? 1 : 0),
+            red_bets: currentBankroll.red_bets + (result.isGreen ? 0 : 1),
+            win_rate: ((currentBankroll.green_bets + (result.isGreen ? 1 : 0)) /
+              (currentBankroll.green_bets + currentBankroll.red_bets + 1) * 100),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', bet.user_id);
+      }
+
+      settledCount++;
+      results.push({
+        betId: bet.id,
+        table: bet.table,
+        match: matchRef,
+        market: bet.market,
+        result: betResult,
+        profitLoss,
+        score: `${result.scoreHome}-${result.scoreAway}`,
+      });
+    }
+
+    // 5. Also settle punter_signals
+    let signalsSettled = 0;
+    for (const signal of (pendingSignals || [])) {
+      const matchRef = signal.match_id || '';
+      const result = findResult(matchRef, signal.market);
+
+      if (!result) continue;
+
+      const betResult = result.isGreen ? 'green' : 'red';
+      const profitLoss = result.isGreen
+        ? parseFloat((signal.odd * (signal.stake_percentage || 3)).toFixed(2))
+        : -(signal.stake_percentage || 3);
+
+      await supabase
+        .from('punter_signals')
+        .update({
+          result: betResult,
+          profit_loss: profitLoss,
+          resulted_at: new Date().toISOString(),
+          status: 'settled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', signal.id);
+
+      signalsSettled++;
+    }
+
+    return new Response(JSON.stringify({
+      message: `${settledCount} apostas liquidadas, ${signalsSettled} sinais atualizados`,
+      settled: settledCount,
+      signals_settled: signalsSettled,
+      results,
+      completed_games: completedGames.length,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Settle bets error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
