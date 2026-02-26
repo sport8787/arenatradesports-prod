@@ -32,6 +32,7 @@ import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
 import Punter from "./pages/Punter";
+import BetHistory from "./pages/BetHistory";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -93,6 +94,7 @@ const App = () => {
               {/* <Route path="/arena-poker/rankings" element={<ArenaPokerRankings />} /> */}
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
+              <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
               <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
