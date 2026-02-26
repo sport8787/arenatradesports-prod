@@ -33,6 +33,7 @@ import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
 import Punter from "./pages/Punter";
 import BetHistory from "./pages/BetHistory";
+import ArenaBlackjack from "./pages/ArenaBlackjack";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -99,6 +100,7 @@ const App = () => {
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
+              <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

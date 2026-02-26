@@ -476,6 +476,158 @@ export type Database = {
         }
         Relationships: []
       }
+      blackjack_hands: {
+        Row: {
+          bet_amount: number
+          bet_units: number
+          created_at: string
+          dealer_card: string
+          hand_number: number
+          id: string
+          player_action: string | null
+          player_cards: string[]
+          player_soft: boolean
+          player_total: number
+          profit_loss: number
+          recommended_action: string | null
+          result: string
+          running_count: number
+          session_id: string
+          true_count: number
+          was_deviation: boolean
+        }
+        Insert: {
+          bet_amount?: number
+          bet_units?: number
+          created_at?: string
+          dealer_card?: string
+          hand_number?: number
+          id?: string
+          player_action?: string | null
+          player_cards?: string[]
+          player_soft?: boolean
+          player_total?: number
+          profit_loss?: number
+          recommended_action?: string | null
+          result?: string
+          running_count?: number
+          session_id: string
+          true_count?: number
+          was_deviation?: boolean
+        }
+        Update: {
+          bet_amount?: number
+          bet_units?: number
+          created_at?: string
+          dealer_card?: string
+          hand_number?: number
+          id?: string
+          player_action?: string | null
+          player_cards?: string[]
+          player_soft?: boolean
+          player_total?: number
+          profit_loss?: number
+          recommended_action?: string | null
+          result?: string
+          running_count?: number
+          session_id?: string
+          true_count?: number
+          was_deviation?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blackjack_hands_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "blackjack_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blackjack_sessions: {
+        Row: {
+          base_unit: number
+          best_true_count: number
+          blackjack_payout: number
+          casino: string
+          created_at: string
+          current_bankroll: number
+          decks: number
+          ended_at: string | null
+          hands_lost: number
+          hands_played: number
+          hands_pushed: number
+          hands_won: number
+          id: string
+          increment: number
+          initial_bankroll: number
+          max_bet: number
+          started_at: string
+          status: string
+          stop_loss: number
+          stop_win: number
+          total_profit: number
+          updated_at: string
+          use_counting: boolean
+          user_id: string
+          variant: string
+        }
+        Insert: {
+          base_unit?: number
+          best_true_count?: number
+          blackjack_payout?: number
+          casino?: string
+          created_at?: string
+          current_bankroll?: number
+          decks?: number
+          ended_at?: string | null
+          hands_lost?: number
+          hands_played?: number
+          hands_pushed?: number
+          hands_won?: number
+          id?: string
+          increment?: number
+          initial_bankroll?: number
+          max_bet?: number
+          started_at?: string
+          status?: string
+          stop_loss?: number
+          stop_win?: number
+          total_profit?: number
+          updated_at?: string
+          use_counting?: boolean
+          user_id: string
+          variant?: string
+        }
+        Update: {
+          base_unit?: number
+          best_true_count?: number
+          blackjack_payout?: number
+          casino?: string
+          created_at?: string
+          current_bankroll?: number
+          decks?: number
+          ended_at?: string | null
+          hands_lost?: number
+          hands_played?: number
+          hands_pushed?: number
+          hands_won?: number
+          id?: string
+          increment?: number
+          initial_bankroll?: number
+          max_bet?: number
+          started_at?: string
+          status?: string
+          stop_loss?: number
+          stop_win?: number
+          total_profit?: number
+          updated_at?: string
+          use_counting?: boolean
+          user_id?: string
+          variant?: string
+        }
+        Relationships: []
+      }
       bluff_talk_attempts: {
         Row: {
           alignment_check: string | null
