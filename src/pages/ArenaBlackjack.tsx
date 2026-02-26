@@ -344,6 +344,14 @@ export default function ArenaBlackjack() {
     setPlayerCards(newCards);
     addToCount([card]);
     if (newCards.length >= 2) {
+      // Check for natural blackjack (A + 10-value card with exactly 2 cards)
+      const { total } = calculateHandTotal(newCards);
+      if (total === 21 && newCards.length === 2) {
+        // Auto-detect blackjack — skip action, go directly to dealer reveal
+        toast.success('🃏 BLACKJACK NATURAL! Parabéns!');
+        setHandStep('select_dealer2');
+        return;
+      }
       setHandStep('action');
     }
   };
@@ -752,7 +760,8 @@ export default function ArenaBlackjack() {
   // ═══ PLAYING PHASE ═══
   const { total: playerTotal } = playerCards.length > 0 ? calculateHandTotal(playerCards) : { total: 0 };
   const isBust = playerTotal > 21;
-  const isDealerBJ = dealerCards.length === 2 && playerCards.length === 0 && calculateHandTotal(dealerCards).total === 21;
+  const isPlayerBJ = playerCards.length === 2 && playerTotal === 21;
+  const isDealerBJ = dealerCards.length >= 2 && calculateHandTotal(dealerCards).total === 21;
 
   return (
     <div className="min-h-screen bg-background p-3 pb-6">
@@ -1049,7 +1058,18 @@ export default function ArenaBlackjack() {
 
             {handStep === 'result' && (
               <>
-                {isDealerBJ ? (
+                {isDealerBJ && isPlayerBJ ? (
+                  <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                    className="text-center p-4 rounded-xl bg-muted/20 border border-border space-y-3">
+                    <div className="text-3xl font-orbitron font-bold text-muted-foreground">🤝 PUSH — Ambos BJ</div>
+                    <div className="text-sm text-muted-foreground">Dealer e jogador com Blackjack natural</div>
+                    <motion.button whileTap={{ scale: 0.95 }}
+                      onClick={() => handleResult('push')}
+                      className="w-full py-5 rounded-xl font-orbitron font-bold text-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-all border border-border">
+                      🤝 EMPATE — Próxima mão
+                    </motion.button>
+                  </motion.div>
+                ) : isDealerBJ ? (
                   <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}
                     className="text-center p-4 rounded-xl bg-[hsl(var(--destructive)_/_0.1)] border border-[hsl(var(--destructive)_/_0.3)] space-y-3">
                     <div className="text-3xl font-orbitron font-bold text-[hsl(var(--destructive))]">🃏 DEALER BLACKJACK</div>
@@ -1058,6 +1078,17 @@ export default function ArenaBlackjack() {
                       onClick={() => handleResult('loss')}
                       className="w-full py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all">
                       ❌ PERDI — Próxima mão
+                    </motion.button>
+                  </motion.div>
+                ) : isPlayerBJ ? (
+                  <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                    className="text-center p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-3">
+                    <div className="text-3xl font-orbitron font-bold text-primary">🃏 BLACKJACK!</div>
+                    <div className="text-sm text-muted-foreground">21 natural! Paga {config.blackjackPayout}:1 → +R${(currentBet * config.blackjackPayout).toFixed(2)}</div>
+                    <motion.button whileTap={{ scale: 0.95 }}
+                      onClick={() => handleResult('blackjack')}
+                      className="w-full py-5 rounded-xl font-orbitron font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all">
+                      🃏 BLACKJACK! — Próxima mão
                     </motion.button>
                   </motion.div>
                 ) : isBust ? (
@@ -1070,15 +1101,8 @@ export default function ArenaBlackjack() {
                   <StepLabel text="📍 Resultado da mão" active />
                 )}
 
-                {!isDealerBJ && (
+                {!isDealerBJ && !isPlayerBJ && (
                   <div className="grid grid-cols-2 gap-3">
-                    {!isBust && (
-                      <motion.button whileTap={{ scale: 0.95 }}
-                        onClick={() => handleResult('blackjack')}
-                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-all">
-                        🃏 BJ
-                      </motion.button>
-                    )}
                     {!isBust && (
                       <motion.button whileTap={{ scale: 0.95 }}
                         onClick={() => handleResult('win')}
@@ -1094,7 +1118,7 @@ export default function ArenaBlackjack() {
                     {!isBust && (
                       <motion.button whileTap={{ scale: 0.95 }}
                         onClick={() => handleResult('push')}
-                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-all border border-border">
+                        className="py-5 rounded-xl font-orbitron font-bold text-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-all border border-border col-span-2">
                         🤝 EMPATE
                       </motion.button>
                     )}
