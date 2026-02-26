@@ -30,8 +30,15 @@ import {
 } from '@/lib/blackjack/betting-system';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'select_dealer2' | 'result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
+
+interface SplitHand {
+  cards: string[];
+  bet: number;
+  result?: HandResult;
+  doubled?: boolean;
+}
 
 const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
@@ -133,6 +140,11 @@ export default function ArenaBlackjack() {
   const [lastWinBet, setLastWinBet] = useState(5);
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
+  // Split state
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitHands, setSplitHands] = useState<SplitHand[]>([]);
+  const [activeSplitHand, setActiveSplitHand] = useState(0);
+
   // Counting
   const [runningCount, setRunningCount] = useState(0);
   const [cardsSeen, setCardsSeen] = useState(0);
@@ -151,20 +163,23 @@ export default function ArenaBlackjack() {
   const [stopReason, setStopReason] = useState<'stop_loss' | 'stop_win' | null>(null);
 
   // ═══ Computed ═══
+  const activeCards = splitMode ? (splitHands[activeSplitHand]?.cards || []) : playerCards;
+  
   const hand: Hand = (() => {
-    if (playerCards.length === 0) return { cards: [], total: 0, soft: false, canSplit: false, canDouble: false, canSurrender: false };
-    const { total, soft } = calculateHandTotal(playerCards);
+    if (activeCards.length === 0) return { cards: [], total: 0, soft: false, canSplit: false, canDouble: false, canSurrender: false };
+    const { total, soft } = calculateHandTotal(activeCards);
+    const totalBetNeeded = splitMode ? splitHands.reduce((s, h) => s + h.bet, 0) : currentBet;
     return {
-      cards: playerCards, total, soft,
-      canSplit: playerCards.length === 2 && getCardValue(playerCards[0]) === getCardValue(playerCards[1]),
-      canDouble: playerCards.length === 2 && bankroll >= currentBet * 2,
-      canSurrender: playerCards.length === 2
+      cards: activeCards, total, soft,
+      canSplit: !splitMode && activeCards.length === 2 && getCardValue(activeCards[0]) === getCardValue(activeCards[1]) && bankroll >= currentBet * 2,
+      canDouble: activeCards.length === 2 && (total === 10 || total === 11) && bankroll >= totalBetNeeded + (splitMode ? splitHands[activeSplitHand]?.bet || 0 : currentBet),
+      canSurrender: !splitMode && activeCards.length === 2
     };
   })();
 
   const countingState = getCountingState(runningCount, decksRemaining);
   const countIndicator = getCountIndicator(countingState.trueCount);
-  const canShowDecision = playerCards.length >= 2 && dealerCards.length >= 1;
+  const canShowDecision = activeCards.length >= 2 && dealerCards.length >= 1;
   const decision = canShowDecision ? getOptimalDecision(hand, dealerCards[0], countingState.trueCount) : null;
   const optimalBet = getOptimalBet(config, currentBet, countingState.trueCount, bankroll);
   const profit = bankroll - config.initialBankroll;
@@ -248,27 +263,133 @@ export default function ArenaBlackjack() {
 
   const handleAction = (action: Action) => {
     setLastAction(action);
+    if (splitMode) {
+      // Actions within a split hand
+      if (action === 'hit') {
+        setHandStep('split_hit_card');
+      } else if (action === 'double') {
+        // Double within split: double this hand's bet
+        setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, bet: h.bet * 2, doubled: true } : h));
+        setHandStep('split_double_card');
+      } else if (action === 'stand') {
+        advanceToNextSplitHand();
+      }
+      return;
+    }
     if (action === 'hit') {
       setHandStep('hit_card');
     } else if (action === 'double') {
-      // Double: double the bet, then ask for the one card the player receives
       setCurrentBet(prev => prev * 2);
       setHandStep('double_card');
     } else if (action === 'stand' || action === 'surrender') {
-      // After stand/surrender → ask dealer's 2nd card
       setHandStep('select_dealer2');
     } else if (action === 'split') {
-      // Simplified: just continue, user re-enters cards
-      toast.info('Separe as mãos e jogue cada uma.');
-      resetHand();
+      handleSplit();
     }
   };
 
+  // ═══ SPLIT HANDLERS ═══
+  const handleSplit = () => {
+    const card1 = playerCards[0];
+    const card2 = playerCards[1];
+    setSplitMode(true);
+    setSplitHands([
+      { cards: [card1], bet: currentBet },
+      { cards: [card2], bet: currentBet },
+    ]);
+    setActiveSplitHand(0);
+    setHandStep('split_select_card');
+    toast.info('✂️ Mãos separadas! Jogue a Mão 1 primeiro.');
+  };
+
+  const handleSplitSelectCard = (card: string) => {
+    setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: [...h.cards, card] } : h));
+    addToCount([card]);
+    setHandStep('split_action');
+  };
+
+  const handleSplitHitCard = (card: string) => {
+    const newCards = [...splitHands[activeSplitHand].cards, card];
+    setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards } : h));
+    addToCount([card]);
+    const { total } = calculateHandTotal(newCards);
+    if (total > 21) {
+      // Bust on this split hand → mark as loss and move to next
+      setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards, result: 'loss' } : h));
+      advanceToNextSplitHand();
+    } else {
+      setHandStep('split_action');
+    }
+  };
+
+  const handleSplitDoubleCard = (card: string) => {
+    const newCards = [...splitHands[activeSplitHand].cards, card];
+    setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards } : h));
+    addToCount([card]);
+    const { total } = calculateHandTotal(newCards);
+    if (total > 21) {
+      setSplitHands(prev => prev.map((h, i) => i === activeSplitHand ? { ...h, cards: newCards, result: 'loss' } : h));
+    }
+    // After double, must stand → advance
+    advanceToNextSplitHand();
+  };
+
+  const advanceToNextSplitHand = () => {
+    if (activeSplitHand === 0) {
+      // Move to hand 2
+      setActiveSplitHand(1);
+      if (splitHands[1].cards.length < 2) {
+        setHandStep('split_select_card');
+        toast.info('📍 Agora jogue a Mão 2.');
+      } else {
+        setHandStep('split_action');
+      }
+    } else {
+      // Both hands done → go to dealer
+      setHandStep('select_dealer2');
+    }
+  };
+
+  const handleSplitResults = async () => {
+    // Process results for each split hand
+    let totalProfit = 0;
+    for (const sh of splitHands) {
+      if (sh.result) {
+        totalProfit += calculateProfit(sh.result, sh.bet, config.blackjackPayout);
+      }
+    }
+    const newBankroll = bankroll + totalProfit;
+    setBankroll(newBankroll);
+
+    const totalBet = splitHands.reduce((s, h) => s + h.bet, 0);
+    const overallResult: HandResult = totalProfit > 0 ? 'win' : totalProfit < 0 ? 'loss' : 'push';
+
+    const { newBet, newLastWinBet } = calculateNextBet(config, overallResult, totalBet, lastWinBet);
+    setCurrentBet(newBet);
+    setLastWinBet(newLastWinBet);
+
+    setHandsPlayed(prev => prev + 1);
+    if (overallResult === 'win') { setHandsWon(prev => prev + 1); setConsecutiveLosses(0); }
+    else if (overallResult === 'loss') { setHandsLost(prev => prev + 1); setConsecutiveLosses(prev => prev + 1); }
+
+    const mappedResult = overallResult;
+    setResultHistory(prev => [...prev.slice(-19), mappedResult]);
+    setLastResult(overallResult);
+
+    // Check stop
+    const stopCheck = shouldStopBetting(config, newBankroll, config.initialBankroll);
+    if (stopCheck.shouldStop) {
+      setStopReason(stopCheck.reason);
+      setPhase('stopped');
+      return;
+    }
+
+    resetHand();
+  };
   const handleDoubleCard = (card: string) => {
     const newCards = [...playerCards, card];
     setPlayerCards(newCards);
     addToCount([card]);
-    // After double, player gets exactly 1 card then must stand → go to dealer
     setHandStep('select_dealer2');
   };
 
@@ -278,10 +399,8 @@ export default function ArenaBlackjack() {
     addToCount([card]);
     const { total } = calculateHandTotal(newCards);
     if (total > 21) {
-      // Bust → auto loss
       setHandStep('result');
     } else {
-      // Re-show decision
       setHandStep('action');
     }
   };
@@ -296,7 +415,7 @@ export default function ArenaBlackjack() {
       // Stay in select_dealer2 to get more cards
       setHandStep('select_dealer2');
     } else {
-      setHandStep('result');
+      setHandStep(splitMode ? 'split_result' : 'result');
     }
   };
 
@@ -376,6 +495,9 @@ export default function ArenaBlackjack() {
     setPlayerCards([]); setDealerCards([]);
     setHandStep('select_dealer');
     setLastAction(null);
+    setSplitMode(false);
+    setSplitHands([]);
+    setActiveSplitHand(0);
   };
 
   const resetShoe = () => {
@@ -568,7 +690,7 @@ export default function ArenaBlackjack() {
             <div className="text-[9px] text-muted-foreground">Banca</div>
           </div>
           <div>
-            <div className="text-base font-orbitron font-bold text-primary">R${currentBet.toFixed(0)}</div>
+            <div className="text-base font-orbitron font-bold text-primary">R${splitMode ? splitHands.reduce((s, h) => s + h.bet, 0).toFixed(0) : currentBet.toFixed(0)}</div>
             <div className="text-[9px] text-muted-foreground">Aposta</div>
           </div>
           <div>
@@ -620,21 +742,51 @@ export default function ArenaBlackjack() {
           </div>
 
           {/* Player */}
-          <div className="p-3 rounded-lg bg-secondary/20 border border-border text-center">
-            <div className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider">
-              Você {hand.total > 0 && <span className="text-foreground font-bold">({hand.soft ? 'S' : ''}{hand.total})</span>}
+          {splitMode ? (
+            <div className="p-3 rounded-lg bg-secondary/20 border border-border text-center">
+              <div className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Mãos Separadas</div>
+              <div className="space-y-2">
+                {splitHands.map((sh, idx) => {
+                  const { total: shTotal, soft: shSoft } = sh.cards.length > 0 ? calculateHandTotal(sh.cards) : { total: 0, soft: false };
+                  const isActive = activeSplitHand === idx && !['select_dealer2', 'split_result', 'result'].includes(handStep);
+                  const isBusted = shTotal > 21;
+                  return (
+                    <div key={idx} className={`p-1.5 rounded-lg border ${isActive ? 'border-primary bg-primary/10' : sh.result === 'loss' ? 'border-destructive/30 bg-destructive/5 opacity-60' : 'border-border bg-secondary/10'}`}>
+                      <div className="text-[9px] text-muted-foreground flex justify-between items-center mb-1">
+                        <span>Mão {idx + 1} {sh.doubled ? '(2x)' : ''}</span>
+                        <span className="font-bold text-foreground">
+                          {shTotal > 0 && `${shSoft ? 'S' : ''}${shTotal}`}
+                          {isBusted && ' 💥'}
+                          {sh.result && ` • ${sh.result === 'win' ? '✅' : sh.result === 'loss' ? '❌' : '🤝'}`}
+                        </span>
+                      </div>
+                      <div className="flex justify-center gap-1 min-h-[40px] items-center flex-wrap">
+                        {sh.cards.map((c, ci) => <MiniCard key={ci} card={c} />)}
+                        {sh.cards.length < 2 && <div className="w-9 h-12 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground text-sm">?</div>}
+                      </div>
+                      <div className="text-[9px] text-primary font-bold">R${sh.bet}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex justify-center gap-1 min-h-[56px] items-center flex-wrap">
-              {playerCards.length > 0 ? (
-                playerCards.map((c, i) => <MiniCard key={i} card={c} />)
-              ) : (
-                <>
-                  <div className="w-11 h-14 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground text-lg">?</div>
-                  <div className="w-11 h-14 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground text-lg">?</div>
-                </>
-              )}
+          ) : (
+            <div className="p-3 rounded-lg bg-secondary/20 border border-border text-center">
+              <div className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider">
+                Você {hand.total > 0 && <span className="text-foreground font-bold">({hand.soft ? 'S' : ''}{hand.total})</span>}
+              </div>
+              <div className="flex justify-center gap-1 min-h-[56px] items-center flex-wrap">
+                {playerCards.length > 0 ? (
+                  playerCards.map((c, i) => <MiniCard key={i} card={c} />)
+                ) : (
+                  <>
+                    <div className="w-11 h-14 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground text-lg">?</div>
+                    <div className="w-11 h-14 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground text-lg">?</div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ═══ STEP-BASED FLOW ═══ */}
@@ -696,8 +848,8 @@ export default function ArenaBlackjack() {
               </>
             )}
 
-            {/* STEP 3: Show decision + action buttons */}
-            {handStep === 'action' && decision && (
+            {/* STEP 3: Show decision + action buttons (normal & split modes) */}
+            {(handStep === 'action' || handStep === 'split_action') && decision && (
               <>
                 {/* Decision display */}
                 <motion.div
@@ -709,7 +861,9 @@ export default function ArenaBlackjack() {
                       : 'border-primary/50 bg-primary/5'
                   }`}
                 >
-                  <div className="text-sm text-muted-foreground mb-1">Decisão Ótima</div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    {splitMode ? `Mão ${activeSplitHand + 1} — ` : ''}Decisão Ótima
+                  </div>
                   <div className="text-3xl font-orbitron font-bold text-primary">
                     {ACTION_LABELS[decision.action]}
                   </div>
@@ -723,10 +877,13 @@ export default function ArenaBlackjack() {
 
                 {/* Action buttons - prominent */}
                 <div className="grid grid-cols-2 gap-2">
-                  {(['hit', 'stand', 'double', 'surrender'] as Action[])
+                  {(['hit', 'stand', 'double', 'split', 'surrender'] as Action[])
                     .filter(a => {
                       if (a === 'double' && !hand.canDouble) return false;
+                      if (a === 'split' && !hand.canSplit) return false;
                       if (a === 'surrender' && !hand.canSurrender) return false;
+                      if (splitMode && a === 'surrender') return false;
+                      if (splitMode && a === 'split') return false;
                       return true;
                     })
                     .map(action => (
@@ -766,6 +923,36 @@ export default function ArenaBlackjack() {
                   <p className="text-xs text-muted-foreground">Você dobrou a aposta. Recebe apenas <b>1 carta</b> e deve parar.</p>
                 </div>
                 <ValueCardGrid onSelect={handleDoubleCard} />
+              </>
+            )}
+
+            {/* SPLIT: Select second card for active split hand */}
+            {handStep === 'split_select_card' && (
+              <>
+                <StepLabel text={`✂️ Mão ${activeSplitHand + 1} — Selecione a 2ª carta recebida`} active />
+                <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 text-center mb-2">
+                  <p className="text-xs text-muted-foreground">Carta separada: <b>{splitHands[activeSplitHand]?.cards[0]?.slice(0, -1)}</b> — informe a próxima carta.</p>
+                </div>
+                <ValueCardGrid onSelect={handleSplitSelectCard} />
+              </>
+            )}
+
+            {/* SPLIT: Hit card for active split hand */}
+            {handStep === 'split_hit_card' && (
+              <>
+                <StepLabel text={`✂️ Mão ${activeSplitHand + 1} — Selecione a carta recebida`} active />
+                <ValueCardGrid onSelect={handleSplitHitCard} />
+              </>
+            )}
+
+            {/* SPLIT: Double card for active split hand */}
+            {handStep === 'split_double_card' && (
+              <>
+                <StepLabel text={`💰 Mão ${activeSplitHand + 1} DOBROU! R$${splitHands[activeSplitHand]?.bet} — Selecione a carta`} active />
+                <div className="p-3 rounded-xl bg-[hsl(var(--warning)_/_0.1)] border border-[hsl(var(--warning)_/_0.3)] text-center mb-2">
+                  <p className="text-xs text-muted-foreground">Dobrou a aposta. Recebe apenas <b>1 carta</b> e deve parar.</p>
+                </div>
+                <ValueCardGrid onSelect={handleSplitDoubleCard} />
               </>
             )}
 
@@ -829,6 +1016,73 @@ export default function ArenaBlackjack() {
                       </motion.button>
                     )}
                   </div>
+                )}
+              </>
+            )}
+
+            {/* SPLIT RESULT: Set results for each split hand */}
+            {handStep === 'split_result' && (
+              <>
+                <StepLabel text="📍 Resultado das mãos separadas" active />
+                <div className="space-y-3">
+                  {splitHands.map((sh, idx) => {
+                    const { total: shTotal } = calculateHandTotal(sh.cards);
+                    const shBust = shTotal > 21;
+                    const { total: dTotal } = calculateHandTotal(dealerCards);
+                    const dealerBust = dTotal > 21;
+
+                    if (sh.result) {
+                      return (
+                        <div key={idx} className={`p-3 rounded-xl text-center border ${sh.result === 'win' ? 'border-[hsl(var(--success)_/_0.3)] bg-[hsl(var(--success)_/_0.05)]' : sh.result === 'loss' ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-muted/10'}`}>
+                          <div className="text-sm font-bold">Mão {idx + 1}: {sh.result === 'win' ? '✅ GANHOU' : sh.result === 'loss' ? '❌ PERDEU' : '🤝 EMPATE'} (R${sh.bet})</div>
+                          <div className="flex justify-center gap-1 mt-1">
+                            {sh.cards.map((c, ci) => <MiniCard key={ci} card={c} />)}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={idx} className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
+                        <div className="text-sm font-bold text-center">Mão {idx + 1}{sh.doubled ? ' (2x)' : ''}: {shBust ? '💥 BUST' : shTotal} vs Dealer {dTotal}{dealerBust ? ' 💥' : ''} — R${sh.bet}</div>
+                        <div className="flex justify-center gap-1">
+                          {sh.cards.map((c, ci) => <MiniCard key={ci} card={c} />)}
+                        </div>
+                        {shBust ? (
+                          <div className="text-center text-sm text-destructive font-bold">Bust automático — Perda</div>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => {
+                                setSplitHands(prev => prev.map((h, i) => i === idx ? { ...h, result: 'win' } : h));
+                              }}
+                              className="py-3 rounded-xl font-bold text-sm bg-[hsl(var(--success))] text-white">
+                              ✅ GANHOU
+                            </motion.button>
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => {
+                                setSplitHands(prev => prev.map((h, i) => i === idx ? { ...h, result: 'loss' } : h));
+                              }}
+                              className="py-3 rounded-xl font-bold text-sm bg-[hsl(var(--destructive))] text-white">
+                              ❌ PERDEU
+                            </motion.button>
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => {
+                                setSplitHands(prev => prev.map((h, i) => i === idx ? { ...h, result: 'push' } : h));
+                              }}
+                              className="py-3 rounded-xl font-bold text-sm bg-muted text-muted-foreground border border-border">
+                              🤝 EMPATE
+                            </motion.button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {splitHands.every(sh => sh.result) && (
+                  <GoldButton className="w-full" onClick={handleSplitResults}>
+                    Confirmar e Próxima Mão →
+                  </GoldButton>
                 )}
               </>
             )}
