@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight, Briefcase, TrendingUp, Target } from 'lucide-react';
+import { Sparkles, Users, Bot, Trophy, Play, LogOut, ShoppingCart, HelpCircle, Coins, User, UserX, Pencil, X, Check, Eye, ChevronRight, Briefcase, TrendingUp, Target, Spade } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generatePin, getOrCreateSessionId } from '@/lib/gameUtils';
 import { useAuth } from '@/hooks/useAuth';
@@ -704,6 +704,46 @@ export default function Index() {
           <ChevronRight className="w-5 h-5 text-accent/60" />
         </motion.button>
 
+        {/* ========== CTA - ARENA BLACKJACK ========== */}
+        <motion.button
+          onClick={() => navigate('/arena-blackjack')}
+          disabled={loading}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          whileHover={{ scale: 1.02, y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          className="
+            w-full mt-3 relative overflow-hidden
+            bg-gradient-to-r from-[hsl(45,80%,45%)]/20 via-[hsl(45,80%,45%)]/10 to-[hsl(45,80%,45%)]/20
+            border border-[hsl(45,80%,45%)]/40 hover:border-[hsl(45,80%,45%)]/70
+            rounded-2xl p-4
+            flex items-center gap-4
+            transition-all duration-300
+            hover:shadow-[0_6px_25px_rgba(212,175,55,0.3)]
+            disabled:opacity-50 disabled:cursor-not-allowed
+            group
+          "
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          
+          <span className="text-3xl">🃏</span>
+          
+          <div className="flex-1 text-left">
+            <h3 className="font-orbitron text-base font-bold text-primary uppercase tracking-wide flex items-center gap-2">
+              Arena Blackjack
+              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30 font-mono tracking-wider">
+                NEW
+              </span>
+            </h3>
+            <p className="text-xs text-foreground/60">
+              Contagem Hi-Lo • Gestão de banca • Desvios TC
+            </p>
+          </div>
+          
+          <ChevronRight className="w-5 h-5 text-primary/60" />
+        </motion.button>
+
         {/* HIDDEN: Ações de criar/entrar sala do Blefador - código mantido para reuso */}
 
         {/* HIDDEN: Modo Apresentador e Arena Trader duplicada - código mantido */}
@@ -816,9 +856,9 @@ export default function Index() {
               <Trophy className="w-5 h-5" />
               <span className="text-xs">Ranking</span>
             </Link>
-            <Link to="/arena-trader/season" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <Sparkles className="w-5 h-5" />
-              <span className="text-xs">Temporada</span>
+            <Link to="/arena-blackjack" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <Spade className="w-5 h-5" />
+              <span className="text-xs">Blackjack</span>
             </Link>
           </div>
         </motion.footer>
