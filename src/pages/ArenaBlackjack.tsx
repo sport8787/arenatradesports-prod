@@ -37,7 +37,7 @@ import { MiniHybridDisplay } from '@/components/arena-blackjack/HybridBettingDis
 import { BettingSystemSelector } from '@/components/arena-blackjack/BettingSystemSelector';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 interface SplitHand {
@@ -157,6 +157,7 @@ export default function ArenaBlackjack() {
     totalProfit: 0,
   });
   const [lastResult, setLastResult] = useState<'win' | 'loss' | 'push' | null>(null);
+  const [dealerBJConfirmed, setDealerBJConfirmed] = useState(false);
 
   // Split state
   const [splitMode, setSplitMode] = useState(false);
@@ -301,6 +302,7 @@ export default function ArenaBlackjack() {
     setHandStep('select_dealer');
     setPlayerCards([]); setDealerCards([]);
     setLastResult(null); setLastAction(null);
+    setDealerBJConfirmed(false);
 
     if (user) {
       const { data } = await supabase.from('blackjack_sessions').insert({
@@ -327,15 +329,30 @@ export default function ArenaBlackjack() {
     }
   };
 
-  const handleInsuranceResponse = (dealerHasBJ: boolean, holeCard: string) => {
-    const newDealerCards = [...dealerCards, holeCard];
-    setDealerCards(newDealerCards);
-    addToCount([holeCard]);
+  const handleInsuranceAnswer = (dealerHasBJ: boolean) => {
     if (dealerHasBJ) {
-      setHandStep('result');
+      setDealerBJConfirmed(true);
+      setHandStep('insurance_bj_card');
     } else {
-      setDealerCards([dealerCards[0]]);
+      setDealerBJConfirmed(false);
       setHandStep('select_player');
+    }
+  };
+
+  const handleInsuranceBJCard = (card: string) => {
+    const newDealerCards = [...dealerCards, card];
+    setDealerCards(newDealerCards);
+    addToCount([card]);
+    setHandStep('insurance_bj_player');
+  };
+
+  const handleInsuranceBJPlayerCard = (card: string) => {
+    const newCards = [...playerCards, card];
+    setPlayerCards(newCards);
+    addToCount([card]);
+    if (newCards.length >= 2) {
+      // Player entered their cards for counting, now auto-result as loss
+      setHandStep('result');
     }
   };
 
@@ -344,7 +361,12 @@ export default function ArenaBlackjack() {
     setPlayerCards(newCards);
     addToCount([card]);
     if (newCards.length >= 2) {
-      // Check for natural blackjack (A + 10-value card with exactly 2 cards)
+      if (dealerBJConfirmed) {
+        // Dealer has BJ, cards entered for counting only → auto loss
+        setHandStep('result');
+        return;
+      }
+      // Check for natural blackjack
       const { total } = calculateHandTotal(newCards);
       if (total === 21 && newCards.length === 2) {
         // Auto-detect blackjack — skip action, go directly to dealer reveal
@@ -579,6 +601,7 @@ export default function ArenaBlackjack() {
     setSplitMode(false);
     setSplitHands([]);
     setActiveSplitHand(0);
+    setDealerBJConfirmed(false);
     // Set currentBet from hybrid recommendation
     if (hybridRecommendation) {
       setCurrentBet(hybridRecommendation.amount);
@@ -912,27 +935,47 @@ export default function ArenaBlackjack() {
                   <p className="text-sm font-bold text-destructive">❌ RECUSE O SEGURO</p>
                   <p className="text-xs text-muted-foreground">Estatisticamente o seguro é sempre um mau negócio para o jogador.</p>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-sm text-center font-semibold text-foreground">O Dealer fez Blackjack?</p>
-                  <p className="text-xs text-center text-muted-foreground mb-2">Selecione a segunda carta do dealer para a contagem:</p>
-                  <div className="grid grid-cols-7 gap-2">
-                    {['A','2','3','4','5','6','7','8','9','10','J','Q','K'].map(v => {
-                      const isTenValue = ['10','J','Q','K'].includes(v);
-                      return (
-                        <motion.button key={`ins-${v}`} whileTap={{ scale: 0.9 }}
-                          onClick={() => handleInsuranceResponse(isTenValue, v)}
-                          className={`py-3 rounded-lg font-bold text-sm border transition-all ${
-                            isTenValue
-                              ? 'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30'
-                              : 'bg-secondary/50 border-border text-foreground hover:bg-secondary'
-                          }`}>
-                          {v}
-                        </motion.button>
-                      );
-                    })}
+                  <div className="grid grid-cols-2 gap-3">
+                    <motion.button whileTap={{ scale: 0.95 }}
+                      onClick={() => handleInsuranceAnswer(true)}
+                      className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all">
+                      ✅ SIM
+                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.95 }}
+                      onClick={() => handleInsuranceAnswer(false)}
+                      className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--success))] text-white hover:bg-[hsl(var(--success)_/_0.8)] transition-all">
+                      ❌ NÃO
+                    </motion.button>
                   </div>
-                  <p className="text-[10px] text-center text-muted-foreground">Cartas vermelhas = Dealer fez BJ (10, J, Q, K)</p>
                 </div>
+              </>
+            )}
+
+            {handStep === 'insurance_bj_card' && (
+              <>
+                <StepLabel text="🃏 Dealer fez BJ — Qual a 2ª carta do Dealer?" active />
+                <p className="text-xs text-center text-muted-foreground mb-2">Selecione a carta que completou o Blackjack (10, J, Q ou K)</p>
+                <div className="grid grid-cols-4 gap-3">
+                  {['10', 'J', 'Q', 'K'].map(v => (
+                    <motion.button key={`bj-${v}`} whileTap={{ scale: 0.9 }}
+                      onClick={() => handleInsuranceBJCard(v + 'S')}
+                      className="py-4 rounded-xl font-bold text-lg bg-destructive/20 border-2 border-destructive/50 text-destructive hover:bg-destructive/30 transition-all">
+                      {v}
+                    </motion.button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {handStep === 'insurance_bj_player' && (
+              <>
+                <StepLabel text={`📍 Suas cartas para contagem (${playerCards.length}/2 mínimo)`} active />
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-center mb-2">
+                  <p className="text-xs text-muted-foreground">Dealer fez BJ — informe suas cartas para manter a contagem precisa.</p>
+                </div>
+                <ValueCardGrid onSelect={handleInsuranceBJPlayerCard} />
               </>
             )}
 
