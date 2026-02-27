@@ -350,19 +350,37 @@ export function getOptimalBet(
       
       const edgeDec = edgeToDecimal(kelly.edge);
       
+      // When edge <= 0, use Martingale progression instead of flat min bet
+      let finalAmount = kelly.amount;
+      let system: 'protective' | 'recovery' | 'attack' | 'standard' = 'standard';
+      
+      if (kelly.edge <= 0 && lastResult) {
+        // Fallback to Martingale progression when Kelly can't help
+        const martingaleBet = calculateMartingaleBet(config, state, lastResult);
+        finalAmount = Math.min(martingaleBet, config.maxBet);
+        system = 'recovery';
+      } else if (kelly.edge > 0) {
+        system = 'attack';
+      }
+      
       return {
-        amount: kelly.amount,
-        percentage: kelly.percentage,
-        system: 'standard',
+        amount: finalAmount,
+        percentage: (finalAmount / config.bankroll) * 100,
+        system,
         mode: config.mode,
-        reasoning: `Kelly ${fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full'}
+        reasoning: kelly.edge > 0 
+          ? `Kelly ${fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full'}
 TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
-Vantagem: ${kelly.edge >= 0 ? '+' : ''}${kelly.edge.toFixed(1)}%
-Aposta: ${kelly.percentage.toFixed(1)}% da banca`,
+Vantagem: +${kelly.edge.toFixed(1)}%
+Aposta: ${(finalAmount / config.bankroll * 100).toFixed(1)}% da banca`
+          : `Kelly ${fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full'} + Martingale
+TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
+Vantagem: ${kelly.edge.toFixed(1)}% (sem edge → progressão Martingale)
+${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}` : 'Progressão limpa'}`,
         playerEdge: kelly.edge,
         trueCount,
-        expectedValue: kelly.amount * edgeDec,
-        risk: kelly.percentage > 10 ? 'high' : 'medium'
+        expectedValue: finalAmount * edgeDec,
+        risk: kelly.percentage > 10 ? 'high' : system === 'recovery' && state.consecutiveLosses > 5 ? 'high' : 'medium'
       };
     }
     
@@ -377,7 +395,7 @@ Aposta: ${kelly.percentage.toFixed(1)}% da banca`,
       return {
         amount: bet,
         percentage: (bet / config.bankroll) * 100,
-        system: 'standard',
+        system: 'recovery',
         mode: 'martingale',
         reasoning: `Martingale Conservador
 Incremento: +R$ ${config.increment} na derrota
