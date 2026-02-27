@@ -183,19 +183,21 @@ interface MiniHybridDisplayProps {
   recommendation: BetRecommendation;
 }
 
+const MODE_LABELS: Record<string, string> = {
+  hybrid: 'HÍBRIDO',
+  kelly_quarter: 'KELLY QUARTER',
+  kelly_half: 'KELLY HALF',
+  kelly_full: 'KELLY FULL',
+  martingale: 'MARTINGALE',
+  flat: 'FLAT',
+};
+
 export function MiniHybridDisplay({ recommendation }: MiniHybridDisplayProps) {
   const systemEmojis = {
     protective: '🛡️',
     recovery: '📈',
     attack: '🚀',
     standard: '⚪'
-  };
-
-  const systemLabels = {
-    protective: 'PROTEÇÃO',
-    recovery: 'RECUPERAÇÃO',
-    attack: 'ATAQUE',
-    standard: 'PADRÃO'
   };
 
   const systemColors = {
@@ -205,13 +207,18 @@ export function MiniHybridDisplay({ recommendation }: MiniHybridDisplayProps) {
     standard: 'text-primary bg-primary/5 border-primary/30'
   };
 
+  // For hybrid mode show system label, for others show mode name
+  const displayLabel = recommendation.mode === 'hybrid'
+    ? (recommendation.system === 'protective' ? 'PROTEÇÃO' : recommendation.system === 'recovery' ? 'RECUPERAÇÃO' : recommendation.system === 'attack' ? 'ATAQUE' : 'PADRÃO')
+    : (MODE_LABELS[recommendation.mode] || 'PADRÃO');
+
   return (
     <div className={`border-2 rounded-lg p-2 ${systemColors[recommendation.system]}`}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1">
           <span className="text-sm">{systemEmojis[recommendation.system]}</span>
           <span className="font-bold text-[10px]">
-            {systemLabels[recommendation.system]}
+            {displayLabel}
           </span>
         </div>
         <Badge variant={recommendation.risk === 'high' ? 'destructive' : 'secondary'} className="text-[9px] h-4">
