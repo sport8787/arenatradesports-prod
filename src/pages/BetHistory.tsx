@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Filter } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
+import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Bet {
   id: string;
@@ -22,6 +24,10 @@ interface Bet {
   placed_at: string;
   settled_at?: string;
   source: 'sports' | 'punter';
+  score_home?: number | null;
+  score_away?: number | null;
+  red_card_home?: boolean;
+  red_card_away?: boolean;
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red';
@@ -34,6 +40,8 @@ export default function BetHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [settleModalOpen, setSettleModalOpen] = useState(false);
+  const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -61,6 +69,10 @@ export default function BetHistoryPage() {
       placed_at: b.placed_at,
       settled_at: b.settled_at,
       source: 'sports',
+      score_home: b.score_home,
+      score_away: b.score_away,
+      red_card_home: b.red_card_home,
+      red_card_away: b.red_card_away,
     }));
 
     const punterBets: Bet[] = (punterRes.data || []).map((b: any) => ({
@@ -75,6 +87,10 @@ export default function BetHistoryPage() {
       placed_at: b.created_at,
       settled_at: b.status === 'settled' ? b.updated_at : undefined,
       source: 'punter',
+      score_home: b.score_home,
+      score_away: b.score_away,
+      red_card_home: b.red_card_home,
+      red_card_away: b.red_card_away,
     }));
 
     setBets([...sportsBets, ...punterBets].sort((a, b) =>
@@ -92,6 +108,123 @@ export default function BetHistoryPage() {
     setSettling(false);
   };
 
+  const handleManualSettle = useCallback(async (data: {
+    betId: string;
+    scoreHome: number;
+    scoreAway: number;
+    redCardHome: boolean;
+    redCardAway: boolean;
+    source: 'sports' | 'punter';
+  }) => {
+    if (!user || !bankroll) return;
+
+    const bet = bets.find(b => b.id === data.betId);
+    if (!bet) return;
+
+    // Determine result
+    const market = bet.market.toLowerCase();
+    const h = data.scoreHome;
+    const a = data.scoreAway;
+    const totalGoals = h + a;
+    let isGreen = false;
+
+    if (market === 'casa' || market === 'home' || market === '1') {
+      isGreen = h > a;
+    } else if (market === 'fora' || market === 'away' || market === '2') {
+      isGreen = a > h;
+    } else if (market === 'empate' || market === 'draw' || market === 'x') {
+      isGreen = h === a;
+    } else if (market.includes('over')) {
+      const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5;
+      isGreen = totalGoals > line;
+    } else if (market.includes('under')) {
+      const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5;
+      isGreen = totalGoals < line;
+    } else if (market.includes('btts') || market.includes('ambas')) {
+      isGreen = h > 0 && a > 0;
+    }
+
+    const betResult = isGreen ? 'green' : 'red';
+    const profitLoss = isGreen
+      ? +(bet.stake * (bet.odd - 1)).toFixed(2)
+      : -bet.stake;
+
+    const table = data.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
+
+    // Update bet
+    const updatePayload = data.source === 'punter'
+      ? {
+          status: 'settled',
+          result: betResult,
+          profit_loss: profitLoss,
+          score_home: h,
+          score_away: a,
+          red_card_home: data.redCardHome,
+          red_card_away: data.redCardAway,
+          updated_at: new Date().toISOString(),
+        }
+      : {
+          status: betResult,
+          profit_loss: profitLoss,
+          score_home: h,
+          score_away: a,
+          red_card_home: data.redCardHome,
+          red_card_away: data.redCardAway,
+          settled_at: new Date().toISOString(),
+        };
+
+    const { error: betError } = await supabase
+      .from(table)
+      .update(updatePayload)
+      .eq('id', data.betId);
+
+    if (betError) {
+      toast.error('Erro ao liquidar aposta');
+      console.error(betError);
+      return;
+    }
+
+    // Update bankroll - only add back for GREEN (stake already deducted)
+    const balanceChange = isGreen ? bet.stake * bet.odd : 0;
+
+    await supabase
+      .from('user_bankroll')
+      .update({
+        balance: +(bankroll.balance + balanceChange).toFixed(2),
+        total_profit: +(bankroll.total_profit + profitLoss).toFixed(2),
+        green_bets: bankroll.green_bets + (isGreen ? 1 : 0),
+        red_bets: bankroll.red_bets + (isGreen ? 0 : 1),
+        win_rate: +((bankroll.green_bets + (isGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets + 1) * 100).toFixed(2),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+
+    // Also settle matching punter_signals if punter bet
+    if (data.source === 'punter') {
+      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
+      await supabase
+        .from('punter_signals')
+        .update({
+          result: betResult,
+          status: 'settled',
+          profit_loss: isGreen
+            ? +(bet.odd * 3).toFixed(2) // default stake_percentage
+            : -3,
+          score_home: h,
+          score_away: a,
+          red_card_home: data.redCardHome,
+          red_card_away: data.redCardAway,
+          resulted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
+        .eq('status', 'pending');
+    }
+
+    toast.success(`Aposta liquidada: ${betResult.toUpperCase()}`);
+    await fetchBets();
+  }, [user, bankroll, bets]);
+
   const filtered = useMemo(() => {
     if (filter === 'all') return bets;
     if (filter === 'pending') return bets.filter(b => b.status === 'pending');
@@ -101,9 +234,9 @@ export default function BetHistoryPage() {
   }, [bets, filter]);
 
   const stats = useMemo(() => {
-    const settled = bets.filter(b => b.status === 'settled');
-    const greens = settled.filter(b => b.result === 'green');
-    const reds = settled.filter(b => b.result === 'red');
+    const settled = bets.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
+    const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
+    const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
     const pending = bets.filter(b => b.status === 'pending');
     return {
@@ -135,7 +268,7 @@ export default function BetHistoryPage() {
           </div>
           <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
             <CheckCircle2 className={cn("w-4 h-4 mr-1", settling && "animate-spin")} />
-            {settling ? 'Liquidando...' : 'Liquidar Pendentes'}
+            {settling ? 'Liquidando...' : 'Liquidar Auto'}
           </GoldButton>
         </div>
       </header>
@@ -196,8 +329,8 @@ export default function BetHistoryPage() {
                   transition={{ delay: i * 0.03 }}
                   className={cn(
                     "bg-card border rounded-xl p-4 space-y-2",
-                    bet.result === 'green' ? 'border-success/40' :
-                    bet.result === 'red' ? 'border-destructive/40' :
+                    bet.result === 'green' || bet.status === 'green' ? 'border-success/40' :
+                    bet.result === 'red' || bet.status === 'red' ? 'border-destructive/40' :
                     'border-border'
                   )}
                 >
@@ -210,23 +343,40 @@ export default function BetHistoryPage() {
                         {bet.match_name}
                       </span>
                     </div>
-                    {bet.result === 'green' ? (
-                      <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
-                    ) : bet.result === 'red' ? (
-                      <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
-                    ) : (
-                      <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {bet.status === 'pending' && (
+                        <button
+                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                          className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors"
+                        >
+                          <Gavel className="w-3.5 h-3.5" />
+                          Liquidar
+                        </button>
+                      )}
+                      {(bet.result === 'green' || bet.status === 'green') ? (
+                        <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
+                      ) : (bet.result === 'red' || bet.status === 'red') ? (
+                        <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
+                      ) : (
+                        <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>Mercado: <span className="text-foreground font-medium">{bet.market}</span></span>
                     <span>Odd: <span className="text-foreground font-medium">{bet.odd.toFixed(2)}</span></span>
                     <span>Stake: <span className="text-foreground font-medium">R$ {bet.stake.toFixed(2)}</span></span>
+                    {bet.score_home != null && bet.score_away != null && (
+                      <span>Placar: <span className="text-foreground font-medium">{bet.score_home} × {bet.score_away}</span></span>
+                    )}
+                    {(bet.red_card_home || bet.red_card_away) && (
+                      <span>🟥 {bet.red_card_home && bet.red_card_away ? 'Ambos' : bet.red_card_home ? 'Casa' : 'Fora'}</span>
+                    )}
                     <span>{formatDate(bet.placed_at)}</span>
                   </div>
 
-                  {bet.profit_loss != null && bet.status === 'settled' && (
+                  {bet.profit_loss != null && (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
                     <div className={cn(
                       "text-sm font-orbitron font-bold",
                       bet.profit_loss >= 0 ? 'text-success' : 'text-destructive'
@@ -240,6 +390,13 @@ export default function BetHistoryPage() {
           </div>
         )}
       </div>
+
+      <ManualSettleModal
+        open={settleModalOpen}
+        onClose={() => { setSettleModalOpen(false); setSelectedBet(null); }}
+        bet={selectedBet}
+        onSettle={handleManualSettle}
+      />
     </div>
   );
 }

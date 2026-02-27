@@ -1161,8 +1161,12 @@ export type Database = {
           match_id: string
           odd: number
           profit_loss: number | null
+          red_card_away: boolean | null
+          red_card_home: boolean | null
           result: string | null
           resulted_at: string | null
+          score_away: number | null
+          score_home: number | null
           sent_at: string | null
           stake_percentage: number | null
           status: string | null
@@ -1178,8 +1182,12 @@ export type Database = {
           match_id: string
           odd: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
           resulted_at?: string | null
+          score_away?: number | null
+          score_home?: number | null
           sent_at?: string | null
           stake_percentage?: number | null
           status?: string | null
@@ -1195,8 +1203,12 @@ export type Database = {
           match_id?: string
           odd?: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
           resulted_at?: string | null
+          score_away?: number | null
+          score_home?: number | null
           sent_at?: string | null
           stake_percentage?: number | null
           status?: string | null
@@ -2450,6 +2462,10 @@ export type Database = {
           odd: number
           placed_at: string | null
           profit_loss: number | null
+          red_card_away: boolean | null
+          red_card_home: boolean | null
+          score_away: number | null
+          score_home: number | null
           settled_at: string | null
           signal_id: string | null
           stake: number
@@ -2464,6 +2480,10 @@ export type Database = {
           odd: number
           placed_at?: string | null
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
+          score_away?: number | null
+          score_home?: number | null
           settled_at?: string | null
           signal_id?: string | null
           stake: number
@@ -2478,6 +2498,10 @@ export type Database = {
           odd?: number
           placed_at?: string | null
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
+          score_away?: number | null
+          score_home?: number | null
           settled_at?: string | null
           signal_id?: string | null
           stake?: number
@@ -2503,7 +2527,11 @@ export type Database = {
           match_name: string
           odd: number
           profit_loss: number | null
+          red_card_away: boolean | null
+          red_card_home: boolean | null
           result: string | null
+          score_away: number | null
+          score_home: number | null
           signal_id: string | null
           stake: number
           status: string | null
@@ -2518,7 +2546,11 @@ export type Database = {
           match_name: string
           odd: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
+          score_away?: number | null
+          score_home?: number | null
           signal_id?: string | null
           stake: number
           status?: string | null
@@ -2533,7 +2565,11 @@ export type Database = {
           match_name?: string
           odd?: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
+          score_away?: number | null
+          score_home?: number | null
           signal_id?: string | null
           stake?: number
           status?: string | null
