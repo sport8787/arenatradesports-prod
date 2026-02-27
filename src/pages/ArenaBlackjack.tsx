@@ -158,6 +158,7 @@ export default function ArenaBlackjack() {
   });
   const [lastResult, setLastResult] = useState<'win' | 'loss' | 'push' | null>(null);
   const [dealerBJConfirmed, setDealerBJConfirmed] = useState(false);
+  const [playerBusted, setPlayerBusted] = useState(false);
 
   // Split state
   const [splitMode, setSplitMode] = useState(false);
@@ -302,7 +303,7 @@ export default function ArenaBlackjack() {
     setHandStep('select_dealer');
     setPlayerCards([]); setDealerCards([]);
     setLastResult(null); setLastAction(null);
-    setDealerBJConfirmed(false);
+    setDealerBJConfirmed(false); setPlayerBusted(false);
 
     if (user) {
       const { data } = await supabase.from('blackjack_sessions').insert({
@@ -508,7 +509,9 @@ export default function ArenaBlackjack() {
     addToCount([card]);
     const { total } = calculateHandTotal(newCards);
     if (total > 21) {
-      setHandStep('result');
+      // Player busted — still need dealer's hole card for counting
+      setPlayerBusted(true);
+      setHandStep('select_dealer2');
     } else {
       setHandStep('action');
     }
@@ -518,6 +521,19 @@ export default function ArenaBlackjack() {
     const newDealerCards = [...dealerCards, card];
     setDealerCards(newDealerCards);
     addToCount([card]);
+    
+    // If player busted, auto-resolve as loss after collecting dealer cards for TC
+    if (playerBusted) {
+      const { total: dealerTotal } = calculateHandTotal(newDealerCards);
+      if (dealerTotal < 17) {
+        // Still need more dealer cards for counting
+        setHandStep('select_dealer2');
+      } else {
+        setHandStep('result');
+      }
+      return;
+    }
+    
     const { total: dealerTotal } = calculateHandTotal(newDealerCards);
     if (dealerTotal < 17) {
       setHandStep('select_dealer2');
@@ -602,6 +618,7 @@ export default function ArenaBlackjack() {
     setSplitHands([]);
     setActiveSplitHand(0);
     setDealerBJConfirmed(false);
+    setPlayerBusted(false);
     // Set currentBet from hybrid recommendation
     if (hybridRecommendation) {
       setCurrentBet(hybridRecommendation.amount);
@@ -1094,7 +1111,12 @@ export default function ArenaBlackjack() {
 
             {handStep === 'select_dealer2' && (
               <>
-                <StepLabel text={`📍 Carta do Dealer${dealerCards.length >= 2 ? ` (total: ${calculateHandTotal(dealerCards).total})` : ''} — precisa de 17+`} active />
+                <StepLabel text={`📍 ${playerBusted ? '💥 BUST — ' : ''}Carta do Dealer${dealerCards.length >= 2 ? ` (total: ${calculateHandTotal(dealerCards).total})` : ''} — precisa de 17+`} active />
+                {playerBusted && (
+                  <div className="p-3 rounded-xl bg-[hsl(var(--destructive)_/_0.1)] border border-[hsl(var(--destructive)_/_0.3)] text-center mb-2">
+                    <p className="text-xs text-muted-foreground">Você estourou com {hand.total} pontos. Informe as cartas do dealer para manter a contagem precisa.</p>
+                  </div>
+                )}
                 <ValueCardGrid onSelect={handleSelectDealerHoleCard} />
               </>
             )}
