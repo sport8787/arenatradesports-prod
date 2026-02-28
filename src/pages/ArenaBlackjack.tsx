@@ -522,15 +522,9 @@ export default function ArenaBlackjack() {
     setDealerCards(newDealerCards);
     addToCount([card]);
     
-    // If player busted, auto-resolve as loss after collecting dealer cards for TC
+    // If player busted, auto-resolve as loss after collecting dealer hole card for TC
     if (playerBusted) {
-      const { total: dealerTotal } = calculateHandTotal(newDealerCards);
-      if (dealerTotal < 17) {
-        // Still need more dealer cards for counting
-        setHandStep('select_dealer2');
-      } else {
-        setHandStep('result');
-      }
+      setHandStep('result');
       return;
     }
     

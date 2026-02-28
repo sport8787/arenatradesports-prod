@@ -101,8 +101,6 @@ export function calculateKellyBet(
 } {
   const edge = calculatePlayerEdge(trueCount);
   const winProb = calculateWinProbability(trueCount);
-  const loseProb = 1 - winProb;
-  const odds = 1;
   
   if (edge <= 0) {
     return {
@@ -113,8 +111,11 @@ export function calculateKellyBet(
     };
   }
   
-  // Fórmula de Kelly: f* = (bp - q) / b
-  const kellyFull = (odds * winProb - loseProb) / odds;
+  // Kelly para Blackjack: f* = edge / variância
+  // Variância BJ ≈ 1.15, mas usamos spread prático (edge * 10)
+  // que produz sizing adequado para card counting real
+  const edgeDecimal = edge / 100;
+  const kellyFull = edgeDecimal * 10;
   const kellyAdjusted = kellyFull * kellyFraction;
   
   let betAmount = bankroll * kellyAdjusted;
