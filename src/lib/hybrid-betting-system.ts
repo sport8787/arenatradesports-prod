@@ -348,39 +348,38 @@ export function getOptimalBet(
         config.maxBet
       );
       
-      const edgeDec = edgeToDecimal(kelly.edge);
+      const fractionName = fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full';
       
-      // When edge <= 0, use Martingale progression instead of flat min bet
-      let finalAmount = kelly.amount;
-      let system: 'protective' | 'recovery' | 'attack' | 'standard' = 'standard';
-      
-      if (kelly.edge <= 0 && lastResult) {
-        // Fallback to Martingale progression when Kelly can't help
-        const martingaleBet = calculateMartingaleBet(config, state, lastResult);
-        finalAmount = Math.min(martingaleBet, config.maxBet);
-        system = 'recovery';
-      } else if (kelly.edge > 0) {
-        system = 'attack';
+      // ✅ Kelly PURO: Sem Martingale. Edge negativo = minBet, Edge positivo = Kelly
+      let reasoning: string;
+      if (kelly.edge <= 0) {
+        reasoning = `${fractionName} Kelly - Edge Negativo
+
+TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
+Vantagem: ${kelly.edge.toFixed(1)}% (casa favorecida)
+Kelly Criterion diz: NÃO APOSTE
+Aposta mínima até edge positivo.
+Aguardando: TC ≥ +2 para aumentar aposta`;
+      } else {
+        reasoning = `${fractionName} Kelly - Edge Positivo
+
+TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
+Vantagem: +${kelly.edge.toFixed(1)}%
+Aposta ótima: ${kelly.percentage.toFixed(1)}% da banca
+Probabilidade vitória: ${(kelly.winProb * 100).toFixed(1)}%
+Expectativa: +R$ ${(kelly.amount * kelly.edge / 100).toFixed(2)}`;
       }
       
       return {
-        amount: finalAmount,
-        percentage: (finalAmount / config.bankroll) * 100,
-        system,
+        amount: kelly.amount,
+        percentage: kelly.percentage,
+        system: 'standard',
         mode: config.mode,
-        reasoning: kelly.edge > 0 
-          ? `Kelly ${fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full'}
-TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
-Vantagem: +${kelly.edge.toFixed(1)}%
-Aposta: ${(finalAmount / config.bankroll * 100).toFixed(1)}% da banca`
-          : `Kelly ${fraction === 0.25 ? 'Quarter' : fraction === 0.5 ? 'Half' : 'Full'} + Martingale
-TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
-Vantagem: ${kelly.edge.toFixed(1)}% (sem edge → progressão Martingale)
-${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}` : 'Progressão limpa'}`,
+        reasoning,
         playerEdge: kelly.edge,
         trueCount,
-        expectedValue: finalAmount * edgeDec,
-        risk: kelly.percentage > 10 ? 'high' : system === 'recovery' && state.consecutiveLosses > 5 ? 'high' : 'medium'
+        expectedValue: kelly.amount * kelly.edge / 100,
+        risk: kelly.percentage > 10 ? 'high' : kelly.percentage > 5 ? 'medium' : 'low'
       };
     }
     
@@ -390,7 +389,6 @@ ${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}
         : config.baseUnit;
       
       const edge = calculatePlayerEdge(trueCount);
-      const edgeDec = edgeToDecimal(edge);
       
       return {
         amount: bet,
@@ -400,17 +398,19 @@ ${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}
         reasoning: `Martingale Conservador
 Incremento: +R$ ${config.increment} na derrota
 Retorna ao último win na vitória
-${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}` : 'Progressão limpa'}`,
+${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}` : 'Progressão limpa'}
+TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
+Edge: ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}%`,
         playerEdge: edge,
         trueCount,
-        expectedValue: bet * edgeDec,
-        risk: state.consecutiveLosses > 5 ? 'high' : 'medium'
+        expectedValue: bet * edge / 100,
+        risk: state.consecutiveLosses > 5 ? 'high' : state.consecutiveLosses > 3 ? 'medium' : 'low',
+        warning: state.consecutiveLosses >= 5 ? '⚠️ 5+ perdas consecutivas - considere pausa' : undefined
       };
     }
     
     case 'flat': {
       const edge = calculatePlayerEdge(trueCount);
-      const edgeDec = edgeToDecimal(edge);
       
       return {
         amount: config.baseUnit,
@@ -418,11 +418,13 @@ ${state.consecutiveLosses > 0 ? `Perdas consecutivas: ${state.consecutiveLosses}
         system: 'standard',
         mode: 'flat',
         reasoning: `Flat Betting - Aposta fixa
-Sempre ${config.baseUnit} independente do resultado
-Risco mínimo, crescimento lento`,
+Sempre R$ ${config.baseUnit} independente do resultado
+Risco mínimo, crescimento lento
+TC: ${trueCount >= 0 ? '+' : ''}${trueCount}
+Edge: ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}%`,
         playerEdge: edge,
         trueCount,
-        expectedValue: config.baseUnit * edgeDec,
+        expectedValue: config.baseUnit * edge / 100,
         risk: 'low'
       };
     }
