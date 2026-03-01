@@ -344,13 +344,21 @@ export default function BetHistoryPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {bet.status === 'pending' && (
+                      {bet.status === 'pending' ? (
                         <button
                           onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
                           className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors"
                         >
                           <Gavel className="w-3.5 h-3.5" />
                           Liquidar
+                        </button>
+                      ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
+                        <button
+                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                          className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 px-2 py-1 rounded-md transition-colors"
+                        >
+                          <Gavel className="w-3.5 h-3.5" />
+                          Corrigir
                         </button>
                       )}
                       {(bet.result === 'green' || bet.status === 'green') ? (
