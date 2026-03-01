@@ -23,6 +23,7 @@ serve(async (req) => {
       sports = [
         'soccer_brazil_campeonato',
         'soccer_brazil_serie_b',
+        'soccer_brazil_campeonato_pernambucano',
         'soccer_conmebol_copa_libertadores',
         'soccer_conmebol_copa_sudamericana',
         'soccer_uefa_champs_league',
@@ -181,7 +182,8 @@ async function analyzeGame(
   console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team}`)
 
   const oddsData = extractOdds(game)
-  if (oddsData.length === 0) return null
+  const totalsData = extractTotals(game)
+  if (oddsData.length === 0 && totalsData.length === 0) return null
 
   const analysisPrompt = `
 ${customPrompt}
@@ -203,9 +205,20 @@ ${o.bookmaker}:
   ${game.away_team}: ${o.away_odd}
 `).join('\n')}
 
+${totalsData.length > 0 ? `
+ODDS DISPONÍVEIS (Mercado TOTALS - Over/Under):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${totalsData.map((t: any) => `
+${t.bookmaker}:
+  Over ${t.line}: ${t.over_odd}
+  Under ${t.line}: ${t.under_odd}
+`).join('\n')}
+` : 'TOTALS: Não disponível para este jogo'}
+
 ANÁLISE DE PROBABILIDADES:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${calculateProbabilities(oddsData[0])}
+${totalsData.length > 0 ? calculateTotalsProbabilities(totalsData[0]) : ''}
 
 ${methodology ? `KNOWLEDGE BASE (Metodologia Value Betting):\n${methodology}` : ''}
 ${valueGuide ? `\nGUIA DE VALUE:\n${valueGuide}` : ''}
@@ -218,7 +231,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
 
 {
   "verdict": "APROVADO" ou "VETADO",
-  "market": "Casa" | "Empate" | "Fora" | "Over 2.5" | "Under 2.5" | null,
+  "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
   "bookmaker": "Bet365" | "Pinnacle" | "Betfair",
   "odd": 2.10,
   "fair_odd": 1.85,
@@ -238,6 +251,8 @@ CRITÉRIOS PARA APROVAR:
 - Odd entre 1.70 e 3.50 (sweet spot)
 - Casa de apostas confiável
 - Lógica clara e fundamentada
+- CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR value
+- Para Over/Under, especifique a linha (ex: "Over 2.5", "Under 3.5")
 
 ANALISE AGORA:`
 
@@ -336,6 +351,26 @@ function extractOdds(game: any) {
   return oddsData
 }
 
+function extractTotals(game: any) {
+  const totalsData: any[] = []
+  for (const bookmaker of game.bookmakers || []) {
+    const totalsMarket = bookmaker.markets?.find((m: any) => m.key === 'totals')
+    if (totalsMarket && totalsMarket.outcomes) {
+      const overOutcome = totalsMarket.outcomes.find((o: any) => o.name === 'Over')
+      const underOutcome = totalsMarket.outcomes.find((o: any) => o.name === 'Under')
+      if (overOutcome && underOutcome && overOutcome.point !== undefined) {
+        totalsData.push({
+          bookmaker: bookmaker.title,
+          line: overOutcome.point,
+          over_odd: overOutcome.price,
+          under_odd: underOutcome.price,
+        })
+      }
+    }
+  }
+  return totalsData
+}
+
 function calculateProbabilities(odds: any) {
   if (!odds) return 'Sem dados'
   const homeProb = (1 / odds.home_odd * 100).toFixed(2)
@@ -344,10 +379,24 @@ function calculateProbabilities(odds: any) {
   const total = parseFloat(homeProb) + parseFloat(drawProb) + parseFloat(awayProb)
   const overround = (total - 100).toFixed(2)
   return `
-Probabilidade Implícita (${odds.bookmaker}):
+Probabilidade Implícita H2H (${odds.bookmaker}):
 - Casa: ${homeProb}%
 - Empate: ${drawProb}%
 - Fora: ${awayProb}%
+- Total: ${total.toFixed(2)}%
+- Overround (margem): ${overround}%`
+}
+
+function calculateTotalsProbabilities(totals: any) {
+  if (!totals) return ''
+  const overProb = (1 / totals.over_odd * 100).toFixed(2)
+  const underProb = (1 / totals.under_odd * 100).toFixed(2)
+  const total = parseFloat(overProb) + parseFloat(underProb)
+  const overround = (total - 100).toFixed(2)
+  return `
+Probabilidade Implícita Over/Under ${totals.line} (${totals.bookmaker}):
+- Over ${totals.line}: ${overProb}%
+- Under ${totals.line}: ${underProb}%
 - Total: ${total.toFixed(2)}%
 - Overround (margem): ${overround}%`
 }

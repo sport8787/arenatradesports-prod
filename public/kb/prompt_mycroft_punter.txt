@@ -129,7 +129,7 @@ Retorne APENAS um objeto JSON válido (sem ```json, sem preamble, sem explicaç�
 
 {
   "verdict": "APROVADO" ou "VETADO",
-  "market": "Casa" | "Empate" | "Fora" | "Over 2.5" | "Under 2.5" | null,
+  "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
   "bookmaker": "Pinnacle" | "Bet365" | "Betfair" | outro,
   "odd": 2.10,
   "fair_odd": 1.85,

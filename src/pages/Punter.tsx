@@ -250,7 +250,7 @@ export default function PunterPage() {
           <CardContent className="p-4">
             <p className="text-sm text-foreground/80">
               <span className="font-bold text-success">Value Betting Pré-Jogo</span> — Mycroft Punter analisa jogos 
-              futuros e identifica odds com value positivo. Stake recomendado: 2-5% da banca baseado em confiança e value.
+              futuros e identifica odds com value positivo em múltiplos mercados (1x2, Over/Under). Stake recomendado: 2-5% da banca.
             </p>
           </CardContent>
         </Card>
@@ -258,7 +258,7 @@ export default function PunterPage() {
         {/* Analyze Button */}
         <Card className="border-primary/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-orbitron">Analisar Jogos (Todas as Ligas)</CardTitle>
+            <CardTitle className="text-base font-orbitron">Analisar Jogos (Todas as Ligas + PE)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Time Window Toggle */}
