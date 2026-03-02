@@ -35,21 +35,21 @@ serve(async (req) => {
         'soccer_france_ligue_one',
         'soccer_argentina_primera_division',
       ],
-      // Allow single sport override for backwards compat
       sport = null as string | null,
       hours_ahead = 48,
       bookmakers = ['bet365', 'pinnacle', 'betfair'],
-      min_value = 5
+      min_value = 3
     } = requestBody
 
-    // If single sport provided, use it; otherwise use full list
     const leaguesToScan: string[] = sport ? [sport] : sports
 
     console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%`)
 
-    // 1. Busca jogos futuros (The Odds API) - múltiplas ligas
+    // 1. Fetch upcoming games from The Odds API
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
     if (!oddsApiKey) throw new Error('THE_ODDS_API_KEY not configured')
+
+    const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY') || ''
 
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
@@ -73,7 +73,6 @@ serve(async (req) => {
         }
 
         const games = await oddsResponse.json()
-        // Include games already started (up to 3h ago) + future games within window
         const liveWindow = new Date(now.getTime() - 3 * 60 * 60 * 1000)
         const upcoming = games.filter((game: any) => {
           const commenceTime = new Date(game.commence_time)
@@ -89,17 +88,16 @@ serve(async (req) => {
       }
     }
 
-    const upcomingGames = allUpcomingGames
-    console.log(`[Mycroft Punter] Total: ${upcomingGames.length} jogos nas próximas ${hours_ahead}h (${leaguesToScan.length} ligas)`)
+    console.log(`[Mycroft Punter] Total: ${allUpcomingGames.length} jogos`)
 
-    if (upcomingGames.length === 0) {
+    if (allUpcomingGames.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, signals: [], total_analyzed: 0, total_approved: 0, leagues_scanned: leaguesToScan.length, message: `Nenhum jogo nas próximas ${hours_ahead}h em ${leaguesToScan.length} ligas` }),
+        JSON.stringify({ success: true, signals: [], total_analyzed: 0, total_approved: 0, leagues_scanned: leaguesToScan.length, message: `Nenhum jogo nas próximas ${hours_ahead}h` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 2. Busca Knowledge Base do bucket
+    // 2. Load Knowledge Base
     let methodologyContent = ''
     let valueGuideContent = ''
     let customPrompt = ''
@@ -120,23 +118,21 @@ serve(async (req) => {
     } catch { /* optional */ }
 
     if (!customPrompt) {
-      customPrompt = `Você é Mycroft Punter, o analista de VALUE BETTING da Arena Trader.
+      customPrompt = `Você é Mycroft Arena Quant Adaptive, analista probabilístico da Arena Punter.
 Sua missão é identificar apostas com value positivo baseado em análise probabilística.
-FOCO: Encontrar odds acima do justo (value betting).
-TARGET: Aprovar 10-20% dos jogos analisados (só os melhores).
-METODOLOGIA: Danilo Pereira, Netuno, análise probabilística.`
+FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
     }
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
-    // 3. Analisa cada jogo
+    // 3. Analyze each game
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
 
-    for (const game of upcomingGames) {
+    for (const game of allUpcomingGames) {
       totalAnalyzed++
       try {
-        const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient)
+        const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
         if (analysis && analysis.verdict === 'APROVADO') {
           approvedSignals.push({
             match: {
@@ -169,171 +165,183 @@ METODOLOGIA: Danilo Pereira, Netuno, análise probabilística.`
   }
 })
 
-// Analisa um jogo individual via Lovable AI Gateway (Gemini)
-async function analyzeGame(
-  game: any,
-  customPrompt: string,
-  methodology: string,
-  valueGuide: string,
-  minValue: number,
-  supabaseClient: any
-) {
-  const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
-  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team}`)
+// ═══════════════════════════════════════════════
+// API-Football: Fetch team stats & fixtures
+// ═══════════════════════════════════════════════
 
-  const oddsData = extractOdds(game)
-  const totalsData = extractTotals(game)
-  if (oddsData.length === 0 && totalsData.length === 0) return null
-
-  const analysisPrompt = `
-${customPrompt}
-
-═══════════════════════════════════════
-JOGO PRÉ-JOGO - ANÁLISE DE VALUE
-═══════════════════════════════════════
-
-⚽ TIMES: ${game.home_team} vs ${game.away_team}
-🏆 LIGA: ${game.sport_title || 'N/A'}
-📅 HORÁRIO: ${new Date(game.commence_time).toLocaleString('pt-BR')}
-
-ODDS DISPONÍVEIS (Mercado H2H - 1X2):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${oddsData.map((o: any) => `
-${o.bookmaker}:
-  ${game.home_team}: ${o.home_odd}
-  Empate: ${o.draw_odd}
-  ${game.away_team}: ${o.away_odd}
-`).join('\n')}
-
-${totalsData.length > 0 ? `
-ODDS DISPONÍVEIS (Mercado TOTALS - Over/Under):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${totalsData.map((t: any) => `
-${t.bookmaker}:
-  Over ${t.line}: ${t.over_odd}
-  Under ${t.line}: ${t.under_odd}
-`).join('\n')}
-` : 'TOTALS: Não disponível para este jogo'}
-
-ANÁLISE DE PROBABILIDADES:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${calculateProbabilities(oddsData[0])}
-${totalsData.length > 0 ? calculateTotalsProbabilities(totalsData[0]) : ''}
-
-${methodology ? `KNOWLEDGE BASE (Metodologia Value Betting):\n${methodology}` : ''}
-${valueGuide ? `\nGUIA DE VALUE:\n${valueGuide}` : ''}
-
-═══════════════════════════════════════
-INSTRUÇÕES DE RESPOSTA
-═══════════════════════════════════════
-
-Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
-
-{
-  "verdict": "APROVADO" ou "VETADO",
-  "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
-  "bookmaker": "Bet365" | "Pinnacle" | "Betfair",
-  "odd": 2.10,
-  "fair_odd": 1.85,
-  "implied_probability": 47.6,
-  "estimated_probability": 54.1,
-  "value_percentage": 13.5,
-  "confidence": 72,
-  "stake_percentage": 3,
-  "thesis": "Análise principal (2-3 linhas)",
-  "analysis": "Análise detalhada com fundamentação probabilística",
-  "risk_factors": "Fatores de risco a considerar"
-}
-
-CRITÉRIOS PARA APROVAR:
-- Value >= ${minValue}% (diferença entre probabilidade real e implícita)
-- Confiança >= 70%
-- Odd entre 1.70 e 3.50 (sweet spot)
-- Casa de apostas confiável
-- Lógica clara e fundamentada
-- CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR value
-- Para Over/Under, especifique a linha (ex: "Over 2.5", "Under 3.5")
-
-ANALISE AGORA:`
-
-  // Chama Lovable AI Gateway (Gemini)
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
-
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: analysisPrompt }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    })
-  })
-
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text()
-    throw new Error(`AI Gateway error ${aiResponse.status}: ${errText}`)
-  }
-
-  const aiData = await aiResponse.json()
-  let analysisText = aiData.choices?.[0]?.message?.content
-  if (!analysisText) throw new Error('AI não retornou análise válida')
-
-  // Parse JSON
-  const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  let analysis: any
+async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
+  if (!apiKey) return null
   try {
-    analysis = JSON.parse(cleanJson)
-  } catch {
-    console.error('[Mycroft Punter] Erro ao parsear JSON:', cleanJson.substring(0, 200))
-    throw new Error('Falha ao parsear análise')
+    const res = await fetch(
+      `https://v3.football.api-sports.io/teams?search=${encodeURIComponent(teamName)}`,
+      { headers: { 'x-apisports-key': apiKey } }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const team = data.response?.[0]
+    return team?.team?.id || null
+  } catch (e) {
+    console.warn(`[API-Football] Erro buscando team ${teamName}:`, e)
+    return null
   }
-
-  console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} - Value: ${analysis.value_percentage}%`)
-
-  // Salva análise no banco
-  const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
-    match_id: matchId,
-    home_team: game.home_team,
-    away_team: game.away_team,
-    league: game.sport_title || 'Unknown',
-    commence_time: game.commence_time,
-    market: analysis.market || 'N/A',
-    bookmaker: analysis.bookmaker || 'N/A',
-    odd: analysis.odd || 0,
-    fair_odd: analysis.fair_odd,
-    implied_probability: analysis.implied_probability,
-    estimated_probability: analysis.estimated_probability,
-    value_percentage: analysis.value_percentage,
-    verdict: analysis.verdict,
-    confidence: analysis.confidence,
-    stake_percentage: analysis.stake_percentage,
-    thesis: analysis.thesis,
-    analysis: analysis.analysis,
-    risk_factors: analysis.risk_factors,
-  }).select().single()
-
-  // Se aprovado, cria sinal
-  if (analysis.verdict === 'APROVADO' && analysisRow) {
-    await supabaseClient.from('punter_signals').insert({
-      analysis_id: analysisRow.id,
-      match_id: matchId,
-      market: analysis.market,
-      bookmaker: analysis.bookmaker,
-      odd: analysis.odd,
-      value_percentage: analysis.value_percentage,
-      stake_percentage: analysis.stake_percentage,
-      status: 'pending',
-    })
-    console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
-  }
-
-  return analysis
 }
+
+async function fetchTeamStats(teamId: number, apiKey: string): Promise<any> {
+  if (!apiKey || !teamId) return null
+  try {
+    // Get current season
+    const year = new Date().getFullYear()
+    
+    // Fetch last 5 fixtures for form
+    const fixturesRes = await fetch(
+      `https://v3.football.api-sports.io/fixtures?team=${teamId}&last=5&status=FT`,
+      { headers: { 'x-apisports-key': apiKey } }
+    )
+    
+    let recentFixtures: any[] = []
+    if (fixturesRes.ok) {
+      const fixturesData = await fixturesRes.json()
+      recentFixtures = fixturesData.response || []
+    }
+
+    // Calculate form stats from recent fixtures
+    let goalsScored = 0, goalsConceded = 0, wins = 0, draws = 0, losses = 0
+    let shotsOnTarget = 0, shotsTotal = 0, possession = 0, cornerKicks = 0
+    let hasDetailedStats = false
+
+    for (const fixture of recentFixtures) {
+      const isHome = fixture.teams?.home?.id === teamId
+      const homeGoals = fixture.goals?.home ?? 0
+      const awayGoals = fixture.goals?.away ?? 0
+
+      goalsScored += isHome ? homeGoals : awayGoals
+      goalsConceded += isHome ? awayGoals : homeGoals
+
+      if (isHome ? fixture.teams?.home?.winner : fixture.teams?.away?.winner) wins++
+      else if (homeGoals === awayGoals) draws++
+      else losses++
+
+      // Try to get detailed stats per fixture
+      if (fixture.statistics) {
+        hasDetailedStats = true
+        const teamStats = fixture.statistics?.find((s: any) => s.team?.id === teamId)
+        if (teamStats?.statistics) {
+          for (const stat of teamStats.statistics) {
+            if (stat.type === 'Shots on Goal') shotsOnTarget += (parseInt(stat.value) || 0)
+            if (stat.type === 'Total Shots') shotsTotal += (parseInt(stat.value) || 0)
+            if (stat.type === 'Ball Possession') possession += (parseFloat(stat.value) || 0)
+            if (stat.type === 'Corner Kicks') cornerKicks += (parseInt(stat.value) || 0)
+          }
+        }
+      }
+    }
+
+    // If we didn't get inline stats, fetch them separately for last fixture
+    if (!hasDetailedStats && recentFixtures.length > 0) {
+      try {
+        const lastFixtureId = recentFixtures[0]?.fixture?.id
+        if (lastFixtureId) {
+          const statsRes = await fetch(
+            `https://v3.football.api-sports.io/fixtures/statistics?fixture=${lastFixtureId}`,
+            { headers: { 'x-apisports-key': apiKey } }
+          )
+          if (statsRes.ok) {
+            const statsData = await statsRes.json()
+            const teamStatBlock = statsData.response?.find((s: any) => s.team?.id === teamId)
+            if (teamStatBlock?.statistics) {
+              hasDetailedStats = true
+              for (const stat of teamStatBlock.statistics) {
+                if (stat.type === 'Shots on Goal') shotsOnTarget = parseInt(stat.value) || 0
+                if (stat.type === 'Total Shots') shotsTotal = parseInt(stat.value) || 0
+                if (stat.type === 'Ball Possession') possession = parseFloat(stat.value) || 0
+                if (stat.type === 'Corner Kicks') cornerKicks = parseInt(stat.value) || 0
+              }
+            }
+          }
+        }
+      } catch { /* optional */ }
+    }
+
+    const matchesPlayed = recentFixtures.length || 1
+
+    return {
+      team_id: teamId,
+      matches_played: matchesPlayed,
+      wins, draws, losses,
+      goals_scored: goalsScored,
+      goals_conceded: goalsConceded,
+      avg_goals_scored: (goalsScored / matchesPlayed).toFixed(2),
+      avg_goals_conceded: (goalsConceded / matchesPlayed).toFixed(2),
+      form: recentFixtures.map((f: any) => {
+        const isHome = f.teams?.home?.id === teamId
+        const hg = f.goals?.home ?? 0
+        const ag = f.goals?.away ?? 0
+        if (isHome) return hg > ag ? 'W' : hg === ag ? 'D' : 'L'
+        return ag > hg ? 'W' : ag === hg ? 'D' : 'L'
+      }).join(''),
+      has_detailed_stats: hasDetailedStats,
+      avg_shots_on_target: hasDetailedStats ? (shotsOnTarget / matchesPlayed).toFixed(1) : null,
+      avg_shots_total: hasDetailedStats ? (shotsTotal / matchesPlayed).toFixed(1) : null,
+      avg_possession: hasDetailedStats ? (possession / matchesPlayed).toFixed(1) : null,
+      avg_corners: hasDetailedStats ? (cornerKicks / matchesPlayed).toFixed(1) : null,
+    }
+  } catch (e) {
+    console.warn(`[API-Football] Erro buscando stats team ${teamId}:`, e)
+    return null
+  }
+}
+
+async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string) {
+  if (!apiKey) return { home: null, away: null, model_level: 'NIVEL_3' }
+
+  const [homeId, awayId] = await Promise.all([
+    searchTeamId(homeTeam, apiKey),
+    searchTeamId(awayTeam, apiKey)
+  ])
+
+  if (!homeId && !awayId) {
+    console.log(`[API-Football] Nenhum time encontrado: ${homeTeam}, ${awayTeam}`)
+    return { home: null, away: null, model_level: 'NIVEL_3' }
+  }
+
+  const [homeStats, awayStats] = await Promise.all([
+    homeId ? fetchTeamStats(homeId, apiKey) : null,
+    awayId ? fetchTeamStats(awayId, apiKey) : null
+  ])
+
+  // Determine model level
+  const hasStats = homeStats || awayStats
+  const hasDetailedStats = homeStats?.has_detailed_stats || awayStats?.has_detailed_stats
+  let model_level = 'NIVEL_3'
+  if (hasDetailedStats) model_level = 'NIVEL_1'
+  else if (hasStats) model_level = 'NIVEL_2'
+
+  return { home: homeStats, away: awayStats, model_level }
+}
+
+function formatTeamStatsBlock(teamName: string, stats: any): string {
+  if (!stats) return `${teamName}: Dados não disponíveis na API-Football`
+  
+  let block = `${teamName} (últimos ${stats.matches_played} jogos):
+  Forma: ${stats.form || 'N/A'}
+  Resultados: ${stats.wins}V ${stats.draws}E ${stats.losses}D
+  Gols Marcados: ${stats.goals_scored} (média: ${stats.avg_goals_scored}/jogo)
+  Gols Sofridos: ${stats.goals_conceded} (média: ${stats.avg_goals_conceded}/jogo)`
+
+  if (stats.has_detailed_stats) {
+    block += `
+  Finalizações Totais (média): ${stats.avg_shots_total}
+  Finalizações no Gol (média): ${stats.avg_shots_on_target}
+  Posse de Bola (média): ${stats.avg_possession}%
+  Escanteios (média): ${stats.avg_corners}`
+  }
+
+  return block
+}
+
+// ═══════════════════════════════════════════════
+// Odds extraction helpers
+// ═══════════════════════════════════════════════
 
 function extractOdds(game: any) {
   const oddsData: any[] = []
@@ -378,8 +386,7 @@ function calculateProbabilities(odds: any) {
   const awayProb = (1 / odds.away_odd * 100).toFixed(2)
   const total = parseFloat(homeProb) + parseFloat(drawProb) + parseFloat(awayProb)
   const overround = (total - 100).toFixed(2)
-  return `
-Probabilidade Implícita H2H (${odds.bookmaker}):
+  return `Probabilidade Implícita H2H (${odds.bookmaker}):
 - Casa: ${homeProb}%
 - Empate: ${drawProb}%
 - Fora: ${awayProb}%
@@ -393,10 +400,203 @@ function calculateTotalsProbabilities(totals: any) {
   const underProb = (1 / totals.under_odd * 100).toFixed(2)
   const total = parseFloat(overProb) + parseFloat(underProb)
   const overround = (total - 100).toFixed(2)
-  return `
-Probabilidade Implícita Over/Under ${totals.line} (${totals.bookmaker}):
+  return `Probabilidade Implícita Over/Under ${totals.line} (${totals.bookmaker}):
 - Over ${totals.line}: ${overProb}%
 - Under ${totals.line}: ${underProb}%
 - Total: ${total.toFixed(2)}%
 - Overround (margem): ${overround}%`
+}
+
+// ═══════════════════════════════════════════════
+// Main analysis function
+// ═══════════════════════════════════════════════
+
+async function analyzeGame(
+  game: any,
+  customPrompt: string,
+  methodology: string,
+  valueGuide: string,
+  minValue: number,
+  supabaseClient: any,
+  apiFootballKey: string
+) {
+  const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
+  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team}`)
+
+  const oddsData = extractOdds(game)
+  const totalsData = extractTotals(game)
+  if (oddsData.length === 0 && totalsData.length === 0) return null
+
+  // Fetch enriched data from API-Football
+  const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey)
+
+  const homeStatsBlock = formatTeamStatsBlock(game.home_team, enriched.home)
+  const awayStatsBlock = formatTeamStatsBlock(game.away_team, enriched.away)
+
+  const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats detalhadas disponíveis)'
+    : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
+    : 'BAIXA (apenas odds disponíveis)'
+
+  const analysisPrompt = `
+${customPrompt}
+
+═══════════════════════════════════════
+JOGO PRÉ-JOGO - ANÁLISE DE VALUE
+═══════════════════════════════════════
+
+⚽ TIMES: ${game.home_team} vs ${game.away_team}
+🏆 LIGA: ${game.sport_title || 'N/A'}
+📅 HORÁRIO: ${new Date(game.commence_time).toLocaleString('pt-BR')}
+📊 NÍVEL DE DADOS: ${dataStrengthLabel}
+🔧 MODELO SUGERIDO: ${enriched.model_level}
+
+═══════════════════════════════════════
+DADOS API-FOOTBALL (Estatísticas Reais)
+═══════════════════════════════════════
+
+${homeStatsBlock}
+
+${awayStatsBlock}
+
+═══════════════════════════════════════
+ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
+═══════════════════════════════════════
+${oddsData.map((o: any) => `
+${o.bookmaker}:
+  ${game.home_team}: ${o.home_odd}
+  Empate: ${o.draw_odd}
+  ${game.away_team}: ${o.away_odd}
+`).join('\n')}
+
+${totalsData.length > 0 ? `
+═══════════════════════════════════════
+ODDS DISPONÍVEIS (Mercado TOTALS - Over/Under)
+═══════════════════════════════════════
+${totalsData.map((t: any) => `
+${t.bookmaker}:
+  Over ${t.line}: ${t.over_odd}
+  Under ${t.line}: ${t.under_odd}
+`).join('\n')}
+` : 'TOTALS: Não disponível para este jogo'}
+
+═══════════════════════════════════════
+ANÁLISE DE PROBABILIDADES IMPLÍCITAS
+═══════════════════════════════════════
+${calculateProbabilities(oddsData[0])}
+${totalsData.length > 0 ? calculateTotalsProbabilities(totalsData[0]) : ''}
+
+${methodology ? `\nKNOWLEDGE BASE (Metodologia):\n${methodology}` : ''}
+${valueGuide ? `\nGUIA DE VALUE:\n${valueGuide}` : ''}
+
+═══════════════════════════════════════
+INSTRUÇÕES DE RESPOSTA
+═══════════════════════════════════════
+
+Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
+
+{
+  "verdict": "APROVADO" ou "VETADO",
+  "model_level": "${enriched.model_level}",
+  "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
+  "bookmaker": "Bet365" | "Pinnacle" | "Betfair",
+  "odd": 2.10,
+  "fair_odd": 1.85,
+  "implied_probability": 47.6,
+  "estimated_probability": 54.1,
+  "expected_value": 0.046,
+  "value_percentage": 13.5,
+  "confidence": 72,
+  "data_strength": "ALTA" | "MEDIA" | "BAIXA",
+  "stake_percentage": 3,
+  "thesis": "Resumo objetivo do edge identificado",
+  "analysis": "Explicação quantitativa adaptada aos dados disponíveis",
+  "risk_factors": "Riscos e limitações do modelo aplicado"
+}
+
+CRITÉRIOS (adaptáveis ao nível de dados):
+- EV positivo obrigatório
+- Edge >= ${minValue}%
+- Confiança >= 68%
+- Se NIVEL_3 (apenas odds): reduzir stake em 0.5%
+- CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR edge
+
+ANALISE AGORA:`
+
+  // Call Lovable AI Gateway
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
+  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+
+  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: analysisPrompt }],
+      temperature: 0.7,
+      max_tokens: 1200,
+    })
+  })
+
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text()
+    throw new Error(`AI Gateway error ${aiResponse.status}: ${errText}`)
+  }
+
+  const aiData = await aiResponse.json()
+  let analysisText = aiData.choices?.[0]?.message?.content
+  if (!analysisText) throw new Error('AI não retornou análise válida')
+
+  // Parse JSON
+  const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  let analysis: any
+  try {
+    analysis = JSON.parse(cleanJson)
+  } catch {
+    console.error('[Mycroft Punter] Erro ao parsear JSON:', cleanJson.substring(0, 200))
+    throw new Error('Falha ao parsear análise')
+  }
+
+  console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value}`)
+
+  // Save analysis to DB
+  const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
+    match_id: matchId,
+    home_team: game.home_team,
+    away_team: game.away_team,
+    league: game.sport_title || 'Unknown',
+    commence_time: game.commence_time,
+    market: analysis.market || 'N/A',
+    bookmaker: analysis.bookmaker || 'N/A',
+    odd: analysis.odd || 0,
+    fair_odd: analysis.fair_odd,
+    implied_probability: analysis.implied_probability,
+    estimated_probability: analysis.estimated_probability,
+    value_percentage: analysis.value_percentage,
+    verdict: analysis.verdict,
+    confidence: analysis.confidence,
+    stake_percentage: analysis.stake_percentage,
+    thesis: analysis.thesis,
+    analysis: analysis.analysis,
+    risk_factors: analysis.risk_factors,
+  }).select().single()
+
+  // If approved, create signal
+  if (analysis.verdict === 'APROVADO' && analysisRow) {
+    await supabaseClient.from('punter_signals').insert({
+      analysis_id: analysisRow.id,
+      match_id: matchId,
+      market: analysis.market,
+      bookmaker: analysis.bookmaker,
+      odd: analysis.odd,
+      value_percentage: analysis.value_percentage,
+      stake_percentage: analysis.stake_percentage,
+      status: 'pending',
+    })
+    console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
+  }
+
+  return analysis
 }
