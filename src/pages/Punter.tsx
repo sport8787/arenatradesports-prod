@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle
+  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity
 } from 'lucide-react';
+import BacktestPanel from '@/components/punter/BacktestPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ export default function PunterPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
+  const [showBacktest, setShowBacktest] = useState(false);
 
   // Load pending bets on mount
   useEffect(() => {
@@ -200,6 +202,10 @@ export default function PunterPage() {
     if (updated) setPendingBets(updated);
   }, [bankroll, user]);
 
+  if (showBacktest) {
+    return <BacktestPanel onClose={() => setShowBacktest(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -232,6 +238,10 @@ export default function PunterPage() {
             <GoldButton size="sm" variant="outline" onClick={handleSettleBets} disabled={settlingBets}>
               {settlingBets ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
               Liquidar
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => setShowBacktest(true)}>
+              <Activity className="w-4 h-4 mr-1" />
+              Simulado
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
