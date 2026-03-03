@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -71,7 +72,7 @@ interface Props {
 }
 
 export default function BacktestPanel({ onClose }: Props) {
-  const [league, setLeague] = useState(LEAGUES[0].key);
+  const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
   const [minValue, setMinValue] = useState(5);
   const [loading, setLoading] = useState(false);
@@ -80,13 +81,33 @@ export default function BacktestPanel({ onClose }: Props) {
   const [leagueName, setLeagueName] = useState('');
   const [showBets, setShowBets] = useState(false);
 
+  const allSelected = selectedLeagues.length === LEAGUES.length;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedLeagues([LEAGUES[0].key]);
+    } else {
+      setSelectedLeagues(LEAGUES.map(l => l.key));
+    }
+  };
+
+  const toggleLeague = (key: string) => {
+    setSelectedLeagues(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(k => k !== key);
+        return next.length === 0 ? [key] : next; // keep at least one
+      }
+      return [...prev, key];
+    });
+  };
+
   const runBacktest = async () => {
     setLoading(true);
     setMetrics(null);
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
-        body: { league, season, min_value: minValue, initial_bankroll: 10000, fixed_stake_pct: 3 }
+        body: { leagues: selectedLeagues, season, min_value: minValue, initial_bankroll: 10000, fixed_stake_pct: 3 }
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
@@ -123,29 +144,49 @@ export default function BacktestPanel({ onClose }: Props) {
             <CardTitle className="text-base font-orbitron text-accent">Configurar Simulação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Liga</label>
-                <Select value={league} onValueChange={setLeague}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LEAGUES.map(l => (
-                      <SelectItem key={l.key} value={l.key}>{l.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-muted-foreground">Ligas ({selectedLeagues.length}/{LEAGUES.length})</label>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="text-[10px] font-bold text-accent hover:underline"
+                >
+                  {allSelected ? 'Desmarcar Todas' : '✅ Selecionar Todas'}
+                </button>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Temporada</label>
-                <Select value={String(season)} onValueChange={v => setSeason(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {SEASONS.map(s => (
-                      <SelectItem key={s} value={String(s)}>{s}/{s + 1}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                {LEAGUES.map(l => (
+                  <label
+                    key={l.key}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs cursor-pointer border transition-colors",
+                      selectedLeagues.includes(l.key)
+                        ? 'border-accent/50 bg-accent/10 text-accent'
+                        : 'border-border bg-secondary/20 text-muted-foreground hover:border-accent/30'
+                    )}
+                  >
+                    <Checkbox
+                      checked={selectedLeagues.includes(l.key)}
+                      onCheckedChange={() => toggleLeague(l.key)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="truncate">{l.label}</span>
+                  </label>
+                ))}
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Temporada</label>
+              <Select value={String(season)} onValueChange={v => setSeason(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SEASONS.map(s => (
+                    <SelectItem key={s} value={String(s)}>{s}/{s + 1}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">

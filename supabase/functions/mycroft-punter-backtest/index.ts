@@ -65,26 +65,41 @@ serve(async (req) => {
 
     const body = await req.json()
     const {
-      league = 'soccer_brazil_campeonato',
+      league, // single league (backward compat)
+      leagues: leaguesInput, // array of leagues (new)
       season = new Date().getFullYear() - 1,
       min_value = 5,
       initial_bankroll = 10000,
-      stake_mode = 'fixed_pct', // 'fixed_pct' or 'kelly'
+      stake_mode = 'fixed_pct',
       fixed_stake_pct = 3,
       min_confidence = 60,
     } = body
 
-    const leagueInfo = LEAGUE_MAP[league]
-    if (!leagueInfo) throw new Error(`Liga não suportada: ${league}`)
+    // Support both single league and multiple leagues
+    const leagueKeys: string[] = leaguesInput && Array.isArray(leaguesInput) && leaguesInput.length > 0
+      ? leaguesInput
+      : [league || 'soccer_brazil_campeonato']
 
-    console.log(`[Backtest] Liga: ${leagueInfo.name} | Temporada: ${season} | Min Value: ${min_value}%`)
+    const validLeagues = leagueKeys.map(k => ({ key: k, info: LEAGUE_MAP[k] })).filter(l => l.info)
+    if (validLeagues.length === 0) throw new Error('Nenhuma liga válida selecionada')
 
-    // 1. Fetch all finished fixtures for the season
-    const fixtures = await fetchSeasonFixtures(leagueInfo.id, season, apiKey)
-    console.log(`[Backtest] ${fixtures.length} jogos finalizados encontrados`)
+    const leagueNames = validLeagues.map(l => l.info.name).join(', ')
+    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season} | Min Value: ${min_value}%`)
+
+    // 1. Fetch all finished fixtures for all selected leagues
+    const allFixtures: any[] = []
+    for (const l of validLeagues) {
+      const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
+      console.log(`[Backtest] ${l.info.name}: ${fixtures.length} jogos`)
+      allFixtures.push(...fixtures)
+      // Rate limit between leagues
+      if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
+    }
+    const fixtures = allFixtures
+    console.log(`[Backtest] Total: ${fixtures.length} jogos finalizados`)
 
     if (fixtures.length === 0) {
-      return jsonResponse({ success: true, results: [], metrics: emptyMetrics(), league: leagueInfo.name, season })
+      return jsonResponse({ success: true, results: [], metrics: emptyMetrics(), league: leagueNames, season })
     }
 
     // Sort by date ascending
@@ -221,7 +236,7 @@ serve(async (req) => {
 
     return jsonResponse({
       success: true,
-      league: leagueInfo.name,
+      league: leagueNames,
       season,
       metrics,
       results: approved, // only return approved for display
