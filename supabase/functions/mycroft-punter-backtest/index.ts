@@ -242,38 +242,23 @@ serve(async (req) => {
 // ═══════════════════════════════════════════════
 
 async function fetchSeasonFixtures(leagueId: number, season: number, apiKey: string): Promise<any[]> {
-  const allFixtures: any[] = []
-  let page = 1
-  let hasMore = true
+  const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT`
+  console.log(`[Backtest] Fetching: ${url}`)
+  const res = await fetch(url, {
+    headers: { 'x-apisports-key': apiKey }
+  })
 
-  while (hasMore) {
-    const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT&page=${page}`
-    const res = await fetch(url, {
-      headers: { 'x-apisports-key': apiKey }
-    })
+  console.log(`[Backtest] API Response status: ${res.status}`)
 
-    if (!res.ok) {
-      console.warn(`[Backtest] API-Football HTTP ${res.status} on page ${page}`)
-      break
-    }
-
-    const data = await res.json()
-    const fixtures = data.response || []
-    allFixtures.push(...fixtures)
-
-    // Check pagination
-    const paging = data.paging
-    if (paging && paging.current < paging.total) {
-      page++
-    } else {
-      hasMore = false
-    }
-
-    // Rate limit protection
-    await new Promise(r => setTimeout(r, 200))
+  if (!res.ok) {
+    const errText = await res.text()
+    console.warn(`[Backtest] API-Football HTTP ${res.status}: ${errText}`)
+    return []
   }
 
-  return allFixtures
+  const data = await res.json()
+  console.log(`[Backtest] API results: ${data.results}, errors: ${JSON.stringify(data.errors)}`)
+  return data.response || []
 }
 
 // ═══════════════════════════════════════════════
