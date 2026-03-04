@@ -514,9 +514,14 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
 }
 
 IMPORTANTE: Siga RIGOROSAMENTE os critérios de aprovação/veto definidos no prompt acima.
-- Use os tiers e thresholds EXATOS do prompt (não invente critérios)
+- Use os tiers e thresholds EXATOS do prompt (não invente critérios extras)
 - Se NIVEL_3 (apenas odds): aplique penalização de stake conforme prompt
 - CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR edge
+- META DE APROVAÇÃO: 50-70% dos jogos devem ser APROVADOS conforme o prompt
+- Edge ≥ 2% com Confiança ≥ 58% = APROVAR (Tier 3 mínimo)
+- NÃO invente motivos extras de veto que não estejam no prompt
+- NÃO vete por "amostra pequena", "volatilidade alta", "última rodada" ou "sem motivação"
+- Se há edge ≥ 2% e EV positivo, APROVE no tier correspondente
 
 ANALISE AGORA:`
 
@@ -533,8 +538,8 @@ ANALISE AGORA:`
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: analysisPrompt }],
-      temperature: 0.7,
-      max_tokens: 1200,
+      temperature: 0.3,
+      max_tokens: 1500,
     })
   })
 
