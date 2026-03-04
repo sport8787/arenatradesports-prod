@@ -67,68 +67,102 @@ interface BacktestResult {
 // CRITERIA PARSER — reads prompt_mycroft_punter.txt dynamically
 // ═══════════════════════════════════════════════
 
+interface TierConfig {
+  min_edge: number
+  min_confidence: number
+  stake_pct: number
+  label: string
+}
+
 interface AnalysisCriteria {
-  min_edge_pct: number        // default 3
-  min_confidence: number      // default 68
+  tiers: TierConfig[]         // ordered from highest to lowest
+  min_edge_pct: number        // lowest tier edge (default 2)
+  min_confidence: number      // lowest tier confidence (default 58)
   min_ev: number              // default 0
-  high_priority_edge: number  // default 6
-  max_approval_pct: number    // default 30
-  min_approval_pct: number    // default 8
-  stake_low: number           // confidence 68-75 → 3%
-  stake_mid: number           // confidence 75-85 → 4%
-  stake_high: number          // confidence >85 → 5%
-  level3_stake_penalty: number // 0.5%
-  min_sample_games: number    // 5
+  max_approval_pct: number    // default 70
+  min_approval_pct: number    // default 50
+  min_sample_games: number    // default 3
+  level3_stake_penalty: number // 0
+  veto_small_sample: boolean  // false = don't veto for small samples
 }
 
 function defaultCriteria(): AnalysisCriteria {
   return {
-    min_edge_pct: 3,
-    min_confidence: 68,
+    tiers: [
+      { min_edge: 5, min_confidence: 75, stake_pct: 4.5, label: 'TIER_1' },
+      { min_edge: 3, min_confidence: 65, stake_pct: 3, label: 'TIER_2' },
+      { min_edge: 2, min_confidence: 58, stake_pct: 2, label: 'TIER_3' },
+    ],
+    min_edge_pct: 2,
+    min_confidence: 58,
     min_ev: 0,
-    high_priority_edge: 6,
-    max_approval_pct: 30,
-    min_approval_pct: 8,
-    stake_low: 3,
-    stake_mid: 4,
-    stake_high: 5,
-    level3_stake_penalty: 0.5,
-    min_sample_games: 5,
+    max_approval_pct: 70,
+    min_approval_pct: 50,
+    min_sample_games: 3,
+    level3_stake_penalty: 0,
+    veto_small_sample: false,
   }
 }
 
 function parseCriteriaFromPrompt(promptText: string): AnalysisCriteria {
   const c = defaultCriteria()
   try {
-    // Parse edge thresholds
-    const edgeMatch = promptText.match(/≥\s*(\d+)%\s*→\s*potencial edge/i)
-    if (edgeMatch) c.min_edge_pct = parseInt(edgeMatch[1])
+    // Parse tier-based system: "Edge ≥ X% E" + "Confiança ≥ Y%"
+    const tierBlocks = promptText.match(/TIER\s*\d[\s\S]*?Stake:\s*[\d.]+/gi) || []
+    const parsedTiers: TierConfig[] = []
+    
+    for (const block of tierBlocks) {
+      const edgeM = block.match(/Edge\s*≥\s*(\d+)%/i)
+      const confM = block.match(/Confian[çc]a\s*≥\s*(\d+)%/i)
+      const stakeM = block.match(/Stake:\s*([\d.]+)(?:-([\d.]+))?%/i)
+      const tierM = block.match(/TIER\s*(\d)/i)
+      
+      if (edgeM && confM && stakeM && tierM) {
+        const stakeLow = parseFloat(stakeM[1])
+        const stakeHigh = stakeM[2] ? parseFloat(stakeM[2]) : stakeLow
+        parsedTiers.push({
+          min_edge: parseInt(edgeM[1]),
+          min_confidence: parseInt(confM[1]),
+          stake_pct: (stakeLow + stakeHigh) / 2,
+          label: `TIER_${tierM[1]}`,
+        })
+      }
+    }
 
-    const highEdge = promptText.match(/≥\s*(\d+)%\s*→\s*prioridade alta/i)
-    if (highEdge) c.high_priority_edge = parseInt(highEdge[1])
+    if (parsedTiers.length > 0) {
+      // Sort tiers by edge descending (highest first)
+      parsedTiers.sort((a, b) => b.min_edge - a.min_edge)
+      c.tiers = parsedTiers
+      // Set minimums from the lowest tier
+      const lowestTier = parsedTiers[parsedTiers.length - 1]
+      c.min_edge_pct = lowestTier.min_edge
+      c.min_confidence = lowestTier.min_confidence
+    }
 
-    // Parse confidence
-    const confMatch = promptText.match(/Confiança\s*≥\s*(\d+)%/i)
-    if (confMatch) c.min_confidence = parseInt(confMatch[1])
+    // Parse single-value fallbacks (old-style prompts)
+    if (parsedTiers.length === 0) {
+      // Try old format: "Edge ≥ X%"
+      const edgeFallback = promptText.match(/Edge\s*≥\s*(\d+)%/i)
+      if (edgeFallback) c.min_edge_pct = parseInt(edgeFallback[1])
+      
+      const confFallback = promptText.match(/Confian[çc]a\s*≥\s*(\d+)%/i)
+      if (confFallback) c.min_confidence = parseInt(confFallback[1])
+    }
 
-    // Parse stakes
-    const stakeLow = promptText.match(/Confiança\s*68.75%\s*→\s*(\d+)%/i)
-    if (stakeLow) c.stake_low = parseInt(stakeLow[1])
-    const stakeMid = promptText.match(/Confiança\s*75.85%\s*→\s*(\d+)%/i)
-    if (stakeMid) c.stake_mid = parseInt(stakeMid[1])
-    const stakeHigh = promptText.match(/Confiança\s*>85%\s*→\s*(\d+)%/i)
-    if (stakeHigh) c.stake_high = parseInt(stakeHigh[1])
-
-    // Parse approval range
-    const approvalMatch = promptText.match(/Aprovar\s*entre\s*(\d+)%\s*e\s*(\d+)%/i)
+    // Parse approval range: "50-70% aprovação" or "Aprovar entre X% e Y%"
+    const approvalMatch = promptText.match(/(\d+)-(\d+)%\s*aprova[çc][ãa]o/i)
+      || promptText.match(/Aprovar\s*entre\s*(\d+)%\s*e\s*(\d+)%/i)
+      || promptText.match(/META.*?Aprovar\s*(\d+)-(\d+)%/i)
     if (approvalMatch) {
       c.min_approval_pct = parseInt(approvalMatch[1])
       c.max_approval_pct = parseInt(approvalMatch[2])
     }
 
-    // Parse min sample
-    const sampleMatch = promptText.match(/Amostra\s*pequena\s*\(<\s*(\d+)\s*jogos/i)
-    if (sampleMatch) c.min_sample_games = parseInt(sampleMatch[1])
+    // Check if prompt says NOT to veto for small sample
+    if (promptText.match(/NÃO vetar por/i) && promptText.match(/amostra pequena/i)) {
+      c.veto_small_sample = false
+      c.min_sample_games = 2
+    }
 
     // Parse level 3 penalty
     const penaltyMatch = promptText.match(/Reduzir\s*stake\s*em\s*(\d+\.?\d*)%/i)
@@ -262,14 +296,8 @@ serve(async (req) => {
         )
 
         if (analysis) {
-          // Calculate stake based on confidence (from prompt criteria)
-          let stakePct = criteria.stake_low
-          if (analysis.confidence >= 85) stakePct = criteria.stake_high
-          else if (analysis.confidence >= 75) stakePct = criteria.stake_mid
-
-          // Level 2 analysis (no xG) → apply level3 penalty since we don't have real odds
-          stakePct -= criteria.level3_stake_penalty
-          stakePct = Math.max(1, stakePct)
+          // Stake comes from tier classification
+          const stakePct = analysis.stakePct
 
           const stakeAmount = bankroll * (stakePct / 100)
           let profitLoss = 0
@@ -512,6 +540,8 @@ interface AnalysisResult {
   vetoReason?: string
   modelLevel: string
   dataStrength: string
+  tier: string | null
+  stakePct: number
 }
 
 function analyzeWithCriteria(
@@ -635,69 +665,69 @@ function analyzeWithCriteria(
 
   if (!bestOpportunity) return null
 
-  // ── APPLY PROMPT CRITERIA ──
+  // ── APPLY PROMPT CRITERIA (Tier-based) ──
   const { market, modelProb, marketOdd, impliedProb, edge, ev, isGreen } = bestOpportunity
 
   // Data strength assessment
   const minPlayed = Math.min(homeStats.played, awayStats.played)
   const dataStrength = minPlayed >= 15 ? 'ALTA' : minPlayed >= 8 ? 'MEDIA' : 'BAIXA'
 
-  // Confidence calculation
-  let confidence = 50
-  confidence += Math.min(minPlayed, 20) * 0.8  // more games = more confidence
-  confidence += edge > 7 ? 8 : edge > 5 ? 5 : edge > 3 ? 2 : 0
-  confidence += dataStrength === 'ALTA' ? 6 : dataStrength === 'MEDIA' ? 3 : 0
-
-  // Form factor bonus
+  // Confidence calculation (aligned with prompt tiers)
+  // Base confidence from data level (NIVEL_2 = 65 base)
+  let confidence = 65
+  confidence += Math.min(minPlayed - 3, 15) * 0.5  // more games = more confidence
+  // Edge bonuses
+  if (edge > 10) confidence += 15
+  else if (edge > 7) confidence += 10
+  else if (edge > 5) confidence += 5
+  else if (edge > 3) confidence += 2
+  // Data quality bonus
+  if (dataStrength === 'ALTA') confidence += 5
+  // Form consistency bonus
   const homeForm = homeStats.lastResults.filter(r => r === 'W').length / Math.max(homeStats.lastResults.length, 1)
   const awayForm = awayStats.lastResults.filter(r => r === 'W').length / Math.max(awayStats.lastResults.length, 1)
-  const formConsistency = Math.abs(homeForm - awayForm) > 0.3 ? 4 : 0
-  confidence += formConsistency
+  if (Math.abs(homeForm - awayForm) > 0.3) confidence += 3
   confidence = Math.min(95, Math.round(confidence))
 
-  // Model level (we're at Level 2 — stats but no xG)
   const modelLevel = 'NIVEL_2'
 
-  // ── VETO CHECKS (from prompt) ──
-  let verdict: 'APROVADO' | 'VETADO' = 'APROVADO'
+  // ── VETO CHECKS (minimal, per prompt) ──
+  let verdict: 'APROVADO' | 'VETADO' = 'VETADO'
   let vetoReason = ''
+  let matchedTier: string | null = null
+  let tierStake = 2
 
-  // EV must be positive
+  // Only 3 veto conditions per prompt: edge < min, confidence < min, EV negative
   if (ev <= 0) {
-    verdict = 'VETADO'
     vetoReason = 'EV negativo'
-  }
-
-  // Edge must be >= min_edge_pct (default 3%)
-  if (edge < criteria.min_edge_pct) {
-    verdict = 'VETADO'
+  } else if (edge < criteria.min_edge_pct) {
     vetoReason = `Edge ${edge.toFixed(1)}% < ${criteria.min_edge_pct}%`
-  }
-
-  // Confidence must be >= min_confidence (default 68%)
-  if (confidence < criteria.min_confidence) {
-    verdict = 'VETADO'
+  } else if (confidence < criteria.min_confidence) {
     vetoReason = `Confiança ${confidence}% < ${criteria.min_confidence}%`
+  } else {
+    // Find matching tier (highest first)
+    for (const tier of criteria.tiers) {
+      if (edge >= tier.min_edge && confidence >= tier.min_confidence) {
+        matchedTier = tier.label
+        tierStake = tier.stake_pct
+        verdict = 'APROVADO'
+        break
+      }
+    }
+    // If no tier matched but meets minimums, use lowest tier
+    if (verdict === 'VETADO' && edge >= criteria.min_edge_pct && confidence >= criteria.min_confidence) {
+      const lowestTier = criteria.tiers[criteria.tiers.length - 1]
+      matchedTier = lowestTier.label
+      tierStake = lowestTier.stake_pct
+      verdict = 'APROVADO'
+    }
+    if (verdict === 'VETADO') {
+      vetoReason = 'Não atingiu critérios mínimos de nenhum tier'
+    }
   }
 
-  // Probability must be reasonable (not extreme outliers)
-  if (modelProb < 0.15 || modelProb > 0.95) {
-    verdict = 'VETADO'
-    vetoReason = `Probabilidade extrema: ${(modelProb * 100).toFixed(1)}%`
-  }
-
-  // Data inconsistency check
-  if (dataStrength === 'BAIXA' && edge < criteria.high_priority_edge) {
-    verdict = 'VETADO'
-    vetoReason = 'Dados insuficientes para edge moderado'
-  }
-
-  // Form-based volatility filter
-  const recentVolatility = homeStats.lastResults.length >= 3 && awayStats.lastResults.length >= 3
-  if (!recentVolatility && edge < 5) {
-    verdict = 'VETADO'
-    vetoReason = 'Forma recente insuficiente'
-  }
+  // Apply level penalty if configured
+  tierStake = Math.max(1, tierStake - criteria.level3_stake_penalty)
 
   return {
     market,
@@ -712,6 +742,8 @@ function analyzeWithCriteria(
     vetoReason,
     modelLevel,
     dataStrength,
+    tier: matchedTier,
+    stakePct: tierStake,
   }
 }
 
