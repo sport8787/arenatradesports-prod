@@ -513,11 +513,9 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "risk_factors": "Riscos e limitações do modelo aplicado"
 }
 
-CRITÉRIOS (adaptáveis ao nível de dados):
-- EV positivo obrigatório
-- Edge >= ${minValue}%
-- Confiança >= 68%
-- Se NIVEL_3 (apenas odds): reduzir stake em 0.5%
+IMPORTANTE: Siga RIGOROSAMENTE os critérios de aprovação/veto definidos no prompt acima.
+- Use os tiers e thresholds EXATOS do prompt (não invente critérios)
+- Se NIVEL_3 (apenas odds): aplique penalização de stake conforme prompt
 - CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR edge
 
 ANALISE AGORA:`
