@@ -56,11 +56,13 @@ interface BacktestResult {
   verdict: 'APROVADO' | 'VETADO'
   result: 'green' | 'red' | null
   stake_pct: number
+  stake_amount: number
   profit_loss: number
   veto_reason?: string
   model_level: string
   confidence: number
   data_strength: string
+  tier: string | null
 }
 
 // ═══════════════════════════════════════════════
@@ -75,15 +77,14 @@ interface TierConfig {
 }
 
 interface AnalysisCriteria {
-  tiers: TierConfig[]         // ordered from highest to lowest
-  min_edge_pct: number        // lowest tier edge (default 2)
-  min_confidence: number      // lowest tier confidence (default 58)
-  min_ev: number              // default 0
-  max_approval_pct: number    // default 70
-  min_approval_pct: number    // default 50
-  min_sample_games: number    // default 3
-  level3_stake_penalty: number // 0
-  veto_small_sample: boolean  // false = don't veto for small samples
+  tiers: TierConfig[]
+  min_edge_pct: number
+  min_confidence: number
+  min_ev: number
+  max_approval_pct: number
+  min_approval_pct: number
+  min_sample_games: number
+  veto_small_sample: boolean
 }
 
 function defaultCriteria(): AnalysisCriteria {
@@ -99,7 +100,6 @@ function defaultCriteria(): AnalysisCriteria {
     max_approval_pct: 70,
     min_approval_pct: 50,
     min_sample_games: 3,
-    level3_stake_penalty: 0,
     veto_small_sample: false,
   }
 }
@@ -107,7 +107,6 @@ function defaultCriteria(): AnalysisCriteria {
 function parseCriteriaFromPrompt(promptText: string): AnalysisCriteria {
   const c = defaultCriteria()
   try {
-    // Parse tier-based system: "Edge ≥ X% E" + "Confiança ≥ Y%"
     const tierBlocks = promptText.match(/TIER\s*\d[\s\S]*?Stake:\s*[\d.]+/gi) || []
     const parsedTiers: TierConfig[] = []
     
@@ -130,45 +129,33 @@ function parseCriteriaFromPrompt(promptText: string): AnalysisCriteria {
     }
 
     if (parsedTiers.length > 0) {
-      // Sort tiers by edge descending (highest first)
       parsedTiers.sort((a, b) => b.min_edge - a.min_edge)
       c.tiers = parsedTiers
-      // Set minimums from the lowest tier
       const lowestTier = parsedTiers[parsedTiers.length - 1]
       c.min_edge_pct = lowestTier.min_edge
       c.min_confidence = lowestTier.min_confidence
     }
 
-    // Parse single-value fallbacks (old-style prompts)
     if (parsedTiers.length === 0) {
-      // Try old format: "Edge ≥ X%"
       const edgeFallback = promptText.match(/Edge\s*≥\s*(\d+)%/i)
       if (edgeFallback) c.min_edge_pct = parseInt(edgeFallback[1])
-      
       const confFallback = promptText.match(/Confian[çc]a\s*≥\s*(\d+)%/i)
       if (confFallback) c.min_confidence = parseInt(confFallback[1])
     }
 
-    // Parse approval range: "50-70% aprovação" or "Aprovar entre X% e Y%"
     const approvalMatch = promptText.match(/(\d+)-(\d+)%\s*aprova[çc][ãa]o/i)
-      || promptText.match(/Aprovar\s*entre\s*(\d+)%\s*e\s*(\d+)%/i)
       || promptText.match(/META.*?Aprovar\s*(\d+)-(\d+)%/i)
     if (approvalMatch) {
       c.min_approval_pct = parseInt(approvalMatch[1])
       c.max_approval_pct = parseInt(approvalMatch[2])
     }
 
-    // Check if prompt says NOT to veto for small sample
     if (promptText.match(/NÃO vetar por/i) && promptText.match(/amostra pequena/i)) {
       c.veto_small_sample = false
       c.min_sample_games = 2
     }
 
-    // Parse level 3 penalty
-    const penaltyMatch = promptText.match(/Reduzir\s*stake\s*em\s*(\d+\.?\d*)%/i)
-    if (penaltyMatch) c.level3_stake_penalty = parseFloat(penaltyMatch[1])
-
-    console.log('[Backtest] Critérios parseados do prompt:', JSON.stringify(c))
+    console.log('[Backtest] Critérios parseados:', JSON.stringify(c))
   } catch (e) {
     console.warn('[Backtest] Erro ao parsear prompt, usando defaults:', e)
   }
@@ -181,7 +168,6 @@ async function loadPromptCriteria(): Promise<AnalysisCriteria> {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Try storage override first
     const { data: storageData } = await supabase.storage
       .from('sports-knowledge-base')
       .download('prompt_mycroft_punter.txt')
@@ -192,22 +178,9 @@ async function loadPromptCriteria(): Promise<AnalysisCriteria> {
       return parseCriteriaFromPrompt(text)
     }
   } catch (e) {
-    console.log('[Backtest] Storage não disponível, tentando arquivo local')
+    console.log('[Backtest] Storage não disponível, usando defaults')
   }
 
-  // Fallback: try to fetch from public KB
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const res = await fetch(`${supabaseUrl.replace('supabase.co', 'supabase.co')}/storage/v1/object/public/sports-knowledge-base/prompt_mycroft_punter.txt`)
-    if (res.ok) {
-      const text = await res.text()
-      return parseCriteriaFromPrompt(text)
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  console.log('[Backtest] Usando critérios padrão do prompt')
   return defaultCriteria()
 }
 
@@ -229,13 +202,9 @@ serve(async (req) => {
       league,
       leagues: leaguesInput,
       season = new Date().getFullYear() - 1,
-      min_value = 5,
       initial_bankroll = 10000,
-      stake_mode = 'fixed_pct',
-      fixed_stake_pct = 3,
     } = body
 
-    // Load criteria from prompt
     const criteria = await loadPromptCriteria()
 
     const leagueKeys: string[] = leaguesInput && Array.isArray(leaguesInput) && leaguesInput.length > 0
@@ -247,7 +216,7 @@ serve(async (req) => {
 
     const leagueNames = validLeagues.map(l => l.info.name).join(', ')
     console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season}`)
-    console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%, EV>0`)
+    console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%`)
 
     // 1. Fetch all finished fixtures
     const allFixtures: any[] = []
@@ -267,9 +236,9 @@ serve(async (req) => {
     // Sort by date ascending
     allFixtures.sort((a: any, b: any) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime())
 
-    // 2. Calculate league-wide averages for market odds baseline
+    // 2. Calculate league-wide averages
     const leagueAvg = calculateLeagueAverages(allFixtures)
-    console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo, home win: ${(leagueAvg.homeWinRate * 100).toFixed(1)}%`)
+    console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo`)
 
     // 3. Simulate game by game (NO LOOKAHEAD)
     const teamStats: Record<string, TeamCumulativeStats> = {}
@@ -277,6 +246,7 @@ serve(async (req) => {
     let bankroll = initial_bankroll
     let maxBankroll = initial_bankroll
     let maxDrawdown = 0
+    let totalActualStaked = 0
 
     for (const fixture of allFixtures) {
       const homeTeam = fixture.teams.home.name
@@ -288,7 +258,6 @@ serve(async (req) => {
       const homeStats = teamStats[homeTeam]
       const awayStats = teamStats[awayTeam]
 
-      // Need minimum games for both teams
       if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
@@ -296,17 +265,47 @@ serve(async (req) => {
         )
 
         if (analysis) {
-          // Stake comes from tier classification
-          const stakePct = analysis.stakePct
+          // Calculate actual stake from CURRENT bankroll
+          const stakeAmount = bankroll * (analysis.stakePct / 100)
 
-          const stakeAmount = bankroll * (stakePct / 100)
           let profitLoss = 0
-
           if (analysis.verdict === 'APROVADO') {
+            totalActualStaked += stakeAmount
             profitLoss = analysis.isGreen
               ? stakeAmount * (analysis.odd - 1)
               : -stakeAmount
             bankroll += profitLoss
+            
+            // Prevent bankroll going below zero (bust)
+            if (bankroll <= 0) {
+              bankroll = 0
+              // Stop simulation - bankroll busted
+              results.push({
+                fixture_id: fixture.fixture.id,
+                date: fixtureDate,
+                round: fixture.league.round || '',
+                home_team: homeTeam,
+                away_team: awayTeam,
+                home_goals: homeGoals,
+                away_goals: awayGoals,
+                market: analysis.market,
+                predicted_prob: analysis.predictedProb,
+                implied_prob: analysis.impliedProb,
+                odd: analysis.odd,
+                ev: analysis.ev,
+                value_pct: analysis.edgePct,
+                verdict: analysis.verdict,
+                result: analysis.isGreen ? 'green' : 'red',
+                stake_pct: analysis.stakePct,
+                stake_amount: Math.round(stakeAmount * 100) / 100,
+                profit_loss: Math.round(profitLoss * 100) / 100,
+                model_level: analysis.modelLevel,
+                confidence: analysis.confidence,
+                data_strength: analysis.dataStrength,
+                tier: analysis.tier,
+              })
+              break
+            }
           }
 
           if (bankroll > maxBankroll) maxBankroll = bankroll
@@ -329,12 +328,14 @@ serve(async (req) => {
             value_pct: analysis.edgePct,
             verdict: analysis.verdict,
             result: analysis.verdict === 'APROVADO' ? (analysis.isGreen ? 'green' : 'red') : null,
-            stake_pct: analysis.verdict === 'APROVADO' ? stakePct : 0,
+            stake_pct: analysis.verdict === 'APROVADO' ? analysis.stakePct : 0,
+            stake_amount: analysis.verdict === 'APROVADO' ? Math.round(stakeAmount * 100) / 100 : 0,
             profit_loss: Math.round(profitLoss * 100) / 100,
             veto_reason: analysis.vetoReason,
             model_level: analysis.modelLevel,
             confidence: analysis.confidence,
             data_strength: analysis.dataStrength,
+            tier: analysis.tier,
           })
         }
       }
@@ -349,34 +350,29 @@ serve(async (req) => {
     const vetoed = results.filter(r => r.verdict === 'VETADO')
     const greens = approved.filter(r => r.result === 'green')
     const reds = approved.filter(r => r.result === 'red')
-    const totalPL = approved.reduce((sum, r) => sum + r.profit_loss, 0)
-    const totalStaked = approved.reduce((sum, r) => sum + initial_bankroll * (r.stake_pct / 100), 0)
-    const roi = totalStaked > 0 ? (totalPL / totalStaked) * 100 : 0
+    const totalPL = bankroll - initial_bankroll
+    // ROI = profit / total amount actually staked
+    const roi = totalActualStaked > 0 ? (totalPL / totalActualStaked) * 100 : 0
 
     const approvalRate = results.length > 0 ? (approved.length / results.length * 100) : 0
     console.log(`[Backtest] Taxa de aprovação: ${approvalRate.toFixed(1)}% (target: ${criteria.min_approval_pct}-${criteria.max_approval_pct}%)`)
 
-    // ROI by EV range
-    const evRanges = [
-      { label: '3-5%', min: 3, max: 5 },
-      { label: '5-10%', min: 5, max: 10 },
-      { label: '10-15%', min: 10, max: 15 },
-      { label: '15-20%', min: 15, max: 20 },
-      { label: '20%+', min: 20, max: 999 },
-    ]
-    const roiByEv = evRanges.map(range => {
-      const inRange = approved.filter(r => r.value_pct >= range.min && r.value_pct < range.max)
-      const pl = inRange.reduce((s, r) => s + r.profit_loss, 0)
-      const staked = inRange.reduce((s, r) => s + initial_bankroll * (r.stake_pct / 100), 0)
+    // ROI by tier
+    const tierBreakdown = criteria.tiers.map(tier => {
+      const inTier = approved.filter(r => r.tier === tier.label)
+      const tierGreens = inTier.filter(r => r.result === 'green').length
+      const tierPL = inTier.reduce((s, r) => s + r.profit_loss, 0)
+      const tierStaked = inTier.reduce((s, r) => s + r.stake_amount, 0)
       return {
-        range: range.label,
-        count: inRange.length,
-        greens: inRange.filter(r => r.result === 'green').length,
-        reds: inRange.filter(r => r.result === 'red').length,
-        roi: staked > 0 ? (pl / staked) * 100 : 0,
-        profit_loss: Math.round(pl * 100) / 100,
+        tier: tier.label,
+        count: inTier.length,
+        greens: tierGreens,
+        reds: inTier.length - tierGreens,
+        hit_rate: inTier.length > 0 ? Math.round(tierGreens / inTier.length * 100 * 100) / 100 : 0,
+        roi: tierStaked > 0 ? Math.round(tierPL / tierStaked * 100 * 100) / 100 : 0,
+        profit_loss: Math.round(tierPL * 100) / 100,
       }
-    }).filter(r => r.count > 0)
+    }).filter(t => t.count > 0)
 
     // Bankroll curve
     let runningBankroll = initial_bankroll
@@ -399,10 +395,11 @@ serve(async (req) => {
       hit_rate: approved.length > 0 ? Math.round((greens.length / approved.length * 100) * 100) / 100 : 0,
       roi_total: Math.round(roi * 100) / 100,
       net_profit: Math.round(totalPL * 100) / 100,
+      total_staked: Math.round(totalActualStaked * 100) / 100,
       max_drawdown: Math.round(maxDrawdown * 100) / 100,
       final_bankroll: Math.round(bankroll * 100) / 100,
       initial_bankroll,
-      roi_by_ev: roiByEv,
+      tier_breakdown: tierBreakdown,
       bankroll_curve: bankrollCurve,
       criteria_used: {
         min_edge: criteria.min_edge_pct,
@@ -412,14 +409,14 @@ serve(async (req) => {
       },
     }
 
-    console.log(`[Backtest] CONCLUÍDO: ${results.length} analisados, ${approved.length} aprovados (${approvalRate.toFixed(1)}%), ${greens.length}G/${reds.length}R, ROI: ${roi.toFixed(2)}%`)
+    console.log(`[Backtest] CONCLUÍDO: ${results.length} analisados, ${approved.length} aprovados (${approvalRate.toFixed(1)}%), ${greens.length}G/${reds.length}R, ROI: ${roi.toFixed(2)}%, Banca: R$ ${bankroll.toFixed(2)}`)
 
     return jsonResponse({
       success: true,
       league: leagueNames,
       season,
       metrics,
-      results: approved,
+      results: approved.slice(0, 500), // limit response size
       total_fixtures: allFixtures.length,
     })
 
@@ -445,7 +442,7 @@ async function fetchSeasonFixtures(leagueId: number, season: number, apiKey: str
 }
 
 // ═══════════════════════════════════════════════
-// League averages — baseline for "market" odds
+// League averages
 // ═══════════════════════════════════════════════
 
 interface LeagueAverages {
@@ -524,7 +521,7 @@ function updateTeamStats(stats: Record<string, TeamCumulativeStats>, team: strin
 }
 
 // ═══════════════════════════════════════════════
-// ANALYSIS ENGINE — applies prompt criteria
+// ANALYSIS ENGINE — Realistic market simulation
 // ═══════════════════════════════════════════════
 
 interface AnalysisResult {
@@ -544,6 +541,11 @@ interface AnalysisResult {
   stakePct: number
 }
 
+/**
+ * KEY FIX: Both model and market now use team-specific data,
+ * but with different methodologies (Poisson vs ELO-like ratings).
+ * Edge only appears when Poisson genuinely disagrees with ratings-based market.
+ */
 function analyzeWithCriteria(
   homeTeam: string,
   awayTeam: string,
@@ -556,13 +558,11 @@ function analyzeWithCriteria(
 ): AnalysisResult | null {
 
   // ── MODEL: Poisson-based predicted probabilities ──
-  // Use team-specific stats (our "model view")
   const homeAttack = homeStats.goalsScored / homeStats.played
   const homeDefense = homeStats.goalsConceded / homeStats.played
   const awayAttack = awayStats.goalsScored / awayStats.played
   const awayDefense = awayStats.goalsConceded / awayStats.played
 
-  // Home/away split for better accuracy
   const homeHomeAttack = homeStats.homePlayed > 2
     ? homeStats.homeGoalsScored / homeStats.homePlayed
     : homeAttack
@@ -582,33 +582,52 @@ function analyzeWithCriteria(
   const modelOver15 = poissonOver(homeXG, awayXG, 1.5)
   const modelBTTS = poissonBTTS(homeXG, awayXG)
 
-  // ── MARKET: Independent baseline using league averages + simple win rates ──
-  // This simulates what a bookmaker would price, INDEPENDENT of our model
-  const homeWinRate = homeStats.wins / homeStats.played
-  const awayWinRate = awayStats.wins / awayStats.played
-  const homeDrawRate = homeStats.draws / homeStats.played
-  const awayDrawRate = awayStats.draws / awayStats.played
+  // ── MARKET: Ratings-based approach (simulates Pinnacle/sharp market) ──
+  // Uses TEAM-SPECIFIC data too, but via a different methodology:
+  // Weighted blend of overall win rate + home/away specific rates + regression to league mean
+  // This means both model and market see the same data but interpret differently
+  
+  const homeOverallWR = homeStats.wins / homeStats.played
+  const homeHomeWR = homeStats.homePlayed > 2 ? homeStats.homeWins / homeStats.homePlayed : homeOverallWR
+  const awayOverallWR = awayStats.wins / awayStats.played
+  const awayAwayWR = awayStats.awayPlayed > 2 ? awayStats.awayWins / awayStats.awayPlayed : awayOverallWR
+  
+  // Market uses heavier regression to league mean (sharp markets are efficient)
+  const regressionWeight = Math.max(0.3, 1 - Math.min(homeStats.played, awayStats.played) / 30)
+  
+  // Home win probability (market view): team-specific with heavy regression
+  const rawMarketHome = (homeHomeWR * 0.5 + homeOverallWR * 0.2 + (1 - awayOverallWR) * 0.3)
+  const marketHomeWin = clamp(rawMarketHome * (1 - regressionWeight) + leagueAvg.homeWinRate * regressionWeight, 0.10, 0.85)
+  
+  const rawMarketAway = (awayAwayWR * 0.5 + awayOverallWR * 0.2 + (1 - homeOverallWR) * 0.3)
+  const marketAwayWin = clamp(rawMarketAway * (1 - regressionWeight) + leagueAvg.awayWinRate * regressionWeight, 0.05, 0.75)
+  
+  const marketDraw = clamp(1 - marketHomeWin - marketAwayWin, 0.15, 0.35)
+  
+  // Normalize to sum = 1
+  const totalMarket = marketHomeWin + marketDraw + marketAwayWin
+  const normHome = marketHomeWin / totalMarket
+  const normDraw = marketDraw / totalMarket
+  const normAway = marketAwayWin / totalMarket
 
-  // Market probabilities (blend of simple rates + league baseline)
-  const marketHomeWin = clamp((homeWinRate * 0.4 + leagueAvg.homeWinRate * 0.6), 0.05, 0.90)
-  const marketDraw = clamp(((homeDrawRate + awayDrawRate) / 2 * 0.4 + leagueAvg.drawRate * 0.6), 0.10, 0.40)
-  const marketAwayWin = clamp(1 - marketHomeWin - marketDraw, 0.05, 0.90)
-
-  // Over/Under market baseline from league average
-  const leagueOver25Rate = calculateOver25Rate(leagueAvg.avgGoals)
-  const marketOver25 = clamp(leagueOver25Rate, 0.20, 0.80)
+  // Over/Under market: use team goal rates with regression
+  const teamBasedGoalRate = (homeAttack + awayAttack + homeDefense + awayDefense) / 2 // weighted avg
+  const marketGoalExpectation = teamBasedGoalRate * (1 - regressionWeight) + leagueAvg.avgGoals * regressionWeight
+  const marketOver25 = clamp(poissonOver(marketGoalExpectation * 0.52, marketGoalExpectation * 0.48, 2.5), 0.25, 0.75)
   const marketUnder25 = 1 - marketOver25
+  const marketOver15 = clamp(poissonOver(marketGoalExpectation * 0.52, marketGoalExpectation * 0.48, 1.5), 0.50, 0.92)
+  const marketBTTS = clamp(1 - poissonPmf(marketGoalExpectation * 0.52, 0) - poissonPmf(marketGoalExpectation * 0.48, 0) + poissonPmf(marketGoalExpectation * 0.52, 0) * poissonPmf(marketGoalExpectation * 0.48, 0), 0.25, 0.75)
 
-  // Apply bookmaker margin (5-8% overround)
-  const margin = 1.06
-  const marketOdds = {
-    'Casa': margin / marketHomeWin,
-    'Empate': margin / marketDraw,
-    'Fora': margin / marketAwayWin,
+  // Apply bookmaker margin (5-8% overround) — sharp market
+  const margin = 1.05
+  const marketOdds: Record<string, number> = {
+    'Casa': margin / normHome,
+    'Empate': margin / normDraw,
+    'Fora': margin / normAway,
     'Over 2.5': margin / marketOver25,
     'Under 2.5': margin / marketUnder25,
-    'Over 1.5': margin / clamp(leagueOver25Rate * 1.3, 0.40, 0.90),
-    'BTTS Sim': margin / clamp(marketOver25 * 0.85, 0.25, 0.75),
+    'Over 1.5': margin / marketOver15,
+    'BTTS Sim': margin / marketBTTS,
   }
 
   const modelProbs: Record<string, number> = {
@@ -631,7 +650,7 @@ function analyzeWithCriteria(
     'BTTS Sim': actualHomeGoals > 0 && actualAwayGoals > 0,
   }
 
-  // ── FIND BEST EDGE ──
+  // ── FIND BEST EDGE (model prob vs sharp market implied prob) ──
   let bestOpportunity: {
     market: string
     modelProb: number
@@ -643,14 +662,15 @@ function analyzeWithCriteria(
   } | null = null
 
   for (const [market, modelProb] of Object.entries(modelProbs)) {
-    const marketOdd = marketOdds[market as keyof typeof marketOdds]
-    if (!marketOdd) continue
+    const marketOdd = marketOdds[market]
+    if (!marketOdd || marketOdd > 20 || marketOdd < 1.05) continue // sanity
 
     const impliedProb = 1 / marketOdd
+    // Edge = how much our model probability exceeds the sharp market probability
     const edge = ((modelProb - impliedProb) / impliedProb) * 100
     const ev = (modelProb * marketOdd) - 1
 
-    if (edge > (bestOpportunity?.edge ?? 0)) {
+    if (ev > 0 && edge > (bestOpportunity?.edge ?? 0)) {
       bestOpportunity = {
         market,
         modelProb,
@@ -665,39 +685,36 @@ function analyzeWithCriteria(
 
   if (!bestOpportunity) return null
 
-  // ── APPLY PROMPT CRITERIA (Tier-based) ──
   const { market, modelProb, marketOdd, impliedProb, edge, ev, isGreen } = bestOpportunity
 
-  // Data strength assessment
+  // Data strength
   const minPlayed = Math.min(homeStats.played, awayStats.played)
   const dataStrength = minPlayed >= 15 ? 'ALTA' : minPlayed >= 8 ? 'MEDIA' : 'BAIXA'
 
-  // Confidence calculation (aligned with prompt tiers)
-  // Base confidence from data level (NIVEL_2 = 65 base)
-  let confidence = 65
-  confidence += Math.min(minPlayed - 3, 15) * 0.5  // more games = more confidence
-  // Edge bonuses
+  // Confidence calculation per prompt tiers
+  let confidence: number
+  if (dataStrength === 'ALTA') confidence = 70
+  else if (dataStrength === 'MEDIA') confidence = 65
+  else confidence = 60
+
+  // Edge bonuses (per prompt)
   if (edge > 10) confidence += 15
   else if (edge > 7) confidence += 10
   else if (edge > 5) confidence += 5
-  else if (edge > 3) confidence += 2
-  // Data quality bonus
-  if (dataStrength === 'ALTA') confidence += 5
-  // Form consistency bonus
-  const homeForm = homeStats.lastResults.filter(r => r === 'W').length / Math.max(homeStats.lastResults.length, 1)
-  const awayForm = awayStats.lastResults.filter(r => r === 'W').length / Math.max(awayStats.lastResults.length, 1)
-  if (Math.abs(homeForm - awayForm) > 0.3) confidence += 3
+
+  // Multiple data points bonus
+  if (minPlayed >= 10) confidence += 5
+  
   confidence = Math.min(95, Math.round(confidence))
 
   const modelLevel = 'NIVEL_2'
 
-  // ── VETO CHECKS (minimal, per prompt) ──
+  // ── APPLY TIER CRITERIA ──
   let verdict: 'APROVADO' | 'VETADO' = 'VETADO'
   let vetoReason = ''
   let matchedTier: string | null = null
   let tierStake = 2
 
-  // Only 3 veto conditions per prompt: edge < min, confidence < min, EV negative
   if (ev <= 0) {
     vetoReason = 'EV negativo'
   } else if (edge < criteria.min_edge_pct) {
@@ -714,7 +731,7 @@ function analyzeWithCriteria(
         break
       }
     }
-    // If no tier matched but meets minimums, use lowest tier
+    // Fallback to lowest tier
     if (verdict === 'VETADO' && edge >= criteria.min_edge_pct && confidence >= criteria.min_confidence) {
       const lowestTier = criteria.tiers[criteria.tiers.length - 1]
       matchedTier = lowestTier.label
@@ -722,12 +739,9 @@ function analyzeWithCriteria(
       verdict = 'APROVADO'
     }
     if (verdict === 'VETADO') {
-      vetoReason = 'Não atingiu critérios mínimos de nenhum tier'
+      vetoReason = 'Não atingiu critérios mínimos'
     }
   }
-
-  // Apply level penalty if configured
-  tierStake = Math.max(1, tierStake - criteria.level3_stake_penalty)
 
   return {
     market,
@@ -786,20 +800,9 @@ function poissonOver(homeXG: number, awayXG: number, line: number): number {
 }
 
 function poissonBTTS(homeXG: number, awayXG: number): number {
-  // P(both score) = 1 - P(home=0) - P(away=0) + P(both=0)
   const pHome0 = poissonPmf(homeXG, 0)
   const pAway0 = poissonPmf(awayXG, 0)
   return clamp(1 - pHome0 - pAway0 + pHome0 * pAway0, 0.01, 0.99)
-}
-
-function calculateOver25Rate(avgGoals: number): number {
-  // Estimate over 2.5 probability from average goals
-  if (avgGoals >= 3.5) return 0.70
-  if (avgGoals >= 3.0) return 0.58
-  if (avgGoals >= 2.7) return 0.50
-  if (avgGoals >= 2.5) return 0.45
-  if (avgGoals >= 2.2) return 0.38
-  return 0.30
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -811,7 +814,7 @@ function emptyMetrics() {
     total_analyzed: 0, total_approved: 0, approval_rate: 0,
     greens: 0, reds: 0, hit_rate: 0, roi_total: 0,
     net_profit: 0, max_drawdown: 0, final_bankroll: 0,
-    initial_bankroll: 0, roi_by_ev: [], bankroll_curve: [],
+    initial_bankroll: 0, tier_breakdown: [], bankroll_curve: [],
   }
 }
 
