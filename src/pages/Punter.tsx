@@ -47,7 +47,7 @@ interface PunterSignal {
 export default function PunterPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { bankroll, loading: bankrollLoading, settleBets } = useBankroll();
+  const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const [loading, setLoading] = useState(false);
   const [signals, setSignals] = useState<PunterSignal[]>([]);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
@@ -253,7 +253,7 @@ export default function PunterPage() {
 
       <div className="container mx-auto px-4 py-4 space-y-4 max-w-4xl">
         {/* Bankroll Widget */}
-        {bankroll && !bankrollLoading && <BankrollWidget bankroll={bankroll} />}
+        {bankroll && !bankrollLoading && <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />}
 
         {/* Info Banner */}
         <Card className="border-success/30 bg-success/5">
