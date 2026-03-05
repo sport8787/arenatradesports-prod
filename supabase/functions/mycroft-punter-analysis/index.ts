@@ -166,133 +166,134 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 })
 
 // ═══════════════════════════════════════════════
-// API-Football: Fetch team stats & fixtures
+// API-Football Pro: Full enrichment (H2H, Season Stats, Injuries, Standings)
 // ═══════════════════════════════════════════════
+
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
+const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
 
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null
   try {
     const res = await fetch(
-      `https://v3.football.api-sports.io/teams?search=${encodeURIComponent(teamName)}`,
-      { headers: { 'x-apisports-key': apiKey } }
+      `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(teamName)}`,
+      { headers: apiHeaders(apiKey) }
     )
     if (!res.ok) return null
     const data = await res.json()
-    const team = data.response?.[0]
-    return team?.team?.id || null
+    return data.response?.[0]?.team?.id || null
   } catch (e) {
     console.warn(`[API-Football] Erro buscando team ${teamName}:`, e)
     return null
   }
 }
 
-async function fetchTeamStats(teamId: number, apiKey: string): Promise<any> {
+async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, apiKey: string): Promise<any> {
   if (!apiKey || !teamId) return null
   try {
-    // Get current season
     const year = new Date().getFullYear()
+    // If we have a league ID use it, otherwise try current year
+    const endpoint = leagueId
+      ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}&league=${leagueId}`
+      : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}`
     
-    // Fetch last 5 fixtures for form
-    const fixturesRes = await fetch(
-      `https://v3.football.api-sports.io/fixtures?team=${teamId}&last=5&status=FT`,
-      { headers: { 'x-apisports-key': apiKey } }
-    )
-    
-    let recentFixtures: any[] = []
-    if (fixturesRes.ok) {
-      const fixturesData = await fixturesRes.json()
-      recentFixtures = fixturesData.response || []
-    }
-
-    // Calculate form stats from recent fixtures
-    let goalsScored = 0, goalsConceded = 0, wins = 0, draws = 0, losses = 0
-    let shotsOnTarget = 0, shotsTotal = 0, possession = 0, cornerKicks = 0
-    let hasDetailedStats = false
-
-    for (const fixture of recentFixtures) {
-      const isHome = fixture.teams?.home?.id === teamId
-      const homeGoals = fixture.goals?.home ?? 0
-      const awayGoals = fixture.goals?.away ?? 0
-
-      goalsScored += isHome ? homeGoals : awayGoals
-      goalsConceded += isHome ? awayGoals : homeGoals
-
-      if (isHome ? fixture.teams?.home?.winner : fixture.teams?.away?.winner) wins++
-      else if (homeGoals === awayGoals) draws++
-      else losses++
-
-      // Try to get detailed stats per fixture
-      if (fixture.statistics) {
-        hasDetailedStats = true
-        const teamStats = fixture.statistics?.find((s: any) => s.team?.id === teamId)
-        if (teamStats?.statistics) {
-          for (const stat of teamStats.statistics) {
-            if (stat.type === 'Shots on Goal') shotsOnTarget += (parseInt(stat.value) || 0)
-            if (stat.type === 'Total Shots') shotsTotal += (parseInt(stat.value) || 0)
-            if (stat.type === 'Ball Possession') possession += (parseFloat(stat.value) || 0)
-            if (stat.type === 'Corner Kicks') cornerKicks += (parseInt(stat.value) || 0)
-          }
-        }
-      }
-    }
-
-    // If we didn't get inline stats, fetch them separately for last fixture
-    if (!hasDetailedStats && recentFixtures.length > 0) {
-      try {
-        const lastFixtureId = recentFixtures[0]?.fixture?.id
-        if (lastFixtureId) {
-          const statsRes = await fetch(
-            `https://v3.football.api-sports.io/fixtures/statistics?fixture=${lastFixtureId}`,
-            { headers: { 'x-apisports-key': apiKey } }
-          )
-          if (statsRes.ok) {
-            const statsData = await statsRes.json()
-            const teamStatBlock = statsData.response?.find((s: any) => s.team?.id === teamId)
-            if (teamStatBlock?.statistics) {
-              hasDetailedStats = true
-              for (const stat of teamStatBlock.statistics) {
-                if (stat.type === 'Shots on Goal') shotsOnTarget = parseInt(stat.value) || 0
-                if (stat.type === 'Total Shots') shotsTotal = parseInt(stat.value) || 0
-                if (stat.type === 'Ball Possession') possession = parseFloat(stat.value) || 0
-                if (stat.type === 'Corner Kicks') cornerKicks = parseInt(stat.value) || 0
-              }
-            }
-          }
-        }
-      } catch { /* optional */ }
-    }
-
-    const matchesPlayed = recentFixtures.length || 1
-
-    return {
-      team_id: teamId,
-      matches_played: matchesPlayed,
-      wins, draws, losses,
-      goals_scored: goalsScored,
-      goals_conceded: goalsConceded,
-      avg_goals_scored: (goalsScored / matchesPlayed).toFixed(2),
-      avg_goals_conceded: (goalsConceded / matchesPlayed).toFixed(2),
-      form: recentFixtures.map((f: any) => {
-        const isHome = f.teams?.home?.id === teamId
-        const hg = f.goals?.home ?? 0
-        const ag = f.goals?.away ?? 0
-        if (isHome) return hg > ag ? 'W' : hg === ag ? 'D' : 'L'
-        return ag > hg ? 'W' : ag === hg ? 'D' : 'L'
-      }).join(''),
-      has_detailed_stats: hasDetailedStats,
-      avg_shots_on_target: hasDetailedStats ? (shotsOnTarget / matchesPlayed).toFixed(1) : null,
-      avg_shots_total: hasDetailedStats ? (shotsTotal / matchesPlayed).toFixed(1) : null,
-      avg_possession: hasDetailedStats ? (possession / matchesPlayed).toFixed(1) : null,
-      avg_corners: hasDetailedStats ? (cornerKicks / matchesPlayed).toFixed(1) : null,
-    }
-  } catch (e) {
-    console.warn(`[API-Football] Erro buscando stats team ${teamId}:`, e)
-    return null
-  }
+    const res = await fetch(endpoint, { headers: apiHeaders(apiKey) })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.response || null
+  } catch { return null }
 }
 
-async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string) {
-  if (!apiKey) return { home: null, away: null, model_level: 'NIVEL_3' }
+async function fetchRecentFixtures(teamId: number, apiKey: string, last = 5): Promise<any[]> {
+  if (!apiKey || !teamId) return []
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?team=${teamId}&last=${last}&status=FT`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.response || []
+  } catch { return [] }
+}
+
+async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<any[]> {
+  if (!apiKey || !fixtureId) return []
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures/statistics?fixture=${fixtureId}`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.response || []
+  } catch { return [] }
+}
+
+async function fetchH2H(homeId: number, awayId: number, apiKey: string): Promise<any[]> {
+  if (!apiKey || !homeId || !awayId) return []
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures/headtohead?h2h=${homeId}-${awayId}&last=10`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.response || []
+  } catch { return [] }
+}
+
+async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
+  if (!apiKey || !teamId) return []
+  try {
+    const year = new Date().getFullYear()
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/injuries?team=${teamId}&season=${year}`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    // Return only active injuries (most recent 10)
+    return (data.response || []).slice(0, 10)
+  } catch { return [] }
+}
+
+async function fetchStandings(leagueId: number | null, apiKey: string): Promise<any[]> {
+  if (!apiKey || !leagueId) return []
+  try {
+    const year = new Date().getFullYear()
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/standings?league=${leagueId}&season=${year}`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.response?.[0]?.league?.standings?.[0] || []
+  } catch { return [] }
+}
+
+async function searchLeagueId(sportKey: string, apiKey: string): Promise<number | null> {
+  // Map The Odds API sport keys to API-Football league IDs
+  const leagueMap: Record<string, number> = {
+    'soccer_brazil_campeonato': 71,
+    'soccer_brazil_serie_b': 72,
+    'soccer_epl': 39,
+    'soccer_spain_la_liga': 140,
+    'soccer_germany_bundesliga': 78,
+    'soccer_italy_serie_a': 135,
+    'soccer_france_ligue_one': 61,
+    'soccer_uefa_champs_league': 2,
+    'soccer_uefa_europa_league': 3,
+    'soccer_conmebol_copa_libertadores': 13,
+    'soccer_conmebol_copa_sudamericana': 11,
+    'soccer_argentina_primera_division': 128,
+    'soccer_brazil_campeonato_pernambucano': 604,
+  }
+  return leagueMap[sportKey] || null
+}
+
+async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string, sportKey?: string) {
+  if (!apiKey) return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], model_level: 'NIVEL_3' }
 
   const [homeId, awayId] = await Promise.all([
     searchTeamId(homeTeam, apiKey),
@@ -301,22 +302,189 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
 
   if (!homeId && !awayId) {
     console.log(`[API-Football] Nenhum time encontrado: ${homeTeam}, ${awayTeam}`)
-    return { home: null, away: null, model_level: 'NIVEL_3' }
+    return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], model_level: 'NIVEL_3' }
   }
 
-  const [homeStats, awayStats] = await Promise.all([
-    homeId ? fetchTeamStats(homeId, apiKey) : null,
-    awayId ? fetchTeamStats(awayId, apiKey) : null
+  const leagueId = sportKey ? await searchLeagueId(sportKey, apiKey) : null
+
+  // Parallel fetch all data
+  const [
+    homeFixtures, awayFixtures,
+    homeSeasonStats, awaySeasonStats,
+    h2hData,
+    homeInjuries, awayInjuries,
+    standingsData
+  ] = await Promise.all([
+    homeId ? fetchRecentFixtures(homeId, apiKey, 5) : [],
+    awayId ? fetchRecentFixtures(awayId, apiKey, 5) : [],
+    homeId ? fetchTeamSeasonStats(homeId, leagueId, apiKey) : null,
+    awayId ? fetchTeamSeasonStats(awayId, leagueId, apiKey) : null,
+    (homeId && awayId) ? fetchH2H(homeId, awayId, apiKey) : [],
+    homeId ? fetchInjuries(homeId, apiKey) : [],
+    awayId ? fetchInjuries(awayId, apiKey) : [],
+    fetchStandings(leagueId, apiKey)
   ])
 
+  // Process home team stats
+  const homeStats = processTeamStats(homeId, homeFixtures, homeSeasonStats, apiKey)
+  const awayStats = processTeamStats(awayId, awayFixtures, awaySeasonStats, apiKey)
+
+  // Fetch detailed stats for last fixture if needed
+  let homeDetailedStats = null, awayDetailedStats = null
+  if (homeFixtures.length > 0) {
+    const lastFixtureId = homeFixtures[0]?.fixture?.id
+    if (lastFixtureId) {
+      const stats = await fetchFixtureStats(lastFixtureId, apiKey)
+      homeDetailedStats = stats.find((s: any) => s.team?.id === homeId)
+    }
+  }
+  if (awayFixtures.length > 0) {
+    const lastFixtureId = awayFixtures[0]?.fixture?.id
+    if (lastFixtureId) {
+      const stats = await fetchFixtureStats(lastFixtureId, apiKey)
+      awayDetailedStats = stats.find((s: any) => s.team?.id === awayId)
+    }
+  }
+
+  // Merge detailed stats into team stats
+  if (homeStats && homeDetailedStats?.statistics) {
+    homeStats.last_match_stats = extractStatValues(homeDetailedStats.statistics)
+    homeStats.has_detailed_stats = true
+  }
+  if (awayStats && awayDetailedStats?.statistics) {
+    awayStats.last_match_stats = extractStatValues(awayDetailedStats.statistics)
+    awayStats.has_detailed_stats = true
+  }
+
   // Determine model level
-  const hasStats = homeStats || awayStats
+  const hasSeasonStats = homeSeasonStats || awaySeasonStats
+  const hasH2H = h2hData.length > 0
   const hasDetailedStats = homeStats?.has_detailed_stats || awayStats?.has_detailed_stats
   let model_level = 'NIVEL_3'
-  if (hasDetailedStats) model_level = 'NIVEL_1'
-  else if (hasStats) model_level = 'NIVEL_2'
+  if (hasDetailedStats && hasSeasonStats && hasH2H) model_level = 'NIVEL_1'
+  else if (hasSeasonStats || hasDetailedStats) model_level = 'NIVEL_2'
+  else if (homeStats || awayStats) model_level = 'NIVEL_2'
 
-  return { home: homeStats, away: awayStats, model_level }
+  return {
+    home: homeStats,
+    away: awayStats,
+    h2h: processH2H(h2hData, homeId, awayId),
+    injuries: { home: homeInjuries, away: awayInjuries },
+    standings: standingsData,
+    homeSeasonStats,
+    awaySeasonStats,
+    model_level
+  }
+}
+
+function extractStatValues(statistics: any[]): Record<string, string | number> {
+  const result: Record<string, string | number> = {}
+  for (const stat of statistics) {
+    result[stat.type] = stat.value
+  }
+  return result
+}
+
+function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: any, apiKey: string) {
+  if (!teamId || fixtures.length === 0) return null
+
+  let goalsScored = 0, goalsConceded = 0, wins = 0, draws = 0, losses = 0
+
+  for (const fixture of fixtures) {
+    const isHome = fixture.teams?.home?.id === teamId
+    const hg = fixture.goals?.home ?? 0
+    const ag = fixture.goals?.away ?? 0
+    goalsScored += isHome ? hg : ag
+    goalsConceded += isHome ? ag : hg
+    if (isHome ? fixture.teams?.home?.winner : fixture.teams?.away?.winner) wins++
+    else if (hg === ag) draws++
+    else losses++
+  }
+
+  const mp = fixtures.length || 1
+
+  const stats: any = {
+    team_id: teamId,
+    matches_played: mp,
+    wins, draws, losses,
+    goals_scored: goalsScored,
+    goals_conceded: goalsConceded,
+    avg_goals_scored: (goalsScored / mp).toFixed(2),
+    avg_goals_conceded: (goalsConceded / mp).toFixed(2),
+    form: fixtures.map((f: any) => {
+      const isHome = f.teams?.home?.id === teamId
+      const hg = f.goals?.home ?? 0
+      const ag = f.goals?.away ?? 0
+      if (isHome) return hg > ag ? 'W' : hg === ag ? 'D' : 'L'
+      return ag > hg ? 'W' : ag === hg ? 'D' : 'L'
+    }).join(''),
+    has_detailed_stats: false,
+  }
+
+  // Add season stats if available
+  if (seasonStats) {
+    stats.season = {
+      played: seasonStats.fixtures?.played?.total,
+      wins_total: seasonStats.fixtures?.wins?.total,
+      draws_total: seasonStats.fixtures?.draws?.total,
+      losses_total: seasonStats.fixtures?.loses?.total,
+      goals_for_total: seasonStats.goals?.for?.total?.total,
+      goals_for_avg: seasonStats.goals?.for?.average?.total,
+      goals_against_total: seasonStats.goals?.against?.total?.total,
+      goals_against_avg: seasonStats.goals?.against?.average?.total,
+      clean_sheets: seasonStats.clean_sheet?.total,
+      failed_to_score: seasonStats.failed_to_score?.total,
+      biggest_win_home: seasonStats.biggest?.wins?.home,
+      biggest_win_away: seasonStats.biggest?.wins?.away,
+      biggest_loss_home: seasonStats.biggest?.loses?.home,
+      biggest_loss_away: seasonStats.biggest?.loses?.away,
+      goals_for_by_minute: seasonStats.goals?.for?.minute,
+      goals_against_by_minute: seasonStats.goals?.against?.minute,
+      avg_possession: seasonStats.lineups?.[0]?.formation || null,
+    }
+  }
+
+  return stats
+}
+
+function processH2H(h2hData: any[], homeId: number | null, awayId: number | null) {
+  if (h2hData.length === 0 || !homeId || !awayId) return null
+
+  let homeWins = 0, awayWins = 0, drawCount = 0, totalGoals = 0
+
+  const matches = h2hData.map((f: any) => {
+    const hg = f.goals?.home ?? 0
+    const ag = f.goals?.away ?? 0
+    totalGoals += hg + ag
+
+    const isTeamAHome = f.teams?.home?.id === homeId
+    if (isTeamAHome) {
+      if (hg > ag) homeWins++
+      else if (ag > hg) awayWins++
+      else drawCount++
+    } else {
+      if (ag > hg) homeWins++
+      else if (hg > ag) awayWins++
+      else drawCount++
+    }
+
+    return {
+      date: f.fixture?.date,
+      home: f.teams?.home?.name,
+      away: f.teams?.away?.name,
+      score: `${hg}-${ag}`,
+      league: f.league?.name,
+    }
+  })
+
+  return {
+    total: h2hData.length,
+    home_wins: homeWins,
+    away_wins: awayWins,
+    draws: drawCount,
+    avg_goals: (totalGoals / h2hData.length).toFixed(2),
+    matches: matches.slice(0, 5), // Last 5 H2H
+  }
 }
 
 function formatTeamStatsBlock(teamName: string, stats: any): string {
@@ -328,15 +496,77 @@ function formatTeamStatsBlock(teamName: string, stats: any): string {
   Gols Marcados: ${stats.goals_scored} (média: ${stats.avg_goals_scored}/jogo)
   Gols Sofridos: ${stats.goals_conceded} (média: ${stats.avg_goals_conceded}/jogo)`
 
-  if (stats.has_detailed_stats) {
+  if (stats.has_detailed_stats && stats.last_match_stats) {
+    const ls = stats.last_match_stats
     block += `
-  Finalizações Totais (média): ${stats.avg_shots_total}
-  Finalizações no Gol (média): ${stats.avg_shots_on_target}
-  Posse de Bola (média): ${stats.avg_possession}%
-  Escanteios (média): ${stats.avg_corners}`
+  [Último jogo - Stats detalhadas]:
+  Finalizações: ${ls['Total Shots'] || 'N/A'} (no gol: ${ls['Shots on Goal'] || 'N/A'})
+  Posse de Bola: ${ls['Ball Possession'] || 'N/A'}
+  Escanteios: ${ls['Corner Kicks'] || 'N/A'}
+  Passes Certos: ${ls['Passes accurate'] || 'N/A'} (${ls['Passes %'] || 'N/A'})
+  Faltas: ${ls['Fouls'] || 'N/A'}
+  Cartões Amarelos: ${ls['Yellow Cards'] || 'N/A'} | Vermelhos: ${ls['Red Cards'] || 'N/A'}
+  xG: ${ls['expected_goals'] || 'N/A'}`
+  }
+
+  if (stats.season) {
+    const s = stats.season
+    block += `
+  [Temporada completa]:
+  Jogos: ${s.played || 'N/A'} (${s.wins_total}V ${s.draws_total}E ${s.losses_total}D)
+  Gols Marcados: ${s.goals_for_total} (média: ${s.goals_for_avg}/jogo)
+  Gols Sofridos: ${s.goals_against_total} (média: ${s.goals_against_avg}/jogo)
+  Clean Sheets: ${s.clean_sheets || 0}
+  Falhou em Marcar: ${s.failed_to_score || 0}
+  Maior Vitória Casa: ${s.biggest_win_home || 'N/A'} | Fora: ${s.biggest_win_away || 'N/A'}
+  Maior Derrota Casa: ${s.biggest_loss_home || 'N/A'} | Fora: ${s.biggest_loss_away || 'N/A'}`
   }
 
   return block
+}
+
+function formatH2HBlock(h2h: any): string {
+  if (!h2h) return 'H2H: Dados não disponíveis'
+  let block = `CONFRONTO DIRETO (últimos ${h2h.total} jogos):
+  Casa: ${h2h.home_wins}V | Empates: ${h2h.draws} | Fora: ${h2h.away_wins}V
+  Média de Gols: ${h2h.avg_goals}/jogo
+  Últimos jogos:`
+  for (const m of h2h.matches) {
+    block += `\n    ${m.date?.substring(0, 10) || '?'} | ${m.home} ${m.score} ${m.away} (${m.league})`
+  }
+  return block
+}
+
+function formatInjuriesBlock(teamName: string, injuries: any[]): string {
+  if (!injuries || injuries.length === 0) return `${teamName}: Sem lesões reportadas`
+  const items = injuries.slice(0, 5).map((inj: any) =>
+    `  - ${inj.player?.name || '?'} (${inj.player?.type || 'lesão'}: ${inj.player?.reason || 'N/A'})`
+  )
+  return `${teamName} - Lesões/Ausências:\n${items.join('\n')}`
+}
+
+function formatStandingsBlock(standings: any[], homeTeam: string, awayTeam: string): string {
+  if (!standings || standings.length === 0) return 'Classificação: Não disponível'
+  
+  const relevantTeams = standings.filter((s: any) => {
+    const name = (s.team?.name || '').toLowerCase()
+    return homeTeam.toLowerCase().includes(name) || name.includes(homeTeam.toLowerCase().split(' ')[0]) ||
+           awayTeam.toLowerCase().includes(name) || name.includes(awayTeam.toLowerCase().split(' ')[0])
+  })
+
+  if (relevantTeams.length === 0) {
+    // Show top 5 + bottom 3 for context
+    const top = standings.slice(0, 5)
+    const bottom = standings.slice(-3)
+    const display = [...top, ...bottom]
+    const lines = display.map((s: any) => `  ${s.rank}º ${s.team?.name} - ${s.points}pts (${s.all?.win}V ${s.all?.draw}E ${s.all?.lose}D) GD:${s.goalsDiff}`)
+    return `CLASSIFICAÇÃO (resumo):\n${lines.join('\n')}`
+  }
+
+  const lines = relevantTeams.map((s: any) =>
+    `  ${s.rank}º ${s.team?.name} - ${s.points}pts (${s.all?.win}V ${s.all?.draw}E ${s.all?.lose}D) GD:${s.goalsDiff} | Forma: ${s.form || 'N/A'}`
+  )
+  return `CLASSIFICAÇÃO (times do jogo):\n${lines.join('\n')}`
 }
 
 // ═══════════════════════════════════════════════
@@ -427,13 +657,17 @@ async function analyzeGame(
   const totalsData = extractTotals(game)
   if (oddsData.length === 0 && totalsData.length === 0) return null
 
-  // Fetch enriched data from API-Football
-  const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey)
+  // Fetch enriched data from API-Football (Pro plan: H2H, Season Stats, Injuries, Standings)
+  const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey, game.sport_key)
 
   const homeStatsBlock = formatTeamStatsBlock(game.home_team, enriched.home)
   const awayStatsBlock = formatTeamStatsBlock(game.away_team, enriched.away)
+  const h2hBlock = formatH2HBlock(enriched.h2h)
+  const homeInjuriesBlock = formatInjuriesBlock(game.home_team, enriched.injuries?.home || [])
+  const awayInjuriesBlock = formatInjuriesBlock(game.away_team, enriched.injuries?.away || [])
+  const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
 
-  const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats detalhadas disponíveis)'
+  const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats completas + H2H + lesões)'
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
 
@@ -451,12 +685,27 @@ JOGO PRÉ-JOGO - ANÁLISE DE VALUE
 🔧 MODELO SUGERIDO: ${enriched.model_level}
 
 ═══════════════════════════════════════
-DADOS API-FOOTBALL (Estatísticas Reais)
+DADOS API-FOOTBALL (Estatísticas Reais - Plano Pro)
 ═══════════════════════════════════════
 
 ${homeStatsBlock}
 
 ${awayStatsBlock}
+
+═══════════════════════════════════════
+CONFRONTO DIRETO (H2H)
+═══════════════════════════════════════
+${h2hBlock}
+
+═══════════════════════════════════════
+LESÕES E AUSÊNCIAS
+═══════════════════════════════════════
+${homeInjuriesBlock}
+${awayInjuriesBlock}
+
+═══════════════════════════════════════
+${standingsBlock}
+═══════════════════════════════════════
 
 ═══════════════════════════════════════
 ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
