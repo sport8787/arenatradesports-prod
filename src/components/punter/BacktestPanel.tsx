@@ -40,11 +40,13 @@ interface BacktestMetrics {
   hit_rate: number;
   roi_total: number;
   net_profit: number;
+  total_staked?: number;
   max_drawdown: number;
   final_bankroll: number;
   initial_bankroll: number;
-  roi_by_ev: { range: string; count: number; greens: number; reds: number; roi: number; profit_loss: number }[];
+  tier_breakdown: { tier: string; count: number; greens: number; reds: number; hit_rate: number; roi: number; profit_loss: number }[];
   bankroll_curve: { index: number; bankroll: number; date: string }[];
+  criteria_used?: { min_edge: number; min_confidence: number; min_sample: number; target_approval: string };
 }
 
 interface BacktestResult {
@@ -279,18 +281,18 @@ export default function BacktestPanel({ onClose }: Props) {
                 </Card>
               )}
 
-              {/* ROI by EV Range */}
-              {metrics.roi_by_ev.length > 0 && (
+              {/* ROI by Tier */}
+              {metrics.tier_breakdown && metrics.tier_breakdown.length > 0 && (
                 <Card className="border-border">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-orbitron">ROI por Faixa de EV</CardTitle>
+                    <CardTitle className="text-sm font-orbitron">ROI por Tier</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="h-44">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={metrics.roi_by_ev}>
+                        <BarChart data={metrics.tier_breakdown}>
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                          <XAxis dataKey="tier" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                           <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                           <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
@@ -300,7 +302,7 @@ export default function BacktestPanel({ onClose }: Props) {
                             }}
                           />
                           <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
-                            {metrics.roi_by_ev.map((entry, i) => (
+                            {metrics.tier_breakdown.map((entry, i) => (
                               <Cell key={i} fill={entry.roi >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
                             ))}
                           </Bar>
@@ -308,11 +310,11 @@ export default function BacktestPanel({ onClose }: Props) {
                       </ResponsiveContainer>
                     </div>
                     <div className="mt-2 space-y-1">
-                      {metrics.roi_by_ev.map((ev, i) => (
+                      {metrics.tier_breakdown.map((t, i) => (
                         <div key={i} className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">EV {ev.range}: {ev.count} apostas ({ev.greens}G / {ev.reds}R)</span>
-                          <span className={cn("font-bold", ev.roi >= 0 ? 'text-success' : 'text-destructive')}>
-                            {ev.roi >= 0 ? '+' : ''}{ev.roi.toFixed(1)}%
+                          <span className="text-muted-foreground">{t.tier}: {t.count} apostas ({t.greens}G / {t.reds}R) | Acerto: {t.hit_rate}%</span>
+                          <span className={cn("font-bold", t.roi >= 0 ? 'text-success' : 'text-destructive')}>
+                            {t.roi >= 0 ? '+' : ''}{t.roi.toFixed(1)}%
                           </span>
                         </div>
                       ))}

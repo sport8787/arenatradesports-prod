@@ -133,7 +133,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
       totalAnalyzed++
       try {
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
-        if (analysis && analysis.verdict === 'APROVADO') {
+        if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
           approvedSignals.push({
             match: {
               home_team: game.home_team,
@@ -495,7 +495,8 @@ INSTRUÇÕES DE RESPOSTA
 Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
 
 {
-  "verdict": "APROVADO" ou "VETADO",
+  "verdict": "APROVADO" ou "VETADO" (use EXATAMENTE "APROVADO" se aprovado, não use variações como APROVADO_TIER_1),
+  "tier": 1 | 2 | 3 | null,
   "model_level": "${enriched.model_level}",
   "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
   "bookmaker": "Bet365" | "Pinnacle" | "Betfair",
@@ -586,8 +587,9 @@ ANALISE AGORA:`
     risk_factors: analysis.risk_factors,
   }).select().single()
 
-  // If approved, create signal
-  if (analysis.verdict === 'APROVADO' && analysisRow) {
+  // If approved, create signal (handle both "APROVADO" and "APROVADO_TIER_X" formats)
+  const isApproved = typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')
+  if (isApproved && analysisRow) {
     await supabaseClient.from('punter_signals').insert({
       analysis_id: analysisRow.id,
       match_id: matchId,
