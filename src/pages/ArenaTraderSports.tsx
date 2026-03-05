@@ -272,7 +272,7 @@ export default function ArenaTraderSports() {
           <div className="flex items-center gap-2">
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
-              {isFetching ? 'Buscando...' : 'Buscar Jogos'}
+              {isFetching ? 'Analisando...' : 'Fazer Análise'}
             </GoldButton>
             <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
               <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
