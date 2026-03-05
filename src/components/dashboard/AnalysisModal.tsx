@@ -141,6 +141,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
 
   const insufficientBalance = bankroll ? recommendedStake > bankroll.balance : false;
   const balanceAfter = bankroll ? bankroll.balance - recommendedStake : 0;
+  const alreadyBet = match.hasBet === true;
 
   const content = (
     <div className="space-y-6 p-5 pb-28 md:pb-5 overflow-y-auto flex-1">
@@ -263,8 +264,16 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
 
           {/* Bankroll Preview + Actions (desktop) */}
           <motion.div variants={fadeUp} className="hidden md:block space-y-4">
+            {/* Already bet banner */}
+            {alreadyBet && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-primary/10 border border-primary/30">
+                <Check className="w-5 h-5 text-primary" />
+                <span className="font-orbitron font-bold text-primary text-sm uppercase">APOSTA JÁ REALIZADA</span>
+              </div>
+            )}
+
             {/* Bankroll preview */}
-            {bankroll && (
+            {bankroll && !alreadyBet && (
               <div className="bg-secondary/30 border border-border rounded-xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-orbitron uppercase text-muted-foreground">
                   <Wallet className="w-4 h-4" /> Banca Virtual
@@ -297,15 +306,17 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
               </button>
               <button
                 onClick={handleEntered}
-                disabled={placing || insufficientBalance}
+                disabled={placing || insufficientBalance || alreadyBet}
                 className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-sm font-bold uppercase hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4" /> {placing ? 'Registrando...' : '💰 ENTREI'}
+                  <Check className="w-4 h-4" /> {alreadyBet ? '✅ Já apostado' : placing ? 'Registrando...' : '💰 ENTREI'}
                 </span>
-                <span className="text-[10px] opacity-80">
-                  R$ {recommendedStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
+                {!alreadyBet && (
+                  <span className="text-[10px] opacity-80">
+                    R$ {recommendedStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                )}
               </button>
               <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-sm font-bold uppercase hover:bg-secondary/50 transition-colors">
                 <Ban className="w-4 h-4" /> Dispensar
@@ -358,8 +369,15 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
             {/* Mobile fixed bottom actions */}
             {isMobile && analysis && (
               <div className="fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-lg border-t border-border space-y-2 z-50">
+                {/* Already bet banner mobile */}
+                {alreadyBet && (
+                  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="font-orbitron font-bold text-primary text-xs uppercase">APOSTA JÁ REALIZADA</span>
+                  </div>
+                )}
                 {/* Bankroll preview mobile */}
-                {bankroll && (
+                {bankroll && !alreadyBet && (
                   <div className="flex items-center justify-between text-xs px-1">
                     <span className="text-muted-foreground">
                       Banca: <span className="font-bold text-foreground">R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -375,10 +393,10 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
                   </button>
                   <button
                     onClick={handleEntered}
-                    disabled={placing || insufficientBalance}
+                    disabled={placing || insufficientBalance || alreadyBet}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-success text-success-foreground font-orbitron text-xs font-bold uppercase disabled:opacity-50"
                   >
-                    <Check className="w-3.5 h-3.5" /> {placing ? '...' : '💰 Entrei'}
+                    <Check className="w-3.5 h-3.5" /> {alreadyBet ? '✅ Já apostado' : placing ? '...' : '💰 Entrei'}
                   </button>
                   <button onClick={handleDismissed} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-border text-muted-foreground font-orbitron text-xs font-bold uppercase">
                     <Ban className="w-3.5 h-3.5" /> Dispensar

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, AlertTriangle, Target } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, AlertTriangle, Target, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface Match {
@@ -18,6 +18,7 @@ export interface Match {
   status: 'live' | 'scheduled' | 'finished';
   mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'AGUARDAR' | 'VETADO';
   matchId?: string;
+  hasBet?: boolean;
 }
 
 const championshipColors: Record<string, string> = {
@@ -106,6 +107,14 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           <Clock className="w-3.5 h-3.5" />
           <span>⏱️ {match.minute}' | {match.period}</span>
         </div>
+
+        {/* Bet Placed Badge */}
+        {match.hasBet && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
+            <Check className="w-4 h-4 text-primary" />
+            <span className="text-sm text-primary font-bold uppercase font-orbitron">APOSTA REALIZADA</span>
+          </div>
+        )}
 
         {/* Divider */}
         <div className="h-px bg-border" />
