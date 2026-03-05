@@ -103,20 +103,37 @@ Deno.serve(async (req) => {
         .trim();
 
     // Match function: tries to match a bet's match_name/match_id with a completed game
-    const findResult = (matchName: string, market: string) => {
+    // STRICT: requires BOTH teams to match to avoid false positives
+    const findResult = (matchName: string, market: string, betCreatedAt?: string) => {
       const normalizedMatch = normalize(matchName);
 
       for (const game of completedGames) {
         const homeNorm = normalize(game.home_team);
         const awayNorm = normalize(game.away_team);
 
-        const matchesBet =
-          normalizedMatch.includes(homeNorm) ||
-          normalizedMatch.includes(awayNorm) ||
-          (homeNorm.split(' ').some((w: string) => w.length > 3 && normalizedMatch.includes(w)) &&
-           awayNorm.split(' ').some((w: string) => w.length > 3 && normalizedMatch.includes(w)));
+        // STRICT matching: both teams must have significant word matches
+        const homeWords = homeNorm.split(' ').filter((w: string) => w.length > 3);
+        const awayWords = awayNorm.split(' ').filter((w: string) => w.length > 3);
+        
+        const homeMatches = homeWords.length > 0 && homeWords.some((w: string) => normalizedMatch.includes(w));
+        const awayMatches = awayWords.length > 0 && awayWords.some((w: string) => normalizedMatch.includes(w));
+        
+        // Require BOTH teams to match (not just one)
+        const matchesBet = homeMatches && awayMatches;
 
         if (!matchesBet) continue;
+
+        // Time guard: if the game completed AFTER the bet was created, 
+        // ensure the game's commence_time is in the past (not a future match)
+        if (game.commence_time) {
+          const gameStart = new Date(game.commence_time).getTime();
+          const now = Date.now();
+          // Skip if game supposedly starts in the future (data inconsistency)
+          if (gameStart > now) {
+            console.log(`[settle-bets] Skipping future game: ${game.home_team} vs ${game.away_team} (starts ${game.commence_time})`);
+            continue;
+          }
+        }
 
         const homeScore = game.scores?.find((s: any) => s.name === game.home_team)?.score;
         const awayScore = game.scores?.find((s: any) => s.name === game.away_team)?.score;
@@ -184,9 +201,7 @@ Deno.serve(async (req) => {
 
     for (const bet of allPending) {
       const matchRef = bet.match_name || bet.match_id || '';
-      const result = findResult(matchRef, bet.market);
-
-      if (!result) continue;
+      const result = findResult(matchRef, bet.market, bet.created_at);
 
       const profitLoss = result.isGreen
         ? parseFloat((bet.stake * (bet.odd - 1)).toFixed(2))
@@ -251,7 +266,7 @@ Deno.serve(async (req) => {
     let signalsSettled = 0;
     for (const signal of (pendingSignals || [])) {
       const matchRef = signal.match_id || '';
-      const result = findResult(matchRef, signal.market);
+      const result = findResult(matchRef, signal.market, signal.created_at);
 
       if (!result) continue;
 
