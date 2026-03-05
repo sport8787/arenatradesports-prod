@@ -122,11 +122,15 @@ export default function BetHistoryPage() {
     if (!bet) return;
 
     // Determine result
-    const market = bet.market.toLowerCase();
+    const market = bet.market.toLowerCase().trim();
     const h = data.scoreHome;
     const a = data.scoreAway;
     const totalGoals = h + a;
     let isGreen = false;
+
+    const teams = bet.match_name.split(' vs ');
+    const homeTeamNorm = (teams[0] || '').toLowerCase().trim();
+    const awayTeamNorm = (teams[1] || '').toLowerCase().trim();
 
     if (market === 'casa' || market === 'home' || market === '1') {
       isGreen = h > a;
@@ -142,6 +146,15 @@ export default function BetHistoryPage() {
       isGreen = totalGoals < line;
     } else if (market.includes('btts') || market.includes('ambas')) {
       isGreen = h > 0 && a > 0;
+    } else if (homeTeamNorm.includes(market) || market.includes(homeTeamNorm) ||
+               homeTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
+      isGreen = h > a;
+    } else if (awayTeamNorm.includes(market) || market.includes(awayTeamNorm) ||
+               awayTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
+      isGreen = a > h;
+    } else {
+      // Fallback for unknown markets
+      isGreen = h > a;
     }
 
     const betResult = isGreen ? 'green' : 'red';

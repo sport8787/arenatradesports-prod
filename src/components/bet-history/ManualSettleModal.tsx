@@ -50,11 +50,15 @@ export default function ManualSettleModal({ open, onClose, bet, onSettle }: Manu
   if (hasScore) {
     const market = bet.market.toLowerCase();
     const totalGoals = h + a;
-    if (market === 'casa' || market === 'home' || market === '1') {
+    const homeTeamNorm = homeTeam.toLowerCase().trim();
+    const awayTeamNorm = awayTeam.toLowerCase().trim();
+    const marketNorm = market.trim();
+
+    if (marketNorm === 'casa' || marketNorm === 'home' || marketNorm === '1') {
       previewResult = h > a ? 'green' : 'red';
-    } else if (market === 'fora' || market === 'away' || market === '2') {
+    } else if (marketNorm === 'fora' || marketNorm === 'away' || marketNorm === '2') {
       previewResult = a > h ? 'green' : 'red';
-    } else if (market === 'empate' || market === 'draw' || market === 'x') {
+    } else if (marketNorm === 'empate' || marketNorm === 'draw' || marketNorm === 'x') {
       previewResult = h === a ? 'green' : 'red';
     } else if (market.includes('over')) {
       const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5;
@@ -64,6 +68,15 @@ export default function ManualSettleModal({ open, onClose, bet, onSettle }: Manu
       previewResult = totalGoals < line ? 'green' : 'red';
     } else if (market.includes('btts') || market.includes('ambas')) {
       previewResult = h > 0 && a > 0 ? 'green' : 'red';
+    } else if (homeTeamNorm.includes(marketNorm) || marketNorm.includes(homeTeamNorm) ||
+               homeTeamNorm.split(' ').some(w => w.length > 3 && marketNorm.includes(w))) {
+      previewResult = h > a ? 'green' : 'red';
+    } else if (awayTeamNorm.includes(marketNorm) || marketNorm.includes(awayTeamNorm) ||
+               awayTeamNorm.split(' ').some(w => w.length > 3 && marketNorm.includes(w))) {
+      previewResult = a > h ? 'green' : 'red';
+    } else {
+      // Fallback for unknown markets
+      previewResult = h > a ? 'green' : 'red';
     }
   }
 

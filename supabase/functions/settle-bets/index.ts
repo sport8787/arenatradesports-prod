@@ -99,7 +99,6 @@ Deno.serve(async (req) => {
         const homeNorm = normalize(game.home_team);
         const awayNorm = normalize(game.away_team);
 
-        // Check if this game matches the bet
         const matchesBet =
           normalizedMatch.includes(homeNorm) ||
           normalizedMatch.includes(awayNorm) ||
@@ -108,7 +107,6 @@ Deno.serve(async (req) => {
 
         if (!matchesBet) continue;
 
-        // Parse scores
         const homeScore = game.scores?.find((s: any) => s.name === game.home_team)?.score;
         const awayScore = game.scores?.find((s: any) => s.name === game.away_team)?.score;
 
@@ -118,9 +116,10 @@ Deno.serve(async (req) => {
         const a = parseInt(awayScore);
         const totalGoals = h + a;
 
-        // Determine if bet is GREEN based on market
-        const marketLower = market.toLowerCase();
+        const marketLower = market.toLowerCase().trim();
+        const marketNorm = normalize(market);
         let isGreen = false;
+        let matched = true;
 
         if (marketLower === 'casa' || marketLower === 'home' || marketLower === '1') {
           isGreen = h > a;
@@ -130,10 +129,8 @@ Deno.serve(async (req) => {
           isGreen = h === a;
         } else if (marketLower.includes('over')) {
           const line = parseFloat(marketLower.replace(/[^0-9.]/g, '')) || 2.5;
-          // Handle HT markets
           if (marketLower.includes('ht') || marketLower.includes('1t')) {
-            // We don't have HT scores from this API, skip for now
-            return null;
+            return null; // No HT scores available
           }
           isGreen = totalGoals > line;
         } else if (marketLower.includes('under')) {
@@ -144,10 +141,19 @@ Deno.serve(async (req) => {
           isGreen = totalGoals < line;
         } else if (marketLower.includes('btts') || marketLower.includes('ambas')) {
           isGreen = h > 0 && a > 0;
+        } else if (homeNorm.includes(marketNorm) || marketNorm.includes(homeNorm) ||
+                   homeNorm.split(' ').some((w: string) => w.length > 3 && marketNorm.includes(w))) {
+          // Market is a team name matching home team
+          isGreen = h > a;
+        } else if (awayNorm.includes(marketNorm) || marketNorm.includes(awayNorm) ||
+                   awayNorm.split(' ').some((w: string) => w.length > 3 && marketNorm.includes(w))) {
+          // Market is a team name matching away team
+          isGreen = a > h;
         } else {
-          // Unknown market, skip
-          return null;
+          matched = false;
         }
+
+        if (!matched) return null;
 
         return {
           isGreen,
