@@ -159,6 +159,42 @@ export function useBankroll() {
     }
   }, []);
 
+  const updateInitialBalance = useCallback(async (newBalance: number) => {
+    if (!user) return { success: false, error: 'Usuário não autenticado' };
+    if (newBalance < 100) return { success: false, error: 'Valor mínimo: R$ 100' };
+
+    const { error } = await supabase
+      .from('user_bankroll')
+      .update({
+        initial_balance: newBalance,
+        balance: newBalance,
+        total_staked: 0,
+        total_profit: 0,
+        total_bets: 0,
+        green_bets: 0,
+        red_bets: 0,
+        win_rate: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+
+    if (error) return { success: false, error: error.message };
+
+    setBankroll(prev => prev ? {
+      ...prev,
+      initial_balance: newBalance,
+      balance: newBalance,
+      total_staked: 0,
+      total_profit: 0,
+      total_bets: 0,
+      green_bets: 0,
+      red_bets: 0,
+      win_rate: 0,
+    } : prev);
+
+    return { success: true };
+  }, [user]);
+
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
   return {
@@ -168,5 +204,6 @@ export function useBankroll() {
     dismissBet,
     settleBets,
     recommendedStake,
+    updateInitialBalance,
   };
 }
