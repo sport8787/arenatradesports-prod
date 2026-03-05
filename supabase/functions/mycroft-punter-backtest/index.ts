@@ -241,19 +241,20 @@ serve(async (req) => {
     console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo`)
 
     // 3. Simulate game by game (NO LOOKAHEAD)
+    // Phase 1: Analyze ALL games first, collect raw analyses
     const teamStats: Record<string, TeamCumulativeStats> = {}
-    const results: BacktestResult[] = []
-    let bankroll = initial_bankroll
-    let maxBankroll = initial_bankroll
-    let maxDrawdown = 0
-    let totalActualStaked = 0
+    const rawAnalyses: {
+      fixture: any
+      analysis: AnalysisResult
+      homeGoals: number
+      awayGoals: number
+    }[] = []
 
     for (const fixture of allFixtures) {
       const homeTeam = fixture.teams.home.name
       const awayTeam = fixture.teams.away.name
       const homeGoals = fixture.goals.home ?? 0
       const awayGoals = fixture.goals.away ?? 0
-      const fixtureDate = fixture.fixture.date
 
       const homeStats = teamStats[homeTeam]
       const awayStats = teamStats[awayTeam]
@@ -265,53 +266,62 @@ serve(async (req) => {
         )
 
         if (analysis) {
-          // Calculate actual stake from CURRENT bankroll
-          const stakeAmount = bankroll * (analysis.stakePct / 100)
+          rawAnalyses.push({ fixture, analysis, homeGoals, awayGoals })
+        }
+      }
 
-          let profitLoss = 0
-          if (analysis.verdict === 'APROVADO') {
-            totalActualStaked += stakeAmount
-            profitLoss = analysis.isGreen
-              ? stakeAmount * (analysis.odd - 1)
-              : -stakeAmount
-            bankroll += profitLoss
-            
-            // Prevent bankroll going below zero (bust)
-            if (bankroll <= 0) {
-              bankroll = 0
-              // Stop simulation - bankroll busted
-              results.push({
-                fixture_id: fixture.fixture.id,
-                date: fixtureDate,
-                round: fixture.league.round || '',
-                home_team: homeTeam,
-                away_team: awayTeam,
-                home_goals: homeGoals,
-                away_goals: awayGoals,
-                market: analysis.market,
-                predicted_prob: analysis.predictedProb,
-                implied_prob: analysis.impliedProb,
-                odd: analysis.odd,
-                ev: analysis.ev,
-                value_pct: analysis.edgePct,
-                verdict: analysis.verdict,
-                result: analysis.isGreen ? 'green' : 'red',
-                stake_pct: analysis.stakePct,
-                stake_amount: Math.round(stakeAmount * 100) / 100,
-                profit_loss: Math.round(profitLoss * 100) / 100,
-                model_level: analysis.modelLevel,
-                confidence: analysis.confidence,
-                data_strength: analysis.dataStrength,
-                tier: analysis.tier,
-              })
-              break
-            }
-          }
+      // Update stats AFTER analysis (no-lookahead)
+      updateTeamStats(teamStats, homeTeam, homeGoals, awayGoals, true)
+      updateTeamStats(teamStats, awayTeam, awayGoals, homeGoals, false)
+    }
 
-          if (bankroll > maxBankroll) maxBankroll = bankroll
-          const currentDrawdown = ((maxBankroll - bankroll) / maxBankroll) * 100
-          if (currentDrawdown > maxDrawdown) maxDrawdown = currentDrawdown
+    // Phase 2: Enforce max approval rate (60%)
+    // Sort approved by edge descending, only keep top 60%
+    const maxApprovalRate = criteria.max_approval_pct / 100 // e.g. 0.60
+    const approvedRaw = rawAnalyses.filter(r => r.analysis.verdict === 'APROVADO')
+    const vetosRaw = rawAnalyses.filter(r => r.analysis.verdict === 'VETADO')
+    const maxApproved = Math.floor(rawAnalyses.length * maxApprovalRate)
 
+    if (approvedRaw.length > maxApproved) {
+      // Sort by edge descending - keep only the best ones
+      approvedRaw.sort((a, b) => b.analysis.edgePct - a.analysis.edgePct)
+      const cutoff = approvedRaw[maxApproved - 1]?.analysis.edgePct ?? 999
+      
+      for (let i = maxApproved; i < approvedRaw.length; i++) {
+        approvedRaw[i].analysis.verdict = 'VETADO'
+        approvedRaw[i].analysis.vetoReason = `Edge ${approvedRaw[i].analysis.edgePct.toFixed(1)}% abaixo do corte (limite ${maxApprovalRate * 100}% aprovação)`
+        approvedRaw[i].analysis.tier = null
+      }
+      
+      console.log(`[Backtest] Enforcement: cortou de ${approvedRaw.length} para ${maxApproved} aprovações (cutoff edge: ${cutoff.toFixed(1)}%)`)
+    }
+
+    // Phase 3: Simulate bankroll in chronological order
+    const results: BacktestResult[] = []
+    let bankroll = initial_bankroll
+    let maxBankroll = initial_bankroll
+    let maxDrawdown = 0
+    let totalActualStaked = 0
+
+    for (const { fixture, analysis, homeGoals, awayGoals } of rawAnalyses) {
+      const fixtureDate = fixture.fixture.date
+      const homeTeam = fixture.teams.home.name
+      const awayTeam = fixture.teams.away.name
+
+      // Calculate actual stake from CURRENT bankroll
+      const stakeAmount = bankroll * (analysis.stakePct / 100)
+
+      let profitLoss = 0
+      if (analysis.verdict === 'APROVADO') {
+        totalActualStaked += stakeAmount
+        profitLoss = analysis.isGreen
+          ? stakeAmount * (analysis.odd - 1)
+          : -stakeAmount
+        bankroll += profitLoss
+        
+        // Prevent bankroll going below zero (bust)
+        if (bankroll <= 0) {
+          bankroll = 0
           results.push({
             fixture_id: fixture.fixture.id,
             date: fixtureDate,
@@ -327,22 +337,48 @@ serve(async (req) => {
             ev: analysis.ev,
             value_pct: analysis.edgePct,
             verdict: analysis.verdict,
-            result: analysis.verdict === 'APROVADO' ? (analysis.isGreen ? 'green' : 'red') : null,
-            stake_pct: analysis.verdict === 'APROVADO' ? analysis.stakePct : 0,
-            stake_amount: analysis.verdict === 'APROVADO' ? Math.round(stakeAmount * 100) / 100 : 0,
+            result: analysis.isGreen ? 'green' : 'red',
+            stake_pct: analysis.stakePct,
+            stake_amount: Math.round(stakeAmount * 100) / 100,
             profit_loss: Math.round(profitLoss * 100) / 100,
-            veto_reason: analysis.vetoReason,
             model_level: analysis.modelLevel,
             confidence: analysis.confidence,
             data_strength: analysis.dataStrength,
             tier: analysis.tier,
           })
+          break
         }
       }
 
-      // Update stats AFTER analysis (no-lookahead)
-      updateTeamStats(teamStats, homeTeam, homeGoals, awayGoals, true)
-      updateTeamStats(teamStats, awayTeam, awayGoals, homeGoals, false)
+      if (bankroll > maxBankroll) maxBankroll = bankroll
+      const currentDrawdown = ((maxBankroll - bankroll) / maxBankroll) * 100
+      if (currentDrawdown > maxDrawdown) maxDrawdown = currentDrawdown
+
+      results.push({
+        fixture_id: fixture.fixture.id,
+        date: fixtureDate,
+        round: fixture.league.round || '',
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_goals: homeGoals,
+        away_goals: awayGoals,
+        market: analysis.market,
+        predicted_prob: analysis.predictedProb,
+        implied_prob: analysis.impliedProb,
+        odd: analysis.odd,
+        ev: analysis.ev,
+        value_pct: analysis.edgePct,
+        verdict: analysis.verdict,
+        result: analysis.verdict === 'APROVADO' ? (analysis.isGreen ? 'green' : 'red') : null,
+        stake_pct: analysis.verdict === 'APROVADO' ? analysis.stakePct : 0,
+        stake_amount: analysis.verdict === 'APROVADO' ? Math.round(stakeAmount * 100) / 100 : 0,
+        profit_loss: Math.round(profitLoss * 100) / 100,
+        veto_reason: analysis.vetoReason,
+        model_level: analysis.modelLevel,
+        confidence: analysis.confidence,
+        data_strength: analysis.dataStrength,
+        tier: analysis.tier,
+      })
     }
 
     // 4. Calculate metrics
@@ -618,8 +654,9 @@ function analyzeWithCriteria(
   const marketOver15 = clamp(poissonOver(marketGoalExpectation * 0.52, marketGoalExpectation * 0.48, 1.5), 0.50, 0.92)
   const marketBTTS = clamp(1 - poissonPmf(marketGoalExpectation * 0.52, 0) - poissonPmf(marketGoalExpectation * 0.48, 0) + poissonPmf(marketGoalExpectation * 0.52, 0) * poissonPmf(marketGoalExpectation * 0.48, 0), 0.25, 0.75)
 
-  // Apply bookmaker margin (5-8% overround) — sharp market
-  const margin = 1.05
+    // Apply bookmaker margin (8% overround) — sharp market simulation
+    // Higher margin makes it harder to find value, more realistic
+    const margin = 1.08
   const marketOdds: Record<string, number> = {
     'Casa': margin / normHome,
     'Empate': margin / normDraw,
