@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2 } from 'lucide-react';
@@ -67,6 +67,24 @@ export default function ArenaTraderSports() {
   const [isFetching, setIsFetching] = useState(false);
   const [isFetchingV2, setIsFetchingV2] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
+
+  // Fetch betted match IDs to prevent duplicates
+  useEffect(() => {
+    async function fetchBettedIds() {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) return;
+      const { data } = await supabase
+        .from('virtual_bets')
+        .select('match_id')
+        .eq('user_id', session.session.user.id)
+        .eq('status', 'pending');
+      if (data) {
+        setBettedMatchIds(new Set(data.map(b => b.match_id)));
+      }
+    }
+    fetchBettedIds();
+  }, []);
 
   const handleFetchLiveMatches = useCallback(async () => {
     setIsFetching(true);
@@ -116,11 +134,11 @@ export default function ArenaTraderSports() {
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
-    if (liveMatches.length > 0) {
-      return liveMatches.map(mapLiveMatchToMatch);
-    }
-    return mockMatches;
-  }, [liveMatches]);
+    const base = liveMatches.length > 0
+      ? liveMatches.map(mapLiveMatchToMatch)
+      : mockMatches;
+    return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.id) }));
+  }, [liveMatches, bettedMatchIds]);
 
   // Dynamic championships from real data
   const championships = useMemo(() => {
