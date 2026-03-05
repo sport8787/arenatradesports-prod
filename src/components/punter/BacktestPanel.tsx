@@ -74,6 +74,12 @@ interface Props {
 }
 
 export default function BacktestPanel({ onClose }: Props) {
+  const formatCurrency = (value: number) => {
+    if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+    if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+    if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+    return value.toFixed(0);
+  };
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
   const [minValue, setMinValue] = useState(5);
@@ -224,7 +230,7 @@ export default function BacktestPanel({ onClose }: Props) {
                     </div>
                     <div className="text-right">
                       <p className={cn("text-xl font-orbitron font-bold", metrics.net_profit >= 0 ? 'text-success' : 'text-destructive')}>
-                        {metrics.net_profit >= 0 ? '+' : ''}R$ {metrics.net_profit.toFixed(0)}
+                        {metrics.net_profit >= 0 ? '+' : ''}R$ {formatCurrency(metrics.net_profit)}
                       </p>
                       <p className="text-xs text-muted-foreground">Lucro Líquido</p>
                     </div>
@@ -243,7 +249,7 @@ export default function BacktestPanel({ onClose }: Props) {
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <MetricBox label="Banca Final" value={`R$ ${metrics.final_bankroll.toFixed(0)}`} color={metrics.final_bankroll >= metrics.initial_bankroll ? 'success' : 'destructive'} />
+                <MetricBox label="Banca Final" value={`R$ ${formatCurrency(metrics.final_bankroll)}`} color={metrics.final_bankroll >= metrics.initial_bankroll ? 'success' : 'destructive'} />
                 <MetricBox label="Max Drawdown" value={`${metrics.max_drawdown.toFixed(1)}%`} color="warning" icon={<AlertTriangle className="w-3 h-3" />} />
                 <MetricBox label="ROI" value={`${metrics.roi_total.toFixed(2)}%`} color={metrics.roi_total >= 0 ? 'success' : 'destructive'} icon={<Percent className="w-3 h-3" />} />
               </div>
