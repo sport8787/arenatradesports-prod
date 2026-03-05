@@ -75,7 +75,7 @@ export default function LandingPage() {
   const ctaRef = useRef(null);
   const ctaInView = useInView(ctaRef, { once: true, margin: '-80px' });
 
-  const handleTrial = () => navigate('/lobby');
+  const handleTrial = () => navigate('/auth');
   const handlePricing = () => navigate('/paywall');
 
   return (
