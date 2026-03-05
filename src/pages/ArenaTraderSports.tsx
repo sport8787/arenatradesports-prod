@@ -12,7 +12,7 @@ import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import BankrollWidget from '@/components/arena-trader/BankrollWidget';
 import { cn } from '@/lib/utils';
 import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
-import { useBankroll } from '@/hooks/useBankroll';
+import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
@@ -56,7 +56,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
+  const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
@@ -89,17 +89,39 @@ export default function ArenaTraderSports() {
   const handleFetchLiveMatches = useCallback(async () => {
     setIsFetching(true);
     try {
+      // Step 1: Fetch live stats (no analysis)
       const { data, error } = await supabase.functions.invoke('fetch-live-matches');
       if (error) throw error;
-      toast.success(`${data.total_matches} jogos sincronizados, ${data.analyzed} analisados`);
-      refetch();
+      toast.success(`${data.total_matches} jogos sincronizados`);
+      await refetch();
+
+      // Step 2: Trigger manual analysis for all eligible matches
+      toast.info('Analisando jogos com estatísticas...');
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-live-matches', {
+        body: { bankroll: bankroll?.balance ?? 500 },
+      });
+
+      if (analysisError) {
+        console.error('Analysis error:', analysisError);
+        toast.error('Erro ao analisar jogos');
+      } else if (analysisData?.analyzed > 0) {
+        const aprovados = (analysisData.results || []).filter((r: any) => r.verdict === 'APROVADO');
+        if (aprovados.length > 0) {
+          toast.success(`🎯 ${aprovados.length} aposta(s) aprovada(s)!`, { duration: 5000 });
+        } else {
+          toast.info(`${analysisData.analyzed} jogos analisados — nenhuma oportunidade encontrada`);
+        }
+      } else {
+        toast.info('Nenhum jogo elegível para análise');
+      }
+      await refetch();
     } catch (e) {
       console.error('Fetch live matches error:', e);
       toast.error('Erro ao buscar jogos ao vivo');
     } finally {
       setIsFetching(false);
     }
-  }, [refetch]);
+  }, [refetch, bankroll]);
 
   const handleFetchV2 = useCallback(async () => {
     setIsFetchingV2(true);

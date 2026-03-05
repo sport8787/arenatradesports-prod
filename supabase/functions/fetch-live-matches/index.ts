@@ -137,7 +137,7 @@ serve(async (req) => {
     console.log(`[FetchLive] Found ${fixtures.length} live matches, errors: ${JSON.stringify(data.errors)}, results: ${data.results}`);
 
     const results: any[] = [];
-    let analyzedCount = 0;
+    // analyzedCount removed - analysis is now manual only
 
     // 2. Process each fixture - only fetch stats for matches >= 20 min to save API calls
     for (const fixture of fixtures) {
@@ -189,115 +189,15 @@ serve(async (req) => {
         .from('live_matches')
         .upsert(upsertData, { onConflict: 'match_id' });
 
-      // 5. Auto-trigger Mycroft if match is >= 20 min, has non-zero stats, and not yet analyzed
-      const hasRealStats = stats && (
-        (stats.attacks_home + stats.attacks_away) > 0 ||
-        (stats.shots_total_home + stats.shots_total_away) > 0 ||
-        (stats.possession_home + stats.possession_away) > 0
-      );
-      const shouldAnalyze = minute >= 20 && hasRealStats &&
-        (!existing?.mycroft_analysis_id || existing?.mycroft_status === 'aguardar');
-
-      if (shouldAnalyze) {
-        try {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-          console.log(`[FetchLive] Triggering Mycroft for ${matchData.home_team} vs ${matchData.away_team} (${minute}')`);
-
-          const analysisRes = await fetch(
-            `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseAnonKey}`,
-              },
-              body: JSON.stringify({
-                match: {
-                  home: matchData.home_team,
-                  away: matchData.away_team,
-                  scoreHome: matchData.score_home,
-                  scoreAway: matchData.score_away,
-                  minute,
-                  period,
-                  championship,
-                  match_id: fixtureId,
-                  stats,
-                  bankroll: 500,
-                },
-              }),
-            }
-          );
-
-            if (analysisRes.ok) {
-            const analysis = await analysisRes.json();
-            console.log(`[FetchLive] Mycroft verdict for ${fixtureId}: ${analysis.verdict} (${analysis.confidence}%)`);
-
-            // Save analysis
-            const { data: analysisRow, error: insertError } = await supabase
-              .from('mycroft_analyses')
-              .insert({
-                match_id: fixtureId,
-                verdict: analysis.verdict || 'AGUARDAR',
-                market: analysis.market || 'N/A',
-                thesis: analysis.thesis || 'Análise sem tese.',
-                odd: analysis.odd ?? null,
-                confidence: analysis.confidence ?? 0,
-                risk_management: analysis.risk_management ?? null,
-                alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
-                fundamentation: analysis.fundamentation ?? { stats },
-              })
-              .select('id')
-              .single();
-
-            if (insertError) {
-              console.error(`[FetchLive] ❌ Failed to insert mycroft_analyses for ${fixtureId}:`, JSON.stringify(insertError));
-            }
-
-            if (analysisRow) {
-              const statusToSet = analysis.verdict === 'AGUARDAR' ? 'aguardar' : 'done';
-              const { error: updateError } = await supabase
-                .from('live_matches')
-                .update({
-                  mycroft_analysis_id: analysisRow.id,
-                  mycroft_status: statusToSet,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('match_id', fixtureId);
-
-              if (updateError) {
-                console.error(`[FetchLive] ❌ Failed to update live_matches for ${fixtureId}:`, JSON.stringify(updateError));
-              } else {
-                console.log(`[FetchLive] ✅ Analysis saved for ${fixtureId}: ${analysis.verdict}`);
-              }
-
-              // Auto-create signal if APROVADO
-              if (analysis.verdict === 'APROVADO') {
-                await supabase.from('signals_sent').insert({
-                  match_id: fixtureId,
-                  analysis_id: analysisRow.id,
-                });
-                console.log(`[FetchLive] Signal created for ${fixtureId}`);
-              }
-
-              analyzedCount++;
-            }
-          } else {
-            const errText = await analysisRes.text();
-            console.error(`[FetchLive] Mycroft failed for ${fixtureId}:`, errText);
-          }
-        } catch (e) {
-          console.error(`[FetchLive] Analysis error for ${fixtureId}:`, e);
-        }
-      }
+      // Analysis is now MANUAL ONLY - no auto-trigger to save API credits
+      // Stats are collected and saved; user triggers analysis separately
 
       results.push({
         match_id: fixtureId,
         teams: `${matchData.home_team} vs ${matchData.away_team}`,
         minute,
         has_stats: !!stats,
-        analyzed: shouldAnalyze,
+        analyzed: false,
       });
     }
 
@@ -385,13 +285,13 @@ serve(async (req) => {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
     }
 
-    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${analyzedCount} analyzed, ${staleIds.length} finished, ${scheduledCount} scheduled`);
+    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${staleIds.length} finished, ${scheduledCount} scheduled`);
 
     return new Response(
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
-        analyzed: analyzedCount,
+        analyzed: 0,
         finished: staleIds.length,
         scheduled: scheduledCount,
         matches: results,

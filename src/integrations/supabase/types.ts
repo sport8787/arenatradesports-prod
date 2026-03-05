@@ -1528,6 +1528,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sports_bankroll: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          green_bets: number | null
+          id: string
+          initial_balance: number | null
+          red_bets: number | null
+          total_bets: number | null
+          total_profit: number | null
+          total_staked: number | null
+          updated_at: string | null
+          user_id: string
+          win_rate: number | null
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id: string
+          win_rate?: number | null
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id?: string
+          win_rate?: number | null
+        }
+        Relationships: []
+      }
       trader_session_snapshots: {
         Row: {
           amount: number
