@@ -230,30 +230,34 @@ serve(async (req) => {
             }
           );
 
-          if (analysisRes.ok) {
+            if (analysisRes.ok) {
             const analysis = await analysisRes.json();
             console.log(`[FetchLive] Mycroft verdict for ${fixtureId}: ${analysis.verdict} (${analysis.confidence}%)`);
 
             // Save analysis
-            const { data: analysisRow } = await supabase
+            const { data: analysisRow, error: insertError } = await supabase
               .from('mycroft_analyses')
               .insert({
                 match_id: fixtureId,
                 verdict: analysis.verdict || 'AGUARDAR',
                 market: analysis.market || 'N/A',
-                thesis: analysis.thesis || '',
+                thesis: analysis.thesis || 'Análise sem tese.',
                 odd: analysis.odd ?? null,
                 confidence: analysis.confidence ?? 0,
                 risk_management: analysis.risk_management ?? null,
-                alerts: analysis.alerts ?? [],
+                alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
                 fundamentation: analysis.fundamentation ?? { stats },
               })
               .select('id')
               .single();
 
+            if (insertError) {
+              console.error(`[FetchLive] ❌ Failed to insert mycroft_analyses for ${fixtureId}:`, JSON.stringify(insertError));
+            }
+
             if (analysisRow) {
               const statusToSet = analysis.verdict === 'AGUARDAR' ? 'aguardar' : 'done';
-              await supabase
+              const { error: updateError } = await supabase
                 .from('live_matches')
                 .update({
                   mycroft_analysis_id: analysisRow.id,
@@ -261,6 +265,12 @@ serve(async (req) => {
                   updated_at: new Date().toISOString(),
                 })
                 .eq('match_id', fixtureId);
+
+              if (updateError) {
+                console.error(`[FetchLive] ❌ Failed to update live_matches for ${fixtureId}:`, JSON.stringify(updateError));
+              } else {
+                console.log(`[FetchLive] ✅ Analysis saved for ${fixtureId}: ${analysis.verdict}`);
+              }
 
               // Auto-create signal if APROVADO
               if (analysis.verdict === 'APROVADO') {
