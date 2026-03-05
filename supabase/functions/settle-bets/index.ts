@@ -203,6 +203,8 @@ Deno.serve(async (req) => {
       const matchRef = bet.match_name || bet.match_id || '';
       const result = findResult(matchRef, bet.market, bet.created_at);
 
+      if (!result) continue;
+
       const profitLoss = result.isGreen
         ? parseFloat((bet.stake * (bet.odd - 1)).toFixed(2))
         : -parseFloat(bet.stake);

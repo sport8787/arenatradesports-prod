@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
@@ -238,6 +238,70 @@ export default function BetHistoryPage() {
     await fetchBets();
   }, [user, bankroll, bets]);
 
+  const revertToPending = useCallback(async (bet: Bet) => {
+    if (!user || !bankroll) return;
+
+    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
+    const wasGreen = bet.result === 'green' || bet.status === 'green';
+
+    // Reverse bankroll impact
+    // If it was GREEN, we need to remove the winnings (stake * odd) from balance
+    // If it was RED, stake was already deducted at placement, no balance change needed
+    const balanceChange = wasGreen ? -(bet.stake * bet.odd) : 0;
+    const profitReverse = -(bet.profit_loss || 0);
+
+    // Revert bet to pending
+    const updatePayload = bet.source === 'punter'
+      ? { status: 'pending', result: null, profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, updated_at: new Date().toISOString() }
+      : { status: 'pending', profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, settled_at: null };
+
+    const { error } = await supabase.from(table).update(updatePayload).eq('id', bet.id);
+    if (error) {
+      toast.error('Erro ao reverter aposta');
+      console.error(error);
+      return;
+    }
+
+    // Reverse bankroll stats
+    await supabase
+      .from('user_bankroll')
+      .update({
+        balance: +(bankroll.balance + balanceChange).toFixed(2),
+        total_profit: +(bankroll.total_profit + profitReverse).toFixed(2),
+        green_bets: bankroll.green_bets - (wasGreen ? 1 : 0),
+        red_bets: bankroll.red_bets - (wasGreen ? 0 : 1),
+        win_rate: (bankroll.green_bets + bankroll.red_bets - 1) > 0
+          ? +((bankroll.green_bets - (wasGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets - 1) * 100).toFixed(2)
+          : 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+
+    // Also revert matching punter_signals if punter bet
+    if (bet.source === 'punter') {
+      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
+      await supabase
+        .from('punter_signals')
+        .update({
+          result: null,
+          status: 'pending',
+          profit_loss: null,
+          score_home: null,
+          score_away: null,
+          red_card_home: false,
+          red_card_away: false,
+          resulted_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
+        .eq('status', 'settled');
+    }
+
+    toast.success('Aposta revertida para pendente');
+    await fetchBets();
+  }, [user, bankroll, bets]);
+
+
   const filtered = useMemo(() => {
     if (filter === 'all') return bets;
     if (filter === 'pending') return bets.filter(b => b.status === 'pending');
@@ -252,11 +316,13 @@ export default function BetHistoryPage() {
     const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
     const pending = bets.filter(b => b.status === 'pending');
+    const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
     return {
       total: bets.length,
       greens: greens.length,
       reds: reds.length,
       pending: pending.length,
+      pendingStake,
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
@@ -287,6 +353,34 @@ export default function BetHistoryPage() {
       </header>
 
       <div className="container mx-auto px-4 py-4 space-y-4">
+        {/* Bankroll Summary */}
+        {bankroll && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card border border-primary/30 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <Wallet className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground font-orbitron uppercase">Saldo da Banca</p>
+                <p className="text-lg font-orbitron font-bold text-foreground">
+                  R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-warning" />
+              <div>
+                <p className="text-xs text-muted-foreground font-orbitron uppercase">Em Apostas Pendentes</p>
+                <p className="text-lg font-orbitron font-bold text-warning">
+                  R$ {stats.pendingStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
@@ -367,10 +461,10 @@ export default function BetHistoryPage() {
                         </button>
                       ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
                         <button
-                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                          onClick={() => revertToPending(bet)}
                           className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 px-2 py-1 rounded-md transition-colors"
                         >
-                          <Gavel className="w-3.5 h-3.5" />
+                          <Undo2 className="w-3.5 h-3.5" />
                           Corrigir
                         </button>
                       )}
