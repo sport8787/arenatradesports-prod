@@ -645,7 +645,7 @@ export default function PunterPage() {
 }
 
 // Signal Card Component with Asset Score, NOVO badge, and Hórus auto-bet indicator
-function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake }: {
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
   bankroll: any;
@@ -653,12 +653,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   isNew: boolean;
   horusEntered: boolean;
   horusStake: number;
+  kellyPercent?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [customStake, setCustomStake] = useState('');
   const commenceDate = new Date(signal.match.commence_time);
   const isToday = commenceDate.toDateString() === new Date().toDateString();
-  const stakePercent = signal.recommendation.stake_percentage || 3;
+  const stakePercent = kellyPercent || signal.recommendation.stake_percentage || 3;
 
   // Calculate Asset Score
   const assetScore = calculateAssetScore({
