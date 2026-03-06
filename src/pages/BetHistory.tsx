@@ -28,6 +28,7 @@ interface Bet {
   score_away?: number | null;
   red_card_home?: boolean;
   red_card_away?: boolean;
+  thesis?: string | null;
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red';
