@@ -231,6 +231,10 @@ export default function PunterPage() {
                 </span>
               </div>
             )}
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/apostas')}>
+              <Wallet className="w-4 h-4 mr-1" />
+              Apostas
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={openHistory}>
               <History className="w-4 h-4 mr-1" />
               Histórico
