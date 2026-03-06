@@ -126,13 +126,17 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
-    // 3. Analyze each game
+    // 3. Analyze each game (with delay for rate limiting)
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
+    const delayMs = ai_provider === 'anthropic' ? 3000 : 500 // 3s for Claude to respect 30k tokens/min
 
     for (const game of allUpcomingGames) {
       totalAnalyzed++
       try {
+        if (totalAnalyzed > 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey, ai_provider)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
           approvedSignals.push({
@@ -997,9 +1001,9 @@ IMPORTANTE:
 
 ANALISE AGORA E RETORNE APENAS O JSON:`
 
-  // Call AI provider with retry
+  // Call AI provider with retry and backoff
   let analysisText: string = ''
-  const maxRetries = 2
+  const maxRetries = 3
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       if (aiProvider === 'anthropic') {
@@ -1024,6 +1028,11 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
       // Normalize verdict
       if (analysis.verdict && analysis.verdict.startsWith('APROVADO')) {
         analysis.verdict = 'APROVADO'
+      }
+
+      // Ensure value_percentage is a number (some models return edge_percentage instead)
+      if (analysis.value_percentage === undefined || analysis.value_percentage === null) {
+        analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
       }
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: ${aiProvider}`)
@@ -1067,9 +1076,12 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
       }
 
       return analysis
-    } catch (parseErr) {
+    } catch (parseErr: any) {
       if (attempt < maxRetries - 1) {
-        console.warn(`[Mycroft Punter] Tentativa ${attempt + 1} falhou para ${game.home_team} vs ${game.away_team}, retentando...`)
+        const isRateLimit = parseErr?.message?.includes('429')
+        const backoffMs = isRateLimit ? (attempt + 1) * 5000 : 1000
+        console.warn(`[Mycroft Punter] Tentativa ${attempt + 1} falhou para ${game.home_team} vs ${game.away_team}${isRateLimit ? ' (rate limit)' : ''}, aguardando ${backoffMs}ms...`)
+        await new Promise(resolve => setTimeout(resolve, backoffMs))
         continue
       }
       throw parseErr
