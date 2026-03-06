@@ -735,7 +735,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
             <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
             <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <InfoBox label="Stake" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+            <InfoBox label="Stake (Kelly)" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
           </div>
 
           {/* Asset Score Breakdown — 5 factors */}
