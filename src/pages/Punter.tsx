@@ -1037,14 +1037,17 @@ function PortfolioMetric({ label, value, valueColor }: { label: string; value: s
   );
 }
 
-// Punter History Sheet
-function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange }: {
+// Bet History Sheet with Score + Cumulative ROI
+function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange, title, icon, initialBalance }: {
   isOpen: boolean;
   onClose: () => void;
   bets: any[];
   loading: boolean;
   filter: 'all' | 'pending' | 'green' | 'red';
   onFilterChange: (f: 'all' | 'pending' | 'green' | 'red') => void;
+  title: string;
+  icon: React.ReactNode;
+  initialBalance: number;
 }) {
   const filtered = bets.filter(b => {
     if (filter === 'all') return true;
@@ -1057,24 +1060,45 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
   const greens = bets.filter(b => b.status === 'green' || b.result === 'green').length;
   const reds = bets.filter(b => b.status === 'red' || b.result === 'red').length;
   const totalPL = bets.reduce((sum: number, b: any) => sum + (parseFloat(b.profit_loss) || 0), 0);
+  const cumulativeROI = initialBalance > 0 ? (totalPL / initialBalance * 100) : 0;
 
   const formatDate = (d: string) => {
     const date = new Date(d);
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
+  const getScoreGrade = (odd: number, confidence?: number) => {
+    const score = calculateAssetScore({
+      value_percentage: confidence || 60,
+      confidence: confidence || 65,
+      odd: odd,
+      bookmaker: 'default',
+    });
+    return { score: score.final_score, grade: score.grade, config: getGradeConfig(score.grade) };
+  };
+
+  // Calculate cumulative ROI per bet (sorted by date asc)
+  const sortedBets = [...filtered].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  let runningPL = 0;
+  const cumulativeMap = new Map<string, number>();
+  for (const bet of sortedBets) {
+    runningPL += parseFloat(bet.profit_loss) || 0;
+    cumulativeMap.set(bet.id, initialBalance > 0 ? (runningPL / initialBalance * 100) : 0);
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="font-mono text-sm flex items-center gap-2">
-            <History className="w-4 h-4 text-primary" />
-            HISTÓRICO DE OPERAÇÕES
+            {icon}
+            {title}
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
-          <div className="grid grid-cols-4 gap-2">
+          {/* Summary */}
+          <div className="grid grid-cols-5 gap-2">
             <div className="bg-secondary/30 rounded p-2 text-center">
               <p className="text-[9px] font-mono text-muted-foreground">TOTAL</p>
               <p className="font-mono font-bold text-foreground">{bets.length}</p>
@@ -1091,6 +1115,12 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
               <p className="text-[9px] font-mono text-muted-foreground">P&L</p>
               <p className={cn("font-mono font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
                 R$ {totalPL.toFixed(0)}
+              </p>
+            </div>
+            <div className={cn("rounded p-2 text-center", cumulativeROI >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+              <p className="text-[9px] font-mono text-muted-foreground">ROI</p>
+              <p className={cn("font-mono font-bold text-sm", cumulativeROI >= 0 ? 'text-success' : 'text-destructive')}>
+                {cumulativeROI >= 0 ? '+' : ''}{cumulativeROI.toFixed(1)}%
               </p>
             </div>
           </div>
@@ -1118,45 +1148,90 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
               <AnimatePresence>
                 {filtered.map((bet: any, i: number) => {
                   const status = bet.result || bet.status;
+                  const { score, grade, config } = getScoreGrade(parseFloat(bet.odd));
+                  const cumROI = cumulativeMap.get(bet.id);
+
                   return (
                     <motion.div
                       key={bet.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.03 }}
+                      transition={{ delay: i * 0.02 }}
                       className={cn(
-                        "bg-card border rounded-xl p-3 space-y-1.5",
+                        "bg-card border rounded-lg p-3 space-y-2",
                         status === 'green' ? 'border-success/40' :
                         status === 'red' ? 'border-destructive/40' :
                         'border-border'
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-orbitron text-sm font-bold text-foreground truncate max-w-[180px]">
+                      {/* Row 1: Name + Status + Score */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-sm font-bold text-foreground truncate flex-1">
                           {bet.match_name || bet.match_id}
                         </span>
-                        {status === 'green' ? (
-                          <Badge className="bg-success/20 text-success border-success/30 text-[10px]">GREEN ✅</Badge>
-                        ) : status === 'red' ? (
-                          <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">RED ❌</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-warning border-warning/30 text-[10px]">PENDENTE ⏳</Badge>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={cn(
+                            "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
+                            config.borderColor, config.bgColor, config.textColor
+                          )}>
+                            {config.emoji} {grade}
+                          </span>
+                          {status === 'green' ? (
+                            <Badge className="bg-success/20 text-success border-success/30 text-[10px]">GREEN</Badge>
+                          ) : status === 'red' ? (
+                            <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">RED</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-warning border-warning/30 text-[10px]">PENDENTE</Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        <span>{bet.market}</span>
-                        <span>Odd: {parseFloat(bet.odd).toFixed(2)}</span>
-                        <span>R$ {parseFloat(bet.stake).toFixed(2)}</span>
-                        <span>{formatDate(bet.created_at)}</span>
+
+                      {/* Row 2: Data grid */}
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                        <div className="bg-secondary/20 rounded px-2 py-1">
+                          <p className="text-[8px] font-mono text-muted-foreground">DATA</p>
+                          <p className="text-[10px] font-mono font-semibold text-foreground">{formatDate(bet.created_at)}</p>
+                        </div>
+                        <div className="bg-secondary/20 rounded px-2 py-1">
+                          <p className="text-[8px] font-mono text-muted-foreground">MERCADO</p>
+                          <p className="text-[10px] font-mono font-semibold text-foreground truncate">{bet.market}</p>
+                        </div>
+                        <div className="bg-secondary/20 rounded px-2 py-1">
+                          <p className="text-[8px] font-mono text-muted-foreground">ODD</p>
+                          <p className="text-[10px] font-mono font-semibold text-foreground">{parseFloat(bet.odd).toFixed(2)}</p>
+                        </div>
+                        <div className="bg-secondary/20 rounded px-2 py-1">
+                          <p className="text-[8px] font-mono text-muted-foreground">STAKE</p>
+                          <p className="text-[10px] font-mono font-semibold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
+                        </div>
+                        <div className={cn("rounded px-2 py-1", status !== 'pending' && parseFloat(bet.profit_loss) >= 0 ? 'bg-success/10' : status !== 'pending' ? 'bg-destructive/10' : 'bg-secondary/20')}>
+                          <p className="text-[8px] font-mono text-muted-foreground">P&L</p>
+                          <p className={cn("text-[10px] font-mono font-bold",
+                            status === 'pending' ? 'text-muted-foreground' :
+                            parseFloat(bet.profit_loss) >= 0 ? 'text-success' : 'text-destructive'
+                          )}>
+                            {status === 'pending' ? '—' : `${parseFloat(bet.profit_loss) >= 0 ? '+' : ''}R$ ${parseFloat(bet.profit_loss).toFixed(2)}`}
+                          </p>
+                        </div>
+                        <div className={cn("rounded px-2 py-1", cumROI != null && cumROI >= 0 ? 'bg-success/10' : cumROI != null ? 'bg-destructive/10' : 'bg-secondary/20')}>
+                          <p className="text-[8px] font-mono text-muted-foreground">ROI ACUM.</p>
+                          <p className={cn("text-[10px] font-mono font-bold",
+                            cumROI == null ? 'text-muted-foreground' :
+                            cumROI >= 0 ? 'text-success' : 'text-destructive'
+                          )}>
+                            {cumROI != null ? `${cumROI >= 0 ? '+' : ''}${cumROI.toFixed(1)}%` : '—'}
+                          </p>
+                        </div>
                       </div>
-                      {bet.profit_loss != null && status !== 'pending' && (
-                        <p className={cn(
-                          "text-sm font-orbitron font-bold",
-                          parseFloat(bet.profit_loss) >= 0 ? 'text-success' : 'text-destructive'
-                        )}>
-                          {parseFloat(bet.profit_loss) >= 0 ? '+' : ''}R$ {parseFloat(bet.profit_loss).toFixed(2)}
-                        </p>
-                      )}
+
+                      {/* Score bar */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-mono text-muted-foreground">SCORE</span>
+                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                          <div className={cn("h-full rounded-full", config.bgColor.replace('/5', '/60'))} style={{ width: `${score}%` }} />
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-foreground">{score}</span>
+                      </div>
                     </motion.div>
                   );
                 })}
