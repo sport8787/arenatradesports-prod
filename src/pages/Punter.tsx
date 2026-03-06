@@ -944,24 +944,24 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   );
 }
 
-function ScoreBar({ label, value, weight }: { label: string; value: number; weight: string }) {
+function FactorBar({ label, value, weight }: { label: string; value: number; weight: number }) {
   const color = value >= 80 ? 'bg-success' : value >= 60 ? 'bg-primary' : value >= 40 ? 'bg-warning' : 'bg-destructive';
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-muted-foreground w-24 shrink-0 truncate">{label} ({weight})</span>
-      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+      <span className="text-[9px] font-mono text-muted-foreground w-16 shrink-0">{label} ({weight}%)</span>
+      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-[10px] font-orbitron font-bold text-foreground w-7 text-right">{value}</span>
+      <span className="text-[9px] font-mono font-bold text-foreground w-6 text-right">{value}</span>
     </div>
   );
 }
 
-function AssetDataCell({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
+function DataCell({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
   return (
-    <div className={cn("rounded-lg p-2", highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30')}>
-      <p className="text-[9px] text-muted-foreground uppercase mb-0.5">{label}</p>
-      <p className={cn("text-xs font-bold truncate", highlight ? 'text-success' : 'text-foreground')}>{value}</p>
+    <div className={cn("rounded p-1.5", highlight ? 'bg-success/5 border border-success/15' : 'bg-secondary/20')}>
+      <p className="text-[8px] font-mono text-muted-foreground">{label}</p>
+      <p className={cn("text-[11px] font-mono font-semibold truncate", highlight ? 'text-success' : 'text-foreground')}>{value}</p>
     </div>
   );
 }
