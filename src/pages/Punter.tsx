@@ -406,6 +406,14 @@ export default function PunterPage() {
               <LayoutGrid className="w-4 h-4 mr-1" />
               Widgets
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => setShowRankings(true)}>
+              <Trophy className="w-4 h-4 mr-1" />
+              Ranking
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => setShowCertificate(true)}>
+              <Award className="w-4 h-4 mr-1" />
+              Certificado
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               KB
