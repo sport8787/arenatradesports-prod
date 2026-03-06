@@ -820,37 +820,8 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
   return aiData.choices?.[0]?.message?.content || ''
 }
 
-async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
-  const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
-  if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': anthropicKey,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      temperature: 0.3,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  })
-
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Anthropic error ${response.status}: ${errText}`)
-  }
-
-  const data = await response.json()
-  return data.content?.[0]?.text || ''
-}
-
 // ═══════════════════════════════════════════════
-// Main analysis function
+// Main analysis function (Gemini only)
 // ═══════════════════════════════════════════════
 
 async function analyzeGame(
@@ -861,7 +832,6 @@ async function analyzeGame(
   minValue: number,
   supabaseClient: any,
   apiFootballKey: string,
-  aiProvider: 'gemini' | 'anthropic' = 'gemini'
 ) {
   const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
   console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: ${aiProvider})`)
