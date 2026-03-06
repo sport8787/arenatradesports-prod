@@ -786,132 +786,115 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className={cn("transition-all", gradeConfig.border, "border hover:shadow-lg")}>
-        <CardHeader className="pb-2">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+      <div className={cn("border rounded-lg bg-card overflow-hidden transition-all hover:border-primary/30", gradeConfig.border)}>
+        {/* Top bar with grade + status */}
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold border",
+              gradeConfig.bg, gradeConfig.text, gradeConfig.border
+            )}>
+              {gradeConfig.emoji} {assetScore.grade}
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">{gradeConfig.label}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isNew && (
+              <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
+            )}
+            {horusEntered && (
+              <span className="text-[10px] font-mono text-primary">
+                ✓ HÓRUS R$ {horusStake.toFixed(2)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {/* Match Header */}
           <div className="flex justify-between items-start gap-3">
             <div className="flex-1 min-w-0">
-              {/* Badges row */}
-              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                {/* Grade Badge - prominent */}
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-orbitron font-bold border",
-                  gradeConfig.bg, gradeConfig.text, gradeConfig.border
-                )}>
-                  {gradeConfig.emoji} {assetScore.grade}
-                </span>
-                {isNew && (
-                  <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] animate-pulse">
-                    <Sparkles className="w-3 h-3 mr-0.5" />
-                    NOVO
-                  </Badge>
-                )}
-                {horusEntered && (
-                  <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">
-                    <Bot className="w-3 h-3 mr-0.5" />
-                    ENTREI — R$ {horusStake.toFixed(2)}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Match name */}
-              <CardTitle className="text-base text-foreground leading-tight">
+              <p className="font-mono text-sm font-bold text-foreground leading-tight">
                 {signal.match.home_team} vs {signal.match.away_team}
-              </CardTitle>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
-                  {' às '}
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  {isToday ? 'HOJE' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase()}
+                  {' '}
                   {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <span className="opacity-60">•</span>
+                <span className="opacity-40">|</span>
                 <span>{signal.match.league}</span>
               </div>
             </div>
 
-            {/* Score circle */}
-            <div className="flex flex-col items-center gap-1">
-              <div className={cn(
-                "w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center",
-                gradeConfig.border, gradeConfig.bg
-              )}>
-                <span className={cn("font-orbitron font-bold text-xl leading-none", gradeConfig.text)}>
-                  {assetScore.final_score}
-                </span>
-                <span className="text-[8px] text-muted-foreground uppercase">Score</span>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          {/* Asset Data Grid — like a financial asset card */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            <AssetDataCell label="Mercado" value={signal.recommendation.market} />
-            <AssetDataCell label="Casa" value={signal.recommendation.bookmaker} />
-            <AssetDataCell label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <AssetDataCell label="Prob. Modelo" value={`${assetScore.model_probability}%`} />
-            <AssetDataCell label="Edge" value={`+${signal.recommendation.value_percentage?.toFixed(1)}%`} highlight />
-            <AssetDataCell label="Stake Kelly" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} />
-          </div>
-
-          {/* Classification description */}
-          <div className={cn("rounded-lg p-2.5 flex items-center gap-2", gradeConfig.bg, "border", gradeConfig.border)}>
-            <span className="text-lg">{gradeConfig.emoji}</span>
-            <div>
-              <span className={cn("font-orbitron font-bold text-sm", gradeConfig.text)}>
-                Classificação {assetScore.grade}
+            {/* Score badge */}
+            <div className={cn(
+              "w-14 h-14 rounded-lg border flex flex-col items-center justify-center shrink-0",
+              gradeConfig.border, gradeConfig.bg
+            )}>
+              <span className={cn("font-mono font-bold text-lg leading-none", gradeConfig.text)}>
+                {assetScore.final_score}
               </span>
-              <span className="text-xs text-muted-foreground ml-2">{gradeConfig.label}</span>
+              <span className="text-[7px] font-mono text-muted-foreground uppercase mt-0.5">SCORE</span>
             </div>
           </div>
 
-          {/* 5-Factor Score Bars */}
-          <div className="space-y-1.5">
-            <ScoreBar label="Probabilidade" value={assetScore.probability_score} weight="25%" />
-            <ScoreBar label="Market Edge" value={assetScore.edge_score} weight="25%" />
-            <ScoreBar label="Força Estatística" value={assetScore.stats_score} weight="20%" />
-            <ScoreBar label="Padrão" value={assetScore.pattern_score} weight="15%" />
-            <ScoreBar label="Liquidez" value={assetScore.liquidity_score} weight="15%" />
+          {/* Data Grid */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+            <DataCell label="MERCADO" value={signal.recommendation.market} />
+            <DataCell label="CASA" value={signal.recommendation.bookmaker} />
+            <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
+            <DataCell label="PROB." value={`${assetScore.model_probability}%`} />
+            <DataCell label="EDGE" value={`+${signal.recommendation.value_percentage?.toFixed(1)}%`} highlight />
+            <DataCell label="KELLY" value={`${stakePercent}% · R$${horusStake.toFixed(0)}`} />
+          </div>
+
+          {/* Factor Bars */}
+          <div className="space-y-1">
+            <FactorBar label="PROB" value={assetScore.probability_score} weight={25} />
+            <FactorBar label="EDGE" value={assetScore.edge_score} weight={25} />
+            <FactorBar label="STATS" value={assetScore.stats_score} weight={20} />
+            <FactorBar label="PADRÃO" value={assetScore.pattern_score} weight={15} />
+            <FactorBar label="LIQ" value={assetScore.liquidity_score} weight={15} />
           </div>
 
           {/* Thesis */}
-          <div className="bg-secondary/30 rounded-lg p-3">
-            <p className="text-sm font-medium text-foreground mb-1">💡 Tese:</p>
-            <p className="text-sm text-foreground/80">{signal.recommendation.thesis}</p>
+          <div className="bg-secondary/30 rounded p-3 border-l-2 border-primary/30">
+            <p className="text-[10px] font-mono text-muted-foreground mb-1">TESE DE INVESTIMENTO</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{signal.recommendation.thesis}</p>
           </div>
 
-          {/* Hórus Auto-bet Info */}
+          {/* Hórus Status */}
           {horusEntered && (
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-sm text-foreground/80">
-                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
+              <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+              <p className="text-[10px] font-mono text-foreground/70">
+                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}
 
-          {/* Manual Bet Section */}
-          <div className="border border-accent/20 rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-accent" />
-              <span className="text-sm font-bold text-foreground">Aposta Manual</span>
+          {/* Manual Entry */}
+          <div className="border border-border rounded p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-muted-foreground tracking-wider">ENTRADA MANUAL</span>
               {manualBankroll && (
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Saldo: R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               )}
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">R$</span>
                 <Input
                   type="number"
-                  placeholder="Valor da aposta"
+                  placeholder="0.00"
                   value={customStake}
                   onChange={(e) => setCustomStake(e.target.value)}
-                  className="pl-9 h-9"
+                  className="pl-8 h-8 font-mono text-xs"
                   min="1"
                   step="0.01"
                 />
@@ -920,44 +903,43 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 onClick={handleManualBet}
                 variant="outline"
                 size="sm"
-                className="border-accent/30 hover:bg-accent/10 h-9 px-4"
+                className="h-8 px-3 font-mono text-xs"
                 disabled={!manualBankroll || !customStake}
               >
-                <User className="w-3.5 h-3.5 mr-1" />
-                Apostar
+                APOSTAR
               </Button>
             </div>
           </div>
 
           {/* Expand */}
-          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="w-full text-muted-foreground">
-            {expanded ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-            {expanded ? 'Ocultar' : 'Ver'} Análise Completa
-          </Button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full text-center text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors py-1"
+          >
+            {expanded ? '▲ OCULTAR ANÁLISE' : '▼ ANÁLISE COMPLETA'}
+          </button>
 
           {expanded && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3 pt-2 border-t border-border">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 pt-2 border-t border-border">
               <div>
-                <p className="text-sm font-bold text-foreground mb-1">📊 Análise Detalhada:</p>
-                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.analysis}</p>
+                <p className="text-[10px] font-mono text-muted-foreground mb-1">ANÁLISE DETALHADA</p>
+                <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{signal.recommendation.analysis}</p>
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground mb-1">⚠️ Fatores de Risco:</p>
-                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.risk_factors}</p>
+                <p className="text-[10px] font-mono text-muted-foreground mb-1">FATORES DE RISCO</p>
+                <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{signal.recommendation.risk_factors}</p>
               </div>
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                <p className="text-sm font-bold text-foreground mb-1">📐 Cálculo de Value:</p>
-                <div className="text-sm text-foreground/80 space-y-1">
-                  <div>Odd oferecida: <span className="font-mono">{signal.recommendation.odd}</span> → Prob. implícita: <span className="font-mono">{assetScore.implied_probability}%</span></div>
-                  <div>Prob. modelo: <span className="font-mono">{assetScore.model_probability}%</span></div>
-                  <div>Odd justa estimada: <span className="font-mono">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
-                  <div className="font-bold text-success">Value: {signal.recommendation.value_percentage?.toFixed(1)}%</div>
-                </div>
+              <div className="bg-secondary/20 border border-border rounded p-3 space-y-1 font-mono text-xs">
+                <p className="text-[10px] text-muted-foreground mb-1.5">CÁLCULO DE VALUE</p>
+                <div className="text-foreground/80">Odd: <span className="text-foreground">{signal.recommendation.odd}</span> → Implícita: <span className="text-foreground">{assetScore.implied_probability}%</span></div>
+                <div className="text-foreground/80">Prob. Modelo: <span className="text-foreground">{assetScore.model_probability}%</span></div>
+                <div className="text-foreground/80">Fair Odd: <span className="text-foreground">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
+                <div className="text-success font-bold">Value: +{signal.recommendation.value_percentage?.toFixed(1)}%</div>
               </div>
             </motion.div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </motion.div>
   );
 }
