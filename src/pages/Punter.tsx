@@ -772,7 +772,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
               <Bot className="w-4 h-4 text-primary shrink-0" />
               <p className="text-sm text-foreground/80">
-                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% da banca)
+                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}
