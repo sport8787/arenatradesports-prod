@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.n8n-webhook]
 verify_jwt = false
+
+[functions.get-widget-key]
+verify_jwt = false

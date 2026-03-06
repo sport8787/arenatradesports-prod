@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity
+  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,7 @@ export default function PunterPage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
 
   // Load pending bets on mount
   useEffect(() => {
@@ -137,7 +138,8 @@ export default function PunterPage() {
         body: {
           hours_ahead: hoursAhead,
           bookmakers: ['bet365', 'pinnacle', 'betfair'],
-          min_value: 5
+          min_value: 5,
+          ai_provider: aiProvider,
         }
       });
       if (fnError) throw fnError;
@@ -145,7 +147,7 @@ export default function PunterPage() {
       setSignals(data.signals || []);
       setTotalAnalyzed(data.total_analyzed || 0);
       setTotalApproved(data.total_approved || 0);
-      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos analisados`);
+      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`);
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
       setError(err.message || 'Erro ao conectar com Mycroft Punter');
@@ -278,6 +280,10 @@ export default function PunterPage() {
               <Activity className="w-4 h-4 mr-1" />
               Simulado
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/punter/widgets')}>
+              <LayoutGrid className="w-4 h-4 mr-1" />
+              Widgets
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               KB
@@ -328,9 +334,30 @@ export default function PunterPage() {
               </Button>
             </div>
 
+            {/* AI Provider Toggle */}
+            <div className="flex gap-2">
+              <Button
+                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('gemini')}
+                className="flex-1"
+              >
+                🧠 Gemini
+              </Button>
+              <Button
+                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('anthropic')}
+                className="flex-1"
+              >
+                <FlaskConical className="w-3.5 h-3.5 mr-1" />
+                Claude (Teste)
+              </Button>
+            </div>
+
             <GoldButton onClick={analyzeGames} disabled={loading} className="w-full">
               {loading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com IA...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com {aiProvider === 'anthropic' ? 'Claude' : 'Gemini'}...</>
               ) : (
                 <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos ({timeWindow === '15min' ? 'próximos 15 min' : 'próximas 48h'})</>
               )}
