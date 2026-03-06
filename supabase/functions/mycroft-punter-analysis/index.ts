@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const leaguesToScan: string[] = sport ? [sport] : sports
 
-    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: ${ai_provider}`)
+    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: gemini`)
 
     // 1. Fetch upcoming games from The Odds API
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
