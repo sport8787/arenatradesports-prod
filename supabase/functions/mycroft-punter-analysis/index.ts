@@ -314,7 +314,7 @@ async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
 async function fetchStandings(leagueId: number | null, apiKey: string): Promise<any[]> {
   if (!apiKey || !leagueId) return []
   try {
-    const year = new Date().getFullYear()
+    const year = getSeasonYear()
     const res = await fetch(
       `${API_FOOTBALL_BASE}/standings?league=${leagueId}&season=${year}`,
       { headers: apiHeaders(apiKey) }
