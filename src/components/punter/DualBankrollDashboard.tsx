@@ -63,8 +63,8 @@ export default function DualBankrollDashboard({ horus, manual, pendingBets = [],
         />
         <MetricCard
           label="EXPOSIÇÃO"
-          value={`R$ ${((horus.total_staked || 0) + (manual.total_staked || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
-          sub="capital investido"
+          value={`R$ ${pendingExposure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          sub={`${pendingBets.length} apostas em aberto`}
           icon={<TrendingUp className="w-4 h-4" />}
         />
       </div>
