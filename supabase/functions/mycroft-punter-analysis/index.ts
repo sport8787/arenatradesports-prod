@@ -1001,9 +1001,9 @@ IMPORTANTE:
 
 ANALISE AGORA E RETORNE APENAS O JSON:`
 
-  // Call AI provider with retry
+  // Call AI provider with retry and backoff
   let analysisText: string = ''
-  const maxRetries = 2
+  const maxRetries = 3
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       if (aiProvider === 'anthropic') {
