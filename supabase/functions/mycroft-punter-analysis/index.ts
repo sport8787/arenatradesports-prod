@@ -191,9 +191,36 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
       `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(teamName)}`,
       { headers: apiHeaders(apiKey) }
     )
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`[API-Football] Team search HTTP ${res.status} for "${teamName}"`)
+      return null
+    }
     const data = await res.json()
-    return data.response?.[0]?.team?.id || null
+    const teamId = data.response?.[0]?.team?.id || null
+    if (!teamId) {
+      // Try shorter name (e.g., "Bayern Munich" -> "Bayern", "RB Leipzig" -> "Leipzig")
+      const parts = teamName.split(' ')
+      if (parts.length > 1) {
+        const shortName = parts.length > 2 ? parts.slice(0, 2).join(' ') : parts[parts.length - 1]
+        console.log(`[API-Football] Team "${teamName}" not found, trying "${shortName}"...`)
+        const res2 = await fetch(
+          `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(shortName)}`,
+          { headers: apiHeaders(apiKey) }
+        )
+        if (res2.ok) {
+          const data2 = await res2.json()
+          const fallbackId = data2.response?.[0]?.team?.id || null
+          if (fallbackId) {
+            console.log(`[API-Football] ✅ Found team "${teamName}" as "${data2.response[0].team.name}" (ID: ${fallbackId})`)
+            return fallbackId
+          }
+        }
+      }
+      console.warn(`[API-Football] ⚠️ Team "${teamName}" not found in API-Football`)
+    } else {
+      console.log(`[API-Football] ✅ Team "${teamName}" -> ID: ${teamId}`)
+    }
+    return teamId
   } catch (e) {
     console.warn(`[API-Football] Erro buscando team ${teamName}:`, e)
     return null
