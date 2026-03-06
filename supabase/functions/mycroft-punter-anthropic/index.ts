@@ -833,7 +833,7 @@ async function analyzeGame(
   apiFootballKey: string,
 ) {
   const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
-  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini)`)
+  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: anthropic)`)
 
   const oddsData = extractOdds(game)
   const totalsData = extractTotals(game)
