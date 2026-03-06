@@ -4,9 +4,11 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot
+  Sparkles, User, Bot, Trophy, Award
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
+import PunterRankings from '@/components/punter/PunterRankings';
+import PerformanceCertificate from '@/components/punter/PerformanceCertificate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,7 @@ import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { calculateAssetScore, getClassificationColor, type AssetScore } from '@/lib/assetScore';
+import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
