@@ -1021,7 +1021,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         thesis: analysis.thesis,
         analysis: analysis.analysis,
         risk_factors: analysis.risk_factors,
-        analyzed_by: aiProvider,
+        analyzed_by: 'gemini',
       }).select().maybeSingle()
 
       // If approved, create signal
