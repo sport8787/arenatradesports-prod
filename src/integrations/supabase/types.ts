@@ -1196,6 +1196,66 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_rankings: {
+        Row: {
+          best_streak: number
+          created_at: string
+          current_streak: number
+          green_bets: number
+          id: string
+          max_drawdown: number
+          profit_factor: number
+          red_bets: number
+          roi: number
+          sharpe_ratio: number
+          total_bets: number
+          total_profit: number
+          total_staked: number
+          updated_at: string
+          user_id: string
+          username: string
+          win_rate: number
+        }
+        Insert: {
+          best_streak?: number
+          created_at?: string
+          current_streak?: number
+          green_bets?: number
+          id?: string
+          max_drawdown?: number
+          profit_factor?: number
+          red_bets?: number
+          roi?: number
+          sharpe_ratio?: number
+          total_bets?: number
+          total_profit?: number
+          total_staked?: number
+          updated_at?: string
+          user_id: string
+          username?: string
+          win_rate?: number
+        }
+        Update: {
+          best_streak?: number
+          created_at?: string
+          current_streak?: number
+          green_bets?: number
+          id?: string
+          max_drawdown?: number
+          profit_factor?: number
+          red_bets?: number
+          roi?: number
+          sharpe_ratio?: number
+          total_bets?: number
+          total_profit?: number
+          total_staked?: number
+          updated_at?: string
+          user_id?: string
+          username?: string
+          win_rate?: number
+        }
+        Relationships: []
+      }
       punter_signals: {
         Row: {
           analysis_id: string | null

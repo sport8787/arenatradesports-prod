@@ -4,9 +4,11 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot
+  Sparkles, User, Bot, Trophy, Award
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
+import PunterRankings from '@/components/punter/PunterRankings';
+import PerformanceCertificate from '@/components/punter/PerformanceCertificate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,7 @@ import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { calculateAssetScore, getClassificationColor, type AssetScore } from '@/lib/assetScore';
+import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -67,6 +70,8 @@ export default function PunterPage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
 
@@ -178,9 +183,20 @@ export default function PunterPage() {
   // Auto-place Hórus bet for a single signal (no toast per bet)
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
-    const stakePercent = signal.recommendation.stake_percentage || 3;
-    const stake = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
-    if (stake > bankroll.balance || stake <= 0) return false;
+
+    // Kelly Criterion for smart stake sizing
+    const estimatedProb = signal.recommendation.confidence || 55;
+    const kelly = calculateKellyStake({
+      probability: estimatedProb,
+      odd: signal.recommendation.odd,
+      bankroll: bankroll.balance,
+      fraction: 0.25, // 25% Kelly (safe)
+      minStake: 1,
+      maxStake: 5,
+    });
+
+    const stake = kelly.stakeAmount;
+    if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
@@ -341,9 +357,9 @@ export default function PunterPage() {
     toast.success(`Manual: R$ ${customStake.toFixed(2)} em ${matchName}`);
   }, [manualBankroll, user, placeManualBet]);
 
-  if (showBacktest) {
-    return <BacktestPanel onClose={() => setShowBacktest(false)} />;
-  }
+  if (showBacktest) return <BacktestPanel onClose={() => setShowBacktest(false)} />;
+  if (showRankings) return <PunterRankings onClose={() => setShowRankings(false)} />;
+  if (showCertificate && bankroll) return <PerformanceCertificate bankroll={bankroll} onClose={() => setShowCertificate(false)} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -389,6 +405,14 @@ export default function PunterPage() {
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/punter/widgets')}>
               <LayoutGrid className="w-4 h-4 mr-1" />
               Widgets
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => setShowRankings(true)}>
+              <Trophy className="w-4 h-4 mr-1" />
+              Ranking
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => setShowCertificate(true)}>
+              <Award className="w-4 h-4 mr-1" />
+              Certificado
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
@@ -515,8 +539,15 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              const stakePercent = signal.recommendation.stake_percentage || 3;
-              const horusStake = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+              // Kelly-based stake
+              const kelly = bankroll ? calculateKellyStake({
+                probability: signal.recommendation.confidence || 55,
+                odd: signal.recommendation.odd,
+                bankroll: bankroll.balance,
+                fraction: 0.25,
+              }) : null;
+              const horusStake = kelly?.stakeAmount || 0;
+              const kellyPercent = kelly?.stakePercent || 3;
               return (
                 <SignalCard
                   key={index}
@@ -527,6 +558,7 @@ export default function PunterPage() {
                   isNew={!hasPendingBet && !wasAutoPlaced}
                   horusEntered={hasPendingBet || wasAutoPlaced}
                   horusStake={horusStake}
+                  kellyPercent={kellyPercent}
                 />
               );
             })}
@@ -613,7 +645,7 @@ export default function PunterPage() {
 }
 
 // Signal Card Component with Asset Score, NOVO badge, and Hórus auto-bet indicator
-function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake }: {
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
   bankroll: any;
@@ -621,12 +653,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   isNew: boolean;
   horusEntered: boolean;
   horusStake: number;
+  kellyPercent?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [customStake, setCustomStake] = useState('');
   const commenceDate = new Date(signal.match.commence_time);
   const isToday = commenceDate.toDateString() === new Date().toDateString();
-  const stakePercent = signal.recommendation.stake_percentage || 3;
+  const stakePercent = kellyPercent || signal.recommendation.stake_percentage || 3;
 
   // Calculate Asset Score
   const assetScore = calculateAssetScore({
@@ -702,14 +735,15 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
             <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
             <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <InfoBox label="Stake" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+            <InfoBox label="Stake (Kelly)" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
           </div>
 
-          {/* Asset Score Breakdown */}
-          <div className="grid grid-cols-4 gap-1.5">
+          {/* Asset Score Breakdown — 5 factors */}
+          <div className="grid grid-cols-5 gap-1">
+            <ScoreBarMini label="Prob." value={assetScore.probability_score} />
             <ScoreBarMini label="Edge" value={assetScore.edge_score} />
-            <ScoreBarMini label="Confiança" value={assetScore.confidence_score} />
-            <ScoreBarMini label="Tier" value={assetScore.tier_score} />
+            <ScoreBarMini label="Stats" value={assetScore.stats_score} />
+            <ScoreBarMini label="Padrão" value={assetScore.pattern_score} />
             <ScoreBarMini label="Liquidez" value={assetScore.liquidity_score} />
           </div>
 
@@ -738,7 +772,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
               <Bot className="w-4 h-4 text-primary shrink-0" />
               <p className="text-sm text-foreground/80">
-                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% da banca)
+                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}

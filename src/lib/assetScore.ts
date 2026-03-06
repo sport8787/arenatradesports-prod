@@ -1,7 +1,8 @@
 export interface AssetScore {
+  probability_score: number;
   edge_score: number;
-  confidence_score: number;
-  tier_score: number;
+  stats_score: number;
+  pattern_score: number;
   liquidity_score: number;
   final_score: number;
   classification: 'Elite' | 'Premium' | 'Strong' | 'Moderate' | 'Avoid';
@@ -13,29 +14,39 @@ export function calculateAssetScore(prediction: {
   confidence?: number;
   odd?: number;
   bookmaker?: string;
+  estimated_probability?: number;
+  stats_strength?: number;    // 0-100 from analysis
+  pattern_confidence?: number; // 0-100 from pattern mining
 }): AssetScore {
   const edge = prediction.value_percentage || 0;
   const confidence = prediction.confidence || 50;
+  const odd = prediction.odd || 2;
 
-  // Edge Score (40%) — edge 2% = 50pts, 10%+ = 100pts
+  // 1️⃣ Probability Score (25%) — AI confidence mapped to score
+  const probabilityScore = Math.min(100, confidence);
+
+  // 2️⃣ Market Edge Score (25%) — edge 2% = 40pts, 5% = 70pts, 10%+ = 100pts
   const edgeScore = Math.min(100, (edge / 10) * 100);
 
-  // Confidence Score (30%) — directly from AI confidence
-  const confidenceScore = Math.min(100, confidence);
+  // 3️⃣ Statistical Strength (20%) — from analysis data or estimated from odd range
+  const statsStrength = prediction.stats_strength
+    ?? (odd <= 1.5 ? 85 : odd <= 2.0 ? 70 : odd <= 2.5 ? 60 : odd <= 3.0 ? 50 : 40);
+  const statsScore = Math.min(100, statsStrength);
 
-  // Tier Score (20%) — based on odd range
-  const odd = prediction.odd || 2;
-  const tierScore = odd <= 1.8 ? 100 : odd <= 2.5 ? 75 : 50;
+  // 4️⃣ Pattern Confidence (15%) — from pattern mining or base 50
+  const patternConfidence = prediction.pattern_confidence ?? 50;
+  const patternScore = Math.min(100, patternConfidence);
 
-  // Liquidity Score (10%) — based on bookmaker quality
+  // 5️⃣ Market Stability / Liquidity (15%) — bookmaker quality + odd stability
   const topBooks = ['pinnacle', 'bet365', 'betfair'];
   const liquidityScore = topBooks.includes((prediction.bookmaker || '').toLowerCase()) ? 90 : 60;
 
   const finalScore = Math.round(
-    edgeScore * 0.40 +
-    confidenceScore * 0.30 +
-    tierScore * 0.20 +
-    liquidityScore * 0.10
+    probabilityScore * 0.25 +
+    edgeScore * 0.25 +
+    statsScore * 0.20 +
+    patternScore * 0.15 +
+    liquidityScore * 0.15
   );
 
   let classification: AssetScore['classification'];
@@ -46,9 +57,10 @@ export function calculateAssetScore(prediction: {
   else classification = 'Avoid';
 
   return {
+    probability_score: Math.round(probabilityScore),
     edge_score: Math.round(edgeScore),
-    confidence_score: Math.round(confidenceScore),
-    tier_score: tierScore,
+    stats_score: Math.round(statsScore),
+    pattern_score: Math.round(patternScore),
     liquidity_score: liquidityScore,
     final_score: finalScore,
     classification,
