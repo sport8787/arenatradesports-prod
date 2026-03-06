@@ -300,7 +300,7 @@ async function fetchH2H(homeId: number, awayId: number, apiKey: string): Promise
 async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
   if (!apiKey || !teamId) return []
   try {
-    const year = new Date().getFullYear()
+    const year = getSeasonYear()
     const res = await fetch(
       `${API_FOOTBALL_BASE}/injuries?team=${teamId}&season=${year}`,
       { headers: apiHeaders(apiKey) }
