@@ -42,7 +42,7 @@ export default function DualBankrollDashboard({ horus, manual, pendingBets = [],
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard
           label="PATRIMÔNIO TOTAL"
-          value={`R$ ${totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          value={`R$ ${totalEquity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           sub={`${totalROI >= 0 ? '+' : ''}${totalROI.toFixed(2)}%`}
           subColor={totalROI >= 0 ? 'text-success' : 'text-destructive'}
           icon={<Wallet className="w-4 h-4" />}
