@@ -218,9 +218,14 @@ Deno.serve(async (req) => {
       const betResult = result.isGreen ? 'green' : 'red';
 
       // Update bet record
-      const updatePayload = bet.table === 'virtual_bets'
-        ? { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() }
-        : { status: 'settled', result: betResult, profit_loss: profitLoss, updated_at: new Date().toISOString() };
+      let updatePayload: any;
+      if (bet.table === 'virtual_bets') {
+        updatePayload = { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() };
+      } else if (bet.table === 'virtual_bets_manual') {
+        updatePayload = { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() };
+      } else {
+        updatePayload = { status: 'settled', result: betResult, profit_loss: profitLoss, updated_at: new Date().toISOString() };
+      }
 
       const { error: updateErr } = await supabase
         .from(bet.table)
@@ -232,20 +237,22 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Update bankroll
+      // Update the correct bankroll table
       const balanceChange = result.isGreen
         ? bet.stake * bet.odd // Return stake + profit
         : 0; // Stake already deducted
 
+      const bankrollTable = bet.table === 'virtual_bets_manual' ? 'manual_bankroll' : 'user_bankroll';
+
       const { data: currentBankroll } = await supabase
-        .from('user_bankroll')
+        .from(bankrollTable)
         .select('*')
         .eq('user_id', bet.user_id)
         .single();
 
       if (currentBankroll) {
         await supabase
-          .from('user_bankroll')
+          .from(bankrollTable)
           .update({
             balance: parseFloat((currentBankroll.balance + balanceChange).toFixed(2)),
             total_profit: parseFloat((currentBankroll.total_profit + profitLoss).toFixed(2)),
