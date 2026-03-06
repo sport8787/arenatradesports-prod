@@ -24,8 +24,9 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
-import { calculateAssetScore, getClassificationColor, type AssetScore } from '@/lib/assetScore';
+import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
