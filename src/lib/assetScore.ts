@@ -5,8 +5,11 @@ export interface AssetScore {
   pattern_score: number;
   liquidity_score: number;
   final_score: number;
+  grade: 'A+' | 'A' | 'B' | 'C';
   classification: 'Elite' | 'Premium' | 'Strong' | 'Moderate' | 'Avoid';
   expected_roi: number;
+  implied_probability: number;
+  model_probability: number;
 }
 
 export function calculateAssetScore(prediction: {
@@ -15,29 +18,23 @@ export function calculateAssetScore(prediction: {
   odd?: number;
   bookmaker?: string;
   estimated_probability?: number;
-  stats_strength?: number;    // 0-100 from analysis
-  pattern_confidence?: number; // 0-100 from pattern mining
+  stats_strength?: number;
+  pattern_confidence?: number;
 }): AssetScore {
   const edge = prediction.value_percentage || 0;
   const confidence = prediction.confidence || 50;
   const odd = prediction.odd || 2;
 
-  // 1️⃣ Probability Score (25%) — AI confidence mapped to score
   const probabilityScore = Math.min(100, confidence);
-
-  // 2️⃣ Market Edge Score (25%) — edge 2% = 40pts, 5% = 70pts, 10%+ = 100pts
   const edgeScore = Math.min(100, (edge / 10) * 100);
 
-  // 3️⃣ Statistical Strength (20%) — from analysis data or estimated from odd range
   const statsStrength = prediction.stats_strength
     ?? (odd <= 1.5 ? 85 : odd <= 2.0 ? 70 : odd <= 2.5 ? 60 : odd <= 3.0 ? 50 : 40);
   const statsScore = Math.min(100, statsStrength);
 
-  // 4️⃣ Pattern Confidence (15%) — from pattern mining or base 50
   const patternConfidence = prediction.pattern_confidence ?? 50;
   const patternScore = Math.min(100, patternConfidence);
 
-  // 5️⃣ Market Stability / Liquidity (15%) — bookmaker quality + odd stability
   const topBooks = ['pinnacle', 'bet365', 'betfair'];
   const liquidityScore = topBooks.includes((prediction.bookmaker || '').toLowerCase()) ? 90 : 60;
 
@@ -49,12 +46,22 @@ export function calculateAssetScore(prediction: {
     liquidityScore * 0.15
   );
 
+  // Grade system: A+ (80-100), A (70-79), B (60-69), C (50-59)
+  let grade: AssetScore['grade'];
+  if (finalScore >= 80) grade = 'A+';
+  else if (finalScore >= 70) grade = 'A';
+  else if (finalScore >= 60) grade = 'B';
+  else grade = 'C';
+
   let classification: AssetScore['classification'];
   if (finalScore >= 90) classification = 'Elite';
   else if (finalScore >= 80) classification = 'Premium';
   else if (finalScore >= 70) classification = 'Strong';
   else if (finalScore >= 60) classification = 'Moderate';
   else classification = 'Avoid';
+
+  const impliedProb = odd > 0 ? (1 / odd) * 100 : 0;
+  const modelProb = prediction.estimated_probability ?? confidence;
 
   return {
     probability_score: Math.round(probabilityScore),
@@ -63,17 +70,29 @@ export function calculateAssetScore(prediction: {
     pattern_score: Math.round(patternScore),
     liquidity_score: liquidityScore,
     final_score: finalScore,
+    grade,
     classification,
     expected_roi: edge,
+    implied_probability: Math.round(impliedProb * 10) / 10,
+    model_probability: Math.round(modelProb * 10) / 10,
   };
+}
+
+export function getGradeConfig(grade: AssetScore['grade']) {
+  switch (grade) {
+    case 'A+': return { text: 'text-success', bg: 'bg-success/10', border: 'border-success/30', emoji: '🟢', label: 'Oportunidade premium. Aposta forte' };
+    case 'A': return { text: 'text-success', bg: 'bg-success/10', border: 'border-success/30', emoji: '🟢', label: 'Boa oportunidade' };
+    case 'B': return { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/30', emoji: '🟡', label: 'Aposta aceitável' };
+    case 'C': return { text: 'text-muted-foreground', bg: 'bg-muted/10', border: 'border-muted/30', emoji: '⚪', label: 'Neutra' };
+  }
 }
 
 export function getClassificationColor(classification: AssetScore['classification']) {
   switch (classification) {
-    case 'Elite': return { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
-    case 'Premium': return { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' };
-    case 'Strong': return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
-    case 'Moderate': return { text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
+    case 'Elite': return { text: 'text-success', bg: 'bg-success/10', border: 'border-success/30' };
+    case 'Premium': return { text: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/30' };
+    case 'Strong': return { text: 'text-success', bg: 'bg-success/10', border: 'border-success/30' };
+    case 'Moderate': return { text: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/30' };
     case 'Avoid': return { text: 'text-muted-foreground', bg: 'bg-muted/10', border: 'border-muted/30' };
   }
 }

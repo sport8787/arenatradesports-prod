@@ -24,8 +24,9 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
-import { calculateAssetScore, getClassificationColor, type AssetScore } from '@/lib/assetScore';
+import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -276,18 +277,31 @@ export default function PunterPage() {
       setTotalAnalyzed(newAnalyzed);
       setTotalApproved(mergedSignals.length);
 
-      // Auto-place Hórus bets on all NEW approved signals
+      // Auto-place Hórus bets — robust anti-duplication via fresh DB check
       if (bankroll && mergedSignals.length > 0) {
+        // Fetch ALL pending bets fresh from DB to prevent duplicates
+        const { data: freshPending } = await supabase
+          .from('virtual_bets_punter')
+          .select('match_id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+        
+        const existingMatchIds = new Set(
+          (freshPending || []).map((b: any) => (b.match_id || '').toLowerCase())
+        );
+
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
           const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
-          if (!pendingMatchKeys.has(matchId)) {
-            const placed = await autoPlaceHorusBet(signal);
-            if (placed) {
-              autoPlaced++;
-              newAutoIds.add(matchId);
-            }
+          // Skip if already has a pending bet (from any source)
+          if (existingMatchIds.has(matchId)) continue;
+          
+          const placed = await autoPlaceHorusBet(signal);
+          if (placed) {
+            autoPlaced++;
+            newAutoIds.add(matchId);
+            existingMatchIds.add(matchId); // Prevent within-loop duplicates
           }
         }
         setAutoPlacedMatchIds(newAutoIds);
@@ -528,9 +542,63 @@ export default function PunterPage() {
           </Alert>
         )}
 
-        {/* Signals */}
+        {/* Portfolio Expected ROI Summary */}
         {signals.length > 0 && (
           <div className="space-y-4">
+            {(() => {
+              const scores = signals.map(s => calculateAssetScore({
+                value_percentage: s.recommendation.value_percentage,
+                confidence: s.recommendation.confidence,
+                odd: s.recommendation.odd,
+                bookmaker: s.recommendation.bookmaker,
+              }));
+              const avgScore = Math.round(scores.reduce((a, s) => a + s.final_score, 0) / scores.length);
+              const avgROI = (scores.reduce((a, s) => a + s.expected_roi, 0) / scores.length).toFixed(1);
+              const totalPendingStake = pendingBets.reduce((s: number, b: any) => s + parseFloat(b.stake || 0), 0);
+              const expectedProfit = pendingBets.reduce((s: number, b: any) => {
+                const sig = signals.find(sg => {
+                  const mId = `${sg.match.home_team}_${sg.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+                  return mId === (b.match_id || '').toLowerCase();
+                });
+                if (!sig) return s;
+                return s + parseFloat(b.stake || 0) * (sig.recommendation.odd - 1) * (sig.recommendation.confidence / 100);
+              }, 0);
+
+              return (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-orbitron font-bold text-sm text-foreground flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        Portfólio de Apostas em Aberto
+                      </h3>
+                      <Badge className="bg-primary/20 text-primary border-primary/30">
+                        {pendingBets.length} ativos
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Score Médio</p>
+                        <p className="font-orbitron font-bold text-lg text-foreground">{avgScore}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Edge Médio</p>
+                        <p className="font-orbitron font-bold text-lg text-success">+{avgROI}%</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Exposição</p>
+                        <p className="font-orbitron font-bold text-lg text-foreground">R$ {totalPendingStake.toFixed(0)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Retorno Esp.</p>
+                        <p className="font-orbitron font-bold text-lg text-success">R$ {expectedProfit.toFixed(0)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
               <CheckCircle2 className="w-5 h-5 text-success" />
               Sinais Aprovados ({signals.length})
@@ -539,7 +607,6 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              // Kelly-based stake
               const kelly = bankroll ? calculateKellyStake({
                 probability: signal.recommendation.confidence || 55,
                 odd: signal.recommendation.odd,
@@ -644,7 +711,7 @@ export default function PunterPage() {
   );
 }
 
-// Signal Card Component with Asset Score, NOVO badge, and Hórus auto-bet indicator
+// Signal Card Component with Asset Score Grade (A+/A/B/C)
 function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
@@ -661,14 +728,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   const isToday = commenceDate.toDateString() === new Date().toDateString();
   const stakePercent = kellyPercent || signal.recommendation.stake_percentage || 3;
 
-  // Calculate Asset Score
   const assetScore = calculateAssetScore({
     value_percentage: signal.recommendation.value_percentage,
     confidence: signal.recommendation.confidence,
     odd: signal.recommendation.odd,
     bookmaker: signal.recommendation.bookmaker,
   });
-  const scoreColors = getClassificationColor(assetScore.classification);
+  const gradeConfig = getGradeConfig(assetScore.grade);
 
   const handleManualBet = () => {
     const stake = parseFloat(customStake);
@@ -682,14 +748,19 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="border-success/30 hover:border-success/50 transition-all">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <CardTitle className="text-lg text-foreground">
-                  {signal.match.home_team} vs {signal.match.away_team}
-                </CardTitle>
+      <Card className={cn("transition-all", gradeConfig.border, "border hover:shadow-lg")}>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              {/* Badges row */}
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                {/* Grade Badge - prominent */}
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-orbitron font-bold border",
+                  gradeConfig.bg, gradeConfig.text, gradeConfig.border
+                )}>
+                  {gradeConfig.emoji} {assetScore.grade}
+                </span>
                 {isNew && (
                   <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] animate-pulse">
                     <Sparkles className="w-3 h-3 mr-0.5" />
@@ -703,62 +774,67 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   </Badge>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>
-                    {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
-                    {' às '}
-                    {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <span className="text-xs opacity-60">•</span>
-                <span className="text-xs">{signal.match.league}</span>
+
+              {/* Match name */}
+              <CardTitle className="text-base text-foreground leading-tight">
+                {signal.match.home_team} vs {signal.match.away_team}
+              </CardTitle>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                  {' às '}
+                  {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="opacity-60">•</span>
+                <span>{signal.match.league}</span>
               </div>
             </div>
-            <div className="text-right space-y-1">
-              {/* Asset Score Badge */}
-              <div className={cn("px-2.5 py-1 rounded-full text-xs font-bold font-orbitron", scoreColors.bg, scoreColors.text, scoreColors.border, "border")}>
-                {assetScore.final_score} • {assetScore.classification}
+
+            {/* Score circle */}
+            <div className="flex flex-col items-center gap-1">
+              <div className={cn(
+                "w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center",
+                gradeConfig.border, gradeConfig.bg
+              )}>
+                <span className={cn("font-orbitron font-bold text-xl leading-none", gradeConfig.text)}>
+                  {assetScore.final_score}
+                </span>
+                <span className="text-[8px] text-muted-foreground uppercase">Score</span>
               </div>
-              <div className="text-2xl font-orbitron font-bold text-success">
-                +{signal.recommendation.value_percentage?.toFixed(1)}%
-              </div>
-              <div className="text-xs text-muted-foreground">Value</div>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
-            <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
-            <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <InfoBox label="Stake (Kelly)" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+          {/* Asset Data Grid — like a financial asset card */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            <AssetDataCell label="Mercado" value={signal.recommendation.market} />
+            <AssetDataCell label="Casa" value={signal.recommendation.bookmaker} />
+            <AssetDataCell label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
+            <AssetDataCell label="Prob. Modelo" value={`${assetScore.model_probability}%`} />
+            <AssetDataCell label="Edge" value={`+${signal.recommendation.value_percentage?.toFixed(1)}%`} highlight />
+            <AssetDataCell label="Stake Kelly" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} />
           </div>
 
-          {/* Asset Score Breakdown — 5 factors */}
-          <div className="grid grid-cols-5 gap-1">
-            <ScoreBarMini label="Prob." value={assetScore.probability_score} />
-            <ScoreBarMini label="Edge" value={assetScore.edge_score} />
-            <ScoreBarMini label="Stats" value={assetScore.stats_score} />
-            <ScoreBarMini label="Padrão" value={assetScore.pattern_score} />
-            <ScoreBarMini label="Liquidez" value={assetScore.liquidity_score} />
+          {/* Classification description */}
+          <div className={cn("rounded-lg p-2.5 flex items-center gap-2", gradeConfig.bg, "border", gradeConfig.border)}>
+            <span className="text-lg">{gradeConfig.emoji}</span>
+            <div>
+              <span className={cn("font-orbitron font-bold text-sm", gradeConfig.text)}>
+                Classificação {assetScore.grade}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">{gradeConfig.label}</span>
+            </div>
           </div>
 
-          {/* Confidence Bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Confiança Mycroft</span>
-              <span className="font-bold text-foreground">{signal.recommendation.confidence}%</span>
-            </div>
-            <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-success to-primary rounded-full transition-all"
-                style={{ width: `${signal.recommendation.confidence}%` }}
-              />
-            </div>
+          {/* 5-Factor Score Bars */}
+          <div className="space-y-1.5">
+            <ScoreBar label="Probabilidade" value={assetScore.probability_score} weight="25%" />
+            <ScoreBar label="Market Edge" value={assetScore.edge_score} weight="25%" />
+            <ScoreBar label="Força Estatística" value={assetScore.stats_score} weight="20%" />
+            <ScoreBar label="Padrão" value={assetScore.pattern_score} weight="15%" />
+            <ScoreBar label="Liquidez" value={assetScore.liquidity_score} weight="15%" />
           </div>
 
           {/* Thesis */}
@@ -833,7 +909,8 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
                 <p className="text-sm font-bold text-foreground mb-1">📐 Cálculo de Value:</p>
                 <div className="text-sm text-foreground/80 space-y-1">
-                  <div>Odd oferecida: <span className="font-mono">{signal.recommendation.odd}</span> → Prob. implícita: <span className="font-mono">{(100 / signal.recommendation.odd).toFixed(1)}%</span></div>
+                  <div>Odd oferecida: <span className="font-mono">{signal.recommendation.odd}</span> → Prob. implícita: <span className="font-mono">{assetScore.implied_probability}%</span></div>
+                  <div>Prob. modelo: <span className="font-mono">{assetScore.model_probability}%</span></div>
                   <div>Odd justa estimada: <span className="font-mono">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
                   <div className="font-bold text-success">Value: {signal.recommendation.value_percentage?.toFixed(1)}%</div>
                 </div>
@@ -846,14 +923,24 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   );
 }
 
-function ScoreBarMini({ label, value }: { label: string; value: number }) {
+function ScoreBar({ label, value, weight }: { label: string; value: number; weight: string }) {
+  const color = value >= 80 ? 'bg-success' : value >= 60 ? 'bg-primary' : value >= 40 ? 'bg-warning' : 'bg-destructive';
   return (
-    <div className="bg-secondary/30 rounded-lg p-1.5 text-center">
-      <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
-      <p className="text-xs font-orbitron font-bold text-foreground">{value}</p>
-      <div className="w-full bg-secondary rounded-full h-1 mt-0.5">
-        <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${value}%` }} />
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-muted-foreground w-24 shrink-0 truncate">{label} ({weight})</span>
+      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value}%` }} />
       </div>
+      <span className="text-[10px] font-orbitron font-bold text-foreground w-7 text-right">{value}</span>
+    </div>
+  );
+}
+
+function AssetDataCell({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-lg p-2", highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30')}>
+      <p className="text-[9px] text-muted-foreground uppercase mb-0.5">{label}</p>
+      <p className={cn("text-xs font-bold truncate", highlight ? 'text-success' : 'text-foreground')}>{value}</p>
     </div>
   );
 }
