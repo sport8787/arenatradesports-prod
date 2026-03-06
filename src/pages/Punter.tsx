@@ -729,15 +729,6 @@ export default function PunterPage() {
             </div>
           </div>
         )}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-foreground">{bet.match_name}</p>
-                        <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px]">
-                          <Bot className="w-3 h-3 mr-0.5" />
-                          Hórus
-                        </Badge>
-                      </div>
-      </div>
       </div>
 
       {/* KB Chat */}
