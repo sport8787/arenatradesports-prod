@@ -624,44 +624,30 @@ export default function PunterPage() {
               }, 0);
 
               return (
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-orbitron font-bold text-sm text-foreground flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-primary" />
-                        Portfólio de Apostas em Aberto
-                      </h3>
-                      <Badge className="bg-primary/20 text-primary border-primary/30">
-                        {pendingBets.length} ativos
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Score Médio</p>
-                        <p className="font-orbitron font-bold text-lg text-foreground">{avgScore}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Edge Médio</p>
-                        <p className="font-orbitron font-bold text-lg text-success">+{avgROI}%</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Exposição</p>
-                        <p className="font-orbitron font-bold text-lg text-foreground">R$ {totalPendingStake.toFixed(0)}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Retorno Esp.</p>
-                        <p className="font-orbitron font-bold text-lg text-success">R$ {expectedProfit.toFixed(0)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="border border-border rounded-lg bg-card overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                    <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">PORTFÓLIO EM ABERTO</span>
+                    <span className="font-mono text-[10px] text-primary">{pendingBets.length} POSIÇÕES</span>
+                  </div>
+                  <div className="grid grid-cols-4 divide-x divide-border">
+                    <PortfolioMetric label="SCORE MÉDIO" value={String(avgScore)} />
+                    <PortfolioMetric label="EDGE MÉDIO" value={`+${avgROI}%`} valueColor="text-success" />
+                    <PortfolioMetric label="EXPOSIÇÃO" value={`R$ ${totalPendingStake.toFixed(0)}`} />
+                    <PortfolioMetric label="RETORNO ESP." value={`R$ ${expectedProfit.toFixed(0)}`} valueColor="text-success" />
+                  </div>
+                </div>
               );
             })()}
 
-            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-              Sinais Aprovados ({signals.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                ATIVOS IDENTIFICADOS ({signals.length})
+              </h2>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-success">
+                <CheckCircle2 className="w-3 h-3" />
+                APROVADOS
+              </div>
+            </div>
             {signals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
@@ -693,41 +679,56 @@ export default function PunterPage() {
 
         {/* Empty states */}
         {!loading && signals.length === 0 && totalAnalyzed > 0 && (
-          <Card className="border-dashed border-border">
-            <CardContent className="pt-6 text-center">
-              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <h3 className="font-bold text-lg mb-1 text-foreground">Nenhum Sinal Aprovado</h3>
-              <p className="text-muted-foreground text-sm">
-                {totalAnalyzed} jogos analisados, nenhum com value ≥5%. Tente mais tarde.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="border border-dashed border-border rounded-lg p-8 text-center">
+            <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="font-mono text-sm text-foreground mb-1">Nenhum ativo aprovado</p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {totalAnalyzed} mercados escaneados. Nenhum com edge ≥5%.
+            </p>
+          </div>
         )}
 
         {!loading && signals.length === 0 && totalAnalyzed === 0 && (
-          <Card className="border-dashed border-border">
-            <CardContent className="pt-6 text-center">
-              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <h3 className="font-bold text-lg mb-1 text-foreground">Pronto para Começar</h3>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Clique em "Analisar Jogos" para o Mycroft Punter buscar oportunidades de value betting.
-                Hórus apostará automaticamente nos sinais aprovados.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="border border-dashed border-border rounded-lg p-8 text-center">
+            <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
+            <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
+              Clique em "Analisar Mercado" para identificar oportunidades de value betting.
+            </p>
+          </div>
         )}
 
-        {/* Pending Bets */}
+        {/* Pending Positions */}
         {pendingBets.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
-              <Clock className="w-5 h-5 text-primary" />
-              Apostas Pendentes ({pendingBets.length})
-            </h2>
-            {pendingBets.map((bet) => (
-              <Card key={bet.id} className="border-primary/30">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                POSIÇÕES ABERTAS ({pendingBets.length})
+              </span>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-primary">
+                <Clock className="w-3 h-3" />
+                PENDENTE
+              </div>
+            </div>
+            <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
+              {pendingBets.map((bet) => (
+                <div key={bet.id} className="p-3 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-8 rounded-full bg-primary/50" />
+                    <div>
+                      <p className="font-mono text-sm font-semibold text-foreground">{bet.match_name || bet.match_id}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">{bet.market}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-sm font-bold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">@ {parseFloat(bet.odd).toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-foreground">{bet.match_name}</p>
