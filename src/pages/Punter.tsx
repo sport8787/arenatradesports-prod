@@ -4,7 +4,7 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User
+  Sparkles, User, Bot
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,6 +68,7 @@ export default function PunterPage() {
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
+  const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
 
   // Set of pending bet match keys for "NOVO" badge
   const pendingMatchKeys = useMemo(() => {
@@ -173,6 +175,56 @@ export default function PunterPage() {
     }));
   };
 
+  // Auto-place Hórus bet for a single signal (no toast per bet)
+  const autoPlaceHorusBet = async (signal: PunterSignal) => {
+    if (!bankroll || !user) return false;
+    const stakePercent = signal.recommendation.stake_percentage || 3;
+    const stake = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
+    if (stake > bankroll.balance || stake <= 0) return false;
+
+    const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
+
+    // Check if Hórus already bet on this match
+    const { data: existingBets } = await supabase
+      .from('virtual_bets_punter')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+      .eq('status', 'pending');
+
+    if (existingBets && existingBets.length > 0) return false; // Already bet
+
+    const { error: betError } = await supabase
+      .from('virtual_bets_punter')
+      .insert({
+        user_id: user.id,
+        match_id: matchId,
+        match_name: matchName,
+        market: signal.recommendation.market,
+        odd: signal.recommendation.odd,
+        stake: stake,
+        status: 'pending',
+        thesis: signal.recommendation.thesis || null,
+      } as any);
+
+    if (betError) return false;
+
+    await supabase.from('user_bankroll').update({
+      balance: bankroll.balance - stake,
+      total_staked: bankroll.total_staked + stake,
+      total_bets: bankroll.total_bets + 1,
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id);
+
+    // Update local bankroll
+    bankroll.balance -= stake;
+    bankroll.total_staked += stake;
+    bankroll.total_bets += 1;
+
+    return true;
+  };
+
   const analyzeGames = async () => {
     if (!user) {
       setError('Você precisa estar logado para analisar jogos');
@@ -208,6 +260,34 @@ export default function PunterPage() {
       setTotalAnalyzed(newAnalyzed);
       setTotalApproved(mergedSignals.length);
 
+      // Auto-place Hórus bets on all NEW approved signals
+      if (bankroll && mergedSignals.length > 0) {
+        let autoPlaced = 0;
+        const newAutoIds = new Set<string>();
+        for (const signal of mergedSignals) {
+          const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+          if (!pendingMatchKeys.has(matchId)) {
+            const placed = await autoPlaceHorusBet(signal);
+            if (placed) {
+              autoPlaced++;
+              newAutoIds.add(matchId);
+            }
+          }
+        }
+        setAutoPlacedMatchIds(newAutoIds);
+        if (autoPlaced > 0) {
+          toast.success(`🤖 Hórus apostou automaticamente em ${autoPlaced} jogos`);
+        }
+        // Refresh pending bets
+        const { data: updated } = await supabase
+          .from('virtual_bets_punter')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        if (updated) setPendingBets(updated);
+      }
+
       if (fnError) {
         if (savedSignals.length > 0) {
           toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
@@ -229,84 +309,19 @@ export default function PunterPage() {
     }
   };
 
-  const placeBetHorus = useCallback(async (signal: PunterSignal) => {
-    if (!bankroll || !user) {
-      toast.error('Banca não carregada');
-      return;
-    }
-    const stakePercent = signal.recommendation.stake_percentage || 3;
-    const stake = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
-    if (stake > bankroll.balance || stake <= 0) {
-      toast.error('Saldo insuficiente');
-      return;
-    }
-    const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
-
-    // Cancel conflicting pending bets
-    const { data: existingBets } = await supabase
-      .from('virtual_bets_punter')
-      .select('id, stake')
-      .eq('user_id', user.id)
-      .eq('match_id', matchId)
-      .eq('status', 'pending');
-
-    if (existingBets && existingBets.length > 0) {
-      const totalRefund = existingBets.reduce((sum: number, b: any) => sum + parseFloat(b.stake), 0);
-      await supabase
-        .from('virtual_bets_punter')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-        .in('id', existingBets.map((b: any) => b.id));
-      await supabase.from('user_bankroll').update({
-        balance: bankroll.balance + totalRefund,
-        total_staked: Math.max(0, bankroll.total_staked - totalRefund),
-        updated_at: new Date().toISOString(),
-      }).eq('user_id', user.id);
-      bankroll.balance += totalRefund;
-      bankroll.total_staked = Math.max(0, bankroll.total_staked - totalRefund);
-      toast.info(`Aposta anterior em ${matchName} cancelada e estornada`);
-    }
-
-    const { error: betError } = await supabase
-      .from('virtual_bets_punter')
-      .insert({
-        user_id: user.id,
-        match_id: matchId,
-        match_name: matchName,
-        market: signal.recommendation.market,
-        odd: signal.recommendation.odd,
-        stake: stake,
-        status: 'pending',
-        thesis: signal.recommendation.thesis || null,
-      } as any);
-    if (betError) {
-      toast.error(betError.message);
-      return;
-    }
-    await supabase.from('user_bankroll').update({
-      balance: bankroll.balance - stake,
-      total_staked: bankroll.total_staked + stake,
-      total_bets: bankroll.total_bets + 1,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', user.id);
-
-    toast.success(`Hórus: R$ ${stake.toFixed(2)} em ${matchName}`);
-    const { data: updated } = await supabase
-      .from('virtual_bets_punter')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-    if (updated) setPendingBets(updated);
-  }, [bankroll, user]);
-
-  const placeBetManual = useCallback(async (signal: PunterSignal) => {
+  const placeBetManual = useCallback(async (signal: PunterSignal, customStake: number) => {
     if (!manualBankroll || !user) {
       toast.error('Bankroll Manual não carregada');
       return;
     }
-    const stakePercent = signal.recommendation.stake_percentage || 3;
-    const stake = Math.round(manualBankroll.balance * (stakePercent / 100) * 100) / 100;
+    if (customStake <= 0) {
+      toast.error('Valor da aposta deve ser maior que zero');
+      return;
+    }
+    if (customStake > manualBankroll.balance) {
+      toast.error('Saldo insuficiente na Bankroll Manual');
+      return;
+    }
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
@@ -315,7 +330,7 @@ export default function PunterPage() {
       match_name: matchName,
       market: signal.recommendation.market,
       odd: signal.recommendation.odd,
-      stake,
+      stake: customStake,
       thesis: signal.recommendation.thesis,
     });
 
@@ -323,7 +338,7 @@ export default function PunterPage() {
       toast.error(result.error || 'Erro');
       return;
     }
-    toast.success(`Manual: R$ ${stake.toFixed(2)} em ${matchName}`);
+    toast.success(`Manual: R$ ${customStake.toFixed(2)} em ${matchName}`);
   }, [manualBankroll, user, placeManualBet]);
 
   if (showBacktest) {
@@ -399,7 +414,8 @@ export default function PunterPage() {
           <CardContent className="p-4">
             <p className="text-sm text-foreground/80">
               <span className="font-bold text-success">Value Betting Pré-Jogo</span> — Mycroft Punter analisa jogos 
-              futuros e identifica odds com value positivo em múltiplos mercados (1x2, Over/Under). Stake recomendado: 2-5% da banca.
+              futuros e identifica odds com value positivo. <span className="font-bold text-primary">Hórus aposta automaticamente</span> nos sinais aprovados.
+              Você pode apostar manualmente com seu próprio valor na Bankroll Manual.
             </p>
           </CardContent>
         </Card>
@@ -498,15 +514,19 @@ export default function PunterPage() {
             {signals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
+              const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
+              const stakePercent = signal.recommendation.stake_percentage || 3;
+              const horusStake = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
               return (
                 <SignalCard
                   key={index}
                   signal={signal}
-                  onPlaceBetHorus={() => placeBetHorus(signal)}
-                  onPlaceBetManual={() => placeBetManual(signal)}
+                  onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
                   bankroll={bankroll}
                   manualBankroll={manualBankroll}
-                  isNew={!hasPendingBet}
+                  isNew={!hasPendingBet && !wasAutoPlaced}
+                  horusEntered={hasPendingBet || wasAutoPlaced}
+                  horusStake={horusStake}
                 />
               );
             })}
@@ -533,6 +553,7 @@ export default function PunterPage() {
               <h3 className="font-bold text-lg mb-1 text-foreground">Pronto para Começar</h3>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
                 Clique em "Analisar Jogos" para o Mycroft Punter buscar oportunidades de value betting.
+                Hórus apostará automaticamente nos sinais aprovados.
               </p>
             </CardContent>
           </Card>
@@ -550,15 +571,21 @@ export default function PunterPage() {
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-bold text-foreground">{bet.match_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-foreground">{bet.match_name}</p>
+                        <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                          <Bot className="w-3 h-3 mr-0.5" />
+                          Hórus
+                        </Badge>
+                      </div>
                       <p className="text-sm text-muted-foreground">{bet.market}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-orbitron font-bold text-primary">R$ {bet.stake.toFixed(2)}</p>
+                      <p className="font-orbitron font-bold text-primary">R$ {parseFloat(bet.stake).toFixed(2)}</p>
                       <p className="text-xs text-muted-foreground">Odd: {bet.odd}</p>
                     </div>
                   </div>
-                  <Badge className="mt-2 bg-primary/10 text-primary border-primary/30">Pendente</Badge>
+                  <Badge className="mt-2 bg-primary/10 text-primary border-primary/30">Pendente ⏳</Badge>
                 </CardContent>
               </Card>
             ))}
@@ -585,21 +612,21 @@ export default function PunterPage() {
   );
 }
 
-// Signal Card Component with Asset Score & NOVO badge
-function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manualBankroll, isNew }: {
+// Signal Card Component with Asset Score, NOVO badge, and Hórus auto-bet indicator
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake }: {
   signal: PunterSignal;
-  onPlaceBetHorus: () => void;
-  onPlaceBetManual: () => void;
+  onPlaceBetManual: (stake: number) => void;
   bankroll: any;
   manualBankroll: any;
   isNew: boolean;
+  horusEntered: boolean;
+  horusStake: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [customStake, setCustomStake] = useState('');
   const commenceDate = new Date(signal.match.commence_time);
   const isToday = commenceDate.toDateString() === new Date().toDateString();
   const stakePercent = signal.recommendation.stake_percentage || 3;
-  const horusStake = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
-  const manualStake = manualBankroll ? Math.round(manualBankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
 
   // Calculate Asset Score
   const assetScore = calculateAssetScore({
@@ -610,13 +637,23 @@ function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manua
   });
   const scoreColors = getClassificationColor(assetScore.classification);
 
+  const handleManualBet = () => {
+    const stake = parseFloat(customStake);
+    if (isNaN(stake) || stake <= 0) {
+      toast.error('Informe um valor válido');
+      return;
+    }
+    onPlaceBetManual(stake);
+    setCustomStake('');
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="border-success/30 hover:border-success/50 transition-all">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <CardTitle className="text-lg text-foreground">
                   {signal.match.home_team} vs {signal.match.away_team}
                 </CardTitle>
@@ -624,6 +661,12 @@ function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manua
                   <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] animate-pulse">
                     <Sparkles className="w-3 h-3 mr-0.5" />
                     NOVO
+                  </Badge>
+                )}
+                {horusEntered && (
+                  <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">
+                    <Bot className="w-3 h-3 mr-0.5" />
+                    ENTREI — R$ {horusStake.toFixed(2)}
                   </Badge>
                 )}
               </div>
@@ -659,7 +702,7 @@ function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manua
             <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
             <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
             <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <InfoBox label="Stake" value={`${stakePercent}%`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+            <InfoBox label="Stake" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
           </div>
 
           {/* Asset Score Breakdown */}
@@ -690,21 +733,51 @@ function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manua
             <p className="text-sm text-foreground/80">{signal.recommendation.thesis}</p>
           </div>
 
-          {/* Dual Bet Buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <GoldButton onClick={onPlaceBetHorus} className="w-full text-xs" disabled={!bankroll || horusStake <= 0}>
-              <DollarSign className="w-3.5 h-3.5 mr-1" />
-              Seguir Hórus — R$ {horusStake.toFixed(2)}
-            </GoldButton>
-            <Button
-              onClick={onPlaceBetManual}
-              variant="outline"
-              className="w-full text-xs border-accent/30 hover:bg-accent/10"
-              disabled={!manualBankroll || manualStake <= 0}
-            >
-              <User className="w-3.5 h-3.5 mr-1" />
-              Aposta Manual — R$ {manualStake.toFixed(2)}
-            </Button>
+          {/* Hórus Auto-bet Info */}
+          {horusEntered && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
+              <Bot className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-sm text-foreground/80">
+                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% da banca)
+              </p>
+            </div>
+          )}
+
+          {/* Manual Bet Section */}
+          <div className="border border-accent/20 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-accent" />
+              <span className="text-sm font-bold text-foreground">Aposta Manual</span>
+              {manualBankroll && (
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Saldo: R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  type="number"
+                  placeholder="Valor da aposta"
+                  value={customStake}
+                  onChange={(e) => setCustomStake(e.target.value)}
+                  className="pl-9 h-9"
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+              <Button
+                onClick={handleManualBet}
+                variant="outline"
+                size="sm"
+                className="border-accent/30 hover:bg-accent/10 h-9 px-4"
+                disabled={!manualBankroll || !customStake}
+              >
+                <User className="w-3.5 h-3.5 mr-1" />
+                Apostar
+              </Button>
+            </div>
           </div>
 
           {/* Expand */}
