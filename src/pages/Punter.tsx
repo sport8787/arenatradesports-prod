@@ -1228,7 +1228,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-mono text-muted-foreground">SCORE</span>
                         <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                          <div className={cn("h-full rounded-full", config.bgColor.replace('/5', '/60'))} style={{ width: `${score}%` }} />
+                          <div className={cn("h-full rounded-full", config.bg.replace('/10', '/60'))} style={{ width: `${score}%` }} />
                         </div>
                         <span className="text-[9px] font-mono font-bold text-foreground">{score}</span>
                       </div>
