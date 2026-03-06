@@ -9,16 +9,21 @@ import BankrollSettingsDialog from '@/components/arena-trader/BankrollSettingsDi
 interface DualBankrollDashboardProps {
   horus: Bankroll;
   manual: ManualBankroll;
+  pendingBets?: any[];
   onUpdateHorusBalance?: (v: number) => Promise<{ success: boolean; error?: string }>;
   onUpdateManualBalance?: (v: number) => Promise<{ success: boolean; error?: string }>;
 }
 
-export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBalance, onUpdateManualBalance }: DualBankrollDashboardProps) {
+export default function DualBankrollDashboard({ horus, manual, pendingBets = [], onUpdateHorusBalance, onUpdateManualBalance }: DualBankrollDashboardProps) {
   const [settingsTarget, setSettingsTarget] = useState<'horus' | 'manual' | null>(null);
 
-  const totalBalance = (horus.balance || 0) + (manual.balance || 0);
+  // Exposure = sum of stakes from pending (open) bets only
+  const pendingExposure = pendingBets.reduce((sum, b) => sum + (b.stake || 0), 0);
+
+  // Total equity = current cash balance + money in play (pending bets)
+  const totalEquity = (horus.balance || 0) + (manual.balance || 0) + pendingExposure;
   const totalInitial = (horus.initial_balance || 0) + (manual.initial_balance || 0);
-  const totalPL = totalBalance - totalInitial;
+  const totalPL = totalEquity - totalInitial;
   const totalROI = totalInitial > 0 ? ((totalPL / totalInitial) * 100) : 0;
 
   const horusRoi = horus.initial_balance > 0
