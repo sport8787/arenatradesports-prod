@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity
+  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import { Button } from '@/components/ui/button';
