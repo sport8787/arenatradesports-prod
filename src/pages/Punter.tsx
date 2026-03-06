@@ -997,6 +997,15 @@ function HeaderBtn({ icon, label, onClick, disabled }: { icon: React.ReactNode; 
   );
 }
 
+function PortfolioMetric({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div className="px-3 py-2.5 text-center">
+      <p className="text-[9px] font-mono text-muted-foreground tracking-wider">{label}</p>
+      <p className={cn("font-mono font-bold text-sm mt-0.5", valueColor || 'text-foreground')}>{value}</p>
+    </div>
+  );
+}
+
 // Punter History Sheet
 function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange }: {
   isOpen: boolean;
