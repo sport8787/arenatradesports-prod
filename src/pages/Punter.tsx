@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical
+  Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
+  Sparkles, User
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import { Button } from '@/components/ui/button';
@@ -16,9 +17,11 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
+import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
-import BankrollWidget from '@/components/arena-trader/BankrollWidget';
+import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
+import { calculateAssetScore, getClassificationColor, type AssetScore } from '@/lib/assetScore';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,6 +51,7 @@ export default function PunterPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
+  const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
   const [loading, setLoading] = useState(false);
   const [signals, setSignals] = useState<PunterSignal[]>([]);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
@@ -63,6 +67,15 @@ export default function PunterPage() {
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
+
+  // Set of pending bet match keys for "NOVO" badge
+  const pendingMatchKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const bet of pendingBets) {
+      keys.add((bet.match_id || '').toLowerCase());
+    }
+    return keys;
+  }, [pendingBets]);
 
   // Load pending bets on mount
   useEffect(() => {
@@ -168,10 +181,7 @@ export default function PunterPage() {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch previously saved approved signals (future games only)
       const savedSignals = await fetchSavedSignals();
-
-      // 2. Run new analysis
       const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
       const functionName = aiProvider === 'anthropic' ? 'mycroft-punter-anthropic' : 'mycroft-punter-analysis';
       const { data, error: fnError } = await supabase.functions.invoke(functionName, {
@@ -186,20 +196,12 @@ export default function PunterPage() {
       const newAnalyzed = data?.total_analyzed || 0;
       const newApproved = data?.total_approved || 0;
 
-      // 3. Merge: deduplicate by match key (home_away_commence)
       const signalKey = (s: PunterSignal) =>
         `${s.match.home_team}_${s.match.away_team}_${s.match.commence_time}`.toLowerCase().replace(/\s+/g, '_');
 
       const mergedMap = new Map<string, PunterSignal>();
-      // Saved signals first (lower priority)
-      for (const s of savedSignals) {
-        mergedMap.set(signalKey(s), s);
-      }
-      // New signals overwrite (higher priority)
-      for (const s of newSignals) {
-        mergedMap.set(signalKey(s), s);
-      }
-
+      for (const s of savedSignals) mergedMap.set(signalKey(s), s);
+      for (const s of newSignals) mergedMap.set(signalKey(s), s);
       const mergedSignals = Array.from(mergedMap.values());
 
       setSignals(mergedSignals);
@@ -207,7 +209,6 @@ export default function PunterPage() {
       setTotalApproved(mergedSignals.length);
 
       if (fnError) {
-        // Even if new analysis failed, show saved signals
         if (savedSignals.length > 0) {
           toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
         } else {
@@ -228,7 +229,7 @@ export default function PunterPage() {
     }
   };
 
-  const placeBet = useCallback(async (signal: PunterSignal) => {
+  const placeBetHorus = useCallback(async (signal: PunterSignal) => {
     if (!bankroll || !user) {
       toast.error('Banca não carregada');
       return;
@@ -242,7 +243,7 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
-    // Cancel any conflicting pending bet for the same match
+    // Cancel conflicting pending bets
     const { data: existingBets } = await supabase
       .from('virtual_bets_punter')
       .select('id, stake')
@@ -251,27 +252,21 @@ export default function PunterPage() {
       .eq('status', 'pending');
 
     if (existingBets && existingBets.length > 0) {
-      // Refund old stakes and cancel old bets
       const totalRefund = existingBets.reduce((sum: number, b: any) => sum + parseFloat(b.stake), 0);
       await supabase
         .from('virtual_bets_punter')
         .update({ status: 'cancelled', updated_at: new Date().toISOString() })
         .in('id', existingBets.map((b: any) => b.id));
-
-      // Refund to bankroll
       await supabase.from('user_bankroll').update({
         balance: bankroll.balance + totalRefund,
         total_staked: Math.max(0, bankroll.total_staked - totalRefund),
         updated_at: new Date().toISOString(),
       }).eq('user_id', user.id);
-
-      // Update local bankroll ref
       bankroll.balance += totalRefund;
       bankroll.total_staked = Math.max(0, bankroll.total_staked - totalRefund);
       toast.info(`Aposta anterior em ${matchName} cancelada e estornada`);
     }
 
-    // Insert bet with thesis
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
@@ -288,7 +283,6 @@ export default function PunterPage() {
       toast.error(betError.message);
       return;
     }
-    // Update bankroll
     await supabase.from('user_bankroll').update({
       balance: bankroll.balance - stake,
       total_staked: bankroll.total_staked + stake,
@@ -296,8 +290,7 @@ export default function PunterPage() {
       updated_at: new Date().toISOString(),
     }).eq('user_id', user.id);
 
-    toast.success(`Aposta de R$ ${stake.toFixed(2)} registrada em ${matchName}`);
-    // Refresh pending bets
+    toast.success(`Hórus: R$ ${stake.toFixed(2)} em ${matchName}`);
     const { data: updated } = await supabase
       .from('virtual_bets_punter')
       .select('*')
@@ -306,6 +299,32 @@ export default function PunterPage() {
       .order('created_at', { ascending: false });
     if (updated) setPendingBets(updated);
   }, [bankroll, user]);
+
+  const placeBetManual = useCallback(async (signal: PunterSignal) => {
+    if (!manualBankroll || !user) {
+      toast.error('Bankroll Manual não carregada');
+      return;
+    }
+    const stakePercent = signal.recommendation.stake_percentage || 3;
+    const stake = Math.round(manualBankroll.balance * (stakePercent / 100) * 100) / 100;
+    const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
+
+    const result = await placeManualBet({
+      match_id: matchId,
+      match_name: matchName,
+      market: signal.recommendation.market,
+      odd: signal.recommendation.odd,
+      stake,
+      thesis: signal.recommendation.thesis,
+    });
+
+    if (!result.success) {
+      toast.error(result.error || 'Erro');
+      return;
+    }
+    toast.success(`Manual: R$ ${stake.toFixed(2)} em ${matchName}`);
+  }, [manualBankroll, user, placeManualBet]);
 
   if (showBacktest) {
     return <BacktestPanel onClose={() => setShowBacktest(false)} />;
@@ -365,8 +384,15 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-4 space-y-4 max-w-4xl">
-        {/* Bankroll Widget */}
-        {bankroll && !bankrollLoading && <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />}
+        {/* Dual Bankroll Widget */}
+        {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
+          <DualBankrollDashboard
+            horus={bankroll}
+            manual={manualBankroll}
+            onUpdateHorusBalance={updateInitialBalance}
+            onUpdateManualBalance={updateManualBalance}
+          />
+        )}
 
         {/* Info Banner */}
         <Card className="border-success/30 bg-success/5">
@@ -384,7 +410,6 @@ export default function PunterPage() {
             <CardTitle className="text-base font-orbitron">Analisar Jogos (Todas as Ligas + PE)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Time Window Toggle */}
             <div className="flex gap-2">
               <Button
                 variant={timeWindow === '15min' ? 'default' : 'outline'}
@@ -406,7 +431,6 @@ export default function PunterPage() {
               </Button>
             </div>
 
-            {/* AI Provider Toggle */}
             <div className="flex gap-2">
               <Button
                 variant={aiProvider === 'gemini' ? 'default' : 'outline'}
@@ -471,9 +495,21 @@ export default function PunterPage() {
               <CheckCircle2 className="w-5 h-5 text-success" />
               Sinais Aprovados ({signals.length})
             </h2>
-            {signals.map((signal, index) => (
-              <SignalCard key={index} signal={signal} onPlaceBet={() => placeBet(signal)} bankroll={bankroll} />
-            ))}
+            {signals.map((signal, index) => {
+              const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+              const hasPendingBet = pendingMatchKeys.has(matchId);
+              return (
+                <SignalCard
+                  key={index}
+                  signal={signal}
+                  onPlaceBetHorus={() => placeBetHorus(signal)}
+                  onPlaceBetManual={() => placeBetManual(signal)}
+                  bankroll={bankroll}
+                  manualBankroll={manualBankroll}
+                  isNew={!hasPendingBet}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -549,13 +585,30 @@ export default function PunterPage() {
   );
 }
 
-// Signal Card Component
-function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; onPlaceBet: () => void; bankroll: any }) {
+// Signal Card Component with Asset Score & NOVO badge
+function SignalCard({ signal, onPlaceBetHorus, onPlaceBetManual, bankroll, manualBankroll, isNew }: {
+  signal: PunterSignal;
+  onPlaceBetHorus: () => void;
+  onPlaceBetManual: () => void;
+  bankroll: any;
+  manualBankroll: any;
+  isNew: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const commenceDate = new Date(signal.match.commence_time);
   const isToday = commenceDate.toDateString() === new Date().toDateString();
   const stakePercent = signal.recommendation.stake_percentage || 3;
-  const stakeValue = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+  const horusStake = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+  const manualStake = manualBankroll ? Math.round(manualBankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+
+  // Calculate Asset Score
+  const assetScore = calculateAssetScore({
+    value_percentage: signal.recommendation.value_percentage,
+    confidence: signal.recommendation.confidence,
+    odd: signal.recommendation.odd,
+    bookmaker: signal.recommendation.bookmaker,
+  });
+  const scoreColors = getClassificationColor(assetScore.classification);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -563,9 +616,17 @@ function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; on
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <CardTitle className="text-lg mb-1 text-foreground">
-                {signal.match.home_team} vs {signal.match.away_team}
-              </CardTitle>
+              <div className="flex items-center gap-2 mb-1">
+                <CardTitle className="text-lg text-foreground">
+                  {signal.match.home_team} vs {signal.match.away_team}
+                </CardTitle>
+                {isNew && (
+                  <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] animate-pulse">
+                    <Sparkles className="w-3 h-3 mr-0.5" />
+                    NOVO
+                  </Badge>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
@@ -575,9 +636,15 @@ function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; on
                     {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
+                <span className="text-xs opacity-60">•</span>
+                <span className="text-xs">{signal.match.league}</span>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right space-y-1">
+              {/* Asset Score Badge */}
+              <div className={cn("px-2.5 py-1 rounded-full text-xs font-bold font-orbitron", scoreColors.bg, scoreColors.text, scoreColors.border, "border")}>
+                {assetScore.final_score} • {assetScore.classification}
+              </div>
               <div className="text-2xl font-orbitron font-bold text-success">
                 +{signal.recommendation.value_percentage?.toFixed(1)}%
               </div>
@@ -592,13 +659,21 @@ function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; on
             <InfoBox label="Mercado" value={signal.recommendation.market} icon={<Target className="w-3.5 h-3.5" />} />
             <InfoBox label="Casa" value={signal.recommendation.bookmaker} />
             <InfoBox label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <InfoBox label="Stake" value={`${stakePercent}% (R$ ${stakeValue.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+            <InfoBox label="Stake" value={`${stakePercent}%`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+          </div>
+
+          {/* Asset Score Breakdown */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <ScoreBarMini label="Edge" value={assetScore.edge_score} />
+            <ScoreBarMini label="Confiança" value={assetScore.confidence_score} />
+            <ScoreBarMini label="Tier" value={assetScore.tier_score} />
+            <ScoreBarMini label="Liquidez" value={assetScore.liquidity_score} />
           </div>
 
           {/* Confidence Bar */}
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Confiança</span>
+              <span className="text-muted-foreground">Confiança Mycroft</span>
               <span className="font-bold text-foreground">{signal.recommendation.confidence}%</span>
             </div>
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -615,11 +690,22 @@ function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; on
             <p className="text-sm text-foreground/80">{signal.recommendation.thesis}</p>
           </div>
 
-          {/* Bet Button */}
-          <GoldButton onClick={onPlaceBet} className="w-full" disabled={!bankroll || stakeValue <= 0}>
-            <DollarSign className="w-4 h-4 mr-1" />
-            ENTREI — Apostar R$ {stakeValue.toFixed(2)} ({stakePercent}% da banca)
-          </GoldButton>
+          {/* Dual Bet Buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <GoldButton onClick={onPlaceBetHorus} className="w-full text-xs" disabled={!bankroll || horusStake <= 0}>
+              <DollarSign className="w-3.5 h-3.5 mr-1" />
+              Seguir Hórus — R$ {horusStake.toFixed(2)}
+            </GoldButton>
+            <Button
+              onClick={onPlaceBetManual}
+              variant="outline"
+              className="w-full text-xs border-accent/30 hover:bg-accent/10"
+              disabled={!manualBankroll || manualStake <= 0}
+            >
+              <User className="w-3.5 h-3.5 mr-1" />
+              Aposta Manual — R$ {manualStake.toFixed(2)}
+            </Button>
+          </div>
 
           {/* Expand */}
           <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="w-full text-muted-foreground">
@@ -650,6 +736,18 @@ function SignalCard({ signal, onPlaceBet, bankroll }: { signal: PunterSignal; on
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+function ScoreBarMini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-secondary/30 rounded-lg p-1.5 text-center">
+      <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
+      <p className="text-xs font-orbitron font-bold text-foreground">{value}</p>
+      <div className="w-full bg-secondary rounded-full h-1 mt-0.5">
+        <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${value}%` }} />
+      </div>
+    </div>
   );
 }
 
@@ -702,7 +800,6 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
-          {/* Stats row */}
           <div className="grid grid-cols-4 gap-2">
             <div className="bg-secondary/30 rounded-lg p-2 text-center">
               <p className="text-xs text-muted-foreground">Total</p>
@@ -724,7 +821,6 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
             </div>
           </div>
 
-          {/* Filter tabs */}
           <Tabs value={filter} onValueChange={v => onFilterChange(v as any)}>
             <TabsList className="bg-secondary/50 w-full">
               <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
@@ -734,7 +830,6 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
             </TabsList>
           </Tabs>
 
-          {/* Bet list */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Clock className="w-5 h-5 text-primary animate-spin" />
