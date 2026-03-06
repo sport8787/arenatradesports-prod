@@ -844,7 +844,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
               <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
               <p className="text-[10px] font-mono text-foreground/70">
-                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}
