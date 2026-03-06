@@ -820,7 +820,7 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
 }
 
 // ═══════════════════════════════════════════════
-// Main analysis function (Gemini only)
+// Main analysis function (Anthropic Claude only)
 // ═══════════════════════════════════════════════
 
 async function analyzeGame(
