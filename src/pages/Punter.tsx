@@ -1004,15 +1004,16 @@ function AssetDataCell({ label, value, highlight = false }: { label: string; val
   );
 }
 
-function InfoBox({ label, value, icon, highlight = false }: { label: string; value: string | number; icon?: React.ReactNode; highlight?: boolean }) {
+function HeaderBtn({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <div className={`rounded-lg p-2 ${highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30'}`}>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`text-sm font-bold ${highlight ? 'text-success text-base' : 'text-foreground'}`}>{value}</div>
-    </div>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-1 px-2 py-1.5 rounded text-[10px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+    >
+      {icon}
+      <span className="hidden lg:inline">{label}</span>
+    </button>
   );
 }
 
