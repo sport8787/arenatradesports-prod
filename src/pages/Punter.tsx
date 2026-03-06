@@ -277,18 +277,31 @@ export default function PunterPage() {
       setTotalAnalyzed(newAnalyzed);
       setTotalApproved(mergedSignals.length);
 
-      // Auto-place Hórus bets on all NEW approved signals
+      // Auto-place Hórus bets — robust anti-duplication via fresh DB check
       if (bankroll && mergedSignals.length > 0) {
+        // Fetch ALL pending bets fresh from DB to prevent duplicates
+        const { data: freshPending } = await supabase
+          .from('virtual_bets_punter')
+          .select('match_id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+        
+        const existingMatchIds = new Set(
+          (freshPending || []).map((b: any) => (b.match_id || '').toLowerCase())
+        );
+
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
           const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
-          if (!pendingMatchKeys.has(matchId)) {
-            const placed = await autoPlaceHorusBet(signal);
-            if (placed) {
-              autoPlaced++;
-              newAutoIds.add(matchId);
-            }
+          // Skip if already has a pending bet (from any source)
+          if (existingMatchIds.has(matchId)) continue;
+          
+          const placed = await autoPlaceHorusBet(signal);
+          if (placed) {
+            autoPlaced++;
+            newAutoIds.add(matchId);
+            existingMatchIds.add(matchId); // Prevent within-loop duplicates
           }
         }
         setAutoPlacedMatchIds(newAutoIds);
