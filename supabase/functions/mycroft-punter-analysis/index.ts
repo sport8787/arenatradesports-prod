@@ -788,7 +788,7 @@ function calculateTotalsProbabilities(totals: any) {
 // AI Provider functions
 // ═══════════════════════════════════════════════
 
-async function callGemini(prompt: string): Promise<string> {
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
   if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
 
@@ -800,7 +800,10 @@ async function callGemini(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
       temperature: 0.3,
       max_tokens: 1500,
     })
