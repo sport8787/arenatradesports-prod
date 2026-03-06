@@ -818,7 +818,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
   return aiData.choices?.[0]?.message?.content || ''
 }
 
-async function callAnthropic(prompt: string): Promise<string> {
+async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
   const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
   if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
 
@@ -833,7 +833,8 @@ async function callAnthropic(prompt: string): Promise<string> {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       temperature: 0.3,
-      messages: [{ role: 'user', content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
     }),
   })
 
