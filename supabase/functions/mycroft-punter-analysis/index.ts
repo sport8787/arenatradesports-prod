@@ -126,13 +126,17 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
-    // 3. Analyze each game
+    // 3. Analyze each game (with delay for rate limiting)
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
+    const delayMs = ai_provider === 'anthropic' ? 3000 : 500 // 3s for Claude to respect 30k tokens/min
 
     for (const game of allUpcomingGames) {
       totalAnalyzed++
       try {
+        if (totalAnalyzed > 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey, ai_provider)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
           approvedSignals.push({
