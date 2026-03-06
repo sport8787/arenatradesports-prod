@@ -85,7 +85,7 @@ export default function DualBankrollDashboard({ horus, manual, pendingBets = [],
           onSettings={onUpdateHorusBalance ? () => setSettingsTarget('horus') : undefined}
         />
         <BankrollCard
-          label="MANUAL"
+          label="MINHA BANCA"
           icon={<User className="w-4 h-4 text-accent" />}
           balance={manual.balance || 0}
           initial={manual.initial_balance || 0}
