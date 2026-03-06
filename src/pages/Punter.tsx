@@ -62,6 +62,7 @@ export default function PunterPage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
 
   // Load pending bets on mount
   useEffect(() => {
