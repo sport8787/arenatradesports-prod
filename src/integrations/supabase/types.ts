@@ -871,6 +871,51 @@ export type Database = {
           },
         ]
       }
+      manual_bankroll: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          green_bets: number | null
+          id: string
+          initial_balance: number | null
+          red_bets: number | null
+          total_bets: number | null
+          total_profit: number | null
+          total_staked: number | null
+          updated_at: string | null
+          user_id: string
+          win_rate: number | null
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id: string
+          win_rate?: number | null
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          green_bets?: number | null
+          id?: string
+          initial_balance?: number | null
+          red_bets?: number | null
+          total_bets?: number | null
+          total_profit?: number | null
+          total_staked?: number | null
+          updated_at?: string | null
+          user_id?: string
+          win_rate?: number | null
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           app_version: string | null
@@ -2562,6 +2607,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      virtual_bets_manual: {
+        Row: {
+          created_at: string | null
+          id: string
+          market: string
+          match_id: string
+          match_name: string | null
+          odd: number
+          profit_loss: number | null
+          result: string | null
+          stake: number
+          status: string | null
+          thesis: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          market: string
+          match_id: string
+          match_name?: string | null
+          odd: number
+          profit_loss?: number | null
+          result?: string | null
+          stake: number
+          status?: string | null
+          thesis?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          match_name?: string | null
+          odd?: number
+          profit_loss?: number | null
+          result?: string | null
+          stake?: number
+          status?: string | null
+          thesis?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       virtual_bets_punter: {
         Row: {
