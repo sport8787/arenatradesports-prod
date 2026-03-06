@@ -2565,6 +2565,7 @@ export type Database = {
       }
       virtual_bets_punter: {
         Row: {
+          analysis_id: string | null
           created_at: string | null
           id: string
           market: string
@@ -2580,10 +2581,12 @@ export type Database = {
           signal_id: string | null
           stake: number
           status: string | null
+          thesis: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          analysis_id?: string | null
           created_at?: string | null
           id?: string
           market: string
@@ -2599,10 +2602,12 @@ export type Database = {
           signal_id?: string | null
           stake: number
           status?: string | null
+          thesis?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          analysis_id?: string | null
           created_at?: string | null
           id?: string
           market?: string
@@ -2618,10 +2623,18 @@ export type Database = {
           signal_id?: string | null
           stake?: number
           status?: string | null
+          thesis?: string | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "virtual_bets_punter_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "punter_analyses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "virtual_bets_punter_signal_id_fkey"
             columns: ["signal_id"]

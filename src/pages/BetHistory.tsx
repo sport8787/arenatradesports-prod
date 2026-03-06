@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
@@ -28,9 +28,10 @@ interface Bet {
   score_away?: number | null;
   red_card_home?: boolean;
   red_card_away?: boolean;
+  thesis?: string | null;
 }
 
-type FilterStatus = 'all' | 'pending' | 'green' | 'red';
+type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
 
 export default function BetHistoryPage() {
   const navigate = useNavigate();
@@ -91,6 +92,7 @@ export default function BetHistoryPage() {
       score_away: b.score_away,
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
+      thesis: b.thesis,
     }));
 
     setBets([...sportsBets, ...punterBets].sort((a, b) =>
@@ -302,11 +304,44 @@ export default function BetHistoryPage() {
   }, [user, bankroll, bets]);
 
 
+  const cancelBet = useCallback(async (bet: Bet) => {
+    if (!user || !bankroll) return;
+
+    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
+    const bankrollTable = bet.source === 'punter' ? 'user_bankroll' : 'sports_bankroll';
+
+    // Mark as cancelled
+    const { error } = await supabase
+      .from(table)
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
+      .eq('id', bet.id);
+
+    if (error) {
+      toast.error('Erro ao cancelar aposta');
+      console.error(error);
+      return;
+    }
+
+    // Refund stake to bankroll
+    await supabase
+      .from(bankrollTable as any)
+      .update({
+        balance: bankroll.balance + bet.stake,
+        total_staked: Math.max(0, bankroll.total_staked - bet.stake),
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq('user_id', user.id);
+
+    toast.success(`Aposta cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
+    await fetchBets();
+  }, [user, bankroll]);
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return bets;
+    if (filter === 'all') return bets.filter(b => b.status !== 'cancelled');
     if (filter === 'pending') return bets.filter(b => b.status === 'pending');
     if (filter === 'green') return bets.filter(b => b.result === 'green');
     if (filter === 'red') return bets.filter(b => b.result === 'red');
+    if (filter === 'cancelled') return bets.filter(b => b.status === 'cancelled');
     return bets;
   }, [bets, filter]);
 
@@ -412,6 +447,7 @@ export default function BetHistoryPage() {
             <TabsTrigger value="pending">Pendentes ({stats.pending})</TabsTrigger>
             <TabsTrigger value="green">Green ({stats.greens})</TabsTrigger>
             <TabsTrigger value="red">Red ({stats.reds})</TabsTrigger>
+            <TabsTrigger value="cancelled">Canceladas</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -452,13 +488,24 @@ export default function BetHistoryPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {bet.status === 'pending' ? (
-                        <button
-                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
-                          className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors"
-                        >
-                          <Gavel className="w-3.5 h-3.5" />
-                          Liquidar
-                        </button>
+                        <>
+                          <button
+                            onClick={() => cancelBet(bet)}
+                            className="flex items-center gap-1 text-xs font-orbitron text-destructive hover:text-destructive/80 bg-destructive/10 hover:bg-destructive/20 px-2 py-1 rounded-md transition-colors"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                            className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors"
+                          >
+                            <Gavel className="w-3.5 h-3.5" />
+                            Liquidar
+                          </button>
+                        </>
+                      ) : bet.status === 'cancelled' ? (
+                        <Badge variant="outline" className="font-orbitron text-muted-foreground border-muted-foreground/30">CANCELADA ✖</Badge>
                       ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
                         <button
                           onClick={() => revertToPending(bet)}
@@ -468,12 +515,14 @@ export default function BetHistoryPage() {
                           Corrigir
                         </button>
                       )}
-                      {(bet.result === 'green' || bet.status === 'green') ? (
-                        <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
-                      ) : (bet.result === 'red' || bet.status === 'red') ? (
-                        <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
-                      ) : (
-                        <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
+                      {bet.status !== 'cancelled' && (
+                        (bet.result === 'green' || bet.status === 'green') ? (
+                          <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
+                        ) : (bet.result === 'red' || bet.status === 'red') ? (
+                          <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
+                        ) : bet.status === 'pending' ? (
+                          <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
+                        ) : null
                       )}
                     </div>
                   </div>
@@ -490,6 +539,13 @@ export default function BetHistoryPage() {
                     )}
                     <span>{formatDate(bet.placed_at)}</span>
                   </div>
+
+                  {/* Thesis */}
+                  {bet.thesis && (
+                    <div className="bg-secondary/20 rounded-lg px-3 py-2 mt-1">
+                      <p className="text-xs text-muted-foreground">💡 <span className="text-foreground/80">{bet.thesis}</span></p>
+                    </div>
+                  )}
 
                   {bet.profit_loss != null && (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
                     <div className={cn(
