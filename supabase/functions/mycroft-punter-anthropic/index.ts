@@ -155,7 +155,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
     console.log(`[Mycroft Punter] Análise completa: ${approvedSignals.length}/${totalAnalyzed} aprovados`)
 
     return new Response(
-      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, ai_provider: 'gemini', timestamp: new Date().toISOString() }),
+      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, ai_provider: 'anthropic', timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
