@@ -334,9 +334,30 @@ export default function PunterPage() {
               </Button>
             </div>
 
+            {/* AI Provider Toggle */}
+            <div className="flex gap-2">
+              <Button
+                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('gemini')}
+                className="flex-1"
+              >
+                🧠 Gemini
+              </Button>
+              <Button
+                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('anthropic')}
+                className="flex-1"
+              >
+                <FlaskConical className="w-3.5 h-3.5 mr-1" />
+                Claude (Teste)
+              </Button>
+            </div>
+
             <GoldButton onClick={analyzeGames} disabled={loading} className="w-full">
               {loading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com IA...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com {aiProvider === 'anthropic' ? 'Claude' : 'Gemini'}...</>
               ) : (
                 <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos ({timeWindow === '15min' ? 'próximos 15 min' : 'próximas 48h'})</>
               )}
