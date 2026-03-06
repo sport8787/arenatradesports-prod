@@ -125,6 +125,41 @@ export default function PunterPage() {
     setSettlingBets(false);
   };
 
+  const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
+    const now = new Date().toISOString();
+    const { data: savedAnalyses } = await supabase
+      .from('punter_analyses')
+      .select('*')
+      .eq('verdict', 'APROVADO')
+      .gt('commence_time', now)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (!savedAnalyses || savedAnalyses.length === 0) return [];
+
+    return savedAnalyses.map((a: any) => ({
+      match: {
+        home_team: a.home_team,
+        away_team: a.away_team,
+        commence_time: a.commence_time,
+        league: a.league,
+      },
+      recommendation: {
+        verdict: a.verdict,
+        market: a.market,
+        bookmaker: a.bookmaker,
+        odd: a.odd,
+        fair_odd: a.fair_odd,
+        value_percentage: a.value_percentage,
+        confidence: a.confidence,
+        stake_percentage: a.stake_percentage,
+        thesis: a.thesis,
+        analysis: a.analysis,
+        risk_factors: a.risk_factors,
+      },
+    }));
+  };
+
   const analyzeGames = async () => {
     if (!user) {
       setError('Você precisa estar logado para analisar jogos');
@@ -133,6 +168,10 @@ export default function PunterPage() {
     setLoading(true);
     setError(null);
     try {
+      // 1. Fetch previously saved approved signals (future games only)
+      const savedSignals = await fetchSavedSignals();
+
+      // 2. Run new analysis
       const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
       const functionName = aiProvider === 'anthropic' ? 'mycroft-punter-anthropic' : 'mycroft-punter-analysis';
       const { data, error: fnError } = await supabase.functions.invoke(functionName, {
@@ -142,12 +181,45 @@ export default function PunterPage() {
           min_value: 5,
         }
       });
-      if (fnError) throw fnError;
-      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
-      setSignals(data.signals || []);
-      setTotalAnalyzed(data.total_analyzed || 0);
-      setTotalApproved(data.total_approved || 0);
-      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`);
+
+      const newSignals: PunterSignal[] = (data?.signals || []);
+      const newAnalyzed = data?.total_analyzed || 0;
+      const newApproved = data?.total_approved || 0;
+
+      // 3. Merge: deduplicate by match key (home_away_commence)
+      const signalKey = (s: PunterSignal) =>
+        `${s.match.home_team}_${s.match.away_team}_${s.match.commence_time}`.toLowerCase().replace(/\s+/g, '_');
+
+      const mergedMap = new Map<string, PunterSignal>();
+      // Saved signals first (lower priority)
+      for (const s of savedSignals) {
+        mergedMap.set(signalKey(s), s);
+      }
+      // New signals overwrite (higher priority)
+      for (const s of newSignals) {
+        mergedMap.set(signalKey(s), s);
+      }
+
+      const mergedSignals = Array.from(mergedMap.values());
+
+      setSignals(mergedSignals);
+      setTotalAnalyzed(newAnalyzed);
+      setTotalApproved(mergedSignals.length);
+
+      if (fnError) {
+        // Even if new analysis failed, show saved signals
+        if (savedSignals.length > 0) {
+          toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
+        } else {
+          throw fnError;
+        }
+      } else {
+        const savedOnly = mergedSignals.length - newApproved;
+        const msg = savedOnly > 0
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`
+          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`;
+        toast.success(msg);
+      }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
       setError(err.message || 'Erro ao conectar com Mycroft Punter');
