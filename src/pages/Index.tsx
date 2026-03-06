@@ -570,6 +570,19 @@ export default function Index() {
           </motion.header>
         )}
 
+        {/* ========== BRAND TITLE ========== */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="text-center mt-4 mb-2"
+        >
+          <h1 className="font-orbitron text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent">
+            Oráculo Mycroft
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">Invista em esportes como Wall Street investe em ações</p>
+        </motion.div>
+
         {/* ========== PROGRESSO (ÚNICO CARD) ========== */}
         {!isGuest && profile && (
           <motion.div
