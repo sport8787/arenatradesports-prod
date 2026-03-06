@@ -238,13 +238,7 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
 async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, apiKey: string): Promise<any> {
   if (!apiKey || !teamId) return null
   try {
-    // European leagues use the season start year (e.g., 2025 for 2025-2026 season)
-    // Brazilian leagues use the current year
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1 // 1-12
-    // If before August, European leagues are still in previous year's season
-    const seasonYear = currentMonth < 8 ? currentYear - 1 : currentYear
+    const seasonYear = getSeasonYear()
     
     const endpoint = leagueId
       ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}&league=${leagueId}`
