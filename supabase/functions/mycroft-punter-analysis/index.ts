@@ -39,7 +39,6 @@ serve(async (req) => {
       hours_ahead = 48,
       bookmakers = ['bet365', 'pinnacle', 'betfair'],
       min_value = 3,
-      ai_provider = 'gemini' as 'gemini' | 'anthropic',
     } = requestBody
 
     const leaguesToScan: string[] = sport ? [sport] : sports
