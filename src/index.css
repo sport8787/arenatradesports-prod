@@ -6,73 +6,73 @@
 
 @layer base {
   :root {
-    /* Dark Luxe Poker Theme */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
+    /* Professional Investment Platform — Deep Navy & Gold */
+    --background: 222 47% 5%;
+    --foreground: 210 20% 95%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
+    --card: 222 40% 8%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 20% 95%;
 
-    /* Metallic Gold - Primary */
+    /* Institutional Gold — Primary */
     --primary: 43 74% 49%;
-    --primary-foreground: 0 0% 4%;
+    --primary-foreground: 222 47% 5%;
 
-    /* Dark Carbon Secondary */
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
+    /* Navy Secondary */
+    --secondary: 222 30% 14%;
+    --secondary-foreground: 210 20% 90%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 222 25% 18%;
+    --muted-foreground: 215 15% 55%;
 
-    /* Cyan Accent for Mycroft */
-    --accent: 180 100% 50%;
-    --accent-foreground: 0 0% 4%;
+    /* Teal Accent */
+    --accent: 173 80% 40%;
+    --accent-foreground: 222 47% 5%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 20% 98%;
 
-    /* Success / Believe */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
+    /* Success — Profit Green */
+    --success: 152 69% 40%;
+    --success-foreground: 210 20% 98%;
 
-    /* Warning / Doubt */
+    /* Warning */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 4%;
+    --warning-foreground: 222 47% 5%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 15%;
+    --border: 222 20% 18%;
+    --input: 222 25% 14%;
     --ring: 43 74% 49%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     /* Mycroft AI Colors */
-    --mycroft-green: 142 100% 50%;
-    --mycroft-cyan: 180 100% 50%;
-    --mycroft-glow: 0 0 30px hsl(142 100% 50% / 0.4);
+    --mycroft-green: 152 69% 40%;
+    --mycroft-cyan: 173 80% 40%;
+    --mycroft-glow: 0 0 30px hsl(152 69% 40% / 0.3);
 
-    /* Arena Poker Colors */
+    /* Arena */
     --arena-gold: 43 74% 53%;
-    --arena-cyan: 191 100% 50%;
+    --arena-cyan: 173 80% 40%;
 
-    /* Gold Glow */
-    --gold-glow: 0 0 40px hsl(43 74% 49% / 0.3);
-    
+    /* Glow */
+    --gold-glow: 0 0 30px hsl(43 74% 49% / 0.15);
+
     /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(43 74% 49%) 0%, hsl(38 92% 60%) 50%, hsl(43 74% 49%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(0 0% 7%) 0%, hsl(0 0% 3%) 100%);
-    --gradient-mycroft: linear-gradient(135deg, hsl(142 100% 50% / 0.2) 0%, hsl(180 100% 50% / 0.2) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 6%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(43 74% 49%) 0%, hsl(38 80% 55%) 50%, hsl(43 74% 49%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(222 47% 8%) 0%, hsl(222 47% 4%) 100%);
+    --gradient-mycroft: linear-gradient(135deg, hsl(152 69% 40% / 0.1) 0%, hsl(173 80% 40% / 0.1) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(222 40% 10%) 0%, hsl(222 40% 7%) 100%);
 
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 98%;
+    --sidebar-background: 222 40% 8%;
+    --sidebar-foreground: 210 20% 95%;
     --sidebar-primary: 43 74% 49%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 18%;
+    --sidebar-primary-foreground: 222 47% 5%;
+    --sidebar-accent: 222 30% 14%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 222 20% 18%;
     --sidebar-ring: 43 74% 49%;
   }
 
