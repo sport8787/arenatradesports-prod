@@ -539,8 +539,15 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              const stakePercent = signal.recommendation.stake_percentage || 3;
-              const horusStake = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+              // Kelly-based stake
+              const kelly = bankroll ? calculateKellyStake({
+                probability: signal.recommendation.confidence || 55,
+                odd: signal.recommendation.odd,
+                bankroll: bankroll.balance,
+                fraction: 0.25,
+              }) : null;
+              const horusStake = kelly?.stakeAmount || 0;
+              const kellyPercent = kelly?.stakePercent || 3;
               return (
                 <SignalCard
                   key={index}
@@ -551,6 +558,7 @@ export default function PunterPage() {
                   isNew={!hasPendingBet && !wasAutoPlaced}
                   horusEntered={hasPendingBet || wasAutoPlaced}
                   horusStake={horusStake}
+                  kellyPercent={kellyPercent}
                 />
               );
             })}
