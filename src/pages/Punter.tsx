@@ -446,7 +446,8 @@ export default function PunterPage() {
           )}
 
           <div className="flex items-center gap-1.5">
-            <HeaderBtn icon={<History className="w-3.5 h-3.5" />} label="Histórico" onClick={openHistory} />
+            <HeaderBtn icon={<Bot className="w-3.5 h-3.5" />} label="Apostas Hórus" onClick={openHistory} />
+            <HeaderBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Apostas" onClick={openManualHistory} />
             <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
             <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
             <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
