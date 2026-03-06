@@ -125,18 +125,22 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
-    // 3. Analyze each game (with delay for rate limiting)
+    // 3. Analyze games in parallel batches to avoid timeout
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
+    const BATCH_SIZE = 5
 
-    for (const game of allUpcomingGames) {
-      totalAnalyzed++
-      try {
-        if (totalAnalyzed > 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
-        const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
-        if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
+    for (let i = 0; i < allUpcomingGames.length; i += BATCH_SIZE) {
+      const batch = allUpcomingGames.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(
+        batch.map(game => analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey))
+      )
+
+      for (let j = 0; j < results.length; j++) {
+        totalAnalyzed++
+        const result = results[j]
+        const game = batch[j]
+        if (result.status === 'fulfilled' && result.value && typeof result.value.verdict === 'string' && result.value.verdict.startsWith('APROVADO')) {
           approvedSignals.push({
             match: {
               home_team: game.home_team,
@@ -144,11 +148,16 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
               commence_time: game.commence_time,
               league: game.sport_title || 'Unknown'
             },
-            recommendation: analysis
+            recommendation: result.value
           })
+        } else if (result.status === 'rejected') {
+          console.error(`[Mycroft Punter] Erro ao analisar ${game.home_team} vs ${game.away_team}:`, result.reason)
         }
-      } catch (error) {
-        console.error(`[Mycroft Punter] Erro ao analisar ${game.home_team} vs ${game.away_team}:`, error)
+      }
+
+      // Small delay between batches to avoid rate limiting
+      if (i + BATCH_SIZE < allUpcomingGames.length) {
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
 
