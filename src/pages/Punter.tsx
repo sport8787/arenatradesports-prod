@@ -542,9 +542,63 @@ export default function PunterPage() {
           </Alert>
         )}
 
-        {/* Signals */}
+        {/* Portfolio Expected ROI Summary */}
         {signals.length > 0 && (
           <div className="space-y-4">
+            {(() => {
+              const scores = signals.map(s => calculateAssetScore({
+                value_percentage: s.recommendation.value_percentage,
+                confidence: s.recommendation.confidence,
+                odd: s.recommendation.odd,
+                bookmaker: s.recommendation.bookmaker,
+              }));
+              const avgScore = Math.round(scores.reduce((a, s) => a + s.final_score, 0) / scores.length);
+              const avgROI = (scores.reduce((a, s) => a + s.expected_roi, 0) / scores.length).toFixed(1);
+              const totalPendingStake = pendingBets.reduce((s: number, b: any) => s + parseFloat(b.stake || 0), 0);
+              const expectedProfit = pendingBets.reduce((s: number, b: any) => {
+                const sig = signals.find(sg => {
+                  const mId = `${sg.match.home_team}_${sg.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+                  return mId === (b.match_id || '').toLowerCase();
+                });
+                if (!sig) return s;
+                return s + parseFloat(b.stake || 0) * (sig.recommendation.odd - 1) * (sig.recommendation.confidence / 100);
+              }, 0);
+
+              return (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-orbitron font-bold text-sm text-foreground flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-primary" />
+                        Portfólio de Apostas em Aberto
+                      </h3>
+                      <Badge className="bg-primary/20 text-primary border-primary/30">
+                        {pendingBets.length} ativos
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Score Médio</p>
+                        <p className="font-orbitron font-bold text-lg text-foreground">{avgScore}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Edge Médio</p>
+                        <p className="font-orbitron font-bold text-lg text-success">+{avgROI}%</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Exposição</p>
+                        <p className="font-orbitron font-bold text-lg text-foreground">R$ {totalPendingStake.toFixed(0)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase">Retorno Esp.</p>
+                        <p className="font-orbitron font-bold text-lg text-success">R$ {expectedProfit.toFixed(0)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
               <CheckCircle2 className="w-5 h-5 text-success" />
               Sinais Aprovados ({signals.length})
@@ -553,7 +607,6 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              // Kelly-based stake
               const kelly = bankroll ? calculateKellyStake({
                 probability: signal.recommendation.confidence || 55,
                 odd: signal.recommendation.odd,
