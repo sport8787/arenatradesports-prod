@@ -304,11 +304,44 @@ export default function BetHistoryPage() {
   }, [user, bankroll, bets]);
 
 
+  const cancelBet = useCallback(async (bet: Bet) => {
+    if (!user || !bankroll) return;
+
+    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
+    const bankrollTable = bet.source === 'punter' ? 'user_bankroll' : 'sports_bankroll';
+
+    // Mark as cancelled
+    const { error } = await supabase
+      .from(table)
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
+      .eq('id', bet.id);
+
+    if (error) {
+      toast.error('Erro ao cancelar aposta');
+      console.error(error);
+      return;
+    }
+
+    // Refund stake to bankroll
+    await supabase
+      .from(bankrollTable as any)
+      .update({
+        balance: bankroll.balance + bet.stake,
+        total_staked: Math.max(0, bankroll.total_staked - bet.stake),
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq('user_id', user.id);
+
+    toast.success(`Aposta cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
+    await fetchBets();
+  }, [user, bankroll]);
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return bets;
+    if (filter === 'all') return bets.filter(b => b.status !== 'cancelled');
     if (filter === 'pending') return bets.filter(b => b.status === 'pending');
     if (filter === 'green') return bets.filter(b => b.result === 'green');
     if (filter === 'red') return bets.filter(b => b.result === 'red');
+    if (filter === 'cancelled') return bets.filter(b => b.status === 'cancelled');
     return bets;
   }, [bets, filter]);
 
