@@ -999,7 +999,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
       }
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: ${aiProvider}`)
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
 
       // Save analysis to DB
       const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
