@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const leaguesToScan: string[] = sport ? [sport] : sports
 
-    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: gemini`)
+    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: anthropic`)
 
     // 1. Fetch upcoming games from The Odds API
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
@@ -133,7 +133,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
       totalAnalyzed++
       try {
         if (totalAnalyzed > 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 3000))
         }
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
@@ -155,7 +155,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
     console.log(`[Mycroft Punter] Análise completa: ${approvedSignals.length}/${totalAnalyzed} aprovados`)
 
     return new Response(
-      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, ai_provider: 'gemini', timestamp: new Date().toISOString() }),
+      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, ai_provider: 'anthropic', timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -787,41 +787,40 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
-// AI Provider functions
+// AI Provider: Anthropic Claude
 // ═══════════════════════════════════════════════
 
-async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
+  const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
+  if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
 
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.3,
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-    })
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
   })
 
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text()
-    throw new Error(`Gemini error ${aiResponse.status}: ${errText}`)
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Anthropic error ${response.status}: ${errText}`)
   }
 
-  const aiData = await aiResponse.json()
-  return aiData.choices?.[0]?.message?.content || ''
+  const data = await response.json()
+  return data.content?.[0]?.text || ''
 }
 
 // ═══════════════════════════════════════════════
-// Main analysis function (Gemini only)
+// Main analysis function (Anthropic Claude only)
 // ═══════════════════════════════════════════════
 
 async function analyzeGame(
@@ -834,7 +833,7 @@ async function analyzeGame(
   apiFootballKey: string,
 ) {
   const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
-  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini)`)
+  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: anthropic)`)
 
   const oddsData = extractOdds(game)
   const totalsData = extractTotals(game)
@@ -974,7 +973,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
   const maxRetries = 3
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      analysisText = await callGemini(systemPrompt, userPrompt)
+      analysisText = await callAnthropic(systemPrompt, userPrompt)
 
       if (!analysisText) throw new Error('AI não retornou análise válida')
 
@@ -999,7 +998,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
       }
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
 
       // Save analysis to DB
       const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
@@ -1021,7 +1020,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         thesis: analysis.thesis,
         analysis: analysis.analysis,
         risk_factors: analysis.risk_factors,
-        analyzed_by: 'gemini',
+        analyzed_by: 'anthropic',
       }).select().maybeSingle()
 
       // If approved, create signal

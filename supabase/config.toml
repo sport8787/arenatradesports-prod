@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-widget-key]
 verify_jwt = false
+
+[functions.mycroft-punter-anthropic]
+verify_jwt = false
