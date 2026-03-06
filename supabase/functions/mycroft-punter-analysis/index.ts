@@ -203,15 +203,29 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
 async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, apiKey: string): Promise<any> {
   if (!apiKey || !teamId) return null
   try {
-    const year = new Date().getFullYear()
+    // European leagues use the season start year (e.g., 2025 for 2025-2026 season)
+    // Brazilian leagues use the current year
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 1-12
+    // If before August, European leagues are still in previous year's season
+    const seasonYear = currentMonth < 8 ? currentYear - 1 : currentYear
+    
     const endpoint = leagueId
-      ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}&league=${leagueId}`
-      : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}`
+      ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}&league=${leagueId}`
+      : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}`
     
     const res = await fetch(endpoint, { headers: apiHeaders(apiKey) })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`[API-Football] Season stats HTTP ${res.status} for team ${teamId}, season ${seasonYear}`)
+      return null
+    }
     const data = await res.json()
-    return data.response || null
+    const result = data.response || null
+    if (!result) {
+      console.warn(`[API-Football] No season stats for team ${teamId}, season ${seasonYear}, league ${leagueId}`)
+    }
+    return result
   } catch { return null }
 }
 
