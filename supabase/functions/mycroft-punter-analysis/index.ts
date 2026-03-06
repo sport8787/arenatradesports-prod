@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
 serve(async (req) => {
@@ -38,12 +38,13 @@ serve(async (req) => {
       sport = null as string | null,
       hours_ahead = 48,
       bookmakers = ['bet365', 'pinnacle', 'betfair'],
-      min_value = 3
+      min_value = 3,
+      ai_provider = 'gemini' as 'gemini' | 'anthropic',
     } = requestBody
 
     const leaguesToScan: string[] = sport ? [sport] : sports
 
-    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%`)
+    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: ${ai_provider}`)
 
     // 1. Fetch upcoming games from The Odds API
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
@@ -132,7 +133,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
     for (const game of allUpcomingGames) {
       totalAnalyzed++
       try {
-        const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
+        const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey, ai_provider)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
           approvedSignals.push({
             match: {
@@ -152,7 +153,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
     console.log(`[Mycroft Punter] Análise completa: ${approvedSignals.length}/${totalAnalyzed} aprovados`)
 
     return new Response(
-      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, timestamp: new Date().toISOString() }),
+      JSON.stringify({ success: true, signals: approvedSignals, total_analyzed: totalAnalyzed, total_approved: approvedSignals.length, leagues_scanned: leaguesToScan.length, ai_provider, timestamp: new Date().toISOString() }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -166,7 +167,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 })
 
 // ═══════════════════════════════════════════════
-// API-Football Pro: Full enrichment (H2H, Season Stats, Injuries, Standings)
+// API-Football Pro: Full enrichment
 // ═══════════════════════════════════════════════
 
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
@@ -192,7 +193,6 @@ async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, api
   if (!apiKey || !teamId) return null
   try {
     const year = new Date().getFullYear()
-    // If we have a league ID use it, otherwise try current year
     const endpoint = leagueId
       ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}&league=${leagueId}`
       : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}`
@@ -253,7 +253,6 @@ async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
     )
     if (!res.ok) return []
     const data = await res.json()
-    // Return only active injuries (most recent 10)
     return (data.response || []).slice(0, 10)
   } catch { return [] }
 }
@@ -272,8 +271,42 @@ async function fetchStandings(leagueId: number | null, apiKey: string): Promise<
   } catch { return [] }
 }
 
+// NEW: Fetch API-Football predictions
+async function fetchPredictions(fixtureId: number, apiKey: string): Promise<any> {
+  if (!apiKey || !fixtureId) return null
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/predictions?fixture=${fixtureId}`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.response?.[0] || null
+  } catch { return null }
+}
+
+// NEW: Find upcoming fixture ID for a match
+async function findUpcomingFixtureId(homeId: number, awayId: number, apiKey: string): Promise<number | null> {
+  if (!apiKey || !homeId || !awayId) return null
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?team=${homeId}&from=${today}&to=${nextWeek}&status=NS`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    // Find fixture matching both teams
+    const fixture = (data.response || []).find((f: any) =>
+      (f.teams?.home?.id === homeId && f.teams?.away?.id === awayId) ||
+      (f.teams?.home?.id === awayId && f.teams?.away?.id === homeId)
+    )
+    return fixture?.fixture?.id || null
+  } catch { return null }
+}
+
 async function searchLeagueId(sportKey: string, apiKey: string): Promise<number | null> {
-  // Map The Odds API sport keys to API-Football league IDs
   const leagueMap: Record<string, number> = {
     'soccer_brazil_campeonato': 71,
     'soccer_brazil_serie_b': 72,
@@ -293,7 +326,7 @@ async function searchLeagueId(sportKey: string, apiKey: string): Promise<number 
 }
 
 async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string, sportKey?: string) {
-  if (!apiKey) return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], model_level: 'NIVEL_3' }
+  if (!apiKey) return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], predictions: null, model_level: 'NIVEL_3' }
 
   const [homeId, awayId] = await Promise.all([
     searchTeamId(homeTeam, apiKey),
@@ -302,18 +335,19 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
 
   if (!homeId && !awayId) {
     console.log(`[API-Football] Nenhum time encontrado: ${homeTeam}, ${awayTeam}`)
-    return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], model_level: 'NIVEL_3' }
+    return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], predictions: null, model_level: 'NIVEL_3' }
   }
 
   const leagueId = sportKey ? await searchLeagueId(sportKey, apiKey) : null
 
-  // Parallel fetch all data
+  // Parallel fetch all data + find fixture ID for predictions
   const [
     homeFixtures, awayFixtures,
     homeSeasonStats, awaySeasonStats,
     h2hData,
     homeInjuries, awayInjuries,
-    standingsData
+    standingsData,
+    fixtureId
   ] = await Promise.all([
     homeId ? fetchRecentFixtures(homeId, apiKey, 5) : [],
     awayId ? fetchRecentFixtures(awayId, apiKey, 5) : [],
@@ -322,8 +356,18 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     (homeId && awayId) ? fetchH2H(homeId, awayId, apiKey) : [],
     homeId ? fetchInjuries(homeId, apiKey) : [],
     awayId ? fetchInjuries(awayId, apiKey) : [],
-    fetchStandings(leagueId, apiKey)
+    fetchStandings(leagueId, apiKey),
+    (homeId && awayId) ? findUpcomingFixtureId(homeId, awayId, apiKey) : null
   ])
+
+  // Fetch predictions if we have the fixture ID
+  let predictionsData = null
+  if (fixtureId) {
+    predictionsData = await fetchPredictions(fixtureId, apiKey)
+    if (predictionsData) {
+      console.log(`[API-Football] ✅ Predictions loaded for fixture ${fixtureId}`)
+    }
+  }
 
   // Process home team stats
   const homeStats = processTeamStats(homeId, homeFixtures, homeSeasonStats, apiKey)
@@ -373,6 +417,7 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     standings: standingsData,
     homeSeasonStats,
     awaySeasonStats,
+    predictions: predictionsData,
     model_level
   }
 }
@@ -438,9 +483,22 @@ function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: a
       biggest_win_away: seasonStats.biggest?.wins?.away,
       biggest_loss_home: seasonStats.biggest?.loses?.home,
       biggest_loss_away: seasonStats.biggest?.loses?.away,
+      // FIX: Renamed from avg_possession (was incorrectly mapped)
+      preferred_formation: seasonStats.lineups?.[0]?.formation || null,
+      // NEW: Goals by minute (offensive/defensive pressure patterns)
       goals_for_by_minute: seasonStats.goals?.for?.minute,
       goals_against_by_minute: seasonStats.goals?.against?.minute,
-      avg_possession: seasonStats.lineups?.[0]?.formation || null,
+      // NEW: Penalty stats
+      penalty_scored: seasonStats.penalty?.scored?.total ?? null,
+      penalty_missed: seasonStats.penalty?.missed?.total ?? null,
+      penalty_scored_pct: seasonStats.penalty?.scored?.percentage ?? null,
+      // NEW: Streaks
+      biggest_streak_wins: seasonStats.biggest?.streak?.wins ?? null,
+      biggest_streak_draws: seasonStats.biggest?.streak?.draws ?? null,
+      biggest_streak_loses: seasonStats.biggest?.streak?.loses ?? null,
+      // NEW: Cards stats
+      cards_yellow_total: Object.values(seasonStats.cards?.yellow || {}).reduce((sum: number, v: any) => sum + (v?.total || 0), 0),
+      cards_red_total: Object.values(seasonStats.cards?.red || {}).reduce((sum: number, v: any) => sum + (v?.total || 0), 0),
     }
   }
 
@@ -483,7 +541,7 @@ function processH2H(h2hData: any[], homeId: number | null, awayId: number | null
     away_wins: awayWins,
     draws: drawCount,
     avg_goals: (totalGoals / h2hData.length).toFixed(2),
-    matches: matches.slice(0, 5), // Last 5 H2H
+    matches: matches.slice(0, 5),
   }
 }
 
@@ -518,8 +576,67 @@ function formatTeamStatsBlock(teamName: string, stats: any): string {
   Gols Sofridos: ${s.goals_against_total} (média: ${s.goals_against_avg}/jogo)
   Clean Sheets: ${s.clean_sheets || 0}
   Falhou em Marcar: ${s.failed_to_score || 0}
+  Formação Preferida: ${s.preferred_formation || 'N/A'}
   Maior Vitória Casa: ${s.biggest_win_home || 'N/A'} | Fora: ${s.biggest_win_away || 'N/A'}
   Maior Derrota Casa: ${s.biggest_loss_home || 'N/A'} | Fora: ${s.biggest_loss_away || 'N/A'}`
+
+    // NEW: Penalties
+    if (s.penalty_scored !== null) {
+      block += `
+  Pênaltis: ${s.penalty_scored} convertidos / ${(s.penalty_scored || 0) + (s.penalty_missed || 0)} totais (${s.penalty_scored_pct || 'N/A'})`
+    }
+
+    // NEW: Streaks
+    if (s.biggest_streak_wins !== null) {
+      block += `
+  Maior Sequência: ${s.biggest_streak_wins}V / ${s.biggest_streak_draws}E / ${s.biggest_streak_loses}D`
+    }
+
+    // NEW: Cards
+    if (s.cards_yellow_total > 0) {
+      block += `
+  Cartões na Temporada: ${s.cards_yellow_total} amarelos / ${s.cards_red_total} vermelhos`
+    }
+
+    // NEW: Goals by minute (offensive pressure patterns)
+    if (s.goals_for_by_minute) {
+      const goalsByMinute = s.goals_for_by_minute
+      const periods = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91-105']
+      const hotPeriods: string[] = []
+      const coldPeriods: string[] = []
+      
+      for (const period of periods) {
+        const gf = goalsByMinute[period]?.total || 0
+        if (gf >= 3) hotPeriods.push(`${period}' (${gf} gols)`)
+        else if (gf === 0) coldPeriods.push(`${period}'`)
+      }
+      
+      if (hotPeriods.length > 0) {
+        block += `
+  🔥 Períodos de Pressão Ofensiva: ${hotPeriods.join(', ')}`
+      }
+      if (coldPeriods.length > 0) {
+        block += `
+  ❄️ Períodos sem Gols Marcados: ${coldPeriods.join(', ')}`
+      }
+    }
+
+    // NEW: Goals against by minute (defensive vulnerability)
+    if (s.goals_against_by_minute) {
+      const goalsByMinute = s.goals_against_by_minute
+      const periods = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91-105']
+      const vulnerablePeriods: string[] = []
+      
+      for (const period of periods) {
+        const ga = goalsByMinute[period]?.total || 0
+        if (ga >= 3) vulnerablePeriods.push(`${period}' (${ga} gols sofridos)`)
+      }
+      
+      if (vulnerablePeriods.length > 0) {
+        block += `
+  ⚠️ Vulnerabilidade Defensiva: ${vulnerablePeriods.join(', ')}`
+      }
+    }
   }
 
   return block
@@ -555,7 +672,6 @@ function formatStandingsBlock(standings: any[], homeTeam: string, awayTeam: stri
   })
 
   if (relevantTeams.length === 0) {
-    // Show top 5 + bottom 3 for context
     const top = standings.slice(0, 5)
     const bottom = standings.slice(-3)
     const display = [...top, ...bottom]
@@ -567,6 +683,37 @@ function formatStandingsBlock(standings: any[], homeTeam: string, awayTeam: stri
     `  ${s.rank}º ${s.team?.name} - ${s.points}pts (${s.all?.win}V ${s.all?.draw}E ${s.all?.lose}D) GD:${s.goalsDiff} | Forma: ${s.form || 'N/A'}`
   )
   return `CLASSIFICAÇÃO (times do jogo):\n${lines.join('\n')}`
+}
+
+// NEW: Format predictions block from API-Football /predictions endpoint
+function formatPredictionsBlock(predictions: any): string {
+  if (!predictions) return 'PREVISÕES API-FOOTBALL: Não disponível para este jogo'
+
+  let block = `PREVISÕES API-FOOTBALL (6 algoritmos):
+  Vencedor: ${predictions.predictions?.winner?.name || 'N/A'} (${predictions.predictions?.winner?.comment || ''})
+  Conselho: ${predictions.predictions?.advice || 'N/A'}
+  Under/Over: ${predictions.predictions?.under_over || 'N/A'}
+  Goals Home: ${predictions.predictions?.goals?.home || 'N/A'}
+  Goals Away: ${predictions.predictions?.goals?.away || 'N/A'}`
+
+  if (predictions.predictions?.percent) {
+    block += `
+  Probabilidades: Casa ${predictions.predictions.percent.home} | Empate ${predictions.predictions.percent.draw} | Fora ${predictions.predictions.percent.away}`
+  }
+
+  // Comparison of team stats from predictions
+  if (predictions.comparison) {
+    const c = predictions.comparison
+    block += `
+  [Comparação Estatística]:
+  Força do Ataque: Casa ${c.att?.home || 'N/A'} | Fora ${c.att?.away || 'N/A'}
+  Força da Defesa: Casa ${c.def?.home || 'N/A'} | Fora ${c.def?.away || 'N/A'}
+  Poisson: Casa ${c.poisson_distribution?.home || 'N/A'} | Fora ${c.poisson_distribution?.away || 'N/A'}
+  Força Total: Casa ${c.total?.home || 'N/A'} | Fora ${c.total?.away || 'N/A'}
+  H2H Recente: Casa ${c.h2h?.home || 'N/A'} | Fora ${c.h2h?.away || 'N/A'}`
+  }
+
+  return block
 }
 
 // ═══════════════════════════════════════════════
@@ -638,6 +785,65 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
+// AI Provider functions
+// ═══════════════════════════════════════════════
+
+async function callGemini(prompt: string): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
+  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+
+  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1500,
+    })
+  })
+
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text()
+    throw new Error(`Gemini error ${aiResponse.status}: ${errText}`)
+  }
+
+  const aiData = await aiResponse.json()
+  return aiData.choices?.[0]?.message?.content || ''
+}
+
+async function callAnthropic(prompt: string): Promise<string> {
+  const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
+  if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      temperature: 0.3,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Anthropic error ${response.status}: ${errText}`)
+  }
+
+  const data = await response.json()
+  return data.content?.[0]?.text || ''
+}
+
+// ═══════════════════════════════════════════════
 // Main analysis function
 // ═══════════════════════════════════════════════
 
@@ -648,16 +854,17 @@ async function analyzeGame(
   valueGuide: string,
   minValue: number,
   supabaseClient: any,
-  apiFootballKey: string
+  apiFootballKey: string,
+  aiProvider: 'gemini' | 'anthropic' = 'gemini'
 ) {
   const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
-  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team}`)
+  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: ${aiProvider})`)
 
   const oddsData = extractOdds(game)
   const totalsData = extractTotals(game)
   if (oddsData.length === 0 && totalsData.length === 0) return null
 
-  // Fetch enriched data from API-Football (Pro plan: H2H, Season Stats, Injuries, Standings)
+  // Fetch enriched data from API-Football (Pro plan: H2H, Season Stats, Injuries, Standings, Predictions)
   const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey, game.sport_key)
 
   const homeStatsBlock = formatTeamStatsBlock(game.home_team, enriched.home)
@@ -666,8 +873,9 @@ async function analyzeGame(
   const homeInjuriesBlock = formatInjuriesBlock(game.home_team, enriched.injuries?.home || [])
   const awayInjuriesBlock = formatInjuriesBlock(game.away_team, enriched.injuries?.away || [])
   const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
+  const predictionsBlock = formatPredictionsBlock(enriched.predictions)
 
-  const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats completas + H2H + lesões)'
+  const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats completas + H2H + lesões + previsões)'
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
 
@@ -706,6 +914,16 @@ ${awayInjuriesBlock}
 ═══════════════════════════════════════
 ${standingsBlock}
 ═══════════════════════════════════════
+
+═══════════════════════════════════════
+${predictionsBlock}
+═══════════════════════════════════════
+
+${enriched.predictions ? `
+VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acima.
+- Se AMBOS concordarem no vencedor/over-under → boost de confiança +5%
+- Se DIVERGIREM → sinalize no risk_factors e reduza confiança -5%
+` : ''}
 
 ═══════════════════════════════════════
 ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
@@ -760,7 +978,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "stake_percentage": 3,
   "thesis": "Resumo objetivo do edge identificado",
   "analysis": "Explicação quantitativa adaptada aos dados disponíveis",
-  "risk_factors": "Riscos e limitações do modelo aplicado"
+  "risk_factors": "Riscos e limitações do modelo aplicado",
+  "api_predictions_agree": true | false | null
 }
 
 IMPORTANTE: Siga RIGOROSAMENTE os critérios de aprovação/veto definidos no prompt acima.
@@ -775,31 +994,14 @@ IMPORTANTE: Siga RIGOROSAMENTE os critérios de aprovação/veto definidos no pr
 
 ANALISE AGORA:`
 
-  // Call Lovable AI Gateway
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
-
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: analysisPrompt }],
-      temperature: 0.3,
-      max_tokens: 1500,
-    })
-  })
-
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text()
-    throw new Error(`AI Gateway error ${aiResponse.status}: ${errText}`)
+  // Call AI provider
+  let analysisText: string
+  if (aiProvider === 'anthropic') {
+    analysisText = await callAnthropic(analysisPrompt)
+  } else {
+    analysisText = await callGemini(analysisPrompt)
   }
 
-  const aiData = await aiResponse.json()
-  let analysisText = aiData.choices?.[0]?.message?.content
   if (!analysisText) throw new Error('AI não retornou análise válida')
 
   // Parse JSON
@@ -812,9 +1014,9 @@ ANALISE AGORA:`
     throw new Error('Falha ao parsear análise')
   }
 
-  console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value}`)
+  console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: ${aiProvider}`)
 
-  // Save analysis to DB
+  // Save analysis to DB (with analyzed_by field)
   const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
     match_id: matchId,
     home_team: game.home_team,
@@ -834,9 +1036,10 @@ ANALISE AGORA:`
     thesis: analysis.thesis,
     analysis: analysis.analysis,
     risk_factors: analysis.risk_factors,
+    analyzed_by: aiProvider,
   }).select().single()
 
-  // If approved, create signal (handle both "APROVADO" and "APROVADO_TIER_X" formats)
+  // If approved, create signal
   const isApproved = typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')
   if (isApproved && analysisRow) {
     await supabaseClient.from('punter_signals').insert({
