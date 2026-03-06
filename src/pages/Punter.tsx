@@ -1172,7 +1172,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className={cn(
                             "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
-                            config.borderColor, config.bgColor, config.textColor
+                            config.border, config.bg, config.text
                           )}>
                             {config.emoji} {grade}
                           </span>
