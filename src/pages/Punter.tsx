@@ -357,9 +357,9 @@ export default function PunterPage() {
     toast.success(`Manual: R$ ${customStake.toFixed(2)} em ${matchName}`);
   }, [manualBankroll, user, placeManualBet]);
 
-  if (showBacktest) {
-    return <BacktestPanel onClose={() => setShowBacktest(false)} />;
-  }
+  if (showBacktest) return <BacktestPanel onClose={() => setShowBacktest(false)} />;
+  if (showRankings) return <PunterRankings onClose={() => setShowRankings(false)} />;
+  if (showCertificate && bankroll) return <PerformanceCertificate bankroll={bankroll} onClose={() => setShowCertificate(false)} />;
 
   return (
     <div className="min-h-screen bg-background">
