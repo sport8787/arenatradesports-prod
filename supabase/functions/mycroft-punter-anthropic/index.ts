@@ -133,7 +133,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
       totalAnalyzed++
       try {
         if (totalAnalyzed > 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 3000))
         }
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
