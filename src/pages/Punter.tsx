@@ -377,66 +377,56 @@ export default function PunterPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      {/* Header — Bloomberg-style top bar */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <Target className="w-6 h-6 text-success" />
-              <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-                Arena Punter
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+                ORÁCULO MYCROFT
               </h1>
+              <span className="text-[10px] text-muted-foreground font-mono border border-border px-1.5 py-0.5 rounded">
+                PUNTER
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {bankroll && (
-              <div className="flex items-center gap-1.5 text-sm">
-                <Wallet className="w-4 h-4 text-primary" />
-                <span className="font-orbitron font-bold text-foreground">
+
+          {/* Balance ticker */}
+          {bankroll && (
+            <div className="hidden md:flex items-center gap-4 text-xs font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">HÓRUS</span>
+                <span className="text-foreground font-semibold">
                   R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-            )}
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/apostas')}>
-              <Wallet className="w-4 h-4 mr-1" />
-              Apostas
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={openHistory}>
-              <History className="w-4 h-4 mr-1" />
-              Histórico
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={handleSettleBets} disabled={settlingBets}>
-              {settlingBets ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
-              Liquidar
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowBacktest(true)}>
-              <Activity className="w-4 h-4 mr-1" />
-              Simulado
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/punter/widgets')}>
-              <LayoutGrid className="w-4 h-4 mr-1" />
-              Widgets
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowRankings(true)}>
-              <Trophy className="w-4 h-4 mr-1" />
-              Ranking
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowCertificate(true)}>
-              <Award className="w-4 h-4 mr-1" />
-              Certificado
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
-              <Brain className="w-4 h-4 mr-1" />
-              KB
-            </GoldButton>
+              {manualBankroll && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">MANUAL</span>
+                  <span className="text-foreground font-semibold">
+                    R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5">
+            <HeaderBtn icon={<History className="w-3.5 h-3.5" />} label="Histórico" onClick={openHistory} />
+            <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
+            <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
+            <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
+            <HeaderBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => setShowCertificate(true)} />
+            <HeaderBtn icon={<Brain className="w-3.5 h-3.5" />} label="KB" onClick={() => setIsChatOpen(true)} />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-4 space-y-4 max-w-4xl">
+      <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
         {/* Dual Bankroll Widget */}
         {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
           <DualBankrollDashboard
@@ -447,14 +437,83 @@ export default function PunterPage() {
           />
         )}
 
-        {/* Info Banner */}
-        <Card className="border-success/30 bg-success/5">
-          <CardContent className="p-4">
-            <p className="text-sm text-foreground/80">
-              <span className="font-bold text-success">Value Betting Pré-Jogo</span> — Mycroft Punter analisa jogos 
-              futuros e identifica odds com value positivo. <span className="font-bold text-primary">Hórus aposta automaticamente</span> nos sinais aprovados.
-              Você pode apostar manualmente com seu próprio valor na Bankroll Manual.
-            </p>
+        {/* Scanner Panel */}
+        <Card className="border-border bg-card">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scanner de Mercado</h3>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                Value Betting Pré-Jogo
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={timeWindow === '15min' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('15min')}
+                className="font-mono text-xs"
+              >
+                <Clock className="w-3 h-3 mr-1.5" />
+                15 MIN
+              </Button>
+              <Button
+                variant={timeWindow === '48h' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('48h')}
+                className="font-mono text-xs"
+              >
+                <Calendar className="w-3 h-3 mr-1.5" />
+                48H
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('gemini')}
+                className="font-mono text-xs"
+              >
+                Gemini
+              </Button>
+              <Button
+                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('anthropic')}
+                className="font-mono text-xs"
+              >
+                Claude
+              </Button>
+            </div>
+
+            <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
+              ) : (
+                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+              )}
+            </GoldButton>
+
+            {totalAnalyzed > 0 && !loading && (
+              <div className="flex gap-4 text-xs font-mono border-t border-border pt-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">SCANNED</span>
+                  <span className="text-foreground font-semibold">{totalAnalyzed}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">APPROVED</span>
+                  <span className="text-success font-semibold">{totalApproved}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">RATE</span>
+                  <span className="text-success font-semibold">
+                    {((totalApproved / totalAnalyzed) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -565,44 +624,30 @@ export default function PunterPage() {
               }, 0);
 
               return (
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-orbitron font-bold text-sm text-foreground flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-primary" />
-                        Portfólio de Apostas em Aberto
-                      </h3>
-                      <Badge className="bg-primary/20 text-primary border-primary/30">
-                        {pendingBets.length} ativos
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Score Médio</p>
-                        <p className="font-orbitron font-bold text-lg text-foreground">{avgScore}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Edge Médio</p>
-                        <p className="font-orbitron font-bold text-lg text-success">+{avgROI}%</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Exposição</p>
-                        <p className="font-orbitron font-bold text-lg text-foreground">R$ {totalPendingStake.toFixed(0)}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground uppercase">Retorno Esp.</p>
-                        <p className="font-orbitron font-bold text-lg text-success">R$ {expectedProfit.toFixed(0)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="border border-border rounded-lg bg-card overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                    <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">PORTFÓLIO EM ABERTO</span>
+                    <span className="font-mono text-[10px] text-primary">{pendingBets.length} POSIÇÕES</span>
+                  </div>
+                  <div className="grid grid-cols-4 divide-x divide-border">
+                    <PortfolioMetric label="SCORE MÉDIO" value={String(avgScore)} />
+                    <PortfolioMetric label="EDGE MÉDIO" value={`+${avgROI}%`} valueColor="text-success" />
+                    <PortfolioMetric label="EXPOSIÇÃO" value={`R$ ${totalPendingStake.toFixed(0)}`} />
+                    <PortfolioMetric label="RETORNO ESP." value={`R$ ${expectedProfit.toFixed(0)}`} valueColor="text-success" />
+                  </div>
+                </div>
               );
             })()}
 
-            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-              Sinais Aprovados ({signals.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                ATIVOS IDENTIFICADOS ({signals.length})
+              </h2>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-success">
+                <CheckCircle2 className="w-3 h-3" />
+                APROVADOS
+              </div>
+            </div>
             {signals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
@@ -634,60 +679,54 @@ export default function PunterPage() {
 
         {/* Empty states */}
         {!loading && signals.length === 0 && totalAnalyzed > 0 && (
-          <Card className="border-dashed border-border">
-            <CardContent className="pt-6 text-center">
-              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <h3 className="font-bold text-lg mb-1 text-foreground">Nenhum Sinal Aprovado</h3>
-              <p className="text-muted-foreground text-sm">
-                {totalAnalyzed} jogos analisados, nenhum com value ≥5%. Tente mais tarde.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="border border-dashed border-border rounded-lg p-8 text-center">
+            <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="font-mono text-sm text-foreground mb-1">Nenhum ativo aprovado</p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {totalAnalyzed} mercados escaneados. Nenhum com edge ≥5%.
+            </p>
+          </div>
         )}
 
         {!loading && signals.length === 0 && totalAnalyzed === 0 && (
-          <Card className="border-dashed border-border">
-            <CardContent className="pt-6 text-center">
-              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <h3 className="font-bold text-lg mb-1 text-foreground">Pronto para Começar</h3>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Clique em "Analisar Jogos" para o Mycroft Punter buscar oportunidades de value betting.
-                Hórus apostará automaticamente nos sinais aprovados.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="border border-dashed border-border rounded-lg p-8 text-center">
+            <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
+            <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
+              Clique em "Analisar Mercado" para identificar oportunidades de value betting.
+            </p>
+          </div>
         )}
 
-        {/* Pending Bets */}
+        {/* Pending Positions */}
         {pendingBets.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-orbitron font-bold flex items-center gap-2 text-foreground">
-              <Clock className="w-5 h-5 text-primary" />
-              Apostas Pendentes ({pendingBets.length})
-            </h2>
-            {pendingBets.map((bet) => (
-              <Card key={bet.id} className="border-primary/30">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                POSIÇÕES ABERTAS ({pendingBets.length})
+              </span>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-primary">
+                <Clock className="w-3 h-3" />
+                PENDENTE
+              </div>
+            </div>
+            <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
+              {pendingBets.map((bet) => (
+                <div key={bet.id} className="p-3 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-8 rounded-full bg-primary/50" />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-foreground">{bet.match_name}</p>
-                        <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px]">
-                          <Bot className="w-3 h-3 mr-0.5" />
-                          Hórus
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{bet.market}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-orbitron font-bold text-primary">R$ {parseFloat(bet.stake).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">Odd: {bet.odd}</p>
+                      <p className="font-mono text-sm font-semibold text-foreground">{bet.match_name || bet.match_id}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">{bet.market}</p>
                     </div>
                   </div>
-                  <Badge className="mt-2 bg-primary/10 text-primary border-primary/30">Pendente ⏳</Badge>
-                </CardContent>
-              </Card>
-            ))}
+                  <div className="text-right">
+                    <p className="font-mono text-sm font-bold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">@ {parseFloat(bet.odd).toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -747,132 +786,115 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className={cn("transition-all", gradeConfig.border, "border hover:shadow-lg")}>
-        <CardHeader className="pb-2">
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+      <div className={cn("border rounded-lg bg-card overflow-hidden transition-all hover:border-primary/30", gradeConfig.border)}>
+        {/* Top bar with grade + status */}
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold border",
+              gradeConfig.bg, gradeConfig.text, gradeConfig.border
+            )}>
+              {gradeConfig.emoji} {assetScore.grade}
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">{gradeConfig.label}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isNew && (
+              <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
+            )}
+            {horusEntered && (
+              <span className="text-[10px] font-mono text-primary">
+                ✓ HÓRUS R$ {horusStake.toFixed(2)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {/* Match Header */}
           <div className="flex justify-between items-start gap-3">
             <div className="flex-1 min-w-0">
-              {/* Badges row */}
-              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                {/* Grade Badge - prominent */}
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-orbitron font-bold border",
-                  gradeConfig.bg, gradeConfig.text, gradeConfig.border
-                )}>
-                  {gradeConfig.emoji} {assetScore.grade}
-                </span>
-                {isNew && (
-                  <Badge className="bg-accent/20 text-accent border-accent/30 text-[10px] animate-pulse">
-                    <Sparkles className="w-3 h-3 mr-0.5" />
-                    NOVO
-                  </Badge>
-                )}
-                {horusEntered && (
-                  <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">
-                    <Bot className="w-3 h-3 mr-0.5" />
-                    ENTREI — R$ {horusStake.toFixed(2)}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Match name */}
-              <CardTitle className="text-base text-foreground leading-tight">
+              <p className="font-mono text-sm font-bold text-foreground leading-tight">
                 {signal.match.home_team} vs {signal.match.away_team}
-              </CardTitle>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
-                  {' às '}
+              </p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  {isToday ? 'HOJE' : commenceDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase()}
+                  {' '}
                   {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <span className="opacity-60">•</span>
+                <span className="opacity-40">|</span>
                 <span>{signal.match.league}</span>
               </div>
             </div>
 
-            {/* Score circle */}
-            <div className="flex flex-col items-center gap-1">
-              <div className={cn(
-                "w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center",
-                gradeConfig.border, gradeConfig.bg
-              )}>
-                <span className={cn("font-orbitron font-bold text-xl leading-none", gradeConfig.text)}>
-                  {assetScore.final_score}
-                </span>
-                <span className="text-[8px] text-muted-foreground uppercase">Score</span>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          {/* Asset Data Grid — like a financial asset card */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            <AssetDataCell label="Mercado" value={signal.recommendation.market} />
-            <AssetDataCell label="Casa" value={signal.recommendation.bookmaker} />
-            <AssetDataCell label="Odd" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <AssetDataCell label="Prob. Modelo" value={`${assetScore.model_probability}%`} />
-            <AssetDataCell label="Edge" value={`+${signal.recommendation.value_percentage?.toFixed(1)}%`} highlight />
-            <AssetDataCell label="Stake Kelly" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} />
-          </div>
-
-          {/* Classification description */}
-          <div className={cn("rounded-lg p-2.5 flex items-center gap-2", gradeConfig.bg, "border", gradeConfig.border)}>
-            <span className="text-lg">{gradeConfig.emoji}</span>
-            <div>
-              <span className={cn("font-orbitron font-bold text-sm", gradeConfig.text)}>
-                Classificação {assetScore.grade}
+            {/* Score badge */}
+            <div className={cn(
+              "w-14 h-14 rounded-lg border flex flex-col items-center justify-center shrink-0",
+              gradeConfig.border, gradeConfig.bg
+            )}>
+              <span className={cn("font-mono font-bold text-lg leading-none", gradeConfig.text)}>
+                {assetScore.final_score}
               </span>
-              <span className="text-xs text-muted-foreground ml-2">{gradeConfig.label}</span>
+              <span className="text-[7px] font-mono text-muted-foreground uppercase mt-0.5">SCORE</span>
             </div>
           </div>
 
-          {/* 5-Factor Score Bars */}
-          <div className="space-y-1.5">
-            <ScoreBar label="Probabilidade" value={assetScore.probability_score} weight="25%" />
-            <ScoreBar label="Market Edge" value={assetScore.edge_score} weight="25%" />
-            <ScoreBar label="Força Estatística" value={assetScore.stats_score} weight="20%" />
-            <ScoreBar label="Padrão" value={assetScore.pattern_score} weight="15%" />
-            <ScoreBar label="Liquidez" value={assetScore.liquidity_score} weight="15%" />
+          {/* Data Grid */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+            <DataCell label="MERCADO" value={signal.recommendation.market} />
+            <DataCell label="CASA" value={signal.recommendation.bookmaker} />
+            <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
+            <DataCell label="PROB." value={`${assetScore.model_probability}%`} />
+            <DataCell label="EDGE" value={`+${signal.recommendation.value_percentage?.toFixed(1)}%`} highlight />
+            <DataCell label="KELLY" value={`${stakePercent}% · R$${horusStake.toFixed(0)}`} />
+          </div>
+
+          {/* Factor Bars */}
+          <div className="space-y-1">
+            <FactorBar label="PROB" value={assetScore.probability_score} weight={25} />
+            <FactorBar label="EDGE" value={assetScore.edge_score} weight={25} />
+            <FactorBar label="STATS" value={assetScore.stats_score} weight={20} />
+            <FactorBar label="PADRÃO" value={assetScore.pattern_score} weight={15} />
+            <FactorBar label="LIQ" value={assetScore.liquidity_score} weight={15} />
           </div>
 
           {/* Thesis */}
-          <div className="bg-secondary/30 rounded-lg p-3">
-            <p className="text-sm font-medium text-foreground mb-1">💡 Tese:</p>
-            <p className="text-sm text-foreground/80">{signal.recommendation.thesis}</p>
+          <div className="bg-secondary/30 rounded p-3 border-l-2 border-primary/30">
+            <p className="text-[10px] font-mono text-muted-foreground mb-1">TESE DE INVESTIMENTO</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{signal.recommendation.thesis}</p>
           </div>
 
-          {/* Hórus Auto-bet Info */}
+          {/* Hórus Status */}
           {horusEntered && (
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-sm text-foreground/80">
-                <span className="font-bold text-primary">Hórus apostou automaticamente</span> R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
+              <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+              <p className="text-[10px] font-mono text-foreground/70">
+                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}
 
-          {/* Manual Bet Section */}
-          <div className="border border-accent/20 rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-accent" />
-              <span className="text-sm font-bold text-foreground">Aposta Manual</span>
+          {/* Manual Entry */}
+          <div className="border border-border rounded p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-muted-foreground tracking-wider">ENTRADA MANUAL</span>
               {manualBankroll && (
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Saldo: R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               )}
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">R$</span>
                 <Input
                   type="number"
-                  placeholder="Valor da aposta"
+                  placeholder="0.00"
                   value={customStake}
                   onChange={(e) => setCustomStake(e.target.value)}
-                  className="pl-9 h-9"
+                  className="pl-8 h-8 font-mono text-xs"
                   min="1"
                   step="0.01"
                 />
@@ -881,78 +903,87 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 onClick={handleManualBet}
                 variant="outline"
                 size="sm"
-                className="border-accent/30 hover:bg-accent/10 h-9 px-4"
+                className="h-8 px-3 font-mono text-xs"
                 disabled={!manualBankroll || !customStake}
               >
-                <User className="w-3.5 h-3.5 mr-1" />
-                Apostar
+                APOSTAR
               </Button>
             </div>
           </div>
 
           {/* Expand */}
-          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="w-full text-muted-foreground">
-            {expanded ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-            {expanded ? 'Ocultar' : 'Ver'} Análise Completa
-          </Button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full text-center text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors py-1"
+          >
+            {expanded ? '▲ OCULTAR ANÁLISE' : '▼ ANÁLISE COMPLETA'}
+          </button>
 
           {expanded && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3 pt-2 border-t border-border">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 pt-2 border-t border-border">
               <div>
-                <p className="text-sm font-bold text-foreground mb-1">📊 Análise Detalhada:</p>
-                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.analysis}</p>
+                <p className="text-[10px] font-mono text-muted-foreground mb-1">ANÁLISE DETALHADA</p>
+                <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{signal.recommendation.analysis}</p>
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground mb-1">⚠️ Fatores de Risco:</p>
-                <p className="text-sm text-foreground/80 whitespace-pre-line">{signal.recommendation.risk_factors}</p>
+                <p className="text-[10px] font-mono text-muted-foreground mb-1">FATORES DE RISCO</p>
+                <p className="text-xs text-foreground/80 whitespace-pre-line leading-relaxed">{signal.recommendation.risk_factors}</p>
               </div>
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                <p className="text-sm font-bold text-foreground mb-1">📐 Cálculo de Value:</p>
-                <div className="text-sm text-foreground/80 space-y-1">
-                  <div>Odd oferecida: <span className="font-mono">{signal.recommendation.odd}</span> → Prob. implícita: <span className="font-mono">{assetScore.implied_probability}%</span></div>
-                  <div>Prob. modelo: <span className="font-mono">{assetScore.model_probability}%</span></div>
-                  <div>Odd justa estimada: <span className="font-mono">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
-                  <div className="font-bold text-success">Value: {signal.recommendation.value_percentage?.toFixed(1)}%</div>
-                </div>
+              <div className="bg-secondary/20 border border-border rounded p-3 space-y-1 font-mono text-xs">
+                <p className="text-[10px] text-muted-foreground mb-1.5">CÁLCULO DE VALUE</p>
+                <div className="text-foreground/80">Odd: <span className="text-foreground">{signal.recommendation.odd}</span> → Implícita: <span className="text-foreground">{assetScore.implied_probability}%</span></div>
+                <div className="text-foreground/80">Prob. Modelo: <span className="text-foreground">{assetScore.model_probability}%</span></div>
+                <div className="text-foreground/80">Fair Odd: <span className="text-foreground">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
+                <div className="text-success font-bold">Value: +{signal.recommendation.value_percentage?.toFixed(1)}%</div>
               </div>
             </motion.div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-function ScoreBar({ label, value, weight }: { label: string; value: number; weight: string }) {
+function FactorBar({ label, value, weight }: { label: string; value: number; weight: number }) {
   const color = value >= 80 ? 'bg-success' : value >= 60 ? 'bg-primary' : value >= 40 ? 'bg-warning' : 'bg-destructive';
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-muted-foreground w-24 shrink-0 truncate">{label} ({weight})</span>
-      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+      <span className="text-[9px] font-mono text-muted-foreground w-16 shrink-0">{label} ({weight}%)</span>
+      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-[10px] font-orbitron font-bold text-foreground w-7 text-right">{value}</span>
+      <span className="text-[9px] font-mono font-bold text-foreground w-6 text-right">{value}</span>
     </div>
   );
 }
 
-function AssetDataCell({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
+function DataCell({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
   return (
-    <div className={cn("rounded-lg p-2", highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30')}>
-      <p className="text-[9px] text-muted-foreground uppercase mb-0.5">{label}</p>
-      <p className={cn("text-xs font-bold truncate", highlight ? 'text-success' : 'text-foreground')}>{value}</p>
+    <div className={cn("rounded p-1.5", highlight ? 'bg-success/5 border border-success/15' : 'bg-secondary/20')}>
+      <p className="text-[8px] font-mono text-muted-foreground">{label}</p>
+      <p className={cn("text-[11px] font-mono font-semibold truncate", highlight ? 'text-success' : 'text-foreground')}>{value}</p>
     </div>
   );
 }
 
-function InfoBox({ label, value, icon, highlight = false }: { label: string; value: string | number; icon?: React.ReactNode; highlight?: boolean }) {
+function HeaderBtn({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <div className={`rounded-lg p-2 ${highlight ? 'bg-success/10 border border-success/20' : 'bg-secondary/30'}`}>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`text-sm font-bold ${highlight ? 'text-success text-base' : 'text-foreground'}`}>{value}</div>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-1 px-2 py-1.5 rounded text-[10px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+    >
+      {icon}
+      <span className="hidden lg:inline">{label}</span>
+    </button>
+  );
+}
+
+function PortfolioMetric({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div className="px-3 py-2.5 text-center">
+      <p className="text-[9px] font-mono text-muted-foreground tracking-wider">{label}</p>
+      <p className={cn("font-mono font-bold text-sm mt-0.5", valueColor || 'text-foreground')}>{value}</p>
     </div>
   );
 }
@@ -987,29 +1018,29 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-orbitron flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            Histórico Punter
+          <SheetTitle className="font-mono text-sm flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" />
+            HISTÓRICO DE OPERAÇÕES
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-4 gap-2">
-            <div className="bg-secondary/30 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-orbitron font-bold text-foreground">{bets.length}</p>
+            <div className="bg-secondary/30 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">TOTAL</p>
+              <p className="font-mono font-bold text-foreground">{bets.length}</p>
             </div>
-            <div className="bg-success/10 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Green</p>
-              <p className="font-orbitron font-bold text-success">{greens}</p>
+            <div className="bg-success/5 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">GREEN</p>
+              <p className="font-mono font-bold text-success">{greens}</p>
             </div>
-            <div className="bg-destructive/10 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Red</p>
-              <p className="font-orbitron font-bold text-destructive">{reds}</p>
+            <div className="bg-destructive/5 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">RED</p>
+              <p className="font-mono font-bold text-destructive">{reds}</p>
             </div>
-            <div className={cn("rounded-lg p-2 text-center", totalPL >= 0 ? 'bg-success/10' : 'bg-destructive/10')}>
-              <p className="text-xs text-muted-foreground">P/L</p>
-              <p className={cn("font-orbitron font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
+            <div className={cn("rounded p-2 text-center", totalPL >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+              <p className="text-[9px] font-mono text-muted-foreground">P&L</p>
+              <p className={cn("font-mono font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
                 R$ {totalPL.toFixed(0)}
               </p>
             </div>

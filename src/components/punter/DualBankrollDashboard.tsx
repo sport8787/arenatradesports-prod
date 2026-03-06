@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, User, Wallet, TrendingUp, TrendingDown, Target, Zap, Settings, AlertCircle } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Bot, User, Wallet, TrendingUp, TrendingDown, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Bankroll } from '@/hooks/useBankroll';
 import type { ManualBankroll } from '@/hooks/useManualBankroll';
@@ -18,6 +17,9 @@ export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBala
   const [settingsTarget, setSettingsTarget] = useState<'horus' | 'manual' | null>(null);
 
   const totalBalance = (horus.balance || 0) + (manual.balance || 0);
+  const totalInitial = (horus.initial_balance || 0) + (manual.initial_balance || 0);
+  const totalPL = totalBalance - totalInitial;
+  const totalROI = totalInitial > 0 ? ((totalPL / totalInitial) * 100) : 0;
 
   const horusRoi = horus.initial_balance > 0
     ? (((horus.balance || 0) - horus.initial_balance) / horus.initial_balance * 100)
@@ -31,175 +33,183 @@ export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBala
 
   return (
     <div className="space-y-3">
-      {/* Total Capital */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30 rounded-xl p-4"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Capital Total</p>
-            <p className="text-2xl font-orbitron font-bold text-foreground">
-              R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <Wallet className="w-8 h-8 text-primary/50" />
-        </div>
-      </motion.div>
+      {/* Top Summary Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard
+          label="PATRIMÔNIO TOTAL"
+          value={`R$ ${totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          sub={`${totalROI >= 0 ? '+' : ''}${totalROI.toFixed(2)}%`}
+          subColor={totalROI >= 0 ? 'text-success' : 'text-destructive'}
+          icon={<Wallet className="w-4 h-4" />}
+          highlight
+        />
+        <MetricCard
+          label="P&L TOTAL"
+          value={`${totalPL >= 0 ? '+' : ''}R$ ${totalPL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          sub={`${(horus.total_bets || 0) + (manual.total_bets || 0)} operações`}
+          subColor={totalPL >= 0 ? 'text-success' : 'text-destructive'}
+          icon={totalPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+        />
+        <MetricCard
+          label="WIN RATE"
+          value={`${horus.total_bets ? ((horus.green_bets || 0) / horus.total_bets * 100).toFixed(0) : 0}%`}
+          sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R`}
+          icon={<Target className="w-4 h-4" />}
+        />
+        <MetricCard
+          label="EXPOSIÇÃO"
+          value={`R$ ${((horus.total_staked || 0) + (manual.total_staked || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
+          sub="capital investido"
+          icon={<TrendingUp className="w-4 h-4" />}
+        />
+      </div>
 
-      {/* Dual Bankroll Tabs */}
-      <Tabs defaultValue="horus" className="w-full">
-        <TabsList className="bg-secondary/50 w-full">
-          <TabsTrigger value="horus" className="flex-1 gap-1.5">
-            <Bot className="w-3.5 h-3.5" />
-            Bankroll Hórus
-          </TabsTrigger>
-          <TabsTrigger value="manual" className="flex-1 gap-1.5">
-            <User className="w-3.5 h-3.5" />
-            Bankroll Manual
-          </TabsTrigger>
-        </TabsList>
+      {/* Dual Bankroll Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <BankrollCard
+          label="HÓRUS IA"
+          icon={<Bot className="w-4 h-4 text-primary" />}
+          balance={horus.balance || 0}
+          initial={horus.initial_balance || 0}
+          roi={horusRoi}
+          profit={(horus.balance || 0) - (horus.initial_balance || 0)}
+          totalBets={horus.total_bets || 0}
+          wins={horus.green_bets || 0}
+          losses={horus.red_bets || 0}
+          accentColor="primary"
+          onSettings={onUpdateHorusBalance ? () => setSettingsTarget('horus') : undefined}
+        />
+        <BankrollCard
+          label="MANUAL"
+          icon={<User className="w-4 h-4 text-accent" />}
+          balance={manual.balance || 0}
+          initial={manual.initial_balance || 0}
+          roi={manualRoi}
+          profit={(manual.balance || 0) - (manual.initial_balance || 0)}
+          totalBets={manual.total_bets || 0}
+          wins={manual.green_bets || 0}
+          losses={manual.red_bets || 0}
+          accentColor="accent"
+          onSettings={onUpdateManualBalance ? () => setSettingsTarget('manual') : undefined}
+        />
+      </div>
 
-        <TabsContent value="horus">
-          <BankrollCard
-            label="Bankroll Hórus"
-            sublabel="IA Automática"
-            icon={<Bot className="w-5 h-5 text-primary" />}
-            balance={horus.balance || 0}
-            roi={horusRoi}
-            profit={horus.total_profit || 0}
-            totalBets={horus.total_bets || 0}
-            wins={horus.green_bets || 0}
-            losses={horus.red_bets || 0}
-            winRate={horus.win_rate || 0}
-            nextStake={Math.round((horus.balance || 0) * 0.05 * 100) / 100}
-            accentClass="border-primary/30"
-            onSettings={onUpdateHorusBalance ? () => setSettingsTarget('horus') : undefined}
-          />
-        </TabsContent>
-
-        <TabsContent value="manual">
-          <BankrollCard
-            label="Bankroll Manual"
-            sublabel="Suas Decisões"
-            icon={<User className="w-5 h-5 text-accent" />}
-            balance={manual.balance || 0}
-            roi={manualRoi}
-            profit={manual.total_profit || 0}
-            totalBets={manual.total_bets || 0}
-            wins={manual.green_bets || 0}
-            losses={manual.red_bets || 0}
-            winRate={manual.win_rate || 0}
-            nextStake={Math.round((manual.balance || 0) * 0.05 * 100) / 100}
-            accentClass="border-accent/30"
-            onSettings={onUpdateManualBalance ? () => setSettingsTarget('manual') : undefined}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {/* Performance Gap Alert */}
-      {manual.total_bets > 0 && horus.total_bets > 0 && Math.abs(performanceGap) > 10 && (
+      {/* Performance Gap */}
+      {manual.total_bets > 0 && horus.total_bets > 0 && Math.abs(performanceGap) > 5 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className={cn(
-            "border rounded-xl p-3 flex items-start gap-2",
+            "border rounded-lg p-3 flex items-center gap-2 text-xs font-mono",
             performanceGap > 0
-              ? 'border-warning/30 bg-warning/5'
-              : 'border-success/30 bg-success/5'
+              ? 'border-warning/20 bg-warning/5'
+              : 'border-success/20 bg-success/5'
           )}
         >
-          <AlertCircle className={cn("w-4 h-4 mt-0.5 shrink-0", performanceGap > 0 ? 'text-warning' : 'text-success')} />
-          <p className="text-xs text-foreground/80">
+          <AlertCircle className={cn("w-3.5 h-3.5 shrink-0", performanceGap > 0 ? 'text-warning' : 'text-success')} />
+          <span className="text-foreground/80">
             {performanceGap > 0
-              ? `Hórus está +${performanceGap.toFixed(1)}% acima no ROI. Considere seguir mais recomendações.`
-              : `Parabéns! Você está superando Hórus em ${Math.abs(performanceGap).toFixed(1)}% ROI.`}
-          </p>
+              ? `Hórus IA está +${performanceGap.toFixed(1)}pp acima no ROI`
+              : `Você está superando Hórus IA em ${Math.abs(performanceGap).toFixed(1)}pp`}
+          </span>
         </motion.div>
       )}
 
       {/* Settings Dialogs */}
       {settingsTarget === 'horus' && onUpdateHorusBalance && (
-        <BankrollSettingsDialog
-          isOpen={true}
-          onClose={() => setSettingsTarget(null)}
-          currentBalance={horus.initial_balance}
-          onSave={onUpdateHorusBalance}
-        />
+        <BankrollSettingsDialog isOpen={true} onClose={() => setSettingsTarget(null)} currentBalance={horus.initial_balance} onSave={onUpdateHorusBalance} />
       )}
       {settingsTarget === 'manual' && onUpdateManualBalance && (
-        <BankrollSettingsDialog
-          isOpen={true}
-          onClose={() => setSettingsTarget(null)}
-          currentBalance={manual.initial_balance}
-          onSave={onUpdateManualBalance}
-        />
+        <BankrollSettingsDialog isOpen={true} onClose={() => setSettingsTarget(null)} currentBalance={manual.initial_balance} onSave={onUpdateManualBalance} />
       )}
     </div>
   );
 }
 
-function BankrollCard({ label, sublabel, icon, balance, roi, profit, totalBets, wins, losses, winRate, nextStake, accentClass, onSettings }: {
+function MetricCard({ label, value, sub, subColor, icon, highlight }: {
+  label: string; value: string; sub: string; subColor?: string; icon: React.ReactNode; highlight?: boolean;
+}) {
+  return (
+    <div className={cn(
+      "rounded-lg p-3 border",
+      highlight ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
+    )}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-mono text-muted-foreground tracking-wider">{label}</span>
+        <span className={cn("text-muted-foreground", highlight && "text-primary")}>{icon}</span>
+      </div>
+      <p className={cn("font-mono font-bold text-foreground", highlight ? "text-lg" : "text-sm")}>{value}</p>
+      <p className={cn("text-[10px] font-mono mt-0.5", subColor || 'text-muted-foreground')}>{sub}</p>
+    </div>
+  );
+}
+
+function BankrollCard({ label, icon, balance, initial, roi, profit, totalBets, wins, losses, accentColor, onSettings }: {
   label: string;
-  sublabel: string;
   icon: React.ReactNode;
   balance: number;
+  initial: number;
   roi: number;
   profit: number;
   totalBets: number;
   wins: number;
   losses: number;
-  winRate: number;
-  nextStake: number;
-  accentClass: string;
+  accentColor: 'primary' | 'accent';
   onSettings?: () => void;
 }) {
-  const isProfit = profit >= 0;
+  const isPositive = profit >= 0;
+  const borderClass = accentColor === 'primary' ? 'border-primary/20' : 'border-accent/20';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("border rounded-xl p-4 space-y-3 relative bg-card", accentClass)}
+      className={cn("border rounded-lg p-4 bg-card relative", borderClass)}
     >
       {onSettings && (
         <button
           onClick={onSettings}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary transition-colors"
-          title="Configurar banca"
+          className="absolute top-3 right-3 p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-3.5 h-3.5" />
         </button>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-3">
         {icon}
+        <span className="font-mono text-xs font-semibold text-foreground tracking-wider">{label}</span>
+      </div>
+
+      <div className="space-y-2">
         <div>
-          <p className="font-orbitron text-sm font-bold text-foreground">{label}</p>
-          <p className="text-[10px] text-muted-foreground">{sublabel}</p>
+          <p className="font-mono text-xl font-bold text-foreground">
+            R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className={cn("text-xs font-mono font-semibold", isPositive ? 'text-success' : 'text-destructive')}>
+              {isPositive ? '+' : ''}{roi.toFixed(2)}% ROI
+            </span>
+            <span className={cn("text-xs font-mono", isPositive ? 'text-success' : 'text-destructive')}>
+              ({isPositive ? '+' : ''}R$ {profit.toFixed(2)})
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+          <div>
+            <p className="text-[9px] font-mono text-muted-foreground">OPERAÇÕES</p>
+            <p className="text-xs font-mono font-bold text-foreground">{totalBets}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-mono text-muted-foreground">GREEN</p>
+            <p className="text-xs font-mono font-bold text-success">{wins}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-mono text-muted-foreground">RED</p>
+            <p className="text-xs font-mono font-bold text-destructive">{losses}</p>
+          </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <StatBox icon={<Wallet className="w-3.5 h-3.5 text-primary" />} label="Saldo" value={`R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} sub={`${roi >= 0 ? '+' : ''}${roi.toFixed(1)}% ROI`} subColor={roi >= 0 ? 'text-success' : 'text-destructive'} />
-        <StatBox icon={<Target className="w-3.5 h-3.5 text-warning" />} label="Win Rate" value={`${winRate.toFixed(0)}%`} sub={`${totalBets} apostas`} />
-        <StatBox icon={isProfit ? <TrendingUp className="w-3.5 h-3.5 text-success" /> : <TrendingDown className="w-3.5 h-3.5 text-destructive" />} label="Green / Red" value={`${wins} / ${losses}`} sub="Resultado" />
-        <StatBox icon={<Zap className="w-3.5 h-3.5 text-accent" />} label="Próxima Entrada" value={`R$ ${nextStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} sub="5% da banca" />
-      </div>
     </motion.div>
-  );
-}
-
-function StatBox({ icon, label, value, sub, subColor }: { icon: React.ReactNode; label: string; value: string; sub: string; subColor?: string }) {
-  return (
-    <div className="bg-secondary/30 rounded-lg p-2.5 space-y-1">
-      <div className="flex items-center gap-1.5">
-        {icon}
-        <span className="text-[10px] text-muted-foreground font-orbitron uppercase">{label}</span>
-      </div>
-      <p className="text-sm font-orbitron font-bold text-foreground">{value}</p>
-      <p className={cn("text-[10px]", subColor || 'text-muted-foreground')}>{sub}</p>
-    </div>
   );
 }
