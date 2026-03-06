@@ -737,19 +737,7 @@ export default function PunterPage() {
                           Hórus
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{bet.market}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-orbitron font-bold text-primary">R$ {parseFloat(bet.stake).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">Odd: {bet.odd}</p>
-                    </div>
-                  </div>
-                  <Badge className="mt-2 bg-primary/10 text-primary border-primary/30">Pendente ⏳</Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+      </div>
       </div>
 
       {/* KB Chat */}
