@@ -138,7 +138,8 @@ export default function PunterPage() {
         body: {
           hours_ahead: hoursAhead,
           bookmakers: ['bet365', 'pinnacle', 'betfair'],
-          min_value: 5
+          min_value: 5,
+          ai_provider: aiProvider,
         }
       });
       if (fnError) throw fnError;
