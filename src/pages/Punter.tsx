@@ -72,6 +72,7 @@ export default function PunterPage() {
   const [manualHistoryBets, setManualHistoryBets] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
+  const [manualHistoryFilter, setManualHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
   const [showBacktest, setShowBacktest] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
