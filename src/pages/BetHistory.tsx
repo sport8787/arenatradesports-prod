@@ -31,7 +31,7 @@ interface Bet {
   thesis?: string | null;
 }
 
-type FilterStatus = 'all' | 'pending' | 'green' | 'red';
+type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
 
 export default function BetHistoryPage() {
   const navigate = useNavigate();
