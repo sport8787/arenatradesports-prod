@@ -925,7 +925,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 <div className="text-foreground/80">Odd: <span className="text-foreground">{signal.recommendation.odd}</span> → Implícita: <span className="text-foreground">{assetScore.implied_probability}%</span></div>
                 <div className="text-foreground/80">Prob. Modelo: <span className="text-foreground">{assetScore.model_probability}%</span></div>
                 <div className="text-foreground/80">Fair Odd: <span className="text-foreground">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
-                <div className="text-success font-bold">Value: +{signal.recommendation.value_percentage?.toFixed(1)}%</div>
+                <div className="text-success font-bold">Value: {signal.recommendation.value_percentage != null ? `+${signal.recommendation.value_percentage.toFixed(1)}%` : 'N/A'}</div>
               </div>
             </motion.div>
           )}
