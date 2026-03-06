@@ -183,9 +183,20 @@ export default function PunterPage() {
   // Auto-place Hórus bet for a single signal (no toast per bet)
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
-    const stakePercent = signal.recommendation.stake_percentage || 3;
-    const stake = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
-    if (stake > bankroll.balance || stake <= 0) return false;
+
+    // Kelly Criterion for smart stake sizing
+    const estimatedProb = signal.recommendation.confidence || 55;
+    const kelly = calculateKellyStake({
+      probability: estimatedProb,
+      odd: signal.recommendation.odd,
+      bankroll: bankroll.balance,
+      fraction: 0.25, // 25% Kelly (safe)
+      minStake: 1,
+      maxStake: 5,
+    });
+
+    const stake = kelly.stakeAmount;
+    if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
