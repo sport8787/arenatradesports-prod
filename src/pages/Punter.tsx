@@ -147,7 +147,7 @@ export default function PunterPage() {
       setSignals(data.signals || []);
       setTotalAnalyzed(data.total_analyzed || 0);
       setTotalApproved(data.total_approved || 0);
-      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos analisados`);
+      toast.success(`${data.total_approved} sinais aprovados de ${data.total_analyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`);
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
       setError(err.message || 'Erro ao conectar com Mycroft Punter');
