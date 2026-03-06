@@ -184,6 +184,14 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
 
+// European leagues run Aug-May, so before August use previous year as season
+function getSeasonYear(): number {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  return currentMonth < 8 ? currentYear - 1 : currentYear
+}
+
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null
   try {
@@ -191,9 +199,36 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
       `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(teamName)}`,
       { headers: apiHeaders(apiKey) }
     )
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`[API-Football] Team search HTTP ${res.status} for "${teamName}"`)
+      return null
+    }
     const data = await res.json()
-    return data.response?.[0]?.team?.id || null
+    const teamId = data.response?.[0]?.team?.id || null
+    if (!teamId) {
+      // Try shorter name (e.g., "Bayern Munich" -> "Bayern", "RB Leipzig" -> "Leipzig")
+      const parts = teamName.split(' ')
+      if (parts.length > 1) {
+        const shortName = parts.length > 2 ? parts.slice(0, 2).join(' ') : parts[parts.length - 1]
+        console.log(`[API-Football] Team "${teamName}" not found, trying "${shortName}"...`)
+        const res2 = await fetch(
+          `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(shortName)}`,
+          { headers: apiHeaders(apiKey) }
+        )
+        if (res2.ok) {
+          const data2 = await res2.json()
+          const fallbackId = data2.response?.[0]?.team?.id || null
+          if (fallbackId) {
+            console.log(`[API-Football] ✅ Found team "${teamName}" as "${data2.response[0].team.name}" (ID: ${fallbackId})`)
+            return fallbackId
+          }
+        }
+      }
+      console.warn(`[API-Football] ⚠️ Team "${teamName}" not found in API-Football`)
+    } else {
+      console.log(`[API-Football] ✅ Team "${teamName}" -> ID: ${teamId}`)
+    }
+    return teamId
   } catch (e) {
     console.warn(`[API-Football] Erro buscando team ${teamName}:`, e)
     return null
@@ -203,15 +238,23 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
 async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, apiKey: string): Promise<any> {
   if (!apiKey || !teamId) return null
   try {
-    const year = new Date().getFullYear()
+    const seasonYear = getSeasonYear()
+    
     const endpoint = leagueId
-      ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}&league=${leagueId}`
-      : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${year}`
+      ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}&league=${leagueId}`
+      : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}`
     
     const res = await fetch(endpoint, { headers: apiHeaders(apiKey) })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`[API-Football] Season stats HTTP ${res.status} for team ${teamId}, season ${seasonYear}`)
+      return null
+    }
     const data = await res.json()
-    return data.response || null
+    const result = data.response || null
+    if (!result) {
+      console.warn(`[API-Football] No season stats for team ${teamId}, season ${seasonYear}, league ${leagueId}`)
+    }
+    return result
   } catch { return null }
 }
 
@@ -257,7 +300,7 @@ async function fetchH2H(homeId: number, awayId: number, apiKey: string): Promise
 async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
   if (!apiKey || !teamId) return []
   try {
-    const year = new Date().getFullYear()
+    const year = getSeasonYear()
     const res = await fetch(
       `${API_FOOTBALL_BASE}/injuries?team=${teamId}&season=${year}`,
       { headers: apiHeaders(apiKey) }
@@ -271,7 +314,7 @@ async function fetchInjuries(teamId: number, apiKey: string): Promise<any[]> {
 async function fetchStandings(leagueId: number | null, apiKey: string): Promise<any[]> {
   if (!apiKey || !leagueId) return []
   try {
-    const year = new Date().getFullYear()
+    const year = getSeasonYear()
     const res = await fetch(
       `${API_FOOTBALL_BASE}/standings?league=${leagueId}&season=${year}`,
       { headers: apiHeaders(apiKey) }
@@ -1005,8 +1048,27 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       // Ensure value_percentage is a number (some models return edge_percentage instead)
       if (analysis.value_percentage === undefined || analysis.value_percentage === null) {
-        analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
+        analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || analysis.edge || analysis.value || null
       }
+
+      // If still null, try to extract from thesis text (e.g. "Edge de 3.8%")
+      if (analysis.value_percentage == null && analysis.thesis) {
+        const edgeMatch = analysis.thesis.match(/[Ee]dge\s+(?:de\s+)?(\d+[\.,]\d+)\s*%/)
+        if (edgeMatch) {
+          analysis.value_percentage = parseFloat(edgeMatch[1].replace(',', '.'))
+          console.log(`[Mycroft Punter] value_percentage extraído da thesis: ${analysis.value_percentage}%`)
+        }
+      }
+
+      // If still null and we have estimated_probability + odd, calculate it
+      if (analysis.value_percentage == null && analysis.estimated_probability && analysis.odd) {
+        const impliedProb = (1 / analysis.odd) * 100
+        analysis.value_percentage = Math.round((analysis.estimated_probability - impliedProb) * 10) / 10
+        console.log(`[Mycroft Punter] value_percentage calculado: ${analysis.value_percentage}% (prob ${analysis.estimated_probability}% - implied ${impliedProb.toFixed(1)}%)`)
+      }
+
+      // Final fallback
+      if (analysis.value_percentage == null) analysis.value_percentage = 0
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
 
