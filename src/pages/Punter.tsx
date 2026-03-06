@@ -280,6 +280,10 @@ export default function PunterPage() {
               <Activity className="w-4 h-4 mr-1" />
               Simulado
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/punter/widgets')}>
+              <LayoutGrid className="w-4 h-4 mr-1" />
+              Widgets
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               KB
