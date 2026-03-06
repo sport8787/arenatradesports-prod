@@ -9,16 +9,21 @@ import BankrollSettingsDialog from '@/components/arena-trader/BankrollSettingsDi
 interface DualBankrollDashboardProps {
   horus: Bankroll;
   manual: ManualBankroll;
+  pendingBets?: any[];
   onUpdateHorusBalance?: (v: number) => Promise<{ success: boolean; error?: string }>;
   onUpdateManualBalance?: (v: number) => Promise<{ success: boolean; error?: string }>;
 }
 
-export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBalance, onUpdateManualBalance }: DualBankrollDashboardProps) {
+export default function DualBankrollDashboard({ horus, manual, pendingBets = [], onUpdateHorusBalance, onUpdateManualBalance }: DualBankrollDashboardProps) {
   const [settingsTarget, setSettingsTarget] = useState<'horus' | 'manual' | null>(null);
 
-  const totalBalance = (horus.balance || 0) + (manual.balance || 0);
+  // Exposure = sum of stakes from pending (open) bets only
+  const pendingExposure = pendingBets.reduce((sum, b) => sum + (b.stake || 0), 0);
+
+  // Total equity = current cash balance + money in play (pending bets)
+  const totalEquity = (horus.balance || 0) + (manual.balance || 0) + pendingExposure;
   const totalInitial = (horus.initial_balance || 0) + (manual.initial_balance || 0);
-  const totalPL = totalBalance - totalInitial;
+  const totalPL = totalEquity - totalInitial;
   const totalROI = totalInitial > 0 ? ((totalPL / totalInitial) * 100) : 0;
 
   const horusRoi = horus.initial_balance > 0
@@ -37,7 +42,7 @@ export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBala
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard
           label="PATRIMÔNIO TOTAL"
-          value={`R$ ${totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          value={`R$ ${totalEquity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           sub={`${totalROI >= 0 ? '+' : ''}${totalROI.toFixed(2)}%`}
           subColor={totalROI >= 0 ? 'text-success' : 'text-destructive'}
           icon={<Wallet className="w-4 h-4" />}
@@ -58,8 +63,8 @@ export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBala
         />
         <MetricCard
           label="EXPOSIÇÃO"
-          value={`R$ ${((horus.total_staked || 0) + (manual.total_staked || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
-          sub="capital investido"
+          value={`R$ ${pendingExposure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          sub={`${pendingBets.length} apostas em aberto`}
           icon={<TrendingUp className="w-4 h-4" />}
         />
       </div>
@@ -80,7 +85,7 @@ export default function DualBankrollDashboard({ horus, manual, onUpdateHorusBala
           onSettings={onUpdateHorusBalance ? () => setSettingsTarget('horus') : undefined}
         />
         <BankrollCard
-          label="MANUAL"
+          label="MINHA BANCA"
           icon={<User className="w-4 h-4 text-accent" />}
           balance={manual.balance || 0}
           initial={manual.initial_balance || 0}

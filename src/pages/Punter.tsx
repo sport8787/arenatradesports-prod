@@ -432,6 +432,7 @@ export default function PunterPage() {
           <DualBankrollDashboard
             horus={bankroll}
             manual={manualBankroll}
+            pendingBets={pendingBets}
             onUpdateHorusBalance={updateInitialBalance}
             onUpdateManualBalance={updateManualBalance}
           />
