@@ -447,6 +447,7 @@ export default function BetHistoryPage() {
             <TabsTrigger value="pending">Pendentes ({stats.pending})</TabsTrigger>
             <TabsTrigger value="green">Green ({stats.greens})</TabsTrigger>
             <TabsTrigger value="red">Red ({stats.reds})</TabsTrigger>
+            <TabsTrigger value="cancelled">Canceladas</TabsTrigger>
           </TabsList>
         </Tabs>
 
