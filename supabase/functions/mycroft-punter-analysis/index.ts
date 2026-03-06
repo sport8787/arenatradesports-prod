@@ -184,6 +184,14 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
 
+// European leagues run Aug-May, so before August use previous year as season
+function getSeasonYear(): number {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  return currentMonth < 8 ? currentYear - 1 : currentYear
+}
+
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null
   try {
