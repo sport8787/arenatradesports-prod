@@ -550,82 +550,6 @@ export default function PunterPage() {
           </CardContent>
         </Card>
 
-        {/* Analyze Button */}
-        <Card className="border-primary/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-orbitron">Analisar Jogos (Todas as Ligas + PE)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Button
-                variant={timeWindow === '15min' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTimeWindow('15min')}
-                className="flex-1"
-              >
-                <Clock className="w-3.5 h-3.5 mr-1" />
-                Próximos 15 min
-              </Button>
-              <Button
-                variant={timeWindow === '48h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTimeWindow('48h')}
-                className="flex-1"
-              >
-                <Calendar className="w-3.5 h-3.5 mr-1" />
-                Próximas 48h
-              </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAiProvider('gemini')}
-                className="flex-1"
-              >
-                🧠 Gemini
-              </Button>
-              <Button
-                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAiProvider('anthropic')}
-                className="flex-1"
-              >
-                <FlaskConical className="w-3.5 h-3.5 mr-1" />
-                Claude (Teste)
-              </Button>
-            </div>
-
-            <GoldButton onClick={analyzeGames} disabled={loading} className="w-full">
-              {loading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando com {aiProvider === 'anthropic' ? 'Claude' : 'Gemini'}...</>
-              ) : (
-                <><BarChart3 className="mr-2 h-4 w-4" /> Analisar Jogos ({timeWindow === '15min' ? 'próximos 15 min' : 'próximas 48h'})</>
-              )}
-            </GoldButton>
-
-            {totalAnalyzed > 0 && !loading && (
-              <div className="mt-3 flex gap-4 text-sm">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Analisados:</span>
-                  <Badge variant="secondary">{totalAnalyzed}</Badge>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Aprovados:</span>
-                  <Badge className="bg-success text-success-foreground">{totalApproved}</Badge>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">Taxa:</span>
-                  <span className="font-bold text-success">
-                    {((totalApproved / totalAnalyzed) * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Error */}
         {error && (
           <Alert variant="destructive">
@@ -744,21 +668,39 @@ export default function PunterPage() {
               </div>
             </div>
             <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
-              {pendingBets.map((bet) => (
-                <div key={bet.id} className="p-3 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-8 rounded-full bg-primary/50" />
-                    <div>
-                      <p className="font-mono text-sm font-semibold text-foreground">{bet.match_name || bet.match_id}</p>
-                      <p className="font-mono text-[10px] text-muted-foreground">{bet.market}</p>
+              {pendingBets.map((bet) => {
+                const betMatchId = (bet.match_id || '').toLowerCase();
+                const isNewBet = autoPlacedMatchIds.has(betMatchId);
+                const betDate = bet.created_at ? new Date(bet.created_at) : null;
+                return (
+                  <div key={bet.id} className={cn(
+                    "p-3 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors",
+                    isNewBet && "bg-success/5 border-l-2 border-l-success"
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-1.5 h-8 rounded-full", isNewBet ? "bg-success" : "bg-primary/50")} />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-sm font-semibold text-foreground">{bet.match_name || bet.match_id}</p>
+                          {isNewBet && <span className="text-[9px] font-mono font-bold text-success animate-pulse">● NOVA</span>}
+                        </div>
+                        <p className="font-mono text-[10px] text-muted-foreground">
+                          {bet.market}
+                          {betDate && (
+                            <span className="ml-2 opacity-60">
+                              {betDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {betDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-sm font-bold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">@ {parseFloat(bet.odd).toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-mono text-sm font-bold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
-                    <p className="font-mono text-[10px] text-muted-foreground">@ {parseFloat(bet.odd).toFixed(2)}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -920,7 +862,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
               <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
               <p className="text-[10px] font-mono text-foreground/70">
-                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
               </p>
             </div>
           )}
