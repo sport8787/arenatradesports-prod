@@ -63,6 +63,7 @@ const App = () => {
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
               <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
               <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
+              <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
