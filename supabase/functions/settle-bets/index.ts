@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Get all pending bets from both tables
+    // 1. Get all pending bets from all tables
     const { data: pendingBets } = await supabase
       .from('virtual_bets')
       .select('*')
@@ -24,6 +24,11 @@ Deno.serve(async (req) => {
 
     const { data: pendingPunterBets } = await supabase
       .from('virtual_bets_punter')
+      .select('*')
+      .eq('status', 'pending');
+
+    const { data: pendingManualBets } = await supabase
+      .from('virtual_bets_manual')
       .select('*')
       .eq('status', 'pending');
 
@@ -36,6 +41,7 @@ Deno.serve(async (req) => {
     const allPending = [
       ...(pendingBets || []).map(b => ({ ...b, table: 'virtual_bets' })),
       ...(pendingPunterBets || []).map(b => ({ ...b, table: 'virtual_bets_punter' })),
+      ...(pendingManualBets || []).map(b => ({ ...b, table: 'virtual_bets_manual' })),
     ];
 
     if (allPending.length === 0 && (!pendingSignals || pendingSignals.length === 0)) {
