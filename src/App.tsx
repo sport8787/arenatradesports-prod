@@ -18,6 +18,7 @@ import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
 import BetHistory from "./pages/BetHistory";
 import Punter from "./pages/Punter";
+import PunterWidgets from "./pages/PunterWidgets";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
