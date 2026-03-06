@@ -377,66 +377,56 @@ export default function PunterPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      {/* Header — Bloomberg-style top bar */}
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <Target className="w-6 h-6 text-success" />
-              <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-                Arena Punter
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+                ORÁCULO MYCROFT
               </h1>
+              <span className="text-[10px] text-muted-foreground font-mono border border-border px-1.5 py-0.5 rounded">
+                PUNTER
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {bankroll && (
-              <div className="flex items-center gap-1.5 text-sm">
-                <Wallet className="w-4 h-4 text-primary" />
-                <span className="font-orbitron font-bold text-foreground">
+
+          {/* Balance ticker */}
+          {bankroll && (
+            <div className="hidden md:flex items-center gap-4 text-xs font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">HÓRUS</span>
+                <span className="text-foreground font-semibold">
                   R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-            )}
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/apostas')}>
-              <Wallet className="w-4 h-4 mr-1" />
-              Apostas
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={openHistory}>
-              <History className="w-4 h-4 mr-1" />
-              Histórico
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={handleSettleBets} disabled={settlingBets}>
-              {settlingBets ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
-              Liquidar
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowBacktest(true)}>
-              <Activity className="w-4 h-4 mr-1" />
-              Simulado
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/punter/widgets')}>
-              <LayoutGrid className="w-4 h-4 mr-1" />
-              Widgets
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowRankings(true)}>
-              <Trophy className="w-4 h-4 mr-1" />
-              Ranking
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setShowCertificate(true)}>
-              <Award className="w-4 h-4 mr-1" />
-              Certificado
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
-              <Brain className="w-4 h-4 mr-1" />
-              KB
-            </GoldButton>
+              {manualBankroll && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">MANUAL</span>
+                  <span className="text-foreground font-semibold">
+                    R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5">
+            <HeaderBtn icon={<History className="w-3.5 h-3.5" />} label="Histórico" onClick={openHistory} />
+            <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
+            <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
+            <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
+            <HeaderBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => setShowCertificate(true)} />
+            <HeaderBtn icon={<Brain className="w-3.5 h-3.5" />} label="KB" onClick={() => setIsChatOpen(true)} />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-4 space-y-4 max-w-4xl">
+      <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
         {/* Dual Bankroll Widget */}
         {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
           <DualBankrollDashboard
@@ -447,14 +437,83 @@ export default function PunterPage() {
           />
         )}
 
-        {/* Info Banner */}
-        <Card className="border-success/30 bg-success/5">
-          <CardContent className="p-4">
-            <p className="text-sm text-foreground/80">
-              <span className="font-bold text-success">Value Betting Pré-Jogo</span> — Mycroft Punter analisa jogos 
-              futuros e identifica odds com value positivo. <span className="font-bold text-primary">Hórus aposta automaticamente</span> nos sinais aprovados.
-              Você pode apostar manualmente com seu próprio valor na Bankroll Manual.
-            </p>
+        {/* Scanner Panel */}
+        <Card className="border-border bg-card">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scanner de Mercado</h3>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                Value Betting Pré-Jogo
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={timeWindow === '15min' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('15min')}
+                className="font-mono text-xs"
+              >
+                <Clock className="w-3 h-3 mr-1.5" />
+                15 MIN
+              </Button>
+              <Button
+                variant={timeWindow === '48h' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('48h')}
+                className="font-mono text-xs"
+              >
+                <Calendar className="w-3 h-3 mr-1.5" />
+                48H
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('gemini')}
+                className="font-mono text-xs"
+              >
+                Gemini
+              </Button>
+              <Button
+                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setAiProvider('anthropic')}
+                className="font-mono text-xs"
+              >
+                Claude
+              </Button>
+            </div>
+
+            <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
+              ) : (
+                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+              )}
+            </GoldButton>
+
+            {totalAnalyzed > 0 && !loading && (
+              <div className="flex gap-4 text-xs font-mono border-t border-border pt-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">SCANNED</span>
+                  <span className="text-foreground font-semibold">{totalAnalyzed}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">APPROVED</span>
+                  <span className="text-success font-semibold">{totalApproved}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">RATE</span>
+                  <span className="text-success font-semibold">
+                    {((totalApproved / totalAnalyzed) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
