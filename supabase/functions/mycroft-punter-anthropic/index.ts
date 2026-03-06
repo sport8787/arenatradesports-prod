@@ -973,7 +973,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
   const maxRetries = 3
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      analysisText = await callGemini(systemPrompt, userPrompt)
+      analysisText = await callAnthropic(systemPrompt, userPrompt)
 
       if (!analysisText) throw new Error('AI não retornou análise válida')
 
