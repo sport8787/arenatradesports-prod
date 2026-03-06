@@ -787,37 +787,36 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
-// AI Provider functions
+// AI Provider: Anthropic Claude
 // ═══════════════════════════════════════════════
 
-async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
+  const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
+  if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
 
-  const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.3,
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-    })
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
   })
 
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text()
-    throw new Error(`Gemini error ${aiResponse.status}: ${errText}`)
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Anthropic error ${response.status}: ${errText}`)
   }
 
-  const aiData = await aiResponse.json()
-  return aiData.choices?.[0]?.message?.content || ''
+  const data = await response.json()
+  return data.content?.[0]?.text || ''
 }
 
 // ═══════════════════════════════════════════════
