@@ -1076,9 +1076,12 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
       }
 
       return analysis
-    } catch (parseErr) {
+    } catch (parseErr: any) {
       if (attempt < maxRetries - 1) {
-        console.warn(`[Mycroft Punter] Tentativa ${attempt + 1} falhou para ${game.home_team} vs ${game.away_team}, retentando...`)
+        const isRateLimit = parseErr?.message?.includes('429')
+        const backoffMs = isRateLimit ? (attempt + 1) * 5000 : 1000
+        console.warn(`[Mycroft Punter] Tentativa ${attempt + 1} falhou para ${game.home_team} vs ${game.away_team}${isRateLimit ? ' (rate limit)' : ''}, aguardando ${backoffMs}ms...`)
+        await new Promise(resolve => setTimeout(resolve, backoffMs))
         continue
       }
       throw parseErr
