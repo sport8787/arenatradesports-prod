@@ -436,7 +436,7 @@ export default function PunterPage() {
               </div>
               {manualBankroll && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground">MANUAL</span>
+                  <span className="text-muted-foreground">MINHA BANCA</span>
                   <span className="text-foreground font-semibold">
                     R$ {manualBankroll.balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
