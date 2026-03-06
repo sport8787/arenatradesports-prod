@@ -1020,7 +1020,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         thesis: analysis.thesis,
         analysis: analysis.analysis,
         risk_factors: analysis.risk_factors,
-        analyzed_by: 'gemini',
+        analyzed_by: 'anthropic',
       }).select().maybeSingle()
 
       // If approved, create signal

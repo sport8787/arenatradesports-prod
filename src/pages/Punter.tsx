@@ -134,12 +134,12 @@ export default function PunterPage() {
     setError(null);
     try {
       const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
-      const { data, error: fnError } = await supabase.functions.invoke('mycroft-punter-analysis', {
+      const functionName = aiProvider === 'anthropic' ? 'mycroft-punter-anthropic' : 'mycroft-punter-analysis';
+      const { data, error: fnError } = await supabase.functions.invoke(functionName, {
         body: {
           hours_ahead: hoursAhead,
           bookmakers: ['bet365', 'pinnacle', 'betfair'],
           min_value: 5,
-          ai_provider: aiProvider,
         }
       });
       if (fnError) throw fnError;
