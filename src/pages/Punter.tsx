@@ -770,14 +770,30 @@ export default function PunterPage() {
         onClose={() => setIsChatOpen(false)}
       />
 
-      {/* Punter History Sheet */}
-      <PunterHistorySheet
+      {/* Hórus History Sheet */}
+      <BetHistorySheet
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         bets={historyBets}
         loading={historyLoading}
         filter={historyFilter}
         onFilterChange={setHistoryFilter}
+        title="APOSTAS DO HÓRUS"
+        icon={<Bot className="w-4 h-4 text-primary" />}
+        initialBalance={bankroll?.initial_balance || 10000}
+      />
+
+      {/* Manual History Sheet */}
+      <BetHistorySheet
+        isOpen={isManualHistoryOpen}
+        onClose={() => setIsManualHistoryOpen(false)}
+        bets={manualHistoryBets}
+        loading={historyLoading}
+        filter={manualHistoryFilter}
+        onFilterChange={setManualHistoryFilter}
+        title="MINHAS APOSTAS"
+        icon={<User className="w-4 h-4 text-accent" />}
+        initialBalance={manualBankroll?.initial_balance || 10000}
       />
     </div>
   );
