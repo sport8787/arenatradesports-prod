@@ -788,7 +788,7 @@ function calculateTotalsProbabilities(totals: any) {
 // AI Provider functions
 // ═══════════════════════════════════════════════
 
-async function callGemini(prompt: string): Promise<string> {
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
   if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
 
@@ -800,7 +800,10 @@ async function callGemini(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
       temperature: 0.3,
       max_tokens: 1500,
     })
@@ -815,7 +818,7 @@ async function callGemini(prompt: string): Promise<string> {
   return aiData.choices?.[0]?.message?.content || ''
 }
 
-async function callAnthropic(prompt: string): Promise<string> {
+async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
   const anthropicKey = Deno.env.get('VITE_ANTHROPIC_API_KEY')
   if (!anthropicKey) throw new Error('VITE_ANTHROPIC_API_KEY not configured')
 
@@ -830,7 +833,8 @@ async function callAnthropic(prompt: string): Promise<string> {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       temperature: 0.3,
-      messages: [{ role: 'user', content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
     }),
   })
 
@@ -879,9 +883,11 @@ async function analyzeGame(
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
 
-  const analysisPrompt = `
-${customPrompt}
+  const systemPrompt = `${customPrompt}
 
+REGRA ABSOLUTA: Você é um motor de análise quantitativa. Você NUNCA responde com texto livre. Você SEMPRE retorna APENAS um objeto JSON válido. Sem saudações, sem confirmações, sem markdown. APENAS o JSON.`
+
+  const userPrompt = `
 ═══════════════════════════════════════
 JOGO PRÉ-JOGO - ANÁLISE DE VALUE
 ═══════════════════════════════════════
@@ -962,7 +968,7 @@ INSTRUÇÕES DE RESPOSTA
 Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
 
 {
-  "verdict": "APROVADO" ou "VETADO" (use EXATAMENTE "APROVADO" se aprovado, não use variações como APROVADO_TIER_1),
+  "verdict": "APROVADO" ou "VETADO",
   "tier": 1 | 2 | 3 | null,
   "model_level": "${enriched.model_level}",
   "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
@@ -982,78 +988,93 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "api_predictions_agree": true | false | null
 }
 
-IMPORTANTE: Siga RIGOROSAMENTE os critérios de aprovação/veto definidos no prompt acima.
-- Use os tiers e thresholds EXATOS do prompt (não invente critérios extras)
-- Se NIVEL_3 (apenas odds): aplique penalização de stake conforme prompt
-- CONSIDERE TODOS OS MERCADOS (H2H e Over/Under) e retorne aquele com MAIOR edge
-- META DE APROVAÇÃO: 50-70% dos jogos devem ser APROVADOS conforme o prompt
+IMPORTANTE:
+- Use EXATAMENTE "APROVADO" ou "VETADO" no verdict
 - Edge ≥ 2% com Confiança ≥ 58% = APROVAR (Tier 3 mínimo)
-- NÃO invente motivos extras de veto que não estejam no prompt
-- NÃO vete por "amostra pequena", "volatilidade alta", "última rodada" ou "sem motivação"
+- META DE APROVAÇÃO: 50-70% dos jogos
+- NÃO invente motivos extras de veto
 - Se há edge ≥ 2% e EV positivo, APROVE no tier correspondente
 
-ANALISE AGORA:`
+ANALISE AGORA E RETORNE APENAS O JSON:`
 
-  // Call AI provider
-  let analysisText: string
-  if (aiProvider === 'anthropic') {
-    analysisText = await callAnthropic(analysisPrompt)
-  } else {
-    analysisText = await callGemini(analysisPrompt)
+  // Call AI provider with retry
+  let analysisText: string = ''
+  const maxRetries = 2
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (aiProvider === 'anthropic') {
+        analysisText = await callAnthropic(systemPrompt, userPrompt)
+      } else {
+        analysisText = await callGemini(systemPrompt, userPrompt)
+      }
+
+      if (!analysisText) throw new Error('AI não retornou análise válida')
+
+      // Clean and extract JSON
+      const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        console.error(`[Mycroft Punter] Resposta sem JSON (tentativa ${attempt + 1}):`, cleanJson.substring(0, 200))
+        if (attempt < maxRetries - 1) continue
+        throw new Error('Falha ao parsear análise - sem JSON na resposta')
+      }
+
+      const analysis = JSON.parse(jsonMatch[0])
+
+      // Normalize verdict
+      if (analysis.verdict && analysis.verdict.startsWith('APROVADO')) {
+        analysis.verdict = 'APROVADO'
+      }
+
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: ${aiProvider}`)
+
+      // Save analysis to DB
+      const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
+        match_id: matchId,
+        home_team: game.home_team,
+        away_team: game.away_team,
+        league: game.sport_title || 'Unknown',
+        commence_time: game.commence_time,
+        market: analysis.market || 'N/A',
+        bookmaker: analysis.bookmaker || 'N/A',
+        odd: analysis.odd || 0,
+        fair_odd: analysis.fair_odd,
+        implied_probability: analysis.implied_probability,
+        estimated_probability: analysis.estimated_probability,
+        value_percentage: analysis.value_percentage,
+        verdict: analysis.verdict,
+        confidence: analysis.confidence,
+        stake_percentage: analysis.stake_percentage,
+        thesis: analysis.thesis,
+        analysis: analysis.analysis,
+        risk_factors: analysis.risk_factors,
+        analyzed_by: aiProvider,
+      }).select().maybeSingle()
+
+      // If approved, create signal
+      if (analysis.verdict === 'APROVADO' && analysisRow) {
+        await supabaseClient.from('punter_signals').insert({
+          analysis_id: analysisRow.id,
+          match_id: matchId,
+          market: analysis.market,
+          bookmaker: analysis.bookmaker,
+          odd: analysis.odd,
+          value_percentage: analysis.value_percentage,
+          stake_percentage: analysis.stake_percentage,
+          status: 'pending',
+        })
+        console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
+      }
+
+      return analysis
+    } catch (parseErr) {
+      if (attempt < maxRetries - 1) {
+        console.warn(`[Mycroft Punter] Tentativa ${attempt + 1} falhou para ${game.home_team} vs ${game.away_team}, retentando...`)
+        continue
+      }
+      throw parseErr
+    }
   }
 
-  if (!analysisText) throw new Error('AI não retornou análise válida')
-
-  // Parse JSON
-  const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  let analysis: any
-  try {
-    analysis = JSON.parse(cleanJson)
-  } catch {
-    console.error('[Mycroft Punter] Erro ao parsear JSON:', cleanJson.substring(0, 200))
-    throw new Error('Falha ao parsear análise')
-  }
-
-  console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: ${aiProvider}`)
-
-  // Save analysis to DB (with analyzed_by field)
-  const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
-    match_id: matchId,
-    home_team: game.home_team,
-    away_team: game.away_team,
-    league: game.sport_title || 'Unknown',
-    commence_time: game.commence_time,
-    market: analysis.market || 'N/A',
-    bookmaker: analysis.bookmaker || 'N/A',
-    odd: analysis.odd || 0,
-    fair_odd: analysis.fair_odd,
-    implied_probability: analysis.implied_probability,
-    estimated_probability: analysis.estimated_probability,
-    value_percentage: analysis.value_percentage,
-    verdict: analysis.verdict,
-    confidence: analysis.confidence,
-    stake_percentage: analysis.stake_percentage,
-    thesis: analysis.thesis,
-    analysis: analysis.analysis,
-    risk_factors: analysis.risk_factors,
-    analyzed_by: aiProvider,
-  }).select().single()
-
-  // If approved, create signal
-  const isApproved = typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')
-  if (isApproved && analysisRow) {
-    await supabaseClient.from('punter_signals').insert({
-      analysis_id: analysisRow.id,
-      match_id: matchId,
-      market: analysis.market,
-      bookmaker: analysis.bookmaker,
-      odd: analysis.odd,
-      value_percentage: analysis.value_percentage,
-      stake_percentage: analysis.stake_percentage,
-      status: 'pending',
-    })
-    console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
-  }
-
-  return analysis
+  return null
 }
