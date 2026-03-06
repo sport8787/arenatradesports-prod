@@ -1018,29 +1018,29 @@ function PunterHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterCh
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-orbitron flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            Histórico Punter
+          <SheetTitle className="font-mono text-sm flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" />
+            HISTÓRICO DE OPERAÇÕES
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-4 gap-2">
-            <div className="bg-secondary/30 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-orbitron font-bold text-foreground">{bets.length}</p>
+            <div className="bg-secondary/30 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">TOTAL</p>
+              <p className="font-mono font-bold text-foreground">{bets.length}</p>
             </div>
-            <div className="bg-success/10 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Green</p>
-              <p className="font-orbitron font-bold text-success">{greens}</p>
+            <div className="bg-success/5 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">GREEN</p>
+              <p className="font-mono font-bold text-success">{greens}</p>
             </div>
-            <div className="bg-destructive/10 rounded-lg p-2 text-center">
-              <p className="text-xs text-muted-foreground">Red</p>
-              <p className="font-orbitron font-bold text-destructive">{reds}</p>
+            <div className="bg-destructive/5 rounded p-2 text-center">
+              <p className="text-[9px] font-mono text-muted-foreground">RED</p>
+              <p className="font-mono font-bold text-destructive">{reds}</p>
             </div>
-            <div className={cn("rounded-lg p-2 text-center", totalPL >= 0 ? 'bg-success/10' : 'bg-destructive/10')}>
-              <p className="text-xs text-muted-foreground">P/L</p>
-              <p className={cn("font-orbitron font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
+            <div className={cn("rounded p-2 text-center", totalPL >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+              <p className="text-[9px] font-mono text-muted-foreground">P&L</p>
+              <p className={cn("font-mono font-bold text-sm", totalPL >= 0 ? 'text-success' : 'text-destructive')}>
                 R$ {totalPL.toFixed(0)}
               </p>
             </div>
