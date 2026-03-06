@@ -125,9 +125,26 @@ export default function PunterPage() {
     setHistoryLoading(false);
   }, [user]);
 
+  const fetchManualHistory = useCallback(async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('virtual_bets_manual')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setManualHistoryBets(data || []);
+    setHistoryLoading(false);
+  }, [user]);
+
   const openHistory = () => {
     setIsHistoryOpen(true);
     fetchHistory();
+  };
+
+  const openManualHistory = () => {
+    setIsManualHistoryOpen(true);
+    fetchManualHistory();
   };
 
   const handleSettleBets = async () => {
