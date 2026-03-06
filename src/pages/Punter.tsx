@@ -64,6 +64,7 @@ export default function PunterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
+  const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
   const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyBets, setHistoryBets] = useState<any[]>([]);
@@ -85,17 +86,26 @@ export default function PunterPage() {
     return keys;
   }, [pendingBets]);
 
-  // Load pending bets on mount
+  // Load pending bets on mount (both Hórus and Manual)
   useEffect(() => {
     const loadPendingBets = async () => {
       if (!user) return;
-      const { data, error } = await supabase
-        .from('virtual_bets_punter')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      if (!error && data) setPendingBets(data);
+      const [horusRes, manualRes] = await Promise.all([
+        supabase
+          .from('virtual_bets_punter')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('virtual_bets_manual')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false }),
+      ]);
+      if (!horusRes.error && horusRes.data) setPendingBets(horusRes.data);
+      if (!manualRes.error && manualRes.data) setManualPendingBets(manualRes.data);
     };
     loadPendingBets();
   }, [user]);
