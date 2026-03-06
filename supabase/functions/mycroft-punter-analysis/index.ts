@@ -1005,8 +1005,27 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       // Ensure value_percentage is a number (some models return edge_percentage instead)
       if (analysis.value_percentage === undefined || analysis.value_percentage === null) {
-        analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
+        analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || analysis.edge || analysis.value || null
       }
+
+      // If still null, try to extract from thesis text (e.g. "Edge de 3.8%")
+      if (analysis.value_percentage == null && analysis.thesis) {
+        const edgeMatch = analysis.thesis.match(/[Ee]dge\s+(?:de\s+)?(\d+[\.,]\d+)\s*%/)
+        if (edgeMatch) {
+          analysis.value_percentage = parseFloat(edgeMatch[1].replace(',', '.'))
+          console.log(`[Mycroft Punter] value_percentage extraído da thesis: ${analysis.value_percentage}%`)
+        }
+      }
+
+      // If still null and we have estimated_probability + odd, calculate it
+      if (analysis.value_percentage == null && analysis.estimated_probability && analysis.odd) {
+        const impliedProb = (1 / analysis.odd) * 100
+        analysis.value_percentage = Math.round((analysis.estimated_probability - impliedProb) * 10) / 10
+        console.log(`[Mycroft Punter] value_percentage calculado: ${analysis.value_percentage}% (prob ${analysis.estimated_probability}% - implied ${impliedProb.toFixed(1)}%)`)
+      }
+
+      // Final fallback
+      if (analysis.value_percentage == null) analysis.value_percentage = 0
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
 
