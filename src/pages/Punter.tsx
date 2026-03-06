@@ -705,11 +705,12 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <InfoBox label="Stake" value={`${stakePercent}% (R$ ${horusStake.toFixed(0)})`} icon={<DollarSign className="w-3.5 h-3.5" />} />
           </div>
 
-          {/* Asset Score Breakdown */}
-          <div className="grid grid-cols-4 gap-1.5">
+          {/* Asset Score Breakdown — 5 factors */}
+          <div className="grid grid-cols-5 gap-1">
+            <ScoreBarMini label="Prob." value={assetScore.probability_score} />
             <ScoreBarMini label="Edge" value={assetScore.edge_score} />
-            <ScoreBarMini label="Confiança" value={assetScore.confidence_score} />
-            <ScoreBarMini label="Tier" value={assetScore.tier_score} />
+            <ScoreBarMini label="Stats" value={assetScore.stats_score} />
+            <ScoreBarMini label="Padrão" value={assetScore.pattern_score} />
             <ScoreBarMini label="Liquidez" value={assetScore.liquidity_score} />
           </div>
 
