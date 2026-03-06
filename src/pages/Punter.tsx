@@ -166,19 +166,50 @@ export default function PunterPage() {
       return;
     }
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
-    // Insert bet
+    // Cancel any conflicting pending bet for the same match
+    const { data: existingBets } = await supabase
+      .from('virtual_bets_punter')
+      .select('id, stake')
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+      .eq('status', 'pending');
+
+    if (existingBets && existingBets.length > 0) {
+      // Refund old stakes and cancel old bets
+      const totalRefund = existingBets.reduce((sum: number, b: any) => sum + parseFloat(b.stake), 0);
+      await supabase
+        .from('virtual_bets_punter')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .in('id', existingBets.map((b: any) => b.id));
+
+      // Refund to bankroll
+      await supabase.from('user_bankroll').update({
+        balance: bankroll.balance + totalRefund,
+        total_staked: Math.max(0, bankroll.total_staked - totalRefund),
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', user.id);
+
+      // Update local bankroll ref
+      bankroll.balance += totalRefund;
+      bankroll.total_staked = Math.max(0, bankroll.total_staked - totalRefund);
+      toast.info(`Aposta anterior em ${matchName} cancelada e estornada`);
+    }
+
+    // Insert bet with thesis
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
         user_id: user.id,
-        match_id: `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_'),
+        match_id: matchId,
         match_name: matchName,
         market: signal.recommendation.market,
         odd: signal.recommendation.odd,
         stake: stake,
         status: 'pending',
-      });
+        thesis: signal.recommendation.thesis || null,
+      } as any);
     if (betError) {
       toast.error(betError.message);
       return;

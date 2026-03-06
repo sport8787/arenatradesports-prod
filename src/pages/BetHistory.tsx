@@ -92,6 +92,7 @@ export default function BetHistoryPage() {
       score_away: b.score_away,
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
+      thesis: b.thesis,
     }));
 
     setBets([...sportsBets, ...punterBets].sort((a, b) =>
