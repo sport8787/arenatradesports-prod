@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
       if (bet.table === 'virtual_bets') {
         updatePayload = { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() };
       } else if (bet.table === 'virtual_bets_manual') {
-        updatePayload = { status: betResult, profit_loss: profitLoss, settled_at: new Date().toISOString() };
+        updatePayload = { status: 'settled', result: betResult, profit_loss: profitLoss, updated_at: new Date().toISOString() };
       } else {
         updatePayload = { status: 'settled', result: betResult, profit_loss: profitLoss, updated_at: new Date().toISOString() };
       }
