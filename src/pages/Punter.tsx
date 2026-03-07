@@ -982,7 +982,7 @@ function PortfolioMetric({ label, value, valueColor }: { label: string; value: s
 }
 
 // Bet History Sheet with Score + Cumulative ROI
-function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange, title, icon, initialBalance }: {
+function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange, title, icon, initialBalance, detailLink }: {
   isOpen: boolean;
   onClose: () => void;
   bets: any[];
@@ -992,6 +992,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
   title: string;
   icon: React.ReactNode;
   initialBalance: number;
+  detailLink?: string;
 }) {
   const filtered = bets.filter(b => {
     if (filter === 'all') return true;
