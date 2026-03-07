@@ -377,7 +377,7 @@ export default function BetHistoryPage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-              Histórico de Apostas
+              Posições do Hórus
             </h1>
           </div>
           <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
