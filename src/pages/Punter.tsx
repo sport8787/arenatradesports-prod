@@ -1031,13 +1031,22 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
     cumulativeMap.set(bet.id, initialBalance > 0 ? (runningPL / initialBalance * 100) : 0);
   }
 
+  const navigate = useNavigate();
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-mono text-sm flex items-center gap-2">
-            {icon}
-            {title}
+          <SheetTitle className="font-mono text-sm flex items-center gap-2 justify-between">
+            <span className="flex items-center gap-2">{icon}{title}</span>
+            {detailLink && (
+              <button
+                onClick={() => { onClose(); navigate(detailLink); }}
+                className="text-[10px] font-mono text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Análise Detalhada →
+              </button>
+            )}
           </SheetTitle>
         </SheetHeader>
 
