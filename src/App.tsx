@@ -12,6 +12,7 @@ import Paywall from "./pages/Paywall";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ModoTreino from "./pages/ModoTreino";
