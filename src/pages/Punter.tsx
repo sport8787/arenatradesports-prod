@@ -446,8 +446,8 @@ export default function PunterPage() {
           )}
 
           <div className="flex items-center gap-1.5">
-            <HeaderBtn icon={<Bot className="w-3.5 h-3.5" />} label="Apostas Hórus" onClick={openHistory} />
-            <HeaderBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Apostas" onClick={openManualHistory} />
+            <HeaderBtn icon={<Bot className="w-3.5 h-3.5" />} label="Posições Hórus" onClick={openHistory} />
+            <HeaderBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Posições" onClick={openManualHistory} />
             <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
             <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
             <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
@@ -720,9 +720,10 @@ export default function PunterPage() {
         loading={historyLoading}
         filter={historyFilter}
         onFilterChange={setHistoryFilter}
-        title="APOSTAS DO HÓRUS"
+        title="POSIÇÕES DO HÓRUS"
         icon={<Bot className="w-4 h-4 text-primary" />}
         initialBalance={bankroll?.initial_balance || 10000}
+        detailLink="/apostas"
       />
 
       {/* Manual History Sheet */}
@@ -733,9 +734,10 @@ export default function PunterPage() {
         loading={historyLoading}
         filter={manualHistoryFilter}
         onFilterChange={setManualHistoryFilter}
-        title="MINHAS APOSTAS"
+        title="MINHAS POSIÇÕES"
         icon={<User className="w-4 h-4 text-accent" />}
         initialBalance={manualBankroll?.initial_balance || 10000}
+        detailLink="/minhas-apostas"
       />
     </div>
   );
@@ -980,7 +982,7 @@ function PortfolioMetric({ label, value, valueColor }: { label: string; value: s
 }
 
 // Bet History Sheet with Score + Cumulative ROI
-function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange, title, icon, initialBalance }: {
+function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChange, title, icon, initialBalance, detailLink }: {
   isOpen: boolean;
   onClose: () => void;
   bets: any[];
@@ -990,6 +992,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
   title: string;
   icon: React.ReactNode;
   initialBalance: number;
+  detailLink?: string;
 }) {
   const filtered = bets.filter(b => {
     if (filter === 'all') return true;
@@ -1028,13 +1031,22 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
     cumulativeMap.set(bet.id, initialBalance > 0 ? (runningPL / initialBalance * 100) : 0);
   }
 
+  const navigate = useNavigate();
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-mono text-sm flex items-center gap-2">
-            {icon}
-            {title}
+          <SheetTitle className="font-mono text-sm flex items-center gap-2 justify-between">
+            <span className="flex items-center gap-2">{icon}{title}</span>
+            {detailLink && (
+              <button
+                onClick={() => { onClose(); navigate(detailLink); }}
+                className="text-[10px] font-mono text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-md transition-colors"
+              >
+                Análise Detalhada →
+              </button>
+            )}
           </SheetTitle>
         </SheetHeader>
 

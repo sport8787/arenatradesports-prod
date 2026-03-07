@@ -8,11 +8,11 @@ import GoldButton from '@/components/game/GoldButton';
 import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useBankroll } from '@/hooks/useBankroll';
+import { useManualBankroll } from '@/hooks/useManualBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-interface Bet {
+interface ManualBet {
   id: string;
   match_name: string;
   market: string;
@@ -23,7 +23,6 @@ interface Bet {
   profit_loss: number | null;
   placed_at: string;
   settled_at?: string;
-  source: 'sports' | 'punter';
   score_home?: number | null;
   score_away?: number | null;
   red_card_home?: boolean;
@@ -33,16 +32,15 @@ interface Bet {
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
 
-export default function BetHistoryPage() {
+export default function MinhasApostasPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { bankroll, settleBets } = useBankroll();
-  const [bets, setBets] = useState<Bet[]>([]);
+  const { bankroll } = useManualBankroll();
+  const [bets, setBets] = useState<ManualBet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
-  const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
+  const [selectedBet, setSelectedBet] = useState<ManualBet | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -53,30 +51,19 @@ export default function BetHistoryPage() {
     if (!user) return;
     setLoading(true);
 
-    const [sportsRes, punterRes] = await Promise.all([
-      supabase.from('virtual_bets').select('*').eq('user_id', user.id).order('placed_at', { ascending: false }),
-      supabase.from('virtual_bets_punter').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-    ]);
+    const { data, error } = await supabase
+      .from('virtual_bets_manual' as any)
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-    const sportsBets: Bet[] = (sportsRes.data || []).map((b: any) => ({
-      id: b.id,
-      match_name: b.match_name || b.match_id,
-      market: b.market,
-      odd: parseFloat(b.odd),
-      stake: parseFloat(b.stake),
-      status: b.status,
-      result: b.status === 'settled' ? (b.profit_loss > 0 ? 'green' : 'red') : undefined,
-      profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
-      placed_at: b.placed_at,
-      settled_at: b.settled_at,
-      source: 'sports',
-      score_home: b.score_home,
-      score_away: b.score_away,
-      red_card_home: b.red_card_home,
-      red_card_away: b.red_card_away,
-    }));
+    if (error) {
+      console.error('Error fetching manual bets:', error);
+      setLoading(false);
+      return;
+    }
 
-    const punterBets: Bet[] = (punterRes.data || []).map((b: any) => ({
+    const mapped: ManualBet[] = (data || []).map((b: any) => ({
       id: b.id,
       match_name: b.match_name || b.match_id,
       market: b.market,
@@ -87,7 +74,6 @@ export default function BetHistoryPage() {
       profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
       placed_at: b.created_at,
       settled_at: b.status === 'settled' ? b.updated_at : undefined,
-      source: 'punter',
       score_home: b.score_home,
       score_away: b.score_away,
       red_card_home: b.red_card_home,
@@ -95,19 +81,8 @@ export default function BetHistoryPage() {
       thesis: b.thesis,
     }));
 
-    setBets([...sportsBets, ...punterBets].sort((a, b) =>
-      new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
-    ));
+    setBets(mapped);
     setLoading(false);
-  };
-
-  const handleSettle = async () => {
-    setSettling(true);
-    const result = await settleBets();
-    if (result.success) {
-      await fetchBets();
-    }
-    setSettling(false);
   };
 
   const handleManualSettle = useCallback(async (data: {
@@ -123,7 +98,6 @@ export default function BetHistoryPage() {
     const bet = bets.find(b => b.id === data.betId);
     if (!bet) return;
 
-    // Determine result
     const market = bet.market.toLowerCase().trim();
     const h = data.scoreHome;
     const a = data.scoreAway;
@@ -155,7 +129,6 @@ export default function BetHistoryPage() {
                awayTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
       isGreen = a > h;
     } else {
-      // Fallback for unknown markets
       isGreen = h > a;
     }
 
@@ -164,175 +137,118 @@ export default function BetHistoryPage() {
       ? +(bet.stake * (bet.odd - 1)).toFixed(2)
       : -bet.stake;
 
-    const table = data.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
-
-    // Update bet
-    const updatePayload = data.source === 'punter'
-      ? {
-          status: 'settled',
-          result: betResult,
-          profit_loss: profitLoss,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          updated_at: new Date().toISOString(),
-        }
-      : {
-          status: betResult,
-          profit_loss: profitLoss,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          settled_at: new Date().toISOString(),
-        };
-
     const { error: betError } = await supabase
-      .from(table)
-      .update(updatePayload)
+      .from('virtual_bets_manual' as any)
+      .update({
+        status: 'settled',
+        result: betResult,
+        profit_loss: profitLoss,
+        score_home: h,
+        score_away: a,
+        red_card_home: data.redCardHome,
+        red_card_away: data.redCardAway,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', data.betId);
 
     if (betError) {
-      toast.error('Erro ao liquidar aposta');
+      toast.error('Erro ao liquidar posição');
       console.error(betError);
       return;
     }
 
-    // Update bankroll - only add back for GREEN (stake already deducted)
+    // Update manual bankroll
     const balanceChange = isGreen ? bet.stake * bet.odd : 0;
+    const newGreens = (bankroll.green_bets || 0) + (isGreen ? 1 : 0);
+    const newReds = (bankroll.red_bets || 0) + (isGreen ? 0 : 1);
 
     await supabase
-      .from('user_bankroll')
+      .from('manual_bankroll' as any)
       .update({
-        balance: +(bankroll.balance + balanceChange).toFixed(2),
-        total_profit: +(bankroll.total_profit + profitLoss).toFixed(2),
-        green_bets: bankroll.green_bets + (isGreen ? 1 : 0),
-        red_bets: bankroll.red_bets + (isGreen ? 0 : 1),
-        win_rate: +((bankroll.green_bets + (isGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets + 1) * 100).toFixed(2),
+        balance: +((bankroll.balance || 0) + balanceChange).toFixed(2),
+        total_profit: +((bankroll.total_profit || 0) + profitLoss).toFixed(2),
+        green_bets: newGreens,
+        red_bets: newReds,
+        win_rate: (newGreens + newReds) > 0 ? +(newGreens / (newGreens + newReds) * 100).toFixed(2) : 0,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', user.id);
 
-    // Also settle matching punter_signals if punter bet
-    if (data.source === 'punter') {
-      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
-      await supabase
-        .from('punter_signals')
-        .update({
-          result: betResult,
-          status: 'settled',
-          profit_loss: isGreen
-            ? +(bet.odd * 3).toFixed(2) // default stake_percentage
-            : -3,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          resulted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
-        .eq('status', 'pending');
-    }
-
-    toast.success(`Aposta liquidada: ${betResult.toUpperCase()}`);
+    toast.success(`Posição liquidada: ${betResult.toUpperCase()}`);
     await fetchBets();
   }, [user, bankroll, bets]);
 
-  const revertToPending = useCallback(async (bet: Bet) => {
+  const revertToPending = useCallback(async (bet: ManualBet) => {
     if (!user || !bankroll) return;
 
-    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
-    const wasGreen = bet.result === 'green' || bet.status === 'green';
-
-    // Reverse bankroll impact
-    // If it was GREEN, we need to remove the winnings (stake * odd) from balance
-    // If it was RED, stake was already deducted at placement, no balance change needed
+    const wasGreen = bet.result === 'green';
     const balanceChange = wasGreen ? -(bet.stake * bet.odd) : 0;
     const profitReverse = -(bet.profit_loss || 0);
 
-    // Revert bet to pending
-    const updatePayload = bet.source === 'punter'
-      ? { status: 'pending', result: null, profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, updated_at: new Date().toISOString() }
-      : { status: 'pending', profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, settled_at: null };
+    const { error } = await supabase
+      .from('virtual_bets_manual' as any)
+      .update({
+        status: 'pending',
+        result: null,
+        profit_loss: null,
+        score_home: null,
+        score_away: null,
+        red_card_home: false,
+        red_card_away: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bet.id);
 
-    const { error } = await supabase.from(table).update(updatePayload).eq('id', bet.id);
     if (error) {
-      toast.error('Erro ao reverter aposta');
+      toast.error('Erro ao reverter posição');
       console.error(error);
       return;
     }
 
-    // Reverse bankroll stats
+    const newGreens = (bankroll.green_bets || 0) - (wasGreen ? 1 : 0);
+    const newReds = (bankroll.red_bets || 0) - (wasGreen ? 0 : 1);
+
     await supabase
-      .from('user_bankroll')
+      .from('manual_bankroll' as any)
       .update({
-        balance: +(bankroll.balance + balanceChange).toFixed(2),
-        total_profit: +(bankroll.total_profit + profitReverse).toFixed(2),
-        green_bets: bankroll.green_bets - (wasGreen ? 1 : 0),
-        red_bets: bankroll.red_bets - (wasGreen ? 0 : 1),
-        win_rate: (bankroll.green_bets + bankroll.red_bets - 1) > 0
-          ? +((bankroll.green_bets - (wasGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets - 1) * 100).toFixed(2)
-          : 0,
+        balance: +((bankroll.balance || 0) + balanceChange).toFixed(2),
+        total_profit: +((bankroll.total_profit || 0) + profitReverse).toFixed(2),
+        green_bets: Math.max(0, newGreens),
+        red_bets: Math.max(0, newReds),
+        win_rate: (newGreens + newReds) > 0 ? +(newGreens / (newGreens + newReds) * 100).toFixed(2) : 0,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', user.id);
 
-    // Also revert matching punter_signals if punter bet
-    if (bet.source === 'punter') {
-      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
-      await supabase
-        .from('punter_signals')
-        .update({
-          result: null,
-          status: 'pending',
-          profit_loss: null,
-          score_home: null,
-          score_away: null,
-          red_card_home: false,
-          red_card_away: false,
-          resulted_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
-        .eq('status', 'settled');
-    }
-
-    toast.success('Aposta revertida para pendente');
+    toast.success('Posição revertida para pendente');
     await fetchBets();
   }, [user, bankroll, bets]);
 
-
-  const cancelBet = useCallback(async (bet: Bet) => {
+  const cancelBet = useCallback(async (bet: ManualBet) => {
     if (!user || !bankroll) return;
 
-    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
-    const bankrollTable = bet.source === 'punter' ? 'user_bankroll' : 'sports_bankroll';
-
-    // Mark as cancelled
     const { error } = await supabase
-      .from(table)
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
+      .from('virtual_bets_manual' as any)
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', bet.id);
 
     if (error) {
-      toast.error('Erro ao cancelar aposta');
+      toast.error('Erro ao cancelar posição');
       console.error(error);
       return;
     }
 
-    // Refund stake to bankroll
+    // Refund stake
     await supabase
-      .from(bankrollTable as any)
+      .from('manual_bankroll' as any)
       .update({
-        balance: bankroll.balance + bet.stake,
-        total_staked: Math.max(0, bankroll.total_staked - bet.stake),
+        balance: (bankroll.balance || 0) + bet.stake,
+        total_staked: Math.max(0, (bankroll.total_staked || 0) - bet.stake),
         updated_at: new Date().toISOString(),
-      } as any)
+      })
       .eq('user_id', user.id);
 
-    toast.success(`Aposta cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
+    toast.success(`Posição cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
     await fetchBets();
   }, [user, bankroll]);
 
@@ -346,9 +262,9 @@ export default function BetHistoryPage() {
   }, [bets, filter]);
 
   const stats = useMemo(() => {
-    const settled = bets.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
-    const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
-    const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
+    const settled = bets.filter(b => b.status === 'settled' || b.result === 'green' || b.result === 'red');
+    const greens = settled.filter(b => b.result === 'green');
+    const reds = settled.filter(b => b.result === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
     const pending = bets.filter(b => b.status === 'pending');
     const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
@@ -377,13 +293,9 @@ export default function BetHistoryPage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-              Posições do Hórus
+              Minhas Posições
             </h1>
           </div>
-          <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
-            <CheckCircle2 className={cn("w-4 h-4 mr-1", settling && "animate-spin")} />
-            {settling ? 'Liquidando...' : 'Liquidar Auto'}
-          </GoldButton>
         </div>
       </header>
 
@@ -398,9 +310,9 @@ export default function BetHistoryPage() {
             <div className="flex items-center gap-3">
               <Wallet className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground font-orbitron uppercase">Saldo da Banca</p>
+                <p className="text-xs text-muted-foreground font-orbitron uppercase">Saldo Minha Banca</p>
                 <p className="text-lg font-orbitron font-bold text-foreground">
-                  R$ {bankroll.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(bankroll.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -458,7 +370,7 @@ export default function BetHistoryPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <p className="font-orbitron">Nenhuma aposta encontrada</p>
+            <p className="font-orbitron">Nenhuma posição encontrada</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -472,20 +384,15 @@ export default function BetHistoryPage() {
                   transition={{ delay: i * 0.03 }}
                   className={cn(
                     "bg-card border rounded-xl p-4 space-y-2",
-                    bet.result === 'green' || bet.status === 'green' ? 'border-success/40' :
-                    bet.result === 'red' || bet.status === 'red' ? 'border-destructive/40' :
+                    bet.result === 'green' ? 'border-success/40' :
+                    bet.result === 'red' ? 'border-destructive/40' :
                     'border-border'
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px]">
-                        {bet.source === 'punter' ? 'Punter' : 'Sports'}
-                      </Badge>
-                      <span className="font-orbitron text-sm font-bold text-foreground truncate max-w-[200px]">
-                        {bet.match_name}
-                      </span>
-                    </div>
+                    <span className="font-orbitron text-sm font-bold text-foreground truncate max-w-[200px]">
+                      {bet.match_name}
+                    </span>
                     <div className="flex items-center gap-2">
                       {bet.status === 'pending' ? (
                         <>
@@ -506,7 +413,7 @@ export default function BetHistoryPage() {
                         </>
                       ) : bet.status === 'cancelled' ? (
                         <Badge variant="outline" className="font-orbitron text-muted-foreground border-muted-foreground/30">CANCELADA ✖</Badge>
-                      ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
+                      ) : (bet.status === 'settled' || bet.result === 'green' || bet.result === 'red') && (
                         <button
                           onClick={() => revertToPending(bet)}
                           className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 px-2 py-1 rounded-md transition-colors"
@@ -516,9 +423,9 @@ export default function BetHistoryPage() {
                         </button>
                       )}
                       {bet.status !== 'cancelled' && (
-                        (bet.result === 'green' || bet.status === 'green') ? (
+                        bet.result === 'green' ? (
                           <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
-                        ) : (bet.result === 'red' || bet.status === 'red') ? (
+                        ) : bet.result === 'red' ? (
                           <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
                         ) : bet.status === 'pending' ? (
                           <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
@@ -540,14 +447,13 @@ export default function BetHistoryPage() {
                     <span>{formatDate(bet.placed_at)}</span>
                   </div>
 
-                  {/* Thesis */}
                   {bet.thesis && (
                     <div className="bg-secondary/20 rounded-lg px-3 py-2 mt-1">
                       <p className="text-xs text-muted-foreground">💡 <span className="text-foreground/80">{bet.thesis}</span></p>
                     </div>
                   )}
 
-                  {bet.profit_loss != null && (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
+                  {bet.profit_loss != null && (bet.status === 'settled' || bet.result === 'green' || bet.result === 'red') && (
                     <div className={cn(
                       "text-sm font-orbitron font-bold",
                       bet.profit_loss >= 0 ? 'text-success' : 'text-destructive'
@@ -565,7 +471,7 @@ export default function BetHistoryPage() {
       <ManualSettleModal
         open={settleModalOpen}
         onClose={() => { setSettleModalOpen(false); setSelectedBet(null); }}
-        bet={selectedBet}
+        bet={selectedBet ? { ...selectedBet, source: 'sports' } : null}
         onSettle={handleManualSettle}
       />
     </div>
