@@ -2677,7 +2677,11 @@ export type Database = {
           match_name: string | null
           odd: number
           profit_loss: number | null
+          red_card_away: boolean | null
+          red_card_home: boolean | null
           result: string | null
+          score_away: number | null
+          score_home: number | null
           stake: number
           status: string | null
           thesis: string | null
@@ -2692,7 +2696,11 @@ export type Database = {
           match_name?: string | null
           odd: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
+          score_away?: number | null
+          score_home?: number | null
           stake: number
           status?: string | null
           thesis?: string | null
@@ -2707,7 +2715,11 @@ export type Database = {
           match_name?: string | null
           odd?: number
           profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
           result?: string | null
+          score_away?: number | null
+          score_home?: number | null
           stake?: number
           status?: string | null
           thesis?: string | null
