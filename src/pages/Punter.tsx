@@ -615,8 +615,14 @@ export default function PunterPage() {
                 bankroll: bankroll.balance,
                 fraction: 0.25,
               }) : null;
-              const horusStake = kelly?.stakeAmount || 0;
+              const kellyStake = kelly?.stakeAmount || 0;
               const kellyPercent = kelly?.stakePercent || 3;
+
+              // Get real bet stake from pending bets if Hórus already entered
+              const realBet = pendingBets.find((b: any) => (b.match_id || '').toLowerCase() === matchId);
+              const realHorusStake = realBet ? parseFloat(realBet.stake) : kellyStake;
+              const realBetDate = realBet ? new Date(realBet.created_at) : null;
+
               return (
                 <SignalCard
                   key={index}
@@ -626,7 +632,8 @@ export default function PunterPage() {
                   manualBankroll={manualBankroll}
                   isNew={!hasPendingBet && !wasAutoPlaced}
                   horusEntered={hasPendingBet || wasAutoPlaced}
-                  horusStake={horusStake}
+                  horusStake={realHorusStake}
+                  horusBetDate={realBetDate}
                   kellyPercent={kellyPercent}
                 />
               );
@@ -744,7 +751,7 @@ export default function PunterPage() {
 }
 
 // Signal Card Component with Asset Score Grade (A+/A/B/C)
-function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, kellyPercent }: {
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, horusBetDate, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
   bankroll: any;
@@ -752,6 +759,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   isNew: boolean;
   horusEntered: boolean;
   horusStake: number;
+  horusBetDate?: Date | null;
   kellyPercent?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -861,11 +869,22 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
           {/* Hórus Status */}
           {horusEntered && (
-            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
-              <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
-              <p className="text-[10px] font-mono text-foreground/70">
-                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
-              </p>
+            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+                <p className="text-[10px] font-mono text-foreground/70 truncate">
+                  <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {horusBetDate ? horusBetDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setCustomStake(horusStake.toFixed(2));
+                  toast.success(`Valor R$ ${horusStake.toFixed(2)} copiado`);
+                }}
+                className="text-[9px] font-mono text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors shrink-0"
+              >
+                COPIAR VALOR
+              </button>
             </div>
           )}
 
