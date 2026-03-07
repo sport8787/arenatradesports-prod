@@ -720,9 +720,10 @@ export default function PunterPage() {
         loading={historyLoading}
         filter={historyFilter}
         onFilterChange={setHistoryFilter}
-        title="APOSTAS DO HÓRUS"
+        title="POSIÇÕES DO HÓRUS"
         icon={<Bot className="w-4 h-4 text-primary" />}
         initialBalance={bankroll?.initial_balance || 10000}
+        detailLink="/apostas"
       />
 
       {/* Manual History Sheet */}
@@ -733,9 +734,10 @@ export default function PunterPage() {
         loading={historyLoading}
         filter={manualHistoryFilter}
         onFilterChange={setManualHistoryFilter}
-        title="MINHAS APOSTAS"
+        title="MINHAS POSIÇÕES"
         icon={<User className="w-4 h-4 text-accent" />}
         initialBalance={manualBankroll?.initial_balance || 10000}
+        detailLink="/minhas-apostas"
       />
     </div>
   );
