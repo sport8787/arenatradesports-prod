@@ -615,8 +615,14 @@ export default function PunterPage() {
                 bankroll: bankroll.balance,
                 fraction: 0.25,
               }) : null;
-              const horusStake = kelly?.stakeAmount || 0;
+              const kellyStake = kelly?.stakeAmount || 0;
               const kellyPercent = kelly?.stakePercent || 3;
+
+              // Get real bet stake from pending bets if Hórus already entered
+              const realBet = pendingBets.find((b: any) => (b.match_id || '').toLowerCase() === matchId);
+              const realHorusStake = realBet ? parseFloat(realBet.stake) : kellyStake;
+              const realBetDate = realBet ? new Date(realBet.created_at) : null;
+
               return (
                 <SignalCard
                   key={index}
@@ -626,7 +632,8 @@ export default function PunterPage() {
                   manualBankroll={manualBankroll}
                   isNew={!hasPendingBet && !wasAutoPlaced}
                   horusEntered={hasPendingBet || wasAutoPlaced}
-                  horusStake={horusStake}
+                  horusStake={realHorusStake}
+                  horusBetDate={realBetDate}
                   kellyPercent={kellyPercent}
                 />
               );
