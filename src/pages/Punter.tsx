@@ -869,11 +869,22 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
           {/* Hórus Status */}
           {horusEntered && (
-            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center gap-2">
-              <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
-              <p className="text-[10px] font-mono text-foreground/70">
-                <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
-              </p>
+            <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+                <p className="text-[10px] font-mono text-foreground/70 truncate">
+                  <span className="text-primary font-semibold">POSIÇÃO ABERTA</span> · {horusBetDate ? horusBetDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · R$ {horusStake.toFixed(2)} ({stakePercent}% Kelly)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setCustomStake(horusStake.toFixed(2));
+                  toast.success(`Valor R$ ${horusStake.toFixed(2)} copiado`);
+                }}
+                className="text-[9px] font-mono text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors shrink-0"
+              >
+                COPIAR VALOR
+              </button>
             </div>
           )}
 
