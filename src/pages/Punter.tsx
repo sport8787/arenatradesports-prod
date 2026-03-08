@@ -591,9 +591,28 @@ export default function PunterPage() {
               {loading ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
               ) : (
-                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO ({ANALYSIS_NT_COST} NT)</>
               )}
             </GoldButton>
+
+            {/* Cached games info */}
+            {!cachedLoading && cachedGames.length > 0 && (
+              <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border border-border/50 rounded px-2.5 py-1.5 bg-muted/20">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                  <span>{cachedGames.length} jogos em cache</span>
+                </div>
+                {lastFetched && (
+                  <span>Atualizado: {new Date(lastFetched).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+              </div>
+            )}
+            {!cachedLoading && cacheEmpty && (
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-yellow-400 border border-yellow-400/30 rounded px-2.5 py-1.5 bg-yellow-400/5">
+                <AlertCircle className="w-3 h-3" />
+                <span>Cache vazio — a próxima atualização automática é às 06:00 BRT</span>
+              </div>
+            )}
 
             {totalAnalyzed > 0 && !loading && (
               <div className="flex gap-4 text-xs font-mono border-t border-border pt-3">
