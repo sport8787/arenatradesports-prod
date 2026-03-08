@@ -5,7 +5,7 @@
  */
 
 // Audio mapping by trigger moment
-const HORUS_AUDIO_MAP = {
+const HORUS_AUDIO_MAP: Record<string, string[]> = {
   analisando_jogos: [
     '/audio/horus/analisando_jogos_1.mp3',
     '/audio/horus/analisando_jogos_2.mp3',
@@ -19,7 +19,7 @@ const HORUS_AUDIO_MAP = {
   alerta: [
     '/audio/horus/alerta_ao_usuario.mp3',
   ],
-} as const;
+};
 
 export type HorusPunterTrigger = keyof typeof HORUS_AUDIO_MAP;
 
