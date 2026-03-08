@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface PunterSignal {
   match: {
@@ -60,6 +61,7 @@ interface PunterSignal {
 export default function PunterPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { isAdmin } = useAdmin();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
   const [loading, setLoading] = useState(false);
@@ -500,7 +502,7 @@ export default function PunterPage() {
             <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
             <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
             <HeaderBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => setShowCertificate(true)} />
-            <HeaderBtn icon={<Brain className="w-3.5 h-3.5" />} label="KB" onClick={() => setIsChatOpen(true)} />
+            {isAdmin && <HeaderBtn icon={<Brain className="w-3.5 h-3.5" />} label="KB" onClick={() => setIsChatOpen(true)} />}
           </div>
         </div>
       </header>
@@ -577,45 +579,49 @@ export default function PunterPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={timeWindow === '15min' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTimeWindow('15min')}
-                className="font-mono text-xs"
-              >
-                <Clock className="w-3 h-3 mr-1.5" />
-                15 MIN
-              </Button>
-              <Button
-                variant={timeWindow === '48h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTimeWindow('48h')}
-                className="font-mono text-xs"
-              >
-                <Calendar className="w-3 h-3 mr-1.5" />
-                48H
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={timeWindow === '15min' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTimeWindow('15min')}
+                  className="font-mono text-xs"
+                >
+                  <Clock className="w-3 h-3 mr-1.5" />
+                  15 MIN
+                </Button>
+                <Button
+                  variant={timeWindow === '48h' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTimeWindow('48h')}
+                  className="font-mono text-xs"
+                >
+                  <Calendar className="w-3 h-3 mr-1.5" />
+                  48H
+                </Button>
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={aiProvider === 'gemini' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAiProvider('gemini')}
-                className="font-mono text-xs"
-              >
-                Gemini
-              </Button>
-              <Button
-                variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAiProvider('anthropic')}
-                className="font-mono text-xs"
-              >
-                Claude
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={aiProvider === 'gemini' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAiProvider('gemini')}
+                  className="font-mono text-xs"
+                >
+                  Gemini
+                </Button>
+                <Button
+                  variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAiProvider('anthropic')}
+                  className="font-mono text-xs"
+                >
+                  Claude
+                </Button>
+              </div>
+            )}
 
             <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
               {loading ? (

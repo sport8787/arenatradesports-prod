@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export interface Subscription {
   id: string;
@@ -19,6 +20,7 @@ export interface Subscription {
 
 export function useSubscription() {
   const { user } = useAuth();
+  const { isAdmin } = useAdmin();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [daysLeft, setDaysLeft] = useState(0);
@@ -67,8 +69,8 @@ export function useSubscription() {
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaid = subscription?.plan === 'base' || subscription?.plan === 'premium';
-  // Temporarily grant access to all users regardless of subscription status
-  const hasAccess = true;
+  // Admins have lifetime access; others check subscription
+  const hasAccess = isAdmin || isPaid || isTrialActive;
 
   return {
     subscription,
