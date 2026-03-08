@@ -6,7 +6,7 @@ import {
   Zap, Lock, CheckCircle2, ArrowRight, Play,
   Brain, Award, LineChart, Users, Star
 } from 'lucide-react';
-import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
+import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
