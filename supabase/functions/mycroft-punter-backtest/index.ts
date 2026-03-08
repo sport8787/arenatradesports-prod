@@ -349,7 +349,6 @@ serve(async (req) => {
 
   try {
     const apiKey = Deno.env.get('API_FOOTBALL_KEY')
-    if (!apiKey) throw new Error('API_FOOTBALL_KEY not configured')
 
     const body = await req.json()
     const {
@@ -358,6 +357,7 @@ serve(async (req) => {
       season = new Date().getFullYear() - 1,
       initial_bankroll = 10000,
       monte_carlo_sims = 10000,
+      use_historical = true,
     } = body
 
     const criteria = await loadPromptCriteria()
@@ -373,20 +373,70 @@ serve(async (req) => {
     console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season}`)
     console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%`)
 
-    // 1. Fetch all finished fixtures
+    // 1. Try to load from arena_matches first (historical DB), then fallback to API
     const allFixtures: any[] = []
     const fixtureLeagueMap: Map<number, string> = new Map()
-    for (const l of validLeagues) {
-      const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
-      console.log(`[Backtest] ${l.info.name}: ${fixtures.length} jogos`)
-      for (const f of fixtures) {
-        fixtureLeagueMap.set(f.fixture.id, l.info.name)
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const dbClient = createClient(supabaseUrl, supabaseKey)
+
+    let usedHistoricalDB = false
+
+    if (use_historical) {
+      // Try arena_matches first
+      for (const l of validLeagues) {
+        const seasonStr = `${season}/${season + 1}`
+        const { data: dbMatches } = await dbClient
+          .from('arena_matches')
+          .select('*')
+          .eq('league', l.info.name)
+          .or(`season.eq.${seasonStr},season.eq.${season}`)
+          .not('score_home', 'is', null)
+          .order('match_date', { ascending: true })
+          .limit(1000)
+
+        if (dbMatches && dbMatches.length > 10) {
+          console.log(`[Backtest] arena_matches: ${dbMatches.length} jogos para ${l.info.name}`)
+          usedHistoricalDB = true
+          for (const m of dbMatches) {
+            // Convert arena_matches format to API-Football fixture format
+            const fixtureId = parseInt(m.match_id.replace(/\D/g, '').slice(0, 8)) || Math.random() * 1000000
+            const converted = {
+              fixture: { id: fixtureId, date: m.match_date },
+              teams: { home: { name: m.home_team }, away: { name: m.away_team } },
+              goals: { home: m.score_home, away: m.score_away },
+              league: { round: m.season || '' },
+              // Extra stats from arena_matches
+              _stats: {
+                xg_home: m.xg_home, xg_away: m.xg_away,
+                shots_home: m.shots_home, shots_away: m.shots_away,
+                possession_home: m.possession_home, possession_away: m.possession_away,
+                corners_home: m.corners_home, corners_away: m.corners_away,
+              }
+            }
+            fixtureLeagueMap.set(fixtureId, l.info.name)
+            allFixtures.push(converted)
+          }
+        }
       }
-      allFixtures.push(...fixtures)
-      if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
     }
 
-    console.log(`[Backtest] Total: ${allFixtures.length} jogos finalizados`)
+    // Fallback to API-Football if no historical data found
+    if (allFixtures.length === 0) {
+      if (!apiKey) throw new Error('Sem dados históricos e API_FOOTBALL_KEY não configurada')
+      for (const l of validLeagues) {
+        const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
+        console.log(`[Backtest] API: ${l.info.name}: ${fixtures.length} jogos`)
+        for (const f of fixtures) {
+          fixtureLeagueMap.set(f.fixture.id, l.info.name)
+        }
+        allFixtures.push(...fixtures)
+        if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
+      }
+    }
+
+    console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedHistoricalDB ? 'arena_matches' : 'API-Football'})`)
 
     if (allFixtures.length === 0) {
       return jsonResponse({ success: true, results: [], metrics: emptyMetrics(), monte_carlo: null, growth_projections: [], league: leagueNames, season })
