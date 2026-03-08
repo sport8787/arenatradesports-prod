@@ -266,23 +266,31 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
             </div>
           </motion.div>
 
-          {/* Risk Management */}
-          {riskItems.length > 0 && (
+          {/* Risk Management - structured or text */}
+          {(riskItems.length > 0 || riskText) && (
             <motion.div variants={fadeUp} className="space-y-3">
               <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Shield className="w-4 h-4" /> Gestão de Risco
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {riskItems.map(item => (
-                  <div key={item.label} className="luxury-card p-3 space-y-1">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <item.icon className="w-3.5 h-3.5" />
-                      <span className="text-[11px] font-orbitron uppercase">{item.label}</span>
+              {riskItems.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {riskItems.map(item => (
+                    <div key={item.label} className="luxury-card p-3 space-y-1">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <item.icon className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-orbitron uppercase">{item.label}</span>
+                      </div>
+                      <p className="text-sm font-bold text-foreground">{item.value}</p>
                     </div>
-                    <p className="text-sm font-bold text-foreground">{item.value}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : riskText ? (
+                <div className="luxury-card p-4 border-l-4 border-l-warning">
+                  <p className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed">
+                    {riskText}
+                  </p>
+                </div>
+              ) : null}
             </motion.div>
           )}
 
