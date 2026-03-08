@@ -83,7 +83,7 @@ export default function PerformanceGap({ horus, manual, username = 'Manual' }: P
             {profitGap >= 0 ? '+' : ''}R$ {Math.abs(profitGap).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </p>
           <p className="text-[9px] font-mono text-muted-foreground mt-1">
-            {profitGap >= 0 ? 'Hórus > Manual' : 'Manual > Hórus'}
+            {profitGap >= 0 ? 'Hórus > ' + username : username + ' > Hórus'}
           </p>
         </div>
 
