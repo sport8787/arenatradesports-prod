@@ -341,14 +341,26 @@ export default function BetHistoryPage() {
     await fetchBets();
   }, [user, bankroll]);
 
+  const periodFiltered = useMemo(() => {
+    const start = getPeriodStartDate(period);
+    if (!start) return bets;
+    return bets.filter(b => new Date(b.placed_at) >= start);
+  }, [bets, period]);
+
+  const leagueFiltered = useMemo(() => {
+    if (league === 'all') return periodFiltered;
+    return periodFiltered.filter(b => extractLeagueHint(b.match_name) === league);
+  }, [periodFiltered, league]);
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return bets.filter(b => b.status !== 'cancelled');
-    if (filter === 'pending') return bets.filter(b => b.status === 'pending');
-    if (filter === 'green') return bets.filter(b => b.result === 'green');
-    if (filter === 'red') return bets.filter(b => b.result === 'red');
-    if (filter === 'cancelled') return bets.filter(b => b.status === 'cancelled');
-    return bets;
-  }, [bets, filter]);
+    const src = leagueFiltered;
+    if (filter === 'all') return src.filter(b => b.status !== 'cancelled');
+    if (filter === 'pending') return src.filter(b => b.status === 'pending');
+    if (filter === 'green') return src.filter(b => b.result === 'green' || b.status === 'green');
+    if (filter === 'red') return src.filter(b => b.result === 'red' || b.status === 'red');
+    if (filter === 'cancelled') return src.filter(b => b.status === 'cancelled');
+    return src;
+  }, [leagueFiltered, filter]);
 
   const stats = useMemo(() => {
     const settled = bets.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
