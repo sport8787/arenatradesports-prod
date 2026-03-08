@@ -140,7 +140,7 @@ export default function DailySummaryWidget({ userId, username }: DailySummaryWid
         <div className="p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <User className="w-3.5 h-3.5 text-accent" />
-            <span className="text-[10px] font-mono text-muted-foreground">MANUAL</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{(username || 'MANUAL').toUpperCase()}</span>
           </div>
           <p className="text-xs font-mono text-foreground">
             {summary.manual.wins}W / {summary.manual.losses}L
