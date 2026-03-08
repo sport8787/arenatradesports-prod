@@ -151,7 +151,7 @@
 | Anti-Limiting Engine | ❌ | Não implementado (delay, diversificação, randomização) |
 | Poisson/Dixon-Coles Model | ❌ | Não implementado |
 | Ensemble Models (Poisson + xG + ELO + Market) | ❌ | Não implementado |
-| Monte Carlo Risk Engine | ❌ | Não implementado |
+| Monte Carlo Risk Engine | ✅ | **SPRINT 3** - Edge Function `monte-carlo-simulation` implementada |
 
 ---
 
