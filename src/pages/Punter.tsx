@@ -31,6 +31,7 @@ import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 
 interface PunterSignal {
   match: {
