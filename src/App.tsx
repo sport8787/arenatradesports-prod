@@ -21,6 +21,7 @@ import BetHistory from "./pages/BetHistory";
 import Punter from "./pages/Punter";
 import PunterAnalytics from "./pages/PunterAnalytics";
 import PunterWidgets from "./pages/PunterWidgets";
+import PunterConfig from "./pages/PunterConfig";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
