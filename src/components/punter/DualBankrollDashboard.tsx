@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, User, Wallet, TrendingUp, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Bot, User, Wallet, TrendingUp, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Bankroll } from '@/hooks/useBankroll';
 import type { ManualBankroll } from '@/hooks/useManualBankroll';
 import BankrollSettingsDialog from '@/components/arena-trader/BankrollSettingsDialog';
