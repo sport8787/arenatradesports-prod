@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
 import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
 import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet-history/PeriodFilter';
-import LeagueFilter, { extractLeagueHint } from '@/components/bet-history/LeagueFilter';
+import LeagueFilter, { extractLeague } from '@/components/bet-history/LeagueFilter';
+import PendingDateSort, { PendingSortOption } from '@/components/bet-history/PendingDateSort';
 import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +33,8 @@ interface Bet {
   red_card_home?: boolean;
   red_card_away?: boolean;
   thesis?: string | null;
+  commence_time?: string | null;
+  league?: string;
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
@@ -46,6 +49,7 @@ export default function BetHistoryPage() {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [period, setPeriod] = useState<PeriodOption>('all');
   const [league, setLeague] = useState('all');
+  const [pendingSort, setPendingSort] = useState<PendingSortOption>('date_asc');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
 
@@ -60,7 +64,7 @@ export default function BetHistoryPage() {
 
     const [sportsRes, punterRes] = await Promise.all([
       supabase.from('virtual_bets').select('*').eq('user_id', user.id).order('placed_at', { ascending: false }),
-      supabase.from('virtual_bets_punter').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('virtual_bets_punter').select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)').eq('user_id', user.id).order('created_at', { ascending: false }),
     ]);
 
     const sportsBets: Bet[] = (sportsRes.data || []).map((b: any) => ({
@@ -74,11 +78,13 @@ export default function BetHistoryPage() {
       profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
       placed_at: b.placed_at,
       settled_at: b.settled_at,
-      source: 'sports',
+      source: 'sports' as const,
       score_home: b.score_home,
       score_away: b.score_away,
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
+      commence_time: b.commence_time,
+      league: undefined, // sports bets don't have league directly
     }));
 
     const punterBets: Bet[] = (punterRes.data || []).map((b: any) => ({
@@ -92,12 +98,14 @@ export default function BetHistoryPage() {
       profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
       placed_at: b.created_at,
       settled_at: b.status === 'settled' ? b.updated_at : undefined,
-      source: 'punter',
+      source: 'punter' as const,
       score_home: b.score_home,
       score_away: b.score_away,
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
       thesis: b.thesis,
+      commence_time: b.commence_time,
+      league: b.punter_analyses?.league || undefined,
     }));
 
     setBets([...sportsBets, ...punterBets].sort((a, b) =>
@@ -128,7 +136,6 @@ export default function BetHistoryPage() {
     const bet = bets.find(b => b.id === data.betId);
     if (!bet) return;
 
-    // Determine result
     const market = bet.market.toLowerCase().trim();
     const h = data.scoreHome;
     const a = data.scoreAway;
@@ -160,7 +167,6 @@ export default function BetHistoryPage() {
                awayTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
       isGreen = a > h;
     } else {
-      // Fallback for unknown markets
       isGreen = h > a;
     }
 
@@ -171,7 +177,6 @@ export default function BetHistoryPage() {
 
     const table = data.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
 
-    // Update bet
     const updatePayload = data.source === 'punter'
       ? {
           status: 'settled',
@@ -204,7 +209,6 @@ export default function BetHistoryPage() {
       return;
     }
 
-    // Update bankroll - only add back for GREEN (stake already deducted)
     const balanceChange = isGreen ? bet.stake * bet.odd : 0;
 
     await supabase
@@ -219,7 +223,6 @@ export default function BetHistoryPage() {
       })
       .eq('user_id', user.id);
 
-    // Also settle matching punter_signals if punter bet
     if (data.source === 'punter') {
       const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
       await supabase
@@ -227,9 +230,7 @@ export default function BetHistoryPage() {
         .update({
           result: betResult,
           status: 'settled',
-          profit_loss: isGreen
-            ? +(bet.odd * 3).toFixed(2) // default stake_percentage
-            : -3,
+          profit_loss: isGreen ? +(bet.odd * 3).toFixed(2) : -3,
           score_home: h,
           score_away: a,
           red_card_home: data.redCardHome,
@@ -251,13 +252,9 @@ export default function BetHistoryPage() {
     const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
     const wasGreen = bet.result === 'green' || bet.status === 'green';
 
-    // Reverse bankroll impact
-    // If it was GREEN, we need to remove the winnings (stake * odd) from balance
-    // If it was RED, stake was already deducted at placement, no balance change needed
     const balanceChange = wasGreen ? -(bet.stake * bet.odd) : 0;
     const profitReverse = -(bet.profit_loss || 0);
 
-    // Revert bet to pending
     const updatePayload = bet.source === 'punter'
       ? { status: 'pending', result: null, profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, updated_at: new Date().toISOString() }
       : { status: 'pending', profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, settled_at: null };
@@ -269,7 +266,6 @@ export default function BetHistoryPage() {
       return;
     }
 
-    // Reverse bankroll stats
     await supabase
       .from('user_bankroll')
       .update({
@@ -284,7 +280,6 @@ export default function BetHistoryPage() {
       })
       .eq('user_id', user.id);
 
-    // Also revert matching punter_signals if punter bet
     if (bet.source === 'punter') {
       const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
       await supabase
@@ -308,14 +303,12 @@ export default function BetHistoryPage() {
     await fetchBets();
   }, [user, bankroll, bets]);
 
-
   const cancelBet = useCallback(async (bet: Bet) => {
     if (!user || !bankroll) return;
 
     const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
     const bankrollTable = bet.source === 'punter' ? 'user_bankroll' : 'sports_bankroll';
 
-    // Mark as cancelled
     const { error } = await supabase
       .from(table)
       .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
@@ -327,7 +320,6 @@ export default function BetHistoryPage() {
       return;
     }
 
-    // Refund stake to bankroll
     await supabase
       .from(bankrollTable as any)
       .update({
@@ -349,18 +341,36 @@ export default function BetHistoryPage() {
 
   const leagueFiltered = useMemo(() => {
     if (league === 'all') return periodFiltered;
-    return periodFiltered.filter(b => extractLeagueHint(b.match_name) === league);
+    return periodFiltered.filter(b => extractLeague(b) === league);
   }, [periodFiltered, league]);
 
   const filtered = useMemo(() => {
-    const src = leagueFiltered;
-    if (filter === 'all') return src.filter(b => b.status !== 'cancelled');
-    if (filter === 'pending') return src.filter(b => b.status === 'pending');
-    if (filter === 'green') return src.filter(b => b.result === 'green' || b.status === 'green');
-    if (filter === 'red') return src.filter(b => b.result === 'red' || b.status === 'red');
-    if (filter === 'cancelled') return src.filter(b => b.status === 'cancelled');
+    let src = leagueFiltered;
+    if (filter === 'all') src = src.filter(b => b.status !== 'cancelled');
+    else if (filter === 'pending') src = src.filter(b => b.status === 'pending');
+    else if (filter === 'green') src = src.filter(b => b.result === 'green' || b.status === 'green');
+    else if (filter === 'red') src = src.filter(b => b.result === 'red' || b.status === 'red');
+    else if (filter === 'cancelled') src = src.filter(b => b.status === 'cancelled');
+
+    // Apply pending sort when on pending tab
+    if (filter === 'pending') {
+      return [...src].sort((a, b) => {
+        if (pendingSort === 'date_asc') {
+          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : Infinity;
+          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : Infinity;
+          return aTime - bTime;
+        }
+        if (pendingSort === 'date_desc') {
+          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : 0;
+          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : 0;
+          return bTime - aTime;
+        }
+        return new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime();
+      });
+    }
+
     return src;
-  }, [leagueFiltered, filter]);
+  }, [leagueFiltered, filter, pendingSort]);
 
   const stats = useMemo(() => {
     const src = leagueFiltered;
@@ -384,6 +394,20 @@ export default function BetHistoryPage() {
   const formatDate = (d: string) => {
     const date = new Date(d);
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatCommenceTime = (d: string) => {
+    const date = new Date(d);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.toDateString() === tomorrow.toDateString();
+
+    const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Hoje ${time}`;
+    if (isTomorrow) return `Amanhã ${time}`;
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ` ${time}`;
   };
 
   return (
@@ -481,6 +505,13 @@ export default function BetHistoryPage() {
           </TabsList>
         </Tabs>
 
+        {/* Pending sort */}
+        {filter === 'pending' && (
+          <div className="flex items-center gap-2">
+            <PendingDateSort value={pendingSort} onChange={setPendingSort} />
+          </div>
+        )}
+
         {/* Bet List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -557,10 +588,21 @@ export default function BetHistoryPage() {
                     </div>
                   </div>
 
+                  {/* Commence time for pending */}
+                  {bet.status === 'pending' && bet.commence_time && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <CalendarDays className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-primary font-orbitron font-medium">{formatCommenceTime(bet.commence_time)}</span>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>Mercado: <span className="text-foreground font-medium">{bet.market}</span></span>
                     <span>Odd: <span className="text-foreground font-medium">{bet.odd.toFixed(2)}</span></span>
                     <span>Stake: <span className="text-foreground font-medium">R$ {bet.stake.toFixed(2)}</span></span>
+                    {bet.league && (
+                      <span>Liga: <span className="text-foreground font-medium">{extractLeague(bet)}</span></span>
+                    )}
                     {bet.score_home != null && bet.score_away != null && (
                       <span>Placar: <span className="text-foreground font-medium">{bet.score_home} × {bet.score_away}</span></span>
                     )}
@@ -570,7 +612,6 @@ export default function BetHistoryPage() {
                     <span>{formatDate(bet.placed_at)}</span>
                   </div>
 
-                  {/* Thesis */}
                   {bet.thesis && (
                     <div className="bg-secondary/20 rounded-lg px-3 py-2 mt-1">
                       <p className="text-xs text-muted-foreground">💡 <span className="text-foreground/80">{bet.thesis}</span></p>

@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
 import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
 import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet-history/PeriodFilter';
-import LeagueFilter, { extractLeagueHint } from '@/components/bet-history/LeagueFilter';
+import LeagueFilter, { extractLeague } from '@/components/bet-history/LeagueFilter';
+import PendingDateSort, { PendingSortOption } from '@/components/bet-history/PendingDateSort';
 import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +32,8 @@ interface ManualBet {
   red_card_home?: boolean;
   red_card_away?: boolean;
   thesis?: string | null;
+  commence_time?: string | null;
+  league?: string;
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
@@ -44,6 +47,7 @@ export default function MinhasApostasPage() {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [period, setPeriod] = useState<PeriodOption>('all');
   const [league, setLeague] = useState('all');
+  const [pendingSort, setPendingSort] = useState<PendingSortOption>('date_asc');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<ManualBet | null>(null);
 
@@ -68,6 +72,21 @@ export default function MinhasApostasPage() {
       return;
     }
 
+    // Try to get league info from match_id by looking up punter_analyses
+    const matchIds = (data || []).map((b: any) => b.match_id).filter(Boolean);
+    let leagueMap: Record<string, string> = {};
+    if (matchIds.length > 0) {
+      const { data: analyses } = await supabase
+        .from('punter_analyses')
+        .select('match_id, league')
+        .in('match_id', matchIds);
+      if (analyses) {
+        analyses.forEach((a: any) => {
+          if (a.league) leagueMap[a.match_id] = a.league;
+        });
+      }
+    }
+
     const mapped: ManualBet[] = (data || []).map((b: any) => ({
       id: b.id,
       match_name: b.match_name || b.match_id,
@@ -84,6 +103,8 @@ export default function MinhasApostasPage() {
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
       thesis: b.thesis,
+      commence_time: b.commence_time,
+      league: leagueMap[b.match_id] || undefined,
     }));
 
     setBets(mapped);
@@ -162,7 +183,6 @@ export default function MinhasApostasPage() {
       return;
     }
 
-    // Update manual bankroll
     const balanceChange = isGreen ? bet.stake * bet.odd : 0;
     const newGreens = (bankroll.green_bets || 0) + (isGreen ? 1 : 0);
     const newReds = (bankroll.red_bets || 0) + (isGreen ? 0 : 1);
@@ -243,7 +263,6 @@ export default function MinhasApostasPage() {
       return;
     }
 
-    // Refund stake
     await supabase
       .from('manual_bankroll' as any)
       .update({
@@ -265,18 +284,35 @@ export default function MinhasApostasPage() {
 
   const leagueFiltered = useMemo(() => {
     if (league === 'all') return periodFiltered;
-    return periodFiltered.filter(b => extractLeagueHint(b.match_name) === league);
+    return periodFiltered.filter(b => extractLeague(b) === league);
   }, [periodFiltered, league]);
 
   const filtered = useMemo(() => {
-    const src = leagueFiltered;
-    if (filter === 'all') return src.filter(b => b.status !== 'cancelled');
-    if (filter === 'pending') return src.filter(b => b.status === 'pending');
-    if (filter === 'green') return src.filter(b => b.result === 'green');
-    if (filter === 'red') return src.filter(b => b.result === 'red');
-    if (filter === 'cancelled') return src.filter(b => b.status === 'cancelled');
+    let src = leagueFiltered;
+    if (filter === 'all') src = src.filter(b => b.status !== 'cancelled');
+    else if (filter === 'pending') src = src.filter(b => b.status === 'pending');
+    else if (filter === 'green') src = src.filter(b => b.result === 'green');
+    else if (filter === 'red') src = src.filter(b => b.result === 'red');
+    else if (filter === 'cancelled') src = src.filter(b => b.status === 'cancelled');
+
+    if (filter === 'pending') {
+      return [...src].sort((a, b) => {
+        if (pendingSort === 'date_asc') {
+          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : Infinity;
+          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : Infinity;
+          return aTime - bTime;
+        }
+        if (pendingSort === 'date_desc') {
+          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : 0;
+          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : 0;
+          return bTime - aTime;
+        }
+        return new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime();
+      });
+    }
+
     return src;
-  }, [leagueFiltered, filter]);
+  }, [leagueFiltered, filter, pendingSort]);
 
   const stats = useMemo(() => {
     const src = leagueFiltered;
@@ -300,6 +336,20 @@ export default function MinhasApostasPage() {
   const formatDate = (d: string) => {
     const date = new Date(d);
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatCommenceTime = (d: string) => {
+    const date = new Date(d);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.toDateString() === tomorrow.toDateString();
+
+    const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Hoje ${time}`;
+    if (isTomorrow) return `Amanhã ${time}`;
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ` ${time}`;
   };
 
   return (
@@ -393,6 +443,13 @@ export default function MinhasApostasPage() {
           </TabsList>
         </Tabs>
 
+        {/* Pending sort */}
+        {filter === 'pending' && (
+          <div className="flex items-center gap-2">
+            <PendingDateSort value={pendingSort} onChange={setPendingSort} />
+          </div>
+        )}
+
         {/* Bet List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -464,10 +521,21 @@ export default function MinhasApostasPage() {
                     </div>
                   </div>
 
+                  {/* Commence time for pending */}
+                  {bet.status === 'pending' && bet.commence_time && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <CalendarDays className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-primary font-orbitron font-medium">{formatCommenceTime(bet.commence_time)}</span>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>Mercado: <span className="text-foreground font-medium">{bet.market}</span></span>
                     <span>Odd: <span className="text-foreground font-medium">{bet.odd.toFixed(2)}</span></span>
                     <span>Stake: <span className="text-foreground font-medium">R$ {bet.stake.toFixed(2)}</span></span>
+                    {bet.league && (
+                      <span>Liga: <span className="text-foreground font-medium">{extractLeague(bet)}</span></span>
+                    )}
                     {bet.score_home != null && bet.score_away != null && (
                       <span>Placar: <span className="text-foreground font-medium">{bet.score_home} × {bet.score_away}</span></span>
                     )}
