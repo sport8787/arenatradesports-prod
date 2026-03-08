@@ -55,9 +55,9 @@
 
 | Item | Status | Detalhes |
 |------|--------|---------|
-| Análise por liga + mercado | ❌ | Não implementado |
-| ROI histórico por padrão | ❌ | Tabela `model_performance` tem dados agregados mas não mining automático |
-| Confidence boost no modelo | ❌ | Não implementado |
+| Análise por liga + mercado | ✅ | **SPRINT 2** - Edge Function `pattern-mining-engine` analisa bets_history por liga+mercado |
+| ROI histórico por padrão | ✅ | **SPRINT 2** - Calcula ROI, win_rate, avg_odd e upsert em arena_patterns |
+| Confidence boost no modelo | ✅ | **SPRINT 2** - Fórmula de confidence com bonus por sample size e ROI |
 
 ---
 
@@ -65,9 +65,9 @@
 
 | Item | Status | Detalhes |
 |------|--------|---------|
-| Cálculo Kelly 25% | ⚠️ | `stake_percentage` existe nos signals mas não há engine automática de Kelly |
-| Gestão automática de stake | ❌ | Não implementado como engine |
-| Proteção de drawdown automática | ❌ | Não implementado |
+| Cálculo Kelly 25% | ✅ | **SPRINT 2** - Edge Function `bankroll-ai-kelly` com Kelly fracionário |
+| Gestão automática de stake | ✅ | **SPRINT 2** - Asset Score modulation (ELITE=35%, PREMIUM=30%, STRONG=25%) |
+| Proteção de drawdown automática | ✅ | **SPRINT 2** - Redução progressiva: 10%→25%, 20%→50%, 30%→75% |
 
 ---
 
