@@ -257,24 +257,37 @@ export default function MinhasApostasPage() {
     await fetchBets();
   }, [user, bankroll]);
 
+  const periodFiltered = useMemo(() => {
+    const start = getPeriodStartDate(period);
+    if (!start) return bets;
+    return bets.filter(b => new Date(b.placed_at) >= start);
+  }, [bets, period]);
+
+  const leagueFiltered = useMemo(() => {
+    if (league === 'all') return periodFiltered;
+    return periodFiltered.filter(b => extractLeagueHint(b.match_name) === league);
+  }, [periodFiltered, league]);
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return bets.filter(b => b.status !== 'cancelled');
-    if (filter === 'pending') return bets.filter(b => b.status === 'pending');
-    if (filter === 'green') return bets.filter(b => b.result === 'green');
-    if (filter === 'red') return bets.filter(b => b.result === 'red');
-    if (filter === 'cancelled') return bets.filter(b => b.status === 'cancelled');
-    return bets;
-  }, [bets, filter]);
+    const src = leagueFiltered;
+    if (filter === 'all') return src.filter(b => b.status !== 'cancelled');
+    if (filter === 'pending') return src.filter(b => b.status === 'pending');
+    if (filter === 'green') return src.filter(b => b.result === 'green');
+    if (filter === 'red') return src.filter(b => b.result === 'red');
+    if (filter === 'cancelled') return src.filter(b => b.status === 'cancelled');
+    return src;
+  }, [leagueFiltered, filter]);
 
   const stats = useMemo(() => {
-    const settled = bets.filter(b => b.status === 'settled' || b.result === 'green' || b.result === 'red');
+    const src = leagueFiltered;
+    const settled = src.filter(b => b.status === 'settled' || b.result === 'green' || b.result === 'red');
     const greens = settled.filter(b => b.result === 'green');
     const reds = settled.filter(b => b.result === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
-    const pending = bets.filter(b => b.status === 'pending');
+    const pending = src.filter(b => b.status === 'pending');
     const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
     return {
-      total: bets.length,
+      total: src.length,
       greens: greens.length,
       reds: reds.length,
       pending: pending.length,
@@ -282,7 +295,7 @@ export default function MinhasApostasPage() {
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
-  }, [bets]);
+  }, [leagueFiltered]);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
