@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.mycroft-punter-anthropic]
 verify_jwt = false
+
+[functions.betting-asset-score]
+verify_jwt = false
+
+[functions.pattern-mining-engine]
+verify_jwt = false
+
+[functions.bankroll-ai-kelly]
+verify_jwt = false
