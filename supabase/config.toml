@@ -23,3 +23,15 @@ verify_jwt = false
 
 [functions.monte-carlo-simulation]
 verify_jwt = false
+
+[functions.clv-engine]
+verify_jwt = false
+
+[functions.portfolio-optimization]
+verify_jwt = false
+
+[functions.self-learning-engine]
+verify_jwt = false
+
+[functions.smart-odds-scanner]
+verify_jwt = false
