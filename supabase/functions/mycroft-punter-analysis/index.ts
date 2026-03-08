@@ -237,6 +237,8 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
         const result = results[j]
         const game = batch[j]
         if (result.status === 'fulfilled' && result.value && typeof result.value.verdict === 'string' && result.value.verdict.startsWith('APROVADO')) {
+          const rec = result.value
+          if (game.simulated_odds) rec.simulated_odds = true
           approvedSignals.push({
             match: {
               home_team: game.home_team,
@@ -244,7 +246,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
               commence_time: game.commence_time,
               league: game.sport_title || 'Unknown'
             },
-            recommendation: result.value
+            recommendation: rec
           })
         } else if (result.status === 'rejected') {
           console.error(`[Mycroft Punter] Erro ao analisar ${game.home_team} vs ${game.away_team}:`, result.reason)
