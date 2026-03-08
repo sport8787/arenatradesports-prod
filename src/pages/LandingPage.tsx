@@ -446,14 +446,16 @@ const PRICING_PLANS = [
     features: ["Mycroft IA (Asset Score básico)", "Até 50 posições/mês", "Dashboard completo", "Track record auditável", "Suporte por email"],
     cta: "COMEÇAR AGORA",
     popular: false,
+    url: "https://pay.kiwify.com.br/5lryTVK",
   },
   {
     name: "Professional",
-    price: "199,00",
+    price: "199,90",
     description: "Mais popular",
     features: ["Tudo do Starter +", "Hórus IA (proteção tilt)", "Posições ilimitadas", "Dual Bankroll", "Sharp Money Detector", "Garantia Dobro", "Suporte prioritário"],
     cta: "ASSINAR AGORA",
     popular: true,
+    url: "https://pay.kiwify.com.br/O4zEN7O",
   },
   {
     name: "Enterprise",
@@ -462,6 +464,7 @@ const PRICING_PLANS = [
     features: ["Tudo do Professional +", "API access completa", "Auto-execution (bot)", "Portfolio Optimization", "Self Learning Engine", "Integração Fullbet", "Suporte 24/7", "Consultoria mensal"],
     cta: "FALAR COM VENDAS",
     popular: false,
+    url: "https://pay.kiwify.com.br/OAo5rId",
   },
 ];
 
