@@ -69,7 +69,7 @@ export default function PerformanceGap({ horus, manual, username = 'Manual' }: P
             )}
           </div>
           <p className="text-[9px] font-mono text-muted-foreground mt-1">
-            {roiGap >= 0 ? 'Hórus lidera' : 'Você lidera'}
+            {roiGap >= 0 ? 'Hórus lidera' : username + ' lidera'}
           </p>
         </div>
 
