@@ -99,7 +99,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
             <p className="text-xs text-muted-foreground">{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {metrics.map((m) => (
               <div key={m.label} className="bg-secondary/30 rounded-xl p-3 text-center">
                 <m.icon className={cn("w-4 h-4 mx-auto mb-1", m.color)} />
