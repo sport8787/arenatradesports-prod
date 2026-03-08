@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -9,11 +9,21 @@ import {
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuth();
+
+  // Redireciona usuários logados direto para o lobby
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      navigate('/lobby', { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   const goToAuth = () => navigate('/auth');
+
 
   return (
     <div className="bg-[#0a0f1e] text-white min-h-screen">
