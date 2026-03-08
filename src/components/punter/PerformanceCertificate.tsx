@@ -13,7 +13,13 @@ interface PerformanceCertificateProps {
 export default function PerformanceCertificate({ bankroll, onClose }: PerformanceCertificateProps) {
   const certRef = useRef<HTMLDivElement>(null);
 
-  const roi = bankroll.initial_balance > 0
+  // ROI sobre apostas (eficiência) = lucro / total apostado
+  const roiOverStakes = bankroll.total_staked > 0
+    ? ((bankroll.total_profit || 0) / bankroll.total_staked * 100)
+    : 0;
+
+  // Retorno da banca (crescimento de capital)
+  const bankReturn = bankroll.initial_balance > 0
     ? ((bankroll.balance - bankroll.initial_balance) / bankroll.initial_balance * 100)
     : 0;
 
