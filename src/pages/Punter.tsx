@@ -31,6 +31,7 @@ import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 
 interface PunterSignal {
   match: {
@@ -282,6 +283,10 @@ export default function PunterPage() {
     }
     setLoading(true);
     setError(null);
+
+    // 🔊 Hórus announces analysis start (local audio, no API call)
+    playHorusTrigger('analisando_jogos');
+
     try {
       const savedSignals = await fetchSavedSignals();
       const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
@@ -340,6 +345,8 @@ export default function PunterPage() {
         setAutoPlacedMatchIds(newAutoIds);
         if (autoPlaced > 0) {
           toast.success(`🤖 Hórus apostou automaticamente em ${autoPlaced} jogos`);
+          // 🔊 Hórus provocation after auto-betting
+          setTimeout(() => playHorusTrigger('provocacao'), 2000);
         }
         // Refresh pending bets
         const { data: updated } = await supabase
@@ -363,10 +370,22 @@ export default function PunterPage() {
           ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`
           : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`;
         toast.success(msg);
+
+        // 🔊 Hórus TTS: announce results with user's name
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('user_id', user.id)
+          .single();
+        const username = profileData?.username || 'Jogador';
+        const ttsPhrase = buildAnalysisResultPhrase(username, newAnalyzed, mergedSignals.length);
+        playHorusTTS(ttsPhrase);
       }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
       setError(err.message || 'Erro ao conectar com Mycroft Punter');
+      // 🔊 Play alert audio on error
+      playHorusTrigger('alerta');
     } finally {
       setLoading(false);
     }
