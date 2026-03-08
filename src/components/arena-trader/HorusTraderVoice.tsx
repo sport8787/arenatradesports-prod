@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Volume2, Loader2, Play } from 'lucide-react';
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from '@/services/centralAudioQueue';
 
 interface HorusTraderVoiceProps {
   message: string;
@@ -8,18 +9,30 @@ interface HorusTraderVoiceProps {
 }
 
 export default function HorusTraderVoice({ message, muted }: HorusTraderVoiceProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const currentEnqueueId = useRef<string | null>(null);
+  const lastMessageRef = useRef<string | null>(null);
 
   // Stop audio when muted
   useEffect(() => {
-    if (muted && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+    if (muted) {
+      clearAllAudio();
       setIsSpeaking(false);
     }
   }, [muted]);
+
+  // Subscribe to queue state for speaking indicator
+  useEffect(() => {
+    const unsubscribe = centralAudioQueue.subscribe((state) => {
+      if (state.currentLabel?.startsWith('trader_horus_')) {
+        setIsSpeaking(state.isPlaying);
+      } else if (!state.isPlaying) {
+        setIsSpeaking(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const playTTS = async () => {
     if (!message || muted) return;
@@ -27,12 +40,12 @@ export default function HorusTraderVoice({ message, muted }: HorusTraderVoicePro
     const cleanText = message.replace(/[\u{1F600}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F900}-\u{1F9FF}]|[⛔🎯💀📈📉]/gu, '').trim();
     if (!cleanText || cleanText.length < 5) return;
 
-    // Stop previous audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-      setIsSpeaking(false);
+    // Dedupe: don't re-enqueue the same message
+    if (lastMessageRef.current === cleanText) {
+      console.log('[HorusTraderVoice] ⛔ Same message already enqueued, skipping');
+      return;
     }
+    lastMessageRef.current = cleanText;
 
     setIsLoading(true);
     try {
@@ -73,12 +86,20 @@ export default function HorusTraderVoice({ message, muted }: HorusTraderVoicePro
         audioUrl = URL.createObjectURL(blob);
       }
 
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-      audio.onplay = () => setIsSpeaking(true);
-      audio.onended = () => { setIsSpeaking(false); audioRef.current = null; };
-      audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; };
-      await audio.play();
+      // Use central queue instead of direct Audio()
+      const label = `trader_horus_${cleanText.slice(0, 20).replace(/[^a-zA-Z0-9]/g, '_')}`;
+      currentEnqueueId.current = centralAudioQueue.enqueue(audioUrl, {
+        label,
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        onComplete: () => {
+          setIsSpeaking(false);
+          currentEnqueueId.current = null;
+        },
+        onError: () => {
+          setIsSpeaking(false);
+          currentEnqueueId.current = null;
+        },
+      });
     } catch (e) {
       console.error('Hórus TTS error:', e);
     } finally {
