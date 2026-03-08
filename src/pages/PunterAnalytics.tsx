@@ -68,7 +68,8 @@ export default function PunterAnalytics() {
       </div>
     </div>
   );
-}
+
+function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <span className="text-primary">{icon}</span>
