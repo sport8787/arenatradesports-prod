@@ -58,10 +58,10 @@ export default function CLVPanel() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <KPI label="CLV Médio" value={`${summary.avg_clv.toFixed(2)}%`} positive={summary.avg_clv > 0} />
-            <KPI label="Market Beat Rate" value={`${summary.market_beat_rate.toFixed(0)}%`} positive={summary.market_beat_rate > 50} />
-            <KPI label="CLV+ Rate" value={`${summary.positive_clv_rate.toFixed(0)}%`} positive={summary.positive_clv_rate > 50} />
-            <KPI label="Apostas Analisadas" value={String(summary.total_bets)} neutral />
+            <KPI label="CLV Médio" value={`${(summary.avg_clv ?? 0).toFixed(2)}%`} positive={(summary.avg_clv ?? 0) > 0} />
+            <KPI label="Market Beat Rate" value={`${(summary.market_beat_rate ?? 0).toFixed(0)}%`} positive={(summary.market_beat_rate ?? 0) > 50} />
+            <KPI label="CLV+ Rate" value={`${(summary.positive_clv_rate ?? 0).toFixed(0)}%`} positive={(summary.positive_clv_rate ?? 0) > 50} />
+            <KPI label="Apostas Analisadas" value={String(summary.total_bets ?? 0)} neutral />
           </div>
 
           {/* CLV Accuracy */}
