@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface DailySummaryWidgetProps {
   userId: string;
+  username?: string;
 }
 
 interface DaySummary {
@@ -15,7 +16,7 @@ interface DaySummary {
   bestMarket: { name: string; profit: number } | null;
 }
 
-export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) {
+export default function DailySummaryWidget({ userId, username }: DailySummaryWidgetProps) {
   // Compute summary from actual bets (real-time, no stored table needed initially)
   const { data: summary, isLoading } = useQuery({
     queryKey: ['daily-summary-live', userId],
@@ -139,7 +140,7 @@ export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) 
         <div className="p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <User className="w-3.5 h-3.5 text-accent" />
-            <span className="text-[10px] font-mono text-muted-foreground">MANUAL</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{(username || 'MANUAL').toUpperCase()}</span>
           </div>
           <p className="text-xs font-mono text-foreground">
             {summary.manual.wins}W / {summary.manual.losses}L
