@@ -346,6 +346,18 @@ export default function MinhasApostasPage() {
           </motion.div>
         )}
 
+        {/* Period & League Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodFilter value={period} onChange={setPeriod} />
+          <LeagueFilter bets={bets} value={league} onChange={setLeague} />
+        </div>
+
+        {/* Bankroll Evolution Chart */}
+        <BankrollEvolutionChart
+          bets={leagueFiltered}
+          initialBalance={bankroll?.initial_balance || 10000}
+        />
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
