@@ -771,6 +771,217 @@ function formatPredictionsBlock(predictions: any): string {
 }
 
 // ═══════════════════════════════════════════════
+// Market Manipulation & Sharp Money Detectors
+// ═══════════════════════════════════════════════
+
+interface MarketDetectorResult {
+  mis: number           // Market Inefficiency Score (0-1)
+  mis_level: string     // noise | light | strong | extreme
+  odi: number           // Odds Drift Index (% movement across bookmakers)
+  odi_suspicious: boolean
+  sharp: {
+    has_rlm: boolean    // Reverse Line Movement detected
+    has_steam: boolean  // Steam move detected
+    has_consensus: boolean // 3+ bookmakers moving same direction
+    activity_score: number // 0-100
+    activity_level: string
+  }
+  odd_open: number | null
+  odd_current: number | null
+}
+
+function computeMarketDetectors(
+  oddsData: any[],
+  totalsData: any[],
+  modelProbability: number | null,
+  market: string | null,
+): MarketDetectorResult {
+  const result: MarketDetectorResult = {
+    mis: 0, mis_level: 'noise', odi: 0, odi_suspicious: false,
+    sharp: { has_rlm: false, has_steam: false, has_consensus: false, activity_score: 0, activity_level: 'normal' },
+    odd_open: null, odd_current: null,
+  }
+
+  if (oddsData.length === 0) return result
+
+  // ── MIS: Market Inefficiency Score ──
+  // Compare model probability vs average market probability
+  const allHomeOdds = oddsData.map(o => o.home_odd).filter(Boolean)
+  const allAwayOdds = oddsData.map(o => o.away_odd).filter(Boolean)
+  const allDrawOdds = oddsData.map(o => o.draw_odd).filter(o => o > 0)
+
+  const avgHomeProb = allHomeOdds.length > 0 ? (allHomeOdds.reduce((s, o) => s + 1/o, 0) / allHomeOdds.length) * 100 : 0
+  const avgAwayProb = allAwayOdds.length > 0 ? (allAwayOdds.reduce((s, o) => s + 1/o, 0) / allAwayOdds.length) * 100 : 0
+  const avgDrawProb = allDrawOdds.length > 0 ? (allDrawOdds.reduce((s, o) => s + 1/o, 0) / allDrawOdds.length) * 100 : 0
+
+  // Choose market probability based on selected market
+  let marketProb = avgHomeProb
+  if (market) {
+    const m = market.toLowerCase()
+    if (m.includes('fora') || m.includes('away')) marketProb = avgAwayProb
+    else if (m.includes('empate') || m.includes('draw')) marketProb = avgDrawProb
+  }
+
+  if (modelProbability && modelProbability > 0 && marketProb > 0) {
+    result.mis = Math.abs(modelProbability - marketProb) / 100
+    if (result.mis < 0.02) result.mis_level = 'noise'
+    else if (result.mis < 0.05) result.mis_level = 'light'
+    else if (result.mis < 0.10) result.mis_level = 'strong'
+    else result.mis_level = 'extreme'
+  }
+
+  // ── ODI: Odds Drift Index ──
+  // Measure spread between highest and lowest odds across bookmakers for same outcome
+  const targetOdds = market?.toLowerCase().includes('fora') ? allAwayOdds
+    : market?.toLowerCase().includes('empate') ? allDrawOdds
+    : allHomeOdds
+
+  if (targetOdds.length >= 2) {
+    const maxOdd = Math.max(...targetOdds)
+    const minOdd = Math.min(...targetOdds)
+    result.odi = Math.abs(maxOdd - minOdd) / minOdd
+    result.odi_suspicious = result.odi > 0.15
+    result.odd_open = maxOdd  // Use max as "open" proxy
+    result.odd_current = minOdd // Use min as "current" proxy (sharps moved it down)
+  }
+
+  // ── Sharp Money Detector ──
+  let sharpScore = 0
+
+  // Check for Reverse Line Movement (RLM):
+  // If majority of bookmakers have similar odds but one sharp book (Pinnacle) differs significantly
+  const pinnacleOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('pinnacle'))
+  const bet365Odds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('bet365'))
+  const betfairOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('betfair'))
+
+  if (pinnacleOdds && bet365Odds) {
+    const pinnHome = pinnacleOdds.home_odd
+    const b365Home = bet365Odds.home_odd
+    const diffPct = Math.abs(pinnHome - b365Home) / b365Home
+
+    // Pinnacle diverging from soft books = sharp money signal
+    if (diffPct > 0.05) {
+      result.sharp.has_rlm = true
+      sharpScore += 25
+      console.log(`[Sharp Detector] RLM: Pinnacle ${pinnHome} vs Bet365 ${b365Home} (${(diffPct*100).toFixed(1)}% diff)`)
+    }
+  }
+
+  // Steam move: large spread between any two bookmakers (>8% in same market)
+  if (targetOdds.length >= 2) {
+    const maxO = Math.max(...targetOdds)
+    const minO = Math.min(...targetOdds)
+    const steamPct = (maxO - minO) / minO
+    if (steamPct > 0.08) {
+      result.sharp.has_steam = true
+      sharpScore += 20
+      console.log(`[Sharp Detector] Steam move: ${(steamPct*100).toFixed(1)}% spread in market`)
+    }
+  }
+
+  // Consensus: Check if 3+ bookmakers have similar odds (within 2%)
+  if (targetOdds.length >= 3) {
+    const sorted = [...targetOdds].sort((a, b) => a - b)
+    const medianOdd = sorted[Math.floor(sorted.length / 2)]
+    const consensus = targetOdds.filter(o => Math.abs(o - medianOdd) / medianOdd < 0.02).length
+    if (consensus >= 3) {
+      result.sharp.has_consensus = true
+      sharpScore += 15
+    }
+  }
+
+  // Pinnacle as reference (sharps bet Pinnacle)
+  if (pinnacleOdds) {
+    sharpScore += 10  // Base boost for having Pinnacle data
+  }
+  if (betfairOdds) {
+    sharpScore += 5   // Betfair exchange = more informed odds
+  }
+
+  // ODI contributes to sharp score
+  if (result.odi_suspicious) {
+    sharpScore += 15
+  }
+
+  result.sharp.activity_score = Math.min(100, sharpScore)
+
+  if (sharpScore >= 40) result.sharp.activity_level = 'steam_professional'
+  else if (sharpScore >= 25) result.sharp.activity_level = 'sharp_money'
+  else if (sharpScore >= 10) result.sharp.activity_level = 'activity'
+  else result.sharp.activity_level = 'normal'
+
+  return result
+}
+
+function formatDetectorsBlock(detectors: MarketDetectorResult): string {
+  let block = `═══════════════════════════════════════
+MARKET MANIPULATION DETECTOR
+═══════════════════════════════════════
+MIS (Market Inefficiency Score): ${(detectors.mis * 100).toFixed(1)}% — Nível: ${detectors.mis_level.toUpperCase()}
+ODI (Odds Drift Index): ${(detectors.odi * 100).toFixed(1)}%${detectors.odi_suspicious ? ' ⚠️ SUSPEITO' : ''}
+
+═══════════════════════════════════════
+SHARP MONEY DETECTOR
+═══════════════════════════════════════
+Sharp Activity Score: ${detectors.sharp.activity_score}/100 — Nível: ${detectors.sharp.activity_level.toUpperCase()}
+Reverse Line Movement (RLM): ${detectors.sharp.has_rlm ? '✅ DETECTADO' : '❌ Não detectado'}
+Steam Move: ${detectors.sharp.has_steam ? '✅ DETECTADO' : '❌ Não detectado'}
+Consenso entre casas: ${detectors.sharp.has_consensus ? '✅ 3+ casas alinhadas' : '❌ Divergência'}`
+
+  if (detectors.sharp.activity_score >= 25) {
+    block += `
+⚡ ATENÇÃO: Atividade sharp detectada. Considere BOOST de +15 pontos no Asset Score se alinhado com sua análise.`
+  }
+  if (detectors.mis_level === 'strong' || detectors.mis_level === 'extreme') {
+    block += `
+🎯 OPORTUNIDADE: Ineficiência de mercado ${detectors.mis_level}. O mercado pode estar precificando errado.`
+  }
+
+  return block
+}
+
+async function persistDetectors(
+  supabaseClient: any,
+  matchId: string,
+  market: string,
+  detectors: MarketDetectorResult,
+  modelProb: number | null,
+  marketProb: number,
+) {
+  try {
+    // Save to market_analysis
+    await supabaseClient.from('market_analysis').upsert({
+      match_id: matchId,
+      market: market || 'h2h',
+      prob_model: modelProb || 0,
+      prob_market: marketProb,
+      market_inefficiency_score: Math.round(detectors.mis * 10000) / 100,
+      inefficiency_level: detectors.mis_level,
+      odds_drift_index: Math.round(detectors.odi * 10000) / 100,
+      odd_open: detectors.odd_open,
+      odd_current: detectors.odd_current,
+    }, { onConflict: 'match_id,market' })
+
+    // Save to sharp_money_signals if activity detected
+    if (detectors.sharp.activity_score >= 10) {
+      await supabaseClient.from('sharp_money_signals').upsert({
+        match_id: matchId,
+        market: market || 'h2h',
+        has_rlm: detectors.sharp.has_rlm,
+        has_steam: detectors.sharp.has_steam,
+        has_consensus: detectors.sharp.has_consensus,
+        sharp_activity_score: detectors.sharp.activity_score,
+        odd_open: detectors.odd_open,
+        odd_current: detectors.odd_current,
+        odd_movement_pct: Math.round(detectors.odi * 10000) / 100,
+      }, { onConflict: 'match_id,market' })
+    }
+  } catch (err) {
+    console.warn('[Detectors] Erro ao persistir:', err)
+  }
+}
+
+// ═══════════════════════════════════════════════
 // Odds extraction helpers
 // ═══════════════════════════════════════════════
 
@@ -903,6 +1114,13 @@ async function analyzeGame(
   const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
   const predictionsBlock = formatPredictionsBlock(enriched.predictions)
 
+  // ── Market Manipulation & Sharp Money Detection ──
+  // Run detectors BEFORE AI call (purely algorithmic)
+  const detectors = computeMarketDetectors(oddsData, totalsData, null, null)
+  const detectorsBlock = formatDetectorsBlock(detectors)
+
+  console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(detectors.mis*100).toFixed(1)}% (${detectors.mis_level}), ODI=${(detectors.odi*100).toFixed(1)}%, Sharp=${detectors.sharp.activity_score}/100 (${detectors.sharp.activity_level})`)
+
   const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats completas + H2H + lesões + previsões)'
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
@@ -954,6 +1172,8 @@ VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acim
 - Se AMBOS concordarem no vencedor/over-under → boost de confiança +5%
 - Se DIVERGIREM → sinalize no risk_factors e reduza confiança -5%
 ` : ''}
+
+${detectorsBlock}
 
 ═══════════════════════════════════════
 ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
@@ -1110,7 +1330,11 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
 
-      return analysis
+      // Persist detector results with model probability from AI
+      const modelProb = analysis.estimated_probability || null
+      const marketProb = analysis.implied_probability || (analysis.odd ? (1 / analysis.odd) * 100 : 0)
+      const finalDetectors = computeMarketDetectors(oddsData, totalsData, modelProb, analysis.market)
+      await persistDetectors(supabaseClient, matchId, analysis.market || 'h2h', finalDetectors, modelProb, marketProb)
     } catch (parseErr: any) {
       if (attempt < maxRetries - 1) {
         const isRateLimit = parseErr?.message?.includes('429')
