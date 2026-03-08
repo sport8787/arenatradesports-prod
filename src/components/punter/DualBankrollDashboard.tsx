@@ -74,9 +74,11 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
           />
           <MetricCard
             label="WIN RATE HÓRUS"
-            value={`${horusWinRate.toFixed(0)}%`}
-            sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R`}
+            value={`${horusWinRate.toFixed(1)}%`}
+            sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R (${horusSettled} liquidadas)`}
+            subColor={horusWinRate >= 55 ? 'text-success' : horusWinRate >= 45 ? 'text-warning' : 'text-destructive'}
             icon={<Target className="w-4 h-4" />}
+            tooltip="Win Rate = Greens ÷ (Greens + Reds). Apostas pendentes não são contabilizadas."
           />
           <MetricCard
             label="EXPOSIÇÃO HÓRUS"
