@@ -999,6 +999,45 @@ export type Database = {
           },
         ]
       }
+      cached_odds_games: {
+        Row: {
+          away_team: string
+          bookmakers: Json
+          commence_time: string
+          event_id: string
+          expires_at: string
+          fetched_at: string
+          home_team: string
+          id: string
+          simulated_odds: boolean
+          sport_key: string
+        }
+        Insert: {
+          away_team: string
+          bookmakers?: Json
+          commence_time: string
+          event_id: string
+          expires_at?: string
+          fetched_at?: string
+          home_team: string
+          id?: string
+          simulated_odds?: boolean
+          sport_key: string
+        }
+        Update: {
+          away_team?: string
+          bookmakers?: Json
+          commence_time?: string
+          event_id?: string
+          expires_at?: string
+          fetched_at?: string
+          home_team?: string
+          id?: string
+          simulated_odds?: boolean
+          sport_key?: string
+        }
+        Relationships: []
+      }
       consent_records: {
         Row: {
           consent_given: boolean
