@@ -13,7 +13,13 @@ interface PerformanceCertificateProps {
 export default function PerformanceCertificate({ bankroll, onClose }: PerformanceCertificateProps) {
   const certRef = useRef<HTMLDivElement>(null);
 
-  const roi = bankroll.initial_balance > 0
+  // ROI sobre apostas (eficiência) = lucro / total apostado
+  const roiOverStakes = bankroll.total_staked > 0
+    ? ((bankroll.total_profit || 0) / bankroll.total_staked * 100)
+    : 0;
+
+  // Retorno da banca (crescimento de capital)
+  const bankReturn = bankroll.initial_balance > 0
     ? ((bankroll.balance - bankroll.initial_balance) / bankroll.initial_balance * 100)
     : 0;
 
@@ -36,18 +42,18 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
     : 0;
 
   // Simplified Sharpe (ROI / volatility proxy)
-  const sharpe = totalBets > 10 ? roi / Math.max(10, 100 - winRate) : 0;
+  const sharpe = totalBets > 10 ? roiOverStakes / Math.max(10, 100 - winRate) : 0;
 
   const metrics = [
-    { label: 'ROI', value: `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`, color: roi >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
+    { label: 'ROI s/ Apostas', value: `${roiOverStakes >= 0 ? '+' : ''}${roiOverStakes.toFixed(1)}%`, color: roiOverStakes >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
+    { label: 'Retorno Banca', value: `${bankReturn >= 0 ? '+' : ''}${bankReturn.toFixed(1)}%`, color: bankReturn >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
     { label: 'Lucro Total', value: `R$ ${totalProfit.toFixed(2)}`, color: totalProfit >= 0 ? 'text-success' : 'text-destructive', icon: BarChart3 },
     { label: 'Win Rate', value: `${winRate.toFixed(0)}%`, color: winRate >= 55 ? 'text-success' : 'text-warning', icon: Target },
     { label: 'Drawdown', value: `${drawdown.toFixed(1)}%`, color: drawdown < 20 ? 'text-success' : 'text-destructive', icon: Shield },
     { label: 'Profit Factor', value: profitFactor.toFixed(2), color: profitFactor >= 1.5 ? 'text-success' : 'text-warning', icon: BarChart3 },
-    { label: 'Sharpe Ratio', value: sharpe.toFixed(2), color: sharpe > 0.5 ? 'text-success' : 'text-muted-foreground', icon: TrendingUp },
   ];
 
-  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roi.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} apostas`;
+  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roiOverStakes.toFixed(1)}%\n📊 Retorno: ${bankReturn.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} apostas`;
 
   const handleShare = async (platform: string) => {
     const encodedText = encodeURIComponent(shareText);
@@ -93,7 +99,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
             <p className="text-xs text-muted-foreground">{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {metrics.map((m) => (
               <div key={m.label} className="bg-secondary/30 rounded-xl p-3 text-center">
                 <m.icon className={cn("w-4 h-4 mx-auto mb-1", m.color)} />
