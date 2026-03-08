@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.smart-odds-scanner]
 verify_jwt = false
+
+[functions.poisson-dixon-coles]
+verify_jwt = false
+
+[functions.ensemble-models]
+verify_jwt = false
+
+[functions.anti-limiting-engine]
+verify_jwt = false

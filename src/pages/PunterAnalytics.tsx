@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3, Target, Clock, TrendingUp, AlertTriangle, Brain, Search, Calculator, Layers, Award, Shield } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Clock, TrendingUp, AlertTriangle, Brain, Search, Calculator, Layers, Award, Shield, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -14,6 +14,9 @@ import SmartOddsScannerPanel from '@/components/punter/SmartOddsScannerPanel';
 import BankrollAiPanel from '@/components/punter/BankrollAiPanel';
 import PatternMiningPanel from '@/components/punter/PatternMiningPanel';
 import AssetScorePanel from '@/components/punter/AssetScorePanel';
+import PoissonPanel from '@/components/punter/PoissonPanel';
+import EnsemblePanel from '@/components/punter/EnsemblePanel';
+import AntiLimitingPanel from '@/components/punter/AntiLimitingPanel';
 
 export default function PunterAnalytics() {
   const navigate = useNavigate();
@@ -43,6 +46,24 @@ export default function PunterAnalytics() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Poisson/Dixon-Coles */}
+        <section>
+          <SectionHeader icon={<Calculator className="w-3.5 h-3.5" />} label="MODELO POISSON / DIXON-COLES" />
+          <PoissonPanel />
+        </section>
+
+        {/* Ensemble Models */}
+        <section>
+          <SectionHeader icon={<Layers className="w-3.5 h-3.5" />} label="ENSEMBLE MODELS (POISSON + xG + ELO + MARKET)" />
+          <EnsemblePanel />
+        </section>
+
+        {/* Anti-Limiting Engine */}
+        <section>
+          <SectionHeader icon={<ShieldAlert className="w-3.5 h-3.5" />} label="ANTI-LIMITING ENGINE" />
+          <AntiLimitingPanel />
+        </section>
+
         {/* Betting Asset Score */}
         <section>
           <SectionHeader icon={<Award className="w-3.5 h-3.5" />} label="BETTING ASSET SCORE" />
