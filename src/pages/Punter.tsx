@@ -738,12 +738,68 @@ export default function PunterPage() {
         )}
 
         {!loading && signals.length === 0 && totalAnalyzed === 0 && (
-          <div className="border border-dashed border-border rounded-lg p-8 text-center">
-            <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
-            <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
-              Clique em "Analisar Mercado" para identificar oportunidades de value betting.
-            </p>
+          <div className="space-y-4">
+            {/* Cached Games Preview */}
+            {cachedGames.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                    JOGOS DISPONÍVEIS ({cachedGames.length})
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    Cache automático — clique "Analisar" para IA
+                  </span>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden divide-y divide-border max-h-[400px] overflow-y-auto">
+                  {cachedGames.slice(0, 30).map((game) => {
+                    const commenceDate = new Date(game.commence_time);
+                    const isToday = commenceDate.toDateString() === new Date().toDateString();
+                    const bookmakerCount = game.bookmakers?.length || 0;
+                    return (
+                      <div key={game.id} className="p-2.5 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn("w-1 h-8 rounded-full", game.simulated_odds ? "bg-yellow-500/50" : "bg-success/50")} />
+                          <div>
+                            <p className="font-mono text-xs font-medium text-foreground">
+                              {game.home_team} vs {game.away_team}
+                            </p>
+                            <p className="font-mono text-[10px] text-muted-foreground">
+                              {game.sport_key.replace('soccer_', '').replace(/_/g, ' ')}
+                              {game.simulated_odds && <span className="ml-1 text-yellow-500">(odds simuladas)</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-[10px] text-foreground">
+                            {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            {' '}
+                            {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            {bookmakerCount} casa{bookmakerCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {cachedGames.length > 30 && (
+                    <div className="p-2 text-center text-[10px] font-mono text-muted-foreground">
+                      + {cachedGames.length - 30} jogos adicionais
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {cachedGames.length === 0 && (
+              <div className="border border-dashed border-border rounded-lg p-8 text-center">
+                <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
+                <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
+                  Clique em "Analisar Mercado" para identificar oportunidades de value betting ({ANALYSIS_NT_COST} NT).
+                </p>
+              </div>
+            )}
           </div>
         )}
 
