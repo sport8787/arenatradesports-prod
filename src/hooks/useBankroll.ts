@@ -119,6 +119,23 @@ export function useBankroll() {
       return { success: false, error: betError.message };
     }
 
+    // Sync to bets_history with source='horus' for Self Learning Engine
+    await supabase
+      .from('bets_history')
+      .insert({
+        user_id: user.id,
+        match_id: analysis.match_id,
+        market: analysis.market,
+        odd: analysis.odd,
+        stake: stake,
+        stake_percentage: bankroll.balance > 0 ? (stake / bankroll.balance) * 100 : 0,
+        source: 'horus',
+        home_team: analysis.home_team || null,
+        away_team: analysis.away_team || null,
+      }).then(({ error: histErr }) => {
+        if (histErr) console.warn('[Bankroll] bets_history sync error:', histErr.message);
+      });
+
     // Update bankroll
     const { error: updateError } = await supabase
       .from('user_bankroll')
