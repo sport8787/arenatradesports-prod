@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3, Settings, Target, Clock, TrendingUp, Sparkles, Zap, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, BarChart3, Target, Clock, TrendingUp, AlertTriangle, Brain, Search, Calculator, Layers, Award, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -7,6 +7,13 @@ import PerformanceGap from '@/components/punter/PerformanceGap';
 import MissedOpportunities from '@/components/punter/MissedOpportunities';
 import PerformanceByTime from '@/components/punter/PerformanceByTime';
 import MarketDetectorsPanel from '@/components/punter/MarketDetectorsPanel';
+import CLVPanel from '@/components/punter/CLVPanel';
+import PortfolioPanel from '@/components/punter/PortfolioPanel';
+import SelfLearningPanel from '@/components/punter/SelfLearningPanel';
+import SmartOddsScannerPanel from '@/components/punter/SmartOddsScannerPanel';
+import BankrollAiPanel from '@/components/punter/BankrollAiPanel';
+import PatternMiningPanel from '@/components/punter/PatternMiningPanel';
+import AssetScorePanel from '@/components/punter/AssetScorePanel';
 
 export default function PunterAnalytics() {
   const navigate = useNavigate();
@@ -36,6 +43,48 @@ export default function PunterAnalytics() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Betting Asset Score */}
+        <section>
+          <SectionHeader icon={<Award className="w-3.5 h-3.5" />} label="BETTING ASSET SCORE" />
+          <AssetScorePanel />
+        </section>
+
+        {/* CLV Engine */}
+        <section>
+          <SectionHeader icon={<Target className="w-3.5 h-3.5" />} label="CLOSING LINE VALUE ENGINE" />
+          <CLVPanel />
+        </section>
+
+        {/* Bankroll AI Kelly */}
+        <section>
+          <SectionHeader icon={<Calculator className="w-3.5 h-3.5" />} label="BANKROLL AI — KELLY CRITERION" />
+          <BankrollAiPanel />
+        </section>
+
+        {/* Pattern Mining */}
+        <section>
+          <SectionHeader icon={<Layers className="w-3.5 h-3.5" />} label="PATTERN MINING ENGINE" />
+          <PatternMiningPanel />
+        </section>
+
+        {/* Portfolio Optimization */}
+        <section>
+          <SectionHeader icon={<Shield className="w-3.5 h-3.5" />} label="PORTFOLIO OPTIMIZER" />
+          <PortfolioPanel />
+        </section>
+
+        {/* Self Learning Engine */}
+        <section>
+          <SectionHeader icon={<Brain className="w-3.5 h-3.5" />} label="SELF LEARNING ENGINE" />
+          <SelfLearningPanel />
+        </section>
+
+        {/* Smart Odds Scanner */}
+        <section>
+          <SectionHeader icon={<Search className="w-3.5 h-3.5" />} label="SMART ODDS SCANNER" />
+          <SmartOddsScannerPanel />
+        </section>
+
         {/* Market Manipulation Detector */}
         <section>
           <SectionHeader icon={<AlertTriangle className="w-3.5 h-3.5" />} label="MARKET MANIPULATION DETECTOR" />
