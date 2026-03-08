@@ -26,7 +26,8 @@ export function calculateAssetScore(prediction: {
   const odd = prediction.odd || 2;
 
   const probabilityScore = Math.min(100, confidence);
-  const edgeScore = Math.min(100, (edge / 10) * 100);
+  // Edge scale: 0%=0, 5%=50, 10%=75, 15%=90, 20%+=100
+  const edgeScore = Math.min(100, Math.round((1 - Math.exp(-edge / 8)) * 100));
 
   const statsStrength = prediction.stats_strength
     ?? (odd <= 1.5 ? 85 : odd <= 2.0 ? 70 : odd <= 2.5 ? 60 : odd <= 3.0 ? 50 : 40);

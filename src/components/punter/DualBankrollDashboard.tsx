@@ -27,8 +27,13 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   const horusPL = horusEquity - (horus.initial_balance || 0);
   const manualPL = manualEquity - (manual.initial_balance || 0);
 
-  const horusROI = horus.initial_balance > 0 ? (horusPL / horus.initial_balance * 100) : 0;
-  const manualROI = manual.initial_balance > 0 ? (manualPL / manual.initial_balance * 100) : 0;
+  // Retorno da Banca = (equity - initial) / initial (capital growth)
+  const horusBankReturn = horus.initial_balance > 0 ? (horusPL / horus.initial_balance * 100) : 0;
+  const manualBankReturn = manual.initial_balance > 0 ? (manualPL / manual.initial_balance * 100) : 0;
+
+  // ROI sobre Apostas = lucro / total apostado (betting efficiency)
+  const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
+  const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
 
   const horusWinRate = horus.total_bets ? ((horus.green_bets || 0) / horus.total_bets * 100) : 0;
   const manualWinRate = manual.total_bets ? ((manual.green_bets || 0) / manual.total_bets * 100) : 0;
