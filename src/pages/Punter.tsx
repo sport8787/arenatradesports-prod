@@ -494,7 +494,7 @@ export default function PunterPage() {
         )}
 
         {/* Daily Summary Widget */}
-        {user && <DailySummaryWidget userId={user.id} />}
+        {user && <DailySummaryWidget userId={user.id} username={profileData?.username} />}
 
         {/* Link para Análise Detalhada */}
         <button
