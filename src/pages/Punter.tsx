@@ -345,6 +345,8 @@ export default function PunterPage() {
         setAutoPlacedMatchIds(newAutoIds);
         if (autoPlaced > 0) {
           toast.success(`🤖 Hórus apostou automaticamente em ${autoPlaced} jogos`);
+          // 🔊 Hórus provocation after auto-betting
+          setTimeout(() => playHorusTrigger('provocacao'), 2000);
         }
         // Refresh pending bets
         const { data: updated } = await supabase
