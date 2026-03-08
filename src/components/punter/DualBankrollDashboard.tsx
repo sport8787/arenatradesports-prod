@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bot, User, Wallet, TrendingUp, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Bankroll } from '@/hooks/useBankroll';
 import type { ManualBankroll } from '@/hooks/useManualBankroll';
