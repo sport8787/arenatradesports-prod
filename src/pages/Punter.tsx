@@ -287,6 +287,25 @@ export default function PunterPage() {
       setError('Você precisa estar logado para analisar jogos');
       return;
     }
+
+    // Charge NT for analysis
+    const ntBalance = profile?.nt_balance || 0;
+    if (ntBalance < ANALYSIS_NT_COST) {
+      toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${ntBalance} NT`);
+      return;
+    }
+
+    // Deduct NT
+    const { data: spentOk, error: spendErr } = await supabase.rpc('spend_nt_balance', {
+      p_user_id: user.id,
+      p_amount: ANALYSIS_NT_COST,
+    });
+    if (spendErr || spentOk === false) {
+      toast.error('Falha ao debitar NT. Tente novamente.');
+      return;
+    }
+    toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise`);
+
     setLoading(true);
     setError(null);
 
