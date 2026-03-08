@@ -129,7 +129,7 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
           <MetricCard
             label="MINHA EXPOSIÇÃO"
             value={`R$ ${manualExposure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            sub={`${manualPendingBets.length} apostas em aberto`}
+            sub={`${manualPendingBets.length} posições em aberto`}
             icon={<TrendingUp className="w-4 h-4" />}
           />
         </div>
