@@ -148,6 +148,15 @@ class CentralAudioQueue {
     
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = Date.now();
+
+    // ✅ GLOBAL DEDUPE: Block if same audioUrl is already playing or in queue
+    const isUrlPlaying = this.currentItem?.audioUrl === audioUrl;
+    const isUrlInQueue = this.queue.some(q => q.audioUrl === audioUrl);
+    if (isUrlPlaying || isUrlInQueue) {
+      console.log(`[CentralAudioQueue] ⛔ URL dedupe blocked: "${label}" (already ${isUrlPlaying ? 'playing' : 'in queue'})`);
+      onComplete?.();
+      return id;
+    }
     
     // ✅ FIX: Dedupe de QUESTION_READ - bloqueia leituras duplicadas da mesma pergunta
     if (priority === AUDIO_PRIORITY.QUESTION_READ) {
