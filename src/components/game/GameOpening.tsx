@@ -6,15 +6,14 @@ interface GameOpeningProps {
   onComplete: () => void;
 }
 
-// Hieroglyphs for decorative effect
 const HIEROGLYPHS = ['𓂀', '𓃀', '𓆣', '𓅓', '𓊪', '𓋹', '𓌂', '𓏲', '𓎡', '𓇳', '𓆑', '𓈖'];
 
 export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
   const [stage, setStage] = useState(0);
   const [showSkipButton, setShowSkipButton] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const musicRef = React.useRef<HTMLAudioElement | null>(null);
 
-  // Pre-calculate particle positions to avoid window reference issues
   const particles = useMemo(() => 
     [...Array(40)].map((_, i) => ({
       id: i,
@@ -27,7 +26,6 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
     })),
   []);
 
-  // Ember particles
   const embers = useMemo(() =>
     [...Array(25)].map((_, i) => ({
       id: i,
@@ -39,28 +37,39 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
   []);
 
   useEffect(() => {
-    const audio = new Audio('/audio/horus/abertura_completa.mp3');
-    audioRef.current = audio;
-    audio.play().catch(console.error);
+    // Play background music
+    const music = new Audio('/audio/horus/abertura_completa.mp3');
+    musicRef.current = music;
+    music.volume = 0.6;
+    music.play().catch(console.error);
+
+    // Play welcome voice after a short delay
+    const voiceTimer = setTimeout(() => {
+      const voice = new Audio('/audio/horus/bem_vindos.mp3');
+      audioRef.current = voice;
+      voice.volume = 0.9;
+      voice.play().catch(console.error);
+    }, 2000);
 
     const timers = [
-      setTimeout(() => setShowSkipButton(true), 3000), // Show skip after 3s
-      setTimeout(() => setStage(1), 3000),
-      setTimeout(() => setStage(2), 8000),
-      setTimeout(() => setStage(3), 12000),
-      setTimeout(() => onComplete(), 15500)
+      setTimeout(() => setShowSkipButton(true), 3000),
+      setTimeout(() => setStage(1), 2500),
+      setTimeout(() => setStage(2), 6000),
+      setTimeout(() => setStage(3), 10000),
+      setTimeout(() => onComplete(), 14000)
     ];
 
     return () => {
+      clearTimeout(voiceTimer);
       timers.forEach(clearTimeout);
-      audio.pause();
+      music.pause();
+      if (audioRef.current) audioRef.current.pause();
     };
   }, [onComplete]);
 
   const handleSkip = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
+    if (musicRef.current) musicRef.current.pause();
+    if (audioRef.current) audioRef.current.pause();
     onComplete();
   };
 
@@ -71,7 +80,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden"
     >
-      {/* Animated scanlines overlay */}
+      {/* Scanlines */}
       <div 
         className="absolute inset-0 pointer-events-none z-30 opacity-[0.03]"
         style={{
@@ -79,11 +88,11 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
         }}
       />
 
-      {/* Vignette effect */}
+      {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none z-20 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.7)_100%)]" />
 
       <motion.div className="relative w-full h-full flex items-center justify-center">
-        {/* Multiple layered spotlights */}
+        {/* Spotlights */}
         <motion.div
           animate={{ 
             scale: [1, 1.3, 1],
@@ -98,22 +107,13 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
           className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.2)_0%,transparent_60%)]"
         />
         <motion.div
-          animate={{ 
-            scale: [1.2, 1, 1.2],
-            rotate: [0, -3, 0],
-          }}
-          transition={{ 
-            duration: 4, repeat: Infinity, ease: "easeInOut"
-          }}
+          animate={{ scale: [1.2, 1, 1.2], rotate: [0, -3, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_70%,rgba(139,90,43,0.15)_0%,transparent_50%)]"
         />
         <motion.div
-          animate={{ 
-            scale: [1, 1.1, 1],
-          }}
-          transition={{ 
-            duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5
-          }}
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
           className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(255,215,0,0.1)_0%,transparent_40%)]"
         />
 
@@ -122,22 +122,13 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
           {particles.map((p) => (
             <motion.div
               key={p.id}
-              initial={{ 
-                left: `${p.startX}%`,
-                bottom: '-5%',
-                opacity: 0
-              }}
+              initial={{ left: `${p.startX}%`, bottom: '-5%', opacity: 0 }}
               animate={{ 
                 bottom: '105%',
                 opacity: [0, p.type === 'hieroglyph' ? 0.4 : 0.9, 0],
                 x: [0, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 150]
               }}
-              transition={{
-                duration: p.duration,
-                repeat: Infinity,
-                delay: p.delay,
-                ease: "linear"
-              }}
+              transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "linear" }}
               className={cn(
                 "absolute",
                 p.type === 'hieroglyph' 
@@ -160,34 +151,29 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
           ))}
         </div>
 
-        {/* Silhouette of Horus Eye emerging from below */}
+        {/* Horus Eye - blinking animation */}
         <AnimatePresence>
-          {stage >= 2 && (
+          {stage >= 1 && (
             <motion.div
               initial={{ y: 200, opacity: 0, scale: 0.5 }}
-              animate={{ 
-                y: 0, 
-                opacity: [0, 0.8, 0.6],
-                scale: 1
-              }}
+              animate={{ y: 0, opacity: [0, 0.8, 0.6], scale: 1 }}
               transition={{ duration: 2, ease: "easeOut" }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              {/* Giant Eye of Horus SVG silhouette */}
               <motion.svg
                 viewBox="0 0 200 120"
                 className="w-[80vw] h-[50vh] max-w-[800px]"
                 animate={{
-                  opacity: [0.15, 0.25, 0.15],
-                  scale: [1, 1.02, 1]
+                  opacity: [0.15, 0.3, 0.15],
+                  scale: [1, 1.02, 1],
+                  scaleY: [1, 1, 0.1, 1, 1], // Blink effect
                 }}
                 transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
+                  opacity: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+                  scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+                  scaleY: { duration: 4, repeat: Infinity, ease: "easeInOut", times: [0, 0.45, 0.5, 0.55, 1] },
                 }}
               >
-                {/* Eye of Horus stylized shape */}
                 <defs>
                   <linearGradient id="horusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="rgba(212, 175, 55, 0.4)" />
@@ -203,118 +189,53 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                   </filter>
                 </defs>
                 
-                {/* Main eye shape */}
                 <path
                   d="M30 60 Q60 20 100 20 Q140 20 170 60 Q140 100 100 100 Q60 100 30 60 Z"
-                  fill="none"
-                  stroke="url(#horusGradient)"
-                  strokeWidth="2"
-                  filter="url(#glow)"
+                  fill="none" stroke="url(#horusGradient)" strokeWidth="2" filter="url(#glow)"
                 />
-                
-                {/* Pupil */}
-                <circle
-                  cx="100"
-                  cy="60"
-                  r="20"
-                  fill="none"
-                  stroke="url(#horusGradient)"
-                  strokeWidth="2"
-                  filter="url(#glow)"
-                />
-                <circle
-                  cx="100"
-                  cy="60"
-                  r="8"
-                  fill="rgba(212, 175, 55, 0.3)"
-                  filter="url(#glow)"
-                />
-                
-                {/* Decorative lines (falcon markings) */}
-                <path
-                  d="M30 60 L10 80 L20 90 Q30 85 40 75"
-                  fill="none"
-                  stroke="url(#horusGradient)"
-                  strokeWidth="1.5"
-                  filter="url(#glow)"
-                />
-                <path
-                  d="M170 60 L190 80 L180 90 Q170 85 160 75"
-                  fill="none"
-                  stroke="url(#horusGradient)"
-                  strokeWidth="1.5"
-                  filter="url(#glow)"
-                />
-                
-                {/* Eyebrow arc */}
-                <path
-                  d="M20 50 Q60 10 100 10 Q140 10 180 50"
-                  fill="none"
-                  stroke="url(#horusGradient)"
-                  strokeWidth="1.5"
-                  filter="url(#glow)"
-                />
+                <circle cx="100" cy="60" r="20" fill="none" stroke="url(#horusGradient)" strokeWidth="2" filter="url(#glow)" />
+                <circle cx="100" cy="60" r="8" fill="rgba(212, 175, 55, 0.3)" filter="url(#glow)" />
+                <path d="M30 60 L10 80 L20 90 Q30 85 40 75" fill="none" stroke="url(#horusGradient)" strokeWidth="1.5" filter="url(#glow)" />
+                <path d="M170 60 L190 80 L180 90 Q170 85 160 75" fill="none" stroke="url(#horusGradient)" strokeWidth="1.5" filter="url(#glow)" />
+                <path d="M20 50 Q60 10 100 10 Q140 10 180 50" fill="none" stroke="url(#horusGradient)" strokeWidth="1.5" filter="url(#glow)" />
               </motion.svg>
 
-              {/* Ember particles around the eye */}
-              {stage >= 2 && embers.map((e) => (
+              {/* Ember particles */}
+              {embers.map((e) => (
                 <motion.div
                   key={`ember-${e.id}`}
-                  initial={{
-                    left: `${e.startX}%`,
-                    top: `${e.startY}%`,
-                    opacity: 0,
-                    scale: 0
-                  }}
+                  initial={{ left: `${e.startX}%`, top: `${e.startY}%`, opacity: 0, scale: 0 }}
                   animate={{
                     top: [`${e.startY}%`, `${e.startY - 30}%`],
                     opacity: [0, 1, 0],
                     scale: [0, 1, 0.5],
                     x: [(Math.random() - 0.5) * 50, (Math.random() - 0.5) * 100]
                   }}
-                  transition={{
-                    duration: e.duration,
-                    repeat: Infinity,
-                    delay: e.delay,
-                    ease: "easeOut"
-                  }}
+                  transition={{ duration: e.duration, repeat: Infinity, delay: e.delay, ease: "easeOut" }}
                   className="absolute w-1 h-1 bg-orange-500 rounded-full"
-                  style={{
-                    boxShadow: '0 0 8px 3px rgba(255, 100, 0, 0.6)'
-                  }}
+                  style={{ boxShadow: '0 0 8px 3px rgba(255, 100, 0, 0.6)' }}
                 />
               ))}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Logo */}
+        {/* Title */}
         <AnimatePresence>
           {stage >= 0 && (
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ 
-                scale: stage >= 3 ? 1.15 : 1, 
-                opacity: 1 
-              }}
+              animate={{ scale: stage >= 3 ? 1.15 : 1, opacity: 1 }}
               transition={{ duration: 1, ease: "easeOut" }}
               className="relative z-10 text-center"
             >
-              {/* Pulsing aura behind text */}
               <motion.div
-                animate={{
-                  opacity: [0.2, 0.5, 0.2],
-                  scale: [1, 1.2, 1]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+                animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute inset-0 -m-32 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,transparent_60%)] blur-2xl"
               />
 
-              {/* Hieroglyph decorations on sides */}
+              {/* Hieroglyph decorations */}
               <div className="absolute -left-16 md:-left-24 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-30">
                 {['𓂀', '𓃀', '𓆣'].map((h, i) => (
                   <motion.span
@@ -323,9 +244,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                     animate={{ opacity: 0.5, x: 0 }}
                     transition={{ delay: 1 + i * 0.2, duration: 0.5 }}
                     className="text-amber-500 text-2xl md:text-3xl"
-                  >
-                    {h}
-                  </motion.span>
+                  >{h}</motion.span>
                 ))}
               </div>
               <div className="absolute -right-16 md:-right-24 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-30">
@@ -336,9 +255,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                     animate={{ opacity: 0.5, x: 0 }}
                     transition={{ delay: 1 + i * 0.2, duration: 0.5 }}
                     className="text-amber-500 text-2xl md:text-3xl"
-                  >
-                    {h}
-                  </motion.span>
+                  >{h}</motion.span>
                 ))}
               </div>
 
@@ -347,7 +264,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
                 className={cn(
-                  "text-5xl md:text-8xl font-bold tracking-wider",
+                  "text-4xl md:text-7xl font-bold tracking-wider",
                   "bg-gradient-to-b from-amber-100 via-amber-300 to-amber-600",
                   "bg-clip-text text-transparent",
                   "drop-shadow-[0_0_40px_rgba(212,175,55,0.6)]"
@@ -357,7 +274,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                   textShadow: stage >= 2 ? '0 0 60px rgba(212, 175, 55, 0.9)' : 'none'
                 }}
               >
-                O BLEFADOR
+                ARENA TRADE
               </motion.h1>
 
               <motion.h2
@@ -365,7 +282,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
                 className={cn(
-                  "text-3xl md:text-6xl font-bold tracking-[0.3em] mt-2",
+                  "text-2xl md:text-5xl font-bold tracking-[0.3em] mt-2",
                   "bg-gradient-to-b from-amber-200 via-amber-500 to-amber-800",
                   "bg-clip-text text-transparent"
                 )}
@@ -374,10 +291,10 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                   textShadow: stage >= 2 ? '0 0 40px rgba(212, 175, 55, 0.7)' : 'none'
                 }}
               >
-                MILIONÁRIO
+                SPORTS
               </motion.h2>
 
-              {/* Animated decorative line */}
+              {/* Animated line */}
               <motion.div
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
@@ -413,7 +330,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
           )}
         </AnimatePresence>
 
-        {/* Horus watching text */}
+        {/* Bottom text */}
         <AnimatePresence>
           {stage >= 2 && (
             <motion.div
@@ -431,11 +348,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                     '0 0 20px rgba(212, 175, 55, 0.5)'
                   ]
                 }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className="text-amber-400/90 text-xl md:text-2xl tracking-[0.4em] font-light flex items-center gap-4"
                 style={{ fontFamily: "'Cinzel', serif" }}
               >
@@ -450,7 +363,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
 
       {/* Subtitles */}
       <div className="absolute bottom-28 left-0 right-0 text-center z-30">
-          <AnimatePresence mode="sync">
+        <AnimatePresence mode="sync">
           {stage === 1 && (
             <motion.p
               key="subtitle-1"
@@ -461,7 +374,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
               className="text-amber-200/80 text-lg md:text-xl tracking-wide italic"
               style={{ fontFamily: "'Cinzel', serif" }}
             >
-              Prepare-se para o Santuário
+              Onde a Inteligência Encontra o Mercado
             </motion.p>
           )}
         </AnimatePresence>
