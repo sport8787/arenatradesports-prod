@@ -1,112 +1,193 @@
-# Plano de Melhorias — Arena Punter
+# Plano de Implementação — Oráculo Mycroft
 
-## 1. 🏟️ Página de Widgets API-Football (`/punter/widgets`)
+## Análise do Status Atual vs Plano Original
 
-A API-Football oferece widgets prontos (JS embed) que podem ser integrados diretamente. Não consomem requests da API — usam a mesma `API_FOOTBALL_KEY`.
-
-### Widgets disponíveis:
-- **getGames** — Agenda de jogos ao vivo e futuros (Live Scores)
-- **getGame** — Detalhes de uma partida (eventos, lineups, stats)
-- **getStandings** — Classificação da liga
-- **getHead to Head** — H2H visual entre dois times
-- **getTeam** — Perfil do time (elenco, stats da temporada, lesões)
-- **getPlayer** — Perfil do jogador
-
-### Implementação:
-- Criar página `/punter/widgets` com tabs para cada widget
-- Embed via `<script src="https://widgets.api-sports.io/3.1.0/widget.js">` + config tags
-- Usar a `API_FOOTBALL_KEY` no atributo `data-key`
-- Adicionar botão "Widgets" no header da Arena Punter
-- Tema dark para combinar com o design do app
+### LEGENDA
+- ✅ Implementado
+- ⚠️ Parcialmente implementado
+- ❌ Não implementado
 
 ---
 
-## 2. 📊 Dados da API-Football NÃO utilizados atualmente
+## FASE 1 — Infraestrutura de Dados
 
-A edge function `mycroft-punter-analysis` já usa bastante, mas existem endpoints/dados disponíveis no plano Pro que **não estão sendo explorados**:
-
-### Endpoints não usados:
-| Endpoint | O que fornece | Uso potencial |
-|----------|--------------|---------------|
-| `/predictions` | Previsão de vencedor, over/under, score com 6 algoritmos | Cruzar com a análise do Mycroft para validação cruzada |
-| `/odds` (pre-match) | Odds de múltiplas casas em tempo real | Comparar spreads entre casas para detectar linha fora do mercado |
-| `/odds/live` | Odds ao vivo (in-play) | Futuro: alertas de entrada em jogos ao vivo |
-| `/players/squads` | Elenco atual com posições e fotos | Exibir na página de Widgets |
-| `/transfers` | Transferências recentes | Contexto para análise (time reforçado/enfraquecido) |
-| `/coaches` | Técnico atual e histórico | Contexto de estilo de jogo |
-| `/trophies` | Títulos do time/jogador | Contexto competitivo |
-| `/fixtures/events` | Eventos detalhados (gols, cartões, substituições) | Enriquecer análise pós-jogo |
-
-### Dados dentro de endpoints JÁ usados mas NÃO explorados:
-| Dado | Endpoint atual | Status |
-|------|---------------|--------|
-| `goals.for.minute` / `goals.against.minute` | `/teams/statistics` | ✅ Coletado mas **não formatado** no prompt (só citado na season stats sem detalhe por minuto) |
-| `penalty.scored/missed` | `/teams/statistics` | ❌ Não coletado |
-| `lineups` (formações mais usadas) | `/teams/statistics` | ⚠️ Campo `avg_possession` mapeia para `lineups[0].formation` erroneamente |
-| `cards.yellow/red` por minuto | `/teams/statistics` | ❌ Não coletado |
-| `biggest.streak` (wins/draws/loses) | `/teams/statistics` | ❌ Não coletado |
-| `xG` dos últimos jogos (não só do último) | `/fixtures/statistics` | ⚠️ Só coleta do último jogo |
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Tabela `punter_analyses` (= arena_predictions) | ✅ | Existe com campos: match_id, market, odd, confidence, verdict, thesis, value_percentage, estimated_probability, fair_odd |
+| Tabela `punter_signals` (= arena_bets do Hórus) | ✅ | Existe com: match_id, market, odd, result, profit_loss, stake_percentage |
+| Tabela `sports_bankroll` + `manual_bankroll` (= arena_bankroll) | ✅ | Dual bankroll implementado |
+| Tabela `market_analysis` (MIS/ODI) | ✅ | Campos: prob_model, prob_market, market_inefficiency_score, odds_drift_index |
+| Tabela `sharp_money_signals` | ✅ | Campos: has_rlm, has_steam, has_consensus, sharp_activity_score |
+| Tabela `bet_correlations` | ✅ | Campos: market_a, market_b, correlation_coefficient |
+| Tabela `model_performance` | ✅ | Campos: roi, win_rate, profit, avg_edge, avg_odd |
+| Tabela `punter_rankings` | ✅ | Ranking global com ROI, sharpe_ratio, profit_factor, max_drawdown |
+| Tabela `daily_summaries` | ✅ | Resumos diários por usuário |
+| Tabela `arena_matches` (histórico estruturado de partidas) | ❌ | Não existe. Falta tabela centralizada de partidas com season, xG, stats |
+| Tabela `arena_odds` (histórico de odds por bookmaker) | ❌ | Não existe. Crucial para CLV, odds drift histórico |
+| Tabela `arena_patterns` (Pattern Mining) | ❌ | Não existe. Necessária para Pattern Mining Engine |
+| Tabela `arena_bets` (registro unificado de apostas user+IA) | ❌ | Parcial via punter_signals. Falta registro de apostas manuais com tracking completo |
+| Tabela `bets_history` (Self Learning data) | ❌ | Não existe. Necessária para Self Learning Engine |
 
 ---
 
-## 3. 🧠 Teste Comparativo: Gemini vs Anthropic (Claude)
+## FASE 2 — Betting Asset Score
 
-### Objetivo:
-Testar se Claude Sonnet produz análises superiores em precisão e consistência.
-
-### Plano de implementação:
-1. Criar flag `ai_provider` na edge function (`gemini` | `anthropic`)
-2. Quando `anthropic`: chamar `https://api.anthropic.com/v1/messages` com Claude Sonnet
-3. Usar **exatamente o mesmo prompt** para ambos
-4. Salvar o `analyzed_by` no `punter_analyses` (já existe a coluna)
-5. Após ~50 análises de cada, comparar:
-   - Taxa de aprovação
-   - Precisão dos vereditos (green rate)
-   - Consistência (mesmo jogo analisado 2x dá mesmo resultado?)
-   - Qualidade da tese (subjetivo)
-
-### Requisitos:
-- Secret `ANTHROPIC_API_KEY` (ou usar `VITE_ANTHROPIC_API_KEY` que já existe)
-- Modelo recomendado: `claude-sonnet-4-20250514` (já usado no `mycroft-ai`)
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Fórmula do Asset Score | ⚠️ | `punter_analyses` tem campo para score mas fórmula completa (30% prob + 25% value + 20% stats + 15% pattern + 10% liquidity) não está implementada como engine |
+| Classificação ELITE/PREMIUM/STRONG/SPECULATIVE | ❌ | Não existe classificação automática |
+| Edge Function dedicada para cálculo | ❌ | O `mycroft-punter-analysis` faz análise mas não calcula BAS formal |
 
 ---
 
-## 4. 🔧 Melhorias técnicas pendentes
+## FASE 3 — Pattern Mining Engine
 
-### 4.1 Bug: Campo `avg_possession` mapeado errado
-```typescript
-// ATUAL (linha 443):
-avg_possession: seasonStats.lineups?.[0]?.formation || null,
-// CORRETO: Isso retorna a FORMAÇÃO, não posse de bola
-// A API-Football não tem avg_possession em /teams/statistics
-// Renomear para `preferred_formation`
-```
-
-### 4.2 Enriquecer prompt com dados por minuto de gols
-Os dados `goals.for.minute` já são coletados mas não formatados no prompt. Adicionar:
-- Períodos de maior pressão ofensiva (ex: "70% dos gols entre 60-90min")
-- Padrão defensivo (minutos onde mais sofre gols)
-
-### 4.3 Adicionar endpoint `/predictions`
-Cruzar a previsão da API-Football com a análise do Mycroft:
-- Se ambos concordam → boost de confiança (+5-10%)
-- Se divergem → flag de risco
-
-### 4.4 Coletar penalidades e streaks
-- `penalty.scored.percentage` — indica eficiência em momentos decisivos
-- `biggest.streak.wins/loses` — indica momentum
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Análise por liga + mercado | ❌ | Não implementado |
+| ROI histórico por padrão | ❌ | Tabela `model_performance` tem dados agregados mas não mining automático |
+| Confidence boost no modelo | ❌ | Não implementado |
 
 ---
 
-## 5. 📋 Roadmap de execução sugerido
+## FASE 4 — Bankroll AI (Kelly Criterion)
 
-| Prioridade | Tarefa | Esforço |
-|-----------|--------|---------|
-| 🔴 Alta | Página de Widgets (embed API-Football) | Médio |
-| 🔴 Alta | Corrigir bug avg_possession → preferred_formation | Baixo |
-| 🟡 Média | Integrar endpoint `/predictions` no prompt | Médio |
-| 🟡 Média | Adicionar dados de gols por minuto ao prompt | Baixo |
-| 🟡 Média | Teste A/B Gemini vs Claude | Médio |
-| 🟢 Baixa | Coletar penalties e streaks | Baixo |
-| 🟢 Baixa | Endpoint `/coaches` para contexto | Baixo |
-| 🟢 Baixa | Odds in-play para alertas futuros | Alto |
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Cálculo Kelly 25% | ⚠️ | `stake_percentage` existe nos signals mas não há engine automática de Kelly |
+| Gestão automática de stake | ❌ | Não implementado como engine |
+| Proteção de drawdown automática | ❌ | Não implementado |
+
+---
+
+## FASE 5 — Dual Bankroll
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Tabelas `sports_bankroll` + `manual_bankroll` | ✅ | Existem |
+| Component `DualBankrollDashboard` | ✅ | Existe em src/components/punter/ |
+| Separação source=horus vs source=user | ⚠️ | Parcial. Registros de apostas manuais precisam melhorar |
+
+---
+
+## FASE 6 — Ranking Global
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Tabela `punter_rankings` | ✅ | Completa com ROI, sharpe_ratio, profit_factor, etc |
+| Component `PunterRankings` | ✅ | Existe |
+| Mínimo 50 apostas | ❌ | Não há filtro mínimo implementado |
+
+---
+
+## FASE 7 — Certificado de Performance
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Component `PerformanceCertificate` | ✅ | Existe |
+| Métricas (ROI, drawdown, sharpe, profit factor) | ⚠️ | Parcial, depende dos dados populados |
+| Compartilhamento social (Instagram, Twitter, WhatsApp) | ❌ | Não implementado |
+| Gráfico de crescimento da banca | ❌ | Não implementado no certificado |
+
+---
+
+## FASE 8 — Modo Simulado (Backtest)
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Component `BacktestPanel` | ✅ | Existe |
+| Edge Function `mycroft-punter-backtest` | ✅ | Existe |
+| Integração com dados históricos reais | ❌ | Sem tabela arena_matches/arena_odds |
+| Exibição ROI/greens/reds/drawdown simulado | ⚠️ | Parcial |
+
+---
+
+## FASE 9 — Simulação Monte Carlo
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Engine de simulação 10k runs | ❌ | Não implementado |
+| Risco de ruína, drawdown médio, ROI esperado | ❌ | Não implementado |
+| Visualização gráfica | ❌ | Não implementado |
+
+---
+
+## FASE 10 — Dashboard Profissional
+
+| Item | Status | Detalhes |
+|------|--------|---------|
+| Página Punter principal | ✅ | Existe com widgets |
+| Dual Bankroll no dashboard | ✅ | Existe |
+| Market Detectors Panel | ✅ | Existe (MarketDetectorsPanel) |
+| Performance Gap | ✅ | Existe |
+| Odds Evolution | ✅ | Existe |
+| Performance by Time | ✅ | Existe |
+| Daily Summary Widget | ✅ | Existe |
+| Missed Opportunities | ✅ | Existe |
+
+---
+
+## MÓDULOS AVANÇADOS (Plano Mycroft v2)
+
+| Módulo | Status | Detalhes |
+|--------|--------|---------|
+| Market Manipulation Detector (MMD) | ⚠️ | Tabela `market_analysis` existe com MIS/ODI. Falta engine automática |
+| Sharp Money & Liquidity Detector (SMLD) | ⚠️ | Tabela `sharp_money_signals` existe. Falta engine de detecção real-time |
+| Self Learning Betting Engine (SLBE) | ❌ | Não implementado. Precisa tabelas de histórico + recalibração |
+| Portfolio Optimization Engine (APE) | ❌ | Não implementado. Correlação existe na tabela bet_correlations mas sem engine |
+| CLV Engine (Closing Line Value) | ❌ | Não implementado. Precisa odds de abertura vs fechamento |
+| Smart Odds Scanner (cross-bookmaker) | ❌ | Não implementado |
+| Anti-Limiting Engine | ❌ | Não implementado (delay, diversificação, randomização) |
+| Poisson/Dixon-Coles Model | ❌ | Não implementado |
+| Ensemble Models (Poisson + xG + ELO + Market) | ❌ | Não implementado |
+| Monte Carlo Risk Engine | ❌ | Não implementado |
+
+---
+
+## PLANO DE EXECUÇÃO RECOMENDADO
+
+### Sprint 1 — Tabelas faltantes + Asset Score (Semana 1)
+1. Criar tabela `arena_matches` (partidas históricas com xG, stats)
+2. Criar tabela `arena_odds` (odds por bookmaker com timestamp)
+3. Criar tabela `arena_patterns` (padrões lucrativos por liga/mercado)
+4. Criar tabela `bets_history` (histórico unificado para self-learning)
+5. Implementar Edge Function `betting-asset-score` com fórmula BAS completa
+6. Adicionar classificação ELITE/PREMIUM/STRONG/SPECULATIVE nos signals
+
+### Sprint 2 — Pattern Mining + Bankroll AI (Semana 2)
+7. Criar Edge Function `pattern-mining-engine` (analisa ROI por liga/mercado)
+8. Implementar Kelly Criterion Engine (cálculo automático de stake)
+9. Implementar proteção de drawdown (redução automática de stake)
+10. Adicionar filtro mínimo de 50 apostas no ranking
+
+### Sprint 3 — Certificado + Monte Carlo (Semana 3)
+11. Adicionar gráfico de crescimento de banca no certificado
+12. Implementar compartilhamento social (share API)
+13. Criar Edge Function `monte-carlo-simulation` (10k runs)
+14. Criar componente de visualização Monte Carlo (risco de ruína, drawdown esperado)
+
+### Sprint 4 — Módulos Avançados v1 (Semana 4)
+15. Implementar CLV Engine (comparar odd entrada vs fechamento)
+16. Implementar Portfolio Optimization (ajuste de stake por correlação)
+17. Ativar Self Learning Engine (recalibração mensal baseada em resultados)
+18. Implementar Smart Odds Scanner (detecção cross-bookmaker)
+
+### Sprint 5 — Módulos Avançados v2 (Semana 5)
+19. Implementar modelo Poisson/Dixon-Coles
+20. Implementar Ensemble Models
+21. Anti-Limiting Engine (delay, diversificação, randomização)
+22. Dashboard de métricas CLV + Market Beat Rate
+
+---
+
+## RESUMO
+
+| Categoria | Total | ✅ | ⚠️ | ❌ |
+|-----------|-------|----|----|-----|
+| Infraestrutura (tabelas) | 14 | 9 | 0 | 5 |
+| Features core (Fases 2-9) | 20 | 5 | 5 | 10 |
+| Módulos avançados (v2) | 10 | 0 | 2 | 8 |
+| Dashboard/UI | 8 | 8 | 0 | 0 |
+| **TOTAL** | **52** | **22 (42%)** | **7 (13%)** | **23 (44%)** |
+
+A infraestrutura de tabelas está ~64% pronta. O dashboard/UI está 100% no lugar. O maior gap está nos **engines de cálculo** (Asset Score, Pattern Mining, Kelly, Monte Carlo, CLV, Portfolio Optimization) e nas **tabelas de dados históricos** que alimentam esses engines.
