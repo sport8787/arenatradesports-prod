@@ -1,489 +1,457 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
-import {
-  Play,
-  ChevronRight,
-  Radar,
-  Brain,
-  Zap,
-  Check,
-  X,
-  Shield,
-  MessageCircle,
-  TrendingUp,
-  Target,
-  BarChart3,
-  Bot,
+import { motion } from 'framer-motion';
+import { 
+  Bot, Shield, TrendingUp, Target, BarChart3, 
+  Zap, Lock, CheckCircle2, ArrowRight, Play,
+  Brain, Award, LineChart, Users, Star
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { cn } from '@/lib/utils';
-import { HeroParticles } from '@/components/landing/HeroParticles';
-
-// Configurable video URL for VSL
-const VIDEO_URL = ''; // Paste Vturb or other embed URL here
-
-// ─── Fade-in helper ───
-const FadeIn = ({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: '-60px' }}
-    transition={{ duration: 0.7, delay }}
-    className={className}
-  >
-    {children}
-  </motion.div>
-);
-
-// ─── Social Proof Bar ───
-const proofItems = [
-  { label: '68% Win Rate Auditado', icon: Target },
-  { label: '200+ Traders', icon: TrendingUp },
-  { label: 'Sinais em Tempo Real', icon: Zap },
-  { label: '7 dias grátis', icon: Shield },
-];
-
-// ─── How it works steps ───
-const steps = [
-  { icon: Radar, title: 'Mycroft monitora o jogo ao vivo', desc: 'Rastreamento contínuo de dezenas de ligas e campeonatos simultaneamente.' },
-  { icon: Brain, title: 'IA analisa xG, ataques e padrões da Knowledge Base', desc: 'Cruzamento com base histórica validada e modelos proprietários.' },
-  { icon: Zap, title: 'Você recebe o sinal com tese completa no WhatsApp', desc: 'Sinal detalhado com mercado, odd, confiança e fundamentação.' },
-];
-
-// ─── Comparison table ───
-const comparisonRows = [
-  { label: 'Win rate real', sala: '89% (mentira)', arena: '68% (auditado)' },
-  { label: 'Explica o porquê', sala: false, arena: true },
-  { label: 'Sem clubismo', sala: false, arena: true },
-  { label: 'Modo treino', sala: false, arena: true },
-  { label: 'Gestão de risco', sala: false, arena: true },
-];
-
-// ─── FAQ ───
-const faqItems = [
-  { q: 'Preciso de cartão para o trial?', a: 'Não. Você começa o trial de 7 dias sem precisar informar dados de pagamento. Sem surpresas.' },
-  { q: 'Como recebo os sinais?', a: 'Diretamente no WhatsApp e também pelo dashboard em tempo real. Você escolhe onde prefere acompanhar.' },
-  { q: 'O win rate de 68% é real?', a: 'Sim. Todas as operações são auditadas e rastreáveis. Diferente de salas que inventam números, o nosso é verificável.' },
-  { q: 'Posso cancelar quando quiser?', a: 'Sim, sem multa e sem burocracia. Cancele a qualquer momento direto pela plataforma.' },
-  { q: 'O que é o Modo Treino?', a: 'É um simulador onde você pratica análise de jogos ao vivo sem risco real. Perfeito para aprender antes de operar de verdade.' },
-];
+import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const ctaRef = useRef(null);
-  const ctaInView = useInView(ctaRef, { once: true, margin: '-80px' });
 
-  const handleTrial = () => navigate('/auth');
-  const handlePricing = () => navigate('/paywall');
+  const goToAuth = () => navigate('/auth');
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden scroll-smooth">
-      {/* ═══════════ HERO ═══════════ */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 py-20">
-        {/* BG effects */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]" />
-          <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-destructive/5 rounded-full blur-[100px]" />
-          <HeroParticles />
+    <div className="bg-[#0a0f1e] text-white min-h-screen">
+      {/* Header */}
+      <header className="fixed top-0 w-full bg-[#0a0f1e]/95 backdrop-blur-sm border-b border-gray-800 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <img src={logoOraculo} alt="Oráculo Mycroft" className="h-10 w-auto" />
+              <div>
+                <h1 className="text-xl font-bold">ORÁCULO MYCROFT</h1>
+                <p className="text-[10px] text-gray-400 -mt-1">PUNTER</p>
+              </div>
+            </div>
+            
+            <nav className="hidden md:flex items-center gap-8">
+              <a href="#funcionalidades" className="text-sm text-gray-300 hover:text-white transition">Funcionalidades</a>
+              <a href="#diferenciais" className="text-sm text-gray-300 hover:text-white transition">Diferenciais</a>
+              <a href="#resultados" className="text-sm text-gray-300 hover:text-white transition">Resultados</a>
+              <a href="#planos" className="text-sm text-gray-300 hover:text-white transition">Planos</a>
+            </nav>
+            
+            <div className="flex items-center gap-3">
+              <button onClick={goToAuth} className="text-sm text-gray-300 hover:text-white transition">Login</button>
+              <button onClick={goToAuth} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
+                COMEÇAR AGORA
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-[#0a0f1e]" />
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.3) 1px, transparent 0)',
+            backgroundSize: '32px 32px'
+          }} />
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center">
-          {/* Badge */}
-          <FadeIn>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-8">
-              <Bot className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Arena Trader Sports — Powered by Mycroft AI</span>
-            </div>
-          </FadeIn>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full text-sm text-blue-400 mb-6">
+                <Zap className="w-4 h-4" />
+                <span>Aprovado por 1.200+ apostadores profissionais</span>
+              </div>
 
-          {/* Headline */}
-          <FadeIn delay={0.1}>
-            <h1 className="font-orbitron text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-primary leading-tight mb-6">
-              A Vantagem Injusta que Traders Profissionais Não Querem que Você Tenha
-            </h1>
-          </FadeIn>
+              <h2 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                INVISTA EM ESPORTES
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
+                  COMO WALL STREET
+                </span>
+                INVESTE EM AÇÕES
+              </h2>
 
-          {/* Subheadline */}
-          <FadeIn delay={0.2}>
-            <p className="text-lg md:text-xl text-foreground/90 max-w-3xl mx-auto mb-6 leading-relaxed">
-              Imagine ter um trader que conhece cada padrão do futebol mundial, que nunca dorme, nunca torce por time nenhum e toma decisões de forma fria, calculista e baseada em dados. Esse trader existe. Chama-se <span className="text-mycroft-green font-bold">Mycroft</span>.
-            </p>
-          </FadeIn>
+              <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+                Plataforma de investimento esportivo com IA que transforma apostas em decisões quantitativas. 
+                <span className="text-blue-400 font-semibold"> ROI médio +45%</span> com 
+                <span className="text-green-400 font-semibold"> 1.658 apostas auditadas</span>.
+              </p>
 
-          {/* Narrative paragraph */}
-          <FadeIn delay={0.3}>
-            <p className="text-sm md:text-base text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-              Enquanto salas de sinais vendem ilusão com win rates de 89% que nunca existiram, o Mycroft foi treinado com a base de conhecimento mais profunda sobre trading esportivo: livros, padrões históricos validados e análise multimodal em tempo real. Ele não tem ego. Não tem time do coração. Só tem uma missão: <span className="text-foreground font-medium">encontrar value onde outros não enxergam.</span>
-            </p>
-          </FadeIn>
+              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                <button onClick={goToAuth} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
+                  COMEÇAR AGORA
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
+                </button>
+                <button className="px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-lg hover:bg-white/10 transition backdrop-blur-sm flex items-center justify-center gap-2">
+                  <Play className="w-5 h-5" />
+                  Ver Demo
+                </button>
+              </div>
 
-          {/* CTAs */}
-          <FadeIn delay={0.4}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-              <Button
-                onClick={handleTrial}
-                size="lg"
-                className="btn-gold text-base md:text-lg px-8 py-6 rounded-xl group"
-              >
-                Quero Minha Vantagem Injusta — 7 Dias Grátis
-                <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
-            <button onClick={handlePricing} className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4">
-              ou assinar por R$ 49,90/mês
-            </button>
-          </FadeIn>
+              <div className="flex items-center gap-8">
+                <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Médio</p></div>
+                <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
+                <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições Auditadas</p></div>
+              </div>
+            </motion.div>
 
-          {/* Trust badges */}
-          <FadeIn delay={0.5}>
-            <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1"><Check className="w-4 h-4 text-success" /> Sem cartão</span>
-              <span className="flex items-center gap-1"><Check className="w-4 h-4 text-success" /> Cancela quando quiser</span>
-              <span className="flex items-center gap-1"><Check className="w-4 h-4 text-success" /> Acesso imediato</span>
-            </div>
-          </FadeIn>
+            <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-3xl opacity-30" />
+                <div className="relative bg-[#0f1729] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl">
+                  <div className="bg-[#1a1f36] px-4 py-3 flex items-center gap-2 border-b border-gray-700">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">oraculo.mycroft.com</div>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/30 rounded-lg p-4">
+                        <p className="text-xs text-gray-400 mb-1">Patrimônio Hórus</p>
+                        <p className="text-2xl font-bold text-white">R$ 19.146,28</p>
+                        <p className="text-xs text-green-400">+91.46% retorno</p>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/30 rounded-lg p-4">
+                        <p className="text-xs text-gray-400 mb-1">Win Rate</p>
+                        <p className="text-2xl font-bold text-white">59.5%</p>
+                        <p className="text-xs text-blue-400">66G / 43R</p>
+                      </div>
+                    </div>
+                    <div className="bg-[#1a1f36] rounded-lg p-4 mb-4">
+                      <div className="flex items-end gap-1 h-32">
+                        {[40,65,30,80,55,70,45,90,35,60,75,50,85,40,70,55,80,45,65,90].map((h, i) => (
+                          <div key={i} className="flex-1 bg-gradient-to-t from-blue-600 to-purple-600 rounded-t" style={{ height: `${h}%` }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-[#1a1f36] border border-yellow-500/30 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-white">Liverpool vs Brighton</span>
+                        <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded">PREMIUM ASSET</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><p className="text-gray-400">Score</p><p className="text-white font-bold">87</p></div>
+                        <div><p className="text-gray-400">Edge</p><p className="text-green-400 font-bold">+11%</p></div>
+                        <div><p className="text-gray-400">Odd</p><p className="text-white font-bold">2.08</p></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.5 }} className="absolute -bottom-6 -left-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-4 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <Bot className="w-8 h-8 text-white" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">Hórus IA</p>
+                      <p className="text-xs text-blue-100">Seu gestor de portfólio</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
         </div>
 
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2"
-          >
-            <div className="w-1.5 h-3 rounded-full bg-primary" />
-          </motion.div>
+        <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <div className="w-6 h-10 border-2 border-gray-600 rounded-full flex items-start justify-center p-2">
+            <div className="w-1.5 h-3 bg-blue-500 rounded-full" />
+          </div>
         </motion.div>
       </section>
 
-      {/* ═══════════ VSL SECTION ═══════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <FadeIn className="text-center mb-8">
-            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-foreground">
-              Veja o <span className="text-mycroft-green">Mycroft</span> em Ação
+      {/* Features */}
+      <section id="funcionalidades" className="py-20 bg-[#0f1729]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">
+              TUDO QUE VOCÊ PRECISA PARA
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> INVESTIR EM ESPORTES</span>
             </h2>
-          </FadeIn>
-
-          <FadeIn delay={0.1}>
-            <div className="relative aspect-video rounded-2xl overflow-hidden border-2 border-primary/30 bg-card shadow-[0_0_60px_rgba(212,175,55,0.15)]">
-              {VIDEO_URL ? (
-                <iframe
-                  src={VIDEO_URL}
-                  className="absolute inset-0 w-full h-full"
-                  allow="autoplay; fullscreen"
-                  allowFullScreen
-                  title="Mycroft Demo"
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-card">
-                  <Play className="w-16 h-16 text-primary/50 mb-4" />
-                  <p className="text-muted-foreground font-orbitron text-sm">VÍDEO EM BREVE</p>
-                  <p className="text-xs text-muted-foreground/60 mt-2">Configure VIDEO_URL para exibir o player</p>
+            <p className="text-xl text-gray-400">Gestão de banca, análise quantitativa e proteção emocional em uma plataforma.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {FEATURES.map((feature, index) => (
+              <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="bg-[#1a1f36] border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition group">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                  {feature.icon}
                 </div>
-              )}
-              {/* Decorative corners */}
-              <div className="absolute top-0 left-0 w-6 h-6 border-l-2 border-t-2 border-primary pointer-events-none" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-r-2 border-t-2 border-primary pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-l-2 border-b-2 border-primary pointer-events-none" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-r-2 border-b-2 border-primary pointer-events-none" />
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.2} className="text-center mt-4">
-            <p className="text-sm text-muted-foreground">
-              ↑ Assista até o final — tem uma surpresa no minuto 3:20
-            </p>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════ SOCIAL PROOF BAR ═══════════ */}
-      <section className="py-6 border-y border-border/30 bg-card/30">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {proofItems.map((item, i) => (
-              <FadeIn key={item.label} delay={i * 0.05} className="flex items-center justify-center gap-2 py-3">
-                <item.icon className="w-5 h-5 text-primary shrink-0" />
-                <span className="font-orbitron text-xs md:text-sm font-bold text-foreground">{item.label}</span>
-              </FadeIn>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════ COMO FUNCIONA ═══════════ */}
-      <section className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <FadeIn className="text-center mb-14">
-            <h2 className="font-orbitron text-2xl md:text-4xl font-bold text-foreground">
-              Como <span className="text-primary">Funciona</span>?
+      {/* Diferenciais */}
+      <section id="diferenciais" className="py-20 bg-[#0a0f1e]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">
+              POR QUE ORÁCULO MYCROFT
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> NÃO É MAIS UMA SALA?</span>
             </h2>
-          </FadeIn>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {steps.map((step, i) => (
-              <FadeIn key={step.title} delay={i * 0.12}>
-                <div className="relative text-center p-6 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/40 transition-all group">
-                  {i < 2 && (
-                    <div className="hidden md:block absolute top-12 -right-4 w-8 text-primary/40">
-                      <ChevronRight className="w-8 h-8" />
+            <p className="text-xl text-gray-400">Comparação brutal entre Oráculo e salas de sinais tradicionais</p>
+          </div>
+          <div className="bg-[#1a1f36] rounded-2xl overflow-hidden border border-gray-700">
+            <div className="grid md:grid-cols-3">
+              <div className="bg-[#0f1729] p-6 border-b md:border-b-0 md:border-r border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-400">CRITÉRIO</h3>
+              </div>
+              <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 p-6 border-b md:border-b-0 md:border-r border-gray-700">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-yellow-500" />ORÁCULO MYCROFT
+                </h3>
+              </div>
+              <div className="bg-[#0f1729] p-6"><h3 className="text-lg font-semibold text-gray-400">SALAS TRADICIONAIS</h3></div>
+              {COMPARISONS.map((comp, index) => (
+                <div key={index} className="contents">
+                  <div className="p-6 border-t border-gray-700 md:border-r"><p className="font-medium text-gray-300">{comp.criteria}</p></div>
+                  <div className="p-6 border-t border-gray-700 md:border-r bg-[#0f1729]">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-gray-300">{comp.oraculo}</p>
                     </div>
-                  )}
-                  <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                    <step.icon className="w-7 h-7 text-primary" />
                   </div>
-                  <h3 className="font-orbitron text-sm md:text-base font-bold text-foreground mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+                  <div className="p-6 border-t border-gray-700"><p className="text-sm text-gray-500">{comp.salas}</p></div>
                 </div>
-              </FadeIn>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Resultados */}
+      <section id="resultados" className="py-20 bg-[#0f1729]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">RESULTADOS<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> 100% AUDITÁVEIS</span></h2>
+            <p className="text-xl text-gray-400">Track record verificável. Cada aposta registrada. Zero bullshit.</p>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8 mb-12">
+            <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/30 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4"><TrendingUp className="w-8 h-8 text-white" /></div>
+              <p className="text-5xl font-bold text-white mb-2">+73.56%</p>
+              <p className="text-green-400 font-semibold mb-1">ROI Médio</p>
+              <p className="text-sm text-gray-400">Baseado em 1.658 posições auditadas</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/30 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4"><Target className="w-8 h-8 text-white" /></div>
+              <p className="text-5xl font-bold text-white mb-2">59.5%</p>
+              <p className="text-blue-400 font-semibold mb-1">Win Rate</p>
+              <p className="text-sm text-gray-400">66 greens / 43 reds comprovados</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/30 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center mx-auto mb-4"><Shield className="w-8 h-8 text-white" /></div>
+              <p className="text-5xl font-bold text-white mb-2">95%+</p>
+              <p className="text-purple-400 font-semibold mb-1">Compliance</p>
+              <p className="text-sm text-gray-400">Usuários seguem recomendações</p>
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border-2 border-yellow-500/30 rounded-2xl p-8">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center flex-shrink-0"><Lock className="w-10 h-10 text-black" /></div>
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-2xl font-bold text-white mb-2">GARANTIA DOBRO OU SEU DINHEIRO DE VOLTA</h3>
+                <p className="text-gray-300 leading-relaxed">Se você seguir 95%+ das recomendações e não tiver ROI positivo em 3 meses, devolvemos em dobro sua assinatura. Sem letrinhas miúdas.</p>
+              </div>
+              <button onClick={goToAuth} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg">QUERO TESTAR</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="planos" className="py-20 bg-[#0a0f1e]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">PLANOS QUE CABEM NO SEU<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> BOLSO</span></h2>
+            <p className="text-xl text-gray-400">4x mais barato que salas de sinais. Infinitamente mais valor.</p>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+            {PRICING_PLANS.map((plan, index) => (
+              <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: index * 0.1 }}
+                className={`relative rounded-2xl p-8 border-2 ${plan.popular ? 'bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-blue-500' : 'bg-[#1a1f36] border-gray-700'}`}>
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-bold rounded-full">MAIS POPULAR</div>
+                )}
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline justify-center gap-2 mb-2">
+                    <span className="text-5xl font-bold">R$ {plan.price}</span>
+                    <span className="text-gray-400">/mês</span>
+                  </div>
+                  <p className="text-sm text-gray-400">{plan.description}</p>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-300">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={goToAuth} className={`w-full py-3 rounded-lg font-bold transition ${plan.popular ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700 shadow-lg shadow-yellow-500/25' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
+                  {plan.cta}
+                </button>
+              </motion.div>
+            ))}
+          </div>
+          <p className="text-center text-gray-400 mt-8">💳 Aceita PIX, cartão e boleto • 🔒 Seguro e criptografado • 🔄 Cancele quando quiser</p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 bg-[#0f1729]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">PERGUNTAS<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> FREQUENTES</span></h2>
+          </div>
+          <div className="space-y-4">
+            {FAQ.map((faq, index) => (
+              <details key={index} className="bg-[#1a1f36] border border-gray-700 rounded-lg p-6 group">
+                <summary className="font-semibold text-white cursor-pointer flex items-center justify-between">
+                  {faq.question}
+                  <span className="text-gray-400 group-open:rotate-180 transition">▼</span>
+                </summary>
+                <p className="mt-4 text-gray-400 leading-relaxed">{faq.answer}</p>
+              </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════ COMPARATIVO ═══════════ */}
-      <section className="py-20 px-4 bg-card/20">
-        <div className="max-w-3xl mx-auto">
-          <FadeIn className="text-center mb-10">
-            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-foreground">
-              Por que o <span className="text-primary">Arena Trader</span> é diferente?
-            </h2>
-          </FadeIn>
-
-          <FadeIn delay={0.1}>
-            <div className="rounded-2xl overflow-hidden border border-border/50">
-              {/* Header */}
-              <div className="grid grid-cols-3 text-center bg-muted/40 py-3 border-b border-border/50">
-                <span className="text-sm font-bold text-muted-foreground" />
-                <span className="font-orbitron text-xs md:text-sm font-bold text-muted-foreground">Salas Comuns</span>
-                <span className="font-orbitron text-xs md:text-sm font-bold text-primary">Arena Trader</span>
-              </div>
-              {comparisonRows.map((row, i) => (
-                <div key={row.label} className={cn('grid grid-cols-3 text-center py-3 px-2 items-center', i % 2 === 0 ? 'bg-card/30' : 'bg-card/10')}>
-                  <span className="text-sm text-foreground text-left pl-4">{row.label}</span>
-                  <span className="text-sm">
-                    {typeof row.sala === 'boolean'
-                      ? row.sala ? <Check className="w-5 h-5 text-success mx-auto" /> : <X className="w-5 h-5 text-destructive mx-auto" />
-                      : <span className="text-destructive font-medium">{row.sala}</span>}
-                  </span>
-                  <span className="text-sm">
-                    {typeof row.arena === 'boolean'
-                      ? row.arena ? <Check className="w-5 h-5 text-success mx-auto" /> : <X className="w-5 h-5 text-destructive mx-auto" />
-                      : <span className="text-success font-bold">{row.arena}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════ EXEMPLO DE SINAL ═══════════ */}
-      <section className="py-20 px-4">
-        <div className="max-w-lg mx-auto">
-          <FadeIn className="text-center mb-10">
-            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-foreground">
-              Exemplo de <span className="text-primary">Sinal</span>
-            </h2>
-          </FadeIn>
-
-          <FadeIn delay={0.1}>
-            <div className="luxury-card p-5 md:p-6">
-              {/* Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-3 py-1 rounded-full bg-success/20 text-success text-xs font-bold font-orbitron border border-success/30">APROVADO</span>
-                <span className="text-xs text-muted-foreground">34' • 1º Tempo</span>
-              </div>
-              {/* Teams */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-orbitron text-sm font-bold text-foreground">Brasil</span>
-                <span className="font-orbitron text-xl font-black text-primary mx-3">0 - 0</span>
-                <span className="font-orbitron text-sm font-bold text-foreground">Argentina</span>
-              </div>
-              {/* Market */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Mercado</span>
-                  <span className="text-foreground font-semibold">Over 0.5 HT</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Odd</span>
-                  <span className="text-primary font-bold font-orbitron">@ 1.95</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Confiança</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-success rounded-full" style={{ width: '78%' }} />
-                    </div>
-                    <span className="text-success font-bold text-xs">78%</span>
-                  </div>
-                </div>
-              </div>
-              {/* Thesis */}
-              <div className="mt-4 p-3 rounded-lg bg-mycroft-green/5 border border-mycroft-green/20">
-                <div className="flex items-start gap-2">
-                  <Bot className="w-4 h-4 text-mycroft-green mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    <span className="text-mycroft-green font-semibold">Mycroft:</span> Padrão "Favorito Pressionando" detectado. 8 ataques perigosos vs 2. Pressão constante no terço final.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════ PLANOS ═══════════ */}
-      <section className="py-20 px-4 bg-card/20">
-        <div className="max-w-4xl mx-auto">
-          <FadeIn className="text-center mb-12">
-            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-foreground">
-              Escolha seu <span className="text-primary">Plano</span>
-            </h2>
-          </FadeIn>
-
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Base Plan */}
-            <FadeIn delay={0.05}>
-              <div className="luxury-card p-6 flex flex-col h-full">
-                <h3 className="font-orbitron text-lg font-bold text-foreground mb-1">Base</h3>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="font-orbitron text-3xl font-black text-primary">R$ 49,90</span>
-                  <span className="text-muted-foreground text-sm">/mês</span>
-                </div>
-                <ul className="space-y-2.5 text-sm text-muted-foreground flex-1 mb-6">
-                  {['Arena Trader Esportivo', 'Sinais ilimitados', 'Mycroft + Hórus IA', 'Modo Treino', 'Sinais no WhatsApp', 'Histórico completo'].map(f => (
-                    <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-success shrink-0" /><span className="text-foreground/80">{f}</span></li>
-                  ))}
-                </ul>
-                <Button onClick={handleTrial} className="btn-gold w-full py-5 text-sm">
-                  Começar Trial Grátis
-                </Button>
-              </div>
-            </FadeIn>
-
-            {/* Premium Plan */}
-            <FadeIn delay={0.15}>
-              <div className="relative luxury-card p-6 flex flex-col h-full border-2 !border-primary/50 shadow-[0_0_40px_rgba(212,175,55,0.15)]">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-primary-foreground font-orbitron text-xs font-bold">
-                  MAIS POPULAR
-                </div>
-                <h3 className="font-orbitron text-lg font-bold text-foreground mb-1 mt-2">Premium</h3>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="font-orbitron text-3xl font-black text-primary">R$ 79,80</span>
-                  <span className="text-muted-foreground text-sm">/mês</span>
-                </div>
-                <ul className="space-y-2.5 text-sm text-muted-foreground flex-1 mb-6">
-                  {[
-                    'Tudo do plano Base',
-                    '+ Arena Trader Financeiro',
-                    'WIN, WDO, BTC, ETH',
-                    'Sinais B3 e Crypto',
-                    'Suporte prioritário',
-                  ].map(f => (
-                    <li key={f} className="flex items-center gap-2"><Check className="w-4 h-4 text-primary shrink-0" /><span className="text-foreground/80">{f}</span></li>
-                  ))}
-                </ul>
-                <Button onClick={handleTrial} className="btn-gold w-full py-5 text-sm">
-                  Começar Trial Grátis
-                </Button>
-              </div>
-            </FadeIn>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════ FAQ ═══════════ */}
-      <section className="py-20 px-4">
-        <div className="max-w-2xl mx-auto">
-          <FadeIn className="text-center mb-10">
-            <h2 className="font-orbitron text-2xl md:text-3xl font-bold text-foreground">
-              Perguntas <span className="text-primary">Frequentes</span>
-            </h2>
-          </FadeIn>
-
-          <FadeIn delay={0.1}>
-            <Accordion type="single" collapsible className="space-y-2">
-              {faqItems.map((item, i) => (
-                <AccordionItem key={i} value={`faq-${i}`} className="border border-border/50 rounded-xl px-4 bg-card/30">
-                  <AccordionTrigger className="text-sm md:text-base font-semibold text-foreground hover:no-underline">
-                    {item.q}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm text-muted-foreground leading-relaxed">
-                    {item.a}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════ FOOTER CTA ═══════════ */}
-      <section ref={ctaRef} className="relative py-20 px-4">
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/10 via-transparent to-transparent" />
-
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={ctaInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
-          className="relative max-w-3xl mx-auto text-center"
-        >
-          <h2 className="font-orbitron text-2xl md:text-4xl font-bold text-foreground mb-4 leading-tight">
-            O Mycroft já está analisando jogos agora.
+      {/* CTA Final */}
+      <section className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+            PRONTO PARA INVESTIR COMO
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            A única pergunta é: você vai usar essa vantagem ou vai deixar pra outro trader usar?
-          </p>
-
-          <Button
-            onClick={handleTrial}
-            size="lg"
-            className="btn-gold text-base md:text-lg px-10 py-7 rounded-2xl group animate-pulse-glow"
-          >
-            Quero Entrar — 7 Dias Grátis
-            <ChevronRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform" />
-          </Button>
-        </motion.div>
+          <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
+          <button onClick={goToAuth} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
+            COMEÇAR AGORA
+            <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition" />
+          </button>
+          <p className="text-sm text-gray-400 mt-4">✅ 7 dias grátis • ❌ Sem cartão de crédito • 🔒 Cancele quando quiser</p>
+        </div>
       </section>
 
-      {/* ═══════════ FOOTER ═══════════ */}
-      <footer className="border-t border-border/30 py-8 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              <span className="font-orbitron text-sm font-bold text-primary">ARENA TRADER</span>
-              <span className="font-orbitron text-sm font-bold text-foreground">SPORTS</span>
+      {/* Footer */}
+      <footer className="bg-[#0a0f1e] border-t border-gray-800 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h4 className="font-bold mb-4">Produto</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="#funcionalidades" className="hover:text-white transition">Funcionalidades</a></li>
+                <li><a href="#planos" className="hover:text-white transition">Planos</a></li>
+                <li><a href="#" className="hover:text-white transition">Roadmap</a></li>
+                <li><a href="#" className="hover:text-white transition">Changelog</a></li>
+              </ul>
             </div>
-
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <a href="/privacidade" className="hover:text-foreground transition-colors">Privacidade</a>
-              <span>•</span>
-              <a href="#" className="hover:text-foreground transition-colors">Termos de Uso</a>
-              <span>•</span>
-              <a href="#" className="hover:text-foreground transition-colors">Suporte</a>
+            <div>
+              <h4 className="font-bold mb-4">Empresa</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="#" className="hover:text-white transition">Sobre Nós</a></li>
+                <li><a href="#" className="hover:text-white transition">Blog</a></li>
+                <li><a href="#" className="hover:text-white transition">Carreiras</a></li>
+                <li><a href="#" className="hover:text-white transition">Contato</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Recursos</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="#" className="hover:text-white transition">Documentação</a></li>
+                <li><a href="#" className="hover:text-white transition">API</a></li>
+                <li><a href="#" className="hover:text-white transition">Suporte</a></li>
+                <li><a href="#" className="hover:text-white transition">Status</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="/privacy-policy" className="hover:text-white transition">Privacidade</a></li>
+                <li><a href="#" className="hover:text-white transition">Termos</a></li>
+                <li><a href="#" className="hover:text-white transition">Cookies</a></li>
+                <li><a href="#" className="hover:text-white transition">Licenças</a></li>
+              </ul>
             </div>
           </div>
-
-          <p className="text-center text-xs text-muted-foreground/60 mt-6">
-            Arena Trader Sports é uma plataforma educacional de análise esportiva. Não somos casa de apostas.
-          </p>
-          <p className="text-center text-xs text-muted-foreground/40 mt-2">
-            © 2025 Arena Trader Sports. Todos os direitos reservados.
-          </p>
+          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-400">© 2026 Oráculo Mycroft. Todos os direitos reservados.</p>
+            <div className="flex items-center gap-4">
+              <a href="#" className="text-gray-400 hover:text-white transition">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path></svg>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"></path></svg>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path></svg>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+
+// Data
+
+const FEATURES = [
+  { icon: <Brain className="w-6 h-6 text-white" />, title: "Mycroft IA Analista", description: "Cérebro quantitativo que processa 1.000+ jogos/dia e calcula Asset Score 0-100 para cada oportunidade." },
+  { icon: <Shield className="w-6 h-6 text-white" />, title: "Hórus Protetor", description: "Coach emocional que detecta tilt em tempo real e bloqueia apostas quando você está fora do seu estado ideal." },
+  { icon: <TrendingUp className="w-6 h-6 text-white" />, title: "Dual Bankroll", description: "Compare sua performance vs Hórus em tempo real. Veja exatamente quanto você perde ao não seguir recomendações." },
+  { icon: <Target className="w-6 h-6 text-white" />, title: "Asset Score 0-100", description: "Cada jogo vira um ativo financeiro com score baseado em edge, probabilidade, sharp money e market inefficiency." },
+  { icon: <BarChart3 className="w-6 h-6 text-white" />, title: "Track Record Auditável", description: "1.658 posições registradas. ROI +73%. Win rate 59.5%. Tudo verificável. Zero mentira." },
+  { icon: <Lock className="w-6 h-6 text-white" />, title: "Garantia Dobro", description: "Compliance ≥95% sem ROI positivo em 3 meses? Devolvemos em dobro. Sem letrinhas miúdas." },
+];
+
+const COMPARISONS = [
+  { criteria: "Track Record", oraculo: "1.658 posições auditadas publicamente. ROI +73% verificável.", salas: "Screenshots editáveis. 'Confie em mim bro'." },
+  { criteria: "Transparência", oraculo: "Cada posição registrada com timestamp, odd, stake e resultado.", salas: "Apagam loses. Mostram só wins." },
+  { criteria: "Preço", oraculo: "A partir de R$ 99,90/mês. 4x mais barato.", salas: "R$ 497-997/mês. Exploração." },
+  { criteria: "Tecnologia", oraculo: "IA que calcula edge, detecta tilt, otimiza stakes.", salas: "'Feeling' do tipster. Zero IA." },
+  { criteria: "Proteção", oraculo: "Hórus bloqueia operações quando detecta emoção.", salas: "Te incentivam a apostar mais (afiliados)." },
+  { criteria: "Garantia", oraculo: "Dobro do valor se não funcionar (95% compliance).", salas: "Nenhuma. 'Não garantimos resultados'." },
+];
+
+const PRICING_PLANS = [
+  {
+    name: "Starter",
+    price: "99,90",
+    description: "Para começar a investir",
+    features: ["Mycroft IA (Asset Score básico)", "Até 50 posições/mês", "Dashboard completo", "Track record auditável", "Suporte por email"],
+    cta: "COMEÇAR AGORA",
+    popular: false,
+  },
+  {
+    name: "Professional",
+    price: "199,00",
+    description: "Mais popular",
+    features: ["Tudo do Starter +", "Hórus IA (proteção tilt)", "Posições ilimitadas", "Dual Bankroll", "Sharp Money Detector", "Garantia Dobro", "Suporte prioritário"],
+    cta: "ASSINAR AGORA",
+    popular: true,
+  },
+  {
+    name: "Enterprise",
+    price: "299,00",
+    description: "Para profissionais",
+    features: ["Tudo do Professional +", "API access completa", "Auto-execution (bot)", "Portfolio Optimization", "Self Learning Engine", "Integração Fullbet", "Suporte 24/7", "Consultoria mensal"],
+    cta: "FALAR COM VENDAS",
+    popular: false,
+  },
+];
+
+const FAQ = [
+  { question: "Vocês são mais uma sala de sinais?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
+  { question: "Como funciona a Garantia Dobro?", answer: "Simples: se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
+  { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
+  { question: "Quanto preciso investir para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por posição). Mas você pode começar com R$ 500 e ir aumentando conforme os resultados. O importante é gestão de banca, não valor absoluto." },
+  { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa, sem enrolação. Cancela em 2 cliques no dashboard. Se cancelar no meio do mês, continuamos te atendendo até o fim do período pago. Simples assim." },
+  { question: "Como é o suporte?", answer: "Starter: email com resposta em até 24h. Professional: chat + email com resposta em até 6h. Enterprise: suporte 24/7 + consultoria mensal + canal direto no Slack. Nada de bot. Pessoas reais que entendem do produto." },
+];
