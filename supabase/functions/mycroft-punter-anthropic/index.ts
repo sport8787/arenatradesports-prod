@@ -206,6 +206,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
         }
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
+          if (game.simulated_odds) analysis.simulated_odds = true
           approvedSignals.push({
             match: {
               home_team: game.home_team,
