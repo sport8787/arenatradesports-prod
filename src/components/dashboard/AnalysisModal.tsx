@@ -6,7 +6,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
-import { useBankroll } from '@/hooks/useBankroll';
 import type { Match } from '@/components/dashboard/MatchCard';
 
 export interface MycroftAnalysisData {
