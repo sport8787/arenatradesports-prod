@@ -145,11 +145,13 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
   };
 
-  const statRows = stats ? [
-    { label: 'Ataques perigosos', home: stats.attacks_home ?? '-', away: stats.attacks_away ?? '-' },
-    { label: 'xG', home: stats.xG_home ?? '-', away: stats.xG_away ?? '-' },
-    { label: 'Posse', home: stats.possession_home != null ? `${stats.possession_home}%` : '-', away: stats.possession_away != null ? `${stats.possession_away}%` : '-' },
-    { label: 'Chutes ao gol', home: stats.shots_home ?? '-', away: stats.shots_away ?? '-' },
+  // Only show stat rows if there are non-zero values
+  const hasRealStats = stats && Object.values(stats).some(v => typeof v === 'number' && v > 0);
+  const statRows = hasRealStats ? [
+    { label: 'Ataques perigosos', home: stats!.attacks_home ?? '-', away: stats!.attacks_away ?? '-' },
+    { label: 'xG', home: stats!.xG_home ?? '-', away: stats!.xG_away ?? '-' },
+    { label: 'Posse', home: stats!.possession_home != null ? `${stats!.possession_home}%` : '-', away: stats!.possession_away != null ? `${stats!.possession_away}%` : '-' },
+    { label: 'Chutes ao gol', home: stats!.shots_home ?? '-', away: stats!.shots_away ?? '-' },
   ] : [];
 
   const riskItems = risk ? [
