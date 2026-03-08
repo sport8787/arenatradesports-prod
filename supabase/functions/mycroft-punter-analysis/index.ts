@@ -23,6 +23,13 @@ serve(async (req) => {
       sports = [
         'soccer_brazil_campeonato',
         'soccer_brazil_serie_b',
+        'soccer_brazil_campeonato_paulista',
+        'soccer_brazil_campeonato_carioca',
+        'soccer_brazil_campeonato_mineiro',
+        'soccer_brazil_campeonato_gaucho',
+        'soccer_brazil_campeonato_baiano',
+        'soccer_brazil_campeonato_paranaense',
+        'soccer_brazil_campeonato_catarinense',
         'soccer_brazil_campeonato_pernambucano',
         'soccer_conmebol_copa_libertadores',
         'soccer_conmebol_copa_sudamericana',
