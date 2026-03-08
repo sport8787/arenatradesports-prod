@@ -144,10 +144,10 @@
 |--------|--------|---------|
 | Market Manipulation Detector (MMD) | ⚠️ | Tabela `market_analysis` existe com MIS/ODI. Falta engine automática |
 | Sharp Money & Liquidity Detector (SMLD) | ⚠️ | Tabela `sharp_money_signals` existe. Falta engine de detecção real-time |
-| Self Learning Betting Engine (SLBE) | ❌ | Não implementado. Precisa tabelas de histórico + recalibração |
-| Portfolio Optimization Engine (APE) | ❌ | Não implementado. Correlação existe na tabela bet_correlations mas sem engine |
-| CLV Engine (Closing Line Value) | ❌ | Não implementado. Precisa odds de abertura vs fechamento |
-| Smart Odds Scanner (cross-bookmaker) | ❌ | Não implementado |
+| Self Learning Betting Engine (SLBE) | ✅ | **SPRINT 4** - Edge Function `self-learning-engine` com análise por tier/market/CLV + recalibração de pesos |
+| Portfolio Optimization Engine (APE) | ✅ | **SPRINT 4** - Edge Function `portfolio-optimization` com correlação, diversificação e ajuste automático de stake |
+| CLV Engine (Closing Line Value) | ✅ | **SPRINT 4** - Edge Function `clv-engine` com cálculo individual/batch, market beat rate, CLV accuracy |
+| Smart Odds Scanner (cross-bookmaker) | ✅ | **SPRINT 4** - Edge Function `smart-odds-scanner` com detecção cross-bookmaker + The Odds API |
 | Anti-Limiting Engine | ❌ | Não implementado (delay, diversificação, randomização) |
 | Poisson/Dixon-Coles Model | ❌ | Não implementado |
 | Ensemble Models (Poisson + xG + ELO + Market) | ❌ | Não implementado |
