@@ -23,6 +23,9 @@ import { useBankroll } from '@/hooks/useBankroll';
 import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
+import PerformanceGap from '@/components/punter/PerformanceGap';
+import MissedOpportunities from '@/components/punter/MissedOpportunities';
+import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
@@ -471,6 +474,17 @@ export default function PunterPage() {
             onUpdateManualBalance={updateManualBalance}
           />
         )}
+
+        {/* Daily Summary Widget */}
+        {user && <DailySummaryWidget userId={user.id} />}
+
+        {/* Performance Gap Comparativo */}
+        {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
+          <PerformanceGap horus={bankroll} manual={manualBankroll} />
+        )}
+
+        {/* Missed Opportunities */}
+        {user && <MissedOpportunities userId={user.id} />}
 
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
