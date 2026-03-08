@@ -55,3 +55,6 @@ verify_jwt = false
 
 [functions.update-live-scores]
 verify_jwt = false
+
+[functions.sync-betfair]
+verify_jwt = false

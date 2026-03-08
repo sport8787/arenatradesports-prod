@@ -647,6 +647,8 @@ export default function BetHistoryPage() {
         bet={selectedBet}
         onSettle={handleManualSettle}
       />
+
+      <BetImportPanel isOpen={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }
