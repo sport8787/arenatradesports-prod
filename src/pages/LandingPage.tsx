@@ -7,6 +7,8 @@ import {
   Brain, Award, LineChart, Users, Star
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
+import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
+import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
 
 export default function LandingPage() {
   const navigate = useNavigate();
