@@ -126,7 +126,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     if (analysis?.id) {
       await recordAction(analysis.id, 'dismissed');
     }
-    await dismissBet();
+    if (bankrollProps?.dismissBet) await bankrollProps.dismissBet();
     onClose();
   };
 
