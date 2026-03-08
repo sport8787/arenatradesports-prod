@@ -475,6 +475,17 @@ export default function PunterPage() {
           />
         )}
 
+        {/* Daily Summary Widget */}
+        {user && <DailySummaryWidget userId={user.id} />}
+
+        {/* Performance Gap Comparativo */}
+        {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
+          <PerformanceGap horus={bankroll} manual={manualBankroll} />
+        )}
+
+        {/* Missed Opportunities */}
+        {user && <MissedOpportunities userId={user.id} />}
+
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
           <CardContent className="p-4 space-y-3">
