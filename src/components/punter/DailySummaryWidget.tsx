@@ -42,11 +42,13 @@ export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) 
 
       if (horusBets.length === 0 && manualBets.length === 0) return null;
 
+      const toNum = (v: any) => Number(v) || 0;
+
       const calcStats = (bets: any[]) => ({
         total: bets.length,
         wins: bets.filter(b => b.status === 'green' || b.result === 'green').length,
         losses: bets.filter(b => b.status === 'red' || b.result === 'red').length,
-        profit: bets.reduce((sum, b) => sum + (parseFloat(b.profit_loss) || 0), 0),
+        profit: bets.reduce((sum, b) => sum + toNum(b.profit_loss), 0),
       });
 
       const allBets = [...horusBets, ...manualBets];
@@ -54,15 +56,15 @@ export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) 
 
       // Best bet
       const bestBet = settledBets
-        .filter(b => (parseFloat(b.profit_loss) || 0) > 0)
-        .sort((a, b) => (parseFloat(b.profit_loss) || 0) - (parseFloat(a.profit_loss) || 0))[0];
+        .filter(b => toNum(b.profit_loss) > 0)
+        .sort((a, b) => toNum(b.profit_loss) - toNum(a.profit_loss))[0];
 
       // Best market
       const marketMap: Record<string, { profit: number }> = {};
       for (const bet of settledBets) {
         const m = bet.market || 'Outros';
         if (!marketMap[m]) marketMap[m] = { profit: 0 };
-        marketMap[m].profit += parseFloat(bet.profit_loss) || 0;
+        marketMap[m].profit += toNum(bet.profit_loss);
       }
       const bestMarketEntry = Object.entries(marketMap)
         .sort((a, b) => b[1].profit - a[1].profit)[0];
@@ -71,7 +73,7 @@ export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) 
         horus: calcStats(horusBets),
         manual: calcStats(manualBets),
         bestBet: bestBet
-          ? { match: bestBet.match_name || bestBet.match_id, profit: parseFloat(bestBet.profit_loss) }
+          ? { match: bestBet.match_name || bestBet.match_id, profit: toNum(bestBet.profit_loss) }
           : null,
         bestMarket: bestMarketEntry && bestMarketEntry[1].profit > 0
           ? { name: bestMarketEntry[0], profit: bestMarketEntry[1].profit }
