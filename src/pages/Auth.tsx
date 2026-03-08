@@ -104,7 +104,7 @@ const Auth = () => {
           }
         } else {
           sessionStorage.setItem('showOpening', 'true');
-          toast({ title: 'Conta criada!', description: 'Bem-vindo ao Blefador!' });
+          toast({ title: 'Conta criada!', description: 'Bem-vindo ao Arena Trade Sports!' });
           navigate('/lobby');
         }
       }
