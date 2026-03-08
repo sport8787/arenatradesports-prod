@@ -162,6 +162,12 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* O que é o Oráculo */}
+      <WhatIsOracleSection onCTA={goToAuth} />
+
+      {/* Prova Social - Entradas Reais */}
+      <SocialProofBetsSection onCTA={goToAuth} />
+
       {/* Features */}
       <section id="funcionalidades" className="py-20 bg-[#0f1729]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
