@@ -52,6 +52,9 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
         <div className="flex items-center gap-2 mb-2">
           <Bot className="w-4 h-4 text-primary" />
           <span className="font-mono text-xs font-semibold text-primary tracking-wider">HÓRUS IA</span>
+          <button onClick={() => navigate('/punter/config')} className="text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors border border-border px-2 py-0.5 rounded">
+            Configurar Hórus
+          </button>
           {onUpdateHorusBalance && (
             <button onClick={() => setSettingsTarget('horus')} className="ml-auto p-1 rounded text-muted-foreground hover:text-foreground transition-colors">
               <Settings className="w-3.5 h-3.5" />
