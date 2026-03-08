@@ -329,6 +329,33 @@ export type Database = {
         }
         Relationships: []
       }
+      bet_correlations: {
+        Row: {
+          correlation_coefficient: number | null
+          id: string
+          market_a: string
+          market_b: string
+          sample_size: number
+          updated_at: string | null
+        }
+        Insert: {
+          correlation_coefficient?: number | null
+          id?: string
+          market_a: string
+          market_b: string
+          sample_size?: number
+          updated_at?: string | null
+        }
+        Update: {
+          correlation_coefficient?: number | null
+          id?: string
+          market_a?: string
+          market_b?: string
+          sample_size?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       biometric_baselines: {
         Row: {
           blink_rate_deviation_threshold: number | null
@@ -955,6 +982,51 @@ export type Database = {
         }
         Relationships: []
       }
+      market_analysis: {
+        Row: {
+          analyzed_at: string | null
+          created_at: string | null
+          id: string
+          inefficiency_level: string | null
+          market: string
+          market_inefficiency_score: number | null
+          match_id: string
+          odd_current: number | null
+          odd_open: number | null
+          odds_drift_index: number | null
+          prob_market: number
+          prob_model: number
+        }
+        Insert: {
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string
+          inefficiency_level?: string | null
+          market: string
+          market_inefficiency_score?: number | null
+          match_id: string
+          odd_current?: number | null
+          odd_open?: number | null
+          odds_drift_index?: number | null
+          prob_market: number
+          prob_model: number
+        }
+        Update: {
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string
+          inefficiency_level?: string | null
+          market?: string
+          market_inefficiency_score?: number | null
+          match_id?: string
+          odd_current?: number | null
+          odd_open?: number | null
+          odds_drift_index?: number | null
+          prob_market?: number
+          prob_model?: number
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           app_version: string | null
@@ -1019,6 +1091,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      model_performance: {
+        Row: {
+          avg_asset_score: number | null
+          avg_edge: number | null
+          avg_odd: number | null
+          created_at: string | null
+          date: string
+          id: string
+          league: string | null
+          losses: number
+          market: string | null
+          odd_range: string | null
+          period: string
+          profit: number | null
+          roi: number | null
+          total_bets: number
+          win_rate: number | null
+          wins: number
+        }
+        Insert: {
+          avg_asset_score?: number | null
+          avg_edge?: number | null
+          avg_odd?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          league?: string | null
+          losses?: number
+          market?: string | null
+          odd_range?: string | null
+          period: string
+          profit?: number | null
+          roi?: number | null
+          total_bets?: number
+          win_rate?: number | null
+          wins?: number
+        }
+        Update: {
+          avg_asset_score?: number | null
+          avg_edge?: number | null
+          avg_odd?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          league?: string | null
+          losses?: number
+          market?: string | null
+          odd_range?: string | null
+          period?: string
+          profit?: number | null
+          roi?: number | null
+          total_bets?: number
+          win_rate?: number | null
+          wins?: number
+        }
+        Relationships: []
       }
       mycroft_analyses: {
         Row: {
@@ -1586,6 +1715,51 @@ export type Database = {
           relevance_score?: number | null
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sharp_money_signals: {
+        Row: {
+          created_at: string | null
+          detected_at: string | null
+          has_consensus: boolean | null
+          has_rlm: boolean | null
+          has_steam: boolean | null
+          id: string
+          market: string
+          match_id: string
+          odd_current: number | null
+          odd_movement_pct: number | null
+          odd_open: number | null
+          sharp_activity_score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          detected_at?: string | null
+          has_consensus?: boolean | null
+          has_rlm?: boolean | null
+          has_steam?: boolean | null
+          id?: string
+          market: string
+          match_id: string
+          odd_current?: number | null
+          odd_movement_pct?: number | null
+          odd_open?: number | null
+          sharp_activity_score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          detected_at?: string | null
+          has_consensus?: boolean | null
+          has_rlm?: boolean | null
+          has_steam?: boolean | null
+          id?: string
+          market?: string
+          match_id?: string
+          odd_current?: number | null
+          odd_movement_pct?: number | null
+          odd_open?: number | null
+          sharp_activity_score?: number | null
         }
         Relationships: []
       }
