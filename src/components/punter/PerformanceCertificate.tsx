@@ -42,18 +42,18 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
     : 0;
 
   // Simplified Sharpe (ROI / volatility proxy)
-  const sharpe = totalBets > 10 ? roi / Math.max(10, 100 - winRate) : 0;
+  const sharpe = totalBets > 10 ? roiOverStakes / Math.max(10, 100 - winRate) : 0;
 
   const metrics = [
-    { label: 'ROI', value: `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`, color: roi >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
+    { label: 'ROI s/ Apostas', value: `${roiOverStakes >= 0 ? '+' : ''}${roiOverStakes.toFixed(1)}%`, color: roiOverStakes >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
+    { label: 'Retorno Banca', value: `${bankReturn >= 0 ? '+' : ''}${bankReturn.toFixed(1)}%`, color: bankReturn >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
     { label: 'Lucro Total', value: `R$ ${totalProfit.toFixed(2)}`, color: totalProfit >= 0 ? 'text-success' : 'text-destructive', icon: BarChart3 },
     { label: 'Win Rate', value: `${winRate.toFixed(0)}%`, color: winRate >= 55 ? 'text-success' : 'text-warning', icon: Target },
     { label: 'Drawdown', value: `${drawdown.toFixed(1)}%`, color: drawdown < 20 ? 'text-success' : 'text-destructive', icon: Shield },
     { label: 'Profit Factor', value: profitFactor.toFixed(2), color: profitFactor >= 1.5 ? 'text-success' : 'text-warning', icon: BarChart3 },
-    { label: 'Sharpe Ratio', value: sharpe.toFixed(2), color: sharpe > 0.5 ? 'text-success' : 'text-muted-foreground', icon: TrendingUp },
   ];
 
-  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roi.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} apostas`;
+  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roiOverStakes.toFixed(1)}%\n📊 Retorno: ${bankReturn.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} apostas`;
 
   const handleShare = async (platform: string) => {
     const encodedText = encodeURIComponent(shareText);
