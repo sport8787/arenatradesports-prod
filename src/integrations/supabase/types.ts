@@ -2605,6 +2605,7 @@ export type Database = {
       }
       virtual_bets: {
         Row: {
+          commence_time: string | null
           id: string
           market: string
           match_id: string
@@ -2623,6 +2624,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          commence_time?: string | null
           id?: string
           market: string
           match_id: string
@@ -2641,6 +2643,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          commence_time?: string | null
           id?: string
           market?: string
           match_id?: string
@@ -2670,6 +2673,7 @@ export type Database = {
       }
       virtual_bets_manual: {
         Row: {
+          commence_time: string | null
           created_at: string | null
           id: string
           market: string
@@ -2689,6 +2693,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          commence_time?: string | null
           created_at?: string | null
           id?: string
           market: string
@@ -2708,6 +2713,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          commence_time?: string | null
           created_at?: string | null
           id?: string
           market?: string
@@ -2731,6 +2737,7 @@ export type Database = {
       virtual_bets_punter: {
         Row: {
           analysis_id: string | null
+          commence_time: string | null
           created_at: string | null
           id: string
           market: string
@@ -2752,6 +2759,7 @@ export type Database = {
         }
         Insert: {
           analysis_id?: string | null
+          commence_time?: string | null
           created_at?: string | null
           id?: string
           market: string
@@ -2773,6 +2781,7 @@ export type Database = {
         }
         Update: {
           analysis_id?: string | null
+          commence_time?: string | null
           created_at?: string | null
           id?: string
           market?: string
