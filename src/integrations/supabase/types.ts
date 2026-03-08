@@ -729,6 +729,45 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_summaries: {
+        Row: {
+          best_bet: Json | null
+          best_market: Json | null
+          created_at: string | null
+          date: string
+          horus: Json
+          id: string
+          manual: Json
+          total_bets: number | null
+          total_profit: number | null
+          user_id: string
+        }
+        Insert: {
+          best_bet?: Json | null
+          best_market?: Json | null
+          created_at?: string | null
+          date: string
+          horus?: Json
+          id?: string
+          manual?: Json
+          total_bets?: number | null
+          total_profit?: number | null
+          user_id: string
+        }
+        Update: {
+          best_bet?: Json | null
+          best_market?: Json | null
+          created_at?: string | null
+          date?: string
+          horus?: Json
+          id?: string
+          manual?: Json
+          total_bets?: number | null
+          total_profit?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       founder_cases: {
         Row: {
           activated_at: string | null
