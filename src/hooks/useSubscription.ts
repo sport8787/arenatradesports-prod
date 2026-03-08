@@ -20,7 +20,7 @@ export interface Subscription {
 
 export function useSubscription() {
   const { user } = useAuth();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [daysLeft, setDaysLeft] = useState(0);
