@@ -719,6 +719,108 @@ function formatPredictionsBlock(predictions: any): string {
 }
 
 // ═══════════════════════════════════════════════
+// Market Manipulation & Sharp Money Detectors
+// ═══════════════════════════════════════════════
+
+interface MarketDetectorResult {
+  mis: number; mis_level: string; odi: number; odi_suspicious: boolean;
+  sharp: { has_rlm: boolean; has_steam: boolean; has_consensus: boolean; activity_score: number; activity_level: string; };
+  odd_open: number | null; odd_current: number | null;
+}
+
+function computeMarketDetectors(oddsData: any[], totalsData: any[], modelProbability: number | null, market: string | null): MarketDetectorResult {
+  const result: MarketDetectorResult = {
+    mis: 0, mis_level: 'noise', odi: 0, odi_suspicious: false,
+    sharp: { has_rlm: false, has_steam: false, has_consensus: false, activity_score: 0, activity_level: 'normal' },
+    odd_open: null, odd_current: null,
+  }
+  if (oddsData.length === 0) return result
+
+  const allHomeOdds = oddsData.map(o => o.home_odd).filter(Boolean)
+  const allAwayOdds = oddsData.map(o => o.away_odd).filter(Boolean)
+  const allDrawOdds = oddsData.map(o => o.draw_odd).filter(o => o > 0)
+  const avgHomeProb = allHomeOdds.length > 0 ? (allHomeOdds.reduce((s, o) => s + 1/o, 0) / allHomeOdds.length) * 100 : 0
+  const avgAwayProb = allAwayOdds.length > 0 ? (allAwayOdds.reduce((s, o) => s + 1/o, 0) / allAwayOdds.length) * 100 : 0
+  const avgDrawProb = allDrawOdds.length > 0 ? (allDrawOdds.reduce((s, o) => s + 1/o, 0) / allDrawOdds.length) * 100 : 0
+
+  let marketProb = avgHomeProb
+  if (market) {
+    const m = market.toLowerCase()
+    if (m.includes('fora') || m.includes('away')) marketProb = avgAwayProb
+    else if (m.includes('empate') || m.includes('draw')) marketProb = avgDrawProb
+  }
+  if (modelProbability && modelProbability > 0 && marketProb > 0) {
+    result.mis = Math.abs(modelProbability - marketProb) / 100
+    if (result.mis < 0.02) result.mis_level = 'noise'
+    else if (result.mis < 0.05) result.mis_level = 'light'
+    else if (result.mis < 0.10) result.mis_level = 'strong'
+    else result.mis_level = 'extreme'
+  }
+
+  const targetOdds = market?.toLowerCase().includes('fora') ? allAwayOdds : market?.toLowerCase().includes('empate') ? allDrawOdds : allHomeOdds
+  if (targetOdds.length >= 2) {
+    const maxOdd = Math.max(...targetOdds)
+    const minOdd = Math.min(...targetOdds)
+    result.odi = Math.abs(maxOdd - minOdd) / minOdd
+    result.odi_suspicious = result.odi > 0.15
+    result.odd_open = maxOdd
+    result.odd_current = minOdd
+  }
+
+  let sharpScore = 0
+  const pinnacleOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('pinnacle'))
+  const bet365Odds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('bet365'))
+  const betfairOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('betfair'))
+
+  if (pinnacleOdds && bet365Odds) {
+    const diffPct = Math.abs(pinnacleOdds.home_odd - bet365Odds.home_odd) / bet365Odds.home_odd
+    if (diffPct > 0.05) { result.sharp.has_rlm = true; sharpScore += 25 }
+  }
+  if (targetOdds.length >= 2) {
+    const steamPct = (Math.max(...targetOdds) - Math.min(...targetOdds)) / Math.min(...targetOdds)
+    if (steamPct > 0.08) { result.sharp.has_steam = true; sharpScore += 20 }
+  }
+  if (targetOdds.length >= 3) {
+    const sorted = [...targetOdds].sort((a, b) => a - b)
+    const med = sorted[Math.floor(sorted.length / 2)]
+    if (targetOdds.filter(o => Math.abs(o - med) / med < 0.02).length >= 3) { result.sharp.has_consensus = true; sharpScore += 15 }
+  }
+  if (pinnacleOdds) sharpScore += 10
+  if (betfairOdds) sharpScore += 5
+  if (result.odi_suspicious) sharpScore += 15
+
+  result.sharp.activity_score = Math.min(100, sharpScore)
+  if (sharpScore >= 40) result.sharp.activity_level = 'steam_professional'
+  else if (sharpScore >= 25) result.sharp.activity_level = 'sharp_money'
+  else if (sharpScore >= 10) result.sharp.activity_level = 'activity'
+  return result
+}
+
+function formatDetectorsBlock(d: MarketDetectorResult): string {
+  let block = `═══════════════════════════════════════
+MARKET MANIPULATION DETECTOR
+═══════════════════════════════════════
+MIS (Market Inefficiency Score): ${(d.mis * 100).toFixed(1)}% — Nível: ${d.mis_level.toUpperCase()}
+ODI (Odds Drift Index): ${(d.odi * 100).toFixed(1)}%${d.odi_suspicious ? ' ⚠️ SUSPEITO' : ''}
+
+SHARP MONEY DETECTOR
+Sharp Activity Score: ${d.sharp.activity_score}/100 — Nível: ${d.sharp.activity_level.toUpperCase()}
+RLM: ${d.sharp.has_rlm ? '✅ DETECTADO' : '❌'} | Steam: ${d.sharp.has_steam ? '✅ DETECTADO' : '❌'} | Consenso: ${d.sharp.has_consensus ? '✅' : '❌'}`
+  if (d.sharp.activity_score >= 25) block += `\n⚡ Atividade sharp detectada. Considere BOOST de +15 no Asset Score.`
+  if (d.mis_level === 'strong' || d.mis_level === 'extreme') block += `\n🎯 Ineficiência de mercado ${d.mis_level}. Possível mispricing.`
+  return block
+}
+
+async function persistDetectors(supabaseClient: any, matchId: string, market: string, detectors: MarketDetectorResult, modelProb: number | null, marketProb: number) {
+  try {
+    await supabaseClient.from('market_analysis').upsert({ match_id: matchId, market: market || 'h2h', prob_model: modelProb || 0, prob_market: marketProb, market_inefficiency_score: Math.round(detectors.mis * 10000) / 100, inefficiency_level: detectors.mis_level, odds_drift_index: Math.round(detectors.odi * 10000) / 100, odd_open: detectors.odd_open, odd_current: detectors.odd_current }, { onConflict: 'match_id,market' })
+    if (detectors.sharp.activity_score >= 10) {
+      await supabaseClient.from('sharp_money_signals').upsert({ match_id: matchId, market: market || 'h2h', has_rlm: detectors.sharp.has_rlm, has_steam: detectors.sharp.has_steam, has_consensus: detectors.sharp.has_consensus, sharp_activity_score: detectors.sharp.activity_score, odd_open: detectors.odd_open, odd_current: detectors.odd_current, odd_movement_pct: Math.round(detectors.odi * 10000) / 100 }, { onConflict: 'match_id,market' })
+    }
+  } catch (err) { console.warn('[Detectors] Erro ao persistir:', err) }
+}
+
+// ═══════════════════════════════════════════════
 // Odds extraction helpers
 // ═══════════════════════════════════════════════
 
