@@ -68,6 +68,7 @@ export default function PunterAnalytics() {
       </div>
     </div>
   );
+}
 
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
