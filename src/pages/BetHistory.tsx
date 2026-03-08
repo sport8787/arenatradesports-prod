@@ -44,6 +44,8 @@ export default function BetHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [period, setPeriod] = useState<PeriodOption>('all');
+  const [league, setLeague] = useState('all');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
 
