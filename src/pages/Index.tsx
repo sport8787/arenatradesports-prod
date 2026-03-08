@@ -472,15 +472,6 @@ export default function Index() {
         onClose={handleDismissDailyBonus}
       />
 
-      {/* Balance Header */}
-      {(profile || isGuest) && (
-        <BalanceHeader
-          ntBalance={economy.ntBalance}
-          bcBalance={economy.bcBalance}
-          showScore={false}
-        />
-      )}
-
       {/* Insufficient Energy Modal */}
       <InsufficientEnergyModal
         open={showInsufficientEnergy}
@@ -493,277 +484,286 @@ export default function Index() {
         }}
       />
 
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="min-h-screen flex flex-col p-4 pt-20 pb-24"
-      >
-        {/* ========== HEADER SIMPLES ========== */}
-        {(profile || isGuest) && (
-          <motion.header 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-6"
-          >
+      <div className="min-h-screen bg-background text-foreground">
+        {/* Header Condensado - Bloomberg Style */}
+        <header className="bg-card border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between max-w-5xl mx-auto">
             <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                isGuest 
-                  ? "bg-muted-foreground/20"
-                  : "bg-primary/20"
-              )}>
-                {isGuest ? (
-                  <UserX className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <User className="w-5 h-5 text-primary" />
-                )}
-              </div>
+              <img src={logoOraculo} alt="Oráculo Mycroft" className="w-8 h-8" />
               <div>
-                {isEditingNickname ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editNickname}
-                      onChange={(e) => setEditNickname(e.target.value)}
-                      className="h-8 text-sm w-32 bg-background/50"
-                      maxLength={20}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveNickname();
-                        if (e.key === 'Escape') handleCancelEditNickname();
-                      }}
-                    />
-                    <Button size="icon" variant="ghost" onClick={handleSaveNickname} disabled={savingNickname || editNickname.length < 3} className="h-7 w-7">
-                      <Check className="w-3.5 h-3.5 text-success" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={handleCancelEditNickname} className="h-7 w-7">
-                      <X className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-muted-foreground">Olá,</span>
-                    <span className="font-semibold text-foreground">{displayName}</span>
-                    <button onClick={handleStartEditNickname} className="p-1 hover:bg-muted rounded">
-                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                <h1 className="text-sm font-bold font-orbitron text-foreground">ORÁCULO MYCROFT</h1>
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">PUNTER</p>
+              </div>
+            </div>
+            
+            {/* Live Stats + User */}
+            <div className="flex items-center gap-4 text-xs">
+              <div className="hidden sm:flex items-center gap-1">
+                <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                <span className="text-muted-foreground">Live</span>
+              </div>
+              <div className="hidden sm:block">
+                <span className="text-muted-foreground">NT</span>
+                <span className="ml-1 text-primary font-bold font-mono">⚡ {economy.ntBalance}</span>
+              </div>
+              <div className="hidden sm:block">
+                <span className="text-muted-foreground">BC</span>
+                <span className="ml-1 text-primary font-bold font-mono">🪙 {economy.bcBalance.toLocaleString()}</span>
+              </div>
+              
+              {/* User Info */}
+              {(profile || isGuest) && (
+                <div className="flex items-center gap-2">
+                  {isEditingNickname ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={editNickname}
+                        onChange={(e) => setEditNickname(e.target.value)}
+                        className="h-7 text-xs w-24 bg-background/50"
+                        maxLength={20}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveNickname();
+                          if (e.key === 'Escape') handleCancelEditNickname();
+                        }}
+                      />
+                      <Button size="icon" variant="ghost" onClick={handleSaveNickname} disabled={savingNickname || editNickname.length < 3} className="h-6 w-6">
+                        <Check className="w-3 h-3 text-success" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={handleCancelEditNickname} className="h-6 w-6">
+                        <X className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button onClick={handleStartEditNickname} className="flex items-center gap-1 hover:opacity-80 transition-opacity">
+                      <span className="text-xs font-medium text-foreground">{displayName}</span>
+                      <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
                     </button>
-                  </div>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {isGuest ? 'Convidado' : profile?.rank_title}
-                </span>
-              </div>
+                  )}
+                  <button
+                    onClick={handleSignOut}
+                    className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
+                    title="Sair"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        </header>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-primary">⚡ {economy.ntBalance}</span>
-                <span className="text-gold">🪙 {economy.bcBalance.toLocaleString()}</span>
+        {/* Main Content */}
+        <main className="p-4 space-y-4 max-w-5xl mx-auto pb-24">
+          {/* Quick Stats Banner */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-3 gap-3"
+          >
+            <div className="bg-gradient-to-br from-success/10 to-transparent border border-success/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-4 h-4 text-success" />
+                <p className="text-[10px] text-muted-foreground font-mono uppercase">PATRIMÔNIO</p>
               </div>
-              <button
-                onClick={handleSignOut}
-                className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
-                title={isGuest ? "Sair" : "Sair"}
-              >
-                <LogOut className="w-4 h-4 text-muted-foreground" />
-              </button>
+              <p className="text-lg font-bold text-foreground font-mono">⚡ {economy.ntBalance}</p>
+              <p className="text-xs text-success font-mono">NT Balance</p>
             </div>
-          </motion.header>
-        )}
+            
+            <div className="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-blue-500" />
+                <p className="text-[10px] text-muted-foreground font-mono uppercase">MOEDAS</p>
+              </div>
+              <p className="text-lg font-bold text-foreground font-mono">🪙 {economy.bcBalance.toLocaleString()}</p>
+              <p className="text-xs text-blue-400 font-mono">BC Balance</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-primary/10 to-transparent border border-primary/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="w-4 h-4 text-primary" />
+                <p className="text-[10px] text-muted-foreground font-mono uppercase">RANK</p>
+              </div>
+              <p className="text-sm font-bold text-foreground">{isGuest ? 'Convidado' : profile?.rank_title || '—'}</p>
+              <p className="text-xs text-primary font-mono">{profile?.wins || 0} wins</p>
+            </div>
+          </motion.div>
 
-        {/* ========== BRAND TITLE ========== */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="text-center mt-4 mb-2"
-        >
-          <img src={logoOraculo} alt="Oráculo Mycroft" className="h-16 w-auto mx-auto mb-1" />
-          <h1 className="font-orbitron text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent">
-            Oráculo Mycroft
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">Invista em esportes como Wall Street investe em ações</p>
-        </motion.div>
+          {/* Progress */}
+          {!isGuest && profile && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <ProgressToPrize currentBC={economy.bcBalance} />
+            </motion.div>
+          )}
 
-        {/* ========== PROGRESSO (ÚNICO CARD) ========== */}
-        {!isGuest && profile && (
+          {/* Produtos Ativos */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.15 }}
           >
-            <ProgressToPrize currentBC={economy.bcBalance} />
-          </motion.div>
-        )}
-
-        {/* ========== CTA PRINCIPAL - ARENA TRADER SPORTS ========== */}
-        <motion.button
-          onClick={() => navigate('/arena-trader-sports')}
-          disabled={loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-6 relative overflow-hidden
-            bg-gradient-to-r from-primary/80 via-primary/60 to-primary/80
-            border-2 border-primary/60 hover:border-primary
-            rounded-2xl p-5
-            flex items-center gap-4
-            transition-all duration-300
-            hover:shadow-[0_8px_30px_rgba(212,175,55,0.5)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <motion.span 
-            className="text-4xl"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            ⚽
-          </motion.span>
-          
-          <div className="flex-1 text-left">
-            <h2 className="font-orbitron text-xl font-bold text-primary uppercase tracking-wide flex items-center gap-2">
-              Arena Trader Sports
-              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30 font-mono tracking-wider">
-                MAIN
-              </span>
+            <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider font-mono">
+              Produtos Ativos
             </h2>
-            <p className="text-sm text-foreground/80">
-              Analise sinais do Mycroft para futebol em tempo real
-            </p>
+            
+            <div className="space-y-2">
+              {/* Arena Punter - Destaque */}
+              <button
+                onClick={() => navigate('/punter')}
+                disabled={loading}
+                className="w-full text-left bg-gradient-to-r from-blue-900/30 to-blue-900/10 border-l-4 border-blue-500 rounded-r-lg p-4 hover:from-blue-900/40 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                      <Target className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground font-orbitron text-sm">ARENA PUNTER</h3>
+                        <span className="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-bold rounded font-mono">
+                          ATIVO
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Value Betting • Pré-jogo</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </button>
+
+              {/* Arena Trader Sports */}
+              <button
+                onClick={() => navigate('/arena-trader-sports')}
+                disabled={loading}
+                className="w-full text-left bg-gradient-to-r from-success/10 to-success/5 border-l-4 border-success rounded-r-lg p-4 hover:from-success/20 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-success/80 rounded-lg flex items-center justify-center">
+                      <Activity className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground font-orbitron text-sm">ARENA TRADER SPORTS</h3>
+                        <span className="px-2 py-0.5 bg-success/80 text-white text-[10px] font-bold rounded font-mono">
+                          LIVE
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Análise tempo real • Futebol</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </button>
+
+              {/* Arena Trader Financeiro */}
+              <button
+                onClick={() => navigate('/arena-trader')}
+                disabled={loading}
+                className="w-full text-left bg-card border border-border rounded-lg p-4 hover:bg-card/80 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-accent/30 rounded-lg flex items-center justify-center">
+                      <LineChart className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground font-orbitron text-sm">ARENA TRADER FINANCEIRO</h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Simulador de trades • Cripto & Forex</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </button>
+
+              {/* Arena Blackjack */}
+              <button
+                onClick={() => navigate('/arena-blackjack')}
+                disabled={loading}
+                className="w-full text-left bg-card border border-border rounded-lg p-4 hover:bg-card/80 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                      <Spade className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground font-orbitron text-sm">ARENA BLACKJACK</h3>
+                        <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded font-mono">
+                          NEW
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Contagem Hi-Lo • Gestão de banca</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Active Room Banner */}
+          {activeRoom && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-2"
+            >
+              <button 
+                onClick={rejoinRoom}
+                className="flex-1 flex items-center gap-3 px-4 py-3 rounded-lg bg-success/10 border border-success/30 hover:border-success transition-all"
+              >
+                <Play className="w-5 h-5 text-success" />
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Partida em andamento</div>
+                  <div className="text-xs text-success">Clique para voltar</div>
+                </div>
+              </button>
+              <button
+                onClick={leaveRoomPermanently}
+                className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 transition-all"
+              >
+                <LogOut className="w-5 h-5 text-destructive" />
+              </button>
+            </motion.div>
+          )}
+        </main>
+
+        {/* Bottom Nav - Bloomberg Style */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-2 z-50">
+          <div className="flex items-center justify-around max-w-md mx-auto">
+            <Link to="/punter" className="flex flex-col items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors">
+              <Target className="w-5 h-5" />
+              <span className="text-[10px] font-medium font-mono">Punter</span>
+            </Link>
+            <Link to="/arena-trader-sports" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <Activity className="w-5 h-5" />
+              <span className="text-[10px] font-mono">Live</span>
+            </Link>
+            <Link to="/arena-trader/rankings" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <BarChart3 className="w-5 h-5" />
+              <span className="text-[10px] font-mono">Ranking</span>
+            </Link>
+            <Link to="/arena-blackjack" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <Spade className="w-5 h-5" />
+              <span className="text-[10px] font-mono">Blackjack</span>
+            </Link>
+            <button onClick={handleSignOut} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              <User className="w-5 h-5" />
+              <span className="text-[10px] font-mono">Perfil</span>
+            </button>
           </div>
-          
-          <ChevronRight className="w-6 h-6 text-primary" />
-        </motion.button>
+        </nav>
 
-        {/* ========== CTA - ARENA PUNTER (Value Betting) ========== */}
-        <motion.button
-          onClick={() => navigate('/punter')}
-          disabled={loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-3 relative overflow-hidden
-            bg-gradient-to-r from-success/20 via-success/10 to-success/20
-            border border-success/40 hover:border-success/70
-            rounded-2xl p-4
-            flex items-center gap-4
-            transition-all duration-300
-            hover:shadow-[0_6px_25px_rgba(34,197,94,0.3)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <span className="text-3xl">🎯</span>
-          
-          <div className="flex-1 text-left">
-            <h3 className="font-orbitron text-base font-bold text-success uppercase tracking-wide flex items-center gap-2">
-              Arena Punter
-              <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full border border-success/30 font-mono tracking-wider">
-                NEW
-              </span>
-            </h3>
-            <p className="text-xs text-foreground/60">
-              Value Betting pré-jogo • Odds com vantagem
-            </p>
-          </div>
-          
-          <ChevronRight className="w-5 h-5 text-success/60" />
-        </motion.button>
-
-        {/* ========== CTA SECUNDÁRIO - ARENA TRADER FINANCEIRO ========== */}
-        <motion.button
-          onClick={() => navigate('/arena-trader')}
-          disabled={loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-3 relative overflow-hidden
-            bg-gradient-to-r from-accent/20 via-accent/10 to-accent/20
-            border border-accent/40 hover:border-accent/70
-            rounded-2xl p-4
-            flex items-center gap-4
-            transition-all duration-300
-            hover:shadow-[0_6px_25px_rgba(139,92,246,0.3)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <span className="text-3xl">📈</span>
-          
-          <div className="flex-1 text-left">
-            <h3 className="font-orbitron text-base font-bold text-accent uppercase tracking-wide">
-              Arena Trader Financeiro
-            </h3>
-            <p className="text-xs text-foreground/60">
-              Simulador de trades • Cripto & Forex
-            </p>
-          </div>
-          
-          <ChevronRight className="w-5 h-5 text-accent/60" />
-        </motion.button>
-
-        {/* ========== CTA - ARENA BLACKJACK ========== */}
-        <motion.button
-          onClick={() => navigate('/arena-blackjack')}
-          disabled={loading}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          className="
-            w-full mt-3 relative overflow-hidden
-            bg-gradient-to-r from-[hsl(45,80%,45%)]/20 via-[hsl(45,80%,45%)]/10 to-[hsl(45,80%,45%)]/20
-            border border-[hsl(45,80%,45%)]/40 hover:border-[hsl(45,80%,45%)]/70
-            rounded-2xl p-4
-            flex items-center gap-4
-            transition-all duration-300
-            hover:shadow-[0_6px_25px_rgba(212,175,55,0.3)]
-            disabled:opacity-50 disabled:cursor-not-allowed
-            group
-          "
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          
-          <span className="text-3xl">🃏</span>
-          
-          <div className="flex-1 text-left">
-            <h3 className="font-orbitron text-base font-bold text-primary uppercase tracking-wide flex items-center gap-2">
-              Arena Blackjack
-              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30 font-mono tracking-wider">
-                NEW
-              </span>
-            </h3>
-            <p className="text-xs text-foreground/60">
-              Contagem Hi-Lo • Gestão de banca • Desvios TC
-            </p>
-          </div>
-          
-          <ChevronRight className="w-5 h-5 text-primary/60" />
-        </motion.button>
-
-        {/* HIDDEN: Ações de criar/entrar sala do Blefador - código mantido para reuso */}
-
-        {/* HIDDEN: Modo Apresentador e Arena Trader duplicada - código mantido */}
-
-        {/* Founder Case Modal */}
+        {/* Modals */}
         <FounderCaseModal
           open={showFounderCaseModal}
           onClose={() => setShowFounderCaseModal(false)}
@@ -776,7 +776,6 @@ export default function Index() {
           validateCode={founderCase.validateCaseCode}
         />
 
-        {/* Presenter Role Selector Modal */}
         <PresenterRoleSelector
           open={showRoleSelector}
           onSelect={handleRoleSelect}
@@ -802,7 +801,7 @@ export default function Index() {
               className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="font-orbitron text-lg font-bold text-center text-gold">Entrar na Sala</h3>
+              <h3 className="font-orbitron text-lg font-bold text-center text-primary">Entrar na Sala</h3>
               <Input
                 placeholder="PIN DA SALA (ex: X7Z2)"
                 value={pin}
@@ -825,65 +824,6 @@ export default function Index() {
           </motion.div>
         )}
 
-        {/* Active Room Banner */}
-        {activeRoom && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-4 flex items-center gap-2"
-          >
-            <button 
-              onClick={rejoinRoom}
-              className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-success/10 border border-success/30 hover:border-success transition-all"
-            >
-              <Play className="w-5 h-5 text-success" />
-              <div className="text-left">
-                <div className="font-semibold text-sm">Partida em andamento</div>
-                <div className="text-xs text-success">Clique para voltar</div>
-              </div>
-            </button>
-            <button
-              onClick={leaveRoomPermanently}
-              className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 transition-all"
-            >
-              <LogOut className="w-5 h-5 text-destructive" />
-            </button>
-          </motion.div>
-        )}
-
-        {/* ========== FOOTER LIMPO ========== */}
-        <motion.footer 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t border-border/50 py-3 px-4"
-        >
-          <div className="flex items-center justify-around max-w-md mx-auto">
-            <Link to="/arena-trader-sports" className="flex flex-col items-center gap-1 text-primary hover:text-primary/80 transition-colors">
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-xs">Live</span>
-            </Link>
-            <Link to="/punter" className="flex flex-col items-center gap-1 text-success hover:text-success/80 transition-colors">
-              <Target className="w-5 h-5" />
-              <span className="text-xs">Punter</span>
-            </Link>
-            <Link to="/arena-trader/rankings" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <Trophy className="w-5 h-5" />
-              <span className="text-xs">Ranking</span>
-            </Link>
-            <Link to="/arena-blackjack" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <Spade className="w-5 h-5" />
-              <span className="text-xs">Blackjack</span>
-            </Link>
-          </div>
-        </motion.footer>
-
-        {/* Powered by Bluffer Entertainment */}
-        <div className="flex items-center gap-2 justify-center mt-8 mb-16">
-          <TrendingUp className="w-4 h-4 text-amber-400" />
-          <span className="text-xs text-muted-foreground">Bluffer Entertainment</span>
-        </div>
-
         {/* Audio Preload Indicator */}
         <AudioPreloadIndicator
           isLoading={audioPreloader.isLoading}
@@ -891,7 +831,7 @@ export default function Index() {
           progressPercent={audioPreloader.progressPercent}
           currentPhrase={audioPreloader.currentPhrase}
         />
-      </motion.div>
+      </div>
     </>
   );
 }
