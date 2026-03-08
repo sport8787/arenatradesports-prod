@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface DailySummaryWidgetProps {
   userId: string;
+  username?: string;
 }
 
 interface DaySummary {
