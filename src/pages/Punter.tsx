@@ -477,41 +477,20 @@ export default function PunterPage() {
         {/* Daily Summary Widget */}
         {user && <DailySummaryWidget userId={user.id} />}
 
-        {/* Performance Gap Comparativo */}
-        {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
-          <PerformanceGap horus={bankroll} manual={manualBankroll} />
-        )}
-
-        {/* Missed Opportunities */}
-        {user && <MissedOpportunities userId={user.id} />}
-
-        {/* Analytics por Horário */}
-        {user && <PerformanceByTime userId={user.id} />}
-
-        {/* Configuração Hórus */}
-        {user && <HorusConfig userId={user.id} />}
-
-        {/* Coming Soon Modules */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <ComingSoonModule
-            title="Market Manipulation Detector"
-            description="Detecta quando o mercado está precificando errado e identifica oportunidades escondidas."
-            features={[
-              'Market Inefficiency Score (MIS)',
-              'Odds Drift Detection',
-              'Value hidden detection',
-            ]}
-          />
-          <ComingSoonModule
-            title="Sharp Money Detector"
-            description="Identifica movimentos de dinheiro inteligente e reverse line movements."
-            features={[
-              'Reverse Line Movement (RLM)',
-              'Steam Move Detection',
-              'Sharp Activity Score 0-100',
-            ]}
-          />
-        </div>
+        {/* Link para Análise Detalhada */}
+        <button
+          onClick={() => navigate('/punter/analytics')}
+          className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+        >
+          <div className="flex items-center gap-2.5">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            <div className="text-left">
+              <p className="font-mono text-xs font-semibold text-foreground">Análise Detalhada</p>
+              <p className="font-mono text-[10px] text-muted-foreground">Comparativo, horários, config Hórus, oportunidades</p>
+            </div>
+          </div>
+          <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+        </button>
 
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
