@@ -393,6 +393,7 @@ export default function PunterPage() {
       odd: signal.recommendation.odd,
       stake: customStake,
       thesis: signal.recommendation.thesis,
+      commence_time: signal.match.commence_time || undefined,
     });
 
     if (!result.success) {
