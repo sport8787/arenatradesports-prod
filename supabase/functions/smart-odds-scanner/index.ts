@@ -161,15 +161,17 @@ serve(async (req) => {
         for (const bm of event.bookmakers || []) {
           for (const mkt of bm.markets || []) {
             for (const outcome of mkt.outcomes || []) {
-              await supabase.from("arena_odds").upsert({
-                match_id: event.id,
-                bookmaker: bm.title,
-                market: `${mkt.key}_${outcome.name}`,
-                odd_current: outcome.price,
-                timestamp_current: new Date().toISOString(),
-              }, {
-                onConflict: "match_id,bookmaker,market",
-              }).catch(() => {});
+              try {
+                await supabase.from("arena_odds").upsert({
+                  match_id: event.id,
+                  bookmaker: bm.title,
+                  market: `${mkt.key}_${outcome.name}`,
+                  odd_current: outcome.price,
+                  timestamp_current: new Date().toISOString(),
+                }, {
+                  onConflict: "match_id,bookmaker,market",
+                });
+              } catch (_) {}
             }
           }
         }
