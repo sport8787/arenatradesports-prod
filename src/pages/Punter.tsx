@@ -26,6 +26,9 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import PerformanceGap from '@/components/punter/PerformanceGap';
 import MissedOpportunities from '@/components/punter/MissedOpportunities';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
+import PerformanceByTime from '@/components/punter/PerformanceByTime';
+import HorusConfig from '@/components/punter/HorusConfig';
+import ComingSoonModule from '@/components/punter/ComingSoonModule';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
@@ -485,6 +488,34 @@ export default function PunterPage() {
 
         {/* Missed Opportunities */}
         {user && <MissedOpportunities userId={user.id} />}
+
+        {/* Analytics por Horário */}
+        {user && <PerformanceByTime userId={user.id} />}
+
+        {/* Configuração Hórus */}
+        {user && <HorusConfig userId={user.id} />}
+
+        {/* Coming Soon Modules */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <ComingSoonModule
+            title="Market Manipulation Detector"
+            description="Detecta quando o mercado está precificando errado e identifica oportunidades escondidas."
+            features={[
+              'Market Inefficiency Score (MIS)',
+              'Odds Drift Detection',
+              'Value hidden detection',
+            ]}
+          />
+          <ComingSoonModule
+            title="Sharp Money Detector"
+            description="Identifica movimentos de dinheiro inteligente e reverse line movements."
+            features={[
+              'Reverse Line Movement (RLM)',
+              'Steam Move Detection',
+              'Sharp Activity Score 0-100',
+            ]}
+          />
+        </div>
 
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
