@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, User, Wallet, TrendingUp, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Bot, User, Wallet, TrendingUp, Target, Settings, AlertCircle, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Bankroll } from '@/hooks/useBankroll';
 import type { ManualBankroll } from '@/hooks/useManualBankroll';
 import BankrollSettingsDialog from '@/components/arena-trader/BankrollSettingsDialog';
@@ -35,8 +36,10 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
   const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
 
-  const horusWinRate = horus.total_bets ? ((horus.green_bets || 0) / horus.total_bets * 100) : 0;
-  const manualWinRate = manual.total_bets ? ((manual.green_bets || 0) / manual.total_bets * 100) : 0;
+  const horusSettled = (horus.green_bets || 0) + (horus.red_bets || 0);
+  const manualSettled = (manual.green_bets || 0) + (manual.red_bets || 0);
+  const horusWinRate = horusSettled > 0 ? ((horus.green_bets || 0) / horusSettled * 100) : 0;
+  const manualWinRate = manualSettled > 0 ? ((manual.green_bets || 0) / manualSettled * 100) : 0;
 
   const performanceGap = horusBankReturn - manualBankReturn;
 
@@ -68,12 +71,15 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
             sub={`ROI s/ apostas: ${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(1)}%`}
             subColor={horusPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={horusPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            tooltip="ROI s/ Apostas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
           />
           <MetricCard
             label="WIN RATE HÓRUS"
-            value={`${horusWinRate.toFixed(0)}%`}
-            sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R`}
+            value={`${horusWinRate.toFixed(1)}%`}
+            sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R (${horusSettled} liquidadas)`}
+            subColor={horusWinRate >= 55 ? 'text-success' : horusWinRate >= 45 ? 'text-warning' : 'text-destructive'}
             icon={<Target className="w-4 h-4" />}
+            tooltip="Win Rate = Greens ÷ (Greens + Reds). Apostas pendentes não são contabilizadas."
           />
           <MetricCard
             label="EXPOSIÇÃO HÓRUS"
@@ -110,12 +116,15 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
             sub={`ROI s/ apostas: ${manualROI >= 0 ? '+' : ''}${manualROI.toFixed(1)}%`}
             subColor={manualPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={manualPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            tooltip="ROI s/ Apostas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
           />
           <MetricCard
             label="MEU WIN RATE"
-            value={`${manualWinRate.toFixed(0)}%`}
-            sub={`${manual.green_bets || 0}G / ${manual.red_bets || 0}R`}
+            value={`${manualWinRate.toFixed(1)}%`}
+            sub={`${manual.green_bets || 0}G / ${manual.red_bets || 0}R (${manualSettled} liquidadas)`}
+            subColor={manualWinRate >= 55 ? 'text-success' : manualWinRate >= 45 ? 'text-warning' : 'text-destructive'}
             icon={<Target className="w-4 h-4" />}
+            tooltip="Win Rate = Greens ÷ (Greens + Reds). Apostas pendentes não são contabilizadas."
           />
           <MetricCard
             label="MINHA EXPOSIÇÃO"
@@ -158,8 +167,8 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   );
 }
 
-function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor }: {
-  label: string; value: string; sub: string; subColor?: string; icon: React.ReactNode; highlight?: boolean; accentColor?: 'primary' | 'accent';
+function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor, tooltip }: {
+  label: string; value: string; sub: string; subColor?: string; icon: React.ReactNode; highlight?: boolean; accentColor?: 'primary' | 'accent'; tooltip?: string;
 }) {
   const accent = accentColor || 'primary';
   const isHighlight = highlight || accentColor;
@@ -171,7 +180,21 @@ function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor 
         : 'border-border bg-card'
     )}>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-mono text-muted-foreground tracking-wider">{label}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-mono text-muted-foreground tracking-wider">{label}</span>
+          {tooltip && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[240px] text-xs">
+                  <p>{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <span className={cn("text-muted-foreground", isHighlight && (accent === 'accent' ? "text-accent" : "text-primary"))}>{icon}</span>
       </div>
       <p className={cn("font-mono font-bold text-foreground", isHighlight ? "text-lg" : "text-sm")}>{value}</p>
