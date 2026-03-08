@@ -172,6 +172,46 @@ export default function PunterWidgets() {
                       }}
                     />
                   </div>
+                  {/* Paulistão */}
+                  <div>
+                    <p className="text-sm font-bold text-foreground mb-2">🏆 Paulistão</p>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: `<div id="wg-api-football-standings-475"
+                          data-host="v3.football.api-sports.io"
+                          data-key="${apiKey}"
+                          data-league="475"
+                          data-team=""
+                          data-season=""
+                          data-theme="dark"
+                          data-lang="pt"
+                          data-show-errors="false"
+                          data-show-logos="true"
+                          class="wg_loader">
+                        </div>`
+                      }}
+                    />
+                  </div>
+                  {/* Carioca */}
+                  <div>
+                    <p className="text-sm font-bold text-foreground mb-2">🏆 Carioca</p>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: `<div id="wg-api-football-standings-476"
+                          data-host="v3.football.api-sports.io"
+                          data-key="${apiKey}"
+                          data-league="476"
+                          data-team=""
+                          data-season=""
+                          data-theme="dark"
+                          data-lang="pt"
+                          data-show-errors="false"
+                          data-show-logos="true"
+                          class="wg_loader">
+                        </div>`
+                      }}
+                    />
+                  </div>
                   {/* Premier League */}
                   <div>
                     <p className="text-sm font-bold text-foreground mb-2">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</p>

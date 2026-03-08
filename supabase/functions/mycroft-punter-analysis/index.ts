@@ -23,6 +23,13 @@ serve(async (req) => {
       sports = [
         'soccer_brazil_campeonato',
         'soccer_brazil_serie_b',
+        'soccer_brazil_campeonato_paulista',
+        'soccer_brazil_campeonato_carioca',
+        'soccer_brazil_campeonato_mineiro',
+        'soccer_brazil_campeonato_gaucho',
+        'soccer_brazil_campeonato_baiano',
+        'soccer_brazil_campeonato_paranaense',
+        'soccer_brazil_campeonato_catarinense',
         'soccer_brazil_campeonato_pernambucano',
         'soccer_conmebol_copa_libertadores',
         'soccer_conmebol_copa_sudamericana',
@@ -364,6 +371,14 @@ async function searchLeagueId(sportKey: string, apiKey: string): Promise<number 
   const leagueMap: Record<string, number> = {
     'soccer_brazil_campeonato': 71,
     'soccer_brazil_serie_b': 72,
+    'soccer_brazil_campeonato_paulista': 475,
+    'soccer_brazil_campeonato_carioca': 476,
+    'soccer_brazil_campeonato_mineiro': 477,
+    'soccer_brazil_campeonato_gaucho': 478,
+    'soccer_brazil_campeonato_baiano': 479,
+    'soccer_brazil_campeonato_paranaense': 480,
+    'soccer_brazil_campeonato_catarinense': 481,
+    'soccer_brazil_campeonato_pernambucano': 604,
     'soccer_epl': 39,
     'soccer_spain_la_liga': 140,
     'soccer_germany_bundesliga': 78,
@@ -374,7 +389,6 @@ async function searchLeagueId(sportKey: string, apiKey: string): Promise<number 
     'soccer_conmebol_copa_libertadores': 13,
     'soccer_conmebol_copa_sudamericana': 11,
     'soccer_argentina_primera_division': 128,
-    'soccer_brazil_campeonato_pernambucano': 604,
   }
   return leagueMap[sportKey] || null
 }
