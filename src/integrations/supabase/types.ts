@@ -999,6 +999,51 @@ export type Database = {
           },
         ]
       }
+      bookmaker_connections: {
+        Row: {
+          app_key: string | null
+          bookmaker: string
+          created_at: string | null
+          encrypted_password: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          session_token: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          app_key?: string | null
+          bookmaker?: string
+          created_at?: string | null
+          encrypted_password?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          session_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          app_key?: string | null
+          bookmaker?: string
+          created_at?: string | null
+          encrypted_password?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          session_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       cached_odds_games: {
         Row: {
           away_team: string
@@ -1192,6 +1237,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      imported_bets: {
+        Row: {
+          bet_date: string | null
+          bookmaker: string | null
+          created_at: string | null
+          event_name: string | null
+          id: string
+          import_batch_id: string | null
+          market: string
+          odd: number
+          profit_loss: number | null
+          raw_data: Json | null
+          result: string | null
+          selection: string | null
+          settle_date: string | null
+          source: string
+          stake: number
+          user_id: string
+        }
+        Insert: {
+          bet_date?: string | null
+          bookmaker?: string | null
+          created_at?: string | null
+          event_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          market: string
+          odd: number
+          profit_loss?: number | null
+          raw_data?: Json | null
+          result?: string | null
+          selection?: string | null
+          settle_date?: string | null
+          source?: string
+          stake?: number
+          user_id: string
+        }
+        Update: {
+          bet_date?: string | null
+          bookmaker?: string | null
+          created_at?: string | null
+          event_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          market?: string
+          odd?: number
+          profit_loss?: number | null
+          raw_data?: Json | null
+          result?: string | null
+          selection?: string | null
+          settle_date?: string | null
+          source?: string
+          stake?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       live_matches: {
         Row: {
