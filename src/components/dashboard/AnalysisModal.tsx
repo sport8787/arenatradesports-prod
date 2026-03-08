@@ -91,7 +91,12 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     setPlacing(true);
 
     // Place virtual bet
-    const result = await placeBet({
+    if (!bankrollProps) {
+      toast({ title: '❌ Erro', description: 'Banca não disponível' });
+      setPlacing(false);
+      return;
+    }
+    const result = await bankrollProps.placeBet({
       id: analysis.id,
       match_id: match.id,
       market: analysis.market,
