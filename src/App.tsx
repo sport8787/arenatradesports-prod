@@ -71,6 +71,7 @@ const App = () => {
               <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
               <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
               <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
+              <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
