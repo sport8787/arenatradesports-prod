@@ -4,7 +4,7 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot, Trophy, Award
+  Sparkles, User, Bot, Trophy, Award, Upload, Settings
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import PunterRankings from '@/components/punter/PunterRankings';
@@ -521,20 +521,50 @@ export default function PunterPage() {
         {/* Daily Summary Widget */}
         {user && <DailySummaryWidget userId={user.id} username={profile?.username} />}
 
-        {/* Link para Análise Detalhada */}
-        <button
-          onClick={() => navigate('/punter/analytics')}
-          className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
-        >
-          <div className="flex items-center gap-2.5">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            <div className="text-left">
-              <p className="font-mono text-xs font-semibold text-foreground">Análise Detalhada</p>
-              <p className="font-mono text-[10px] text-muted-foreground">Comparativo, horários, config Hórus, oportunidades</p>
+        {/* Navigation Links */}
+        <div className="space-y-2">
+          <button
+            onClick={() => navigate('/punter/analytics')}
+            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Análise Detalhada</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Comparativo, horários, config Hórus, oportunidades</p>
+              </div>
             </div>
-          </div>
-          <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-        </button>
+            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+          </button>
+
+          <button
+            onClick={() => navigate('/punter/import')}
+            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Upload className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Importar & Análise</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Importar apostas, ROI, P&L, comparativo de banca</p>
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+          </button>
+
+          <button
+            onClick={() => navigate('/punter/config')}
+            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Configurações</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Betfair, alertas Hórus, conexões</p>
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+          </button>
+        </div>
 
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
