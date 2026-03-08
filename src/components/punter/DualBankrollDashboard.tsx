@@ -167,8 +167,8 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   );
 }
 
-function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor }: {
-  label: string; value: string; sub: string; subColor?: string; icon: React.ReactNode; highlight?: boolean; accentColor?: 'primary' | 'accent';
+function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor, tooltip }: {
+  label: string; value: string; sub: string; subColor?: string; icon: React.ReactNode; highlight?: boolean; accentColor?: 'primary' | 'accent'; tooltip?: string;
 }) {
   const accent = accentColor || 'primary';
   const isHighlight = highlight || accentColor;
@@ -180,7 +180,21 @@ function MetricCard({ label, value, sub, subColor, icon, highlight, accentColor 
         : 'border-border bg-card'
     )}>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-mono text-muted-foreground tracking-wider">{label}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-mono text-muted-foreground tracking-wider">{label}</span>
+          {tooltip && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[240px] text-xs">
+                  <p>{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <span className={cn("text-muted-foreground", isHighlight && (accent === 'accent' ? "text-accent" : "text-primary"))}>{icon}</span>
       </div>
       <p className={cn("font-mono font-bold text-foreground", isHighlight ? "text-lg" : "text-sm")}>{value}</p>
