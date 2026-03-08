@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { BarChart3, Trophy, Flame, Bot, User } from 'lucide-react';
