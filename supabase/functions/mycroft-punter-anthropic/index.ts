@@ -61,6 +61,18 @@ serve(async (req) => {
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
     const allUpcomingGames: any[] = []
+    const leaguesWithoutOdds: string[] = []
+
+    const estaduaisMap: Record<string, { id: number; name: string }> = {
+      'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão' },
+      'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca' },
+      'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro' },
+      'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho' },
+      'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano' },
+      'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense' },
+      'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense' },
+      'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano' },
+    }
 
     for (const league of leaguesToScan) {
       try {
@@ -76,6 +88,7 @@ serve(async (req) => {
 
         if (!oddsResponse.ok) {
           console.warn(`[Mycroft Punter] Skipping ${league}: HTTP ${oddsResponse.status}`)
+          if (estaduaisMap[league]) leaguesWithoutOdds.push(league)
           continue
         }
 
@@ -89,9 +102,58 @@ serve(async (req) => {
         if (upcoming.length > 0) {
           console.log(`[Mycroft Punter] ${league}: ${upcoming.length} jogos`)
           allUpcomingGames.push(...upcoming)
+        } else if (estaduaisMap[league]) {
+          leaguesWithoutOdds.push(league)
         }
       } catch (err) {
         console.warn(`[Mycroft Punter] Erro ao buscar ${league}:`, err)
+        if (estaduaisMap[league]) leaguesWithoutOdds.push(league)
+      }
+    }
+
+    // Fallback: estaduais sem odds → API-Football fixtures + odds simuladas
+    if (leaguesWithoutOdds.length > 0 && apiFootballKey) {
+      console.log(`[Mycroft Punter] Buscando fixtures API-Football para ${leaguesWithoutOdds.length} estaduais...`)
+      const seasonYear = new Date().getMonth() + 1 < 8 ? new Date().getFullYear() - 1 : new Date().getFullYear()
+
+      for (const leagueKey of leaguesWithoutOdds) {
+        const leagueInfo = estaduaisMap[leagueKey]
+        if (!leagueInfo) continue
+        try {
+          const today = now.toISOString().split('T')[0]
+          const maxDate = maxTime.toISOString().split('T')[0]
+          const fixturesRes = await fetch(
+            `${API_FOOTBALL_BASE}/fixtures?league=${leagueInfo.id}&season=${seasonYear}&from=${today}&to=${maxDate}&status=NS`,
+            { headers: apiHeaders(apiFootballKey) }
+          )
+          if (!fixturesRes.ok) continue
+          const fixturesData = await fixturesRes.json()
+          const fixtures = fixturesData.response || []
+
+          for (const fix of fixtures) {
+            const homeTeam = fix.teams?.home?.name || 'Home'
+            const awayTeam = fix.teams?.away?.name || 'Away'
+            allUpcomingGames.push({
+              id: `sim_${fix.fixture?.id || Date.now()}`,
+              sport_key: leagueKey,
+              sport_title: leagueInfo.name,
+              commence_time: fix.fixture?.date || now.toISOString(),
+              home_team: homeTeam,
+              away_team: awayTeam,
+              simulated_odds: true,
+              bookmakers: [{
+                key: 'poisson_model', title: 'Modelo Poisson (Simulado)',
+                markets: [
+                  { key: 'h2h', outcomes: [{ name: homeTeam, price: 2.20 }, { name: 'Draw', price: 3.30 }, { name: awayTeam, price: 3.10 }] },
+                  { key: 'totals', outcomes: [{ name: 'Over', point: 2.5, price: 1.90 }, { name: 'Under', point: 2.5, price: 1.95 }] }
+                ]
+              }]
+            })
+          }
+          if (fixtures.length > 0) console.log(`[Mycroft Punter] ${leagueInfo.name}: ${fixtures.length} jogos (ODDS SIMULADAS)`)
+        } catch (err) {
+          console.warn(`[Mycroft Punter] Erro fixtures ${leagueInfo.name}:`, err)
+        }
       }
     }
 
