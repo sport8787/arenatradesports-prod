@@ -84,6 +84,7 @@ export function useManualBankroll() {
     odd: number;
     stake: number;
     thesis?: string;
+    commence_time?: string;
   }) => {
     if (!bankroll || !user) return { success: false, error: 'Bankroll não carregada' };
 
