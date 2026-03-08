@@ -3,7 +3,11 @@
  * Manages voice triggers for the Punter page with session-based deduplication.
  * Each audio trigger plays only ONCE per browser session.
  * Dynamic TTS phrases are cached via the edge function to avoid repeated API calls.
+ * 
+ * ✅ v2: ALL audio goes through centralAudioQueue to prevent overlap/duplication.
  */
+
+import { centralAudioQueue, AUDIO_PRIORITY, clearAllAudio } from './centralAudioQueue';
 
 // Audio mapping by trigger moment
 const HORUS_AUDIO_MAP: Record<string, string[]> = {
@@ -32,7 +36,10 @@ let provocacaoIndex = 0;
 // TTS cache: avoids calling ElevenLabs for the same phrase twice in a session
 const ttsMemoryCache = new Map<string, string>(); // text hash -> audioUrl
 
-let currentAudio: HTMLAudioElement | null = null;
+// ✅ Dedupe: track last enqueued label to prevent double-enqueue
+let lastEnqueuedLabel: string | null = null;
+let lastEnqueuedTime = 0;
+const DEDUPE_WINDOW_MS = 5000;
 
 function pickUnplayed(trigger: HorusPunterTrigger): string | null {
   const pool = HORUS_AUDIO_MAP[trigger];
@@ -64,7 +71,22 @@ function markPlayed(trigger: HorusPunterTrigger, url: string) {
 }
 
 /**
+ * ✅ Dedupe check: prevents the same label from being enqueued twice within DEDUPE_WINDOW_MS
+ */
+function isDuplicate(label: string): boolean {
+  const now = Date.now();
+  if (lastEnqueuedLabel === label && (now - lastEnqueuedTime) < DEDUPE_WINDOW_MS) {
+    console.log(`[HorusPunterVoice] ⛔ Dedupe blocked: "${label}" (${now - lastEnqueuedTime}ms ago)`);
+    return true;
+  }
+  lastEnqueuedLabel = label;
+  lastEnqueuedTime = now;
+  return false;
+}
+
+/**
  * Play a local Hórus audio for a specific trigger moment.
+ * ✅ Now uses centralAudioQueue instead of direct Audio().
  */
 export function playHorusTrigger(trigger: HorusPunterTrigger): Promise<boolean> {
   return new Promise((resolve) => {
@@ -75,41 +97,47 @@ export function playHorusTrigger(trigger: HorusPunterTrigger): Promise<boolean> 
       return;
     }
 
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
+    const label = `punter_${trigger}`;
+    if (isDuplicate(label)) {
+      resolve(false);
+      return;
     }
 
     markPlayed(trigger, url);
-    console.log(`[HorusPunterVoice] Playing "${trigger}": ${url}`);
+    console.log(`[HorusPunterVoice] ✅ Enqueuing "${trigger}" via centralQueue: ${url}`);
 
-    const audio = new Audio(url);
-    currentAudio = audio;
-    audio.volume = 0.8;
-    audio.onended = () => { currentAudio = null; resolve(true); };
-    audio.onerror = () => { currentAudio = null; resolve(false); };
-    audio.play().catch(() => resolve(false));
+    centralAudioQueue.enqueue(url, {
+      label,
+      priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+      onComplete: () => resolve(true),
+      onError: () => resolve(false),
+    });
   });
 }
 
 /**
  * Play a dynamic TTS phrase via ElevenLabs with session caching.
- * If the same text was already generated this session, plays from cache.
+ * ✅ Now uses centralAudioQueue instead of direct Audio().
  */
 export async function playHorusTTS(text: string): Promise<boolean> {
   if (!text || text.length < 5) return false;
 
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
+  const label = `punter_tts_${text.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}`;
+  if (isDuplicate(label)) return false;
 
   // Check session memory cache first
   const cacheKey = text.trim().toLowerCase();
   const cachedUrl = ttsMemoryCache.get(cacheKey);
   if (cachedUrl) {
-    console.log(`[HorusPunterVoice] TTS from session cache: "${text.slice(0, 40)}..."`);
-    return playAudioUrl(cachedUrl);
+    console.log(`[HorusPunterVoice] ✅ TTS from session cache via centralQueue: "${text.slice(0, 40)}..."`);
+    return new Promise((resolve) => {
+      centralAudioQueue.enqueue(cachedUrl, {
+        label,
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        onComplete: () => resolve(true),
+        onError: () => resolve(false),
+      });
+    });
   }
 
   try {
@@ -153,32 +181,27 @@ export async function playHorusTTS(text: string): Promise<boolean> {
     // Cache for future use in this session
     ttsMemoryCache.set(cacheKey, audioUrl);
 
-    return playAudioUrl(audioUrl);
+    console.log(`[HorusPunterVoice] ✅ TTS enqueuing via centralQueue: "${text.slice(0, 40)}..."`);
+    return new Promise((resolve) => {
+      centralAudioQueue.enqueue(audioUrl, {
+        label,
+        priority: AUDIO_PRIORITY.HORUS_DIALOGUE,
+        onComplete: () => resolve(true),
+        onError: () => resolve(false),
+      });
+    });
   } catch (e) {
     console.error('[HorusPunterVoice] TTS error:', e);
     return false;
   }
 }
 
-function playAudioUrl(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const audio = new Audio(url);
-    currentAudio = audio;
-    audio.volume = 0.85;
-    audio.onended = () => { currentAudio = null; resolve(true); };
-    audio.onerror = () => { currentAudio = null; resolve(false); };
-    audio.play().catch(() => resolve(false));
-  });
-}
-
 /**
  * Stop any currently playing Hórus audio
+ * ✅ Now clears the central queue
  */
 export function stopHorusAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
+  clearAllAudio();
 }
 
 // ==========================================
