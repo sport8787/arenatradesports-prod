@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS arena_patterns_league_market_idx ON public.arena_patterns (league, market);
