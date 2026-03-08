@@ -6,7 +6,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
-import { useBankroll } from '@/hooks/useBankroll';
 import type { Match } from '@/components/dashboard/MatchCard';
 
 export interface MycroftAnalysisData {
@@ -27,25 +26,38 @@ const verdictConfig: Record<string, { icon: string; bg: string; text: string; gl
   AGUARDAR: { icon: '⏸️', bg: 'bg-warning', text: 'text-warning-foreground', glow: 'shadow-[0_0_30px_hsl(38_92%_50%/0.5)]' },
 };
 
+interface BankrollProps {
+  balance: number;
+  recommendedStake: number;
+  placeBet: (analysis: { id: string; match_id: string; market: string; odd: number; home_team?: string; away_team?: string }) => Promise<{ success: boolean; error?: string; stake?: number }>;
+  dismissBet?: () => Promise<any>;
+}
+
 interface AnalysisModalProps {
   match: Match | null;
   analysis: MycroftAnalysisData | null;
   isOpen: boolean;
   onClose: () => void;
+  bankrollProps?: BankrollProps;
+  matchStats?: { attacks_home?: number; attacks_away?: number; xG_home?: number; xG_away?: number; possession_home?: number; possession_away?: number; shots_home?: number; shots_away?: number } | null;
 }
 
-export default function AnalysisModal({ match, analysis, isOpen, onClose }: AnalysisModalProps) {
+export default function AnalysisModal({ match, analysis, isOpen, onClose, bankrollProps, matchStats }: AnalysisModalProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const { recordAction } = useSignalHistory();
-  const { bankroll, placeBet, dismissBet, recommendedStake } = useBankroll();
   const [placing, setPlacing] = useState(false);
+
+  const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
+  const recommendedStake = bankrollProps?.recommendedStake ?? 0;
 
   if (!match) return null;
 
   const vc = analysis ? verdictConfig[analysis.verdict] || verdictConfig['AGUARDAR'] : null;
 
-  const risk = analysis?.risk_management as {
+  // risk_management can be JSON object or plain text
+  const riskRaw = analysis?.risk_management;
+  const risk = (riskRaw && typeof riskRaw === 'object' && !Array.isArray(riskRaw)) ? riskRaw as {
     stake_percent?: number;
     stake_value?: number;
     entry?: string;
@@ -53,9 +65,14 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     target?: string;
     rr?: string;
     ev?: string;
-  } | null;
+  } : null;
+  const riskText = (typeof riskRaw === 'string') ? riskRaw : null;
 
-  const stats = analysis?.fundamentation as {
+  // Stats: prefer matchStats prop, then fundamentation if it's a JSON object with stats
+  const fundRaw = analysis?.fundamentation;
+  const fundObj = (fundRaw && typeof fundRaw === 'object' && !Array.isArray(fundRaw)) ? fundRaw as Record<string, any> : null;
+  const statsFromFund = fundObj?.stats || (fundObj?.attacks_home != null ? fundObj : null);
+  const stats = matchStats || statsFromFund as {
     attacks_home?: number;
     attacks_away?: number;
     xG_home?: number;
@@ -80,7 +97,12 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     setPlacing(true);
 
     // Place virtual bet
-    const result = await placeBet({
+    if (!bankrollProps) {
+      toast({ title: '❌ Erro', description: 'Banca não disponível' });
+      setPlacing(false);
+      return;
+    }
+    const result = await bankrollProps.placeBet({
       id: analysis.id,
       match_id: match.id,
       market: analysis.market,
@@ -110,7 +132,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     if (analysis?.id) {
       await recordAction(analysis.id, 'dismissed');
     }
-    await dismissBet();
+    if (bankrollProps?.dismissBet) await bankrollProps.dismissBet();
     onClose();
   };
 
@@ -123,11 +145,13 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
     show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
   };
 
-  const statRows = stats ? [
-    { label: 'Ataques perigosos', home: stats.attacks_home ?? '-', away: stats.attacks_away ?? '-' },
-    { label: 'xG', home: stats.xG_home ?? '-', away: stats.xG_away ?? '-' },
-    { label: 'Posse', home: stats.possession_home != null ? `${stats.possession_home}%` : '-', away: stats.possession_away != null ? `${stats.possession_away}%` : '-' },
-    { label: 'Chutes ao gol', home: stats.shots_home ?? '-', away: stats.shots_away ?? '-' },
+  // Only show stat rows if there are non-zero values
+  const hasRealStats = stats && Object.values(stats).some(v => typeof v === 'number' && v > 0);
+  const statRows = hasRealStats ? [
+    { label: 'Ataques perigosos', home: stats!.attacks_home ?? '-', away: stats!.attacks_away ?? '-' },
+    { label: 'xG', home: stats!.xG_home ?? '-', away: stats!.xG_away ?? '-' },
+    { label: 'Posse', home: stats!.possession_home != null ? `${stats!.possession_home}%` : '-', away: stats!.possession_away != null ? `${stats!.possession_away}%` : '-' },
+    { label: 'Chutes ao gol', home: stats!.shots_home ?? '-', away: stats!.shots_away ?? '-' },
   ] : [];
 
   const riskItems = risk ? [
@@ -242,23 +266,31 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose }: Anal
             </div>
           </motion.div>
 
-          {/* Risk Management */}
-          {riskItems.length > 0 && (
+          {/* Risk Management - structured or text */}
+          {(riskItems.length > 0 || riskText) && (
             <motion.div variants={fadeUp} className="space-y-3">
               <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Shield className="w-4 h-4" /> Gestão de Risco
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {riskItems.map(item => (
-                  <div key={item.label} className="luxury-card p-3 space-y-1">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <item.icon className="w-3.5 h-3.5" />
-                      <span className="text-[11px] font-orbitron uppercase">{item.label}</span>
+              {riskItems.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {riskItems.map(item => (
+                    <div key={item.label} className="luxury-card p-3 space-y-1">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <item.icon className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-orbitron uppercase">{item.label}</span>
+                      </div>
+                      <p className="text-sm font-bold text-foreground">{item.value}</p>
                     </div>
-                    <p className="text-sm font-bold text-foreground">{item.value}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : riskText ? (
+                <div className="luxury-card p-4 border-l-4 border-l-warning">
+                  <p className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed">
+                    {riskText}
+                  </p>
+                </div>
+              ) : null}
             </motion.div>
           )}
 
