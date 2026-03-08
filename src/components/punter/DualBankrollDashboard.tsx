@@ -71,6 +71,7 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
             sub={`ROI s/ apostas: ${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(1)}%`}
             subColor={horusPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={horusPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            tooltip="ROI s/ Apostas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
           />
           <MetricCard
             label="WIN RATE HÓRUS"
