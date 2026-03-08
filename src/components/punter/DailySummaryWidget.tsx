@@ -16,7 +16,7 @@ interface DaySummary {
   bestMarket: { name: string; profit: number } | null;
 }
 
-export default function DailySummaryWidget({ userId }: DailySummaryWidgetProps) {
+export default function DailySummaryWidget({ userId, username }: DailySummaryWidgetProps) {
   // Compute summary from actual bets (real-time, no stored table needed initially)
   const { data: summary, isLoading } = useQuery({
     queryKey: ['daily-summary-live', userId],
