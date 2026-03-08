@@ -270,8 +270,8 @@ const Auth = () => {
           >
             <Briefcase className="w-10 h-10 text-primary-foreground" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-primary tracking-wider mb-2">O BLEFADOR</h1>
-          <p className="text-muted-foreground text-sm">Clube Exclusivo de Mestres do Blefe</p>
+          <h1 className="text-3xl font-bold text-primary tracking-wider mb-2 font-orbitron">ORÁCULO MYCROFT</h1>
+          <p className="text-muted-foreground text-sm">Plataforma de Investimento Esportivo com IA</p>
         </div>
 
         {/* Card */}
