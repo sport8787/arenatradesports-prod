@@ -6,6 +6,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
 import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
+import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet-history/PeriodFilter';
+import LeagueFilter, { extractLeagueHint } from '@/components/bet-history/LeagueFilter';
+import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -41,6 +44,8 @@ export default function BetHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [period, setPeriod] = useState<PeriodOption>('all');
+  const [league, setLeague] = useState('all');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
 
@@ -336,24 +341,37 @@ export default function BetHistoryPage() {
     await fetchBets();
   }, [user, bankroll]);
 
+  const periodFiltered = useMemo(() => {
+    const start = getPeriodStartDate(period);
+    if (!start) return bets;
+    return bets.filter(b => new Date(b.placed_at) >= start);
+  }, [bets, period]);
+
+  const leagueFiltered = useMemo(() => {
+    if (league === 'all') return periodFiltered;
+    return periodFiltered.filter(b => extractLeagueHint(b.match_name) === league);
+  }, [periodFiltered, league]);
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return bets.filter(b => b.status !== 'cancelled');
-    if (filter === 'pending') return bets.filter(b => b.status === 'pending');
-    if (filter === 'green') return bets.filter(b => b.result === 'green');
-    if (filter === 'red') return bets.filter(b => b.result === 'red');
-    if (filter === 'cancelled') return bets.filter(b => b.status === 'cancelled');
-    return bets;
-  }, [bets, filter]);
+    const src = leagueFiltered;
+    if (filter === 'all') return src.filter(b => b.status !== 'cancelled');
+    if (filter === 'pending') return src.filter(b => b.status === 'pending');
+    if (filter === 'green') return src.filter(b => b.result === 'green' || b.status === 'green');
+    if (filter === 'red') return src.filter(b => b.result === 'red' || b.status === 'red');
+    if (filter === 'cancelled') return src.filter(b => b.status === 'cancelled');
+    return src;
+  }, [leagueFiltered, filter]);
 
   const stats = useMemo(() => {
-    const settled = bets.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
+    const src = leagueFiltered;
+    const settled = src.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
     const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
     const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
-    const pending = bets.filter(b => b.status === 'pending');
+    const pending = src.filter(b => b.status === 'pending');
     const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
     return {
-      total: bets.length,
+      total: src.length,
       greens: greens.length,
       reds: reds.length,
       pending: pending.length,
@@ -361,7 +379,7 @@ export default function BetHistoryPage() {
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
-  }, [bets]);
+  }, [leagueFiltered]);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
@@ -415,6 +433,18 @@ export default function BetHistoryPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Period & League Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodFilter value={period} onChange={setPeriod} />
+          <LeagueFilter bets={bets} value={league} onChange={setLeague} />
+        </div>
+
+        {/* Bankroll Evolution Chart */}
+        <BankrollEvolutionChart
+          bets={leagueFiltered}
+          initialBalance={bankroll?.initial_balance || 10000}
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
