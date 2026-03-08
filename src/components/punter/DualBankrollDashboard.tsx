@@ -57,15 +57,15 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
           <MetricCard
             label="PATRIMÔNIO HÓRUS"
             value={`R$ ${horusEquity.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            sub={`${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(2)}%`}
-            subColor={horusROI >= 0 ? 'text-success' : 'text-destructive'}
+            sub={`${horusBankReturn >= 0 ? '+' : ''}${horusBankReturn.toFixed(2)}% retorno da banca`}
+            subColor={horusBankReturn >= 0 ? 'text-success' : 'text-destructive'}
             icon={<Wallet className="w-4 h-4" />}
             highlight
           />
           <MetricCard
             label="P&L HÓRUS"
             value={`${horusPL >= 0 ? '+' : ''}R$ ${horusPL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            sub={`${horus.total_bets || 0} operações`}
+            sub={`ROI s/ apostas: ${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(1)}%`}
             subColor={horusPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={horusPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
           />
