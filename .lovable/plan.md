@@ -44,9 +44,10 @@
 
 | Item | Status | Detalhes |
 |------|--------|---------|
-| Fórmula do Asset Score | ⚠️ | `punter_analyses` tem campo para score mas fórmula completa (30% prob + 25% value + 20% stats + 15% pattern + 10% liquidity) não está implementada como engine |
-| Classificação ELITE/PREMIUM/STRONG/SPECULATIVE | ❌ | Não existe classificação automática |
-| Edge Function dedicada para cálculo | ❌ | O `mycroft-punter-analysis` faz análise mas não calcula BAS formal |
+| Fórmula do Asset Score | ✅ | **SPRINT 1** - Edge Function `betting-asset-score` com fórmula BAS completa (25% Prob + 25% Edge + 20% Stats + 15% Pattern + 15% Liquidity) |
+| Classificação ELITE/PREMIUM/STRONG/SPECULATIVE | ✅ | **SPRINT 1** - Implementado na Edge Function + serviço frontend |
+| Edge Function dedicada para cálculo | ✅ | **SPRINT 1** - `betting-asset-score` com suporte batch + cache |
+| Serviço frontend | ✅ | **SPRINT 1** - `bettingAssetScoreService.ts` com cache em memória |
 
 ---
 
