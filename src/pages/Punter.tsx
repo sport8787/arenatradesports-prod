@@ -52,6 +52,7 @@ interface PunterSignal {
     thesis: string;
     analysis: string;
     risk_factors: string;
+    simulated_odds?: boolean;
   };
 }
 
