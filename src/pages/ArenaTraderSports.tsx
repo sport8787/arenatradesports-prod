@@ -396,6 +396,21 @@ export default function ArenaTraderSports() {
         analysis={selectedAnalysis}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        bankrollProps={bankroll ? {
+          balance: bankroll.balance,
+          recommendedStake: Math.round(bankroll.balance * 0.05 * 100) / 100,
+          placeBet: async (a) => {
+            const result = await placeBet(a);
+            if (result.success) {
+              setBettedMatchIds(prev => new Set([...prev, a.match_id]));
+            }
+            return result;
+          },
+        } : undefined}
+        matchStats={selectedMatch ? (() => {
+          const lm = liveMatches.find(m => m.id === selectedMatch.id);
+          return lm?.stats || null;
+        })() : null}
       />
 
       {/* Mycroft Sports KB + Chat */}
