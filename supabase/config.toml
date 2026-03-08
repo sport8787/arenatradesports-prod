@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.bankroll-ai-kelly]
 verify_jwt = false
+
+[functions.monte-carlo-simulation]
+verify_jwt = false
