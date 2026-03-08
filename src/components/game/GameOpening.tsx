@@ -274,7 +274,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                   textShadow: stage >= 2 ? '0 0 60px rgba(212, 175, 55, 0.9)' : 'none'
                 }}
               >
-                ARENA TRADE
+                ORÁCULO
               </motion.h1>
 
               <motion.h2
@@ -291,7 +291,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
                   textShadow: stage >= 2 ? '0 0 40px rgba(212, 175, 55, 0.7)' : 'none'
                 }}
               >
-                SPORTS
+                MYCROFT
               </motion.h2>
 
               {/* Animated line */}
