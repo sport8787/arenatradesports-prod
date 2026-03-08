@@ -44,6 +44,201 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_matches: {
+        Row: {
+          away_team: string
+          cards_away: number | null
+          cards_home: number | null
+          corners_away: number | null
+          corners_home: number | null
+          created_at: string
+          dangerous_attacks_away: number | null
+          dangerous_attacks_home: number | null
+          home_team: string
+          id: string
+          league: string
+          match_date: string
+          match_id: string
+          possession_away: number | null
+          possession_home: number | null
+          result: string | null
+          score_away: number | null
+          score_home: number | null
+          season: string | null
+          shots_away: number | null
+          shots_home: number | null
+          shots_on_target_away: number | null
+          shots_on_target_home: number | null
+          source: string | null
+          stats: Json | null
+          updated_at: string
+          xg_away: number | null
+          xg_home: number | null
+        }
+        Insert: {
+          away_team: string
+          cards_away?: number | null
+          cards_home?: number | null
+          corners_away?: number | null
+          corners_home?: number | null
+          created_at?: string
+          dangerous_attacks_away?: number | null
+          dangerous_attacks_home?: number | null
+          home_team: string
+          id?: string
+          league: string
+          match_date: string
+          match_id: string
+          possession_away?: number | null
+          possession_home?: number | null
+          result?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          season?: string | null
+          shots_away?: number | null
+          shots_home?: number | null
+          shots_on_target_away?: number | null
+          shots_on_target_home?: number | null
+          source?: string | null
+          stats?: Json | null
+          updated_at?: string
+          xg_away?: number | null
+          xg_home?: number | null
+        }
+        Update: {
+          away_team?: string
+          cards_away?: number | null
+          cards_home?: number | null
+          corners_away?: number | null
+          corners_home?: number | null
+          created_at?: string
+          dangerous_attacks_away?: number | null
+          dangerous_attacks_home?: number | null
+          home_team?: string
+          id?: string
+          league?: string
+          match_date?: string
+          match_id?: string
+          possession_away?: number | null
+          possession_home?: number | null
+          result?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          season?: string | null
+          shots_away?: number | null
+          shots_home?: number | null
+          shots_on_target_away?: number | null
+          shots_on_target_home?: number | null
+          source?: string | null
+          stats?: Json | null
+          updated_at?: string
+          xg_away?: number | null
+          xg_home?: number | null
+        }
+        Relationships: []
+      }
+      arena_odds: {
+        Row: {
+          bookmaker: string
+          created_at: string
+          id: string
+          market: string
+          match_id: string
+          movement_pct: number | null
+          odd_close: number | null
+          odd_current: number | null
+          odd_open: number | null
+          timestamp_close: string | null
+          timestamp_current: string | null
+          timestamp_open: string | null
+        }
+        Insert: {
+          bookmaker: string
+          created_at?: string
+          id?: string
+          market: string
+          match_id: string
+          movement_pct?: number | null
+          odd_close?: number | null
+          odd_current?: number | null
+          odd_open?: number | null
+          timestamp_close?: string | null
+          timestamp_current?: string | null
+          timestamp_open?: string | null
+        }
+        Update: {
+          bookmaker?: string
+          created_at?: string
+          id?: string
+          market?: string
+          match_id?: string
+          movement_pct?: number | null
+          odd_close?: number | null
+          odd_current?: number | null
+          odd_open?: number | null
+          timestamp_close?: string | null
+          timestamp_current?: string | null
+          timestamp_open?: string | null
+        }
+        Relationships: []
+      }
+      arena_patterns: {
+        Row: {
+          avg_odd: number | null
+          conditions: Json | null
+          confidence: number
+          created_at: string
+          id: string
+          is_profitable: boolean
+          last_calculated_at: string | null
+          league: string
+          losses: number
+          market: string
+          pattern_type: string | null
+          roi: number
+          sample_size: number
+          updated_at: string
+          win_rate: number
+          wins: number
+        }
+        Insert: {
+          avg_odd?: number | null
+          conditions?: Json | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          is_profitable?: boolean
+          last_calculated_at?: string | null
+          league: string
+          losses?: number
+          market: string
+          pattern_type?: string | null
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+          win_rate?: number
+          wins?: number
+        }
+        Update: {
+          avg_odd?: number | null
+          conditions?: Json | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          is_profitable?: boolean
+          last_calculated_at?: string | null
+          league?: string
+          losses?: number
+          market?: string
+          pattern_type?: string | null
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+          win_rate?: number
+          wins?: number
+        }
+        Relationships: []
+      }
       arena_poker_rankings: {
         Row: {
           apc_balance: number
@@ -353,6 +548,96 @@ export type Database = {
           market_b?: string
           sample_size?: number
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      bets_history: {
+        Row: {
+          asset_classification: string | null
+          asset_score: number | null
+          away_team: string | null
+          bookmaker: string | null
+          clv: number | null
+          created_at: string
+          edge: number | null
+          home_team: string | null
+          id: string
+          league: string | null
+          market: string
+          match_id: string
+          odd: number
+          odd_close: number | null
+          placed_at: string | null
+          probability_market: number | null
+          probability_model: number | null
+          profit_loss: number | null
+          result: string | null
+          resulted_at: string | null
+          score_away: number | null
+          score_home: number | null
+          season: string | null
+          source: string
+          stake: number
+          stake_percentage: number | null
+          user_id: string
+        }
+        Insert: {
+          asset_classification?: string | null
+          asset_score?: number | null
+          away_team?: string | null
+          bookmaker?: string | null
+          clv?: number | null
+          created_at?: string
+          edge?: number | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          market: string
+          match_id: string
+          odd: number
+          odd_close?: number | null
+          placed_at?: string | null
+          probability_market?: number | null
+          probability_model?: number | null
+          profit_loss?: number | null
+          result?: string | null
+          resulted_at?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          season?: string | null
+          source?: string
+          stake?: number
+          stake_percentage?: number | null
+          user_id: string
+        }
+        Update: {
+          asset_classification?: string | null
+          asset_score?: number | null
+          away_team?: string | null
+          bookmaker?: string | null
+          clv?: number | null
+          created_at?: string
+          edge?: number | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          market?: string
+          match_id?: string
+          odd?: number
+          odd_close?: number | null
+          placed_at?: string | null
+          probability_market?: number | null
+          probability_model?: number | null
+          profit_loss?: number | null
+          result?: string | null
+          resulted_at?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          season?: string | null
+          source?: string
+          stake?: number
+          stake_percentage?: number | null
+          user_id?: string
         }
         Relationships: []
       }
