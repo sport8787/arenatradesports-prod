@@ -6,14 +6,15 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import PerformanceGap from '@/components/punter/PerformanceGap';
 import MissedOpportunities from '@/components/punter/MissedOpportunities';
 import PerformanceByTime from '@/components/punter/PerformanceByTime';
-import HorusConfig from '@/components/punter/HorusConfig';
 import MarketDetectorsPanel from '@/components/punter/MarketDetectorsPanel';
 
 export default function PunterAnalytics() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { bankroll, loading: bankrollLoading } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading } = useManualBankroll();
+
+  const username = profile?.username || 'MANUAL';
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,11 +42,11 @@ export default function PunterAnalytics() {
           <MarketDetectorsPanel />
         </section>
 
-        {/* Comparativo Hórus vs Manual */}
+        {/* Comparativo Hórus vs Username */}
         {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
           <section>
-            <SectionHeader icon={<TrendingUp className="w-3.5 h-3.5" />} label="COMPARATIVO HÓRUS vs MANUAL" />
-            <PerformanceGap horus={bankroll} manual={manualBankroll} />
+            <SectionHeader icon={<TrendingUp className="w-3.5 h-3.5" />} label={`COMPARATIVO HÓRUS vs ${username.toUpperCase()}`} />
+            <PerformanceGap horus={bankroll} manual={manualBankroll} username={username} />
           </section>
         )}
 
@@ -62,14 +63,6 @@ export default function PunterAnalytics() {
           <section>
             <SectionHeader icon={<Clock className="w-3.5 h-3.5" />} label="PERFORMANCE POR HORÁRIO" />
             <PerformanceByTime userId={user.id} />
-          </section>
-        )}
-
-        {/* Configuração Hórus */}
-        {user && (
-          <section>
-            <SectionHeader icon={<Settings className="w-3.5 h-3.5" />} label="CONFIGURAÇÕES DO HÓRUS" />
-            <HorusConfig userId={user.id} />
           </section>
         )}
       </div>

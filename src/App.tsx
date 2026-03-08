@@ -21,6 +21,7 @@ import BetHistory from "./pages/BetHistory";
 import Punter from "./pages/Punter";
 import PunterAnalytics from "./pages/PunterAnalytics";
 import PunterWidgets from "./pages/PunterWidgets";
+import PunterConfig from "./pages/PunterConfig";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
@@ -68,6 +69,7 @@ const App = () => {
               <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
               <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
               <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
+              <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />

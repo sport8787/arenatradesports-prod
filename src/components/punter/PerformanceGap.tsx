@@ -8,9 +8,10 @@ import type { ManualBankroll } from '@/hooks/useManualBankroll';
 interface PerformanceGapProps {
   horus: Bankroll;
   manual: ManualBankroll;
+  username?: string;
 }
 
-export default function PerformanceGap({ horus, manual }: PerformanceGapProps) {
+export default function PerformanceGap({ horus, manual, username = 'Manual' }: PerformanceGapProps) {
   const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
   const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
   const roiGap = horusROI - manualROI;
@@ -68,7 +69,7 @@ export default function PerformanceGap({ horus, manual }: PerformanceGapProps) {
             )}
           </div>
           <p className="text-[9px] font-mono text-muted-foreground mt-1">
-            {roiGap >= 0 ? 'Hórus lidera' : 'Você lidera'}
+            {roiGap >= 0 ? 'Hórus lidera' : username + ' lidera'}
           </p>
         </div>
 
@@ -82,7 +83,7 @@ export default function PerformanceGap({ horus, manual }: PerformanceGapProps) {
             {profitGap >= 0 ? '+' : ''}R$ {Math.abs(profitGap).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </p>
           <p className="text-[9px] font-mono text-muted-foreground mt-1">
-            {profitGap >= 0 ? 'Hórus > Manual' : 'Manual > Hórus'}
+            {profitGap >= 0 ? 'Hórus > ' + username : username + ' > Hórus'}
           </p>
         </div>
 
