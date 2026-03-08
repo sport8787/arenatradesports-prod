@@ -61,6 +61,19 @@ serve(async (req) => {
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
     const allUpcomingGames: any[] = []
+    const leaguesWithoutOdds: string[] = []
+
+    // Estaduais league IDs for API-Football fallback
+    const estaduaisMap: Record<string, { id: number; name: string }> = {
+      'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão' },
+      'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca' },
+      'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro' },
+      'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho' },
+      'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano' },
+      'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense' },
+      'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense' },
+      'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano' },
+    }
 
     for (const league of leaguesToScan) {
       try {
@@ -76,6 +89,7 @@ serve(async (req) => {
 
         if (!oddsResponse.ok) {
           console.warn(`[Mycroft Punter] Skipping ${league}: HTTP ${oddsResponse.status}`)
+          if (estaduaisMap[league]) leaguesWithoutOdds.push(league)
           continue
         }
 
@@ -89,9 +103,84 @@ serve(async (req) => {
         if (upcoming.length > 0) {
           console.log(`[Mycroft Punter] ${league}: ${upcoming.length} jogos`)
           allUpcomingGames.push(...upcoming)
+        } else if (estaduaisMap[league]) {
+          leaguesWithoutOdds.push(league)
         }
       } catch (err) {
         console.warn(`[Mycroft Punter] Erro ao buscar ${league}:`, err)
+        if (estaduaisMap[league]) leaguesWithoutOdds.push(league)
+      }
+    }
+
+    // Fallback: For estaduais without odds, fetch fixtures from API-Football and simulate odds
+    if (leaguesWithoutOdds.length > 0 && apiFootballKey) {
+      console.log(`[Mycroft Punter] Buscando fixtures API-Football para ${leaguesWithoutOdds.length} estaduais sem odds...`)
+      const seasonYear = getSeasonYear()
+
+      for (const leagueKey of leaguesWithoutOdds) {
+        const leagueInfo = estaduaisMap[leagueKey]
+        if (!leagueInfo) continue
+
+        try {
+          const today = now.toISOString().split('T')[0]
+          const maxDate = maxTime.toISOString().split('T')[0]
+          const fixturesRes = await fetch(
+            `${API_FOOTBALL_BASE}/fixtures?league=${leagueInfo.id}&season=${seasonYear}&from=${today}&to=${maxDate}&status=NS`,
+            { headers: apiHeaders(apiFootballKey) }
+          )
+          if (!fixturesRes.ok) continue
+          const fixturesData = await fixturesRes.json()
+          const fixtures = fixturesData.response || []
+
+          for (const fix of fixtures) {
+            const homeTeam = fix.teams?.home?.name || 'Home'
+            const awayTeam = fix.teams?.away?.name || 'Away'
+            const commenceTime = fix.fixture?.date || now.toISOString()
+
+            // Create a simulated game object compatible with the analysis pipeline
+            // Using Poisson-estimated fair odds (simulated 8% overround)
+            const simulatedGame = {
+              id: `sim_${fix.fixture?.id || Date.now()}`,
+              sport_key: leagueKey,
+              sport_title: leagueInfo.name,
+              commence_time: commenceTime,
+              home_team: homeTeam,
+              away_team: awayTeam,
+              simulated_odds: true,
+              bookmakers: [
+                {
+                  key: 'poisson_model',
+                  title: 'Modelo Poisson (Simulado)',
+                  markets: [
+                    {
+                      key: 'h2h',
+                      outcomes: [
+                        { name: homeTeam, price: 2.20 },
+                        { name: 'Draw', price: 3.30 },
+                        { name: awayTeam, price: 3.10 },
+                      ]
+                    },
+                    {
+                      key: 'totals',
+                      outcomes: [
+                        { name: 'Over', point: 2.5, price: 1.90 },
+                        { name: 'Under', point: 2.5, price: 1.95 },
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+
+            allUpcomingGames.push(simulatedGame)
+          }
+
+          if (fixtures.length > 0) {
+            console.log(`[Mycroft Punter] ${leagueInfo.name}: ${fixtures.length} jogos (ODDS SIMULADAS)`)
+          }
+        } catch (err) {
+          console.warn(`[Mycroft Punter] Erro fixtures ${leagueInfo.name}:`, err)
+        }
       }
     }
 
@@ -148,6 +237,8 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
         const result = results[j]
         const game = batch[j]
         if (result.status === 'fulfilled' && result.value && typeof result.value.verdict === 'string' && result.value.verdict.startsWith('APROVADO')) {
+          const rec = result.value
+          if (game.simulated_odds) rec.simulated_odds = true
           approvedSignals.push({
             match: {
               home_team: game.home_team,
@@ -155,7 +246,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
               commence_time: game.commence_time,
               league: game.sport_title || 'Unknown'
             },
-            recommendation: result.value
+            recommendation: rec
           })
         } else if (result.status === 'rejected') {
           console.error(`[Mycroft Punter] Erro ao analisar ${game.home_team} vs ${game.away_team}:`, result.reason)
@@ -1189,8 +1280,13 @@ VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acim
 
 ${detectorsBlock}
 
+${game.simulated_odds ? `
+⚠️ ATENÇÃO: ODDS SIMULADAS (Modelo Poisson)
+As odds abaixo são estimativas simuladas pelo modelo matemático, NÃO odds reais de mercado.
+Inclua "ODDS SIMULADAS" no risk_factors da análise.
+` : ''}
 ═══════════════════════════════════════
-ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
+ODDS DISPONÍVEIS (${game.simulated_odds ? 'SIMULADAS - Modelo Poisson' : 'The Odds API'} - Mercado H2H)
 ═══════════════════════════════════════
 ${oddsData.map((o: any) => `
 ${o.bookmaker}:

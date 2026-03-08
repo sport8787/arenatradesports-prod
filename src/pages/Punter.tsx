@@ -52,6 +52,7 @@ interface PunterSignal {
     thesis: string;
     analysis: string;
     risk_factors: string;
+    simulated_odds?: boolean;
   };
 }
 
@@ -233,7 +234,7 @@ export default function PunterPage() {
     if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
 
     // Check if Hórus already bet on this match
     const { data: existingBets } = await supabase
@@ -842,6 +843,11 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <span className="font-mono text-xs text-muted-foreground">{gradeConfig.label}</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {signal.recommendation.simulated_odds && (
+              <span className="text-[10px] font-mono text-warning bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded">
+                ⚠️ ODDS SIMULADAS
+              </span>
+            )}
             {isNew && (
               <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
             )}
