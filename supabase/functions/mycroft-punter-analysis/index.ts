@@ -1330,7 +1330,11 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
 
-      return analysis
+      // Persist detector results with model probability from AI
+      const modelProb = analysis.estimated_probability || null
+      const marketProb = analysis.implied_probability || (analysis.odd ? (1 / analysis.odd) * 100 : 0)
+      const finalDetectors = computeMarketDetectors(oddsData, totalsData, modelProb, analysis.market)
+      await persistDetectors(supabaseClient, matchId, analysis.market || 'h2h', finalDetectors, modelProb, marketProb)
     } catch (parseErr: any) {
       if (attempt < maxRetries - 1) {
         const isRateLimit = parseErr?.message?.includes('429')
