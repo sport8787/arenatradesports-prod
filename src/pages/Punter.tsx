@@ -234,7 +234,7 @@ export default function PunterPage() {
     if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
 
     // Check if Hórus already bet on this match
     const { data: existingBets } = await supabase
