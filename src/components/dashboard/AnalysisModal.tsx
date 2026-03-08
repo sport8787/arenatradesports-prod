@@ -26,19 +26,30 @@ const verdictConfig: Record<string, { icon: string; bg: string; text: string; gl
   AGUARDAR: { icon: '⏸️', bg: 'bg-warning', text: 'text-warning-foreground', glow: 'shadow-[0_0_30px_hsl(38_92%_50%/0.5)]' },
 };
 
+interface BankrollProps {
+  balance: number;
+  recommendedStake: number;
+  placeBet: (analysis: { id: string; match_id: string; market: string; odd: number; home_team?: string; away_team?: string }) => Promise<{ success: boolean; error?: string; stake?: number }>;
+  dismissBet?: () => Promise<any>;
+}
+
 interface AnalysisModalProps {
   match: Match | null;
   analysis: MycroftAnalysisData | null;
   isOpen: boolean;
   onClose: () => void;
+  bankrollProps?: BankrollProps;
+  matchStats?: { attacks_home?: number; attacks_away?: number; xG_home?: number; xG_away?: number; possession_home?: number; possession_away?: number; shots_home?: number; shots_away?: number } | null;
 }
 
-export default function AnalysisModal({ match, analysis, isOpen, onClose }: AnalysisModalProps) {
+export default function AnalysisModal({ match, analysis, isOpen, onClose, bankrollProps, matchStats }: AnalysisModalProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const { recordAction } = useSignalHistory();
-  const { bankroll, placeBet, dismissBet, recommendedStake } = useBankroll();
   const [placing, setPlacing] = useState(false);
+
+  const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
+  const recommendedStake = bankrollProps?.recommendedStake ?? 0;
 
   if (!match) return null;
 
