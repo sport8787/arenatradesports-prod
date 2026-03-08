@@ -363,14 +363,15 @@ export default function BetHistoryPage() {
   }, [leagueFiltered, filter]);
 
   const stats = useMemo(() => {
-    const settled = bets.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
+    const src = leagueFiltered;
+    const settled = src.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
     const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
     const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
-    const pending = bets.filter(b => b.status === 'pending');
+    const pending = src.filter(b => b.status === 'pending');
     const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
     return {
-      total: bets.length,
+      total: src.length,
       greens: greens.length,
       reds: reds.length,
       pending: pending.length,
@@ -378,7 +379,7 @@ export default function BetHistoryPage() {
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
-  }, [bets]);
+  }, [leagueFiltered]);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
