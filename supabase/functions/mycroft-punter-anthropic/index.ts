@@ -952,6 +952,11 @@ async function analyzeGame(
   const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
   const predictionsBlock = formatPredictionsBlock(enriched.predictions)
 
+  // ── Market Manipulation & Sharp Money Detection ──
+  const detectors = computeMarketDetectors(oddsData, totalsData, null, null)
+  const detectorsBlock = formatDetectorsBlock(detectors)
+  console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(detectors.mis*100).toFixed(1)}%, Sharp=${detectors.sharp.activity_score}/100`)
+
   const dataStrengthLabel = enriched.model_level === 'NIVEL_1' ? 'ALTA (stats completas + H2H + lesões + previsões)'
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
