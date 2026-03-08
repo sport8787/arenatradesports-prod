@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3, Settings, Target, Clock, TrendingUp, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, Settings, Target, Clock, TrendingUp, Sparkles, Zap, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -7,7 +7,7 @@ import PerformanceGap from '@/components/punter/PerformanceGap';
 import MissedOpportunities from '@/components/punter/MissedOpportunities';
 import PerformanceByTime from '@/components/punter/PerformanceByTime';
 import HorusConfig from '@/components/punter/HorusConfig';
-import ComingSoonModule from '@/components/punter/ComingSoonModule';
+import MarketDetectorsPanel from '@/components/punter/MarketDetectorsPanel';
 
 export default function PunterAnalytics() {
   const navigate = useNavigate();
@@ -35,6 +35,12 @@ export default function PunterAnalytics() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Market Manipulation Detector */}
+        <section>
+          <SectionHeader icon={<AlertTriangle className="w-3.5 h-3.5" />} label="MARKET MANIPULATION DETECTOR" />
+          <MarketDetectorsPanel />
+        </section>
+
         {/* Comparativo Hórus vs Manual */}
         {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
           <section>
@@ -66,31 +72,6 @@ export default function PunterAnalytics() {
             <HorusConfig userId={user.id} />
           </section>
         )}
-
-        {/* Em Breve */}
-        <section>
-          <SectionHeader icon={<Sparkles className="w-3.5 h-3.5" />} label="EM BREVE" />
-          <div className="grid md:grid-cols-2 gap-4">
-            <ComingSoonModule
-              title="Market Manipulation Detector"
-              description="Detecta quando o mercado está precificando errado e identifica oportunidades escondidas."
-              features={[
-                'Market Inefficiency Score (MIS)',
-                'Odds Drift Detection',
-                'Value hidden detection',
-              ]}
-            />
-            <ComingSoonModule
-              title="Sharp Money Detector"
-              description="Identifica movimentos de dinheiro inteligente e reverse line movements."
-              features={[
-                'Reverse Line Movement (RLM)',
-                'Steam Move Detection',
-                'Sharp Activity Score 0-100',
-              ]}
-            />
-          </div>
-        </section>
       </div>
     </div>
   );
