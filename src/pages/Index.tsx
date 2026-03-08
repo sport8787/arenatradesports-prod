@@ -578,6 +578,7 @@ export default function Index() {
           transition={{ delay: 0.05 }}
           className="text-center mt-4 mb-2"
         >
+          <img src={logoOraculo} alt="Oráculo Mycroft" className="h-16 w-auto mx-auto mb-1" />
           <h1 className="font-orbitron text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent">
             Oráculo Mycroft
           </h1>
