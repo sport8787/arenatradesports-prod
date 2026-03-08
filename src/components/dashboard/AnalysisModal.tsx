@@ -65,7 +65,8 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     ev?: string;
   } | null;
 
-  const stats = analysis?.fundamentation as {
+  // Use matchStats prop (from live_matches.stats) if available, otherwise try fundamentation as fallback
+  const stats = matchStats || (typeof analysis?.fundamentation === 'object' ? analysis?.fundamentation as {
     attacks_home?: number;
     attacks_away?: number;
     xG_home?: number;
@@ -74,7 +75,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     possession_away?: number;
     shots_home?: number;
     shots_away?: number;
-  } | null;
+  } : null);
 
   const handleCopy = () => {
     if (!risk?.entry) return;
