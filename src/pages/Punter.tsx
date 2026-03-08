@@ -24,7 +24,7 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
-import ComingSoonModule from '@/components/punter/ComingSoonModule';
+
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
