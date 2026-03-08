@@ -35,8 +35,10 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
   const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
 
-  const horusWinRate = horus.total_bets ? ((horus.green_bets || 0) / horus.total_bets * 100) : 0;
-  const manualWinRate = manual.total_bets ? ((manual.green_bets || 0) / manual.total_bets * 100) : 0;
+  const horusSettled = (horus.green_bets || 0) + (horus.red_bets || 0);
+  const manualSettled = (manual.green_bets || 0) + (manual.red_bets || 0);
+  const horusWinRate = horusSettled > 0 ? ((horus.green_bets || 0) / horusSettled * 100) : 0;
+  const manualWinRate = manualSettled > 0 ? ((manual.green_bets || 0) / manualSettled * 100) : 0;
 
   const performanceGap = horusBankReturn - manualBankReturn;
 
