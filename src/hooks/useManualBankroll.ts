@@ -103,6 +103,7 @@ export function useManualBankroll() {
         stake: params.stake,
         status: 'pending',
         thesis: params.thesis || null,
+        commence_time: params.commence_time || null,
       });
 
     if (betError) return { success: false, error: betError.message };
