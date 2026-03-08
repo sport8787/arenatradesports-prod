@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface PunterSignal {
   match: {
