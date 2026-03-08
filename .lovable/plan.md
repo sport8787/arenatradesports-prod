@@ -22,6 +22,16 @@
 | Tabela `model_performance` | ✅ | Campos: roi, win_rate, profit, avg_edge, avg_odd |
 | Tabela `punter_rankings` | ✅ | Ranking global com ROI, sharpe_ratio, profit_factor, max_drawdown |
 | Tabela `daily_summaries` | ✅ | Resumos diários por usuário |
+| Tabela `arena_matches` | ✅ | **CRIADA** - Sprint 1: partidas com xG, stats, resultado |
+| Tabela `arena_odds` | ✅ | **CRIADA** - Sprint 1: odds por bookmaker com open/close/current |
+| Tabela `arena_patterns` | ✅ | **CRIADA** - Sprint 1: padrões lucrativos por liga/mercado |
+| Tabela `bets_history` | ✅ | **CRIADA** - Sprint 1: histórico unificado com CLV, asset_score, source |
+| Tabela `market_analysis` (MIS/ODI) | ✅ | Campos: prob_model, prob_market, market_inefficiency_score, odds_drift_index |
+| Tabela `sharp_money_signals` | ✅ | Campos: has_rlm, has_steam, has_consensus, sharp_activity_score |
+| Tabela `bet_correlations` | ✅ | Campos: market_a, market_b, correlation_coefficient |
+| Tabela `model_performance` | ✅ | Campos: roi, win_rate, profit, avg_edge, avg_odd |
+| Tabela `punter_rankings` | ✅ | Ranking global com ROI, sharpe_ratio, profit_factor, max_drawdown |
+| Tabela `daily_summaries` | ✅ | Resumos diários por usuário |
 | Tabela `arena_matches` (histórico estruturado de partidas) | ❌ | Não existe. Falta tabela centralizada de partidas com season, xG, stats |
 | Tabela `arena_odds` (histórico de odds por bookmaker) | ❌ | Não existe. Crucial para CLV, odds drift histórico |
 | Tabela `arena_patterns` (Pattern Mining) | ❌ | Não existe. Necessária para Pattern Mining Engine |
