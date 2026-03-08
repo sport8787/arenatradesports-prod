@@ -253,6 +253,7 @@ export default function PunterPage() {
         stake: stake,
         status: 'pending',
         thesis: signal.recommendation.thesis || null,
+        commence_time: signal.match.commence_time || null,
       } as any);
 
     if (betError) return false;
@@ -392,6 +393,7 @@ export default function PunterPage() {
       odd: signal.recommendation.odd,
       stake: customStake,
       thesis: signal.recommendation.thesis,
+      commence_time: signal.match.commence_time || undefined,
     });
 
     if (!result.success) {
