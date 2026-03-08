@@ -424,10 +424,16 @@ export default function BetHistoryPage() {
               Posições do Hórus
             </h1>
           </div>
-          <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
-            <CheckCircle2 className={cn("w-4 h-4 mr-1", settling && "animate-spin")} />
-            {settling ? 'Liquidando...' : 'Liquidar Auto'}
-          </GoldButton>
+          <div className="flex items-center gap-2">
+            <GoldButton size="sm" onClick={() => setImportOpen(true)}>
+              <Download className="w-4 h-4 mr-1" />
+              Importar
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
+              <CheckCircle2 className={cn("w-4 h-4 mr-1", settling && "animate-spin")} />
+              {settling ? 'Liquidando...' : 'Liquidar Auto'}
+            </GoldButton>
+          </div>
         </div>
       </header>
 
