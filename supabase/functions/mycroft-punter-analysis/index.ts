@@ -1280,8 +1280,13 @@ VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acim
 
 ${detectorsBlock}
 
+${game.simulated_odds ? `
+⚠️ ATENÇÃO: ODDS SIMULADAS (Modelo Poisson)
+As odds abaixo são estimativas simuladas pelo modelo matemático, NÃO odds reais de mercado.
+Inclua "ODDS SIMULADAS" no risk_factors da análise.
+` : ''}
 ═══════════════════════════════════════
-ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
+ODDS DISPONÍVEIS (${game.simulated_odds ? 'SIMULADAS - Modelo Poisson' : 'The Odds API'} - Mercado H2H)
 ═══════════════════════════════════════
 ${oddsData.map((o: any) => `
 ${o.bookmaker}:
