@@ -32,6 +32,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
+import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 
 interface PunterSignal {
   match: {
@@ -83,6 +84,10 @@ export default function PunterPage() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
+  
+  // Cached odds - loaded from daily cron (no API call on user access)
+  const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
+  const ANALYSIS_NT_COST = 50; // NT cost per analysis run
 
   // Set of pending bet match keys for "NOVO" badge
   const pendingMatchKeys = useMemo(() => {
@@ -282,6 +287,25 @@ export default function PunterPage() {
       setError('Você precisa estar logado para analisar jogos');
       return;
     }
+
+    // Charge NT for analysis
+    const ntBalance = profile?.nt_balance || 0;
+    if (ntBalance < ANALYSIS_NT_COST) {
+      toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${ntBalance} NT`);
+      return;
+    }
+
+    // Deduct NT
+    const { data: spentOk, error: spendErr } = await supabase.rpc('spend_nt_balance', {
+      p_user_id: user.id,
+      p_amount: ANALYSIS_NT_COST,
+    });
+    if (spendErr || spentOk === false) {
+      toast.error('Falha ao debitar NT. Tente novamente.');
+      return;
+    }
+    toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise`);
+
     setLoading(true);
     setError(null);
 
@@ -567,9 +591,28 @@ export default function PunterPage() {
               {loading ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
               ) : (
-                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO ({ANALYSIS_NT_COST} NT)</>
               )}
             </GoldButton>
+
+            {/* Cached games info */}
+            {!cachedLoading && cachedGames.length > 0 && (
+              <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border border-border/50 rounded px-2.5 py-1.5 bg-muted/20">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                  <span>{cachedGames.length} jogos em cache</span>
+                </div>
+                {lastFetched && (
+                  <span>Atualizado: {new Date(lastFetched).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+              </div>
+            )}
+            {!cachedLoading && cacheEmpty && (
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-yellow-400 border border-yellow-400/30 rounded px-2.5 py-1.5 bg-yellow-400/5">
+                <AlertCircle className="w-3 h-3" />
+                <span>Cache vazio — a próxima atualização automática é às 06:00 BRT</span>
+              </div>
+            )}
 
             {totalAnalyzed > 0 && !loading && (
               <div className="flex gap-4 text-xs font-mono border-t border-border pt-3">
@@ -695,12 +738,68 @@ export default function PunterPage() {
         )}
 
         {!loading && signals.length === 0 && totalAnalyzed === 0 && (
-          <div className="border border-dashed border-border rounded-lg p-8 text-center">
-            <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
-            <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
-              Clique em "Analisar Mercado" para identificar oportunidades de value betting.
-            </p>
+          <div className="space-y-4">
+            {/* Cached Games Preview */}
+            {cachedGames.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                    JOGOS DISPONÍVEIS ({cachedGames.length})
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    Cache automático — clique "Analisar" para IA
+                  </span>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden divide-y divide-border max-h-[400px] overflow-y-auto">
+                  {cachedGames.slice(0, 30).map((game) => {
+                    const commenceDate = new Date(game.commence_time);
+                    const isToday = commenceDate.toDateString() === new Date().toDateString();
+                    const bookmakerCount = game.bookmakers?.length || 0;
+                    return (
+                      <div key={game.id} className="p-2.5 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn("w-1 h-8 rounded-full", game.simulated_odds ? "bg-yellow-500/50" : "bg-success/50")} />
+                          <div>
+                            <p className="font-mono text-xs font-medium text-foreground">
+                              {game.home_team} vs {game.away_team}
+                            </p>
+                            <p className="font-mono text-[10px] text-muted-foreground">
+                              {game.sport_key.replace('soccer_', '').replace(/_/g, ' ')}
+                              {game.simulated_odds && <span className="ml-1 text-yellow-500">(odds simuladas)</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-[10px] text-foreground">
+                            {isToday ? 'Hoje' : commenceDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            {' '}
+                            {commenceDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            {bookmakerCount} casa{bookmakerCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {cachedGames.length > 30 && (
+                    <div className="p-2 text-center text-[10px] font-mono text-muted-foreground">
+                      + {cachedGames.length - 30} jogos adicionais
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {cachedGames.length === 0 && (
+              <div className="border border-dashed border-border rounded-lg p-8 text-center">
+                <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
+                <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
+                  Clique em "Analisar Mercado" para identificar oportunidades de value betting ({ANALYSIS_NT_COST} NT).
+                </p>
+              </div>
+            )}
           </div>
         )}
 

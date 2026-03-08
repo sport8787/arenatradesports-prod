@@ -47,6 +47,8 @@ verify_jwt = false
 
 [functions.market-manipulation-detector]
 verify_jwt = false
-
 [functions.sharp-money-detector]
+verify_jwt = false
+
+[functions.fetch-daily-odds]
 verify_jwt = false
