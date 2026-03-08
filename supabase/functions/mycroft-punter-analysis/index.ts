@@ -1173,6 +1173,8 @@ VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acim
 - Se DIVERGIREM → sinalize no risk_factors e reduza confiança -5%
 ` : ''}
 
+${detectorsBlock}
+
 ═══════════════════════════════════════
 ODDS DISPONÍVEIS (The Odds API - Mercado H2H)
 ═══════════════════════════════════════
