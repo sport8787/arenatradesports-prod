@@ -71,11 +71,11 @@ export default function CLVPanel() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[10px] text-muted-foreground">Win Rate (CLV+)</p>
-                  <p className="text-sm font-mono font-bold text-green-400">{report.clv_accuracy.positive_clv_win_rate.toFixed(0)}%</p>
+                  <p className="text-sm font-mono font-bold text-green-400">{(report.clv_accuracy.positive_clv_win_rate ?? 0).toFixed(0)}%</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground">Win Rate (CLV-)</p>
-                  <p className="text-sm font-mono font-bold text-red-400">{report.clv_accuracy.negative_clv_win_rate.toFixed(0)}%</p>
+                  <p className="text-sm font-mono font-bold text-red-400">{(report.clv_accuracy.negative_clv_win_rate ?? 0).toFixed(0)}%</p>
                 </div>
               </div>
             </div>
