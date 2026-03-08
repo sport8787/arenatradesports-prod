@@ -106,17 +106,33 @@ serve(async (req) => {
     let riskScore: number;
     const uniqueMatches = new Set(bets.map((b: any) => b.match_id)).size;
     const uniqueLeagues = new Set(bets.map((b: any) => b.league).filter(Boolean)).size;
+    const uniqueMarkets = new Set(bets.map((b: any) => b.market).filter(Boolean)).size;
     const diversificationScore = Math.min(100, (uniqueMatches / Math.max(1, bets.length)) * 50 + (uniqueLeagues / Math.max(1, bets.length)) * 50);
 
-    if (exposurePct > 30 || adjustments.length > 3) {
+    let totalClv = 0;
+    let clvCount = 0;
+    let maxStakePct = 0;
+    
+    bets.forEach((b: any) => {
+      if (b.clv !== undefined && b.clv !== null) {
+         totalClv += b.clv;
+         clvCount++;
+      }
+      const stakePct = b.stake_percentage || ((b.stake || 0) / bankrollAmount * 100);
+      if (stakePct > maxStakePct) maxStakePct = stakePct;
+    });
+    
+    const avgClv = clvCount > 0 ? totalClv / clvCount : 0;
+
+    if (adjustments.length > 3) {
       riskLevel = "high";
-      riskScore = Math.min(100, exposurePct + adjustments.length * 10);
-    } else if (exposurePct > 15 || adjustments.length > 1) {
+      riskScore = Math.min(100, 50 + adjustments.length * 10);
+    } else if (adjustments.length > 1) {
       riskLevel = "medium";
-      riskScore = exposurePct + adjustments.length * 5;
+      riskScore = 30 + adjustments.length * 5;
     } else {
       riskLevel = "low";
-      riskScore = exposurePct;
+      riskScore = maxStakePct;
     }
 
     // 6. Max exposure guard
@@ -137,9 +153,12 @@ serve(async (req) => {
         diversification_score: Math.round(diversificationScore),
         unique_matches: uniqueMatches,
         unique_leagues: uniqueLeagues,
+        unique_markets: uniqueMarkets,
+        avg_clv: avgClv,
+        max_stake_pct: maxStakePct,
         global_reduction_pct: globalReduction,
         adjustments,
-        recommendations: generateRecommendations(riskLevel, exposurePct, diversificationScore, adjustments.length),
+        recommendations: [],
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

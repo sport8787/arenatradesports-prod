@@ -90,34 +90,103 @@ export default function PortfolioPanel() {
             <Stat label="Exposição" value={`${portfolio.exposure_pct.toFixed(1)}%`} />
           </div>
 
-          {/* Adjustments */}
-          {portfolio.adjustments.length > 0 && (
-            <div>
-              <p className="text-[10px] font-mono text-muted-foreground mb-2">⚠️ AJUSTES SUGERIDOS</p>
-              <div className="space-y-1.5">
-                {portfolio.adjustments.slice(0, 5).map((adj, i) => (
-                  <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg px-3 py-2 border border-border">
-                    <span className="text-[10px] font-mono text-foreground">{adj.market}</span>
-                    <span className="text-[10px] font-mono text-orange-400">
-                      R${adj.original_stake.toFixed(0)} → R${adj.adjusted_stake.toFixed(0)} ({adj.reduction_pct.toFixed(0)}%)
-                    </span>
-                  </div>
-                ))}
+          {/* Alertas Contextuais Inteligentes */}
+          <div className="space-y-3 mt-4 border-t border-border/50 pt-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-foreground font-bold">
+                <span>✅</span>
+                <span>{portfolio.total_bets} POSIÇÕES ABERTAS (jogos futuros)</span>
+              </div>
+              <div className="flex items-start gap-1.5 text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2">
+                <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
+                <span className="leading-tight">Exposição {portfolio.exposure_pct.toFixed(0)}% é normal para apostas antecipadas</span>
               </div>
             </div>
-          )}
 
-          {/* Recommendations */}
-          {portfolio.recommendations.length > 0 && (
             <div className="space-y-1">
-              {portfolio.recommendations.map((rec, i) => (
-                <div key={i} className="flex items-start gap-2 text-[10px] font-mono text-muted-foreground">
-                  <AlertCircle className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-                  <span>{rec}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-foreground font-bold">
+                <span>💡</span>
+                <span>CLV MÉDIO: {(portfolio.avg_clv || 0) > 0 ? '+' : ''}{(portfolio.avg_clv || 0).toFixed(2)}%</span>
+              </div>
+              <div className="flex flex-col text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2 gap-1">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">├─</span>
+                  <span className="leading-tight">Você está entrando cedo (sharps fazem isso!)</span>
                 </div>
-              ))}
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
+                  <span className="leading-tight">Odd média {(portfolio.avg_clv || 0) >= 0 ? 'melhorou' : 'piorou'} {(portfolio.avg_clv || 0) > 0 ? '+' : ''}{(portfolio.avg_clv || 0).toFixed(2)}% desde sua entrada</span>
+                </div>
+              </div>
             </div>
-          )}
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-foreground font-bold">
+                <span>📊</span>
+                <span>DIVERSIFICAÇÃO: {portfolio.diversification_score}%</span>
+              </div>
+              <div className="flex flex-col text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2 gap-1">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">├─</span>
+                  <span className="leading-tight">{portfolio.unique_leagues} ligas diferentes ✅</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">├─</span>
+                  <span className="leading-tight">{portfolio.unique_markets || 1} mercados variados ✅</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
+                  <span className="leading-tight">{portfolio.unique_leagues < 4 ? 'Considere adicionar mais ligas' : 'Ótima distribuição de risco'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-foreground font-bold">
+                <span>ℹ️</span>
+                <span>RISCO INDIVIDUAL: {(portfolio.max_stake_pct || 0) > 5 ? 'Atenção' : 'Baixo'}</span>
+              </div>
+              <div className="flex flex-col text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2 gap-1">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">├─</span>
+                  <span className="leading-tight">Cada aposta usa gestão de banca</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
+                  <span className="leading-tight">Maior stake: {(portfolio.max_stake_pct || 0).toFixed(1)}% {(portfolio.max_stake_pct || 0) > 5 ? '(alto)' : '(dentro do seguro)'}</span>
+                </div>
+              </div>
+            </div>
+
+            {portfolio.adjustments.length > 0 && (
+              <div className="space-y-1 mt-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-orange-400 font-bold">
+                  <span>⚠️</span>
+                  <span>ALERTA REAL: Correlação Detectada</span>
+                </div>
+                <div className="flex flex-col text-[10px] font-mono text-orange-400/80 ml-1.5 border-l border-orange-400/30 pl-2 gap-1">
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-orange-400/50 leading-none mt-0.5">├─</span>
+                    <span className="leading-tight">{portfolio.adjustments.length} aposta(s) com conflito/correlação no mesmo jogo</span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-orange-400/50 leading-none mt-0.5">└─</span>
+                    <span className="leading-tight">Stakes reduzidas automaticamente:</span>
+                  </div>
+                  <div className="space-y-1 mt-1 pr-2">
+                    {portfolio.adjustments.slice(0, 3).map((adj, i) => (
+                      <div key={i} className="flex items-center justify-between bg-orange-400/10 rounded px-2 py-1">
+                        <span className="text-[9px] font-mono">{adj.market}</span>
+                        <span className="text-[9px] font-mono">
+                          R${adj.original_stake.toFixed(0)} → R${adj.adjusted_stake.toFixed(0)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
     </div>

@@ -20,6 +20,9 @@ export interface PortfolioAnalysis {
   diversification_score: number;
   unique_matches: number;
   unique_leagues: number;
+  unique_markets?: number;
+  avg_clv?: number;
+  max_stake_pct?: number;
   global_reduction_pct: number;
   adjustments: PortfolioAdjustment[];
   recommendations: string[];
