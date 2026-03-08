@@ -8,9 +8,10 @@ import type { ManualBankroll } from '@/hooks/useManualBankroll';
 interface PerformanceGapProps {
   horus: Bankroll;
   manual: ManualBankroll;
+  username?: string;
 }
 
-export default function PerformanceGap({ horus, manual }: PerformanceGapProps) {
+export default function PerformanceGap({ horus, manual, username = 'Manual' }: PerformanceGapProps) {
   const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
   const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
   const roiGap = horusROI - manualROI;
