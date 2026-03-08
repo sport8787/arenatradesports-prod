@@ -74,7 +74,7 @@ export function useSubscription() {
 
   return {
     subscription,
-    loading,
+    loading: loading || adminLoading,
     daysLeft,
     isTrialActive,
     isTrialExpired,
