@@ -3,34 +3,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trophy } from 'lucide-react';
 
 interface LeagueFilterProps {
-  bets: { match_name: string }[];
+  bets: { league?: string }[];
   value: string;
   onChange: (v: string) => void;
 }
 
-/** Extracts a rough "league" from match_name patterns or returns the team pair */
-function extractLeagueHint(matchName: string): string {
-  // Common pattern: "Team A vs Team B" — we group by first word similarity
-  // But if there's a league prefix like "PL: Team A vs Team B", use it
-  const colonIdx = matchName.indexOf(':');
-  if (colonIdx > 0 && colonIdx < 20) {
-    return matchName.slice(0, colonIdx).trim();
-  }
-  return 'Geral';
+/** Normalizes league name for display */
+function normalizeLeague(raw: string): string {
+  if (!raw) return 'Outros';
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/^soccer\s*/i, '')
+    .trim() || 'Outros';
+}
+
+/** Extracts league from bet — uses league field or falls back to 'Outros' */
+export function extractLeague(bet: { league?: string }): string {
+  return bet.league ? normalizeLeague(bet.league) : 'Outros';
 }
 
 export default function LeagueFilter({ bets, value, onChange }: LeagueFilterProps) {
   const leagues = useMemo(() => {
     const set = new Set<string>();
-    bets.forEach(b => set.add(extractLeagueHint(b.match_name)));
+    bets.forEach(b => set.add(extractLeague(b)));
     return ['all', ...Array.from(set).sort()];
   }, [bets]);
 
-  if (leagues.length <= 2) return null; // Only "all" + 1 league = no point filtering
+  if (leagues.length <= 2) return null;
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[180px] h-8 text-xs font-orbitron bg-secondary/30 border-border">
+      <SelectTrigger className="w-[200px] h-8 text-xs font-orbitron bg-secondary/30 border-border">
         <Trophy className="w-3.5 h-3.5 mr-1.5 text-primary" />
         <SelectValue placeholder="Liga" />
       </SelectTrigger>
@@ -43,5 +46,3 @@ export default function LeagueFilter({ bets, value, onChange }: LeagueFilterProp
     </Select>
   );
 }
-
-export { extractLeagueHint };
