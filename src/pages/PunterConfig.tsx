@@ -1,7 +1,8 @@
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, Settings, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
+import BetfairConfig from '@/components/punter/BetfairConfig';
 
 export default function PunterConfig() {
   const navigate = useNavigate();
@@ -17,15 +18,29 @@ export default function PunterConfig() {
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-primary" />
             <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
-              CONFIGURAÇÕES DO HÓRUS
+              CONFIGURAÇÕES
             </h1>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-5 space-y-5 max-w-2xl">
+      <div className="container mx-auto px-4 py-5 space-y-6 max-w-2xl">
         {user ? (
-          <HorusConfig userId={user.id} />
+          <>
+            <section className="space-y-2">
+              <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                <Link2 className="w-3.5 h-3.5" /> Conexões
+              </h2>
+              <BetfairConfig userId={user.id} />
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                <Settings className="w-3.5 h-3.5" /> Alertas do Hórus
+              </h2>
+              <HorusConfig userId={user.id} />
+            </section>
+          </>
         ) : (
           <p className="text-muted-foreground text-sm text-center py-8">Faça login para acessar as configurações.</p>
         )}

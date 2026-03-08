@@ -147,7 +147,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full",
-              isConnected ? "bg-green-500" : "bg-muted-foreground"
+              isConnected ? "bg-success" : "bg-muted-foreground"
             )} />
             <h3 className="font-mono text-sm font-semibold text-foreground">
               BETFAIR EXCHANGE
