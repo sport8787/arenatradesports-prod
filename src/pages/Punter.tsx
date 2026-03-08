@@ -84,6 +84,10 @@ export default function PunterPage() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
+  
+  // Cached odds - loaded from daily cron (no API call on user access)
+  const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
+  const ANALYSIS_NT_COST = 50; // NT cost per analysis run
 
   // Set of pending bet match keys for "NOVO" badge
   const pendingMatchKeys = useMemo(() => {
