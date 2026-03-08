@@ -172,7 +172,6 @@ export default function HorusTraderVoice({ message, muted }: HorusTraderVoicePro
     </AnimatePresence>
   );
 }
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
