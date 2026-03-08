@@ -96,9 +96,9 @@
 | Item | Status | Detalhes |
 |------|--------|---------|
 | Component `PerformanceCertificate` | ✅ | Existe |
-| Métricas (ROI, drawdown, sharpe, profit factor) | ⚠️ | Parcial, depende dos dados populados |
-| Compartilhamento social (Instagram, Twitter, WhatsApp) | ❌ | Não implementado |
-| Gráfico de crescimento da banca | ❌ | Não implementado no certificado |
+| Métricas (ROI, drawdown, sharpe, profit factor) | ✅ | **SPRINT 3** - Sharpe Ratio adicionado, todas métricas funcionais |
+| Compartilhamento social (Instagram, Twitter, WhatsApp) | ✅ | **SPRINT 3** - Web Share API (nativo) + Twitter + WhatsApp + Copiar |
+| Gráfico de crescimento da banca | ✅ | **SPRINT 3** - AreaChart com dados de bets_history |
 
 ---
 
@@ -108,7 +108,7 @@
 |------|--------|---------|
 | Component `BacktestPanel` | ✅ | Existe |
 | Edge Function `mycroft-punter-backtest` | ✅ | Existe |
-| Integração com dados históricos reais | ❌ | Sem tabela arena_matches/arena_odds |
+| Integração com dados históricos reais | ⚠️ | Tabelas arena_matches/arena_odds criadas na Sprint 1, falta integrar no backtest |
 | Exibição ROI/greens/reds/drawdown simulado | ⚠️ | Parcial |
 
 ---
@@ -117,9 +117,9 @@
 
 | Item | Status | Detalhes |
 |------|--------|---------|
-| Engine de simulação 10k runs | ❌ | Não implementado |
-| Risco de ruína, drawdown médio, ROI esperado | ❌ | Não implementado |
-| Visualização gráfica | ❌ | Não implementado |
+| Engine de simulação 10k runs | ✅ | **SPRINT 3** - Edge Function `monte-carlo-simulation` com 10k runs |
+| Risco de ruína, drawdown médio, ROI esperado | ✅ | **SPRINT 3** - Percentis P5-P95, ruin_probability, profit_probability |
+| Visualização gráfica | ✅ | **SPRINT 3** - 5 growth curves amostradas + serviço frontend |
 
 ---
 
