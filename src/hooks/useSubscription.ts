@@ -69,8 +69,8 @@ export function useSubscription() {
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaid = subscription?.plan === 'base' || subscription?.plan === 'premium';
-  // Temporarily grant access to all users regardless of subscription status
-  const hasAccess = true;
+  // Admins have lifetime access; others check subscription
+  const hasAccess = isAdmin || isPaid || isTrialActive;
 
   return {
     subscription,
