@@ -55,7 +55,9 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
 
   const vc = analysis ? verdictConfig[analysis.verdict] || verdictConfig['AGUARDAR'] : null;
 
-  const risk = analysis?.risk_management as {
+  // risk_management can be JSON object or plain text
+  const riskRaw = analysis?.risk_management;
+  const risk = (riskRaw && typeof riskRaw === 'object' && !Array.isArray(riskRaw)) ? riskRaw as {
     stake_percent?: number;
     stake_value?: number;
     entry?: string;
@@ -63,10 +65,14 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     target?: string;
     rr?: string;
     ev?: string;
-  } | null;
+  } : null;
+  const riskText = (typeof riskRaw === 'string') ? riskRaw : null;
 
-  // Use matchStats prop (from live_matches.stats) if available, otherwise try fundamentation as fallback
-  const stats = matchStats || (typeof analysis?.fundamentation === 'object' ? analysis?.fundamentation as {
+  // Stats: prefer matchStats prop, then fundamentation if it's a JSON object with stats
+  const fundRaw = analysis?.fundamentation;
+  const fundObj = (fundRaw && typeof fundRaw === 'object' && !Array.isArray(fundRaw)) ? fundRaw as Record<string, any> : null;
+  const statsFromFund = fundObj?.stats || (fundObj?.attacks_home != null ? fundObj : null);
+  const stats = matchStats || statsFromFund as {
     attacks_home?: number;
     attacks_away?: number;
     xG_home?: number;
@@ -75,7 +81,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     possession_away?: number;
     shots_home?: number;
     shots_away?: number;
-  } : null);
+  } | null;
 
   const handleCopy = () => {
     if (!risk?.entry) return;
