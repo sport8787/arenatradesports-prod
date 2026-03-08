@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
+import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
 
 const nicknameSchema = z.string().min(3, 'Mínimo 3 caracteres').max(20, 'Máximo 20 caracteres');
 
@@ -577,6 +578,7 @@ export default function Index() {
           transition={{ delay: 0.05 }}
           className="text-center mt-4 mb-2"
         >
+          <img src={logoOraculo} alt="Oráculo Mycroft" className="h-16 w-auto mx-auto mb-1" />
           <h1 className="font-orbitron text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent">
             Oráculo Mycroft
           </h1>
