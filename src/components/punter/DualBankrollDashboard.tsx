@@ -18,6 +18,7 @@ interface DualBankrollDashboardProps {
 }
 
 export default function DualBankrollDashboard({ horus, manual, horusPendingBets = [], manualPendingBets = [], onUpdateHorusBalance, onUpdateManualBalance }: DualBankrollDashboardProps) {
+  const navigate = useNavigate();
   const [settingsTarget, setSettingsTarget] = useState<'horus' | 'manual' | null>(null);
 
   const horusExposure = horusPendingBets.reduce((sum, b) => sum + (parseFloat(b.stake) || 0), 0);
