@@ -843,6 +843,11 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <span className="font-mono text-xs text-muted-foreground">{gradeConfig.label}</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {signal.recommendation.simulated_odds && (
+              <span className="text-[10px] font-mono text-warning bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded">
+                ⚠️ ODDS SIMULADAS
+              </span>
+            )}
             {isNew && (
               <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
             )}
