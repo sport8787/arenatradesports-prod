@@ -15,6 +15,7 @@ interface MonteCarloInput {
   num_bets: number;         // bets to simulate (e.g. 500)
   num_simulations?: number; // default 10000
   ruin_threshold_pct?: number; // % of bankroll = ruin (default 10 = 10% of initial)
+  max_stake_amount?: number; // absolute max stake cap (e.g. 50000) - realistic bookmaker limits
 }
 
 interface MonteCarloOutput {
