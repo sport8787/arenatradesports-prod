@@ -11,6 +11,7 @@ import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet
 import LeagueFilter, { extractLeague } from '@/components/bet-history/LeagueFilter';
 import PendingDateSort, { PendingSortOption } from '@/components/bet-history/PendingDateSort';
 import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
+import AdvancedFilters from '@/components/bet-history/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
