@@ -8,6 +8,7 @@ export interface MonteCarloInput {
   numBets: number;          // e.g. 500
   numSimulations?: number;  // default 10000
   ruinThresholdPct?: number; // default 10
+  maxStakeAmount?: number;  // default 50000 - bookmaker limit cap
 }
 
 export interface MonteCarloResult {
@@ -35,6 +36,7 @@ export async function runMonteCarloSimulation(input: MonteCarloInput): Promise<M
       num_bets: input.numBets,
       num_simulations: input.numSimulations || 10000,
       ruin_threshold_pct: input.ruinThresholdPct || 10,
+      max_stake_amount: input.maxStakeAmount || 50000,
     },
   });
 

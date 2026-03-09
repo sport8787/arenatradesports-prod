@@ -116,11 +116,12 @@ interface Props {
 }
 
 export default function BacktestPanel({ onClose }: Props) {
+  const MAX_STAKE_CAP = 50000; // Realistic bookmaker limit
   const formatCurrency = (value: number) => {
-    if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
-    if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-    if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-    return value.toFixed(0);
+    if (Math.abs(value) >= 1e9) return `R$ ${(value / 1e9).toFixed(1)}B`;
+    if (Math.abs(value) >= 1e6) return `R$ ${(value / 1e6).toFixed(1)}M`;
+    if (Math.abs(value) >= 1e3) return `R$ ${(value / 1e3).toFixed(1)}K`;
+    return `R$ ${value.toFixed(0)}`;
   };
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
@@ -161,7 +162,7 @@ export default function BacktestPanel({ onClose }: Props) {
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
-        body: { leagues: selectedLeagues, season, initial_bankroll: 10000 }
+        body: { leagues: selectedLeagues, season, initial_bankroll: 10000, max_stake_amount: MAX_STAKE_CAP }
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
@@ -245,7 +246,8 @@ export default function BacktestPanel({ onClose }: Props) {
 
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
               <p><strong className="text-accent">Pipeline:</strong> Backtest No-Lookahead + Monte Carlo (10.000 simulações)</p>
-              <p className="mt-1">Banca: R$ 10.000 | Stake: conforme Tiers do prompt | Critérios: prompt_mycroft_punter.txt</p>
+              <p className="mt-1">Banca: R$ 10.000 | Stake: conforme Tiers | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
+              <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de apostas — sem crescimento infinito</p>
             </div>
 
             <GoldButton onClick={runBacktest} disabled={loading} className="w-full">
@@ -505,7 +507,7 @@ export default function BacktestPanel({ onClose }: Props) {
                           ))}
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-3">
-                          * Projeções baseadas na taxa de apostas observada ({metrics!.bets_per_day?.toFixed(1) || '?'}/dia) e distribuição Monte Carlo (P25/P50/P75)
+                          * Projeções com cap de R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}/aposta. Taxa: {metrics!.bets_per_day?.toFixed(1) || '?'} apostas/dia. Monte Carlo P25/P50/P75.
                         </p>
                       </CardContent>
                     </Card>

@@ -15,6 +15,7 @@ interface MonteCarloInput {
   num_bets: number;         // bets to simulate (e.g. 500)
   num_simulations?: number; // default 10000
   ruin_threshold_pct?: number; // % of bankroll = ruin (default 10 = 10% of initial)
+  max_stake_amount?: number; // absolute max stake cap (e.g. 50000) - realistic bookmaker limits
 }
 
 interface MonteCarloOutput {
@@ -43,7 +44,8 @@ function runSimulation(
   avgStakePct: number,
   initialBankroll: number,
   numBets: number,
-  ruinThreshold: number
+  ruinThreshold: number,
+  maxStakeAmount: number
 ): { finalBankroll: number; maxDrawdown: number; hitRuin: boolean; curve: number[] } {
   let bankroll = initialBankroll;
   let peak = bankroll;
@@ -61,7 +63,8 @@ function runSimulation(
       break;
     }
 
-    const stake = bankroll * (avgStakePct / 100);
+    const rawStake = bankroll * (avgStakePct / 100);
+    const stake = Math.min(rawStake, maxStakeAmount); // Cap at bookmaker limit
     const isWin = Math.random() < p;
 
     if (isWin) {
@@ -112,6 +115,7 @@ Deno.serve(async (req) => {
       num_bets,
       num_simulations = 10000,
       ruin_threshold_pct = 10,
+      max_stake_amount = 50000, // Default 50k cap - realistic bookmaker limit
     } = input;
 
     const ruinThreshold = initial_bankroll * (ruin_threshold_pct / 100);
@@ -125,7 +129,7 @@ Deno.serve(async (req) => {
     const sampleIndices = new Set([0, Math.floor(num_simulations * 0.25), Math.floor(num_simulations * 0.5), Math.floor(num_simulations * 0.75), num_simulations - 1]);
 
     for (let i = 0; i < num_simulations; i++) {
-      const result = runSimulation(win_rate, avg_odd, avg_stake_pct, initial_bankroll, num_bets, ruinThreshold);
+      const result = runSimulation(win_rate, avg_odd, avg_stake_pct, initial_bankroll, num_bets, ruinThreshold, max_stake_amount);
       
       finalBankrolls.push(result.finalBankroll);
       maxDrawdowns.push(result.maxDrawdown);

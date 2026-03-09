@@ -218,7 +218,8 @@ interface MonteCarloResult {
 function runMonteCarlo(
   approvedBets: { odd: number; stakePct: number; isGreen: boolean }[],
   initialBankroll: number,
-  numSimulations: number = 10000
+  numSimulations: number = 10000,
+  maxStakeAmount: number = 50000
 ): MonteCarloResult {
   if (approvedBets.length === 0) {
     return {
@@ -247,7 +248,8 @@ function runMonteCarlo(
     let busted = false
 
     for (const bet of shuffled) {
-      const stake = bankroll * (bet.stakePct / 100)
+      const rawStake = bankroll * (bet.stakePct / 100)
+      const stake = Math.min(rawStake, maxStakeAmount) // Cap at bookmaker limit
       if (bet.isGreen) {
         bankroll += stake * (bet.odd - 1)
       } else {
@@ -319,30 +321,48 @@ function calculateGrowthProjections(
   totalDays: number,
   roiPct: number,
   initialBankroll: number,
-  mcResult: MonteCarloResult
+  mcResult: MonteCarloResult,
+  maxStakeAmount: number = 50000
 ): GrowthProjection[] {
   if (approvedCount === 0 || totalDays === 0) return []
 
   const betsPerDay = approvedCount / Math.max(totalDays, 1)
-  // Daily ROI rate from total period
-  const dailyRoiConservative = (mcResult.roi_p25 / 100) / Math.max(totalDays, 1)
-  const dailyRoiExpected = (mcResult.roi_p50 / 100) / Math.max(totalDays, 1)
-  const dailyRoiOptimistic = (mcResult.roi_p75 / 100) / Math.max(totalDays, 1)
+  
+  // Use per-bet ROI rates from Monte Carlo percentiles
+  const totalBets = approvedCount
+  const roiPerBetConservative = mcResult.roi_p25 / 100 / totalBets
+  const roiPerBetExpected = mcResult.roi_p50 / 100 / totalBets
+  const roiPerBetOptimistic = mcResult.roi_p75 / 100 / totalBets
 
   const periods = [
     { days: 30, label: '30 dias' },
     { days: 60, label: '60 dias' },
-    { days: 90, label: '90 dias' },
-    { days: 180, label: '180 dias' },
-    { days: 365, label: '365 dias' },
+    { days: 90, label: '3 meses' },
+    { days: 180, label: '6 meses' },
+    { days: 365, label: '1 ano' },
   ]
+
+  // Simulate with stake cap for realistic projections
+  function projectWithCap(roiPerBet: number, days: number): number {
+    const numBets = Math.round(betsPerDay * days)
+    let bankroll = initialBankroll
+    // Average stake pct from the backtest
+    const avgStakePct = totalBets > 0 ? 3 : 2.5 // approximate
+    for (let i = 0; i < numBets; i++) {
+      const rawStake = bankroll * (avgStakePct / 100)
+      const stake = Math.min(rawStake, maxStakeAmount)
+      // Average profit per bet = stake * roiPerBet-adjusted
+      bankroll += stake * roiPerBet * (100 / avgStakePct)
+    }
+    return round2(bankroll)
+  }
 
   return periods.map(p => ({
     days: p.days,
     label: p.label,
-    bankroll_conservative: round2(initialBankroll * Math.pow(1 + dailyRoiConservative, p.days)),
-    bankroll_expected: round2(initialBankroll * Math.pow(1 + dailyRoiExpected, p.days)),
-    bankroll_optimistic: round2(initialBankroll * Math.pow(1 + dailyRoiOptimistic, p.days)),
+    bankroll_conservative: projectWithCap(roiPerBetConservative, p.days),
+    bankroll_expected: projectWithCap(roiPerBetExpected, p.days),
+    bankroll_optimistic: projectWithCap(roiPerBetOptimistic, p.days),
   }))
 }
 
@@ -366,6 +386,7 @@ serve(async (req) => {
       initial_bankroll = 10000,
       monte_carlo_sims = 10000,
       use_historical = true,
+      max_stake_amount = 50000,
     } = body
 
     const criteria = await loadPromptCriteria()
@@ -525,7 +546,7 @@ serve(async (req) => {
       const homeTeam = fixture.teams.home.name
       const awayTeam = fixture.teams.away.name
 
-      const stakeAmount = bankroll * (analysis.stakePct / 100)
+      const stakeAmount = Math.min(bankroll * (analysis.stakePct / 100), max_stake_amount) // Cap at bookmaker limit
 
       let profitLoss = 0
       if (analysis.verdict === 'APROVADO') {
@@ -632,14 +653,14 @@ serve(async (req) => {
 
     // 5. Monte Carlo
     console.log(`[Backtest] Iniciando Monte Carlo com ${mcBets.length} apostas e ${monte_carlo_sims} simulações...`)
-    const mcResult = runMonteCarlo(mcBets, initial_bankroll, monte_carlo_sims)
+    const mcResult = runMonteCarlo(mcBets, initial_bankroll, monte_carlo_sims, max_stake_amount)
     console.log(`[Backtest] Monte Carlo: Ruína ${mcResult.ruin_risk_pct}%, ROI médio ${mcResult.roi_avg}%, DD médio ${mcResult.drawdown_avg}%`)
 
     // 6. Growth projections
     const firstDate = new Date(allFixtures[0]?.fixture?.date || Date.now())
     const lastDate = new Date(allFixtures[allFixtures.length - 1]?.fixture?.date || Date.now())
     const totalDays = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)))
-    const growthProjections = calculateGrowthProjections(approved.length, totalDays, roi, initial_bankroll, mcResult)
+    const growthProjections = calculateGrowthProjections(approved.length, totalDays, roi, initial_bankroll, mcResult, max_stake_amount)
 
     const metrics = {
       total_analyzed: results.length,
