@@ -113,7 +113,10 @@ export function useBetImport() {
       const isScreenshot = format.startsWith('screenshot-');
       const source = isScreenshot ? 'screenshot' : format === 'pdf' ? 'pdf' : 'csv';
       const bookmakerFromFormat = isScreenshot ? format.replace('screenshot-', '') : undefined;
-        source: format === 'pdf' ? 'pdf' : 'csv',
+      const batchId = crypto.randomUUID();
+      const rows = bets.map(b => ({
+        user_id: user.id,
+        source,
         bookmaker: b.bookmaker,
         event_name: b.event_name,
         market: b.market,
