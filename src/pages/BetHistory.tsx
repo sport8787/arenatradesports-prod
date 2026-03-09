@@ -479,12 +479,13 @@ export default function BetHistoryPage() {
         />
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: 'Total', value: stats.total, icon: Target, color: 'text-primary' },
             { label: 'Green', value: stats.greens, icon: TrendingUp, color: 'text-success' },
             { label: 'Red', value: stats.reds, icon: TrendingDown, color: 'text-destructive' },
-            { label: 'Lucro', value: `R$ ${stats.totalProfit.toFixed(2)}`, icon: Wallet, color: stats.totalProfit >= 0 ? 'text-success' : 'text-destructive' },
+            { label: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, icon: CheckCircle2, color: stats.winRate >= 55 ? 'text-success' : stats.winRate >= 50 ? 'text-warning' : 'text-destructive' },
+            { label: 'Lucro', value: `R$ ${stats.totalProfit >= 1000 ? (stats.totalProfit / 1000).toFixed(1) + 'k' : stats.totalProfit.toFixed(2)}`, icon: Wallet, color: stats.totalProfit >= 0 ? 'text-success' : 'text-destructive' },
           ].map((s, i) => (
             <motion.div
               key={s.label}
