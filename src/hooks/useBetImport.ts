@@ -20,12 +20,53 @@ export function useBetImport() {
     setPreview([]);
 
     try {
-      if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+      const ext = file.name.toLowerCase().split('.').pop() || '';
+      const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(ext) || file.type.startsWith('image/');
+
+      if (isImage) {
+        // Convert image to base64 and send to AI for OCR
+        const base64 = await fileToBase64(file);
+        const mimeType = file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        
+        const { data, error } = await supabase.functions.invoke('parse-bet-screenshot', {
+          body: { imageBase64: base64, mimeType },
+        });
+
+        if (error) throw error;
+        if (!data?.success || !data?.data) throw new Error(data?.error || 'Falha ao processar imagem');
+
+        const slip = data.data;
+        
+        // Convert multi-selection bet slip into individual ParsedBet entries
+        const bets: ParsedBet[] = slip.selections.map((sel: any) => {
+          const isGreen = sel.result === 'green';
+          const isRed = sel.result === 'red';
+          const odd = sel.odd || 1;
+          const stake = slip.stake || 0;
+          
+          return {
+            event_name: sel.event_name || sel.selection,
+            market: sel.market || 'Resultado Final',
+            selection: sel.selection,
+            odd,
+            stake,
+            profit_loss: isGreen ? Math.round(stake * (odd - 1) * 100) / 100 
+                        : isRed ? -stake : 0,
+            result: sel.result as ParsedBet['result'],
+            bet_date: slip.bet_date || new Date().toISOString(),
+            bookmaker: slip.bookmaker || 'Betano',
+            raw_line: `[IMG] ${sel.selection} @ ${odd} | ${sel.event_name} | ${sel.score || ''}`,
+          };
+        });
+
+        setPreview(bets);
+        setFormat(`screenshot-${slip.bookmaker?.toLowerCase() || 'betano'}`);
+      } else if (ext === 'csv' || ext === 'txt') {
         const text = await file.text();
         const result = parseCSV(text);
         setPreview(result.bets);
         setFormat(result.format);
-      } else if (file.name.endsWith('.pdf')) {
+      } else if (ext === 'pdf') {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
@@ -37,13 +78,32 @@ export function useBetImport() {
         const bets = parsePDFText(fullText);
         setPreview(bets);
         setFormat('pdf');
+      } else {
+        throw new Error(`Formato não suportado: .${ext}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Parse error:', e);
+      const { toast } = await import('sonner');
+      toast.error(e.message || 'Erro ao processar arquivo');
     } finally {
       setParsing(false);
     }
   }, []);
+
+  // Helper: convert File to base64 string (without data URI prefix)
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URI prefix: "data:image/png;base64,..."
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const confirmImport = useCallback(async (bets: ParsedBet[]) => {
     if (!user || bets.length === 0) return { success: false, error: 'Sem apostas para importar' };
