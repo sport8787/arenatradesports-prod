@@ -27,7 +27,7 @@ const Auth = () => {
   const [showGuestNicknameInput, setShowGuestNicknameInput] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithGoogle, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithApple, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
 
   // Check if user needs to set nickname (Google login with default "Jogador")
   useEffect(() => {
