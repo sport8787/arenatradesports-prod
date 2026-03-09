@@ -100,10 +100,12 @@ export default function PunterPage() {
     return keys;
   }, [pendingBets]);
 
-  // Load pending bets on mount (both Hórus and Manual)
+  // Load pending bets AND saved approved signals on mount
   useEffect(() => {
-    const loadPendingBets = async () => {
+    const loadInitialData = async () => {
       if (!user) return;
+
+      // Load pending bets (Hórus + Manual)
       const [horusRes, manualRes] = await Promise.all([
         supabase
           .from('virtual_bets_punter')
@@ -120,8 +122,19 @@ export default function PunterPage() {
       ]);
       if (!horusRes.error && horusRes.data) setPendingBets(horusRes.data);
       if (!manualRes.error && manualRes.data) setManualPendingBets(manualRes.data);
+
+      // Auto-load saved approved signals from DB (from automated cron or previous analyses)
+      try {
+        const savedSignals = await fetchSavedSignals();
+        if (savedSignals.length > 0) {
+          setSignals(savedSignals);
+          setTotalApproved(savedSignals.length);
+        }
+      } catch (e) {
+        console.warn('Failed to load saved signals:', e);
+      }
     };
-    loadPendingBets();
+    loadInitialData();
   }, [user]);
 
   const fetchHistory = useCallback(async () => {
