@@ -116,11 +116,12 @@ interface Props {
 }
 
 export default function BacktestPanel({ onClose }: Props) {
+  const MAX_STAKE_CAP = 50000; // Realistic bookmaker limit
   const formatCurrency = (value: number) => {
-    if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
-    if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-    if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-    return value.toFixed(0);
+    if (Math.abs(value) >= 1e9) return `R$ ${(value / 1e9).toFixed(1)}B`;
+    if (Math.abs(value) >= 1e6) return `R$ ${(value / 1e6).toFixed(1)}M`;
+    if (Math.abs(value) >= 1e3) return `R$ ${(value / 1e3).toFixed(1)}K`;
+    return `R$ ${value.toFixed(0)}`;
   };
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
