@@ -653,7 +653,7 @@ serve(async (req) => {
 
     // 5. Monte Carlo
     console.log(`[Backtest] Iniciando Monte Carlo com ${mcBets.length} apostas e ${monte_carlo_sims} simulações...`)
-    const mcResult = runMonteCarlo(mcBets, initial_bankroll, monte_carlo_sims)
+    const mcResult = runMonteCarlo(mcBets, initial_bankroll, monte_carlo_sims, max_stake_amount)
     console.log(`[Backtest] Monte Carlo: Ruína ${mcResult.ruin_risk_pct}%, ROI médio ${mcResult.roi_avg}%, DD médio ${mcResult.drawdown_avg}%`)
 
     // 6. Growth projections
