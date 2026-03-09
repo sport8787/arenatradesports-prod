@@ -11,6 +11,7 @@ import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet
 import LeagueFilter, { extractLeague } from '@/components/bet-history/LeagueFilter';
 import PendingDateSort, { PendingSortOption } from '@/components/bet-history/PendingDateSort';
 import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
+import AdvancedFilters from '@/components/bet-history/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -54,6 +55,7 @@ export default function BetHistoryPage() {
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [advancedFiltered, setAdvancedFiltered] = useState<Bet[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -346,8 +348,11 @@ export default function BetHistoryPage() {
     return periodFiltered.filter(b => extractLeague(b) === league);
   }, [periodFiltered, league]);
 
+  // Advanced filters are applied to league-filtered bets
+  // advancedFiltered state is managed by AdvancedFilters component
+
   const filtered = useMemo(() => {
-    let src = leagueFiltered;
+    let src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
     if (filter === 'all') src = src.filter(b => b.status !== 'cancelled');
     else if (filter === 'pending') src = src.filter(b => b.status === 'pending');
     else if (filter === 'green') src = src.filter(b => b.result === 'green' || b.status === 'green');
@@ -372,10 +377,10 @@ export default function BetHistoryPage() {
     }
 
     return src;
-  }, [leagueFiltered, filter, pendingSort]);
+  }, [advancedFiltered, leagueFiltered, filter, pendingSort]);
 
   const stats = useMemo(() => {
-    const src = leagueFiltered;
+    const src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
     const settled = src.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
     const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
     const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
@@ -391,7 +396,7 @@ export default function BetHistoryPage() {
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
-  }, [leagueFiltered]);
+  }, [advancedFiltered, leagueFiltered]);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
@@ -471,6 +476,12 @@ export default function BetHistoryPage() {
           <PeriodFilter value={period} onChange={setPeriod} />
           <LeagueFilter bets={bets} value={league} onChange={setLeague} />
         </div>
+
+        {/* Advanced Filters */}
+        <AdvancedFilters
+          bets={leagueFiltered as any}
+          onFilteredChange={(filtered) => setAdvancedFiltered(filtered as any)}
+        />
 
         {/* Bankroll Evolution Chart */}
         <BankrollEvolutionChart
