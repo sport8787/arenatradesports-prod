@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface ParsedBet {
@@ -26,33 +25,7 @@ interface ParsedBetSlip {
   selections: ParsedBet[];
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { imageBase64, mimeType = "image/png" } = await req.json();
-
-    if (!imageBase64) {
-      return new Response(
-        JSON.stringify({ error: "imageBase64 is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    const prompt = `Analise esta imagem de um comprovante de aposta esportiva (betting slip) e extraia TODAS as informações em formato JSON estruturado.
+const prompt = `Analise esta imagem de um comprovante de aposta esportiva (betting slip) e extraia TODAS as informações em formato JSON estruturado.
 
 A imagem é de um comprovante de apostas da casa de apostas (provavelmente Betano, Bet365, ou similar).
 
@@ -100,18 +73,83 @@ Formato de resposta (JSON):
   ]
 }`;
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
-        },
-      },
-      prompt,
-    ]);
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-    const responseText = result.response.text();
-    
+  try {
+    const { imageBase64, mimeType = "image/png" } = await req.json();
+
+    if (!imageBase64) {
+      return new Response(
+        JSON.stringify({ error: "imageBase64 is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${imageBase64}`,
+                },
+              },
+              {
+                type: "text",
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("[ParseBetScreenshot] AI Gateway error:", response.status, errText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de requisições excedido, tente novamente em alguns segundos." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: "Falha ao processar imagem com IA" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const aiData = await response.json();
+    const responseText = aiData.choices?.[0]?.message?.content || "";
+
     // Extract JSON from response (handle markdown code blocks)
     let jsonStr = responseText;
     const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -123,7 +161,6 @@ Formato de resposta (JSON):
     try {
       parsed = JSON.parse(jsonStr);
     } catch {
-      // Try to find JSON object in response
       const objectMatch = responseText.match(/\{[\s\S]*\}/);
       if (objectMatch) {
         parsed = JSON.parse(objectMatch[0]);
