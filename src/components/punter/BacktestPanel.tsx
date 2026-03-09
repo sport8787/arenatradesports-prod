@@ -123,8 +123,10 @@ export default function BacktestPanel({ onClose }: Props) {
     if (Math.abs(value) >= 1e3) return `R$ ${(value / 1e3).toFixed(1)}K`;
     return `R$ ${value.toFixed(0)}`;
   };
+  const BANKROLL_PRESETS = [200, 500, 1000, 2000, 5000, 10000, 25000, 50000];
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
+  const [initialBankroll, setInitialBankroll] = useState(10000);
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<BacktestMetrics | null>(null);
   const [monteCarlo, setMonteCarlo] = useState<MonteCarloResult | null>(null);
