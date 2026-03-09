@@ -314,10 +314,10 @@ export default function MinhasApostasPage() {
     }
 
     return src;
-  }, [leagueFiltered, filter, pendingSort]);
+  }, [advancedFiltered, leagueFiltered, filter, pendingSort]);
 
   const stats = useMemo(() => {
-    const src = leagueFiltered;
+    const src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
     const settled = src.filter(b => b.status === 'settled' || b.result === 'green' || b.result === 'red');
     const greens = settled.filter(b => b.result === 'green');
     const reds = settled.filter(b => b.result === 'red');
