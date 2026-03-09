@@ -443,7 +443,7 @@ export default function PunterPage() {
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
-          const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
