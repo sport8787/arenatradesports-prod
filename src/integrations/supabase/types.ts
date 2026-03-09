@@ -3838,6 +3838,10 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
+      deduct_bankroll: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: boolean
+      }
       generate_training_label: {
         Args: { p_recording_id: string }
         Returns: string
