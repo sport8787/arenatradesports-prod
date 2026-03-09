@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     const sampleIndices = new Set([0, Math.floor(num_simulations * 0.25), Math.floor(num_simulations * 0.5), Math.floor(num_simulations * 0.75), num_simulations - 1]);
 
     for (let i = 0; i < num_simulations; i++) {
-      const result = runSimulation(win_rate, avg_odd, avg_stake_pct, initial_bankroll, num_bets, ruinThreshold);
+      const result = runSimulation(win_rate, avg_odd, avg_stake_pct, initial_bankroll, num_bets, ruinThreshold, max_stake_amount);
       
       finalBankrolls.push(result.finalBankroll);
       maxDrawdowns.push(result.maxDrawdown);
