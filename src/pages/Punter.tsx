@@ -334,8 +334,20 @@ export default function PunterPage() {
       return;
     }
 
-    // Charge NT for analysis
-    const ntBalance = profile?.nt_balance || 0;
+    // Charge NT for analysis - fetch fresh balance from DB to avoid stale state
+    let ntBalance = profile?.nt_balance || 0;
+    try {
+      const { data: freshProfile } = await supabase
+        .from('profiles')
+        .select('nt_balance')
+        .eq('user_id', user.id)
+        .single();
+      if (freshProfile) {
+        ntBalance = freshProfile.nt_balance;
+      }
+    } catch (e) {
+      console.error('Error fetching fresh NT balance:', e);
+    }
     if (ntBalance < ANALYSIS_NT_COST) {
       toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${ntBalance} NT`);
       return;
