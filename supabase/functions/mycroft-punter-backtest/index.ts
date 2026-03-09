@@ -660,7 +660,10 @@ serve(async (req) => {
     const firstDate = new Date(allFixtures[0]?.fixture?.date || Date.now())
     const lastDate = new Date(allFixtures[allFixtures.length - 1]?.fixture?.date || Date.now())
     const totalDays = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)))
-    const growthProjections = calculateGrowthProjections(approved.length, totalDays, roi, initial_bankroll, mcResult, max_stake_amount)
+    const hitRate = approved.length > 0 ? greens.length / approved.length * 100 : 50
+    const avgOddVal = approved.length > 0 ? approved.reduce((s, r) => s + r.odd, 0) / approved.length : 2.0
+    const avgStakePctVal = totalActualStaked > 0 && approved.length > 0 ? (totalActualStaked / approved.length) / initial_bankroll * 100 : 2.5
+    const growthProjections = calculateGrowthProjections(approved.length, totalDays, hitRate, avgOddVal, Math.min(avgStakePctVal, 5), initial_bankroll, max_stake_amount)
 
     const metrics = {
       total_analyzed: results.length,
