@@ -76,7 +76,7 @@ export const useAuth = () => {
   }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -99,7 +99,7 @@ export const useAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -121,7 +121,7 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/auth`;
+    const redirectUrl = 'https://futebol.blefadormilionario.com.br/auth';
     
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
