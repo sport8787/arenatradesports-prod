@@ -541,100 +541,142 @@ export default function BetHistoryPage() {
                   exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.03 }}
                   className={cn(
-                    "bg-card border rounded-xl p-4 space-y-2",
+                    "bg-card border rounded-xl p-4 space-y-3 hover:border-primary/50 transition-colors cursor-pointer",
                     bet.result === 'green' || bet.status === 'green' ? 'border-success/40' :
                     bet.result === 'red' || bet.status === 'red' ? 'border-destructive/40' :
                     'border-border'
                   )}
                 >
+                  {/* Header with sport icon and match name */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px]">
-                        {bet.source === 'punter' ? 'Punter' : 'Sports'}
-                      </Badge>
-                      <span className="font-orbitron text-sm font-bold text-foreground truncate max-w-[200px]">
-                        {bet.match_name}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⚽</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px] font-orbitron">
+                            {bet.source === 'punter' ? 'Punter' : 'Sports'}
+                          </Badge>
+                          <h3 className="font-orbitron text-sm font-bold text-foreground">
+                            {bet.match_name}
+                          </h3>
+                        </div>
+                        {bet.league && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{extractLeague(bet)}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {bet.status === 'pending' ? (
-                        <>
-                          <button
-                            onClick={() => cancelBet(bet)}
-                            className="flex items-center gap-1 text-xs font-orbitron text-destructive hover:text-destructive/80 bg-destructive/10 hover:bg-destructive/20 px-2 py-1 rounded-md transition-colors"
-                          >
-                            <Ban className="w-3.5 h-3.5" />
-                            Cancelar
-                          </button>
-                          <button
-                            onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
-                            className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition-colors"
-                          >
-                            <Gavel className="w-3.5 h-3.5" />
-                            Liquidar
-                          </button>
-                        </>
-                      ) : bet.status === 'cancelled' ? (
-                        <Badge variant="outline" className="font-orbitron text-muted-foreground border-muted-foreground/30">CANCELADA ✖</Badge>
-                      ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
-                        <button
-                          onClick={() => revertToPending(bet)}
-                          className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50 px-2 py-1 rounded-md transition-colors"
-                        >
-                          <Undo2 className="w-3.5 h-3.5" />
-                          Corrigir
-                        </button>
-                      )}
-                      {bet.status !== 'cancelled' && (
-                        (bet.result === 'green' || bet.status === 'green') ? (
-                          <Badge className="bg-success/20 text-success border-success/30 font-orbitron">GREEN ✅</Badge>
-                        ) : (bet.result === 'red' || bet.status === 'red') ? (
-                          <Badge className="bg-destructive/20 text-destructive border-destructive/30 font-orbitron">RED ❌</Badge>
-                        ) : bet.status === 'pending' ? (
-                          <Badge variant="outline" className="font-orbitron text-warning border-warning/30">PENDENTE ⏳</Badge>
-                        ) : null
-                      )}
-                    </div>
+                    
+                    {/* Status Badge */}
+                    {bet.status !== 'cancelled' && (
+                      (bet.result === 'green' || bet.status === 'green') ? (
+                        <Badge className="bg-success/20 text-success border-success/40 font-orbitron font-bold">GREEN ✓</Badge>
+                      ) : (bet.result === 'red' || bet.status === 'red') ? (
+                        <Badge className="bg-destructive/20 text-destructive border-destructive/40 font-orbitron font-bold">RED ✗</Badge>
+                      ) : bet.status === 'pending' ? (
+                        <Badge className="bg-warning/20 text-warning border-warning/40 font-orbitron font-bold">PENDENTE ⏳</Badge>
+                      ) : null
+                    )}
+                    {bet.status === 'cancelled' && (
+                      <Badge variant="outline" className="font-orbitron text-muted-foreground border-muted-foreground/30">CANCELADA ✖</Badge>
+                    )}
                   </div>
 
                   {/* Commence time for pending */}
                   {bet.status === 'pending' && bet.commence_time && (
-                    <div className="flex items-center gap-1.5 text-xs">
+                    <div className="flex items-center gap-1.5 text-xs bg-primary/10 rounded-lg px-3 py-1.5 w-fit">
                       <CalendarDays className="w-3.5 h-3.5 text-primary" />
                       <span className="text-primary font-orbitron font-medium">{formatCommenceTime(bet.commence_time)}</span>
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span>Mercado: <span className="text-foreground font-medium">{bet.market}</span></span>
-                    <span>Odd: <span className="text-foreground font-medium">{bet.odd.toFixed(2)}</span></span>
-                    <span>Stake: <span className="text-foreground font-medium">R$ {bet.stake.toFixed(2)}</span></span>
-                    {bet.league && (
-                      <span>Liga: <span className="text-foreground font-medium">{extractLeague(bet)}</span></span>
-                    )}
-                    {bet.score_home != null && bet.score_away != null && (
-                      <span>Placar: <span className="text-foreground font-medium">{bet.score_home} × {bet.score_away}</span></span>
-                    )}
-                    {(bet.red_card_home || bet.red_card_away) && (
-                      <span>🟥 {bet.red_card_home && bet.red_card_away ? 'Ambos' : bet.red_card_home ? 'Casa' : 'Fora'}</span>
-                    )}
-                    <span>{formatDate(bet.placed_at)}</span>
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">Mercado</p>
+                      <p className="text-foreground font-medium font-orbitron">{bet.market}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">Odd</p>
+                      <p className="text-foreground font-medium font-orbitron">{bet.odd.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">Stake</p>
+                      <p className="text-foreground font-medium font-orbitron">R$ {bet.stake.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">
+                        {bet.profit_loss != null ? 'Resultado' : 'EV'}
+                      </p>
+                      <p className={cn(
+                        "font-medium font-orbitron",
+                        bet.profit_loss != null 
+                          ? (bet.profit_loss >= 0 ? 'text-success' : 'text-destructive')
+                          : 'text-primary'
+                      )}>
+                        {bet.profit_loss != null 
+                          ? `${bet.profit_loss >= 0 ? '+' : ''}R$ ${bet.profit_loss.toFixed(2)}`
+                          : `+R$ ${(bet.stake * (bet.odd - 1)).toFixed(2)}`
+                        }
+                      </p>
+                    </div>
                   </div>
 
+                  {/* Additional Info */}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDate(bet.placed_at)}
+                    </span>
+                    {bet.score_home != null && bet.score_away != null && (
+                      <span className="font-medium text-foreground">
+                        Placar: {bet.score_home} × {bet.score_away}
+                      </span>
+                    )}
+                    {(bet.red_card_home || bet.red_card_away) && (
+                      <span className="text-destructive font-medium">
+                        🟥 {bet.red_card_home && bet.red_card_away ? 'Ambos' : bet.red_card_home ? 'Casa' : 'Fora'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Thesis */}
                   {bet.thesis && (
-                    <div className="bg-secondary/20 rounded-lg px-3 py-2 mt-1">
-                      <p className="text-xs text-muted-foreground">💡 <span className="text-foreground/80">{bet.thesis}</span></p>
+                    <div className="bg-secondary/20 rounded-lg px-3 py-2">
+                      <p className="text-xs leading-relaxed">
+                        <span className="text-primary">💡</span> <span className="text-foreground/80">{bet.thesis}</span>
+                      </p>
                     </div>
                   )}
 
-                  {bet.profit_loss != null && (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
-                    <div className={cn(
-                      "text-sm font-orbitron font-bold",
-                      bet.profit_loss >= 0 ? 'text-success' : 'text-destructive'
-                    )}>
-                      {bet.profit_loss >= 0 ? '+' : ''}R$ {bet.profit_loss.toFixed(2)}
-                    </div>
-                  )}
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                    {bet.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => cancelBet(bet)}
+                          className="flex items-center gap-1 text-xs font-orbitron text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                          className="flex items-center gap-1 text-xs font-orbitron bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md transition-colors font-medium"
+                        >
+                          <Gavel className="w-3.5 h-3.5" />
+                          Liquidar
+                        </button>
+                      </>
+                    ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
+                      <button
+                        onClick={() => revertToPending(bet)}
+                        className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground hover:bg-muted/50 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        Corrigir
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               ))}
             </AnimatePresence>
