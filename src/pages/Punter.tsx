@@ -1449,7 +1449,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
               <AnimatePresence>
                 {filtered.map((bet: any, i: number) => {
                   const status = bet.result || bet.status;
-                  const { score, grade, config } = getScoreGrade(parseFloat(bet.odd));
+                  const { score, grade, config } = getScoreGrade(bet);
                   const cumROI = cumulativeMap.get(bet.id);
 
                   return (
