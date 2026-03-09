@@ -55,6 +55,7 @@ export default function BetHistoryPage() {
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [advancedFiltered, setAdvancedFiltered] = useState<Bet[]>([]);
 
   useEffect(() => {
     if (!user) return;
