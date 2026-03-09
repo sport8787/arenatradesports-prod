@@ -319,20 +319,16 @@ interface GrowthProjection {
 function calculateGrowthProjections(
   approvedCount: number,
   totalDays: number,
-  roiPct: number,
+  winRate: number, // 0-100
+  avgOdd: number,
+  avgStakePct: number, // e.g. 2.5
   initialBankroll: number,
-  mcResult: MonteCarloResult,
   maxStakeAmount: number = 50000
 ): GrowthProjection[] {
   if (approvedCount === 0 || totalDays === 0) return []
 
   const betsPerDay = approvedCount / Math.max(totalDays, 1)
-  
-  // Use per-bet ROI rates from Monte Carlo percentiles
-  const totalBets = approvedCount
-  const roiPerBetConservative = mcResult.roi_p25 / 100 / totalBets
-  const roiPerBetExpected = mcResult.roi_p50 / 100 / totalBets
-  const roiPerBetOptimistic = mcResult.roi_p75 / 100 / totalBets
+  const p = winRate / 100
 
   const periods = [
     { days: 30, label: '30 dias' },
@@ -342,17 +338,21 @@ function calculateGrowthProjections(
     { days: 365, label: '1 ano' },
   ]
 
-  // Simulate with stake cap for realistic projections
-  function projectWithCap(roiPerBet: number, days: number): number {
+  // Simulate bet-by-bet with expected value and stake cap
+  // Conservative uses 80% of win rate, Optimistic uses 105%
+  function projectWithCap(winRateMultiplier: number, days: number): number {
     const numBets = Math.round(betsPerDay * days)
     let bankroll = initialBankroll
-    // Average stake pct from the backtest
-    const avgStakePct = totalBets > 0 ? 3 : 2.5 // approximate
+    const effectiveP = Math.min(1, p * winRateMultiplier)
+    // Expected profit per bet = stake * (p*odd - 1)
+    const evPerUnit = effectiveP * avgOdd - 1
+    if (evPerUnit <= 0) return round2(initialBankroll) // no edge = no growth
+
     for (let i = 0; i < numBets; i++) {
       const rawStake = bankroll * (avgStakePct / 100)
       const stake = Math.min(rawStake, maxStakeAmount)
-      // Average profit per bet = stake * roiPerBet-adjusted
-      bankroll += stake * roiPerBet * (100 / avgStakePct)
+      bankroll += stake * evPerUnit
+      if (bankroll <= 0) return 0
     }
     return round2(bankroll)
   }
@@ -360,9 +360,9 @@ function calculateGrowthProjections(
   return periods.map(p => ({
     days: p.days,
     label: p.label,
-    bankroll_conservative: projectWithCap(roiPerBetConservative, p.days),
-    bankroll_expected: projectWithCap(roiPerBetExpected, p.days),
-    bankroll_optimistic: projectWithCap(roiPerBetOptimistic, p.days),
+    bankroll_conservative: projectWithCap(0.9, p.days),   // 90% of observed win rate
+    bankroll_expected: projectWithCap(1.0, p.days),        // actual win rate
+    bankroll_optimistic: projectWithCap(1.05, p.days),     // 105% of win rate
   }))
 }
 
