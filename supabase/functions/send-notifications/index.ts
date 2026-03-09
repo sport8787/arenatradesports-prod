@@ -161,7 +161,7 @@ serve(async (req) => {
     const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-    // 1. Fetch approved bets not yet sent
+    // 1. Fetch approved bets not yet sent (to telegram OR email)
     const now = new Date().toISOString();
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -169,9 +169,9 @@ serve(async (req) => {
       .from("punter_analyses")
       .select("*")
       .eq("verdict", "APROVADO")
-      .eq("sent_to_telegram", false)
       .gt("commence_time", now)
       .gte("created_at", yesterday)
+      .or("sent_to_telegram.eq.false,sent_to_email.eq.false")
       .order("commence_time", { ascending: true })
       .limit(50);
 
