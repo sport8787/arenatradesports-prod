@@ -99,7 +99,7 @@ export const useAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
