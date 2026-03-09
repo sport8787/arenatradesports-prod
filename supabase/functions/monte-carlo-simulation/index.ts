@@ -44,7 +44,8 @@ function runSimulation(
   avgStakePct: number,
   initialBankroll: number,
   numBets: number,
-  ruinThreshold: number
+  ruinThreshold: number,
+  maxStakeAmount: number
 ): { finalBankroll: number; maxDrawdown: number; hitRuin: boolean; curve: number[] } {
   let bankroll = initialBankroll;
   let peak = bankroll;
