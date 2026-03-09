@@ -334,32 +334,25 @@ export default function PunterPage() {
       return;
     }
 
-    // Charge NT for analysis - fetch fresh balance from DB to avoid stale state
-    let ntBalance = profile?.nt_balance || 0;
-    try {
+    // Deduct NT server-side (spend_nt_balance checks balance internally)
+    const { data: spentOk, error: spendErr } = await supabase.rpc('spend_nt_balance', {
+      p_user_id: user.id,
+      p_amount: ANALYSIS_NT_COST,
+    });
+    if (spendErr) {
+      console.error('spend_nt_balance error:', spendErr);
+      toast.error('Erro ao verificar saldo NT. Tente novamente.');
+      return;
+    }
+    if (spentOk === false) {
+      // Fetch fresh balance to show accurate number
       const { data: freshProfile } = await supabase
         .from('profiles')
         .select('nt_balance')
         .eq('user_id', user.id)
         .single();
-      if (freshProfile) {
-        ntBalance = freshProfile.nt_balance;
-      }
-    } catch (e) {
-      console.error('Error fetching fresh NT balance:', e);
-    }
-    if (ntBalance < ANALYSIS_NT_COST) {
-      toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${ntBalance} NT`);
-      return;
-    }
-
-    // Deduct NT
-    const { data: spentOk, error: spendErr } = await supabase.rpc('spend_nt_balance', {
-      p_user_id: user.id,
-      p_amount: ANALYSIS_NT_COST,
-    });
-    if (spendErr || spentOk === false) {
-      toast.error('Falha ao debitar NT. Tente novamente.');
+      const currentBalance = freshProfile?.nt_balance ?? 0;
+      toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${currentBalance} NT`);
       return;
     }
     toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise`);
