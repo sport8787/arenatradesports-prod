@@ -313,12 +313,22 @@ export default function PunterPage() {
 
     if (betError) return false;
 
-    await supabase.from('user_bankroll').update({
-      balance: bankroll.balance - stake,
-      total_staked: bankroll.total_staked + stake,
-      total_bets: bankroll.total_bets + 1,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', user.id);
+    // Atomic bankroll deduction using RPC to avoid race conditions
+    const { error: bankrollErr } = await supabase.rpc('deduct_bankroll', {
+      p_user_id: user.id,
+      p_amount: stake,
+    });
+
+    if (bankrollErr) {
+      console.warn('Bankroll deduction failed:', bankrollErr.message);
+      // Fallback: direct update
+      await supabase.from('user_bankroll').update({
+        balance: +(bankroll.balance - stake).toFixed(2),
+        total_staked: +(bankroll.total_staked + stake).toFixed(2),
+        total_bets: bankroll.total_bets + 1,
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', user.id);
+    }
 
     // Update local bankroll
     bankroll.balance -= stake;
