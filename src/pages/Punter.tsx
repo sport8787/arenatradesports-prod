@@ -306,6 +306,14 @@ export default function PunterPage() {
 
     if (existingBets && existingBets.length > 0) return false; // Already bet
 
+    // Calculate asset score for storage
+    const assetScoreResult = calculateAssetScore({
+      value_percentage: signal.recommendation.value_percentage,
+      confidence: signal.recommendation.confidence,
+      odd: signal.recommendation.odd,
+      bookmaker: signal.recommendation.bookmaker,
+    });
+
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
@@ -318,6 +326,7 @@ export default function PunterPage() {
         status: 'pending',
         thesis: signal.recommendation.thesis || null,
         commence_time: signal.match.commence_time || null,
+        asset_score: assetScoreResult.final_score,
       } as any);
 
     if (betError) return false;
@@ -528,6 +537,13 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
+    const assetScoreResult = calculateAssetScore({
+      value_percentage: signal.recommendation.value_percentage,
+      confidence: signal.recommendation.confidence,
+      odd: signal.recommendation.odd,
+      bookmaker: signal.recommendation.bookmaker,
+    });
+
     const result = await placeManualBet({
       match_id: matchId,
       match_name: matchName,
@@ -536,6 +552,7 @@ export default function PunterPage() {
       stake: customStake,
       thesis: signal.recommendation.thesis,
       commence_time: signal.match.commence_time || undefined,
+      asset_score: assetScoreResult.final_score,
     });
 
     if (!result.success) {
@@ -1336,11 +1353,17 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  const getScoreGrade = (odd: number, confidence?: number) => {
+  const getScoreGrade = (bet: any) => {
+    // Use stored asset_score if available, otherwise recalculate
+    const storedScore = bet.asset_score ? parseInt(bet.asset_score) : null;
+    if (storedScore) {
+      const grade = storedScore >= 80 ? 'A+' : storedScore >= 70 ? 'A' : storedScore >= 60 ? 'B' : 'C';
+      return { score: storedScore, grade, config: getGradeConfig(grade) };
+    }
     const score = calculateAssetScore({
-      value_percentage: confidence || 60,
-      confidence: confidence || 65,
-      odd: odd,
+      value_percentage: 60,
+      confidence: 65,
+      odd: parseFloat(bet.odd),
       bookmaker: 'default',
     });
     return { score: score.final_score, grade: score.grade, config: getGradeConfig(score.grade) };
@@ -1426,7 +1449,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
               <AnimatePresence>
                 {filtered.map((bet: any, i: number) => {
                   const status = bet.result || bet.status;
-                  const { score, grade, config } = getScoreGrade(parseFloat(bet.odd));
+                  const { score, grade, config } = getScoreGrade(bet);
                   const cumROI = cumulativeMap.get(bet.id);
 
                   return (

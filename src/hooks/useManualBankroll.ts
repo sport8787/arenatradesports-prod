@@ -85,6 +85,7 @@ export function useManualBankroll() {
     stake: number;
     thesis?: string;
     commence_time?: string;
+    asset_score?: number;
   }) => {
     if (!bankroll || !user) return { success: false, error: 'Bankroll não carregada' };
 
@@ -104,6 +105,7 @@ export function useManualBankroll() {
         status: 'pending',
         thesis: params.thesis || null,
         commence_time: params.commence_time || null,
+        asset_score: params.asset_score || null,
       });
 
     if (betError) return { success: false, error: betError.message };
