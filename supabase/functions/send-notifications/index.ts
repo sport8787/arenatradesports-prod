@@ -214,8 +214,21 @@ serve(async (req) => {
       console.error("❌ Erro ao buscar apostas para Email:", emailError);
     }
 
-    const telegramBets = betsForTelegram || [];
-    const emailBets = betsForEmail || [];
+    // Deduplicate by home_team+away_team+market, keeping most recent
+    const dedup = (bets: any[]) => {
+      const map = new Map<string, any>();
+      for (const b of bets) {
+        const key = `${b.home_team}_${b.away_team}_${b.market}`;
+        const existing = map.get(key);
+        if (!existing || new Date(b.created_at) > new Date(existing.created_at)) {
+          map.set(key, b);
+        }
+      }
+      return Array.from(map.values());
+    };
+
+    const telegramBets = dedup(betsForTelegram || []);
+    const emailBets = dedup(betsForEmail || []);
 
     if (telegramBets.length === 0 && emailBets.length === 0) {
       return new Response(
