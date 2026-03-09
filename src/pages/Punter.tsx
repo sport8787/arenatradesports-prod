@@ -1353,11 +1353,17 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  const getScoreGrade = (odd: number, confidence?: number) => {
+  const getScoreGrade = (bet: any) => {
+    // Use stored asset_score if available, otherwise recalculate
+    const storedScore = bet.asset_score ? parseInt(bet.asset_score) : null;
+    if (storedScore) {
+      const grade = storedScore >= 80 ? 'A+' : storedScore >= 70 ? 'A' : storedScore >= 60 ? 'B' : 'C';
+      return { score: storedScore, grade, config: getGradeConfig(grade) };
+    }
     const score = calculateAssetScore({
-      value_percentage: confidence || 60,
-      confidence: confidence || 65,
-      odd: odd,
+      value_percentage: 60,
+      confidence: 65,
+      odd: parseFloat(bet.odd),
       bookmaker: 'default',
     });
     return { score: score.final_score, grade: score.grade, config: getGradeConfig(score.grade) };
