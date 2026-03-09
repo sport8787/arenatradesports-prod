@@ -527,7 +527,7 @@ serve(async (req) => {
       const homeTeam = fixture.teams.home.name
       const awayTeam = fixture.teams.away.name
 
-      const stakeAmount = bankroll * (analysis.stakePct / 100)
+      const stakeAmount = Math.min(bankroll * (analysis.stakePct / 100), 50000) // Cap at 50k
 
       let profitLoss = 0
       if (analysis.verdict === 'APROVADO') {
