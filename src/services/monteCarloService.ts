@@ -36,6 +36,7 @@ export async function runMonteCarloSimulation(input: MonteCarloInput): Promise<M
       num_bets: input.numBets,
       num_simulations: input.numSimulations || 10000,
       ruin_threshold_pct: input.ruinThresholdPct || 10,
+      max_stake_amount: input.maxStakeAmount || 50000,
     },
   });
 
