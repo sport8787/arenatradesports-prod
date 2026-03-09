@@ -129,6 +129,37 @@ export default function PunterPage() {
         if (savedSignals.length > 0) {
           setSignals(savedSignals);
           setTotalApproved(savedSignals.length);
+
+          // Auto-place Hórus bets for signals that don't have bets yet
+          if (bankroll && bankroll.balance > 0) {
+            const pendingIds = new Set(
+              (horusRes.data || []).map((b: any) => (b.match_id || '').toLowerCase())
+            );
+            let autoPlaced = 0;
+            const newAutoIds = new Set<string>();
+            for (const signal of savedSignals) {
+              const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+              if (pendingIds.has(matchId)) continue;
+              const placed = await autoPlaceHorusBet(signal);
+              if (placed) {
+                autoPlaced++;
+                newAutoIds.add(matchId);
+                pendingIds.add(matchId);
+              }
+            }
+            if (autoPlaced > 0) {
+              setAutoPlacedMatchIds(newAutoIds);
+              toast.success(`🤖 Hórus apostou automaticamente em ${autoPlaced} jogos`);
+              // Refresh pending bets after auto-placing
+              const { data: refreshed } = await supabase
+                .from('virtual_bets_punter')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+              if (refreshed) setPendingBets(refreshed);
+            }
+          }
         }
       } catch (e) {
         console.warn('Failed to load saved signals:', e);
