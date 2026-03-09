@@ -1727,6 +1727,7 @@ export type Database = {
           commence_time: string
           confidence: number | null
           created_at: string | null
+          email_sent_at: string | null
           estimated_probability: number | null
           fair_odd: number | null
           home_team: string
@@ -1737,7 +1738,10 @@ export type Database = {
           match_id: string
           odd: number
           risk_factors: string | null
+          sent_to_email: boolean | null
+          sent_to_telegram: boolean | null
           stake_percentage: number | null
+          telegram_sent_at: string | null
           thesis: string | null
           value_percentage: number | null
           verdict: string
@@ -1750,6 +1754,7 @@ export type Database = {
           commence_time: string
           confidence?: number | null
           created_at?: string | null
+          email_sent_at?: string | null
           estimated_probability?: number | null
           fair_odd?: number | null
           home_team: string
@@ -1760,7 +1765,10 @@ export type Database = {
           match_id: string
           odd: number
           risk_factors?: string | null
+          sent_to_email?: boolean | null
+          sent_to_telegram?: boolean | null
           stake_percentage?: number | null
+          telegram_sent_at?: string | null
           thesis?: string | null
           value_percentage?: number | null
           verdict: string
@@ -1773,6 +1781,7 @@ export type Database = {
           commence_time?: string
           confidence?: number | null
           created_at?: string | null
+          email_sent_at?: string | null
           estimated_probability?: number | null
           fair_odd?: number | null
           home_team?: string
@@ -1783,7 +1792,10 @@ export type Database = {
           match_id?: string
           odd?: number
           risk_factors?: string | null
+          sent_to_email?: boolean | null
+          sent_to_telegram?: boolean | null
           stake_percentage?: number | null
+          telegram_sent_at?: string | null
           thesis?: string | null
           value_percentage?: number | null
           verdict?: string
@@ -2958,22 +2970,31 @@ export type Database = {
       user_preferences: {
         Row: {
           created_at: string
+          email_notifications: boolean | null
           horus_alerts: Json
           id: string
+          notification_email: string | null
+          telegram_notifications: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          email_notifications?: boolean | null
           horus_alerts?: Json
           id?: string
+          notification_email?: string | null
+          telegram_notifications?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          email_notifications?: boolean | null
           horus_alerts?: Json
           id?: string
+          notification_email?: string | null
+          telegram_notifications?: boolean | null
           updated_at?: string
           user_id?: string
         }
