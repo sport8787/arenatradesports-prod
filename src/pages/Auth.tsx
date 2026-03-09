@@ -132,6 +132,15 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    const { error } = await signInWithApple();
+    if (error) {
+      toast({ title: 'Erro', description: 'Falha ao conectar com Apple', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  };
+
   const handleGuestMode = () => {
     setShowGuestNicknameInput(true);
   };
