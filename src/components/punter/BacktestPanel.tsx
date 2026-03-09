@@ -507,7 +507,7 @@ export default function BacktestPanel({ onClose }: Props) {
                           ))}
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-3">
-                          * Projeções baseadas na taxa de apostas observada ({metrics!.bets_per_day?.toFixed(1) || '?'}/dia) e distribuição Monte Carlo (P25/P50/P75)
+                          * Projeções com cap de R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}/aposta. Taxa: {metrics!.bets_per_day?.toFixed(1) || '?'} apostas/dia. Monte Carlo P25/P50/P75.
                         </p>
                       </CardContent>
                     </Card>
