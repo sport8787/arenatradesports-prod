@@ -162,7 +162,7 @@ export default function BacktestPanel({ onClose }: Props) {
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
-        body: { leagues: selectedLeagues, season, initial_bankroll: 10000 }
+        body: { leagues: selectedLeagues, season, initial_bankroll: 10000, max_stake_amount: MAX_STAKE_CAP }
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
