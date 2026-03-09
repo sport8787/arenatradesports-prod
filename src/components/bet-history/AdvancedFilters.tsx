@@ -143,7 +143,7 @@ export default function AdvancedFilters({ bets, onFilteredChange }: AdvancedFilt
   // Trigger callback when filtered bets change
   useMemo(() => {
     onFilteredChange(filteredBets);
-  }, [filteredBets, onFilteredChange]);
+  }, [filteredBets]);
 
   // Active filters count
   const activeFiltersCount = useMemo(() => {
