@@ -386,6 +386,7 @@ serve(async (req) => {
       initial_bankroll = 10000,
       monte_carlo_sims = 10000,
       use_historical = true,
+      max_stake_amount = 50000,
     } = body
 
     const criteria = await loadPromptCriteria()
