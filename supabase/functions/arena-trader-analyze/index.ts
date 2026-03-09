@@ -14,11 +14,6 @@ serve(async (req) => {
   try {
     const { asset, candles, currentPrice, balance, position, technicalData, isLive, change24h, crossAssetData } = await req.json();
 
-    const ANTHROPIC_API_KEY = Deno.env.get("VITE_ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC API KEY not configured");
-    }
-
     // Load Knowledge Base from storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -170,7 +165,7 @@ Você DEVE responder CLARAMENTE se o usuário deve ou não entrar AGORA. O campo
 - "NÃO ENTRAR — AGUARDAR" — se não há setup válido, explicando o que aguardar
 O campo "analise_detalhada" DEVE terminar com uma seção "━━━ 🏁 VEREDITO FINAL ━━━" que repita o veredito e justifique em 2-3 frases.
 
-RETORNE estritamente um JSON válido:
+RETORNE estritamente um JSON válido (sem markdown, sem backticks):
 {
   "status_mercado": "BUY THE DIP" ou "HOLD" ou "SELL" ou "SHORT",
   "veredito_entrada": "ENTRADA COMPRA AGORA" ou "ENTRADA VENDA AGORA" ou "NÃO ENTRAR — AGUARDAR",
@@ -212,45 +207,59 @@ ${techSummary}
 
 PERGUNTA PRINCIPAL DO USUÁRIO: Posso entrar agora? Devo fazer uma entrada de COMPRA ou de VENDA neste momento? Se sim, em qual direção e com quais parâmetros? Se NÃO, explique claramente por que não e o que o usuário deve aguardar antes de entrar.
 
-Forneça o relatório forense completo em JSON.`;
+Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Use Lovable AI Gateway (Gemini) - no API key needed
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY not configured");
+    }
+
+    console.log(`🧠 Calling Gemini via Lovable AI Gateway for ${asset.symbol}...`);
+
+    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        system: systemPrompt,
+        model: 'google/gemini-2.5-flash',
         messages: [
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
         temperature: 0.5,
+        max_tokens: 4000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
-      throw new Error(`Anthropic API error: ${response.status}`);
+      console.error("Lovable AI Gateway error:", response.status, errorText);
+      throw new Error(`AI Gateway error: ${response.status} - ${errorText}`);
     }
 
-    const anthropicData = await response.json();
-    const textContent = anthropicData.content?.[0]?.text;
+    const aiData = await response.json();
+    const textContent = aiData.choices?.[0]?.message?.content;
 
     if (!textContent) {
-      throw new Error("No content from Claude");
+      throw new Error("No content from AI Gateway");
     }
 
-    console.log("Mycroft Trader Forense raw:", textContent);
+    console.log("Mycroft Trader Forense raw length:", textContent.length);
 
+    // Parse JSON from response (handle markdown code blocks)
     let jsonStr = textContent;
     const jsonMatch = textContent.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
+    }
+
+    // Try to extract JSON object if there's extra text
+    const jsonObjMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonObjMatch) {
+      jsonStr = jsonObjMatch[0];
     }
 
     const parsed = JSON.parse(jsonStr);
@@ -277,14 +286,13 @@ Forneça o relatório forense completo em JSON.`;
         volumeReal: parsed.volume_real_pct ?? 50,
         volumeBurburinho: parsed.volume_burburinho_pct ?? 50,
         recomendacaoAporte: parsed.recomendacao_aporte || null,
-        confluenciaScore: parsed.confluencia_score ?? 0, // Now 0-10 scale
+        confluenciaScore: parsed.confluencia_score ?? 0,
         indicadoresConfirmados: parsed.indicadores_confirmados || [],
         statusInstitucional: parsed.status_institucional || 'NEUTRO',
         classeFluxo: parsed.classe_fluxo || 'NEUTRO',
         positionSizing: parsed.position_sizing || null,
         proveniencia: parsed.proveniencia || dataProvenance,
         confiancaAnalise: parsed.confianca_analise ?? 50,
-        // Futures-specific
         zonaMilhar: parsed.zona_milhar || null,
         correlacaoIndiceDolar: parsed.correlacao_indice_dolar || null,
         stopMaxPontos: parsed.stop_max_pontos || null,
@@ -303,7 +311,7 @@ Forneça o relatório forense completo em JSON.`;
 📈 *ATIVO:* ${asset.symbol}
 💰 *PREÇO:* ${currentPrice}
 🎯 *SINAL:* ${parsed.status_mercado}
-📊 *Confluência:* ${parsed.confluencia_score ?? 0}/4
+📊 *Confluência:* ${parsed.confluencia_score ?? 0}/10
 ⚠️ *Estresse:* ${parsed.alerta_de_estresse ?? 'N/A'}
 🐋 *Institucional:* ${parsed.status_institucional ?? 'NEUTRO'}
 
