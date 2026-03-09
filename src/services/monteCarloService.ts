@@ -8,6 +8,7 @@ export interface MonteCarloInput {
   numBets: number;          // e.g. 500
   numSimulations?: number;  // default 10000
   ruinThresholdPct?: number; // default 10
+  maxStakeAmount?: number;  // default 50000 - bookmaker limit cap
 }
 
 export interface MonteCarloResult {
