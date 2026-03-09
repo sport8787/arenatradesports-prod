@@ -27,21 +27,28 @@ export default function PunterConfig() {
 
       <div className="container mx-auto px-4 py-5 space-y-6 max-w-2xl">
         {user ? (
-          <>
-            <section className="space-y-2">
-              <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
-                <Link2 className="w-3.5 h-3.5" /> Conexões
-              </h2>
-              <BetfairConfig userId={user.id} />
-            </section>
+           <>
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Bell className="w-3.5 h-3.5" /> Notificações
+               </h2>
+               <NotificationSettings userId={user.id} />
+             </section>
 
-            <section className="space-y-2">
-              <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
-                <Settings className="w-3.5 h-3.5" /> Alertas do Hórus
-              </h2>
-              <HorusConfig userId={user.id} />
-            </section>
-          </>
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Link2 className="w-3.5 h-3.5" /> Conexões
+               </h2>
+               <BetfairConfig userId={user.id} />
+             </section>
+
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Settings className="w-3.5 h-3.5" /> Alertas do Hórus
+               </h2>
+               <HorusConfig userId={user.id} />
+             </section>
+           </>
         ) : (
           <p className="text-muted-foreground text-sm text-center py-8">Faça login para acessar as configurações.</p>
         )}
