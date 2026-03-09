@@ -542,6 +542,18 @@ export default function PunterPage() {
       toast.error(result.error || 'Erro');
       return;
     }
+
+    // Refresh manual pending bets list
+    setManualPendingBets(prev => [...prev, {
+      match_id: matchId,
+      match_name: matchName,
+      market: signal.recommendation.market,
+      odd: signal.recommendation.odd,
+      stake: customStake,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    }]);
+
     toast.success(`Manual: R$ ${customStake.toFixed(2)} em ${matchName}`);
   }, [manualBankroll, user, placeManualBet]);
 
