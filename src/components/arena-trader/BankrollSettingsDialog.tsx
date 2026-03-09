@@ -14,7 +14,7 @@ interface BankrollSettingsDialogProps {
   onSave: (newBalance: number) => Promise<{ success: boolean; error?: string }>;
 }
 
-const PRESETS = [500, 1000, 2000, 5000, 10000];
+const PRESETS = [200, 500, 1000, 2000, 5000, 10000];
 
 export default function BankrollSettingsDialog({ isOpen, onClose, currentBalance, onSave }: BankrollSettingsDialogProps) {
   const [selected, setSelected] = useState<string>(String(currentBalance));
