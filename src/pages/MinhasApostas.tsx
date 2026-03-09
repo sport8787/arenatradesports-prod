@@ -51,6 +51,7 @@ export default function MinhasApostasPage() {
   const [pendingSort, setPendingSort] = useState<PendingSortOption>('date_asc');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [selectedBet, setSelectedBet] = useState<ManualBet | null>(null);
+  const [advancedFiltered, setAdvancedFiltered] = useState<ManualBet[]>([]);
 
   useEffect(() => {
     if (!user) return;
