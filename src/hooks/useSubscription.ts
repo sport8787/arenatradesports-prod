@@ -70,7 +70,8 @@ export function useSubscription() {
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaid = subscription?.plan === 'base' || subscription?.plan === 'premium';
   // Admins have lifetime access; others check subscription
-  const hasAccess = isAdmin || isPaid || isTrialActive;
+  // OVERRIDE: All features unlocked until payment system is live
+  const hasAccess = true;
 
   return {
     subscription,
