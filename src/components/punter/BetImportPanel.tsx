@@ -117,14 +117,14 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                 </button>
               </div>
 
-              {/* CSV/PDF Upload */}
+              {/* CSV/PDF/Image Upload */}
               <div className="border border-border rounded-lg p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-accent" />
-                  <h3 className="font-mono text-sm font-bold text-foreground">Import CSV / PDF</h3>
+                  <h3 className="font-mono text-sm font-bold text-foreground">Import CSV / PDF / Imagem</h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Suporta: Bet365, Betano e formato genérico. Arraste ou selecione o arquivo.
+                  Suporta: Bet365, Betano e formato genérico. Aceita <span className="text-primary font-bold">screenshots PNG/JPG</span> de comprovantes de apostas.
                 </p>
 
                 {/* Drop zone */}
@@ -141,7 +141,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <input
                     id="bet-file-input"
                     type="file"
-                    accept=".csv,.txt,.pdf"
+                    accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,image/*"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -149,15 +149,18 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                     <div className="flex flex-col items-center gap-2">
                       <RefreshCw className="w-6 h-6 text-primary animate-spin" />
                       <span className="text-sm text-muted-foreground">Processando arquivo...</span>
+                      <span className="text-xs text-muted-foreground/60">
+                        Imagens podem levar alguns segundos (IA analisando)
+                      </span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
                       <Upload className="w-6 h-6 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">
-                        Arraste CSV ou PDF aqui
+                        Arraste CSV, PDF ou <span className="text-primary font-semibold">Screenshot</span> aqui
                       </span>
                       <span className="text-xs text-muted-foreground/60">
-                        ou clique para selecionar
+                        ou clique para selecionar • PNG, JPG, CSV, PDF
                       </span>
                     </div>
                   )}
@@ -253,6 +256,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <AlertTriangle className="w-3.5 h-3.5" /> Formatos aceitos
                 </h3>
                 <div className="space-y-1.5 text-xs text-muted-foreground">
+                  <p><span className="text-primary font-bold">📸 Screenshot (PNG/JPG):</span> Comprovante de aposta da Betano, Bet365 ou similar — a IA extrai automaticamente!</p>
                   <p><span className="text-foreground font-bold">Bet365:</span> CSV com colunas Date, Event, Selection, Odds, Stake, Returns</p>
                   <p><span className="text-foreground font-bold">Betano:</span> CSV com colunas Data, Evento, Mercado, Seleção, Odd, Stake, Resultado</p>
                   <p><span className="text-foreground font-bold">Genérico:</span> CSV com colunas Evento, Mercado, Odd, Stake, Resultado, Lucro</p>
