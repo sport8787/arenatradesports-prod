@@ -243,7 +243,16 @@ export default function PunterPage() {
 
     if (!savedAnalyses || savedAnalyses.length === 0) return [];
 
-    return savedAnalyses.map((a: any) => ({
+    // Deduplicate: keep only the MOST RECENT analysis per match+market
+    const dedupMap = new Map<string, any>();
+    for (const a of savedAnalyses) {
+      const key = `${a.home_team}_${a.away_team}_${a.market}`.toLowerCase().replace(/\s+/g, '_');
+      if (!dedupMap.has(key)) {
+        dedupMap.set(key, a); // first = most recent (ordered by created_at desc)
+      }
+    }
+
+    return Array.from(dedupMap.values()).map((a: any) => ({
       match: {
         home_team: a.home_team,
         away_team: a.away_team,
@@ -285,7 +294,7 @@ export default function PunterPage() {
     if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
 
     // Check if Hórus already bet on this match
     const { data: existingBets } = await supabase
@@ -413,10 +422,12 @@ export default function PunterPage() {
       const newAnalyzed = data?.total_analyzed || 0;
       const newApproved = data?.total_approved || 0;
 
+      // Dedup key: home_away_market (ignoring commence_time variations)
       const signalKey = (s: PunterSignal) =>
-        `${s.match.home_team}_${s.match.away_team}_${s.match.commence_time}`.toLowerCase().replace(/\s+/g, '_');
+        `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase().replace(/\s+/g, '_');
 
       const mergedMap = new Map<string, PunterSignal>();
+      // Saved signals first (older), then new signals overwrite (fresher data)
       for (const s of savedSignals) mergedMap.set(signalKey(s), s);
       for (const s of newSignals) mergedMap.set(signalKey(s), s);
       const mergedSignals = Array.from(mergedMap.values());
@@ -441,7 +452,7 @@ export default function PunterPage() {
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
-          const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
