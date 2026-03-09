@@ -220,22 +220,20 @@ serve(async (req) => {
     }
 
     // 3. Send Emails via Resend to all confirmed users
-    if (RESEND_API_KEY) {
-      // Fetch all confirmed user emails from auth.users via admin API
+    if (RESEND_API_KEY && betsForEmail.length > 0) {
       const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 500 });
 
       if (authError) {
         console.error("❌ Erro ao buscar usuários:", authError);
       } else {
-        // Filter only confirmed users with valid emails
         const confirmedEmails = (authData?.users || [])
           .filter(u => u.email && u.email_confirmed_at)
           .map(u => u.email!);
 
-        console.log(`📧 ${confirmedEmails.length} usuários confirmados encontrados`);
+        console.log(`📧 ${confirmedEmails.length} usuários confirmados, ${betsForEmail.length} apostas para enviar`);
 
         if (confirmedEmails.length > 0) {
-          const emailHtml = formatEmailHtml(bets);
+          const emailHtml = formatEmailHtml(betsForEmail);
           const today = new Date().toLocaleDateString("pt-BR");
 
           for (const email of confirmedEmails) {
@@ -249,7 +247,7 @@ serve(async (req) => {
                 body: JSON.stringify({
                   from: "Oráculo Mycroft <onboarding@resend.dev>",
                   to: email,
-                  subject: `🎯 ${bets.length} Apostas Aprovadas — ${today}`,
+                  subject: `🎯 ${betsForEmail.length} Apostas Aprovadas — ${today}`,
                   html: emailHtml,
                 }),
               });
@@ -269,32 +267,28 @@ serve(async (req) => {
           console.log(`✅ ${emailsSent}/${confirmedEmails.length} emails enviados`);
         }
       }
-    } else {
-      console.log("⚠️ Resend não configurado (RESEND_API_KEY ausente)");
     }
 
     // 4. Mark bets as sent
-    const betIds = bets.map((b: any) => b.id);
-    const updatePayload: Record<string, any> = {};
+    const nowTs = new Date().toISOString();
 
-    if (telegramSent) {
-      updatePayload.sent_to_telegram = true;
-      updatePayload.telegram_sent_at = new Date().toISOString();
-    }
-
-    if (emailsSent > 0) {
-      updatePayload.sent_to_email = true;
-      updatePayload.email_sent_at = new Date().toISOString();
-    }
-
-    if (Object.keys(updatePayload).length > 0) {
+    if (telegramSent && betsForTelegram.length > 0) {
+      const tgIds = betsForTelegram.map((b: any) => b.id);
       await supabase
         .from("punter_analyses")
-        .update(updatePayload)
-        .in("id", betIds);
-
-      console.log("✅ Status atualizado no banco");
+        .update({ sent_to_telegram: true, telegram_sent_at: nowTs })
+        .in("id", tgIds);
     }
+
+    if (emailsSent > 0 && betsForEmail.length > 0) {
+      const emailIds = betsForEmail.map((b: any) => b.id);
+      await supabase
+        .from("punter_analyses")
+        .update({ sent_to_email: true, email_sent_at: nowTs })
+        .in("id", emailIds);
+    }
+
+    console.log("✅ Status atualizado no banco");
 
     return new Response(
       JSON.stringify({
