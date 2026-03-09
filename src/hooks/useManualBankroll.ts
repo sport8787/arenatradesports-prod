@@ -125,17 +125,14 @@ export function useManualBankroll() {
         if (histErr) console.warn('[ManualBankroll] bets_history sync error:', histErr.message);
       });
 
-    const { error: updateError } = await supabase
-      .from('manual_bankroll' as any)
-      .update({
-        balance: bankroll.balance - params.stake,
-        total_staked: bankroll.total_staked + params.stake,
-        total_bets: bankroll.total_bets + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', user.id);
+    const { data: deducted, error: updateError } = await supabase
+      .rpc('deduct_manual_bankroll', {
+        p_user_id: user.id,
+        p_amount: params.stake,
+      });
 
     if (updateError) return { success: false, error: updateError.message };
+    if (!deducted) return { success: false, error: 'Saldo insuficiente' };
 
     setBankroll(prev => prev ? {
       ...prev,

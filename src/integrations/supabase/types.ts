@@ -3842,6 +3842,10 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
       }
+      deduct_manual_bankroll: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: boolean
+      }
       generate_training_label: {
         Args: { p_recording_id: string }
         Returns: string
