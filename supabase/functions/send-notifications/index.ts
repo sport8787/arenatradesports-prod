@@ -25,10 +25,11 @@ interface ApprovedBet {
 // TELEGRAM FORMATTER
 // ============================================================================
 
-function formatTelegramMessage(bets: ApprovedBet[]): string {
+function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string {
   const today = new Date().toLocaleDateString("pt-BR");
-  let message = `🎯 *APOSTAS APROVADAS* — ${today}\n\n`;
-  message += `📊 Total: *${bets.length} apostas*\n\n`;
+  let message = `🎯 *APOSTAS APROVADAS* — ${today}\n`;
+  if (batchLabel) message += `📦 ${batchLabel}\n`;
+  message += `\n📊 Total: *${bets.length} apostas*\n\n`;
 
   bets.forEach((bet, index) => {
     const score = bet.confidence ?? 70;
@@ -161,41 +162,82 @@ serve(async (req) => {
     const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-    // 1. Fetch approved bets not yet sent (to telegram OR email)
+    // Parse optional params
+    let bodyParams: any = {};
+    try {
+      bodyParams = await req.json();
+    } catch { /* empty body is fine */ }
+
+    const telegramBatchSize = bodyParams.telegram_batch_size ?? 4;
+    const skipEmail = bodyParams.skip_email ?? false;
+
+    // 1. Fetch approved bets not yet sent
     const now = new Date().toISOString();
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: bets, error: betsError } = await supabase
+    // Telegram: only unsent
+    const { data: betsForTelegram, error: tgError } = await supabase
       .from("punter_analyses")
       .select("*")
       .eq("verdict", "APROVADO")
       .gt("commence_time", now)
       .gte("created_at", yesterday)
-      .or("sent_to_telegram.eq.false,sent_to_email.eq.false")
+      .eq("sent_to_telegram", false)
+      .order("commence_time", { ascending: true })
+      .limit(telegramBatchSize);
+
+    if (tgError) {
+      console.error("❌ Erro ao buscar apostas para Telegram:", tgError);
+    }
+
+    // Email: only unsent (fetch all for email)
+    const { data: betsForEmail, error: emailError } = await supabase
+      .from("punter_analyses")
+      .select("*")
+      .eq("verdict", "APROVADO")
+      .gt("commence_time", now)
+      .gte("created_at", yesterday)
+      .eq("sent_to_email", false)
       .order("commence_time", { ascending: true })
       .limit(50);
 
-    if (betsError) throw betsError;
+    if (emailError) {
+      console.error("❌ Erro ao buscar apostas para Email:", emailError);
+    }
 
-    if (!bets || bets.length === 0) {
+    const telegramBets = betsForTelegram || [];
+    const emailBets = betsForEmail || [];
+
+    if (telegramBets.length === 0 && emailBets.length === 0) {
       return new Response(
         JSON.stringify({ success: true, message: "Nenhuma aposta nova para enviar", bets_sent: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`📊 ${bets.length} apostas aprovadas encontradas`);
+    console.log(`📊 Telegram: ${telegramBets.length} apostas (batch ${telegramBatchSize}), Email: ${emailBets.length} apostas`);
 
     let telegramSent = false;
     let emailsSent = 0;
 
-    // Separate bets by what still needs sending
-    const betsForTelegram = bets.filter((b: any) => !b.sent_to_telegram);
-    const betsForEmail = bets.filter((b: any) => !b.sent_to_email);
+    // =========================================================================
+    // 2. Send Telegram — batched (only `telegramBatchSize` per call)
+    // =========================================================================
+    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID && telegramBets.length > 0) {
+      // Count total unsent to show batch label
+      const { count: totalUnsent } = await supabase
+        .from("punter_analyses")
+        .select("*", { count: "exact", head: true })
+        .eq("verdict", "APROVADO")
+        .gt("commence_time", now)
+        .gte("created_at", yesterday)
+        .eq("sent_to_telegram", false);
 
-    // 2. Send Telegram (only unsent)
-    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID && betsForTelegram.length > 0) {
-      const telegramMessage = formatTelegramMessage(betsForTelegram);
+      const batchLabel = totalUnsent && totalUnsent > telegramBets.length
+        ? `Lote ${telegramBets.length}/${totalUnsent} sinais restantes`
+        : undefined;
+
+      const telegramMessage = formatTelegramMessage(telegramBets, batchLabel);
 
       const tgResponse = await fetch(
         `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
@@ -212,15 +254,24 @@ serve(async (req) => {
 
       if (tgResponse.ok) {
         telegramSent = true;
-        console.log(`✅ Telegram enviado (${betsForTelegram.length} apostas)`);
+        console.log(`✅ Telegram enviado (${telegramBets.length} apostas)`);
+
+        // Mark only this batch as sent
+        const tgIds = telegramBets.map((b: any) => b.id);
+        await supabase
+          .from("punter_analyses")
+          .update({ sent_to_telegram: true, telegram_sent_at: new Date().toISOString() })
+          .in("id", tgIds);
       } else {
         const err = await tgResponse.json();
         console.error("❌ Telegram error:", err);
       }
     }
 
-    // 3. Send Emails via Resend to all confirmed users
-    if (RESEND_API_KEY && betsForEmail.length > 0) {
+    // =========================================================================
+    // 3. Send Emails via Resend (all unsent at once, skip if flag set)
+    // =========================================================================
+    if (!skipEmail && RESEND_API_KEY && emailBets.length > 0) {
       const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 500 });
 
       if (authError) {
@@ -230,10 +281,10 @@ serve(async (req) => {
           .filter(u => u.email && u.email_confirmed_at)
           .map(u => u.email!);
 
-        console.log(`📧 ${confirmedEmails.length} usuários confirmados, ${betsForEmail.length} apostas para enviar`);
+        console.log(`📧 ${confirmedEmails.length} usuários confirmados`);
 
         if (confirmedEmails.length > 0) {
-          const emailHtml = formatEmailHtml(betsForEmail);
+          const emailHtml = formatEmailHtml(emailBets);
           const today = new Date().toLocaleDateString("pt-BR");
 
           for (const email of confirmedEmails) {
@@ -247,14 +298,13 @@ serve(async (req) => {
                 body: JSON.stringify({
                   from: "Oráculo Mycroft <onboarding@resend.dev>",
                   to: email,
-                  subject: `🎯 ${betsForEmail.length} Apostas Aprovadas — ${today}`,
+                  subject: `🎯 ${emailBets.length} Apostas Aprovadas — ${today}`,
                   html: emailHtml,
                 }),
               });
 
               if (resendResponse.ok) {
                 emailsSent++;
-                console.log(`✅ Email enviado para ${email}`);
               } else {
                 const err = await resendResponse.json();
                 console.error(`❌ Email error for ${email}:`, err);
@@ -265,37 +315,25 @@ serve(async (req) => {
           }
 
           console.log(`✅ ${emailsSent}/${confirmedEmails.length} emails enviados`);
+
+          if (emailsSent > 0) {
+            const emailIds = emailBets.map((b: any) => b.id);
+            await supabase
+              .from("punter_analyses")
+              .update({ sent_to_email: true, email_sent_at: new Date().toISOString() })
+              .in("id", emailIds);
+          }
         }
       }
     }
 
-    // 4. Mark bets as sent
-    const nowTs = new Date().toISOString();
-
-    if (telegramSent && betsForTelegram.length > 0) {
-      const tgIds = betsForTelegram.map((b: any) => b.id);
-      await supabase
-        .from("punter_analyses")
-        .update({ sent_to_telegram: true, telegram_sent_at: nowTs })
-        .in("id", tgIds);
-    }
-
-    if (emailsSent > 0 && betsForEmail.length > 0) {
-      const emailIds = betsForEmail.map((b: any) => b.id);
-      await supabase
-        .from("punter_analyses")
-        .update({ sent_to_email: true, email_sent_at: nowTs })
-        .in("id", emailIds);
-    }
-
-    console.log("✅ Status atualizado no banco");
+    console.log("✅ Notificações processadas");
 
     return new Response(
       JSON.stringify({
         success: true,
-        bets_sent: bets.length,
-        telegram_sent: telegramSent,
-        emails_sent: emailsSent,
+        telegram: { sent: telegramSent, count: telegramBets.length },
+        email: { sent: emailsSent > 0, count: emailsSent },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
