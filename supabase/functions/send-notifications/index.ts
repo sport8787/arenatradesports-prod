@@ -26,17 +26,25 @@ interface ApprovedBet {
 // ============================================================================
 
 function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string {
-  const today = new Date().toLocaleDateString("pt-BR");
-  let message = `🎯 *APOSTAS APROVADAS* — ${today}\n`;
-  if (batchLabel) message += `📦 ${batchLabel}\n`;
-  message += `\n📊 Total: *${bets.length} apostas*\n\n`;
+  const today = new Date().toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Sao_Paulo",
+  });
+
+  let message = `🎯 APOSTAS APROVADAS — ${today}\n\n`;
+  message += `📊 Total: ${bets.length} apostas com alta probabilidade\n`;
+
+  const numberEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
   bets.forEach((bet, index) => {
     const score = bet.confidence ?? 70;
     const tierEmoji = score >= 90 ? "⭐⭐⭐" : score >= 70 ? "⭐⭐" : "⭐";
-    const tierLabel = score >= 90 ? "ELITE" : score >= 70 ? "PREMIUM" : "STRONG";
+    const tierLabel = score >= 90 ? "ELITE" : score >= 70 ? "PREMIUM" : "FORTE";
     const edge = bet.value_percentage ?? 0;
     const stake = bet.stake_percentage ?? 1;
+    const num = numberEmojis[index] || `${index + 1}.`;
 
     const gameTime = new Date(bet.commence_time).toLocaleString("pt-BR", {
       day: "2-digit",
@@ -46,20 +54,21 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
       timeZone: "America/Sao_Paulo",
     });
 
-    message += `━━━━━━━━━━━━━━━━━\n`;
-    message += `*${index + 1}. ${bet.home_team} vs ${bet.away_team}*\n`;
+    message += `\n━━━━━━━━━━━━━━━━━\n\n`;
+    message += `${num} ${bet.home_team} vs ${bet.away_team}\n\n`;
     message += `🏆 ${bet.league}\n`;
-    message += `📊 ${bet.market}\n`;
-    message += `💰 Odd: *${bet.odd.toFixed(2)}* (${bet.bookmaker})\n`;
-    message += `${tierEmoji} Asset Score: *${score} ${tierLabel}*\n`;
-    message += `📈 Edge: *+${edge.toFixed(1)}%*\n`;
-    message += `💵 Stake: *${stake.toFixed(1)}%*\n`;
-    message += `🕐 ${gameTime}\n\n`;
+    message += `🎲 Mercado: ${bet.market}\n`;
+    message += `💰 Odd: ${bet.odd.toFixed(2)} (${bet.bookmaker})\n`;
+    message += `${tierEmoji} Nível de Confiança: ${score} ${tierLabel}\n`;
+    message += `📈 Vantagem: +${edge.toFixed(1)}%\n`;
+    message += `💵 Investimento Sugerido: ${stake.toFixed(1)}% da banca\n`;
+    message += `🕐 ${gameTime}\n`;
   });
 
-  message += `━━━━━━━━━━━━━━━━━\n\n`;
-  message += `✅ *Todas disponíveis no app*\n`;
-  message += `⚡ *Mycroft IA — Arena Punter*`;
+  message += `\n━━━━━━━━━━━━━━━━━\n\n`;
+  message += `✅ Todas disponíveis no app\n`;
+  message += `🔗 futebol.blefadormilionario.com.br\n\n`;
+  message += `⚡ Mycroft IA — Arena Punter`;
 
   return message;
 }
