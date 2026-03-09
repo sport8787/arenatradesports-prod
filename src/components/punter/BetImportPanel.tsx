@@ -256,6 +256,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <AlertTriangle className="w-3.5 h-3.5" /> Formatos aceitos
                 </h3>
                 <div className="space-y-1.5 text-xs text-muted-foreground">
+                  <p><span className="text-primary font-bold">📸 Screenshot (PNG/JPG):</span> Comprovante de aposta da Betano, Bet365 ou similar — a IA extrai automaticamente!</p>
                   <p><span className="text-foreground font-bold">Bet365:</span> CSV com colunas Date, Event, Selection, Odds, Stake, Returns</p>
                   <p><span className="text-foreground font-bold">Betano:</span> CSV com colunas Data, Evento, Mercado, Seleção, Odd, Stake, Resultado</p>
                   <p><span className="text-foreground font-bold">Genérico:</span> CSV com colunas Evento, Mercado, Odd, Stake, Resultado, Lucro</p>

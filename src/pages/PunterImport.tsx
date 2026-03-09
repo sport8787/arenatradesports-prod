@@ -156,7 +156,7 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
         </Button>
       </motion.div>
 
-      {/* CSV/PDF Import */}
+      {/* CSV/PDF/Image Import */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -165,10 +165,10 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
       >
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-accent" />
-          <h3 className="font-mono text-sm font-bold text-foreground">CSV / PDF</h3>
+          <h3 className="font-mono text-sm font-bold text-foreground">CSV / PDF / Screenshot</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Importe extratos da Bet365, Betano ou qualquer formato genérico.
+          Importe extratos da Bet365, Betano ou <span className="text-primary font-semibold">screenshots de comprovantes</span> (PNG/JPG).
         </p>
         <Button onClick={onOpenPanel} className="w-full">
           <Upload className="w-4 h-4 mr-2" />
