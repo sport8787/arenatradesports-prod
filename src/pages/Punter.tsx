@@ -243,7 +243,16 @@ export default function PunterPage() {
 
     if (!savedAnalyses || savedAnalyses.length === 0) return [];
 
-    return savedAnalyses.map((a: any) => ({
+    // Deduplicate: keep only the MOST RECENT analysis per match+market
+    const dedupMap = new Map<string, any>();
+    for (const a of savedAnalyses) {
+      const key = `${a.home_team}_${a.away_team}_${a.market}`.toLowerCase().replace(/\s+/g, '_');
+      if (!dedupMap.has(key)) {
+        dedupMap.set(key, a); // first = most recent (ordered by created_at desc)
+      }
+    }
+
+    return Array.from(dedupMap.values()).map((a: any) => ({
       match: {
         home_team: a.home_team,
         away_team: a.away_team,
