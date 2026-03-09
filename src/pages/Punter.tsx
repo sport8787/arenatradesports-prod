@@ -313,15 +313,14 @@ export default function PunterPage() {
 
     if (betError) return false;
 
-    // Atomic bankroll deduction using RPC to avoid race conditions
-    const { error: bankrollErr } = await supabase.rpc('deduct_bankroll', {
+    // Atomic bankroll deduction to avoid race conditions in sequential auto-bets
+    const { error: bankrollErr } = await supabase.rpc('deduct_bankroll' as any, {
       p_user_id: user.id,
       p_amount: stake,
     });
 
     if (bankrollErr) {
-      console.warn('Bankroll deduction failed:', bankrollErr.message);
-      // Fallback: direct update
+      console.warn('Atomic deduction failed, using fallback:', bankrollErr.message);
       await supabase.from('user_bankroll').update({
         balance: +(bankroll.balance - stake).toFixed(2),
         total_staked: +(bankroll.total_staked + stake).toFixed(2),
