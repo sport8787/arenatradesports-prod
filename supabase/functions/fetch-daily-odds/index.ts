@@ -199,7 +199,7 @@ serve(async (req) => {
       }
     }
 
-    const result = {
+    const result: any = {
       success: true,
       total_games: allGames.length,
       api_credits_used: apiCreditsUsed,
