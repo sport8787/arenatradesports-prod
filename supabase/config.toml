@@ -58,3 +58,6 @@ verify_jwt = false
 
 [functions.sync-betfair]
 verify_jwt = false
+
+[functions.send-notifications]
+verify_jwt = false
