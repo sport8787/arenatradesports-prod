@@ -171,6 +171,7 @@ export const useAuth = () => {
     signUp,
     signIn,
     signInWithGoogle,
+    signInWithApple,
     signOut,
     resetPassword,
     updateProfile,
