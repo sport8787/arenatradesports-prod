@@ -161,7 +161,7 @@ serve(async (req) => {
     const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-    // 1. Fetch approved bets not yet sent
+    // 1. Fetch approved bets not yet sent (to telegram OR email)
     const now = new Date().toISOString();
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -169,9 +169,9 @@ serve(async (req) => {
       .from("punter_analyses")
       .select("*")
       .eq("verdict", "APROVADO")
-      .eq("sent_to_telegram", false)
       .gt("commence_time", now)
       .gte("created_at", yesterday)
+      .or("sent_to_telegram.eq.false,sent_to_email.eq.false")
       .order("commence_time", { ascending: true })
       .limit(50);
 
@@ -189,9 +189,13 @@ serve(async (req) => {
     let telegramSent = false;
     let emailsSent = 0;
 
-    // 2. Send Telegram
-    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-      const telegramMessage = formatTelegramMessage(bets);
+    // Separate bets by what still needs sending
+    const betsForTelegram = bets.filter((b: any) => !b.sent_to_telegram);
+    const betsForEmail = bets.filter((b: any) => !b.sent_to_email);
+
+    // 2. Send Telegram (only unsent)
+    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID && betsForTelegram.length > 0) {
+      const telegramMessage = formatTelegramMessage(betsForTelegram);
 
       const tgResponse = await fetch(
         `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
@@ -208,86 +212,83 @@ serve(async (req) => {
 
       if (tgResponse.ok) {
         telegramSent = true;
-        console.log("✅ Telegram enviado com sucesso");
+        console.log(`✅ Telegram enviado (${betsForTelegram.length} apostas)`);
       } else {
         const err = await tgResponse.json();
         console.error("❌ Telegram error:", err);
       }
-    } else {
-      console.log("⚠️ Telegram não configurado (secrets ausentes)");
     }
 
-    // 3. Send Emails via Resend
-    if (RESEND_API_KEY) {
-      // Fetch users with email notifications enabled
-      const { data: prefs } = await supabase
-        .from("user_preferences")
-        .select("user_id, notification_email")
-        .eq("email_notifications", true);
+    // 3. Send Emails via Resend to all confirmed users
+    if (RESEND_API_KEY && betsForEmail.length > 0) {
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 500 });
 
-      if (prefs && prefs.length > 0) {
-        // Get emails from auth or notification_email field
-        const emailHtml = formatEmailHtml(bets);
-        const today = new Date().toLocaleDateString("pt-BR");
+      if (authError) {
+        console.error("❌ Erro ao buscar usuários:", authError);
+      } else {
+        const confirmedEmails = (authData?.users || [])
+          .filter(u => u.email && u.email_confirmed_at)
+          .map(u => u.email!);
 
-        for (const pref of prefs) {
-          const email = pref.notification_email;
-          if (!email) continue;
+        console.log(`📧 ${confirmedEmails.length} usuários confirmados, ${betsForEmail.length} apostas para enviar`);
 
-          try {
-            const resendResponse = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "Oráculo Mycroft <onboarding@resend.dev>",
-                to: email,
-                subject: `🎯 ${bets.length} Apostas Aprovadas — ${today}`,
-                html: emailHtml,
-              }),
-            });
+        if (confirmedEmails.length > 0) {
+          const emailHtml = formatEmailHtml(betsForEmail);
+          const today = new Date().toLocaleDateString("pt-BR");
 
-            if (resendResponse.ok) {
-              emailsSent++;
-            } else {
-              const err = await resendResponse.json();
-              console.error(`❌ Email error for ${email}:`, err);
+          for (const email of confirmedEmails) {
+            try {
+              const resendResponse = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "Oráculo Mycroft <onboarding@resend.dev>",
+                  to: email,
+                  subject: `🎯 ${betsForEmail.length} Apostas Aprovadas — ${today}`,
+                  html: emailHtml,
+                }),
+              });
+
+              if (resendResponse.ok) {
+                emailsSent++;
+                console.log(`✅ Email enviado para ${email}`);
+              } else {
+                const err = await resendResponse.json();
+                console.error(`❌ Email error for ${email}:`, err);
+              }
+            } catch (emailErr) {
+              console.error(`❌ Email send error for ${email}:`, emailErr);
             }
-          } catch (emailErr) {
-            console.error(`❌ Email send error:`, emailErr);
           }
-        }
 
-        console.log(`✅ ${emailsSent} emails enviados`);
+          console.log(`✅ ${emailsSent}/${confirmedEmails.length} emails enviados`);
+        }
       }
-    } else {
-      console.log("⚠️ Resend não configurado (RESEND_API_KEY ausente)");
     }
 
     // 4. Mark bets as sent
-    const betIds = bets.map((b: any) => b.id);
-    const updatePayload: Record<string, any> = {};
+    const nowTs = new Date().toISOString();
 
-    if (telegramSent) {
-      updatePayload.sent_to_telegram = true;
-      updatePayload.telegram_sent_at = new Date().toISOString();
-    }
-
-    if (emailsSent > 0) {
-      updatePayload.sent_to_email = true;
-      updatePayload.email_sent_at = new Date().toISOString();
-    }
-
-    if (Object.keys(updatePayload).length > 0) {
+    if (telegramSent && betsForTelegram.length > 0) {
+      const tgIds = betsForTelegram.map((b: any) => b.id);
       await supabase
         .from("punter_analyses")
-        .update(updatePayload)
-        .in("id", betIds);
-
-      console.log("✅ Status atualizado no banco");
+        .update({ sent_to_telegram: true, telegram_sent_at: nowTs })
+        .in("id", tgIds);
     }
+
+    if (emailsSent > 0 && betsForEmail.length > 0) {
+      const emailIds = betsForEmail.map((b: any) => b.id);
+      await supabase
+        .from("punter_analyses")
+        .update({ sent_to_email: true, email_sent_at: nowTs })
+        .in("id", emailIds);
+    }
+
+    console.log("✅ Status atualizado no banco");
 
     return new Response(
       JSON.stringify({
