@@ -60,7 +60,7 @@ interface PunterSignal {
 
 export default function PunterPage() {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, refetchProfile } = useAuth();
   const { isAdmin } = useAdmin();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
