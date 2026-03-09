@@ -537,6 +537,13 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
+    const assetScoreResult = calculateAssetScore({
+      value_percentage: signal.recommendation.value_percentage,
+      confidence: signal.recommendation.confidence,
+      odd: signal.recommendation.odd,
+      bookmaker: signal.recommendation.bookmaker,
+    });
+
     const result = await placeManualBet({
       match_id: matchId,
       match_name: matchName,
@@ -545,6 +552,7 @@ export default function PunterPage() {
       stake: customStake,
       thesis: signal.recommendation.thesis,
       commence_time: signal.match.commence_time || undefined,
+      asset_score: assetScoreResult.final_score,
     });
 
     if (!result.success) {
