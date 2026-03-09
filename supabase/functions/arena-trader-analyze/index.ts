@@ -217,7 +217,7 @@ Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`
 
     console.log(`🧠 Calling Gemini via Lovable AI Gateway for ${asset.symbol}...`);
 
-    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
