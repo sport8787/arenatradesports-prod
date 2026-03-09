@@ -63,7 +63,8 @@ function runSimulation(
       break;
     }
 
-    const stake = bankroll * (avgStakePct / 100);
+    const rawStake = bankroll * (avgStakePct / 100);
+    const stake = Math.min(rawStake, maxStakeAmount); // Cap at bookmaker limit
     const isWin = Math.random() < p;
 
     if (isWin) {
