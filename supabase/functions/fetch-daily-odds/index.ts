@@ -209,6 +209,59 @@ serve(async (req) => {
 
     console.log(`[Daily Odds Cache] Done! ${allGames.length} games cached, ${apiCreditsUsed} API credits used`)
 
+    // Auto-chain: trigger Mycroft Punter analysis after caching
+    if (allGames.length > 0) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+
+        console.log(`[Daily Odds Cache] ⚡ Triggering Mycroft Punter analysis...`)
+        const analysisRes = await fetch(
+          `${supabaseUrl}/functions/v1/mycroft-punter-analysis`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+            },
+            body: JSON.stringify({ hours_ahead: 48, min_value: 3 }),
+          }
+        )
+
+        if (analysisRes.ok) {
+          const analysisResult = await analysisRes.json()
+          console.log(`[Daily Odds Cache] ✅ Analysis complete:`, JSON.stringify(analysisResult))
+          result.analysis_triggered = true
+          result.analysis_result = analysisResult
+
+          // After analysis, trigger notifications
+          console.log(`[Daily Odds Cache] 📧 Triggering notifications...`)
+          const notifRes = await fetch(
+            `${supabaseUrl}/functions/v1/send-notifications`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify({}),
+            }
+          )
+          if (notifRes.ok) {
+            const notifResult = await notifRes.json()
+            console.log(`[Daily Odds Cache] ✅ Notifications sent:`, JSON.stringify(notifResult))
+            result.notifications = notifResult
+          } else {
+            console.error(`[Daily Odds Cache] ❌ Notifications failed:`, await notifRes.text())
+          }
+        } else {
+          console.error(`[Daily Odds Cache] ❌ Analysis failed:`, await analysisRes.text())
+        }
+      } catch (chainErr) {
+        console.error(`[Daily Odds Cache] ❌ Chain error:`, chainErr)
+      }
+    }
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
