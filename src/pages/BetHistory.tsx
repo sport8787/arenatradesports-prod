@@ -477,6 +477,12 @@ export default function BetHistoryPage() {
           <LeagueFilter bets={bets} value={league} onChange={setLeague} />
         </div>
 
+        {/* Advanced Filters */}
+        <AdvancedFilters
+          bets={leagueFiltered as any}
+          onFilteredChange={(filtered) => setAdvancedFiltered(filtered as any)}
+        />
+
         {/* Bankroll Evolution Chart */}
         <BankrollEvolutionChart
           bets={leagueFiltered}
