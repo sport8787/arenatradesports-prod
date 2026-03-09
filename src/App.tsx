@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import MultiBetOptimizer from "./pages/MultiBetOptimizer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
 import { RequireSubscription } from "@/components/RequireSubscription";
@@ -72,6 +73,7 @@ const App = () => {
               <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
               <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
               <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
+              <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
