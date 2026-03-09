@@ -363,6 +363,8 @@ export default function PunterPage() {
       return;
     }
     toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise`);
+    // Refresh profile to sync NT balance in UI
+    refetchProfile();
 
     setLoading(true);
     setError(null);
