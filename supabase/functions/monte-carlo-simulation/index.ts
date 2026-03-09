@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
       num_bets,
       num_simulations = 10000,
       ruin_threshold_pct = 10,
+      max_stake_amount = 50000, // Default 50k cap - realistic bookmaker limit
     } = input;
 
     const ruinThreshold = initial_bankroll * (ruin_threshold_pct / 100);
