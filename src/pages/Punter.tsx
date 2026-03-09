@@ -554,6 +554,23 @@ export default function PunterPage() {
           </button>
 
           <button
+            onClick={() => navigate('/punter/multiplas')}
+            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Zap className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Multi-Bet Optimizer</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Múltiplas otimizadas por IA — correlação, Kelly, edge agregado</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-mono bg-primary/20 text-primary px-1.5 py-0.5 rounded">BETA</span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+            </div>
+          </button>
+
+          <button
             onClick={() => navigate('/punter/config')}
             className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
           >
