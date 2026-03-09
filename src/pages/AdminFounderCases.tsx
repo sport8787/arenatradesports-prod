@@ -207,6 +207,9 @@ export default function AdminFounderCases() {
           </LuxuryCard>
         </div>
 
+        {/* API Health Checker */}
+        <ApiHealthChecker />
+
         {/* Generate Section */}
         <LuxuryCard className="p-6 space-y-4">
           <h2 className="font-orbitron text-lg text-primary flex items-center gap-2">
