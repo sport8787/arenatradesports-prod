@@ -306,6 +306,14 @@ export default function PunterPage() {
 
     if (existingBets && existingBets.length > 0) return false; // Already bet
 
+    // Calculate asset score for storage
+    const assetScoreResult = calculateAssetScore({
+      value_percentage: signal.recommendation.value_percentage,
+      confidence: signal.recommendation.confidence,
+      odd: signal.recommendation.odd,
+      bookmaker: signal.recommendation.bookmaker,
+    });
+
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
@@ -318,6 +326,7 @@ export default function PunterPage() {
         status: 'pending',
         thesis: signal.recommendation.thesis || null,
         commence_time: signal.match.commence_time || null,
+        asset_score: assetScoreResult.final_score,
       } as any);
 
     if (betError) return false;
