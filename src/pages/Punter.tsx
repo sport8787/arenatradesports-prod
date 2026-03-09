@@ -413,10 +413,12 @@ export default function PunterPage() {
       const newAnalyzed = data?.total_analyzed || 0;
       const newApproved = data?.total_approved || 0;
 
+      // Dedup key: home_away_market (ignoring commence_time variations)
       const signalKey = (s: PunterSignal) =>
-        `${s.match.home_team}_${s.match.away_team}_${s.match.commence_time}`.toLowerCase().replace(/\s+/g, '_');
+        `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase().replace(/\s+/g, '_');
 
       const mergedMap = new Map<string, PunterSignal>();
+      // Saved signals first (older), then new signals overwrite (fresher data)
       for (const s of savedSignals) mergedMap.set(signalKey(s), s);
       for (const s of newSignals) mergedMap.set(signalKey(s), s);
       const mergedSignals = Array.from(mergedMap.values());
