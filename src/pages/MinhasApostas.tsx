@@ -333,7 +333,7 @@ export default function MinhasApostasPage() {
       totalProfit,
       winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
     };
-  }, [leagueFiltered]);
+  }, [advancedFiltered, leagueFiltered]);
 
   const formatDate = (d: string) => {
     const date = new Date(d);
