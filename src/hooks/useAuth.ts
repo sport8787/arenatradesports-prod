@@ -99,15 +99,11 @@ export const useAuth = () => {
   };
 
   const signInWithGoogle = async () => {
-    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl
-      }
+    const { lovable } = await import('@/integrations/lovable/index');
+    const result = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: 'https://futebol.blefadormilionario.com.br/',
     });
-    return { data, error };
+    return { data: result, error: result?.error || null };
   };
 
   const signOut = async () => {
