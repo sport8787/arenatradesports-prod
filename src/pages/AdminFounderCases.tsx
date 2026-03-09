@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAdmin } from '@/hooks/useAdmin';
 import LuxuryCard from '@/components/game/LuxuryCard';
 import GoldButton from '@/components/game/GoldButton';
+import ApiHealthChecker from '@/components/admin/ApiHealthChecker';
 import { 
   Shield, Home, Plus, Copy, Trash2, RefreshCw, 
   Briefcase, Check, X, User, Calendar, Clock
