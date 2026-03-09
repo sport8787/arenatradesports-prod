@@ -290,7 +290,7 @@ export default function MinhasApostasPage() {
   }, [periodFiltered, league]);
 
   const filtered = useMemo(() => {
-    let src = leagueFiltered;
+    let src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
     if (filter === 'all') src = src.filter(b => b.status !== 'cancelled');
     else if (filter === 'pending') src = src.filter(b => b.status === 'pending');
     else if (filter === 'green') src = src.filter(b => b.result === 'green');
