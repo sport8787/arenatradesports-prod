@@ -218,7 +218,8 @@ interface MonteCarloResult {
 function runMonteCarlo(
   approvedBets: { odd: number; stakePct: number; isGreen: boolean }[],
   initialBankroll: number,
-  numSimulations: number = 10000
+  numSimulations: number = 10000,
+  maxStakeAmount: number = 50000
 ): MonteCarloResult {
   if (approvedBets.length === 0) {
     return {
