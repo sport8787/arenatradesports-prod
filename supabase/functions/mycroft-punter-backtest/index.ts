@@ -248,7 +248,8 @@ function runMonteCarlo(
     let busted = false
 
     for (const bet of shuffled) {
-      const stake = bankroll * (bet.stakePct / 100)
+      const rawStake = bankroll * (bet.stakePct / 100)
+      const stake = Math.min(rawStake, maxStakeAmount) // Cap at bookmaker limit
       if (bet.isGreen) {
         bankroll += stake * (bet.odd - 1)
       } else {
