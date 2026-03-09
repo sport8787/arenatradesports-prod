@@ -189,9 +189,13 @@ serve(async (req) => {
     let telegramSent = false;
     let emailsSent = 0;
 
-    // 2. Send Telegram
-    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-      const telegramMessage = formatTelegramMessage(bets);
+    // Separate bets by what still needs sending
+    const betsForTelegram = bets.filter((b: any) => !b.sent_to_telegram);
+    const betsForEmail = bets.filter((b: any) => !b.sent_to_email);
+
+    // 2. Send Telegram (only unsent)
+    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID && betsForTelegram.length > 0) {
+      const telegramMessage = formatTelegramMessage(betsForTelegram);
 
       const tgResponse = await fetch(
         `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
@@ -208,13 +212,11 @@ serve(async (req) => {
 
       if (tgResponse.ok) {
         telegramSent = true;
-        console.log("✅ Telegram enviado com sucesso");
+        console.log(`✅ Telegram enviado (${betsForTelegram.length} apostas)`);
       } else {
         const err = await tgResponse.json();
         console.error("❌ Telegram error:", err);
       }
-    } else {
-      console.log("⚠️ Telegram não configurado (secrets ausentes)");
     }
 
     // 3. Send Emails via Resend to all confirmed users
