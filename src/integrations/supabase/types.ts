@@ -3357,6 +3357,7 @@ export type Database = {
       }
       virtual_bets_manual: {
         Row: {
+          asset_score: number | null
           commence_time: string | null
           created_at: string | null
           id: string
@@ -3377,6 +3378,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          asset_score?: number | null
           commence_time?: string | null
           created_at?: string | null
           id?: string
@@ -3397,6 +3399,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          asset_score?: number | null
           commence_time?: string | null
           created_at?: string | null
           id?: string
@@ -3421,6 +3424,7 @@ export type Database = {
       virtual_bets_punter: {
         Row: {
           analysis_id: string | null
+          asset_score: number | null
           commence_time: string | null
           created_at: string | null
           id: string
@@ -3443,6 +3447,7 @@ export type Database = {
         }
         Insert: {
           analysis_id?: string | null
+          asset_score?: number | null
           commence_time?: string | null
           created_at?: string | null
           id?: string
@@ -3465,6 +3470,7 @@ export type Database = {
         }
         Update: {
           analysis_id?: string | null
+          asset_score?: number | null
           commence_time?: string | null
           created_at?: string | null
           id?: string
