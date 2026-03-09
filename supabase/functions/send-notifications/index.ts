@@ -217,50 +217,55 @@ serve(async (req) => {
       console.log("⚠️ Telegram não configurado (secrets ausentes)");
     }
 
-    // 3. Send Emails via Resend
+    // 3. Send Emails via Resend to all confirmed users
     if (RESEND_API_KEY) {
-      // Fetch users with email notifications enabled
-      const { data: prefs } = await supabase
-        .from("user_preferences")
-        .select("user_id, notification_email")
-        .eq("email_notifications", true);
+      // Fetch all confirmed user emails from auth.users via admin API
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 500 });
 
-      if (prefs && prefs.length > 0) {
-        // Get emails from auth or notification_email field
-        const emailHtml = formatEmailHtml(bets);
-        const today = new Date().toLocaleDateString("pt-BR");
+      if (authError) {
+        console.error("❌ Erro ao buscar usuários:", authError);
+      } else {
+        // Filter only confirmed users with valid emails
+        const confirmedEmails = (authData?.users || [])
+          .filter(u => u.email && u.email_confirmed_at)
+          .map(u => u.email!);
 
-        for (const pref of prefs) {
-          const email = pref.notification_email;
-          if (!email) continue;
+        console.log(`📧 ${confirmedEmails.length} usuários confirmados encontrados`);
 
-          try {
-            const resendResponse = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "Oráculo Mycroft <onboarding@resend.dev>",
-                to: email,
-                subject: `🎯 ${bets.length} Apostas Aprovadas — ${today}`,
-                html: emailHtml,
-              }),
-            });
+        if (confirmedEmails.length > 0) {
+          const emailHtml = formatEmailHtml(bets);
+          const today = new Date().toLocaleDateString("pt-BR");
 
-            if (resendResponse.ok) {
-              emailsSent++;
-            } else {
-              const err = await resendResponse.json();
-              console.error(`❌ Email error for ${email}:`, err);
+          for (const email of confirmedEmails) {
+            try {
+              const resendResponse = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "Oráculo Mycroft <onboarding@resend.dev>",
+                  to: email,
+                  subject: `🎯 ${bets.length} Apostas Aprovadas — ${today}`,
+                  html: emailHtml,
+                }),
+              });
+
+              if (resendResponse.ok) {
+                emailsSent++;
+                console.log(`✅ Email enviado para ${email}`);
+              } else {
+                const err = await resendResponse.json();
+                console.error(`❌ Email error for ${email}:`, err);
+              }
+            } catch (emailErr) {
+              console.error(`❌ Email send error for ${email}:`, emailErr);
             }
-          } catch (emailErr) {
-            console.error(`❌ Email send error:`, emailErr);
           }
-        }
 
-        console.log(`✅ ${emailsSent} emails enviados`);
+          console.log(`✅ ${emailsSent}/${confirmedEmails.length} emails enviados`);
+        }
       }
     } else {
       console.log("⚠️ Resend não configurado (RESEND_API_KEY ausente)");
