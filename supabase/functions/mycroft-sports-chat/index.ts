@@ -41,19 +41,20 @@ async function loadKnowledgeBase(): Promise<string> {
   return contents.join("\n\n");
 }
 
-async function loadMemories(userId: string): Promise<string> {
+async function loadMemories(userId: string, contextFilter: string): Promise<string> {
   const supabase = getSupabaseAdmin();
   try {
     const { data } = await supabase
       .from("mycroft_memory")
-      .select("instruction, category, created_at")
+      .select("id, rule_text, category, priority, context, created_at")
       .eq("user_id", userId)
-      .eq("mycroft_type", "sports")
       .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .limit(50);
+      .contains("context", [contextFilter])
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(20);
     if (!data || data.length === 0) return "";
-    const lines = data.map((m: any, i: number) => `${i + 1}. [${m.category}] ${m.instruction}`);
+    const lines = data.map((m: any, i: number) => `${i + 1}. [${m.category}|P${m.priority}] ${m.rule_text}`);
     return `\n━━━ MEMÓRIA PERSISTENTE DO USUÁRIO (${data.length} regras) ━━━\nEstas são instruções que o usuário definiu anteriormente. Você DEVE respeitá-las em TODAS as interações:\n${lines.join("\n")}\n━━━ FIM DA MEMÓRIA ━━━\n`;
   } catch (e) {
     console.error("Memory loading error:", e);
@@ -61,44 +62,130 @@ async function loadMemories(userId: string): Promise<string> {
   }
 }
 
-async function detectAndSaveMemory(userId: string, query: string, aiResponse: string): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const lowerQuery = query.toLowerCase();
-
-  // Detect instruction patterns
-  const instructionPatterns = [
-    /nunca\s+(?:mais\s+)?(?:faça|faz|sugira|recomende|aprove)/i,
-    /sempre\s+(?:priorize|faça|considere|lembre|use)/i,
-    /a\s+partir\s+de\s+agora/i,
-    /regra:\s*/i,
-    /(?:isso|isto)\s+(?:jamais|nunca)\s+pode\s+acontecer/i,
-    /(?:não|nao)\s+(?:quero|aceito)\s+(?:mais|que)/i,
-    /(?:lembre|memorize|grave|salve)\s+(?:que|isso|isto|esta regra)/i,
-    /(?:minha|nova)\s+(?:regra|diretriz|instrução)/i,
-    /(?:deve|deveria)\s+sempre/i,
-  ];
-
-  const isInstruction = instructionPatterns.some(p => p.test(query));
-  if (!isInstruction) return;
-
-  // Determine category
-  let category = "rule";
-  if (/gestão|banca|stake|risk|risco/i.test(lowerQuery)) category = "risk_management";
-  else if (/mercado|odd|value|edge|aposta/i.test(lowerQuery)) category = "market_preference";
-  else if (/conflitante|duplicad|prioriz/i.test(lowerQuery)) category = "anti_conflict";
-  else if (/tom|estilo|formato|respond/i.test(lowerQuery)) category = "style";
-
+async function aiExtractRules(query: string, aiResponse: string, apiKey: string): Promise<{ rules: Array<{ rule_text: string; category: string; priority: number }>; forget_rules: string[]; conflicts: string[] }> {
   try {
-    await supabase.from("mycroft_memory").insert({
-      user_id: userId,
-      mycroft_type: "sports",
-      instruction: query.substring(0, 2000),
-      category,
+    const extractionPrompt = `Analise a mensagem do usuário e determine:
+1. Se contém instruções/regras permanentes (ex: "nunca faça X", "sempre priorize Y", "a partir de agora...")
+2. Se pede para esquecer/remover alguma regra (ex: "esqueça a regra sobre X", "remova a regra de Y")
+3. Se há conflitos potenciais entre as regras detectadas
+
+Retorne APENAS o JSON usando a tool fornecida.
+
+Mensagem do usuário: "${query}"`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{ role: "user", content: extractionPrompt }],
+        temperature: 0.1,
+        max_tokens: 500,
+        tools: [{
+          type: "function",
+          function: {
+            name: "extract_memory_rules",
+            description: "Extract permanent rules, forget requests, and conflicts from user message",
+            parameters: {
+              type: "object",
+              properties: {
+                rules: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      rule_text: { type: "string", description: "The rule in clear, concise form" },
+                      category: { type: "string", enum: ["risk_management", "market_preference", "analysis_rule", "style", "anti_conflict", "rule"] },
+                      priority: { type: "number", description: "0=normal, 1=important, 2=critical" }
+                    },
+                    required: ["rule_text", "category", "priority"]
+                  }
+                },
+                forget_rules: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Keywords of rules to deactivate"
+                },
+                conflicts: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Descriptions of detected conflicts"
+                }
+              },
+              required: ["rules", "forget_rules", "conflicts"]
+            }
+          }
+        }],
+        tool_choice: { type: "function", function: { name: "extract_memory_rules" } }
+      }),
     });
-    console.log(`🧠 Memory saved for user ${userId}: [${category}] ${query.substring(0, 100)}...`);
+
+    if (!response.ok) {
+      console.error("AI extraction error:", response.status);
+      return { rules: [], forget_rules: [], conflicts: [] };
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      return JSON.parse(toolCall.function.arguments);
+    }
+    return { rules: [], forget_rules: [], conflicts: [] };
   } catch (e) {
-    console.error("Memory save error:", e);
+    console.error("AI rule extraction error:", e);
+    return { rules: [], forget_rules: [], conflicts: [] };
   }
+}
+
+async function processMemoryActions(userId: string, extraction: { rules: Array<{ rule_text: string; category: string; priority: number }>; forget_rules: string[]; conflicts: string[] }): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  const feedback: string[] = [];
+
+  // Save new rules
+  for (const rule of extraction.rules) {
+    try {
+      await supabase.from("mycroft_memory").insert({
+        user_id: userId,
+        mycroft_type: "sports",
+        rule_text: rule.rule_text.substring(0, 2000),
+        category: rule.category,
+        priority: rule.priority,
+        context: ["sports"],
+      });
+      feedback.push(`✅ Regra memorizada: "${rule.rule_text.substring(0, 80)}..."`);
+      console.log(`🧠 Rule saved: [${rule.category}|P${rule.priority}] ${rule.rule_text.substring(0, 100)}`);
+    } catch (e) {
+      console.error("Rule save error:", e);
+    }
+  }
+
+  // Deactivate forgotten rules
+  for (const keyword of extraction.forget_rules) {
+    try {
+      const { data: matches } = await supabase
+        .from("mycroft_memory")
+        .select("id, rule_text")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .ilike("rule_text", `%${keyword}%`)
+        .limit(5);
+      if (matches && matches.length > 0) {
+        const ids = matches.map((m: any) => m.id);
+        await supabase.from("mycroft_memory").update({ is_active: false }).in("id", ids);
+        feedback.push(`🗑️ Regra(s) removida(s) contendo "${keyword}" (${matches.length} regra(s))`);
+        console.log(`🗑️ Deactivated ${matches.length} rules matching "${keyword}"`);
+      }
+    } catch (e) {
+      console.error("Forget rule error:", e);
+    }
+  }
+
+  // Report conflicts
+  for (const conflict of extraction.conflicts) {
+    feedback.push(`⚠️ Conflito detectado: ${conflict}`);
+  }
+
+  return feedback.join("\n");
 }
 
 async function lookupMatchContext(query: string): Promise<string> {
@@ -180,7 +267,7 @@ serve(async (req) => {
     const [knowledgeBaseContent, autoMatchContext, memoryContent] = await Promise.all([
       loadKnowledgeBase(),
       lookupMatchContext(query),
-      userId ? loadMemories(userId) : Promise.resolve(""),
+      userId ? loadMemories(userId, "sports") : Promise.resolve(""),
     ]);
 
     const combinedMatchContext = [matchContext, autoMatchContext].filter(Boolean).join("\n");
@@ -215,6 +302,10 @@ Quando o usuário der uma instrução permanente (ex: "nunca mais faça X", "sem
 1. Confirmar que entendeu e que a regra será memorizada
 2. Informar: "✅ Regra memorizada. Será aplicada em todas as próximas interações."
 3. Aplicar a regra imediatamente na resposta atual
+
+Quando o usuário pedir para esquecer uma regra (ex: "esqueça a regra sobre X"), confirme a remoção.
+
+Se detectar conflito entre regras, avise o usuário com: "⚠️ Conflito detectado entre regras. Por favor, revise."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DIRETRIZES
@@ -258,9 +349,18 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
-    // Save memory in background (don't await to avoid latency)
+    // AI-based memory extraction in background
     if (userId) {
-      detectAndSaveMemory(userId, query, text).catch(e => console.error("Memory save bg error:", e));
+      (async () => {
+        try {
+          const extraction = await aiExtractRules(query, text, LOVABLE_API_KEY);
+          if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
+            await processMemoryActions(userId, extraction);
+          }
+        } catch (e) {
+          console.error("Memory processing bg error:", e);
+        }
+      })();
     }
 
     return new Response(JSON.stringify({ response: text }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
