@@ -1620,31 +1620,37 @@ export type Database = {
       mycroft_memory: {
         Row: {
           category: string
+          context: string[]
           created_at: string
           id: string
-          instruction: string
           is_active: boolean
           mycroft_type: string
+          priority: number
+          rule_text: string
           updated_at: string
           user_id: string
         }
         Insert: {
           category?: string
+          context?: string[]
           created_at?: string
           id?: string
-          instruction: string
           is_active?: boolean
           mycroft_type?: string
+          priority?: number
+          rule_text: string
           updated_at?: string
           user_id: string
         }
         Update: {
           category?: string
+          context?: string[]
           created_at?: string
           id?: string
-          instruction?: string
           is_active?: boolean
           mycroft_type?: string
+          priority?: number
+          rule_text?: string
           updated_at?: string
           user_id?: string
         }
