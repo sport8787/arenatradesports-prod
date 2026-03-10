@@ -188,10 +188,45 @@ async function processMemoryActions(userId: string, extraction: { rules: Array<{
   return feedback.join("\n");
 }
 
+function formatLiveMatchStats(m: any): string {
+  const stats = m.stats || {};
+  const lines = [
+    `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}`,
+    `  Liga: ${m.championship} | Min: ${m.minute || "-"} | Status: ${m.status}`,
+  ];
+  
+  if (stats.possession_home || stats.possession_away) {
+    lines.push(`  Posse: ${stats.possession_home || 0}% x ${stats.possession_away || 0}%`);
+  }
+  if (stats.attacks_home || stats.attacks_away) {
+    lines.push(`  Ataques Perigosos: ${stats.attacks_home || 0} x ${stats.attacks_away || 0}`);
+  }
+  if (stats.shots_total_home || stats.shots_total_away) {
+    lines.push(`  Chutes (Total): ${stats.shots_total_home || 0} x ${stats.shots_total_away || 0}`);
+  }
+  if (stats.shots_on_target_home || stats.shots_on_target_away) {
+    lines.push(`  Chutes no Gol: ${stats.shots_on_target_home || 0} x ${stats.shots_on_target_away || 0}`);
+  }
+  if (stats.corners_home || stats.corners_away) {
+    lines.push(`  Escanteios: ${stats.corners_home || 0} x ${stats.corners_away || 0}`);
+  }
+  if (stats.cards_home || stats.cards_away) {
+    lines.push(`  Cartões: ${stats.cards_home || 0} x ${stats.cards_away || 0}`);
+  }
+  if (stats.xG_home != null) {
+    lines.push(`  xG: ${stats.xG_home} x ${stats.xG_away}`);
+  }
+  
+  return lines.join("\n");
+}
+
 async function lookupMatchContext(query: string): Promise<string> {
   const supabase = getSupabaseAdmin();
   const parts: string[] = [];
   const queryLower = query.toLowerCase();
+
+  // Detect if user is asking about live matches in general
+  const isAskingLive = /ao vivo|live|jogos? agora|partidas? agora|jogando|rolando|acontecendo|em andamento/i.test(query);
 
   try {
     const { data: scheduled } = await supabase.from("scheduled_games").select("*").order("match_datetime", { ascending: true }).limit(50);
@@ -208,26 +243,63 @@ async function lookupMatchContext(query: string): Promise<string> {
       }
     }
 
-    const { data: live } = await supabase.from("live_matches").select("*, mycroft_analyses(*)").order("updated_at", { ascending: false }).limit(50);
-    const matchedLive = (live || []).filter((m: any) => {
-      const home = m.home_team?.toLowerCase() || "";
-      const away = m.away_team?.toLowerCase() || "";
-      const champ = m.championship?.toLowerCase() || "";
-      return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w) || champ.includes(w)));
-    });
-    if (matchedLive.length > 0) {
-      parts.push("━━━ JOGOS AO VIVO / RECENTES ━━━");
-      for (const m of matchedLive.slice(0, 5)) {
-        const stats = m.stats || {};
-        parts.push([
-          `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}`,
-          `  Liga: ${m.championship} | Min: ${m.minute || "-"} | Status: ${m.status}`,
-          stats.attacks_home != null ? `  Ataques: ${stats.attacks_home} x ${stats.attacks_away} | Posse: ${stats.possession_home}% x ${stats.possession_away}%` : "",
-          stats.xG_home != null ? `  xG: ${stats.xG_home} x ${stats.xG_away}` : "",
-        ].filter(Boolean).join("\n"));
-        const analysis = m.mycroft_analyses;
-        if (analysis) {
-          parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
+    // Fetch live matches - ALL if asking about live, or filter by team name
+    const { data: live } = await supabase
+      .from("live_matches")
+      .select("*, mycroft_analyses(*)")
+      .in("status", ["live", "halftime"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    if (isAskingLive && live && live.length > 0) {
+      // Show ALL live matches with full stats
+      parts.push(`━━━ TODOS OS JOGOS AO VIVO (${live.length} partidas) ━━━`);
+      
+      // Separate matches with real stats vs empty
+      const withStats = live.filter((m: any) => {
+        const s = m.stats || {};
+        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) > 0;
+      });
+      const withoutStats = live.filter((m: any) => {
+        const s = m.stats || {};
+        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) === 0;
+      });
+      
+      if (withStats.length > 0) {
+        parts.push("\n🟢 COM ESTATÍSTICAS DETALHADAS:");
+        for (const m of withStats.slice(0, 10)) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) {
+            parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
+            if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis.substring(0, 200)}`);
+          }
+        }
+      }
+      
+      if (withoutStats.length > 0) {
+        parts.push(`\n⚪ SEM ESTATÍSTICAS (${withoutStats.length} jogos):`);
+        for (const m of withoutStats.slice(0, 10)) {
+          parts.push(`• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} | ${m.championship} | Min: ${m.minute || "-"}`);
+        }
+      }
+    } else {
+      // Filter by team name match
+      const matchedLive = (live || []).filter((m: any) => {
+        const home = m.home_team?.toLowerCase() || "";
+        const away = m.away_team?.toLowerCase() || "";
+        const champ = m.championship?.toLowerCase() || "";
+        return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w) || champ.includes(w)));
+      });
+      if (matchedLive.length > 0) {
+        parts.push("━━━ JOGOS AO VIVO / RECENTES ━━━");
+        for (const m of matchedLive.slice(0, 5)) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) {
+            parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
+            if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis.substring(0, 200)}`);
+          }
         }
       }
     }
