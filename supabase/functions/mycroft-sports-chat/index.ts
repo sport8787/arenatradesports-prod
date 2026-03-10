@@ -500,7 +500,7 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     if (userId) {
       (async () => {
         try {
-          const extraction = await aiExtractRules(query, text, LOVABLE_API_KEY);
+          const extraction = await aiExtractRules(query, text, OPENAI_API_KEY);
           if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
             await processMemoryActions(userId, extraction);
           }
