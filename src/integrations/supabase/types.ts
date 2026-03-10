@@ -1194,6 +1194,51 @@ export type Database = {
         }
         Relationships: []
       }
+      horus_audio_inventory: {
+        Row: {
+          audio_url: string | null
+          cache_key: string | null
+          categoria: string
+          contexto: string[]
+          created_at: string
+          duration_seconds: number | null
+          frequencia: Database["public"]["Enums"]["audio_frequency"]
+          id: string
+          is_generated: boolean
+          texto: string
+          updated_at: string
+          voice_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          cache_key?: string | null
+          categoria: string
+          contexto?: string[]
+          created_at?: string
+          duration_seconds?: number | null
+          frequencia?: Database["public"]["Enums"]["audio_frequency"]
+          id?: string
+          is_generated?: boolean
+          texto: string
+          updated_at?: string
+          voice_id?: string
+        }
+        Update: {
+          audio_url?: string | null
+          cache_key?: string | null
+          categoria?: string
+          contexto?: string[]
+          created_at?: string
+          duration_seconds?: number | null
+          frequencia?: Database["public"]["Enums"]["audio_frequency"]
+          id?: string
+          is_generated?: boolean
+          texto?: string
+          updated_at?: string
+          voice_id?: string
+        }
+        Relationships: []
+      }
       horus_trader_offers: {
         Row: {
           accepted: boolean | null
@@ -3941,6 +3986,7 @@ export type Database = {
     Enums: {
       answer_option: "A" | "B" | "C" | "D"
       app_role: "admin" | "user"
+      audio_frequency: "alta" | "media" | "baixa"
       difficulty_level: "Easy" | "Medium" | "Hard"
       room_status:
         | "lobby"
@@ -4078,6 +4124,7 @@ export const Constants = {
     Enums: {
       answer_option: ["A", "B", "C", "D"],
       app_role: ["admin", "user"],
+      audio_frequency: ["alta", "media", "baixa"],
       difficulty_level: ["Easy", "Medium", "Hard"],
       room_status: [
         "lobby",
