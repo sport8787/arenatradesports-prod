@@ -279,8 +279,10 @@ export default function PunterPage() {
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
 
-    // Kelly Criterion for smart stake sizing
-    const estimatedProb = signal.recommendation.confidence || 55;
+    // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
+    const estimatedProb = signal.recommendation.fair_odd > 0
+      ? (1 / signal.recommendation.fair_odd) * 100
+      : (signal.recommendation.confidence || 55);
     const kelly = calculateKellyStake({
       probability: estimatedProb,
       odd: signal.recommendation.odd,
@@ -870,8 +872,11 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
+              const kellyProb = signal.recommendation.fair_odd > 0
+                ? (1 / signal.recommendation.fair_odd) * 100
+                : (signal.recommendation.confidence || 55);
               const kelly = bankroll ? calculateKellyStake({
-                probability: signal.recommendation.confidence || 55,
+                probability: kellyProb,
                 odd: signal.recommendation.odd,
                 bankroll: bankroll.balance,
                 fraction: 0.25,
