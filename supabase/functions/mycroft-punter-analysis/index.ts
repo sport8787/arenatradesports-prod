@@ -445,7 +445,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\n${incCorners?'Analise escanteios com Poisson.\n':''}${incCards?'Analise cartões com perfil do árbitro.\n':''}Escolha o mercado com MAIOR edge.`
+  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'Analise escanteios com Poisson.\n':''}${incCards?'Analise cartões com perfil do árbitro.\n':''}Escolha o mercado com MAIOR edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
@@ -581,8 +581,31 @@ serve(async (req) => {
       if(i+BATCH<toAnalyze.length) await new Promise(r=>setTimeout(r,300))
     }
 
-    console.log(`[Mycroft Punter] Análise completa: ${approved.length}/${total} aprovados`)
-    return new Response(JSON.stringify({success:true,signals:approved,total_analyzed:total,total_approved:approved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+    // DEDUPLICATION: Keep only the highest-edge entry per match
+    const matchBestMap = new Map<string, number>()
+    for(let i=0;i<approved.length;i++) {
+      const m=approved[i].match, key=`${m.home_team}__${m.away_team}`
+      const edge=approved[i].recommendation.value_percentage||0
+      if(!matchBestMap.has(key)||edge>(approved[matchBestMap.get(key)!].recommendation.value_percentage||0)) matchBestMap.set(key,i)
+    }
+    const dedupApproved = [...matchBestMap.values()].map(i=>approved[i])
+    if(dedupApproved.length<approved.length) {
+      const removed=approved.length-dedupApproved.length
+      console.log(`[Mycroft Punter] 🔄 Dedup: removidos ${removed} sinais conflitantes (1 mercado por jogo)`)
+      // Remove duplicates from DB too
+      for(let i=0;i<approved.length;i++) {
+        if(!matchBestMap.has(`${approved[i].match.home_team}__${approved[i].match.away_team}`)||matchBestMap.get(`${approved[i].match.home_team}__${approved[i].match.away_team}`)!==i) {
+          const mid=`${approved[i].match.home_team}_${approved[i].match.away_team}_${approved[i].match.commence_time}`.replace(/\s+/g,'_')
+          const mkt=approved[i].recommendation.market
+          await sb.from('punter_signals').delete().eq('match_id',mid).eq('market',mkt)
+          await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',mkt)
+          console.log(`[Mycroft Punter] 🗑️ Removido sinal conflitante: ${approved[i].match.home_team} vs ${approved[i].match.away_team} (${mkt})`)
+        }
+      }
+    }
+
+    console.log(`[Mycroft Punter] Análise completa: ${dedupApproved.length}/${total} aprovados (${approved.length-dedupApproved.length} conflitos removidos)`)
+    return new Response(JSON.stringify({success:true,signals:dedupApproved,total_analyzed:total,total_approved:dedupApproved.length,conflicts_removed:approved.length-dedupApproved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
   } catch(e:any) {
     console.error('[Mycroft Punter] ERRO:',e)
     return new Response(JSON.stringify({success:false,error:e.message}),{status:500,headers:{...corsHeaders,'Content-Type':'application/json'}})

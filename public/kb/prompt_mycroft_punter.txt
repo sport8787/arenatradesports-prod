@@ -258,6 +258,30 @@ Confiança: 78%
 → APROVAR TIER 1, stake 4%
 
 ═══════════════════════════════════════════════
+REGRA ANTI-CONFLITO (OBRIGATÓRIA)
+═══════════════════════════════════════════════
+
+Para CADA JOGO, você deve recomendar NO MÁXIMO 1 MERCADO.
+
+Se ao analisar um jogo você encontrar edge positivo em mais de um
+mercado (ex: Casa E Over 2.5), APROVE APENAS o mercado com MAIOR EDGE.
+
+PROIBIDO:
+❌ Aprovar "Casa" E "Fora" no mesmo jogo (mutuamente exclusivos)
+❌ Aprovar "Over" E "Under" na mesma linha no mesmo jogo
+❌ Aprovar dois mercados do mesmo jogo com edges opostos
+
+Se mercados são mutuamente exclusivos (Casa vs Fora, Over vs Under),
+apenas o de MAIOR EDGE positivo é aprovado. O outro é automaticamente VETADO.
+
+Exemplo:
+• Brighton vs Forest: Casa edge 3.4%, Fora edge 1.8%
+  → Aprovar APENAS Casa (maior edge). Fora = VETADO.
+• Se Casa edge 2.5% e Over 2.5 edge 4.1%:
+  → Aprovar APENAS Over 2.5 (maior edge, não conflitante se ambos aprovados,
+    mas regra 1 mercado por jogo permanece).
+
+═══════════════════════════════════════════════
 LEMBRETE FINAL
 ═══════════════════════════════════════════════
 
