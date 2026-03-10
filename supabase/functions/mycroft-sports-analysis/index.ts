@@ -227,10 +227,12 @@ xG: ${stats.xG_home ?? '?'} vs ${stats.xG_away ?? '?'}
 Banca do trader: R$ ${match.bankroll ?? 500}
 `;
 
-  // If custom prompt from KB exists, use it + inject match data and KB
+  // If custom prompt from KB exists, use it + inject match data, KB and memory
   if (customPrompt) {
     console.log('[MycroftSports] Using CUSTOM prompt from KB');
     return `${customPrompt}
+
+${memoryRules}
 
 ${kbSection}
 
