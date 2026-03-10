@@ -478,10 +478,10 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages, temperature: 0.7, max_tokens: 2000 }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({ model: "gpt-4o-mini", messages, temperature: 0.7, max_tokens: 2000 }),
     });
 
     if (!response.ok) {
