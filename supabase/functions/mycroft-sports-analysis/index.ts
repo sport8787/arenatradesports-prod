@@ -508,9 +508,12 @@ serve(async (req) => {
       }
     }
 
-    // Load KB + check for custom prompt override
-    const { kb: knowledgeBase, customPrompt } = await loadKnowledgeBaseAndPrompt();
-    const prompt = buildPrompt(match, knowledgeBase, customPrompt);
+    // Load KB + check for custom prompt override + load persistent memory
+    const [{ kb: knowledgeBase, customPrompt }, memoryRules] = await Promise.all([
+      loadKnowledgeBaseAndPrompt(),
+      loadMemoryRules(),
+    ]);
+    const prompt = buildPrompt(match, knowledgeBase, customPrompt, memoryRules);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
