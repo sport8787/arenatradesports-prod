@@ -266,7 +266,7 @@ OUTPUT: Retorne APENAS JSON válido (sem markdown).
 
 Você é Mycroft, um analista de trading esportivo profissional com 7+ anos de experiência e win rate comprovado de 68%.
 
-${memoryRules}
+${memorySection}
 
 ${kbSection}
 
