@@ -185,7 +185,7 @@ async function loadKnowledgeBaseAndPrompt(): Promise<{ kb: string; customPrompt:
   return { kb: contents.join("\n\n"), customPrompt };
 }
 
-function buildPrompt(match: MatchData, knowledgeBase: string, customPrompt: string | null): string {
+function buildPrompt(match: MatchData, knowledgeBase: string, customPrompt: string | null, memoryRules: string = ""): string {
   const stats = match.stats || {};
 
   const kbSection = knowledgeBase
