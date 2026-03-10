@@ -29,6 +29,7 @@ import ArenaTrader from "./pages/ArenaTrader";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import ArenaBlackjack from "./pages/ArenaBlackjack";
+import MycroftMemory from "./pages/MycroftMemory";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
