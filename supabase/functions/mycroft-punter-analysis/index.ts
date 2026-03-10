@@ -377,14 +377,28 @@ function extractTotals(g:any) {
 }
 function extractCornersOdds(g:any) {
   const r:any[]=[]; for(const bk of g.bookmakers||[]) {
-    const m=bk.markets?.find((m:any)=>m.key.includes('corners')||m.key.includes('total_corners'))
-    if(m?.outcomes) r.push({bookmaker:bk.title,market_key:m.key,outcomes:m.outcomes})
+    for(const m of bk.markets||[]) {
+      if(!m.key?.includes('corner')) continue
+      if(!m.outcomes?.length) continue
+      const parsed:any = {bookmaker:bk.title||bk.key,market_key:m.key,outcomes:[]}
+      for(const o of m.outcomes) {
+        parsed.outcomes.push({name:o.name,price:o.price,point:o.point})
+      }
+      r.push(parsed)
+    }
   }; return r
 }
 function extractCardsOdds(g:any) {
   const r:any[]=[]; for(const bk of g.bookmakers||[]) {
-    const m=bk.markets?.find((m:any)=>m.key.includes('cards')||m.key.includes('total_cards'))
-    if(m?.outcomes) r.push({bookmaker:bk.title,market_key:m.key,outcomes:m.outcomes})
+    for(const m of bk.markets||[]) {
+      if(!m.key?.includes('card')&&!m.key?.includes('booking')) continue
+      if(!m.outcomes?.length) continue
+      const parsed:any = {bookmaker:bk.title||bk.key,market_key:m.key,outcomes:[]}
+      for(const o of m.outcomes) {
+        parsed.outcomes.push({name:o.name,price:o.price,point:o.point})
+      }
+      r.push(parsed)
+    }
   }; return r
 }
 function calcProb(o:any) {
