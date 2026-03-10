@@ -158,8 +158,8 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
-    // Load KB and memory in parallel
-    const [knowledgeBaseContent, memoryContent] = await Promise.all([
+    // Load KB, memory, and recent punter analyses in parallel
+    const [knowledgeBaseContent, memoryContent, punterContext] = await Promise.all([
       (async () => {
         try {
           const { data: files } = await supabase.storage.from("knowledge-base").list("", { limit: 50 });
