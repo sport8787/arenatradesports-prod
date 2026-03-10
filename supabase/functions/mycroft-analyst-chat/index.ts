@@ -42,11 +42,11 @@ Retorne APENAS o JSON usando a tool fornecida.
 
 Mensagem do usuário: "${query}"`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0.1,
         max_tokens: 500,
@@ -153,8 +153,8 @@ serve(async (req) => {
     const { query, marketData, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     const supabase = getSupabaseAdmin();
 
@@ -292,10 +292,10 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash", system: systemPrompt, messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({ model: "gpt-4o-mini", system: systemPrompt, messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
     });
 
     if (!response.ok) {
@@ -314,7 +314,7 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     if (userId) {
       (async () => {
         try {
-          const extraction = await aiExtractRules(query, LOVABLE_API_KEY);
+          const extraction = await aiExtractRules(query, OPENAI_API_KEY);
           if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
             await processMemoryActions(userId, extraction);
           }
