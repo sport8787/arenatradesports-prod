@@ -225,6 +225,7 @@ serve(async (req) => {
           return "";
         }
       })(),
+    ]);
 
     let marketContext = "";
     if (marketData) {
