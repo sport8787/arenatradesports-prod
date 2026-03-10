@@ -66,6 +66,12 @@ export const useAuth = () => {
       if (session?.user) {
         fetchProfile(session.user.id).then((profile) => {
           setProfile(profile);
+          identifyUser(session.user.id, {
+            email: session.user.email,
+            username: profile?.username,
+            plan: 'active',
+          });
+          track.dailyLogin(profile?.daily_streak_count || 0);
           setLoading(false);
         });
       } else {
