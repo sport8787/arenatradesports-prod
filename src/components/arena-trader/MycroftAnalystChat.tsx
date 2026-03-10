@@ -141,11 +141,13 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('mycroft-analyst-chat', {
         body: {
           query: userMsg.content,
           marketData,
           conversationHistory: messages.slice(-10),
+          userId: session?.user?.id || null,
         },
       });
 

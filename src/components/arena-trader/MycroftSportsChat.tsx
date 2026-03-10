@@ -125,11 +125,13 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('mycroft-sports-chat', {
         body: {
           query: userMsg.content,
           matchContext,
           conversationHistory: messages.slice(-10),
+          userId: session?.user?.id || null,
         },
       });
 
