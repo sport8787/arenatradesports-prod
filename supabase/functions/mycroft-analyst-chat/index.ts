@@ -18,7 +18,7 @@ async function loadMemories(userId: string, contextFilter: string): Promise<stri
       .select("id, rule_text, category, priority, context, created_at")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .contains("context", [contextFilter])
+      .or(`context.cs.{${contextFilter}},context.cs.{sports}`)
       .order("priority", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(20);
@@ -117,7 +117,7 @@ async function processMemoryActions(userId: string, extraction: { rules: Array<{
         rule_text: rule.rule_text.substring(0, 2000),
         category: rule.category,
         priority: rule.priority,
-        context: ["analyst"],
+        context: ["analyst", "sports"],
       });
       console.log(`🧠 Analyst rule saved: [${rule.category}|P${rule.priority}] ${rule.rule_text.substring(0, 100)}`);
     } catch (e) {
