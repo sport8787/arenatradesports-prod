@@ -18,7 +18,7 @@ async function loadMemories(userId: string, contextFilter: string): Promise<stri
       .select("id, rule_text, category, priority, context, created_at")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .contains("context", [contextFilter])
+      .or(`context.cs.{${contextFilter}},context.cs.{sports}`)
       .order("priority", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(20);
