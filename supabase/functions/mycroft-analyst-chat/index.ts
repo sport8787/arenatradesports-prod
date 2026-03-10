@@ -42,11 +42,11 @@ Retorne APENAS o JSON usando a tool fornecida.
 
 Mensagem do usuário: "${query}"`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gemini-2.5-flash-lite",
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0.1,
         max_tokens: 500,
