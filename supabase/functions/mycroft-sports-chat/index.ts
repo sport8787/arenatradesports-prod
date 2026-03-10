@@ -421,7 +421,7 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
-    // AI-based memory extraction in background
+    // Background tasks: memory extraction + analysis sync to dashboard
     if (userId) {
       (async () => {
         try {
@@ -434,6 +434,15 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
         }
       })();
     }
+
+    // Extract structured analysis from response and sync to dashboard
+    (async () => {
+      try {
+        await syncAnalysisToDashboard(text, query);
+      } catch (e) {
+        console.error("Analysis sync bg error:", e);
+      }
+    })();
 
     return new Response(JSON.stringify({ response: text }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
