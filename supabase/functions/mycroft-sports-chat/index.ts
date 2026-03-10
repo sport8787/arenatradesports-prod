@@ -323,6 +323,82 @@ async function lookupMatchContext(query: string): Promise<string> {
   return parts.length === 0 ? "" : "\n" + parts.join("\n") + "\n";
 }
 
+async function syncAnalysisToDashboard(aiResponse: string, query: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+
+  // Try to extract JSON analysis block from the AI response
+  const jsonMatch = aiResponse.match(/\{[\s\S]*?"verdict"\s*:\s*"(APROVADO|VETADO|AGUARDAR)"[\s\S]*?\}/);
+  if (!jsonMatch) return;
+
+  let analysis: any;
+  try {
+    analysis = JSON.parse(jsonMatch[0]);
+  } catch {
+    // Try to find a cleaner JSON block
+    const codeBlockMatch = aiResponse.match(/```(?:json)?\s*(\{[\s\S]*?"verdict"[\s\S]*?\})\s*```/);
+    if (!codeBlockMatch) return;
+    try {
+      analysis = JSON.parse(codeBlockMatch[1]);
+    } catch {
+      return;
+    }
+  }
+
+  const verdict = analysis.verdict;
+  if (!verdict || !["APROVADO", "VETADO", "AGUARDAR"].includes(verdict)) return;
+
+  // Try to identify which match this analysis refers to
+  const queryLower = query.toLowerCase();
+  const responseLower = aiResponse.toLowerCase();
+
+  const { data: liveMatches } = await supabase
+    .from("live_matches")
+    .select("id, match_id, home_team, away_team")
+    .in("status", ["live", "halftime", "scheduled"])
+    .limit(50);
+
+  if (!liveMatches || liveMatches.length === 0) return;
+
+  // Find the match by team name in query or response
+  const targetMatch = liveMatches.find((m: any) => {
+    const home = m.home_team?.toLowerCase() || "";
+    const away = m.away_team?.toLowerCase() || "";
+    const homeWords = home.split(/\s+/).filter((w: string) => w.length >= 3);
+    const awayWords = away.split(/\s+/).filter((w: string) => w.length >= 3);
+    return homeWords.some((w: string) => queryLower.includes(w) || responseLower.includes(w)) ||
+           awayWords.some((w: string) => queryLower.includes(w) || responseLower.includes(w));
+  });
+
+  if (!targetMatch) {
+    console.log("⚠️ Analysis sync: could not match to a live game");
+    return;
+  }
+
+  // Save to mycroft_analyses
+  const { data: inserted } = await supabase.from("mycroft_analyses").insert({
+    match_id: targetMatch.match_id,
+    verdict: verdict,
+    market: analysis.market || "Análise Chat",
+    thesis: analysis.thesis || "",
+    odd: analysis.odd || null,
+    confidence: analysis.confidence || null,
+    fundamentation: analysis.fundamentation ? { text: analysis.fundamentation } : null,
+    risk_management: analysis.risk_management ? { text: analysis.risk_management } : null,
+    alerts: analysis.alerts ? (Array.isArray(analysis.alerts) ? analysis.alerts : [analysis.alerts]) : null,
+  }).select("id").single();
+
+  if (inserted) {
+    // Update live_matches status and link to analysis
+    await supabase.from("live_matches").update({
+      mycroft_status: verdict,
+      mycroft_analysis_id: inserted.id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", targetMatch.id);
+
+    console.log(`✅ Analysis synced to dashboard: ${targetMatch.home_team} vs ${targetMatch.away_team} → ${verdict} (analysis ${inserted.id})`);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -421,7 +497,7 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
-    // AI-based memory extraction in background
+    // Background tasks: memory extraction + analysis sync to dashboard
     if (userId) {
       (async () => {
         try {
@@ -434,6 +510,15 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
         }
       })();
     }
+
+    // Extract structured analysis from response and sync to dashboard
+    (async () => {
+      try {
+        await syncAnalysisToDashboard(text, query);
+      } catch (e) {
+        console.error("Analysis sync bg error:", e);
+      }
+    })();
 
     return new Response(JSON.stringify({ response: text }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
