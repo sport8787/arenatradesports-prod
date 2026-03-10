@@ -279,8 +279,10 @@ export default function PunterPage() {
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
 
-    // Kelly Criterion for smart stake sizing
-    const estimatedProb = signal.recommendation.confidence || 55;
+    // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
+    const estimatedProb = signal.recommendation.fair_odd > 0
+      ? (1 / signal.recommendation.fair_odd) * 100
+      : (signal.recommendation.confidence || 55);
     const kelly = calculateKellyStake({
       probability: estimatedProb,
       odd: signal.recommendation.odd,
