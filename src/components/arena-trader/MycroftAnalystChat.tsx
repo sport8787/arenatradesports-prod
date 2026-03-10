@@ -196,7 +196,17 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
             </span>
           )}
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
+        <div className="flex items-center gap-1">
+          <a
+            href="/mycroft-memory"
+            onClick={(e) => e.stopPropagation()}
+            className="p-1 rounded hover:bg-white/10 transition-colors"
+            title="Memória do Mycroft"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-amber-400/60 hover:text-amber-400" />
+          </a>
+          {expanded ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
+        </div>
       </button>
 
       <AnimatePresence>

@@ -189,9 +189,18 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
-            <X className="w-4 h-4 text-white/60" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { onClose(); window.location.href = '/mycroft-memory'; }}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+              title="Memória do Mycroft"
+            >
+              <BookOpen className="w-4 h-4 text-[#FFD700]/60 hover:text-[#FFD700]" />
+            </button>
+            <button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
+              <X className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
         </div>
 
         {/* Knowledge Base Manager */}
