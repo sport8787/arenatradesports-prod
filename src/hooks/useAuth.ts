@@ -127,6 +127,7 @@ export const useAuth = () => {
       setUser(null);
       setSession(null);
       setProfile(null);
+      resetAnalytics();
     }
     return { error };
   };
