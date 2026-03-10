@@ -73,11 +73,11 @@ Retorne APENAS o JSON usando a tool fornecida.
 
 Mensagem do usuário: "${query}"`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gemini-2.5-flash-lite",
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0.1,
         max_tokens: 500,
@@ -407,8 +407,8 @@ serve(async (req) => {
     const { query, matchContext, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     // Load KB, match data, and persistent memory in parallel
     const [knowledgeBaseContent, autoMatchContext, memoryContent] = await Promise.all([
@@ -478,10 +478,10 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: "gpt-4o-mini", messages, temperature: 0.7, max_tokens: 2000 }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
+      body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: 2000 }),
     });
 
     if (!response.ok) {
@@ -500,7 +500,7 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     if (userId) {
       (async () => {
         try {
-          const extraction = await aiExtractRules(query, text, OPENAI_API_KEY);
+          const extraction = await aiExtractRules(query, text, GEMINI_API_KEY);
           if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
             await processMemoryActions(userId, extraction);
           }
