@@ -206,6 +206,23 @@ INSTRUÇÃO CRÍTICA: Fundamente TODA análise nos conceitos dos documentos acim
 `
     : "";
 
+  // Memory rules section with OVERRIDE priority
+  const memorySection = memoryRules
+    ? `
+═══════════════════════════════════════
+⚠️ REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA — SOBREPÕEM QUALQUER PADRÃO ABAIXO)
+═══════════════════════════════════════
+${memoryRules}
+═══════════════════════════════════════
+INSTRUÇÃO CRÍTICA: Estas regras foram definidas pelo operador e têm PRIORIDADE ABSOLUTA.
+Se uma regra do usuário contradizer os padrões hardcoded abaixo, a REGRA DO USUÁRIO VENCE.
+Se o usuário definiu novos mercados, critérios ou condições de aprovação, USE-OS.
+Exemplo: se o usuário adicionou "Lay Favorito 2T" com critérios próprios, aplique ESSES critérios
+mesmo que os padrões default digam algo diferente sobre minuto ou placar.
+═══════════════════════════════════════
+`
+    : "";
+
   const matchDataSection = `
 ═══════════════════════════════════════
 JOGO AO VIVO:
@@ -232,7 +249,7 @@ Banca do trader: R$ ${match.bankroll ?? 500}
     console.log('[MycroftSports] Using CUSTOM prompt from KB');
     return `${customPrompt}
 
-${memoryRules}
+${memorySection}
 
 ${kbSection}
 
