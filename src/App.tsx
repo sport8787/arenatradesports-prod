@@ -47,6 +47,7 @@ if (typeof window !== 'undefined') {
 
 const App = () => {
   useEffect(() => {
+    initAnalytics();
     console.log('[App] 🎭 Pre-cache DISABLED on startup - will run only when entering a game room');
   }, []);
 
