@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
 import { useNavigate } from 'react-router-dom';
+import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
