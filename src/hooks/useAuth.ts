@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { identifyUser, resetAnalytics, track } from '@/lib/analytics';
 
 export interface Profile {
   id: string;
@@ -65,6 +66,12 @@ export const useAuth = () => {
       if (session?.user) {
         fetchProfile(session.user.id).then((profile) => {
           setProfile(profile);
+          identifyUser(session.user.id, {
+            email: session.user.email,
+            username: profile?.username,
+            plan: 'active',
+          });
+          track.dailyLogin(profile?.daily_streak_count || 0);
           setLoading(false);
         });
       } else {
@@ -120,6 +127,7 @@ export const useAuth = () => {
       setUser(null);
       setSession(null);
       setProfile(null);
+      resetAnalytics();
     }
     return { error };
   };
