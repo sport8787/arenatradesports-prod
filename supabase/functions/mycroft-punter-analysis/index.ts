@@ -466,7 +466,11 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
       cornEst=estimateCorners(en.corners.home.avg_corners_for,en.corners.away.avg_corners_for)
       cornBlk+=`\nPoisson: Total ${cornEst.expected_total.toFixed(1)} P(O8.5):${(cornEst.probabilities.over_8_5*100).toFixed(1)}% P(O9.5):${(cornEst.probabilities.over_9_5*100).toFixed(1)}% P(O10.5):${(cornEst.probabilities.over_10_5*100).toFixed(1)}%`
     }
-    if(cornOdds.length) cornBlk+=`\nOdds: ${cornOdds.map(c=>JSON.stringify(c)).join(' ')}`
+    if(cornOdds.length) {
+      cornBlk+=`\nOdds Escanteios (The Odds API): ${cornOdds.map(c=>`${c.bookmaker}: ${c.outcomes.map((o:any)=>`${o.name} ${o.point??''} @${o.price}`).join(' | ')}`).join(' || ')}`
+    } else if(cornEst) {
+      cornBlk+=`\n⚠️ Odds de escanteios indisponíveis via bookmakers. Use as probabilidades do modelo Poisson acima para avaliar value.`
+    }
   }
   if(incCards) {
     cardBlk=`\nCARTÕES:\n${fmtCard(game.home_team,en.cards?.home)}\n${fmtCard(game.away_team,en.cards?.away)}\n${fmtRef(en.referee)}`
@@ -474,7 +478,11 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
       cardEst=estimateCards(en.cards.home.avg_total_cards,en.cards.away.avg_total_cards,en.referee)
       cardBlk+=`\nEstimativa: Total ${cardEst.expected_total.toFixed(1)} P(O3.5):${(cardEst.probabilities.over_3_5*100).toFixed(1)}% P(O4.5):${(cardEst.probabilities.over_4_5*100).toFixed(1)}%`
     }
-    if(cardOdds.length) cardBlk+=`\nOdds: ${cardOdds.map(c=>JSON.stringify(c)).join(' ')}`
+    if(cardOdds.length) {
+      cardBlk+=`\nOdds Cartões (The Odds API): ${cardOdds.map(c=>`${c.bookmaker}: ${c.outcomes.map((o:any)=>`${o.name} ${o.point??''} @${o.price}`).join(' | ')}`).join(' || ')}`
+    } else if(cardEst) {
+      cardBlk+=`\n⚠️ Odds de cartões indisponíveis via bookmakers. Use as probabilidades estimadas acima para avaliar value.`
+    }
   }
 
   const dsl = en.model_level==='NIVEL_1'?'ALTA':en.model_level==='NIVEL_2'?'MEDIA':'BAIXA'
