@@ -117,7 +117,7 @@ async function processMemoryActions(userId: string, extraction: { rules: Array<{
         rule_text: rule.rule_text.substring(0, 2000),
         category: rule.category,
         priority: rule.priority,
-        context: ["analyst"],
+        context: ["analyst", "sports"],
       });
       console.log(`🧠 Analyst rule saved: [${rule.category}|P${rule.priority}] ${rule.rule_text.substring(0, 100)}`);
     } catch (e) {
