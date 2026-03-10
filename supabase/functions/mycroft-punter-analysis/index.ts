@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+const MAX_GAMES_PER_RUN = 50
+const BATCH_SIZE = 5
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
+
+// Cache simples em memória para IDs de times
+const teamIdCache = new Map<string, number>()
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -46,16 +53,16 @@ serve(async (req) => {
       hours_ahead = 48,
       bookmakers = ['bet365', 'pinnacle', 'betfair'],
       min_value = 3,
+      include_corners = true,
+      include_cards = true,
     } = requestBody
 
     const leaguesToScan: string[] = sport ? [sport] : sports
-
-    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, AI: gemini`)
+    console.log(`[Mycroft Punter] Leagues: ${leaguesToScan.length}, Hours: ${hours_ahead}h, Min Value: ${min_value}%, Corners: ${include_corners}, Cards: ${include_cards}`)
 
     // 1. Fetch upcoming games from The Odds API
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
     if (!oddsApiKey) throw new Error('THE_ODDS_API_KEY not configured')
-
     const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY') || ''
 
     const now = new Date()
@@ -63,7 +70,6 @@ serve(async (req) => {
     const allUpcomingGames: any[] = []
     const leaguesWithoutOdds: string[] = []
 
-    // Estaduais league IDs for API-Football fallback
     const estaduaisMap: Record<string, { id: number; name: string }> = {
       'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão' },
       'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca' },
@@ -112,7 +118,7 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: For estaduais without odds, fetch fixtures from API-Football and simulate odds
+    // Fallback: estaduais sem odds via API-Football
     if (leaguesWithoutOdds.length > 0 && apiFootballKey) {
       console.log(`[Mycroft Punter] Buscando fixtures API-Football para ${leaguesWithoutOdds.length} estaduais sem odds...`)
       const seasonYear = getSeasonYear()
@@ -137,8 +143,6 @@ serve(async (req) => {
             const awayTeam = fix.teams?.away?.name || 'Away'
             const commenceTime = fix.fixture?.date || now.toISOString()
 
-            // Create a simulated game object compatible with the analysis pipeline
-            // Using Poisson-estimated fair odds (simulated 8% overround)
             const simulatedGame = {
               id: `sim_${fix.fixture?.id || Date.now()}`,
               sport_key: leagueKey,
@@ -171,7 +175,6 @@ serve(async (req) => {
                 }
               ]
             }
-
             allUpcomingGames.push(simulatedGame)
           }
 
@@ -192,6 +195,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const gamesToAnalyze = allUpcomingGames.slice(0, MAX_GAMES_PER_RUN)
 
     // 2. Load Knowledge Base
     let methodologyContent = ''
@@ -221,15 +226,14 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
-    // 3. Analyze games in parallel batches to avoid timeout
+    // 3. Analyze games in batches
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
-    const BATCH_SIZE = 5
 
-    for (let i = 0; i < allUpcomingGames.length; i += BATCH_SIZE) {
-      const batch = allUpcomingGames.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < gamesToAnalyze.length; i += BATCH_SIZE) {
+      const batch = gamesToAnalyze.slice(i, i + BATCH_SIZE)
       const results = await Promise.allSettled(
-        batch.map(game => analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey))
+        batch.map(game => analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey, include_corners, include_cards))
       )
 
       for (let j = 0; j < results.length; j++) {
@@ -253,8 +257,7 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
         }
       }
 
-      // Small delay between batches to avoid rate limiting
-      if (i + BATCH_SIZE < allUpcomingGames.length) {
+      if (i + BATCH_SIZE < gamesToAnalyze.length) {
         await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
@@ -276,13 +279,11 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 })
 
 // ═══════════════════════════════════════════════
-// API-Football Pro: Full enrichment
+// API-Football helpers
 // ═══════════════════════════════════════════════
 
-const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
 const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
 
-// European leagues run Aug-May, so before August use previous year as season
 function getSeasonYear(): number {
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -292,19 +293,19 @@ function getSeasonYear(): number {
 
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null
+  const cacheKey = teamName.toLowerCase().trim()
+  if (teamIdCache.has(cacheKey)) return teamIdCache.get(cacheKey)!
+
   try {
     const res = await fetch(
       `${API_FOOTBALL_BASE}/teams?search=${encodeURIComponent(teamName)}`,
       { headers: apiHeaders(apiKey) }
     )
-    if (!res.ok) {
-      console.warn(`[API-Football] Team search HTTP ${res.status} for "${teamName}"`)
-      return null
-    }
+    if (!res.ok) return null
     const data = await res.json()
-    const teamId = data.response?.[0]?.team?.id || null
+    let teamId = data.response?.[0]?.team?.id || null
+
     if (!teamId) {
-      // Try shorter name (e.g., "Bayern Munich" -> "Bayern", "RB Leipzig" -> "Leipzig")
       const parts = teamName.split(' ')
       if (parts.length > 1) {
         const shortName = parts.length > 2 ? parts.slice(0, 2).join(' ') : parts[parts.length - 1]
@@ -315,17 +316,18 @@ async function searchTeamId(teamName: string, apiKey: string): Promise<number | 
         )
         if (res2.ok) {
           const data2 = await res2.json()
-          const fallbackId = data2.response?.[0]?.team?.id || null
-          if (fallbackId) {
-            console.log(`[API-Football] ✅ Found team "${teamName}" as "${data2.response[0].team.name}" (ID: ${fallbackId})`)
-            return fallbackId
+          teamId = data2.response?.[0]?.team?.id || null
+          if (teamId) {
+            console.log(`[API-Football] ✅ Found team "${teamName}" as "${data2.response[0].team.name}" (ID: ${teamId})`)
           }
         }
       }
-      console.warn(`[API-Football] ⚠️ Team "${teamName}" not found in API-Football`)
+      if (!teamId) console.warn(`[API-Football] ⚠️ Team "${teamName}" not found`)
     } else {
       console.log(`[API-Football] ✅ Team "${teamName}" -> ID: ${teamId}`)
     }
+
+    if (teamId) teamIdCache.set(cacheKey, teamId)
     return teamId
   } catch (e) {
     console.warn(`[API-Football] Erro buscando team ${teamName}:`, e)
@@ -337,22 +339,13 @@ async function fetchTeamSeasonStats(teamId: number, leagueId: number | null, api
   if (!apiKey || !teamId) return null
   try {
     const seasonYear = getSeasonYear()
-    
     const endpoint = leagueId
       ? `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}&league=${leagueId}`
       : `${API_FOOTBALL_BASE}/teams/statistics?team=${teamId}&season=${seasonYear}`
-    
     const res = await fetch(endpoint, { headers: apiHeaders(apiKey) })
-    if (!res.ok) {
-      console.warn(`[API-Football] Season stats HTTP ${res.status} for team ${teamId}, season ${seasonYear}`)
-      return null
-    }
+    if (!res.ok) return null
     const data = await res.json()
-    const result = data.response || null
-    if (!result) {
-      console.warn(`[API-Football] No season stats for team ${teamId}, season ${seasonYear}, league ${leagueId}`)
-    }
-    return result
+    return data.response || null
   } catch { return null }
 }
 
@@ -423,7 +416,6 @@ async function fetchStandings(leagueId: number | null, apiKey: string): Promise<
   } catch { return [] }
 }
 
-// NEW: Fetch API-Football predictions
 async function fetchPredictions(fixtureId: number, apiKey: string): Promise<any> {
   if (!apiKey || !fixtureId) return null
   try {
@@ -437,7 +429,6 @@ async function fetchPredictions(fixtureId: number, apiKey: string): Promise<any>
   } catch { return null }
 }
 
-// NEW: Find upcoming fixture ID for a match
 async function findUpcomingFixtureId(homeId: number, awayId: number, apiKey: string): Promise<number | null> {
   if (!apiKey || !homeId || !awayId) return null
   try {
@@ -449,7 +440,6 @@ async function findUpcomingFixtureId(homeId: number, awayId: number, apiKey: str
     )
     if (!res.ok) return null
     const data = await res.json()
-    // Find fixture matching both teams
     const fixture = (data.response || []).find((f: any) =>
       (f.teams?.home?.id === homeId && f.teams?.away?.id === awayId) ||
       (f.teams?.home?.id === awayId && f.teams?.away?.id === homeId)
@@ -458,7 +448,7 @@ async function findUpcomingFixtureId(homeId: number, awayId: number, apiKey: str
   } catch { return null }
 }
 
-async function searchLeagueId(sportKey: string, apiKey: string): Promise<number | null> {
+function searchLeagueId(sportKey: string): number | null {
   const leagueMap: Record<string, number> = {
     'soccer_brazil_campeonato': 71,
     'soccer_brazil_serie_b': 72,
@@ -484,8 +474,272 @@ async function searchLeagueId(sportKey: string, apiKey: string): Promise<number 
   return leagueMap[sportKey] || null
 }
 
-async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string, sportKey?: string) {
-  if (!apiKey) return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], predictions: null, model_level: 'NIVEL_3' }
+// ═══════════════════════════════════════════════
+// NEW: Corners & Cards Stats Fetching
+// ═══════════════════════════════════════════════
+
+async function fetchCornerStats(teamId: number, apiKey: string, _leagueId?: number | null) {
+  if (!apiKey || !teamId) return null
+
+  try {
+    const fixturesRes = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?team=${teamId}&last=10&status=FT`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!fixturesRes.ok) return null
+
+    const fixturesData = await fixturesRes.json()
+    const fixtures = fixturesData.response || []
+    if (fixtures.length === 0) return null
+
+    let totalCornersFor = 0
+    let totalCornersAgainst = 0
+    let gamesWithStats = 0
+
+    for (const fixture of fixtures) {
+      const fixtureId = fixture.fixture?.id
+      if (!fixtureId) continue
+
+      const statsRes = await fetch(
+        `${API_FOOTBALL_BASE}/fixtures/statistics?fixture=${fixtureId}`,
+        { headers: apiHeaders(apiKey) }
+      )
+      if (!statsRes.ok) continue
+
+      const statsData = await statsRes.json()
+      const stats = statsData.response || []
+
+      for (const teamStats of stats) {
+        const corners = teamStats.statistics?.find((s: any) => s.type === 'Corner Kicks')?.value
+        if (teamStats.team?.id === teamId) {
+          if (corners) totalCornersFor += parseInt(corners) || 0
+        } else {
+          if (corners) totalCornersAgainst += parseInt(corners) || 0
+        }
+      }
+      gamesWithStats++
+    }
+
+    if (gamesWithStats === 0) return null
+
+    return {
+      avg_corners_for: totalCornersFor / gamesWithStats,
+      avg_corners_against: totalCornersAgainst / gamesWithStats,
+      sample_size: gamesWithStats
+    }
+  } catch (err) {
+    console.warn(`[API-Football] Erro ao buscar corners para team ${teamId}:`, err)
+    return null
+  }
+}
+
+async function fetchCardStats(teamId: number, apiKey: string, _leagueId?: number | null) {
+  if (!apiKey || !teamId) return null
+
+  try {
+    const fixturesRes = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?team=${teamId}&last=10&status=FT`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!fixturesRes.ok) return null
+
+    const fixturesData = await fixturesRes.json()
+    const fixtures = fixturesData.response || []
+    if (fixtures.length === 0) return null
+
+    let totalYellowFor = 0
+    let totalYellowAgainst = 0
+    let totalRedFor = 0
+    let totalRedAgainst = 0
+    let gamesWithStats = 0
+
+    for (const fixture of fixtures) {
+      const fixtureId = fixture.fixture?.id
+      if (!fixtureId) continue
+
+      const statsRes = await fetch(
+        `${API_FOOTBALL_BASE}/fixtures/statistics?fixture=${fixtureId}`,
+        { headers: apiHeaders(apiKey) }
+      )
+      if (!statsRes.ok) continue
+
+      const statsData = await statsRes.json()
+      const stats = statsData.response || []
+
+      for (const teamStats of stats) {
+        const yellow = teamStats.statistics?.find((s: any) => s.type === 'Yellow Cards')?.value
+        const red = teamStats.statistics?.find((s: any) => s.type === 'Red Cards')?.value
+
+        if (teamStats.team?.id === teamId) {
+          totalYellowFor += parseInt(yellow) || 0
+          totalRedFor += parseInt(red) || 0
+        } else {
+          totalYellowAgainst += parseInt(yellow) || 0
+          totalRedAgainst += parseInt(red) || 0
+        }
+      }
+      gamesWithStats++
+    }
+
+    if (gamesWithStats === 0) return null
+
+    return {
+      avg_yellow_for: totalYellowFor / gamesWithStats,
+      avg_yellow_against: totalYellowAgainst / gamesWithStats,
+      avg_red_for: totalRedFor / gamesWithStats,
+      avg_red_against: totalRedAgainst / gamesWithStats,
+      avg_total_cards: (totalYellowFor + totalYellowAgainst + totalRedFor + totalRedAgainst) / gamesWithStats,
+      sample_size: gamesWithStats
+    }
+  } catch (err) {
+    console.warn(`[API-Football] Erro ao buscar cards para team ${teamId}:`, err)
+    return null
+  }
+}
+
+async function fetchRefereeProfile(refereeName: string, apiKey: string) {
+  if (!apiKey || !refereeName) return null
+
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?referee=${encodeURIComponent(refereeName)}&last=20`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const fixtures = data.response || []
+    if (fixtures.length === 0) return null
+
+    let totalYellow = 0
+    let totalRed = 0
+    let gamesWithStats = 0
+
+    for (const fixture of fixtures) {
+      const fixtureId = fixture.fixture?.id
+      if (!fixtureId) continue
+
+      const statsRes = await fetch(
+        `${API_FOOTBALL_BASE}/fixtures/statistics?fixture=${fixtureId}`,
+        { headers: apiHeaders(apiKey) }
+      )
+      if (!statsRes.ok) continue
+
+      const statsData = await statsRes.json()
+      const stats = statsData.response || []
+
+      let gameYellow = 0
+      let gameRed = 0
+
+      for (const teamStats of stats) {
+        const yellow = teamStats.statistics?.find((s: any) => s.type === 'Yellow Cards')?.value
+        const red = teamStats.statistics?.find((s: any) => s.type === 'Red Cards')?.value
+        gameYellow += parseInt(yellow) || 0
+        gameRed += parseInt(red) || 0
+      }
+
+      totalYellow += gameYellow
+      totalRed += gameRed
+      gamesWithStats++
+    }
+
+    if (gamesWithStats === 0) return null
+
+    return {
+      avg_yellow_per_game: totalYellow / gamesWithStats,
+      avg_red_per_game: totalRed / gamesWithStats,
+      avg_total_cards: (totalYellow + totalRed) / gamesWithStats,
+      strictness: totalYellow / gamesWithStats > 4 ? 'ALTA' : totalYellow / gamesWithStats > 3 ? 'MEDIA' : 'BAIXA',
+      sample_size: gamesWithStats
+    }
+  } catch (err) {
+    console.warn(`[API-Football] Erro ao buscar perfil do árbitro ${refereeName}:`, err)
+    return null
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Poisson estimation for corners & cards
+// ═══════════════════════════════════════════════
+
+function factorial(n: number): number {
+  if (n === 0) return 1
+  let result = 1
+  for (let i = 2; i <= n; i++) result *= i
+  return result
+}
+
+function poissonCDF(k: number, lambda: number): number {
+  let sum = 0
+  for (let i = 0; i <= k; i++) {
+    sum += Math.exp(-lambda) * Math.pow(lambda, i) / factorial(i)
+  }
+  return sum
+}
+
+function estimateCorners(
+  homeAvgCorners: number,
+  awayAvgCorners: number,
+  homePossession: number = 50,
+  awayPossession: number = 50
+) {
+  const possessionFactor = homePossession / 50
+  const lambdaHome = homeAvgCorners * possessionFactor
+  const lambdaAway = awayAvgCorners * (2 - possessionFactor)
+  const totalExpected = lambdaHome + lambdaAway
+
+  const probabilities = {
+    over_8_5: 1 - poissonCDF(8, totalExpected),
+    over_9_5: 1 - poissonCDF(9, totalExpected),
+    over_10_5: 1 - poissonCDF(10, totalExpected),
+    under_8_5: poissonCDF(8, totalExpected),
+    under_9_5: poissonCDF(9, totalExpected),
+    under_10_5: poissonCDF(10, totalExpected)
+  }
+
+  return {
+    expected_total: totalExpected,
+    lambda_home: lambdaHome,
+    lambda_away: lambdaAway,
+    probabilities
+  }
+}
+
+function estimateCards(
+  homeAvgCards: number,
+  awayAvgCards: number,
+  refereeProfile: any,
+  rivalryFactor: number = 1.0,
+  importanceFactor: number = 1.0
+) {
+  let expectedTotal = (homeAvgCards + awayAvgCards) / 2
+
+  if (refereeProfile) {
+    expectedTotal = (expectedTotal + refereeProfile.avg_total_cards) / 2
+  }
+
+  expectedTotal *= rivalryFactor
+  expectedTotal *= importanceFactor
+
+  return {
+    expected_total: expectedTotal,
+    probabilities: {
+      over_3_5: expectedTotal > 3.5 ? 0.65 : 0.35,
+      over_4_5: expectedTotal > 4.5 ? 0.55 : 0.25,
+      over_5_5: expectedTotal > 5.5 ? 0.45 : 0.15,
+      under_3_5: expectedTotal < 3.5 ? 0.70 : 0.40,
+      under_4_5: expectedTotal < 4.5 ? 0.60 : 0.30,
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Data Enrichment (with corners & cards)
+// ═══════════════════════════════════════════════
+
+async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: string, sportKey?: string, includeCorners = true, includeCards = true) {
+  const emptyResult = { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], predictions: null, model_level: 'NIVEL_3', corners: { home: null, away: null }, cards: { home: null, away: null }, referee: null }
+  if (!apiKey) return emptyResult
 
   const [homeId, awayId] = await Promise.all([
     searchTeamId(homeTeam, apiKey),
@@ -494,30 +748,40 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
 
   if (!homeId && !awayId) {
     console.log(`[API-Football] Nenhum time encontrado: ${homeTeam}, ${awayTeam}`)
-    return { home: null, away: null, h2h: null, injuries: { home: [], away: [] }, standings: [], predictions: null, model_level: 'NIVEL_3' }
+    return emptyResult
   }
 
-  const leagueId = sportKey ? await searchLeagueId(sportKey, apiKey) : null
+  const leagueId = sportKey ? searchLeagueId(sportKey) : null
 
-  // Parallel fetch all data + find fixture ID for predictions
+  // Parallel fetch all data including corners & cards
+  const fetchPromises: Promise<any>[] = [
+    homeId ? fetchRecentFixtures(homeId, apiKey, 5) : Promise.resolve([]),
+    awayId ? fetchRecentFixtures(awayId, apiKey, 5) : Promise.resolve([]),
+    homeId ? fetchTeamSeasonStats(homeId, leagueId, apiKey) : Promise.resolve(null),
+    awayId ? fetchTeamSeasonStats(awayId, leagueId, apiKey) : Promise.resolve(null),
+    (homeId && awayId) ? fetchH2H(homeId, awayId, apiKey) : Promise.resolve([]),
+    homeId ? fetchInjuries(homeId, apiKey) : Promise.resolve([]),
+    awayId ? fetchInjuries(awayId, apiKey) : Promise.resolve([]),
+    fetchStandings(leagueId, apiKey),
+    (homeId && awayId) ? findUpcomingFixtureId(homeId, awayId, apiKey) : Promise.resolve(null),
+    // Corners
+    (includeCorners && homeId) ? fetchCornerStats(homeId, apiKey, leagueId) : Promise.resolve(null),
+    (includeCorners && awayId) ? fetchCornerStats(awayId, apiKey, leagueId) : Promise.resolve(null),
+    // Cards
+    (includeCards && homeId) ? fetchCardStats(homeId, apiKey, leagueId) : Promise.resolve(null),
+    (includeCards && awayId) ? fetchCardStats(awayId, apiKey, leagueId) : Promise.resolve(null),
+  ]
+
   const [
     homeFixtures, awayFixtures,
     homeSeasonStats, awaySeasonStats,
     h2hData,
     homeInjuries, awayInjuries,
     standingsData,
-    fixtureId
-  ] = await Promise.all([
-    homeId ? fetchRecentFixtures(homeId, apiKey, 5) : [],
-    awayId ? fetchRecentFixtures(awayId, apiKey, 5) : [],
-    homeId ? fetchTeamSeasonStats(homeId, leagueId, apiKey) : null,
-    awayId ? fetchTeamSeasonStats(awayId, leagueId, apiKey) : null,
-    (homeId && awayId) ? fetchH2H(homeId, awayId, apiKey) : [],
-    homeId ? fetchInjuries(homeId, apiKey) : [],
-    awayId ? fetchInjuries(awayId, apiKey) : [],
-    fetchStandings(leagueId, apiKey),
-    (homeId && awayId) ? findUpcomingFixtureId(homeId, awayId, apiKey) : null
-  ])
+    fixtureId,
+    homeCornerStats, awayCornerStats,
+    homeCardStats, awayCardStats,
+  ] = await Promise.all(fetchPromises)
 
   // Fetch predictions if we have the fixture ID
   let predictionsData = null
@@ -528,11 +792,36 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     }
   }
 
-  // Process home team stats
+  // Try to get referee name from fixture for referee profile
+  let refereeProfile = null
+  if (includeCards && fixtureId) {
+    try {
+      const fixRes = await fetch(
+        `${API_FOOTBALL_BASE}/fixtures?id=${fixtureId}`,
+        { headers: apiHeaders(apiKey) }
+      )
+      if (fixRes.ok) {
+        const fixData = await fixRes.json()
+        const refereeName = fixData.response?.[0]?.fixture?.referee
+        if (refereeName) {
+          // Extract just the name (remove nationality in parentheses)
+          const cleanName = refereeName.replace(/\s*\(.*\)/, '').trim()
+          refereeProfile = await fetchRefereeProfile(cleanName, apiKey)
+          if (refereeProfile) {
+            console.log(`[API-Football] ✅ Referee profile loaded: ${cleanName} (${refereeProfile.strictness})`)
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[API-Football] Erro ao buscar árbitro:`, err)
+    }
+  }
+
+  // Process team stats
   const homeStats = processTeamStats(homeId, homeFixtures, homeSeasonStats, apiKey)
   const awayStats = processTeamStats(awayId, awayFixtures, awaySeasonStats, apiKey)
 
-  // Fetch detailed stats for last fixture if needed
+  // Fetch detailed stats for last fixture
   let homeDetailedStats = null, awayDetailedStats = null
   if (homeFixtures.length > 0) {
     const lastFixtureId = homeFixtures[0]?.fixture?.id
@@ -549,7 +838,6 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     }
   }
 
-  // Merge detailed stats into team stats
   if (homeStats && homeDetailedStats?.statistics) {
     homeStats.last_match_stats = extractStatValues(homeDetailedStats.statistics)
     homeStats.has_detailed_stats = true
@@ -577,7 +865,16 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     homeSeasonStats,
     awaySeasonStats,
     predictions: predictionsData,
-    model_level
+    model_level,
+    corners: {
+      home: homeCornerStats,
+      away: awayCornerStats,
+    },
+    cards: {
+      home: homeCardStats,
+      away: awayCardStats,
+    },
+    referee: refereeProfile,
   }
 }
 
@@ -589,7 +886,7 @@ function extractStatValues(statistics: any[]): Record<string, string | number> {
   return result
 }
 
-function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: any, apiKey: string) {
+function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: any, _apiKey: string) {
   if (!teamId || fixtures.length === 0) return null
 
   let goalsScored = 0, goalsConceded = 0, wins = 0, draws = 0, losses = 0
@@ -625,7 +922,6 @@ function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: a
     has_detailed_stats: false,
   }
 
-  // Add season stats if available
   if (seasonStats) {
     stats.season = {
       played: seasonStats.fixtures?.played?.total,
@@ -642,20 +938,15 @@ function processTeamStats(teamId: number | null, fixtures: any[], seasonStats: a
       biggest_win_away: seasonStats.biggest?.wins?.away,
       biggest_loss_home: seasonStats.biggest?.loses?.home,
       biggest_loss_away: seasonStats.biggest?.loses?.away,
-      // FIX: Renamed from avg_possession (was incorrectly mapped)
       preferred_formation: seasonStats.lineups?.[0]?.formation || null,
-      // NEW: Goals by minute (offensive/defensive pressure patterns)
       goals_for_by_minute: seasonStats.goals?.for?.minute,
       goals_against_by_minute: seasonStats.goals?.against?.minute,
-      // NEW: Penalty stats
       penalty_scored: seasonStats.penalty?.scored?.total ?? null,
       penalty_missed: seasonStats.penalty?.missed?.total ?? null,
       penalty_scored_pct: seasonStats.penalty?.scored?.percentage ?? null,
-      // NEW: Streaks
       biggest_streak_wins: seasonStats.biggest?.streak?.wins ?? null,
       biggest_streak_draws: seasonStats.biggest?.streak?.draws ?? null,
       biggest_streak_loses: seasonStats.biggest?.streak?.loses ?? null,
-      // NEW: Cards stats
       cards_yellow_total: Object.values(seasonStats.cards?.yellow || {}).reduce((sum: number, v: any) => sum + (v?.total || 0), 0),
       cards_red_total: Object.values(seasonStats.cards?.red || {}).reduce((sum: number, v: any) => sum + (v?.total || 0), 0),
     }
@@ -673,7 +964,6 @@ function processH2H(h2hData: any[], homeId: number | null, awayId: number | null
     const hg = f.goals?.home ?? 0
     const ag = f.goals?.away ?? 0
     totalGoals += hg + ag
-
     const isTeamAHome = f.teams?.home?.id === homeId
     if (isTeamAHome) {
       if (hg > ag) homeWins++
@@ -684,7 +974,6 @@ function processH2H(h2hData: any[], homeId: number | null, awayId: number | null
       else if (hg > ag) awayWins++
       else drawCount++
     }
-
     return {
       date: f.fixture?.date,
       home: f.teams?.home?.name,
@@ -704,9 +993,13 @@ function processH2H(h2hData: any[], homeId: number | null, awayId: number | null
   }
 }
 
+// ═══════════════════════════════════════════════
+// Format blocks for prompt
+// ═══════════════════════════════════════════════
+
 function formatTeamStatsBlock(teamName: string, stats: any): string {
   if (!stats) return `${teamName}: Dados não disponíveis na API-Football`
-  
+
   let block = `${teamName} (últimos ${stats.matches_played} jogos):
   Forma: ${stats.form || 'N/A'}
   Resultados: ${stats.wins}V ${stats.draws}E ${stats.losses}D
@@ -739,62 +1032,40 @@ function formatTeamStatsBlock(teamName: string, stats: any): string {
   Maior Vitória Casa: ${s.biggest_win_home || 'N/A'} | Fora: ${s.biggest_win_away || 'N/A'}
   Maior Derrota Casa: ${s.biggest_loss_home || 'N/A'} | Fora: ${s.biggest_loss_away || 'N/A'}`
 
-    // NEW: Penalties
     if (s.penalty_scored !== null) {
       block += `
   Pênaltis: ${s.penalty_scored} convertidos / ${(s.penalty_scored || 0) + (s.penalty_missed || 0)} totais (${s.penalty_scored_pct || 'N/A'})`
     }
-
-    // NEW: Streaks
     if (s.biggest_streak_wins !== null) {
       block += `
   Maior Sequência: ${s.biggest_streak_wins}V / ${s.biggest_streak_draws}E / ${s.biggest_streak_loses}D`
     }
-
-    // NEW: Cards
     if (s.cards_yellow_total > 0) {
       block += `
   Cartões na Temporada: ${s.cards_yellow_total} amarelos / ${s.cards_red_total} vermelhos`
     }
 
-    // NEW: Goals by minute (offensive pressure patterns)
     if (s.goals_for_by_minute) {
-      const goalsByMinute = s.goals_for_by_minute
       const periods = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91-105']
       const hotPeriods: string[] = []
       const coldPeriods: string[] = []
-      
       for (const period of periods) {
-        const gf = goalsByMinute[period]?.total || 0
+        const gf = s.goals_for_by_minute[period]?.total || 0
         if (gf >= 3) hotPeriods.push(`${period}' (${gf} gols)`)
         else if (gf === 0) coldPeriods.push(`${period}'`)
       }
-      
-      if (hotPeriods.length > 0) {
-        block += `
-  🔥 Períodos de Pressão Ofensiva: ${hotPeriods.join(', ')}`
-      }
-      if (coldPeriods.length > 0) {
-        block += `
-  ❄️ Períodos sem Gols Marcados: ${coldPeriods.join(', ')}`
-      }
+      if (hotPeriods.length > 0) block += `\n  🔥 Períodos de Pressão Ofensiva: ${hotPeriods.join(', ')}`
+      if (coldPeriods.length > 0) block += `\n  ❄️ Períodos sem Gols Marcados: ${coldPeriods.join(', ')}`
     }
 
-    // NEW: Goals against by minute (defensive vulnerability)
     if (s.goals_against_by_minute) {
-      const goalsByMinute = s.goals_against_by_minute
       const periods = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91-105']
       const vulnerablePeriods: string[] = []
-      
       for (const period of periods) {
-        const ga = goalsByMinute[period]?.total || 0
+        const ga = s.goals_against_by_minute[period]?.total || 0
         if (ga >= 3) vulnerablePeriods.push(`${period}' (${ga} gols sofridos)`)
       }
-      
-      if (vulnerablePeriods.length > 0) {
-        block += `
-  ⚠️ Vulnerabilidade Defensiva: ${vulnerablePeriods.join(', ')}`
-      }
+      if (vulnerablePeriods.length > 0) block += `\n  ⚠️ Vulnerabilidade Defensiva: ${vulnerablePeriods.join(', ')}`
     }
   }
 
@@ -823,7 +1094,7 @@ function formatInjuriesBlock(teamName: string, injuries: any[]): string {
 
 function formatStandingsBlock(standings: any[], homeTeam: string, awayTeam: string): string {
   if (!standings || standings.length === 0) return 'Classificação: Não disponível'
-  
+
   const relevantTeams = standings.filter((s: any) => {
     const name = (s.team?.name || '').toLowerCase()
     return homeTeam.toLowerCase().includes(name) || name.includes(homeTeam.toLowerCase().split(' ')[0]) ||
@@ -844,7 +1115,6 @@ function formatStandingsBlock(standings: any[], homeTeam: string, awayTeam: stri
   return `CLASSIFICAÇÃO (times do jogo):\n${lines.join('\n')}`
 }
 
-// NEW: Format predictions block from API-Football /predictions endpoint
 function formatPredictionsBlock(predictions: any): string {
   if (!predictions) return 'PREVISÕES API-FOOTBALL: Não disponível para este jogo'
 
@@ -860,7 +1130,6 @@ function formatPredictionsBlock(predictions: any): string {
   Probabilidades: Casa ${predictions.predictions.percent.home} | Empate ${predictions.predictions.percent.draw} | Fora ${predictions.predictions.percent.away}`
   }
 
-  // Comparison of team stats from predictions
   if (predictions.comparison) {
     const c = predictions.comparison
     block += `
@@ -875,20 +1144,45 @@ function formatPredictionsBlock(predictions: any): string {
   return block
 }
 
+// NEW: Corner stats format block
+function formatCornerStatsBlock(teamName: string, stats: any): string {
+  if (!stats) return `${teamName}: Dados de escanteios não disponíveis`
+  return `${teamName} (médias últimos ${stats.sample_size} jogos):
+  Escanteios a favor: ${stats.avg_corners_for?.toFixed(2)}/jogo
+  Escanteios contra: ${stats.avg_corners_against?.toFixed(2)}/jogo`
+}
+
+// NEW: Card stats format block
+function formatCardStatsBlock(teamName: string, stats: any): string {
+  if (!stats) return `${teamName}: Dados de cartões não disponíveis`
+  return `${teamName} (médias últimos ${stats.sample_size} jogos):
+  Cartões amarelos: ${stats.avg_yellow_for?.toFixed(2)} a favor / ${stats.avg_yellow_against?.toFixed(2)} contra
+  Cartões vermelhos: ${stats.avg_red_for?.toFixed(2)} a favor / ${stats.avg_red_against?.toFixed(2)} contra
+  Total médio: ${stats.avg_total_cards?.toFixed(2)} cartões/jogo`
+}
+
+// NEW: Referee format block
+function formatRefereeBlock(referee: any): string {
+  if (!referee) return 'Árbitro: Perfil não disponível'
+  return `Árbitro (${referee.sample_size} jogos):
+  Média de cartões: ${referee.avg_total_cards?.toFixed(2)}/jogo (${referee.avg_yellow_per_game?.toFixed(2)} amarelos, ${referee.avg_red_per_game?.toFixed(2)} vermelhos)
+  Rigor: ${referee.strictness || 'DESCONHECIDO'}`
+}
+
 // ═══════════════════════════════════════════════
 // Market Manipulation & Sharp Money Detectors
 // ═══════════════════════════════════════════════
 
 interface MarketDetectorResult {
-  mis: number           // Market Inefficiency Score (0-1)
-  mis_level: string     // noise | light | strong | extreme
-  odi: number           // Odds Drift Index (% movement across bookmakers)
+  mis: number
+  mis_level: string
+  odi: number
   odi_suspicious: boolean
   sharp: {
-    has_rlm: boolean    // Reverse Line Movement detected
-    has_steam: boolean  // Steam move detected
-    has_consensus: boolean // 3+ bookmakers moving same direction
-    activity_score: number // 0-100
+    has_rlm: boolean
+    has_steam: boolean
+    has_consensus: boolean
+    activity_score: number
     activity_level: string
   }
   odd_open: number | null
@@ -909,104 +1203,89 @@ function computeMarketDetectors(
 
   if (oddsData.length === 0) return result
 
-  // ── MIS: Market Inefficiency Score ──
-  // Compare model probability vs average market probability
-  const allHomeOdds = oddsData.map(o => o.home_odd).filter(Boolean)
-  const allAwayOdds = oddsData.map(o => o.away_odd).filter(Boolean)
-  const allDrawOdds = oddsData.map(o => o.draw_odd).filter(o => o > 0)
+  const isTotals = market?.toLowerCase().includes('over') || market?.toLowerCase().includes('under')
 
-  const avgHomeProb = allHomeOdds.length > 0 ? (allHomeOdds.reduce((s, o) => s + 1/o, 0) / allHomeOdds.length) * 100 : 0
-  const avgAwayProb = allAwayOdds.length > 0 ? (allAwayOdds.reduce((s, o) => s + 1/o, 0) / allAwayOdds.length) * 100 : 0
-  const avgDrawProb = allDrawOdds.length > 0 ? (allDrawOdds.reduce((s, o) => s + 1/o, 0) / allDrawOdds.length) * 100 : 0
+  let targetOdds: number[] = []
+  let targetBookmakers: any[] = []
 
-  // Choose market probability based on selected market
-  let marketProb = avgHomeProb
-  if (market) {
-    const m = market.toLowerCase()
-    if (m.includes('fora') || m.includes('away')) marketProb = avgAwayProb
-    else if (m.includes('empate') || m.includes('draw')) marketProb = avgDrawProb
+  if (isTotals && totalsData.length > 0) {
+    const line = market?.match(/[\d\.]+/)?.[0]
+    const targetLine = line ? parseFloat(line) : 2.5
+    const totalsForLine = totalsData.filter(t => Math.abs(t.line - targetLine) < 0.1)
+    if (market?.toLowerCase().includes('over')) {
+      targetOdds = totalsForLine.map(t => t.over_odd)
+      targetBookmakers = totalsForLine
+    } else {
+      targetOdds = totalsForLine.map(t => t.under_odd)
+      targetBookmakers = totalsForLine
+    }
+  } else {
+    if (market?.toLowerCase().includes('fora') || market?.toLowerCase().includes('away')) {
+      targetOdds = oddsData.map(o => o.away_odd).filter(Boolean)
+    } else if (market?.toLowerCase().includes('empate') || market?.toLowerCase().includes('draw')) {
+      targetOdds = oddsData.map(o => o.draw_odd).filter(Boolean)
+    } else {
+      targetOdds = oddsData.map(o => o.home_odd).filter(Boolean)
+    }
+    targetBookmakers = oddsData
   }
 
-  if (modelProbability && modelProbability > 0 && marketProb > 0) {
-    result.mis = Math.abs(modelProbability - marketProb) / 100
+  if (targetOdds.length < 2) return result
+
+  const maxOdd = Math.max(...targetOdds)
+  const minOdd = Math.min(...targetOdds)
+  result.odi = (maxOdd - minOdd) / minOdd
+  result.odi_suspicious = result.odi > 0.15
+  result.odd_open = maxOdd
+  result.odd_current = minOdd
+
+  if (modelProbability && modelProbability > 0) {
+    const avgMarketProb = (targetOdds.reduce((s, o) => s + 1/o, 0) / targetOdds.length) * 100
+    result.mis = Math.abs(modelProbability - avgMarketProb) / 100
     if (result.mis < 0.02) result.mis_level = 'noise'
     else if (result.mis < 0.05) result.mis_level = 'light'
     else if (result.mis < 0.10) result.mis_level = 'strong'
     else result.mis_level = 'extreme'
   }
 
-  // ── ODI: Odds Drift Index ──
-  // Measure spread between highest and lowest odds across bookmakers for same outcome
-  const targetOdds = market?.toLowerCase().includes('fora') ? allAwayOdds
-    : market?.toLowerCase().includes('empate') ? allDrawOdds
-    : allHomeOdds
-
-  if (targetOdds.length >= 2) {
-    const maxOdd = Math.max(...targetOdds)
-    const minOdd = Math.min(...targetOdds)
-    result.odi = Math.abs(maxOdd - minOdd) / minOdd
-    result.odi_suspicious = result.odi > 0.15
-    result.odd_open = maxOdd  // Use max as "open" proxy
-    result.odd_current = minOdd // Use min as "current" proxy (sharps moved it down)
-  }
-
-  // ── Sharp Money Detector ──
   let sharpScore = 0
 
-  // Check for Reverse Line Movement (RLM):
-  // If majority of bookmakers have similar odds but one sharp book (Pinnacle) differs significantly
-  const pinnacleOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('pinnacle'))
-  const bet365Odds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('bet365'))
-  const betfairOdds = oddsData.find(o => (o.bookmaker || '').toLowerCase().includes('betfair'))
+  const pinnacle = targetBookmakers.find(b => (b.bookmaker || '').toLowerCase().includes('pinnacle'))
+  const bet365 = targetBookmakers.find(b => (b.bookmaker || '').toLowerCase().includes('bet365'))
 
-  if (pinnacleOdds && bet365Odds) {
-    const pinnHome = pinnacleOdds.home_odd
-    const b365Home = bet365Odds.home_odd
-    const diffPct = Math.abs(pinnHome - b365Home) / b365Home
+  if (pinnacle && bet365) {
+    const oddPinn = isTotals
+      ? (market?.includes('Over') ? pinnacle.over_odd : pinnacle.under_odd)
+      : (market?.includes('Casa') ? pinnacle.home_odd : market?.includes('Fora') ? pinnacle.away_odd : pinnacle.draw_odd)
+    const odd365 = isTotals
+      ? (market?.includes('Over') ? bet365.over_odd : bet365.under_odd)
+      : (market?.includes('Casa') ? bet365.home_odd : market?.includes('Fora') ? bet365.away_odd : bet365.draw_odd)
 
-    // Pinnacle diverging from soft books = sharp money signal
-    if (diffPct > 0.05) {
-      result.sharp.has_rlm = true
-      sharpScore += 25
-      console.log(`[Sharp Detector] RLM: Pinnacle ${pinnHome} vs Bet365 ${b365Home} (${(diffPct*100).toFixed(1)}% diff)`)
+    if (oddPinn && odd365) {
+      const diffPct = Math.abs(oddPinn - odd365) / odd365
+      if (diffPct > 0.05) {
+        result.sharp.has_rlm = true
+        sharpScore += 25
+      }
     }
   }
 
-  // Steam move: large spread between any two bookmakers (>8% in same market)
-  if (targetOdds.length >= 2) {
-    const maxO = Math.max(...targetOdds)
-    const minO = Math.min(...targetOdds)
-    const steamPct = (maxO - minO) / minO
-    if (steamPct > 0.08) {
-      result.sharp.has_steam = true
-      sharpScore += 20
-      console.log(`[Sharp Detector] Steam move: ${(steamPct*100).toFixed(1)}% spread in market`)
-    }
+  if (result.odi > 0.08) {
+    result.sharp.has_steam = true
+    sharpScore += 20
   }
 
-  // Consensus: Check if 3+ bookmakers have similar odds (within 2%)
-  if (targetOdds.length >= 3) {
-    const sorted = [...targetOdds].sort((a, b) => a - b)
-    const medianOdd = sorted[Math.floor(sorted.length / 2)]
-    const consensus = targetOdds.filter(o => Math.abs(o - medianOdd) / medianOdd < 0.02).length
-    if (consensus >= 3) {
-      result.sharp.has_consensus = true
-      sharpScore += 15
-    }
-  }
-
-  // Pinnacle as reference (sharps bet Pinnacle)
-  if (pinnacleOdds) {
-    sharpScore += 10  // Base boost for having Pinnacle data
-  }
-  if (betfairOdds) {
-    sharpScore += 5   // Betfair exchange = more informed odds
-  }
-
-  // ODI contributes to sharp score
-  if (result.odi_suspicious) {
+  const sorted = [...targetOdds].sort((a, b) => a - b)
+  const medianOdd = sorted[Math.floor(sorted.length / 2)]
+  const consensusCount = targetOdds.filter(o => Math.abs(o - medianOdd) / medianOdd < 0.02).length
+  if (consensusCount >= 3) {
+    result.sharp.has_consensus = true
     sharpScore += 15
   }
+
+  if (pinnacle) sharpScore += 10
+  if (targetBookmakers.some(b => (b.bookmaker || '').toLowerCase().includes('betfair'))) sharpScore += 5
+  if (result.odi_suspicious) sharpScore += 15
 
   result.sharp.activity_score = Math.min(100, sharpScore)
 
@@ -1054,7 +1333,6 @@ async function persistDetectors(
   marketProb: number,
 ) {
   try {
-    // Save to market_analysis
     await supabaseClient.from('market_analysis').upsert({
       match_id: matchId,
       market: market || 'h2h',
@@ -1067,7 +1345,6 @@ async function persistDetectors(
       odd_current: detectors.odd_current,
     }, { onConflict: 'match_id,market' })
 
-    // Save to sharp_money_signals if activity detected
     if (detectors.sharp.activity_score >= 10) {
       await supabaseClient.from('sharp_money_signals').upsert({
         match_id: matchId,
@@ -1126,6 +1403,70 @@ function extractTotals(game: any) {
   return totalsData
 }
 
+// NEW: Extract corners odds from bookmakers
+function extractCornersOdds(game: any) {
+  const cornersData: any[] = []
+  for (const bookmaker of game.bookmakers || []) {
+    const cornersMarket = bookmaker.markets?.find((m: any) =>
+      m.key.includes('corners') || m.key.includes('total_corners')
+    )
+
+    if (cornersMarket && cornersMarket.outcomes) {
+      cornersData.push({
+        bookmaker: bookmaker.title,
+        market_key: cornersMarket.key,
+        outcomes: cornersMarket.outcomes
+      })
+    }
+
+    const cornersHandicap = bookmaker.markets?.find((m: any) =>
+      m.key.includes('asian_corners') || m.key.includes('corners_handicap')
+    )
+
+    if (cornersHandicap) {
+      cornersData.push({
+        bookmaker: bookmaker.title,
+        market_key: cornersHandicap.key,
+        outcomes: cornersHandicap.outcomes,
+        is_handicap: true
+      })
+    }
+  }
+  return cornersData
+}
+
+// NEW: Extract cards odds from bookmakers
+function extractCardsOdds(game: any) {
+  const cardsData: any[] = []
+  for (const bookmaker of game.bookmakers || []) {
+    const cardsMarket = bookmaker.markets?.find((m: any) =>
+      m.key.includes('cards') || m.key.includes('total_cards')
+    )
+
+    if (cardsMarket && cardsMarket.outcomes) {
+      cardsData.push({
+        bookmaker: bookmaker.title,
+        market_key: cardsMarket.key,
+        outcomes: cardsMarket.outcomes
+      })
+    }
+
+    const firstCardMarket = bookmaker.markets?.find((m: any) =>
+      m.key.includes('first_card') || m.key.includes('first_card_time')
+    )
+
+    if (firstCardMarket) {
+      cardsData.push({
+        bookmaker: bookmaker.title,
+        market_key: firstCardMarket.key,
+        outcomes: firstCardMarket.outcomes,
+        is_special: true
+      })
+    }
+  }
+  return cardsData
+}
+
 function calculateProbabilities(odds: any) {
   if (!odds) return 'Sem dados'
   const homeProb = (1 / odds.home_odd * 100).toFixed(2)
@@ -1155,7 +1496,7 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
-// AI Provider functions
+// AI Provider
 // ═══════════════════════════════════════════════
 
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
@@ -1175,7 +1516,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 1500,
+      max_tokens: 2000,
     })
   })
 
@@ -1189,7 +1530,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
 }
 
 // ═══════════════════════════════════════════════
-// Main analysis function (Gemini only)
+// Main analysis function
 // ═══════════════════════════════════════════════
 
 async function analyzeGame(
@@ -1200,16 +1541,21 @@ async function analyzeGame(
   minValue: number,
   supabaseClient: any,
   apiFootballKey: string,
+  includeCorners: boolean,
+  includeCards: boolean,
 ) {
   const matchId = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g, '_')
-  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini)`)
+  console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini, corners: ${includeCorners}, cards: ${includeCards})`)
 
   const oddsData = extractOdds(game)
   const totalsData = extractTotals(game)
+  const cornersOdds = includeCorners ? extractCornersOdds(game) : []
+  const cardsOdds = includeCards ? extractCardsOdds(game) : []
+
   if (oddsData.length === 0 && totalsData.length === 0) return null
 
-  // Fetch enriched data from API-Football (Pro plan: H2H, Season Stats, Injuries, Standings, Predictions)
-  const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey, game.sport_key)
+  // Fetch enriched data (now includes corners, cards, referee)
+  const enriched = await fetchEnrichedData(game.home_team, game.away_team, apiFootballKey, game.sport_key, includeCorners, includeCards)
 
   const homeStatsBlock = formatTeamStatsBlock(game.home_team, enriched.home)
   const awayStatsBlock = formatTeamStatsBlock(game.away_team, enriched.away)
@@ -1219,8 +1565,88 @@ async function analyzeGame(
   const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
   const predictionsBlock = formatPredictionsBlock(enriched.predictions)
 
-  // ── Market Manipulation & Sharp Money Detection ──
-  // Run detectors BEFORE AI call (purely algorithmic)
+  // NEW: Corners & Cards blocks
+  let cornersBlock = ''
+  let cardsBlock = ''
+  let cornerEstimation: any = null
+  let cardEstimation: any = null
+
+  if (includeCorners) {
+    cornersBlock = `
+═══════════════════════════════════════
+ESTATÍSTICAS DE ESCANTEIOS
+═══════════════════════════════════════
+${formatCornerStatsBlock(game.home_team, enriched.corners?.home)}
+${formatCornerStatsBlock(game.away_team, enriched.corners?.away)}`
+
+    // Poisson estimation for corners
+    if (enriched.corners?.home && enriched.corners?.away) {
+      cornerEstimation = estimateCorners(
+        enriched.corners.home.avg_corners_for,
+        enriched.corners.away.avg_corners_for
+      )
+      cornersBlock += `
+
+ESTIMATIVA POISSON DE ESCANTEIOS:
+  Total esperado: ${cornerEstimation.expected_total.toFixed(1)} escanteios
+  λ Casa: ${cornerEstimation.lambda_home.toFixed(2)} | λ Fora: ${cornerEstimation.lambda_away.toFixed(2)}
+  P(Over 8.5): ${(cornerEstimation.probabilities.over_8_5 * 100).toFixed(1)}%
+  P(Over 9.5): ${(cornerEstimation.probabilities.over_9_5 * 100).toFixed(1)}%
+  P(Over 10.5): ${(cornerEstimation.probabilities.over_10_5 * 100).toFixed(1)}%
+  P(Under 8.5): ${(cornerEstimation.probabilities.under_8_5 * 100).toFixed(1)}%
+  P(Under 9.5): ${(cornerEstimation.probabilities.under_9_5 * 100).toFixed(1)}%
+  P(Under 10.5): ${(cornerEstimation.probabilities.under_10_5 * 100).toFixed(1)}%`
+    }
+
+    if (cornersOdds.length > 0) {
+      cornersBlock += `
+
+ODDS DE ESCANTEIOS DISPONÍVEIS:
+${cornersOdds.map(c => JSON.stringify(c)).join('\n')}`
+    }
+  }
+
+  if (includeCards) {
+    cardsBlock = `
+═══════════════════════════════════════
+ESTATÍSTICAS DE CARTÕES
+═══════════════════════════════════════
+${formatCardStatsBlock(game.home_team, enriched.cards?.home)}
+${formatCardStatsBlock(game.away_team, enriched.cards?.away)}
+
+═══════════════════════════════════════
+PERFIL DO ÁRBITRO
+═══════════════════════════════════════
+${formatRefereeBlock(enriched.referee)}`
+
+    // Card estimation
+    if (enriched.cards?.home && enriched.cards?.away) {
+      cardEstimation = estimateCards(
+        enriched.cards.home.avg_total_cards,
+        enriched.cards.away.avg_total_cards,
+        enriched.referee
+      )
+      cardsBlock += `
+
+ESTIMATIVA DE CARTÕES:
+  Total esperado: ${cardEstimation.expected_total.toFixed(1)} cartões
+  P(Over 3.5): ${(cardEstimation.probabilities.over_3_5 * 100).toFixed(1)}%
+  P(Over 4.5): ${(cardEstimation.probabilities.over_4_5 * 100).toFixed(1)}%
+  P(Over 5.5): ${(cardEstimation.probabilities.over_5_5 * 100).toFixed(1)}%
+  P(Under 3.5): ${(cardEstimation.probabilities.under_3_5 * 100).toFixed(1)}%
+  P(Under 4.5): ${(cardEstimation.probabilities.under_4_5 * 100).toFixed(1)}%
+  Impacto do Árbitro: ${enriched.referee ? `${enriched.referee.strictness} - ${enriched.referee.avg_total_cards?.toFixed(1)} cartões/jogo` : 'Não disponível'}`
+    }
+
+    if (cardsOdds.length > 0) {
+      cardsBlock += `
+
+ODDS DE CARTÕES DISPONÍVEIS:
+${cardsOdds.map(c => JSON.stringify(c)).join('\n')}`
+    }
+  }
+
+  // Market detectors
   const detectors = computeMarketDetectors(oddsData, totalsData, null, null)
   const detectorsBlock = formatDetectorsBlock(detectors)
 
@@ -1230,13 +1656,43 @@ async function analyzeGame(
     : enriched.model_level === 'NIVEL_2' ? 'MEDIA (stats básicas disponíveis)'
     : 'BAIXA (apenas odds disponíveis)'
 
+  // Build expanded market list for JSON schema
+  const marketOptions = [
+    '"Casa"', '"Empate"', '"Fora"',
+    '"Over 1.5"', '"Under 1.5"', '"Over 2.5"', '"Under 2.5"', '"Over 3.5"', '"Under 3.5"',
+  ]
+  if (includeCorners) {
+    marketOptions.push('"Over 8.5 Escanteios"', '"Under 8.5 Escanteios"', '"Over 9.5 Escanteios"', '"Under 9.5 Escanteios"', '"Over 10.5 Escanteios"', '"Under 10.5 Escanteios"')
+  }
+  if (includeCards) {
+    marketOptions.push('"Over 3.5 Cartões"', '"Under 3.5 Cartões"', '"Over 4.5 Cartões"', '"Under 4.5 Cartões"', '"Over 5.5 Cartões"', '"Under 5.5 Cartões"')
+  }
+
   const systemPrompt = `${customPrompt}
 
-REGRA ABSOLUTA: Você é um motor de análise quantitativa. Você NUNCA responde com texto livre. Você SEMPRE retorna APENAS um objeto JSON válido. Sem saudações, sem confirmações, sem markdown. APENAS o JSON.`
+REGRA ABSOLUTA: Você é um motor de análise quantitativa. Você NUNCA responde com texto livre. Você SEMPRE retorna APENAS um objeto JSON válido. Sem saudações, sem confirmações, sem markdown. APENAS o JSON.
+
+${includeCorners ? `
+MERCADOS DE ESCANTEIOS:
+- Analise as estatísticas de escanteios de ambos os times
+- Use a estimativa Poisson fornecida para calcular probabilidades
+- Compare com as odds disponíveis para encontrar value
+- Mercados: Over/Under 8.5, 9.5, 10.5 Escanteios
+` : ''}
+
+${includeCards ? `
+MERCADOS DE CARTÕES:
+- Analise as estatísticas de cartões de ambos os times
+- Considere o perfil do árbitro (rigor) no cálculo
+- Fator de rivalidade/importância do jogo
+- Mercados: Over/Under 3.5, 4.5, 5.5 Cartões
+` : ''}
+
+IMPORTANTE: Você pode recomendar QUALQUER um dos mercados disponíveis. Escolha o que tiver MAIOR edge.`
 
   const userPrompt = `
 ═══════════════════════════════════════
-JOGO PRÉ-JOGO - ANÁLISE DE VALUE
+JOGO PRÉ-JOGO - ANÁLISE DE VALUE (MULTI-MERCADO)
 ═══════════════════════════════════════
 
 ⚽ TIMES: ${game.home_team} vs ${game.away_team}
@@ -1244,6 +1700,7 @@ JOGO PRÉ-JOGO - ANÁLISE DE VALUE
 📅 HORÁRIO: ${new Date(game.commence_time).toLocaleString('pt-BR')}
 📊 NÍVEL DE DADOS: ${dataStrengthLabel}
 🔧 MODELO SUGERIDO: ${enriched.model_level}
+📈 MERCADOS ANALISADOS: H2H, Totals${includeCorners ? ', Escanteios' : ''}${includeCards ? ', Cartões' : ''}
 
 ═══════════════════════════════════════
 DADOS API-FOOTBALL (Estatísticas Reais - Plano Pro)
@@ -1274,11 +1731,15 @@ ${predictionsBlock}
 
 ${enriched.predictions ? `
 VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acima.
-- Se AMBOS concordarem no vencedor/over-under → boost de confiança +5%
+- Se AMBOS concordarem → boost de confiança +5%
 - Se DIVERGIREM → sinalize no risk_factors e reduza confiança -5%
 ` : ''}
 
 ${detectorsBlock}
+
+${cornersBlock}
+
+${cardsBlock}
 
 ${game.simulated_odds ? `
 ⚠️ ATENÇÃO: ODDS SIMULADAS (Modelo Poisson)
@@ -1325,8 +1786,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "verdict": "APROVADO" ou "VETADO",
   "tier": 1 | 2 | 3 | null,
   "model_level": "${enriched.model_level}",
-  "market": "Casa" | "Empate" | "Fora" | "Over 1.5" | "Under 1.5" | "Over 2.5" | "Under 2.5" | "Over 3.5" | "Under 3.5" | null,
-  "bookmaker": "Bet365" | "Pinnacle" | "Betfair",
+  "market": ${marketOptions.join(' | ')} | null,
+  "bookmaker": "Bet365" | "Pinnacle" | "Betfair" | string,
   "odd": 2.10,
   "fair_odd": 1.85,
   "implied_probability": 47.6,
@@ -1339,7 +1800,20 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "thesis": "Resumo objetivo do edge identificado",
   "analysis": "Explicação quantitativa adaptada aos dados disponíveis",
   "risk_factors": "Riscos e limitações do modelo aplicado",
-  "api_predictions_agree": true | false | null
+  "api_predictions_agree": true | false | null${includeCorners ? `,
+  "corner_prediction": {
+    "line": 9.5,
+    "expected_total": 10.2,
+    "prob_over": 0.62,
+    "value": "+8%"
+  }` : ''}${includeCards ? `,
+  "card_prediction": {
+    "market": "Over 4.5",
+    "expected_total": 5.1,
+    "prob_over": 0.58,
+    "value": "+12%"
+  },
+  "referee_impact": "Alto - árbitro rigoroso (5.2 cartões/jogo)"` : ''}
 }
 
 IMPORTANTE:
@@ -1348,11 +1822,14 @@ IMPORTANTE:
 - META DE APROVAÇÃO: 50-70% dos jogos
 - NÃO invente motivos extras de veto
 - Se há edge ≥ 2% e EV positivo, APROVE no tier correspondente
+- ESCOLHA O MERCADO COM MAIOR EDGE (pode ser escanteios ou cartões!)
+${includeCorners ? '- Se escanteios tiverem maior edge que H2H/Totals, PREFIRA escanteios' : ''}
+${includeCards ? '- Se cartões tiverem maior edge que H2H/Totals, PREFIRA cartões' : ''}
 
 ANALISE AGORA E RETORNE APENAS O JSON:`
 
-  // Call AI provider with retry and backoff
-  let analysisText: string = ''
+  // Call AI with retry
+  let analysisText = ''
   const maxRetries = 3
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -1360,7 +1837,6 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       if (!analysisText) throw new Error('AI não retornou análise válida')
 
-      // Clean and extract JSON
       const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
       if (!jsonMatch) {
@@ -1376,31 +1852,31 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         analysis.verdict = 'APROVADO'
       }
 
-      // Ensure value_percentage is a number (some models return edge_percentage instead)
+      // Ensure value_percentage
       if (analysis.value_percentage === undefined || analysis.value_percentage === null) {
         analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || analysis.edge || analysis.value || null
       }
-
-      // If still null, try to extract from thesis text (e.g. "Edge de 3.8%")
       if (analysis.value_percentage == null && analysis.thesis) {
         const edgeMatch = analysis.thesis.match(/[Ee]dge\s+(?:de\s+)?(\d+[\.,]\d+)\s*%/)
         if (edgeMatch) {
           analysis.value_percentage = parseFloat(edgeMatch[1].replace(',', '.'))
-          console.log(`[Mycroft Punter] value_percentage extraído da thesis: ${analysis.value_percentage}%`)
         }
       }
-
-      // If still null and we have estimated_probability + odd, calculate it
       if (analysis.value_percentage == null && analysis.estimated_probability && analysis.odd) {
         const impliedProb = (1 / analysis.odd) * 100
         analysis.value_percentage = Math.round((analysis.estimated_probability - impliedProb) * 10) / 10
-        console.log(`[Mycroft Punter] value_percentage calculado: ${analysis.value_percentage}% (prob ${analysis.estimated_probability}% - implied ${impliedProb.toFixed(1)}%)`)
       }
-
-      // Final fallback
       if (analysis.value_percentage == null) analysis.value_percentage = 0
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Market: ${analysis.market} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: gemini`)
+
+      // Log corner/card predictions if present
+      if (analysis.corner_prediction) {
+        console.log(`[Mycroft Punter] 🏁 Corner prediction: Line ${analysis.corner_prediction.line}, Expected ${analysis.corner_prediction.expected_total}, Value ${analysis.corner_prediction.value}`)
+      }
+      if (analysis.card_prediction) {
+        console.log(`[Mycroft Punter] 🟨 Card prediction: ${analysis.card_prediction.market}, Expected ${analysis.card_prediction.expected_total}, Value ${analysis.card_prediction.value}`)
+      }
 
       // Save analysis to DB
       const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
@@ -1440,11 +1916,13 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
 
-      // Persist detector results with model probability from AI
+      // Persist detector results
       const modelProb = analysis.estimated_probability || null
       const marketProb = analysis.implied_probability || (analysis.odd ? (1 / analysis.odd) * 100 : 0)
       const finalDetectors = computeMarketDetectors(oddsData, totalsData, modelProb, analysis.market)
       await persistDetectors(supabaseClient, matchId, analysis.market || 'h2h', finalDetectors, modelProb, marketProb)
+
+      return analysis
     } catch (parseErr: any) {
       if (attempt < maxRetries - 1) {
         const isRateLimit = parseErr?.message?.includes('429')
