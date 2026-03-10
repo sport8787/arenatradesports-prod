@@ -225,25 +225,8 @@ async function lookupMatchContext(query: string): Promise<string> {
   const parts: string[] = [];
   const queryLower = query.toLowerCase();
 
-  // Detect if user is asking about live matches in general
-  const isAskingLive = /ao vivo|live|jogos? agora|partidas? agora|jogando|rolando|acontecendo|em andamento/i.test(query);
-
   try {
-    const { data: scheduled } = await supabase.from("scheduled_games").select("*").order("match_datetime", { ascending: true }).limit(50);
-    const matchedScheduled = (scheduled || []).filter((g: any) => {
-      const home = g.home_team?.toLowerCase() || "";
-      const away = g.away_team?.toLowerCase() || "";
-      const league = g.league_name?.toLowerCase() || "";
-      return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w) || league.includes(w)));
-    });
-    if (matchedScheduled.length > 0) {
-      parts.push("━━━ JOGOS AGENDADOS ENCONTRADOS ━━━");
-      for (const g of matchedScheduled.slice(0, 5)) {
-        parts.push(`• ${g.home_team} vs ${g.away_team} | Liga: ${g.league_name} | Data: ${g.match_date} ${g.match_time} | Status: ${g.status || "scheduled"}`);
-      }
-    }
-
-    // Fetch live matches - ALL if asking about live, or filter by team name
+    // ALWAYS fetch all live matches - the AI needs this context for ANY sports question
     const { data: live } = await supabase
       .from("live_matches")
       .select("*, mycroft_analyses(*)")
@@ -251,11 +234,31 @@ async function lookupMatchContext(query: string): Promise<string> {
       .order("updated_at", { ascending: false })
       .limit(50);
 
-    if (isAskingLive && live && live.length > 0) {
-      // Show ALL live matches with full stats
-      parts.push(`━━━ TODOS OS JOGOS AO VIVO (${live.length} partidas) ━━━`);
-      
-      // Separate matches with real stats vs empty
+    if (live && live.length > 0) {
+      // Find matches specifically mentioned in the query
+      const mentionedMatches = live.filter((m: any) => {
+        const home = m.home_team?.toLowerCase() || "";
+        const away = m.away_team?.toLowerCase() || "";
+        const homeWords = home.split(/\s+/).filter((w: string) => w.length >= 3);
+        const awayWords = away.split(/\s+/).filter((w: string) => w.length >= 3);
+        return homeWords.some((w: string) => queryLower.includes(w)) ||
+               awayWords.some((w: string) => queryLower.includes(w));
+      });
+
+      // If specific matches are mentioned, show them first with full detail
+      if (mentionedMatches.length > 0) {
+        parts.push(`━━━ JOGOS MENCIONADOS (PRIORIDADE) ━━━`);
+        for (const m of mentionedMatches) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) {
+            parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
+            if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis.substring(0, 300)}`);
+          }
+        }
+      }
+
+      // Always show all live matches summary so AI has full context
       const withStats = live.filter((m: any) => {
         const s = m.stats || {};
         return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) > 0;
@@ -264,46 +267,42 @@ async function lookupMatchContext(query: string): Promise<string> {
         const s = m.stats || {};
         return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) === 0;
       });
-      
+
+      parts.push(`\n━━━ TODOS OS JOGOS AO VIVO (${live.length} partidas) ━━━`);
       if (withStats.length > 0) {
-        parts.push("\n🟢 COM ESTATÍSTICAS DETALHADAS:");
-        for (const m of withStats.slice(0, 10)) {
+        parts.push("\n🟢 COM ESTATÍSTICAS:");
+        for (const m of withStats.slice(0, 15)) {
           parts.push(formatLiveMatchStats(m));
           const analysis = m.mycroft_analyses;
           if (analysis) {
-            parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
-            if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis.substring(0, 200)}`);
+            parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
           }
         }
       }
-      
       if (withoutStats.length > 0) {
         parts.push(`\n⚪ SEM ESTATÍSTICAS (${withoutStats.length} jogos):`);
         for (const m of withoutStats.slice(0, 10)) {
           parts.push(`• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} | ${m.championship} | Min: ${m.minute || "-"}`);
         }
       }
-    } else {
-      // Filter by team name match
-      const matchedLive = (live || []).filter((m: any) => {
-        const home = m.home_team?.toLowerCase() || "";
-        const away = m.away_team?.toLowerCase() || "";
-        const champ = m.championship?.toLowerCase() || "";
-        return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w) || champ.includes(w)));
-      });
-      if (matchedLive.length > 0) {
-        parts.push("━━━ JOGOS AO VIVO / RECENTES ━━━");
-        for (const m of matchedLive.slice(0, 5)) {
-          parts.push(formatLiveMatchStats(m));
-          const analysis = m.mycroft_analyses;
-          if (analysis) {
-            parts.push(`  📊 Análise Mycroft: Veredito=${analysis.verdict} | Mercado=${analysis.market} | Odd=${analysis.odd} | Confiança=${analysis.confidence}%`);
-            if (analysis.thesis) parts.push(`  Tese: ${analysis.thesis.substring(0, 200)}`);
-          }
-        }
+    }
+
+    // Scheduled games - only if specifically asked or team name matches
+    const { data: scheduled } = await supabase.from("scheduled_games").select("*").order("match_datetime", { ascending: true }).limit(50);
+    const matchedScheduled = (scheduled || []).filter((g: any) => {
+      const home = g.home_team?.toLowerCase() || "";
+      const away = g.away_team?.toLowerCase() || "";
+      const league = g.league_name?.toLowerCase() || "";
+      return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w) || league.includes(w)));
+    });
+    if (matchedScheduled.length > 0) {
+      parts.push("\n━━━ JOGOS AGENDADOS ━━━");
+      for (const g of matchedScheduled.slice(0, 5)) {
+        parts.push(`• ${g.home_team} vs ${g.away_team} | Liga: ${g.league_name} | Data: ${g.match_date} ${g.match_time}`);
       }
     }
 
+    // Punter analyses - only if team name matches
     const { data: punterAnalyses } = await supabase.from("punter_analyses").select("*").order("created_at", { ascending: false }).limit(30);
     const matchedPunter = (punterAnalyses || []).filter((a: any) => {
       const home = a.home_team?.toLowerCase() || "";
@@ -311,7 +310,7 @@ async function lookupMatchContext(query: string): Promise<string> {
       return queryLower.split(/\s+/).some((w: string) => w.length >= 3 && (home.includes(w) || away.includes(w)));
     });
     if (matchedPunter.length > 0) {
-      parts.push("━━━ ANÁLISES PRÉ-JOGO (PUNTER) ━━━");
+      parts.push("\n━━━ ANÁLISES PRÉ-JOGO (PUNTER) ━━━");
       for (const a of matchedPunter.slice(0, 3)) {
         parts.push(`• ${a.home_team} vs ${a.away_team} | Mercado: ${a.market} | Odd: ${a.odd} | Veredito: ${a.verdict} | Value: ${a.value_percentage}%`);
       }

@@ -206,6 +206,23 @@ INSTRUÇÃO CRÍTICA: Fundamente TODA análise nos conceitos dos documentos acim
 `
     : "";
 
+  // Memory rules section with OVERRIDE priority
+  const memorySection = memoryRules
+    ? `
+═══════════════════════════════════════
+⚠️ REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA — SOBREPÕEM QUALQUER PADRÃO ABAIXO)
+═══════════════════════════════════════
+${memoryRules}
+═══════════════════════════════════════
+INSTRUÇÃO CRÍTICA: Estas regras foram definidas pelo operador e têm PRIORIDADE ABSOLUTA.
+Se uma regra do usuário contradizer os padrões hardcoded abaixo, a REGRA DO USUÁRIO VENCE.
+Se o usuário definiu novos mercados, critérios ou condições de aprovação, USE-OS.
+Exemplo: se o usuário adicionou "Lay Favorito 2T" com critérios próprios, aplique ESSES critérios
+mesmo que os padrões default digam algo diferente sobre minuto ou placar.
+═══════════════════════════════════════
+`
+    : "";
+
   const matchDataSection = `
 ═══════════════════════════════════════
 JOGO AO VIVO:
@@ -232,7 +249,7 @@ Banca do trader: R$ ${match.bankroll ?? 500}
     console.log('[MycroftSports] Using CUSTOM prompt from KB');
     return `${customPrompt}
 
-${memoryRules}
+${memorySection}
 
 ${kbSection}
 
@@ -249,7 +266,7 @@ OUTPUT: Retorne APENAS JSON válido (sem markdown).
 
 Você é Mycroft, um analista de trading esportivo profissional com 7+ anos de experiência e win rate comprovado de 68%.
 
-${memoryRules}
+${memorySection}
 
 ${kbSection}
 
@@ -524,7 +541,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25).' },
+          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. Apply user-defined markets, criteria, and approval conditions FIRST before falling back to default patterns.' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.6,
