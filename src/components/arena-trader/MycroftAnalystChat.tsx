@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp } from 'lucide-react';
+import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
@@ -196,7 +196,17 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
             </span>
           )}
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
+        <div className="flex items-center gap-1">
+          <a
+            href="/mycroft-memory"
+            onClick={(e) => e.stopPropagation()}
+            className="p-1 rounded hover:bg-white/10 transition-colors"
+            title="Memória do Mycroft"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-amber-400/60 hover:text-amber-400" />
+          </a>
+          {expanded ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
+        </div>
       </button>
 
       <AnimatePresence>

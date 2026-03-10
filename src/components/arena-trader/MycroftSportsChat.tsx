@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, X } from 'lucide-react';
+import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, X, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -188,9 +189,18 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
-            <X className="w-4 h-4 text-white/60" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { onClose(); window.location.href = '/mycroft-memory'; }}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+              title="Memória do Mycroft"
+            >
+              <BookOpen className="w-4 h-4 text-[#FFD700]/60 hover:text-[#FFD700]" />
+            </button>
+            <button onClick={onClose} className="p-1 rounded hover:bg-white/10 transition-colors">
+              <X className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
         </div>
 
         {/* Knowledge Base Manager */}
