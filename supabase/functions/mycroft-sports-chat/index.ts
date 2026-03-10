@@ -407,8 +407,8 @@ serve(async (req) => {
     const { query, matchContext, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     // Load KB, match data, and persistent memory in parallel
     const [knowledgeBaseContent, autoMatchContext, memoryContent] = await Promise.all([
