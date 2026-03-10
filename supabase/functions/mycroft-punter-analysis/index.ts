@@ -415,11 +415,11 @@ function calcTotalsProb(t:any) {
 
 // AI call
 async function callGemini(sys:string, usr:string) {
-  const key = Deno.env.get('OPENAI_API_KEY')
-  if(!key) throw new Error('OPENAI_API_KEY not configured')
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const key = Deno.env.get('GEMINI_API_KEY')
+  if(!key) throw new Error('GEMINI_API_KEY not configured')
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method:'POST', headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
-    body: JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:2000})
+    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:2000})
   })
   if(!r.ok) throw new Error(`Gemini error ${r.status}: ${await r.text()}`)
   return (await r.json()).choices?.[0]?.message?.content || ''

@@ -487,9 +487,9 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      console.error('[MycroftSports] OPENAI_API_KEY not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      console.error('[MycroftSports] GEMINI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -532,14 +532,14 @@ serve(async (req) => {
     ]);
     const prompt = buildPrompt(match, knowledgeBase, customPrompt, memoryRules);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. Apply user-defined markets, criteria, and approval conditions FIRST before falling back to default patterns.' },
           { role: 'user', content: prompt },

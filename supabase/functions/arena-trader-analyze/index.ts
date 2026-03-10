@@ -209,22 +209,22 @@ PERGUNTA PRINCIPAL DO USUÁRIO: Posso entrar agora? Devo fazer uma entrada de CO
 
 Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`;
 
-    // Use OpenAI API
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY not configured");
+    // Use Google Gemini API
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY not configured");
     }
 
-    console.log(`🧠 Calling OpenAI for ${asset.symbol}...`);
+    console.log(`🧠 Calling Gemini for ${asset.symbol}...`);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
