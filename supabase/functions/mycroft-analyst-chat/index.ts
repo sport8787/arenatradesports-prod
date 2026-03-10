@@ -264,6 +264,8 @@ ${knowledgeBaseContent ? `━━━ DOCUMENTOS ━━━\n${knowledgeBaseContent
 
 ${marketContext}
 
+${punterContext}
+
 ━━━ MEMÓRIA PERSISTENTE ━━━
 Quando o usuário der uma instrução permanente (ex: "nunca mais faça X", "sempre priorize Y"), você DEVE:
 1. Confirmar: "✅ Regra memorizada. Será aplicada em todas as próximas interações."
