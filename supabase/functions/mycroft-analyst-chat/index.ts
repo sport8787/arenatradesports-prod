@@ -153,8 +153,8 @@ serve(async (req) => {
     const { query, marketData, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const supabase = getSupabaseAdmin();
 
