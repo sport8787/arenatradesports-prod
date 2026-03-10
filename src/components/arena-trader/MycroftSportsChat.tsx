@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
 import { useNavigate } from 'react-router-dom';
+import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -279,9 +280,14 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
                   : 'bg-white/5 text-white/80'
               }`}>
                 {msg.role === 'assistant' ? (
-                  <div className="prose prose-sm prose-invert max-w-none [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_li]:text-xs [&_strong]:text-[#FFD700] [&_code]:text-[#FFD700] [&_code]:bg-[#FFD700]/10 [&_code]:px-1 [&_code]:rounded">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm prose-invert max-w-none [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_li]:text-xs [&_strong]:text-[#FFD700] [&_code]:text-[#FFD700] [&_code]:bg-[#FFD700]/10 [&_code]:px-1 [&_code]:rounded">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                    {msg.content.includes('[HÓRUS]') && (
+                      <HorusTTSPlayer text={msg.content} />
+                    )}
+                  </>
                 ) : (
                   msg.content
                 )}

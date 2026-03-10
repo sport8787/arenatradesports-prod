@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
+import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
 
 interface MarketData {
   asset?: string;
@@ -293,9 +294,14 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                       : 'bg-white/5 text-white/80'
                   }`}>
                     {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm prose-invert max-w-none [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_li]:text-xs [&_strong]:text-amber-400 [&_code]:text-amber-300 [&_code]:bg-amber-500/10 [&_code]:px-1 [&_code]:rounded">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="prose prose-sm prose-invert max-w-none [&_p]:text-xs [&_p]:text-white/80 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_li]:text-xs [&_strong]:text-amber-400 [&_code]:text-amber-300 [&_code]:bg-amber-500/10 [&_code]:px-1 [&_code]:rounded">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                        {msg.content.includes('[HÓRUS]') && (
+                          <HorusTTSPlayer text={msg.content} />
+                        )}
+                      </>
                     ) : (
                       msg.content
                     )}
