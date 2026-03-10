@@ -377,14 +377,28 @@ function extractTotals(g:any) {
 }
 function extractCornersOdds(g:any) {
   const r:any[]=[]; for(const bk of g.bookmakers||[]) {
-    const m=bk.markets?.find((m:any)=>m.key.includes('corners')||m.key.includes('total_corners'))
-    if(m?.outcomes) r.push({bookmaker:bk.title,market_key:m.key,outcomes:m.outcomes})
+    for(const m of bk.markets||[]) {
+      if(!m.key?.includes('corner')) continue
+      if(!m.outcomes?.length) continue
+      const parsed:any = {bookmaker:bk.title||bk.key,market_key:m.key,outcomes:[]}
+      for(const o of m.outcomes) {
+        parsed.outcomes.push({name:o.name,price:o.price,point:o.point})
+      }
+      r.push(parsed)
+    }
   }; return r
 }
 function extractCardsOdds(g:any) {
   const r:any[]=[]; for(const bk of g.bookmakers||[]) {
-    const m=bk.markets?.find((m:any)=>m.key.includes('cards')||m.key.includes('total_cards'))
-    if(m?.outcomes) r.push({bookmaker:bk.title,market_key:m.key,outcomes:m.outcomes})
+    for(const m of bk.markets||[]) {
+      if(!m.key?.includes('card')&&!m.key?.includes('booking')) continue
+      if(!m.outcomes?.length) continue
+      const parsed:any = {bookmaker:bk.title||bk.key,market_key:m.key,outcomes:[]}
+      for(const o of m.outcomes) {
+        parsed.outcomes.push({name:o.name,price:o.price,point:o.point})
+      }
+      r.push(parsed)
+    }
   }; return r
 }
 function calcProb(o:any) {
@@ -412,12 +426,35 @@ async function callGemini(sys:string, usr:string) {
 }
 
 // Main analysis
-async function analyzeGame(game:any, prompt:string, method:string, vGuide:string, minVal:number, sb:any, apiKey:string, incCorners:boolean, incCards:boolean) {
+async function analyzeGame(game:any, prompt:string, method:string, vGuide:string, minVal:number, sb:any, apiKey:string, incCorners:boolean, incCards:boolean, oddsApiKey:string) {
   const mid = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g,'_')
   console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini, corners: ${incCorners}, cards: ${incCards})`)
   const odds=extractOdds(game), totals=extractTotals(game)
-  const cornOdds=incCorners?extractCornersOdds(game):[], cardOdds=incCards?extractCardsOdds(game):[]
   if(!odds.length&&!totals.length) return null
+
+  // Fetch event-specific corner/card odds from The Odds API additional markets
+  let cornOdds:any[]=[], cardOdds:any[]=[]
+  if((incCorners||incCards)&&game.id&&!game.simulated_odds&&oddsApiKey) {
+    try {
+      const addMkts:string[]=[]
+      if(incCorners) addMkts.push('alternate_totals_corners')
+      if(incCards) addMkts.push('alternate_spreads_cards','alternate_totals_cards')
+      const evUrl=`https://api.the-odds-api.com/v4/sports/${game.sport_key}/events/${game.id}/odds?apiKey=${oddsApiKey}&regions=br,eu&markets=${addMkts.join(',')}&oddsFormat=decimal`
+      const evResp=await fetch(evUrl)
+      if(evResp.ok) {
+        const evData=await evResp.json()
+        cornOdds=incCorners?extractCornersOdds(evData):[]
+        cardOdds=incCards?extractCardsOdds(evData):[]
+        if(cornOdds.length) console.log(`[Mycroft Punter] 🏁 ${game.home_team} vs ${game.away_team}: ${cornOdds.length} bookmakers com odds de escanteios`)
+        if(cardOdds.length) console.log(`[Mycroft Punter] 🟨 ${game.home_team} vs ${game.away_team}: ${cardOdds.length} bookmakers com odds de cartões`)
+        if(!cornOdds.length&&incCorners) console.log(`[Mycroft Punter] ⚠️ ${game.home_team} vs ${game.away_team}: Nenhuma odd de escanteios disponível nesta liga/bookmaker`)
+        if(!cardOdds.length&&incCards) console.log(`[Mycroft Punter] ⚠️ ${game.home_team} vs ${game.away_team}: Nenhuma odd de cartões disponível nesta liga/bookmaker`)
+      } else {
+        console.log(`[Mycroft Punter] ⚠️ Event odds ${evResp.status} for ${game.id} - corners/cards odds unavailable`)
+      }
+    } catch(e) { console.error(`[Mycroft Punter] Event odds fetch error:`, e) }
+  }
+
   const en = await fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards)
   const det=computeDetectors(odds,totals,null,null)
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
@@ -429,7 +466,11 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
       cornEst=estimateCorners(en.corners.home.avg_corners_for,en.corners.away.avg_corners_for)
       cornBlk+=`\nPoisson: Total ${cornEst.expected_total.toFixed(1)} P(O8.5):${(cornEst.probabilities.over_8_5*100).toFixed(1)}% P(O9.5):${(cornEst.probabilities.over_9_5*100).toFixed(1)}% P(O10.5):${(cornEst.probabilities.over_10_5*100).toFixed(1)}%`
     }
-    if(cornOdds.length) cornBlk+=`\nOdds: ${cornOdds.map(c=>JSON.stringify(c)).join(' ')}`
+    if(cornOdds.length) {
+      cornBlk+=`\nOdds Escanteios (The Odds API): ${cornOdds.map(c=>`${c.bookmaker}: ${c.outcomes.map((o:any)=>`${o.name} ${o.point??''} @${o.price}`).join(' | ')}`).join(' || ')}`
+    } else if(cornEst) {
+      cornBlk+=`\n⚠️ Odds de escanteios indisponíveis via bookmakers. Use as probabilidades do modelo Poisson acima para avaliar value.`
+    }
   }
   if(incCards) {
     cardBlk=`\nCARTÕES:\n${fmtCard(game.home_team,en.cards?.home)}\n${fmtCard(game.away_team,en.cards?.away)}\n${fmtRef(en.referee)}`
@@ -437,7 +478,11 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
       cardEst=estimateCards(en.cards.home.avg_total_cards,en.cards.away.avg_total_cards,en.referee)
       cardBlk+=`\nEstimativa: Total ${cardEst.expected_total.toFixed(1)} P(O3.5):${(cardEst.probabilities.over_3_5*100).toFixed(1)}% P(O4.5):${(cardEst.probabilities.over_4_5*100).toFixed(1)}%`
     }
-    if(cardOdds.length) cardBlk+=`\nOdds: ${cardOdds.map(c=>JSON.stringify(c)).join(' ')}`
+    if(cardOdds.length) {
+      cardBlk+=`\nOdds Cartões (The Odds API): ${cardOdds.map(c=>`${c.bookmaker}: ${c.outcomes.map((o:any)=>`${o.name} ${o.point??''} @${o.price}`).join(' | ')}`).join(' || ')}`
+    } else if(cardEst) {
+      cardBlk+=`\n⚠️ Odds de cartões indisponíveis via bookmakers. Use as probabilidades estimadas acima para avaliar value.`
+    }
   }
 
   const dsl = en.model_level==='NIVEL_1'?'ALTA':en.model_level==='NIVEL_2'?'MEDIA':'BAIXA'
@@ -445,7 +490,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'Analise escanteios com Poisson.\n':''}${incCards?'Analise cartões com perfil do árbitro.\n':''}Escolha o mercado com MAIOR edge.`
+  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
@@ -569,7 +614,7 @@ serve(async (req) => {
     const toAnalyze=games.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
       const batch=toAnalyze.slice(i,i+BATCH)
-      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards)))
+      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
         total++
         const r=results[j], g=batch[j]
