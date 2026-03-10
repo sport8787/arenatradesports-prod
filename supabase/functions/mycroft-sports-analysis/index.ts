@@ -125,6 +125,27 @@ async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['
   }
 }
 
+// Load persistent memory rules for analysis context
+async function loadMemoryRules(): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  try {
+    const { data } = await supabase
+      .from("mycroft_memory")
+      .select("rule_text, category, priority")
+      .eq("is_active", true)
+      .or("context.cs.{sports},context.cs.{analyst}")
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (!data || data.length === 0) return "";
+    const lines = data.map((m: any, i: number) => `${i + 1}. [${m.category}|P${m.priority}] ${m.rule_text}`);
+    return `\n═══════════════════════════════════════\nMEMÓRIA PERSISTENTE (${data.length} regras ativas)\n═══════════════════════════════════════\nEstas regras foram definidas pelo usuário e DEVEM ser respeitadas na análise:\n${lines.join("\n")}\n═══════════════════════════════════════\n`;
+  } catch (e) {
+    console.error("Memory loading error:", e);
+    return "";
+  }
+}
+
 // Load KB files AND check for custom prompt override (prompt_mycroft.txt)
 async function loadKnowledgeBaseAndPrompt(): Promise<{ kb: string; customPrompt: string | null }> {
   const supabase = getSupabaseAdmin();
@@ -164,7 +185,7 @@ async function loadKnowledgeBaseAndPrompt(): Promise<{ kb: string; customPrompt:
   return { kb: contents.join("\n\n"), customPrompt };
 }
 
-function buildPrompt(match: MatchData, knowledgeBase: string, customPrompt: string | null): string {
+function buildPrompt(match: MatchData, knowledgeBase: string, customPrompt: string | null, memoryRules: string = ""): string {
   const stats = match.stats || {};
 
   const kbSection = knowledgeBase
@@ -206,10 +227,12 @@ xG: ${stats.xG_home ?? '?'} vs ${stats.xG_away ?? '?'}
 Banca do trader: R$ ${match.bankroll ?? 500}
 `;
 
-  // If custom prompt from KB exists, use it + inject match data and KB
+  // If custom prompt from KB exists, use it + inject match data, KB and memory
   if (customPrompt) {
     console.log('[MycroftSports] Using CUSTOM prompt from KB');
     return `${customPrompt}
+
+${memoryRules}
 
 ${kbSection}
 
@@ -225,6 +248,8 @@ OUTPUT: Retorne APENAS JSON válido (sem markdown).
 # MYCROFT - ANALISTA DE TRADING ESPORTIVO
 
 Você é Mycroft, um analista de trading esportivo profissional com 7+ anos de experiência e win rate comprovado de 68%.
+
+${memoryRules}
 
 ${kbSection}
 
@@ -483,9 +508,12 @@ serve(async (req) => {
       }
     }
 
-    // Load KB + check for custom prompt override
-    const { kb: knowledgeBase, customPrompt } = await loadKnowledgeBaseAndPrompt();
-    const prompt = buildPrompt(match, knowledgeBase, customPrompt);
+    // Load KB + check for custom prompt override + load persistent memory
+    const [{ kb: knowledgeBase, customPrompt }, memoryRules] = await Promise.all([
+      loadKnowledgeBaseAndPrompt(),
+      loadMemoryRules(),
+    ]);
+    const prompt = buildPrompt(match, knowledgeBase, customPrompt, memoryRules);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
