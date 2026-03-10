@@ -606,7 +606,7 @@ serve(async (req) => {
     const toAnalyze=games.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
       const batch=toAnalyze.slice(i,i+BATCH)
-      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards)))
+      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
         total++
         const r=results[j], g=batch[j]
