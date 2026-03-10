@@ -1617,6 +1617,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_memory: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          instruction: string
+          is_active: boolean
+          mycroft_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          instruction: string
+          is_active?: boolean
+          mycroft_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          instruction?: string
+          is_active?: boolean
+          mycroft_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           avatar_url: string | null
