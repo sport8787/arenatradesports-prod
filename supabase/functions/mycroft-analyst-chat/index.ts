@@ -158,8 +158,8 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
-    // Load KB and memory in parallel
-    const [knowledgeBaseContent, memoryContent] = await Promise.all([
+    // Load KB, memory, and recent punter analyses in parallel
+    const [knowledgeBaseContent, memoryContent, punterContext] = await Promise.all([
       (async () => {
         try {
           const { data: files } = await supabase.storage.from("knowledge-base").list("", { limit: 50 });
@@ -180,6 +180,51 @@ serve(async (req) => {
         } catch (e) { console.error("KB loading error:", e); return ""; }
       })(),
       userId ? loadMemories(userId, "analyst") : Promise.resolve(""),
+      (async () => {
+        try {
+          const { data: analyses } = await supabase
+            .from("punter_analyses")
+            .select("home_team, away_team, league, market, bookmaker, odd, fair_odd, implied_probability, estimated_probability, value_percentage, verdict, confidence, stake_percentage, thesis, analysis, risk_factors, commence_time, created_at")
+            .order("created_at", { ascending: false })
+            .limit(30);
+          if (!analyses || analyses.length === 0) return "";
+          const approved = analyses.filter((a: any) => a.verdict === "APROVADO");
+          const vetoed = analyses.filter((a: any) => a.verdict === "VETADO");
+          let ctx = `\n━━━ ANÁLISES RECENTES DA ARENA PUNTER (${analyses.length} jogos) ━━━\n`;
+          if (approved.length > 0) {
+            ctx += `\n✅ APROVADOS (${approved.length}):\n`;
+            for (const a of approved) {
+              ctx += `• ${a.home_team} vs ${a.away_team} (${a.league}) | ${a.market} @ ${a.odd} (${a.bookmaker}) | Value: ${a.value_percentage}% | Confiança: ${a.confidence}% | Stake: ${a.stake_percentage}%\n  Tese: ${(a.thesis || '').substring(0, 200)}\n`;
+            }
+          }
+          if (vetoed.length > 0) {
+            ctx += `\n❌ VETADOS (${vetoed.length}):\n`;
+            for (const v of vetoed.slice(0, 10)) {
+              ctx += `• ${v.home_team} vs ${v.away_team} (${v.league}) | ${v.market || 'N/A'} | Tese: ${(v.thesis || '').substring(0, 150)}\n`;
+            }
+          }
+          // Check for corner/card markets specifically
+          const cornerAnalyses = analyses.filter((a: any) => a.market?.toLowerCase().includes('escanteio') || a.market?.toLowerCase().includes('corner'));
+          const cardAnalyses = analyses.filter((a: any) => a.market?.toLowerCase().includes('cartão') || a.market?.toLowerCase().includes('cartões') || a.market?.toLowerCase().includes('card'));
+          if (cornerAnalyses.length > 0) {
+            ctx += `\n🏁 ESCANTEIOS ANALISADOS (${cornerAnalyses.length}):\n`;
+            for (const c of cornerAnalyses) {
+              ctx += `• ${c.home_team} vs ${c.away_team}: ${c.market} @ ${c.odd} | Value: ${c.value_percentage}% | ${c.verdict}\n`;
+            }
+          }
+          if (cardAnalyses.length > 0) {
+            ctx += `\n🟨 CARTÕES ANALISADOS (${cardAnalyses.length}):\n`;
+            for (const c of cardAnalyses) {
+              ctx += `• ${c.home_team} vs ${c.away_team}: ${c.market} @ ${c.odd} | Value: ${c.value_percentage}% | ${c.verdict}\n`;
+            }
+          }
+          ctx += `━━━ FIM ANÁLISES PUNTER ━━━\n`;
+          return ctx;
+        } catch (e) {
+          console.error("Punter analyses loading error:", e);
+          return "";
+        }
+      })(),
     ]);
 
     let marketContext = "";
@@ -218,6 +263,8 @@ Livros de referência: Japanese Candlestick Charting (Nison), Trading in the Zon
 ${knowledgeBaseContent ? `━━━ DOCUMENTOS ━━━\n${knowledgeBaseContent}\n━━━ FIM ━━━` : "Nenhum documento carregado. Use conhecimento geral dos livros e metodologia Ricardo Santos."}
 
 ${marketContext}
+
+${punterContext}
 
 ━━━ MEMÓRIA PERSISTENTE ━━━
 Quando o usuário der uma instrução permanente (ex: "nunca mais faça X", "sempre priorize Y"), você DEVE:
