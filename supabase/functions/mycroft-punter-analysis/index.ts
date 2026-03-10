@@ -445,7 +445,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\n${incCorners?'Analise escanteios com Poisson.\n':''}${incCards?'Analise cartões com perfil do árbitro.\n':''}Escolha o mercado com MAIOR edge.`
+  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'Analise escanteios com Poisson.\n':''}${incCards?'Analise cartões com perfil do árbitro.\n':''}Escolha o mercado com MAIOR edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
