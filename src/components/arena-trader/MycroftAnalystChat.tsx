@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp } from 'lucide-react';
+import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
