@@ -21,6 +21,17 @@ async function parseJsonSafe(raw: string) {
   }
 }
 
+function normalizeSessionToken(rawValue: unknown): string {
+  if (typeof rawValue !== "string") return "";
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return "";
+
+  const withoutPrefix = trimmed.replace(/^ssoid\s*=\s*/i, "");
+  const firstCookiePart = withoutPrefix.split(";")[0]?.trim() ?? "";
+  return firstCookiePart.replace(/^"|"$/g, "");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -45,7 +56,7 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => null);
-    const sessionToken = body?.sessionToken?.trim();
+    const sessionToken = normalizeSessionToken(body?.sessionToken);
     const appName = body?.appName?.trim();
 
     if (!sessionToken || !appName) {
@@ -98,9 +109,11 @@ serve(async (req) => {
     }
 
     if (keyData.faultcode || keyData.error) {
+      console.error("Falha Betfair createDeveloperAppKeys", JSON.stringify(keyData));
       return jsonResponse(
         {
           error: "Falha ao criar App Key",
+          hint: "SessionToken inválido/expirado ou sem permissão. Gere um novo ssoid e tente novamente.",
           detail: keyData,
         },
         400,

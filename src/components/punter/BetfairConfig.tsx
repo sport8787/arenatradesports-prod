@@ -316,15 +316,22 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                   onClick={async () => {
                     setCreatingKey(true);
                     try {
+                      const normalizedSessionToken = normalizeSessionToken(createKeySessionToken);
+
                       const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
-                        body: { sessionToken: createKeySessionToken.trim(), appName: createKeyName },
+                        body: { sessionToken: normalizedSessionToken, appName: createKeyName.trim() },
                       });
-                      if (error) throw error;
+
+                      if (error) {
+                        throw new Error(await extractFunctionErrorMessage(error));
+                      }
+
                       if (data?.error) throw new Error(data.error);
 
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
                         setAppKey(key);
+                        setCreateKeySessionToken('');
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
                       } else {
                         toast.success('App Key criada! Verifique os detalhes.');
