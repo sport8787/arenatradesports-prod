@@ -247,18 +247,90 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
           )}
         </div>
 
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Para obter sua App Key, acesse{' '}
-          <a
-            href="https://www.betfair.com/exchange/plus/account/apps"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline"
-          >
-            Betfair Developer
-          </a>
-          . Suas credenciais são armazenadas de forma segura e utilizadas apenas para sincronizar apostas.
-        </p>
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-[10px] text-muted-foreground leading-relaxed flex-1">
+            Suas credenciais são armazenadas de forma segura e utilizadas apenas para sincronizar apostas.
+          </p>
+          <Dialog open={showCreateKey} onOpenChange={setShowCreateKey}>
+            <DialogTrigger asChild>
+              <Button variant="link" size="sm" className="text-[10px] text-primary px-0 h-auto shrink-0">
+                <Plus className="w-3 h-3 mr-1" /> Criar App Key
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="font-mono text-sm">CRIAR APP KEY BETFAIR</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Como o site da Betfair é bloqueado no Brasil, criamos sua App Key diretamente via API.
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Usuário Betfair</Label>
+                  <Input
+                    type="text"
+                    placeholder="Seu username"
+                    value={createKeyUser}
+                    onChange={e => setCreateKeyUser(e.target.value)}
+                    className="font-mono text-xs h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Senha Betfair</Label>
+                  <Input
+                    type="password"
+                    placeholder="Sua senha"
+                    value={createKeyPass}
+                    onChange={e => setCreateKeyPass(e.target.value)}
+                    className="font-mono text-xs h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nome do App</Label>
+                  <Input
+                    type="text"
+                    value={createKeyName}
+                    onChange={e => setCreateKeyName(e.target.value)}
+                    className="font-mono text-xs h-9"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  size="sm"
+                  disabled={creatingKey || !createKeyUser || !createKeyPass}
+                  onClick={async () => {
+                    setCreatingKey(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
+                        body: { username: createKeyUser, password: createKeyPass, appName: createKeyName },
+                      });
+                      if (error) throw error;
+                      if (data?.error) throw new Error(data.error);
+
+                      const key = data?.delayedKey || data?.liveKey || '';
+                      if (key) {
+                        setAppKey(key);
+                        setUsername(createKeyUser);
+                        setPassword(createKeyPass);
+                        toast.success(`App Key criada: ${key.slice(0, 8)}...`);
+                      } else {
+                        toast.success('App Key criada! Verifique os detalhes.');
+                      }
+                      setShowCreateKey(false);
+                    } catch (e: any) {
+                      toast.error(`Erro: ${e.message}`);
+                    } finally {
+                      setCreatingKey(false);
+                    }
+                  }}
+                >
+                  {creatingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Key className="w-3.5 h-3.5 mr-1.5" />}
+                  Criar App Key
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </motion.div>
   );
