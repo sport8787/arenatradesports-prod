@@ -31,6 +31,13 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
+  // Create App Key dialog state
+  const [showCreateKey, setShowCreateKey] = useState(false);
+  const [createKeyUser, setCreateKeyUser] = useState('');
+  const [createKeyPass, setCreateKeyPass] = useState('');
+  const [createKeyName, setCreateKeyName] = useState('ArenaTradeSports');
+  const [creatingKey, setCreatingKey] = useState(false);
+
   useEffect(() => {
     loadConnection();
   }, [userId]);
