@@ -34,7 +34,6 @@ async function betfairRequest(
       Accept: "application/json",
       "Content-Type": "application/json",
       "X-Authentication": sessionToken,
-      "X-Application": "1",
     },
     body: JSON.stringify(body),
   });
@@ -59,29 +58,36 @@ async function betfairRequest(
   }
 }
 
-function extractKeys(data: any): { delayedKey: string | null; liveKey: string | null } {
+function extractKeys(data: any): { delayedKey: string | null; liveKey: string | null; appName: string | null } {
   let delayedKey: string | null = null;
   let liveKey: string | null = null;
+  let appName: string | null = null;
 
-  // getDeveloperAppKeys returns an array of apps
-  const apps = Array.isArray(data) ? data : [data];
+  const root = data?.result ?? data;
+  const apps = Array.isArray(root) ? root : root ? [root] : [];
 
   for (const app of apps) {
+    if (!appName && typeof app?.appName === "string") {
+      appName = app.appName;
+    }
+
     const versions = app?.appVersions ?? app?.result?.appVersions ?? [];
-    if (Array.isArray(versions)) {
-      for (const v of versions) {
-        if (v?.delayData === true && v?.applicationKey) {
-          delayedKey = v.applicationKey;
-        } else if (v?.applicationKey) {
-          liveKey = v.applicationKey;
-        }
-        // fallback fields
-        if (v?.delayedKey) delayedKey = v.delayedKey;
+    if (!Array.isArray(versions)) continue;
+
+    for (const version of versions) {
+      if (version?.delayData === true && version?.applicationKey) {
+        delayedKey = version.applicationKey;
+      } else if (version?.applicationKey) {
+        liveKey = version.applicationKey;
+      }
+
+      if (version?.delayedKey) {
+        delayedKey = version.delayedKey;
       }
     }
   }
 
-  return { delayedKey, liveKey };
+  return { delayedKey, liveKey, appName };
 }
 
 serve(async (req) => {
@@ -90,7 +96,6 @@ serve(async (req) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return jsonResponse({ error: "Unauthorized" }, 401);
@@ -108,75 +113,48 @@ serve(async (req) => {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // Parse input
     const body = await req.json().catch(() => null);
     const sessionToken = normalizeSessionToken(body?.sessionToken);
-    const appName = (body?.appName || "").trim();
 
     if (!sessionToken) {
       return jsonResponse({ error: "sessionToken é obrigatório" }, 400);
     }
 
-    // ── Step 1: Try to GET existing keys first ──
-    console.log("Tentando recuperar App Keys existentes...");
+    console.log("Consultando App Keys existentes via getDeveloperAppKeys...");
     const getResult = await betfairRequest(
       "https://api.betfair.com/exchange/account/rest/v1.0/getDeveloperAppKeys/",
       sessionToken,
+      {},
     );
 
-    if (getResult.ok && getResult.data) {
-      const keys = extractKeys(getResult.data);
-      if (keys.delayedKey || keys.liveKey) {
-        console.log("App Keys existentes encontradas!");
-        return jsonResponse({
-          success: true,
-          source: "existing",
-          appName: Array.isArray(getResult.data) ? getResult.data[0]?.appName : appName,
-          ...keys,
-          instructions: {
-            delayedKey: "Gratuita. Pronta para uso imediato.",
-            liveKey: "Requer ativação em developer.betfair.com (taxa única £2.99).",
-          },
-        });
-      }
-    }
-
-    // ── Step 2: No existing keys → create new ones ──
-    if (!appName) {
-      return jsonResponse(
-        { error: "Nenhuma App Key encontrada e appName não foi informado para criar uma nova." },
-        400,
-      );
-    }
-
-    console.log(`Nenhuma key existente. Criando App Key "${appName}"...`);
-    const createResult = await betfairRequest(
-      "https://api.betfair.com/exchange/account/rest/v1.0/createDeveloperAppKeys/",
-      sessionToken,
-      { appName },
-    );
-
-    if (!createResult.ok) {
-      const hint = createResult.data?.faultstring === "DSC-0024"
-        ? "Erro de formato na requisição. Se já existem keys na sua conta, elas foram retornadas acima."
-        : "Verifique se o sessionToken (ssoid) está válido e a sessão ativa na Betfair.";
-
+    if (!getResult.ok) {
       return jsonResponse(
         {
-          error: "Falha ao criar App Key na Betfair",
-          hint,
-          detail: createResult.data ?? createResult.raw,
+          error: "Falha ao consultar App Keys na Betfair",
+          hint: "Sessão inválida, expirada ou sem permissão para consultar as chaves.",
+          detail: getResult.data ?? getResult.raw,
         },
         400,
       );
     }
 
-    const keys = extractKeys(createResult.data);
+    const keys = extractKeys(getResult.data);
+    if (!keys.delayedKey && !keys.liveKey) {
+      return jsonResponse(
+        {
+          error: "Nenhuma App Key existente encontrada na conta.",
+          hint: "Esta função consulta apenas chaves já criadas. Se nunca criou uma App Key, crie primeiro no portal Betfair Developer.",
+        },
+        404,
+      );
+    }
+
     return jsonResponse({
       success: true,
-      source: "created",
-      appName,
-      ...keys,
+      source: "existing",
+      appName: keys.appName,
+      delayedKey: keys.delayedKey,
+      liveKey: keys.liveKey,
       instructions: {
         delayedKey: "Gratuita. Pronta para uso imediato.",
         liveKey: "Requer ativação em developer.betfair.com (taxa única £2.99).",
