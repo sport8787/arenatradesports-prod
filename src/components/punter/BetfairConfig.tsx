@@ -33,8 +33,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
 
   // Create App Key dialog state
   const [showCreateKey, setShowCreateKey] = useState(false);
-  const [createKeyUser, setCreateKeyUser] = useState('');
-  const [createKeyPass, setCreateKeyPass] = useState('');
+  const [createKeySessionToken, setCreateKeySessionToken] = useState('');
   const [createKeyName, setCreateKeyName] = useState('ArenaTradeSports');
   const [creatingKey, setCreatingKey] = useState(false);
 
@@ -262,26 +261,16 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                 <DialogTitle className="font-mono text-sm">CRIAR APP KEY BETFAIR</DialogTitle>
               </DialogHeader>
               <p className="text-xs text-muted-foreground">
-                Como o site da Betfair é bloqueado no Brasil, criamos sua App Key diretamente via API.
+                Para conta Betfair BR, cole o <span className="font-mono">ssoid</span> (sessionToken) ativo da sua sessão web.
               </p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Usuário Betfair</Label>
+                  <Label className="text-xs">Session Token (ssoid)</Label>
                   <Input
                     type="text"
-                    placeholder="Seu username"
-                    value={createKeyUser}
-                    onChange={e => setCreateKeyUser(e.target.value)}
-                    className="font-mono text-xs h-9"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Senha Betfair</Label>
-                  <Input
-                    type="password"
-                    placeholder="Sua senha"
-                    value={createKeyPass}
-                    onChange={e => setCreateKeyPass(e.target.value)}
+                    placeholder="Cole aqui o valor do cookie ssoid"
+                    value={createKeySessionToken}
+                    onChange={e => setCreateKeySessionToken(e.target.value)}
                     className="font-mono text-xs h-9"
                   />
                 </div>
@@ -297,12 +286,12 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                 <Button
                   className="w-full"
                   size="sm"
-                  disabled={creatingKey || !createKeyUser || !createKeyPass}
+                  disabled={creatingKey || !createKeySessionToken.trim() || !createKeyName.trim()}
                   onClick={async () => {
                     setCreatingKey(true);
                     try {
                       const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
-                        body: { username: createKeyUser, password: createKeyPass, appName: createKeyName },
+                        body: { sessionToken: createKeySessionToken.trim(), appName: createKeyName },
                       });
                       if (error) throw error;
                       if (data?.error) throw new Error(data.error);
@@ -310,8 +299,6 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
                         setAppKey(key);
-                        setUsername(createKeyUser);
-                        setPassword(createKeyPass);
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
                       } else {
                         toast.success('App Key criada! Verifique os detalhes.');

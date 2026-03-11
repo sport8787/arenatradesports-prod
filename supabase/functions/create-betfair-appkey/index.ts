@@ -6,14 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOGIN_ENDPOINTS = [
-  "https://identitysso.betfair.com/api/login",
-  "https://identitysso.betfair.es/api/login",
-  "https://identitysso.betfair.it/api/login",
-  "https://identitysso.betfair.ro/api/login",
-  "https://identitysso-cert.betfair.com/api/login",
-];
-
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -53,108 +45,17 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => null);
-    const username = body?.username?.trim();
-    const password = body?.password;
+    const sessionToken = body?.sessionToken?.trim();
     const appName = body?.appName?.trim();
 
-    if (!username || !password || !appName) {
+    if (!sessionToken || !appName) {
       return jsonResponse(
-        { error: "username, password e appName são obrigatórios" },
+        { error: "sessionToken e appName são obrigatórios" },
         400,
       );
     }
 
-    let sessionToken: string | null = null;
-    const loginAttempts: Array<Record<string, unknown>> = [];
-
-    for (const endpoint of LOGIN_ENDPOINTS) {
-      console.log(`Tentando login endpoint: ${endpoint}`);
-
-      const loginParams = new URLSearchParams({
-        username,
-        password,
-        locale: "pt_BR",
-        redirectMethod: "POST",
-        product: "bfexplorer",
-        url: "https://www.betfair.com",
-      });
-
-      const loginResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-          "X-Application": "1",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        },
-        body: loginParams,
-        redirect: "manual",
-      });
-
-      const contentType = loginResponse.headers.get("content-type") || "";
-      const location = loginResponse.headers.get("location") || null;
-      const rawText = await loginResponse.text();
-      const looksJson = contentType.includes("application/json") || rawText.trim().startsWith("{");
-
-      if (loginResponse.status >= 300 && loginResponse.status < 400) {
-        loginAttempts.push({
-          endpoint,
-          status: loginResponse.status,
-          reason: "redirect",
-          location,
-        });
-        continue;
-      }
-
-      if (!looksJson) {
-        loginAttempts.push({
-          endpoint,
-          status: loginResponse.status,
-          reason: "non_json",
-          preview: rawText.slice(0, 180),
-        });
-        continue;
-      }
-
-      const loginData = await parseJsonSafe(rawText);
-      if (!loginData) {
-        loginAttempts.push({
-          endpoint,
-          status: loginResponse.status,
-          reason: "invalid_json",
-          preview: rawText.slice(0, 180),
-        });
-        continue;
-      }
-
-      if (loginData?.status === "SUCCESS" && loginData?.token) {
-        sessionToken = loginData.token;
-        break;
-      }
-
-      loginAttempts.push({
-        endpoint,
-        status: loginResponse.status,
-        reason: "login_failed",
-        betfairStatus: loginData?.status ?? null,
-        betfairError: loginData?.error ?? null,
-      });
-    }
-
-    if (!sessionToken) {
-      console.error("Falha no login Betfair", JSON.stringify(loginAttempts));
-      return jsonResponse(
-        {
-          error: "Falha no login Betfair via API",
-          hint:
-            "Betfair retornou bloqueio/regra de acesso nos endpoints testados. Tente novamente em alguns minutos; se persistir, a conta/região está bloqueando login por API.",
-          attempts: loginAttempts,
-        },
-        502,
-      );
-    }
-
-    console.log("Login Betfair OK. Criando App Key...");
+    console.log("Criando App Key Betfair com sessionToken informado pelo usuário...");
 
     const createKeyResponse = await fetch(
       "https://api.betfair.com/exchange/account/rest/v1.0/createDeveloperAppKeys/",
@@ -178,6 +79,7 @@ serve(async (req) => {
       return jsonResponse(
         {
           error: "Betfair retornou resposta inesperada ao criar App Key",
+          hint: "Verifique se o sessionToken (ssoid) é válido e se a sessão ainda está ativa na Betfair.",
           preview: keyRaw.slice(0, 180),
         },
         502,
@@ -196,7 +98,13 @@ serve(async (req) => {
     }
 
     if (keyData.faultcode || keyData.error) {
-      return jsonResponse({ error: "Falha ao criar App Key", detail: keyData }, 400);
+      return jsonResponse(
+        {
+          error: "Falha ao criar App Key",
+          detail: keyData,
+        },
+        400,
+      );
     }
 
     const versions = keyData?.appVersions ?? keyData?.result?.appVersions ?? [];
