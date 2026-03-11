@@ -85,7 +85,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
     }
   };
 
-
+  const handleSave = async () => {
     if (!appKey.trim() || !username.trim() || !password.trim()) {
       toast.error('Preencha todos os campos');
       return;
