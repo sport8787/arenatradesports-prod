@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Key, User, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Key, User, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface BetfairConfigProps {
   userId: string;
