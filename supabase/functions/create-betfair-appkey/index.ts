@@ -20,69 +20,52 @@ serve(async (req) => {
       );
     }
 
-    // PASSO 1: Login na Betfair — tentar múltiplos endpoints
-    console.log("Fazendo login na Betfair...");
+    // PASSO 1: Login na Betfair
+    console.log("Tentando login na Betfair...");
 
-    const loginEndpoints = [
+    const loginResponse = await fetch(
       "https://identitysso.betfair.com/api/login",
-      "https://identitysso-cert.betfair.com/api/login",
-      "https://identitysso.betfair.es/api/login",
-      "https://identitysso.betfair.it/api/login",
-    ];
-
-    let loginData: any = null;
-    let loginError: string | null = null;
-
-    for (const endpoint of loginEndpoints) {
-      try {
-        console.log(`Tentando endpoint: ${endpoint}`);
-        const loginResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "application/json",
-            "X-Application": "BetfairAPI",
-          },
-          body: new URLSearchParams({ username, password }),
-        });
-
-        const contentType = loginResponse.headers.get("content-type") || "";
-        const responseText = await loginResponse.text();
-
-        if (!contentType.includes("application/json") && !responseText.startsWith("{")) {
-          console.log(`Endpoint ${endpoint} retornou HTML/não-JSON. Tentando próximo...`);
-          loginError = `Endpoint ${endpoint} bloqueado (retornou HTML)`;
-          continue;
-        }
-
-        loginData = JSON.parse(responseText);
-
-        if (loginData.status === "SUCCESS") {
-          console.log(`Login OK via ${endpoint}`);
-          break;
-        } else {
-          loginError = loginData.error || `Status: ${loginData.status}`;
-          loginData = null;
-        }
-      } catch (e) {
-        console.log(`Erro no endpoint ${endpoint}: ${e.message}`);
-        loginError = e.message;
-        continue;
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+          "X-Application": "1",
+        },
+        body: new URLSearchParams({ username, password }),
       }
+    );
+
+    const loginContentType = loginResponse.headers.get("content-type") || "";
+    if (!loginContentType.includes("application/json")) {
+      const rawText = await loginResponse.text();
+      console.error("Resposta não-JSON do login:", rawText.substring(0, 200));
+      return new Response(
+        JSON.stringify({
+          error: "Betfair retornou resposta inesperada no login",
+          hint: "Verifique usuário e senha. O endpoint pode estar bloqueado nesta região.",
+          rawPreview: rawText.substring(0, 200),
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    if (!loginData || loginData.status !== "SUCCESS") {
+    const loginData = await loginResponse.json();
+    console.log("Resposta login:", JSON.stringify(loginData));
+
+    if (loginData.status !== "SUCCESS") {
       return new Response(
         JSON.stringify({
           error: "Falha no login Betfair",
-          detail: loginError || "Todos os endpoints retornaram erro ou estão bloqueados",
-          hint: "Verifique se seu usuário e senha estão corretos. A Betfair pode estar bloqueando requisições desta região.",
+          status: loginData.status,
+          error_detail: loginData.error,
         }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const sessionToken = loginData.token;
+    console.log("Login OK. SessionToken obtido.");
 
     // PASSO 2: Criar App Key
     console.log("Criando App Key...");
@@ -95,26 +78,26 @@ serve(async (req) => {
           "Accept": "application/json",
           "Content-Type": "application/json",
           "X-Authentication": sessionToken,
-          "X-Application": "BetfairAPI",
+          "X-Application": "1",
         },
         body: JSON.stringify({ appName }),
       }
     );
 
     const keyContentType = createKeyResponse.headers.get("content-type") || "";
-    const keyText = await createKeyResponse.text();
-
-    if (!keyContentType.includes("application/json") && !keyText.startsWith("{") && !keyText.startsWith("[")) {
+    if (!keyContentType.includes("application/json")) {
+      const rawText = await createKeyResponse.text();
       return new Response(
         JSON.stringify({
-          error: "API de criação de chave retornou resposta inválida",
-          detail: keyText.substring(0, 200),
+          error: "Betfair retornou resposta inesperada ao criar App Key",
+          rawPreview: rawText.substring(0, 200),
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const keyData = JSON.parse(keyText);
+    const keyData = await createKeyResponse.json();
+    console.log("Resposta App Key:", JSON.stringify(keyData));
 
     if (keyData.faultcode || keyData.error) {
       return new Response(
@@ -134,8 +117,6 @@ serve(async (req) => {
       }
     }
 
-    console.log("App Key criada com sucesso!");
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -143,10 +124,9 @@ serve(async (req) => {
         sessionToken,
         delayedKey,
         liveKey,
-        rawResponse: keyData,
         instructions: {
-          delayedKey: "Use para desenvolvimento. Dados com atraso de 1-60s.",
-          liveKey: "Para produção. Acesse developer.betfair.com para ativar (taxa única £2.99).",
+          delayedKey: "Gratuita. Pronta para uso imediato.",
+          liveKey: "Requer ativação em developer.betfair.com (taxa única £2.99).",
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
