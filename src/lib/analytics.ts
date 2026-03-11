@@ -1,32 +1,13 @@
 import posthog from 'posthog-js';
 
-const POSTHOG_KEY = 'phc_RnKvfx3XmL6ASJSDNrNf8WiVBUEEOM57pzru1KwhX2f';
-const POSTHOG_HOST = 'https://us.i.posthog.com';
-
-let initialized = false;
-
-export const initAnalytics = () => {
-  if (initialized || typeof window === 'undefined') return;
-  
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
-    person_profiles: 'identified_only',
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
-  });
-  
-  initialized = true;
-  console.log('[Analytics] PostHog initialized');
-};
+// PostHog is now initialized via PostHogProvider in main.tsx
+// These helpers use the singleton instance from posthog-js
 
 export const identifyUser = (userId: string, properties?: Record<string, any>) => {
-  if (!initialized) return;
   posthog.identify(userId, properties);
 };
 
 export const resetAnalytics = () => {
-  if (!initialized) return;
   posthog.reset();
 };
 
