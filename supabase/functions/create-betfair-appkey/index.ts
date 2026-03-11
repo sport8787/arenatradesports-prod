@@ -1,9 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const LOGIN_ENDPOINTS = [
+  "https://identitysso.betfair.com/api/login",
+  "https://identitysso.betfair.es/api/login",
+  "https://identitysso.betfair.it/api/login",
+  "https://identitysso.betfair.ro/api/login",
+  "https://identitysso-cert.betfair.com/api/login",
+];
+
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function parseJsonSafe(raw: string) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,131 +35,197 @@ serve(async (req) => {
   }
 
   try {
-    const { username, password, appName } = await req.json();
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await req.json().catch(() => null);
+    const username = body?.username?.trim();
+    const password = body?.password;
+    const appName = body?.appName?.trim();
 
     if (!username || !password || !appName) {
-      return new Response(
-        JSON.stringify({ error: "username, password e appName são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonResponse(
+        { error: "username, password e appName são obrigatórios" },
+        400,
       );
     }
 
-    // PASSO 1: Login na Betfair
-    console.log("Tentando login na Betfair...");
+    let sessionToken: string | null = null;
+    const loginAttempts: Array<Record<string, unknown>> = [];
 
-    const loginResponse = await fetch(
-      "https://identitysso.betfair.com/api/login",
-      {
+    for (const endpoint of LOGIN_ENDPOINTS) {
+      console.log(`Tentando login endpoint: ${endpoint}`);
+
+      const loginParams = new URLSearchParams({
+        username,
+        password,
+        locale: "pt_BR",
+        redirectMethod: "POST",
+        product: "bfexplorer",
+        url: "https://www.betfair.com",
+      });
+
+      const loginResponse = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "Accept": "application/json",
+          Accept: "application/json",
           "X-Application": "1",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         },
-        body: new URLSearchParams({ username, password }),
-      }
-    );
+        body: loginParams,
+        redirect: "manual",
+      });
 
-    const loginContentType = loginResponse.headers.get("content-type") || "";
-    if (!loginContentType.includes("application/json")) {
+      const contentType = loginResponse.headers.get("content-type") || "";
+      const location = loginResponse.headers.get("location") || null;
       const rawText = await loginResponse.text();
-      console.error("Resposta não-JSON do login:", rawText.substring(0, 200));
-      return new Response(
-        JSON.stringify({
-          error: "Betfair retornou resposta inesperada no login",
-          hint: "Verifique usuário e senha. O endpoint pode estar bloqueado nesta região.",
-          rawPreview: rawText.substring(0, 200),
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      const looksJson = contentType.includes("application/json") || rawText.trim().startsWith("{");
+
+      if (loginResponse.status >= 300 && loginResponse.status < 400) {
+        loginAttempts.push({
+          endpoint,
+          status: loginResponse.status,
+          reason: "redirect",
+          location,
+        });
+        continue;
+      }
+
+      if (!looksJson) {
+        loginAttempts.push({
+          endpoint,
+          status: loginResponse.status,
+          reason: "non_json",
+          preview: rawText.slice(0, 180),
+        });
+        continue;
+      }
+
+      const loginData = await parseJsonSafe(rawText);
+      if (!loginData) {
+        loginAttempts.push({
+          endpoint,
+          status: loginResponse.status,
+          reason: "invalid_json",
+          preview: rawText.slice(0, 180),
+        });
+        continue;
+      }
+
+      if (loginData?.status === "SUCCESS" && loginData?.token) {
+        sessionToken = loginData.token;
+        break;
+      }
+
+      loginAttempts.push({
+        endpoint,
+        status: loginResponse.status,
+        reason: "login_failed",
+        betfairStatus: loginData?.status ?? null,
+        betfairError: loginData?.error ?? null,
+      });
+    }
+
+    if (!sessionToken) {
+      console.error("Falha no login Betfair", JSON.stringify(loginAttempts));
+      return jsonResponse(
+        {
+          error: "Falha no login Betfair via API",
+          hint:
+            "Betfair retornou bloqueio/regra de acesso nos endpoints testados. Tente novamente em alguns minutos; se persistir, a conta/região está bloqueando login por API.",
+          attempts: loginAttempts,
+        },
+        502,
       );
     }
 
-    const loginData = await loginResponse.json();
-    console.log("Resposta login:", JSON.stringify(loginData));
-
-    if (loginData.status !== "SUCCESS") {
-      return new Response(
-        JSON.stringify({
-          error: "Falha no login Betfair",
-          status: loginData.status,
-          error_detail: loginData.error,
-        }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const sessionToken = loginData.token;
-    console.log("Login OK. SessionToken obtido.");
-
-    // PASSO 2: Criar App Key
-    console.log("Criando App Key...");
+    console.log("Login Betfair OK. Criando App Key...");
 
     const createKeyResponse = await fetch(
       "https://api.betfair.com/exchange/account/rest/v1.0/createDeveloperAppKeys/",
       {
         method: "POST",
         headers: {
-          "Accept": "application/json",
+          Accept: "application/json",
           "Content-Type": "application/json",
           "X-Authentication": sessionToken,
           "X-Application": "1",
         },
         body: JSON.stringify({ appName }),
-      }
+      },
     );
 
     const keyContentType = createKeyResponse.headers.get("content-type") || "";
-    if (!keyContentType.includes("application/json")) {
-      const rawText = await createKeyResponse.text();
-      return new Response(
-        JSON.stringify({
+    const keyRaw = await createKeyResponse.text();
+    const keyLooksJson = keyContentType.includes("application/json") || keyRaw.trim().startsWith("{");
+
+    if (!keyLooksJson) {
+      return jsonResponse(
+        {
           error: "Betfair retornou resposta inesperada ao criar App Key",
-          rawPreview: rawText.substring(0, 200),
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          preview: keyRaw.slice(0, 180),
+        },
+        502,
       );
     }
 
-    const keyData = await createKeyResponse.json();
-    console.log("Resposta App Key:", JSON.stringify(keyData));
+    const keyData = await parseJsonSafe(keyRaw);
+    if (!keyData) {
+      return jsonResponse(
+        {
+          error: "Resposta inválida da Betfair ao criar App Key",
+          preview: keyRaw.slice(0, 180),
+        },
+        502,
+      );
+    }
 
     if (keyData.faultcode || keyData.error) {
-      return new Response(
-        JSON.stringify({ error: "Falha ao criar App Key", detail: keyData }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Falha ao criar App Key", detail: keyData }, 400);
     }
 
-    // PASSO 3: Extrair chaves
-    let delayedKey = null;
-    let liveKey = null;
+    const versions = keyData?.appVersions ?? keyData?.result?.appVersions ?? [];
 
-    if (keyData.appVersions) {
-      for (const version of keyData.appVersions) {
-        if (version.delayedKey) delayedKey = version.delayedKey;
-        if (version.applicationKey) liveKey = version.applicationKey;
+    let delayedKey: string | null = null;
+    let liveKey: string | null = null;
+
+    if (Array.isArray(versions)) {
+      for (const version of versions) {
+        if (version?.delayedKey) delayedKey = version.delayedKey;
+        if (version?.applicationKey) liveKey = version.applicationKey;
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        appName,
-        sessionToken,
-        delayedKey,
-        liveKey,
-        instructions: {
-          delayedKey: "Gratuita. Pronta para uso imediato.",
-          liveKey: "Requer ativação em developer.betfair.com (taxa única £2.99).",
-        },
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      appName,
+      delayedKey,
+      liveKey,
+      instructions: {
+        delayedKey: "Gratuita. Pronta para uso imediato.",
+        liveKey: "Requer ativação em developer.betfair.com (taxa única £2.99).",
+      },
+    });
   } catch (error) {
-    console.error("Erro:", error);
-    return new Response(
-      JSON.stringify({ error: "Erro interno", detail: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    console.error("Erro create-betfair-appkey:", error);
+    return jsonResponse(
+      { error: "Erro interno", detail: error instanceof Error ? error.message : "unknown_error" },
+      500,
     );
   }
 });
