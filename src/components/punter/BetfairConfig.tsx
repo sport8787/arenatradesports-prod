@@ -59,6 +59,32 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
     setLoading(false);
   };
 
+  const normalizeSessionToken = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    const withoutPrefix = trimmed.replace(/^ssoid\s*=\s*/i, '');
+    const firstCookiePart = withoutPrefix.split(';')[0]?.trim() ?? '';
+    return firstCookiePart.replace(/^"|"$/g, '');
+  };
+
+  const extractFunctionErrorMessage = async (error: any) => {
+    const fallback = error?.message || 'Erro desconhecido';
+    const response = error?.context;
+
+    if (!response || typeof response.json !== 'function') {
+      return fallback;
+    }
+
+    try {
+      const payload = await response.json();
+      const baseError = payload?.error || fallback;
+      return payload?.hint ? `${baseError}: ${payload.hint}` : baseError;
+    } catch {
+      return fallback;
+    }
+  };
+
   const handleSave = async () => {
     if (!appKey.trim() || !username.trim() || !password.trim()) {
       toast.error('Preencha todos os campos');
@@ -290,15 +316,22 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                   onClick={async () => {
                     setCreatingKey(true);
                     try {
+                      const normalizedSessionToken = normalizeSessionToken(createKeySessionToken);
+
                       const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
-                        body: { sessionToken: createKeySessionToken.trim(), appName: createKeyName },
+                        body: { sessionToken: normalizedSessionToken, appName: createKeyName.trim() },
                       });
-                      if (error) throw error;
+
+                      if (error) {
+                        throw new Error(await extractFunctionErrorMessage(error));
+                      }
+
                       if (data?.error) throw new Error(data.error);
 
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
                         setAppKey(key);
+                        setCreateKeySessionToken('');
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
                       } else {
                         toast.success('App Key criada! Verifique os detalhes.');
