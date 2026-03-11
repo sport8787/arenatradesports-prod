@@ -59,7 +59,33 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const normalizeSessionToken = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    const withoutPrefix = trimmed.replace(/^ssoid\s*=\s*/i, '');
+    const firstCookiePart = withoutPrefix.split(';')[0]?.trim() ?? '';
+    return firstCookiePart.replace(/^"|"$/g, '');
+  };
+
+  const extractFunctionErrorMessage = async (error: any) => {
+    const fallback = error?.message || 'Erro desconhecido';
+    const response = error?.context;
+
+    if (!response || typeof response.json !== 'function') {
+      return fallback;
+    }
+
+    try {
+      const payload = await response.json();
+      const baseError = payload?.error || fallback;
+      return payload?.hint ? `${baseError}: ${payload.hint}` : baseError;
+    } catch {
+      return fallback;
+    }
+  };
+
+
     if (!appKey.trim() || !username.trim() || !password.trim()) {
       toast.error('Preencha todos os campos');
       return;
