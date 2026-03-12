@@ -187,7 +187,7 @@ export default function ApiHealthChecker() {
     toast.info('Iniciando verificação de APIs...');
 
     await Promise.all([
-      checkLovableAI(),
+      checkAIGateway(),
       checkArenaTrader(),
       checkSmartOdds(),
       checkTelegram()
