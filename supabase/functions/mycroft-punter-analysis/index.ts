@@ -419,10 +419,17 @@ async function callGemini(sys:string, usr:string) {
   if(!key) throw new Error('GEMINI_API_KEY not configured')
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method:'POST', headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
-    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:2000})
+    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:4000,response_format:{type:'json_object'}})
   })
-  if(!r.ok) throw new Error(`Gemini error ${r.status}: ${await r.text()}`)
-  return (await r.json()).choices?.[0]?.message?.content || ''
+  if(!r.ok) {
+    const errBody = await r.text()
+    console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0,500)}`)
+    throw new Error(`Gemini error ${r.status}`)
+  }
+  const data = await r.json()
+  const content = data.choices?.[0]?.message?.content || ''
+  if(!content) console.error('[Mycroft Punter] Empty Gemini response, usage:', JSON.stringify(data.usage||{}))
+  return content
 }
 
 // Main analysis
