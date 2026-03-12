@@ -17,7 +17,7 @@ interface ApiStatus {
 }
 
 const initialApis: ApiStatus[] = [
-  { name: 'Lovable AI Gateway (Gemini)', status: 'idle', message: 'Não verificado', icon: Brain },
+  { name: 'AI Gateway (Gemini)', status: 'idle', message: 'Não verificado', icon: Brain },
   { name: 'Arena Trader Analyze', status: 'idle', message: 'Não verificado', icon: TrendingUp },
   { name: 'Smart Odds Scanner', status: 'idle', message: 'Não verificado', icon: Zap },
   { name: 'Mycroft Telegram', status: 'idle', message: 'Não verificado', icon: MessageSquare },
@@ -36,8 +36,8 @@ export default function ApiHealthChecker() {
     ));
   };
 
-  const checkLovableAI = async () => {
-    updateApiStatus('Lovable AI Gateway (Gemini)', 'checking', 'Verificando...');
+  const checkAIGateway = async () => {
+    updateApiStatus('AI Gateway (Gemini)', 'checking', 'Verificando...');
     try {
       const { data, error } = await supabase.functions.invoke('arena-trader-analyze', {
         body: {
@@ -55,22 +55,22 @@ export default function ApiHealthChecker() {
       if (error) {
         const errorMsg = error.message || JSON.stringify(error);
         if (errorMsg.includes('credit') || errorMsg.includes('quota') || errorMsg.includes('limit')) {
-          updateApiStatus('Lovable AI Gateway (Gemini)', 'error', '⚠️ CRÉDITOS ESGOTADOS!');
+          updateApiStatus('AI Gateway (Gemini)', 'error', '⚠️ CRÉDITOS ESGOTADOS!');
           return false;
         }
-        updateApiStatus('Lovable AI Gateway (Gemini)', 'error', `Erro: ${errorMsg.slice(0, 50)}`);
+        updateApiStatus('AI Gateway (Gemini)', 'error', `Erro: ${errorMsg.slice(0, 50)}`);
         return false;
       }
 
       if (data?.mycroft?.verdict) {
-        updateApiStatus('Lovable AI Gateway (Gemini)', 'ok', '✅ Funcionando normalmente');
+        updateApiStatus('AI Gateway (Gemini)', 'ok', '✅ Funcionando normalmente');
         return true;
       } else {
-        updateApiStatus('Lovable AI Gateway (Gemini)', 'warning', 'Resposta incompleta');
+        updateApiStatus('AI Gateway (Gemini)', 'warning', 'Resposta incompleta');
         return true;
       }
     } catch (err: any) {
-      updateApiStatus('Lovable AI Gateway (Gemini)', 'error', `Erro: ${err.message?.slice(0, 50)}`);
+      updateApiStatus('AI Gateway (Gemini)', 'error', `Erro: ${err.message?.slice(0, 50)}`);
       return false;
     }
   };
@@ -187,7 +187,7 @@ export default function ApiHealthChecker() {
     toast.info('Iniciando verificação de APIs...');
 
     await Promise.all([
-      checkLovableAI(),
+      checkAIGateway(),
       checkArenaTrader(),
       checkSmartOdds(),
       checkTelegram()
