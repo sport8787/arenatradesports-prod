@@ -17,7 +17,7 @@ interface ApiStatus {
 }
 
 const initialApis: ApiStatus[] = [
-  { name: 'Lovable AI Gateway (Gemini)', status: 'idle', message: 'Não verificado', icon: Brain },
+  { name: 'AI Gateway (Gemini)', status: 'idle', message: 'Não verificado', icon: Brain },
   { name: 'Arena Trader Analyze', status: 'idle', message: 'Não verificado', icon: TrendingUp },
   { name: 'Smart Odds Scanner', status: 'idle', message: 'Não verificado', icon: Zap },
   { name: 'Mycroft Telegram', status: 'idle', message: 'Não verificado', icon: MessageSquare },
