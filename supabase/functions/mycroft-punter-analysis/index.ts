@@ -419,10 +419,17 @@ async function callGemini(sys:string, usr:string) {
   if(!key) throw new Error('GEMINI_API_KEY not configured')
   const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method:'POST', headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
-    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:2000})
+    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:4000,response_format:{type:'json_object'}})
   })
-  if(!r.ok) throw new Error(`Gemini error ${r.status}: ${await r.text()}`)
-  return (await r.json()).choices?.[0]?.message?.content || ''
+  if(!r.ok) {
+    const errBody = await r.text()
+    console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0,500)}`)
+    throw new Error(`Gemini error ${r.status}`)
+  }
+  const data = await r.json()
+  const content = data.choices?.[0]?.message?.content || ''
+  if(!content) console.error('[Mycroft Punter] Empty Gemini response, usage:', JSON.stringify(data.usage||{}))
+  return content
 }
 
 // Main analysis
@@ -514,11 +521,15 @@ Edge≥2% + Confiança≥58% = APROVAR. META: 50-70%. MAIOR EDGE = mercado recom
   for (let att=0;att<3;att++) {
     try {
       const txt = await callGemini(sysPr, usrPr)
-      if(!txt) throw new Error('Empty response')
+      if(!txt) { console.error(`[Mycroft Punter] Empty response (attempt ${att+1})`); if(att<2) continue; throw new Error('Empty response') }
       const clean=txt.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()
-      const jm=clean.match(/\{[\s\S]*\}/)
-      if(!jm) { console.error(`[Mycroft Punter] No JSON (attempt ${att+1})`); if(att<2) continue; throw new Error('No JSON') }
-      const a=JSON.parse(jm[0])
+      let parsed:any = null
+      try { parsed = JSON.parse(clean) } catch {
+        const jm=clean.match(/\{[\s\S]*\}/)
+        if(!jm) { console.error(`[Mycroft Punter] No JSON (attempt ${att+1}), response preview: ${clean.substring(0,200)}`); if(att<2) continue; throw new Error('No JSON') }
+        parsed = JSON.parse(jm[0])
+      }
+      const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       if(a.value_percentage==null) a.value_percentage=a.edge_percentage||a.ev_percentage||a.edge||a.value||null
       if(a.value_percentage==null&&a.estimated_probability&&a.odd) a.value_percentage=Math.round((a.estimated_probability-(1/a.odd)*100)*10)/10
