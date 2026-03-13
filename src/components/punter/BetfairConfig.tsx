@@ -206,7 +206,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
             </Label>
             <Input
               id="bf-appkey"
-              type="text"
+              type="password"
               placeholder="Sua App Key da Betfair (delayed)"
               value={appKey}
               onChange={e => setAppKey(e.target.value)}
