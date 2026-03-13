@@ -101,6 +101,7 @@ serve(async (req) => {
           .insert({
             match_id: match.match_id,
             verdict: analysis.verdict || 'AGUARDAR',
+            plan_name: analysis.plan_name || null,
             market: analysis.market || 'N/A',
             thesis: analysis.thesis || 'Análise sem tese.',
             odd: analysis.odd ?? null,

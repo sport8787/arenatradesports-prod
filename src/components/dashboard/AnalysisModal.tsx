@@ -11,6 +11,7 @@ import type { Match } from '@/components/dashboard/MatchCard';
 export interface MycroftAnalysisData {
   id: string;
   verdict: string;
+  plan_name?: string | null;
   market: string;
   odd: number;
   confidence: number;
@@ -211,6 +212,15 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
       {/* Analysis Content */}
       {analysis && vc && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+          {/* Plan Name */}
+          {analysis.plan_name && (
+            <motion.div variants={fadeUp} className="flex justify-center">
+              <div className="px-4 py-1.5 rounded-lg bg-primary/10 border border-primary/30 font-orbitron text-xs font-bold text-primary uppercase tracking-widest">
+                🔱 {analysis.plan_name}
+              </div>
+            </motion.div>
+          )}
+
           {/* Verdict */}
           <motion.div variants={fadeUp} className="flex flex-col items-center gap-4">
             <motion.div
