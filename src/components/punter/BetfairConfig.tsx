@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Key, User, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw, Plus } from 'lucide-react';
+import { Key, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,17 +16,37 @@ interface BetfairConfigProps {
 interface ConnectionData {
   id?: string;
   app_key: string;
-  username: string;
-  encrypted_password: string;
+  session_token: string | null;
   is_active: boolean;
   last_sync_at: string | null;
+  token_expires_at: string | null;
 }
+
+const normalizeSessionToken = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const withoutPrefix = trimmed.replace(/^ssoid\s*=\s*/i, '');
+  const firstCookiePart = withoutPrefix.split(';')[0]?.trim() ?? '';
+  return firstCookiePart.replace(/^"|"$/g, '');
+};
+
+const extractFunctionErrorMessage = async (error: any) => {
+  const fallback = error?.message || 'Erro desconhecido';
+  const response = error?.context;
+  if (!response || typeof response.json !== 'function') return fallback;
+  try {
+    const payload = await response.json();
+    const baseError = payload?.error || fallback;
+    return payload?.hint ? `${baseError}: ${payload.hint}` : baseError;
+  } catch {
+    return fallback;
+  }
+};
 
 export default function BetfairConfig({ userId }: BetfairConfigProps) {
   const [connection, setConnection] = useState<ConnectionData | null>(null);
   const [appKey, setAppKey] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [ssoid, setSsoid] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -53,52 +73,31 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
     if (data) {
       setConnection(data as ConnectionData);
       setAppKey(data.app_key || '');
-      setUsername(data.username || '');
-      setPassword(data.encrypted_password || '');
+      setSsoid(data.session_token || '');
     }
     setLoading(false);
   };
 
-  const normalizeSessionToken = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return '';
-
-    const withoutPrefix = trimmed.replace(/^ssoid\s*=\s*/i, '');
-    const firstCookiePart = withoutPrefix.split(';')[0]?.trim() ?? '';
-    return firstCookiePart.replace(/^"|"$/g, '');
-  };
-
-  const extractFunctionErrorMessage = async (error: any) => {
-    const fallback = error?.message || 'Erro desconhecido';
-    const response = error?.context;
-
-    if (!response || typeof response.json !== 'function') {
-      return fallback;
-    }
-
-    try {
-      const payload = await response.json();
-      const baseError = payload?.error || fallback;
-      return payload?.hint ? `${baseError}: ${payload.hint}` : baseError;
-    } catch {
-      return fallback;
-    }
+  const isTokenExpired = () => {
+    if (!connection?.token_expires_at) return true;
+    return new Date(connection.token_expires_at) < new Date();
   };
 
   const handleSave = async () => {
-    if (!appKey.trim() || !username.trim() || !password.trim()) {
-      toast.error('Preencha todos os campos');
+    if (!appKey.trim() || !ssoid.trim()) {
+      toast.error('Preencha App Key e SSOID');
       return;
     }
 
     setSaving(true);
     try {
+      const normalizedToken = normalizeSessionToken(ssoid);
       const payload = {
         user_id: userId,
         bookmaker: 'betfair' as const,
         app_key: appKey.trim(),
-        username: username.trim(),
-        encrypted_password: password,
+        session_token: normalizedToken,
+        token_expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
         is_active: true,
         updated_at: new Date().toISOString(),
       };
@@ -153,8 +152,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
       toast.success('Betfair desconectada');
       setConnection(null);
       setAppKey('');
-      setUsername('');
-      setPassword('');
+      setSsoid('');
       await loadConnection();
     }
   };
@@ -168,6 +166,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
   }
 
   const isConnected = connection?.is_active;
+  const tokenExpired = isTokenExpired();
 
   return (
     <motion.div
@@ -180,19 +179,24 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full",
-              isConnected ? "bg-success" : "bg-muted-foreground"
+              isConnected && !tokenExpired ? "bg-success" : isConnected ? "bg-warning" : "bg-muted-foreground"
             )} />
             <h3 className="font-mono text-sm font-semibold text-foreground">
               BETFAIR EXCHANGE
             </h3>
           </div>
-          {isConnected && (
-            <span className="text-xs text-muted-foreground font-mono">
-              {connection?.last_sync_at
-                ? `Último sync: ${new Date(connection.last_sync_at).toLocaleString('pt-BR')}`
-                : 'Nunca sincronizado'}
-            </span>
-          )}
+          <div className="text-right">
+            {isConnected && tokenExpired && (
+              <span className="text-xs text-warning font-mono block">SSOID expirado — atualize</span>
+            )}
+            {isConnected && (
+              <span className="text-xs text-muted-foreground font-mono">
+                {connection?.last_sync_at
+                  ? `Último sync: ${new Date(connection.last_sync_at).toLocaleString('pt-BR')}`
+                  : 'Nunca sincronizado'}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -203,7 +207,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
             <Input
               id="bf-appkey"
               type="text"
-              placeholder="Sua App Key da Betfair"
+              placeholder="Sua App Key da Betfair (delayed)"
               value={appKey}
               onChange={e => setAppKey(e.target.value)}
               className="font-mono text-xs h-9"
@@ -211,31 +215,20 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="bf-user" className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <User className="w-3 h-3" /> Usuário
+            <Label htmlFor="bf-ssoid" className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Lock className="w-3 h-3" /> SSOID (Session Token)
             </Label>
             <Input
-              id="bf-user"
-              type="text"
-              placeholder="Username da Betfair"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="font-mono text-xs h-9"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="bf-pass" className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Lock className="w-3 h-3" /> Senha
-            </Label>
-            <Input
-              id="bf-pass"
+              id="bf-ssoid"
               type="password"
-              placeholder="Senha da Betfair"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
+              placeholder="Cole o valor do cookie ssoid da sua sessão Betfair"
+              value={ssoid}
+              onChange={e => setSsoid(e.target.value)}
               className="font-mono text-xs h-9"
             />
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Abra betfair.com.br logado → F12 → Console → digite <code className="bg-muted px-1 rounded">document.cookie</code> → copie o valor após <code className="bg-muted px-1 rounded">ssoid=</code>
+            </p>
           </div>
         </div>
 
@@ -274,7 +267,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
 
         <div className="flex items-center justify-between pt-1">
           <p className="text-[10px] text-muted-foreground leading-relaxed flex-1">
-            Suas credenciais são armazenadas de forma segura e utilizadas apenas para sincronizar apostas.
+            O SSOID expira periodicamente. Atualize-o quando necessário para manter a sincronização.
           </p>
           <Dialog open={showCreateKey} onOpenChange={setShowCreateKey}>
             <DialogTrigger asChild>
@@ -287,7 +280,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                 <DialogTitle className="font-mono text-sm">CRIAR APP KEY BETFAIR</DialogTitle>
               </DialogHeader>
               <p className="text-xs text-muted-foreground">
-                Para conta Betfair BR, cole o <span className="font-mono">ssoid</span> (sessionToken) ativo da sua sessão web.
+                Cole o <span className="font-mono">ssoid</span> (sessionToken) ativo da sua sessão Betfair BR.
               </p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -316,21 +309,19 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                   onClick={async () => {
                     setCreatingKey(true);
                     try {
-                      const normalizedSessionToken = normalizeSessionToken(createKeySessionToken);
-
+                      const normalized = normalizeSessionToken(createKeySessionToken);
                       const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
-                        body: { sessionToken: normalizedSessionToken, appName: createKeyName.trim() },
+                        body: { sessionToken: normalized, appName: createKeyName.trim() },
                       });
 
-                      if (error) {
-                        throw new Error(await extractFunctionErrorMessage(error));
-                      }
-
+                      if (error) throw new Error(await extractFunctionErrorMessage(error));
                       if (data?.error) throw new Error(data.error);
 
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
                         setAppKey(key);
+                        // Also pre-fill SSOID since user already provided it
+                        setSsoid(normalized);
                         setCreateKeySessionToken('');
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
                       } else {
