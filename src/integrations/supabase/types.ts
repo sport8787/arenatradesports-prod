@@ -1125,6 +1125,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_settings: {
+        Row: {
+          id: string
+          is_enabled: boolean
+          setting_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_enabled?: boolean
+          setting_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_enabled?: boolean
+          setting_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       daily_summaries: {
         Row: {
           best_bet: Json | null
