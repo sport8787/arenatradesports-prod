@@ -67,8 +67,13 @@ function mapOrder(order: any, userId: string, batchId: string, marketInfo: Recor
   let result = 'pending', profitLoss = 0;
 
   if (isSettled) {
-    if (order.betOutcome === 'WON') { result = 'green'; profitLoss = order.profit || 0; }
-    else if (order.betOutcome === 'LOST') { result = 'red'; profitLoss = -(order.sizeSettled || order.size || 0); }
+    // Always use profit field - it already accounts for cashouts/partial closes
+    profitLoss = order.profit != null ? order.profit : 0;
+    if (order.betOutcome === 'WON') { result = 'green'; }
+    else if (order.betOutcome === 'LOST') { 
+      // If profit is 0 or positive despite LOST outcome, it was a cashout
+      result = profitLoss >= 0 ? 'green' : 'red'; 
+    }
     else { result = 'void'; }
   }
 
