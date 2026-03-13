@@ -227,7 +227,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
               className="font-mono text-xs h-9"
             />
             <p className="text-[10px] text-muted-foreground leading-relaxed">
-               Abra <strong>betfair.com.br</strong> logado → <strong>F12</strong> → aba <strong>Aplicação</strong> (Application) → <strong>Cookies</strong> → clique no domínio da Betfair → pesquise por <code className="bg-muted px-1 rounded">ssoid</code> → copie o <strong>Valor</strong>
+               Abra <strong>betfair.com.br</strong> logado → clique com botão direito na página → <strong>Inspecionar</strong> → aba <strong>Aplicação</strong> (Application) → no menu lateral, clique em <strong>Cookies</strong> → selecione o domínio da Betfair → no filtro, pesquise <code className="bg-muted px-1 rounded">ssoid</code> → copie o <strong>Valor</strong>
              </p>
           </div>
         </div>
