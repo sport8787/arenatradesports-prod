@@ -449,12 +449,12 @@ export default function PunterPage() {
 
       // Auto-place Hórus bets — robust anti-duplication via fresh DB check
       if (bankroll && mergedSignals.length > 0) {
-        // Fetch ALL pending bets fresh from DB to prevent duplicates
+        // Fetch ALL bets (pending + settled) to prevent duplicates across re-analyses
         const { data: freshPending } = await supabase
           .from('virtual_bets_punter')
-          .select('match_id')
+          .select('match_id, status')
           .eq('user_id', user.id)
-          .eq('status', 'pending');
+          .in('status', ['pending', 'green', 'red']);
         
         const existingMatchIds = new Set(
           (freshPending || []).map((b: any) => (b.match_id || '').toLowerCase())
