@@ -122,21 +122,15 @@ export function useSportsBankroll() {
       return { success: false, error: betError.message };
     }
 
-    const updateResponse = await withTimeout(
-      Promise.resolve(
-        supabase
-          .from('sports_bankroll' as any)
-          .update({
-            balance: bankroll.balance - stake,
-            total_staked: bankroll.total_staked + stake,
-            total_bets: bankroll.total_bets + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', user.id)
-      )
-    );
-
-    const { error: updateError } = updateResponse;
+    const { error: updateError } = await supabase
+      .from('sports_bankroll' as any)
+      .update({
+        balance: bankroll.balance - stake,
+        total_staked: bankroll.total_staked + stake,
+        total_bets: bankroll.total_bets + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error('[SportsBankroll] Bankroll update error:', updateError);
