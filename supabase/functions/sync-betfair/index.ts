@@ -142,6 +142,7 @@ serve(async (req) => {
     const settledData = await bfPost('listClearedOrders', {
       betStatus: 'SETTLED',
       settledDateRange: { from: fromDate },
+      includeItemDescription: true,
       recordCount: 1000,
     }, sessionToken, connection.app_key);
     const settledOrders = settledData.clearedOrders || [];
