@@ -160,7 +160,7 @@ export default function ArenaTraderSports() {
     const base = liveMatches.length > 0
       ? liveMatches.map(mapLiveMatchToMatch)
       : mockMatches;
-    return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.id) }));
+    return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.matchId || m.id) }));
   }, [liveMatches, bettedMatchIds]);
 
   // Dynamic championships from real data
@@ -402,16 +402,29 @@ export default function ArenaTraderSports() {
           balance: bankroll.balance,
           recommendedStake: Math.round(bankroll.balance * 0.05 * 100) / 100,
           placeBet: async (a) => {
-            const result = await placeBet(a);
+            // Use the API match_id (matchId) instead of DB row id
+            const matchId = selectedMatch?.matchId || a.match_id;
+            const result = await placeBet({ ...a, match_id: matchId });
             if (result.success) {
-              setBettedMatchIds(prev => new Set([...prev, a.match_id]));
+              setBettedMatchIds(prev => new Set([...prev, matchId]));
             }
             return result;
           },
         } : undefined}
         matchStats={selectedMatch ? (() => {
           const lm = liveMatches.find(m => m.id === selectedMatch.id);
-          return lm?.stats || null;
+          const s = lm?.stats as any;
+          if (!s) return null;
+          return {
+            attacks_home: s.attacks_home ?? s.dangerous_attacks_home ?? undefined,
+            attacks_away: s.attacks_away ?? s.dangerous_attacks_away ?? undefined,
+            xG_home: s.xG_home ?? undefined,
+            xG_away: s.xG_away ?? undefined,
+            possession_home: s.possession_home ?? undefined,
+            possession_away: s.possession_away ?? undefined,
+            shots_home: s.shots_on_target_home ?? s.shots_home ?? undefined,
+            shots_away: s.shots_on_target_away ?? s.shots_away ?? undefined,
+          };
         })() : null}
       />
 
