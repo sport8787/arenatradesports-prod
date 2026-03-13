@@ -152,7 +152,19 @@ export function useBetImport() {
 
     try {
       const { data, error } = await supabase.functions.invoke('sync-betfair');
-      if (error) throw error;
+      if (error) {
+        // Try to extract the error message from the response body
+        let msg = error.message || 'Erro desconhecido';
+        try {
+          const ctx = (error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) msg = body.error;
+          }
+        } catch {}
+        return { success: false, error: msg };
+      }
+      if (data?.error) return { success: false, error: data.error };
       return { success: true, ...data };
     } catch (e: any) {
       return { success: false, error: e.message };
