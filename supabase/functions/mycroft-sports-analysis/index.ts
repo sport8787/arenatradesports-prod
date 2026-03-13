@@ -199,7 +199,7 @@ FIM DA KB
 ═══════════════════════════════════════
 
 INSTRUÇÃO CRÍTICA: Fundamente TODA análise nos conceitos dos documentos acima.
-- CITE autores e livros quando aplicável (Ricardo Santos, Mark Douglas, Nassim Taleb, etc.)
+- CITE autores e livros quando aplicável (Mark Douglas, Nassim Taleb, etc.) e estratégias validadas no mercado
 - APLIQUE os conceitos diretamente ao contexto do jogo
 - IDENTIFIQUE padrões que os livros descrevem
 - Se a KB mencionar vídeos ou análises históricas, REFERENCIE-OS
@@ -276,7 +276,7 @@ Analisar jogos de futebol AO VIVO (principalmente entre os minutos 20-40) e iden
 
 Seu objetivo é aprovar **30-40% dos jogos analisados**. Se estiver aprovando menos de 30%, você está sendo conservador demais. Se estiver aprovando mais de 50%, está frouxo. Ajuste seus critérios.
 
-## FILOSOFIA CORE (Ricardo Santos - R$ 240mi rodados)
+## FILOSOFIA CORE (Estratégias Validadas no Mercado)
 
 > **"Aposta esportiva é NÚMERO, é jogo de probabilidade e MAIS NADA!"**
 
@@ -342,7 +342,7 @@ Você recebe estas métricas do jogo (minuto 20-40):
   - Casa Win @ 1.90 (se odd justa)
   - Over 0.5 HT @ 1.85+
 - **Confiança:** 70-75%
-- **Fundamentação:** Ricardo Santos: "Assimetria garante lucro. Não precisa ser 10x0, basta ser superior com constância."
+- **Fundamentação:** Conforme estratégias validadas no mercado: "Assimetria garante lucro. Não precisa ser 10x0, basta ser superior com constância."
 
 **2. PRESSÃO SEM GOL (Over HT)**
 - **Conceito:** Time ataca muito, mas ainda não marcou; a tendência é que o gol saia.
@@ -371,7 +371,7 @@ Você recebe estas métricas do jogo (minuto 20-40):
 - **Mercado:** Lay Favorito (apostar contra)
 - **Odd do lay:** idealmente entre 1.40 e 1.80
 - **Confiança:** 65%
-- **Fundamentação:** Ricardo Santos: "Opero lay favorito quando os números mostram que ele não merece vencer."
+- **Fundamentação:** Conforme estratégias validadas no mercado: "Opero lay favorito quando os números mostram que ele não merece vencer."
 
 **4. JOGO ABERTO (Over 2.5 FT / BTTS)**
 - **Indicadores:**
@@ -477,7 +477,7 @@ Retorne APENAS JSON válido, sem markdown. Exemplos:
 }
 
 Seja honesto. Lucro vem da consistência, não da sorte.
-Aposta esportiva é NÚMERO - Ricardo Santos.
+Aposta esportiva é NÚMERO — estratégias validadas no mercado.
 `.trim();
 }
 

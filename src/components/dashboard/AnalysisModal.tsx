@@ -93,7 +93,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   };
 
   const handleEntered = async () => {
-    if (!analysis) return;
+    if (!analysis || !match) return;
     
     // Validate odd before placing bet
     if (!analysis.odd || analysis.odd <= 0) {
@@ -108,27 +108,32 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
       setPlacing(false);
       return;
     }
-    const result = await bankrollProps.placeBet({
-      id: analysis.id,
-      match_id: match.matchId || match.id,
-      market: analysis.market,
-      odd: analysis.odd,
-      home_team: match.home,
-      away_team: match.away,
-    });
-
-    if (result.success) {
-      // Also record in signal history
-      if (analysis.id) {
-        await recordAction(analysis.id, 'entered', result.stake);
-      }
-      toast({
-        title: '💰 Entrada registrada!',
-        description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
+    
+    try {
+      const result = await bankrollProps.placeBet({
+        id: analysis.id,
+        match_id: match.matchId || match.id,
+        market: analysis.market,
+        odd: analysis.odd,
+        home_team: match.home,
+        away_team: match.away,
       });
-      onClose();
-    } else {
-      toast({ title: '❌ Erro', description: result.error });
+
+      if (result.success) {
+        if (analysis.id) {
+          await recordAction(analysis.id, 'entered', result.stake);
+        }
+        toast({
+          title: '💰 Entrada registrada!',
+          description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
+        });
+        onClose();
+      } else {
+        toast({ title: '❌ Erro', description: result.error });
+      }
+    } catch (err: any) {
+      console.error('Bet placement error:', err);
+      toast({ title: '❌ Erro', description: err?.message || 'Erro ao registrar entrada' });
     }
 
     setPlacing(false);
