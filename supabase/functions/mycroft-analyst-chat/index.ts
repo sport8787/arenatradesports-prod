@@ -278,7 +278,7 @@ Se detectar conflito entre regras, avise: "⚠️ Conflito detectado entre regra
 1. TIMEFRAME É CRÍTICO - 1min ≠ 15min ≠ 1h ≠ 1d
 2. CONFLUÊNCIA ≥ 3 fatores (score 0-10)
 3. R:R ≥ 1:1.5 obrigatório
-4. CITE FONTES dos livros e da metodologia Ricardo Santos
+4. CITE FONTES dos livros e de estratégias validadas no mercado
 5. COMPLIANCE CVM - "Confluência de compra", não "Compre"
 6. Formato: 📊 ANÁLISE → 📈 SITUAÇÃO → 🔍 TÉCNICA → 📖 FUNDAMENTAÇÃO → ⚖️ GESTÃO DE RISCO → ⚠️ AVISOS
 

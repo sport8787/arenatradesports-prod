@@ -309,7 +309,7 @@ async function triggerMycroftAnalysis(supabaseClient: any, match: any) {
 
     if (kbError || !kbData) {
       console.warn('[Mycroft] KB não encontrada, usando fallback mínimo')
-      kbContent = `Metodologia Ricardo Santos:
+      kbContent = `Estratégias validadas no mercado:
 - Assimetria mínima: 2x-3x já é suficiente
 - Padrões: Back Favorito 1T (20-40min, odds 1.70-2.30), Lay Favorito 2T (empatado 60min+), Under (jogos mortos)
 - Gestão: 5% da banca, stop loss claro

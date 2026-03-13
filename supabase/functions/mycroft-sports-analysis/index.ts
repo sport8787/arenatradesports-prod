@@ -477,7 +477,7 @@ Retorne APENAS JSON válido, sem markdown. Exemplos:
 }
 
 Seja honesto. Lucro vem da consistência, não da sorte.
-Aposta esportiva é NÚMERO - Ricardo Santos.
+Aposta esportiva é NÚMERO — estratégias validadas no mercado.
 `.trim();
 }
 
