@@ -36,13 +36,6 @@ export default function PunterConfig() {
 
              <section className="space-y-2">
                <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
-                 <Link2 className="w-3.5 h-3.5" /> Conexões
-               </h2>
-               <BetfairConfig userId={user.id} />
-             </section>
-
-             <section className="space-y-2">
-               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
                  <Settings className="w-3.5 h-3.5" /> Alertas do Hórus
                </h2>
                <HorusConfig userId={user.id} />
