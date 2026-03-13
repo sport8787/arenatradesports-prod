@@ -120,38 +120,65 @@ serve(async (req) => {
       return jsonResponse({ error: "sessionToken é obrigatório" }, 400);
     }
 
-    console.log("Consultando App Keys existentes via getDeveloperAppKeys...");
+    const BR_API = "https://api.betfair.bet.br/exchange/account/rest/v1.0";
+
+    console.log("Consultando App Keys existentes via getDeveloperAppKeys (BR endpoint)...");
     const getResult = await betfairRequest(
-      "https://api.betfair.com/exchange/account/rest/v1.0/getDeveloperAppKeys/",
+      `${BR_API}/getDeveloperAppKeys/`,
       sessionToken,
       {},
     );
 
     if (!getResult.ok) {
-      return jsonResponse(
-        {
-          error: "Falha ao consultar App Keys na Betfair",
-          hint: "Sessão inválida, expirada ou sem permissão para consultar as chaves.",
-          detail: getResult.data ?? getResult.raw,
-        },
-        400,
+      console.log("BR endpoint falhou, tentando endpoint global como fallback...");
+      const getGlobal = await betfairRequest(
+        "https://api.betfair.com/exchange/account/rest/v1.0/getDeveloperAppKeys/",
+        sessionToken,
+        {},
       );
+      if (!getGlobal.ok) {
+        return jsonResponse(
+          {
+            error: "Falha ao consultar App Keys na Betfair (BR e global)",
+            hint: "Sessão inválida, expirada ou sem permissão para consultar as chaves.",
+            detail_br: getResult.data ?? getResult.raw,
+            detail_global: getGlobal.data ?? getGlobal.raw,
+          },
+          400,
+        );
+      }
+      // Use global result
+      Object.assign(getResult, getGlobal);
     }
 
-    const keys = extractKeys(getResult.data);
+    let keys = extractKeys(getResult.data);
     if (!keys.delayedKey && !keys.liveKey) {
-      return jsonResponse(
-        {
-          error: "Nenhuma App Key existente encontrada na conta.",
-          hint: "Esta função consulta apenas chaves já criadas. Se nunca criou uma App Key, crie primeiro no portal Betfair Developer.",
-        },
-        404,
+      // Try creating via BR endpoint
+      console.log("Nenhuma key encontrada, tentando createDeveloperAppKeys no endpoint BR...");
+      const createResult = await betfairRequest(
+        `${BR_API}/createDeveloperAppKeys/`,
+        sessionToken,
+        { appName: "ArenaTradeBot" },
       );
+      if (createResult.ok) {
+        console.log("App Key criada com sucesso via BR endpoint:", JSON.stringify(createResult.data));
+        keys = extractKeys(createResult.data);
+      } else {
+        console.log("createDeveloperAppKeys BR falhou:", JSON.stringify(createResult.data ?? createResult.raw));
+        return jsonResponse(
+          {
+            error: "Nenhuma App Key existente encontrada e falha ao criar nova.",
+            hint: "Tente criar manualmente no portal Betfair Developer.",
+            detail: createResult.data ?? createResult.raw,
+          },
+          404,
+        );
+      }
     }
 
     return jsonResponse({
       success: true,
-      source: "existing",
+      source: keys.appName ? "existing" : "created",
       appName: keys.appName,
       delayedKey: keys.delayedKey,
       liveKey: keys.liveKey,
