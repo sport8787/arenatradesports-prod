@@ -807,8 +807,8 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Mycroft Punter] Análise completa: ${dedupApproved.length}/${total} aprovados (${approved.length-dedupApproved.length} conflitos removidos)`)
-    return new Response(JSON.stringify({success:true,signals:dedupApproved,total_analyzed:total,total_approved:dedupApproved.length,conflicts_removed:approved.length-dedupApproved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+    console.log(`[Mycroft Punter] Análise completa: ${dedupApproved.length}/${total} aprovados (${skippedCount} já apostados, ${approved.length-dedupApproved.length} conflitos removidos)`)
+    return new Response(JSON.stringify({success:true,signals:dedupApproved,total_analyzed:total,total_approved:dedupApproved.length,skipped_existing:skippedCount,conflicts_removed:approved.length-dedupApproved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
   } catch(e:any) {
     console.error('[Mycroft Punter] ERRO:',e)
     return new Response(JSON.stringify({success:false,error:e.message}),{status:500,headers:{...corsHeaders,'Content-Type':'application/json'}})
