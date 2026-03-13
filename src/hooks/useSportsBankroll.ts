@@ -215,13 +215,85 @@ export function useSportsBankroll() {
     return { success: true };
   }, [user]);
 
+  const cashOut = useCallback(async (betId: string, cashoutValue: number) => {
+    if (!user || !bankroll) return { success: false, error: 'Não autenticado' };
+
+    const profitLoss = parseFloat((cashoutValue - (bankroll.balance * 0.05)).toFixed(2));
+
+    // 1. Get the bet to know the stake
+    const { data: bet } = await supabase
+      .from('virtual_bets')
+      .select('stake')
+      .eq('id', betId)
+      .single();
+
+    if (!bet) return { success: false, error: 'Aposta não encontrada' };
+
+    const actualPnl = parseFloat((cashoutValue - (bet as any).stake).toFixed(2));
+    const isProfit = actualPnl >= 0;
+
+    // 2. Update bet status
+    const { error: betErr } = await supabase
+      .from('virtual_bets')
+      .update({
+        status: 'cashed_out',
+        profit_loss: actualPnl,
+        cashed_out_at: new Date().toISOString(),
+      })
+      .eq('id', betId);
+
+    if (betErr) return { success: false, error: betErr.message };
+
+    // 3. Return cashout value to bankroll
+    const { error: bankErr } = await supabase
+      .from('sports_bankroll' as any)
+      .update({
+        balance: bankroll.balance + cashoutValue,
+        total_profit: bankroll.total_profit + actualPnl,
+        green_bets: bankroll.green_bets + (isProfit ? 1 : 0),
+        red_bets: bankroll.red_bets + (isProfit ? 0 : 1),
+        win_rate: (() => {
+          const g = bankroll.green_bets + (isProfit ? 1 : 0);
+          const r = bankroll.red_bets + (isProfit ? 0 : 1);
+          return g + r > 0 ? (g / (g + r)) * 100 : 0;
+        })(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+
+    if (bankErr) return { success: false, error: bankErr.message };
+
+    // 4. Update local state
+    setBankroll(prev => prev ? {
+      ...prev,
+      balance: prev.balance + cashoutValue,
+      total_profit: prev.total_profit + actualPnl,
+      green_bets: prev.green_bets + (isProfit ? 1 : 0),
+      red_bets: prev.red_bets + (isProfit ? 0 : 1),
+    } : prev);
+
+    return { success: true };
+  }, [bankroll, user]);
+
+  const evaluateCashouts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('evaluate-cashout');
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }, []);
+
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
   return {
     bankroll,
     loading,
     placeBet,
+    cashOut,
     settleBets,
+    evaluateCashouts,
     recommendedStake,
     updateInitialBalance,
   };

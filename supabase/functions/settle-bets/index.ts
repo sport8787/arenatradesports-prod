@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
 
     // 1. Fetch all pending bets
     const [betsRes, punterRes, manualRes, signalsRes] = await Promise.all([
-      supabase.from('virtual_bets').select('*').eq('status', 'pending'),
+      supabase.from('virtual_bets').select('*').eq('status', 'pending').neq('status', 'cashed_out'),
       supabase.from('virtual_bets_punter').select('*').eq('status', 'pending'),
       supabase.from('virtual_bets_manual').select('*').eq('status', 'pending'),
       supabase.from('punter_signals').select('*').eq('status', 'pending'),
