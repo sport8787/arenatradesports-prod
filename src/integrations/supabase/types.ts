@@ -1093,13 +1093,18 @@ export type Database = {
           created_at: string | null
           current_odd: number
           entry_odd: number
+          fatores: Json | null
           id: string
           market: string
           match_final_result: string | null
           match_final_score: string | null
           match_id: string
           match_name: string
+          minuto: number | null
+          modo: string | null
           mycroft_reason: string | null
+          odd_fonte: string | null
+          placar: string | null
           position_health: string
           potential_profit_loss: number | null
           signal_type: string
@@ -1116,13 +1121,18 @@ export type Database = {
           created_at?: string | null
           current_odd: number
           entry_odd: number
+          fatores?: Json | null
           id?: string
           market: string
           match_final_result?: string | null
           match_final_score?: string | null
           match_id: string
           match_name: string
+          minuto?: number | null
+          modo?: string | null
           mycroft_reason?: string | null
+          odd_fonte?: string | null
+          placar?: string | null
           position_health: string
           potential_profit_loss?: number | null
           signal_type?: string
@@ -1139,13 +1149,18 @@ export type Database = {
           created_at?: string | null
           current_odd?: number
           entry_odd?: number
+          fatores?: Json | null
           id?: string
           market?: string
           match_final_result?: string | null
           match_final_score?: string | null
           match_id?: string
           match_name?: string
+          minuto?: number | null
+          modo?: string | null
           mycroft_reason?: string | null
+          odd_fonte?: string | null
+          placar?: string | null
           position_health?: string
           potential_profit_loss?: number | null
           signal_type?: string
@@ -4001,6 +4016,18 @@ export type Database = {
       }
     }
     Views: {
+      mycroft_cashout_accuracy: {
+        Row: {
+          accuracy_pct: number | null
+          correct_exits: number | null
+          correct_holds: number | null
+          modo: string | null
+          total_signals: number | null
+          user_id: string | null
+          wrong_exits: number | null
+        }
+        Relationships: []
+      }
       next_games_to_check: {
         Row: {
           away_team: string | null
