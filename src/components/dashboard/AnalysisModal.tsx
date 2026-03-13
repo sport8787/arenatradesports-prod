@@ -110,14 +110,18 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     }
     
     try {
-      const result = await bankrollProps.placeBet({
+      const betPayload = {
         id: analysis.id,
-        match_id: match.matchId || match.id,
+        match_id: String(match.matchId || match.id),
         market: analysis.market,
-        odd: analysis.odd,
+        odd: Number(analysis.odd),
         home_team: match.home,
         away_team: match.away,
-      });
+      };
+      console.log('[AnalysisModal] placeBet payload:', JSON.stringify(betPayload));
+      
+      const result = await bankrollProps.placeBet(betPayload);
+      console.log('[AnalysisModal] placeBet result:', JSON.stringify(result));
 
       if (result.success) {
         if (analysis.id) {
@@ -129,10 +133,11 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
         });
         onClose();
       } else {
-        toast({ title: '❌ Erro', description: result.error });
+        console.error('[AnalysisModal] placeBet failed:', result.error);
+        toast({ title: '❌ Erro', description: result.error || 'Erro desconhecido ao registrar entrada' });
       }
     } catch (err: any) {
-      console.error('Bet placement error:', err);
+      console.error('[AnalysisModal] Bet placement exception:', err);
       toast({ title: '❌ Erro', description: err?.message || 'Erro ao registrar entrada' });
     }
 
