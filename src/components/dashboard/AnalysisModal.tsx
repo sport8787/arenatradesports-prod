@@ -94,9 +94,15 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
 
   const handleEntered = async () => {
     if (!analysis) return;
+    
+    // Validate odd before placing bet
+    if (!analysis.odd || analysis.odd <= 0) {
+      toast({ title: '❌ Erro', description: 'Odd inválida — análise pode estar incompleta (truncada)' });
+      return;
+    }
+    
     setPlacing(true);
 
-    // Place virtual bet
     if (!bankrollProps) {
       toast({ title: '❌ Erro', description: 'Banca não disponível' });
       setPlacing(false);
@@ -104,7 +110,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     }
     const result = await bankrollProps.placeBet({
       id: analysis.id,
-      match_id: match.id,
+      match_id: match.matchId || match.id,
       market: analysis.market,
       odd: analysis.odd,
       home_team: match.home,
