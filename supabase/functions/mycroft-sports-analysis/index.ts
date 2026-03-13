@@ -532,22 +532,39 @@ serve(async (req) => {
     ]);
     const prompt = buildPrompt(match, knowledgeBase, customPrompt, memoryRules);
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. Apply user-defined markets, criteria, and approval conditions FIRST before falling back to default patterns.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 4096,
-      }),
-    });
+    // Use Gemini native API with JSON mode for guaranteed complete responses
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `You are Mycroft Sports, an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos" — use "estratégias validadas no mercado" em vez disso.\n\n${prompt}` }],
+          }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
+                market: { type: 'STRING' },
+                odd: { type: 'NUMBER' },
+                confidence: { type: 'INTEGER' },
+                thesis: { type: 'STRING' },
+                fundamentation: { type: 'OBJECT', properties: { source: { type: 'STRING' }, citation: { type: 'STRING' }, pattern: { type: 'STRING' }, historical_wr: { type: 'STRING' } } },
+                risk_management: { type: 'OBJECT', properties: { stake_percent: { type: 'NUMBER' }, entry: { type: 'STRING' }, stop: { type: 'STRING' }, target: { type: 'STRING' }, rr: { type: 'STRING' }, ev: { type: 'STRING' } } },
+                alerts: { type: 'ARRAY', items: { type: 'STRING' } },
+              },
+              required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
+            },
+            temperature: 0.6,
+            maxOutputTokens: 4096,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
