@@ -1,0 +1,9 @@
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS cashout_value numeric DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS cashout_odd numeric DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS cashed_out_at timestamptz DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS mycroft_cashout_signal boolean DEFAULT false;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS mycroft_cashout_reason text DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS auto_cashout_enabled boolean DEFAULT false;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS entry_odd numeric DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS current_odd numeric DEFAULT null;
+ALTER TABLE virtual_bets ADD COLUMN IF NOT EXISTS last_cashout_update timestamptz DEFAULT null;

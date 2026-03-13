@@ -3400,11 +3400,20 @@ export type Database = {
       }
       virtual_bets: {
         Row: {
+          auto_cashout_enabled: boolean | null
+          cashed_out_at: string | null
+          cashout_odd: number | null
+          cashout_value: number | null
           commence_time: string | null
+          current_odd: number | null
+          entry_odd: number | null
           id: string
+          last_cashout_update: string | null
           market: string
           match_id: string
           match_name: string
+          mycroft_cashout_reason: string | null
+          mycroft_cashout_signal: boolean | null
           odd: number
           placed_at: string | null
           profit_loss: number | null
@@ -3419,11 +3428,20 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_cashout_enabled?: boolean | null
+          cashed_out_at?: string | null
+          cashout_odd?: number | null
+          cashout_value?: number | null
           commence_time?: string | null
+          current_odd?: number | null
+          entry_odd?: number | null
           id?: string
+          last_cashout_update?: string | null
           market: string
           match_id: string
           match_name: string
+          mycroft_cashout_reason?: string | null
+          mycroft_cashout_signal?: boolean | null
           odd: number
           placed_at?: string | null
           profit_loss?: number | null
@@ -3438,11 +3456,20 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_cashout_enabled?: boolean | null
+          cashed_out_at?: string | null
+          cashout_odd?: number | null
+          cashout_value?: number | null
           commence_time?: string | null
+          current_odd?: number | null
+          entry_odd?: number | null
           id?: string
+          last_cashout_update?: string | null
           market?: string
           match_id?: string
           match_name?: string
+          mycroft_cashout_reason?: string | null
+          mycroft_cashout_signal?: boolean | null
           odd?: number
           placed_at?: string | null
           profit_loss?: number | null
