@@ -545,7 +545,7 @@ serve(async (req) => {
           { role: 'user', content: prompt },
         ],
         temperature: 0.6,
-        max_tokens: 2000,
+        max_tokens: 3000,
       }),
     });
 
@@ -577,9 +577,36 @@ serve(async (req) => {
 
     console.log('[MycroftSports] Raw response:', rawText.substring(0, 200));
 
-    // Parse JSON from response
+    // Parse JSON from response - with fallback for truncated responses
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const analysis = JSON.parse(cleaned);
+    let analysis;
+    try {
+      analysis = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.warn('[MycroftSports] JSON parse failed, attempting repair...');
+      // Try to extract what we can from truncated JSON
+      const verdictMatch = cleaned.match(/"verdict"\s*:\s*"(APROVADO|VETADO|AGUARDAR)"/);
+      const marketMatch = cleaned.match(/"market"\s*:\s*"([^"]+)"/);
+      const confidenceMatch = cleaned.match(/"confidence"\s*:\s*(\d+)/);
+      const thesisMatch = cleaned.match(/"thesis"\s*:\s*"([^"]*)/);
+      const oddMatch = cleaned.match(/"odd"\s*:\s*([\d.]+)/);
+      
+      if (verdictMatch) {
+        analysis = {
+          verdict: verdictMatch[1],
+          market: marketMatch?.[1] || 'N/A',
+          confidence: confidenceMatch ? parseInt(confidenceMatch[1]) : 50,
+          thesis: thesisMatch?.[1] || 'Análise parcial (resposta truncada)',
+          odd: oddMatch ? parseFloat(oddMatch[1]) : null,
+          alerts: ['Resposta da IA foi truncada'],
+          fundamentation: {},
+          risk_management: {},
+        };
+        console.log(`[MycroftSports] Repaired verdict: ${analysis.verdict}`);
+      } else {
+        throw parseErr;
+      }
+    }
 
     console.log(`[MycroftSports] Verdict: ${analysis.verdict} | Confidence: ${analysis.confidence}%`);
 

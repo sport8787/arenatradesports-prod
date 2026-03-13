@@ -31,43 +31,46 @@ serve(async (req) => {
       });
     }
 
-    console.log('[CronLive] ▶️ Cron ativado, buscando jogos ao vivo...');
+    console.log('[CronLive] ▶️ Cron ativado, disparando jobs em paralelo...');
 
-    // Call fetch-live-matches
-    const fetchRes = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/fetch-live-matches`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-      }
-    );
+    const baseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serviceKey}`,
+    };
 
-    const fetchData = await fetchRes.json();
-    console.log('[CronLive] ✅ fetch-live-matches resultado:', JSON.stringify(fetchData));
+    // Fire all 3 jobs in parallel — analyze uses data already in DB
+    const [fetchRes, scoresRes, analyzeRes] = await Promise.allSettled([
+      fetch(`${baseUrl}/functions/v1/fetch-live-matches`, {
+        method: 'POST', headers,
+      }).then(r => r.json()),
 
-    // Call update-live-scores
-    const scoresRes = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/update-live-scores`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-      }
-    );
+      fetch(`${baseUrl}/functions/v1/update-live-scores`, {
+        method: 'POST', headers,
+      }).then(r => r.json()),
 
-    const scoresData = await scoresRes.json();
-    console.log('[CronLive] ✅ update-live-scores resultado:', JSON.stringify(scoresData));
+      fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ bankroll: 500 }),
+      }).then(r => r.json()),
+    ]);
 
-    return new Response(JSON.stringify({
+    const result = {
       success: true,
-      fetch: fetchData,
-      scores: scoresData,
-    }), {
+      fetch: fetchRes.status === 'fulfilled' ? fetchRes.value : { error: fetchRes.reason?.message },
+      scores: scoresRes.status === 'fulfilled' ? scoresRes.value : { error: scoresRes.reason?.message },
+      analysis: analyzeRes.status === 'fulfilled' ? analyzeRes.value : { error: analyzeRes.reason?.message },
+    };
+
+    console.log('[CronLive] ✅ Resultados:', JSON.stringify({
+      fetch_ok: fetchRes.status === 'fulfilled',
+      scores_ok: scoresRes.status === 'fulfilled',
+      analysis_ok: analyzeRes.status === 'fulfilled',
+      analyzed: analyzeRes.status === 'fulfilled' ? analyzeRes.value?.analyzed : 0,
+    }));
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
