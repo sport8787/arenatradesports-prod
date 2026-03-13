@@ -432,8 +432,8 @@ export default function BetHistoryPage() {
           </div>
           <div className="flex items-center gap-2">
             <GoldButton size="sm" onClick={() => {
-              const totalStaked = filteredBets.reduce((s, b) => s + b.stake, 0);
-              generateBetReportPdf(filteredBets, {
+              const totalStaked = filtered.reduce((s, b) => s + b.stake, 0);
+              generateBetReportPdf(filtered, {
                 totalBets: stats.total, greens: stats.greens, reds: stats.reds, pending: stats.pending,
                 winRate: stats.winRate, totalProfit: stats.totalProfit, totalStaked,
                 roi: totalStaked > 0 ? (stats.totalProfit / totalStaked) * 100 : 0,
