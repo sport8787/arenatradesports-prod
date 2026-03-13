@@ -199,7 +199,7 @@ FIM DA KB
 ═══════════════════════════════════════
 
 INSTRUÇÃO CRÍTICA: Fundamente TODA análise nos conceitos dos documentos acima.
-- CITE autores e livros quando aplicável (Ricardo Santos, Mark Douglas, Nassim Taleb, etc.)
+- CITE autores e livros quando aplicável (Mark Douglas, Nassim Taleb, etc.) e estratégias validadas no mercado
 - APLIQUE os conceitos diretamente ao contexto do jogo
 - IDENTIFIQUE padrões que os livros descrevem
 - Se a KB mencionar vídeos ou análises históricas, REFERENCIE-OS
