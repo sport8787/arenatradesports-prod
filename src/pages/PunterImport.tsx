@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import BetImportPanel from '@/components/punter/BetImportPanel';
 import ImportedBetsAnalytics from '@/components/punter/ImportedBetsAnalytics';
 import BankrollComparison from '@/components/punter/BankrollComparison';
+import BetfairConfig from '@/components/punter/BetfairConfig';
 
 export default function PunterImport() {
   const navigate = useNavigate();
@@ -219,33 +220,24 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
         </motion.div>
       </div>
 
-      {/* Betfair Sync */}
+      {/* Betfair Config + Sync */}
+      <BetfairConfig userId={userId} />
+
+      {/* Sync buttons */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-card border border-border rounded-lg p-4 space-y-3"
+        className="flex gap-2"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🟡</span>
-          <h3 className="font-mono text-sm font-bold text-foreground">Betfair Exchange</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Sincronize automaticamente. Configure credenciais em{' '}
-          <button onClick={() => window.location.href = '/punter/config'} className="text-primary underline">
-            Configurações
-          </button>.
-        </p>
-        <div className="flex gap-2">
-          <Button onClick={() => handleSync(false)} disabled={syncing} variant="outline" className="flex-1">
-            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar'}
-          </Button>
-          <Button onClick={() => handleSync(true)} disabled={syncing} variant="secondary" className="flex-1">
-            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-            {syncing ? '...' : 'Re-sync Completo'}
-          </Button>
-        </div>
+        <Button onClick={() => handleSync(false)} disabled={syncing} variant="outline" className="flex-1">
+          <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+          {syncing ? 'Sincronizando...' : 'Sincronizar'}
+        </Button>
+        <Button onClick={() => handleSync(true)} disabled={syncing} variant="secondary" className="flex-1">
+          <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+          {syncing ? '...' : 'Re-sync Completo'}
+        </Button>
       </motion.div>
 
       {/* CSV/PDF/Image Import */}
