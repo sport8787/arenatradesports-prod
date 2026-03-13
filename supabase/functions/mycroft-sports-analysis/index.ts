@@ -478,7 +478,7 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             role: 'user',
-            parts: [{ text: `You are Mycroft Sports, an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos" — use "estratégias validadas no mercado" em vez disso.\n\n${prompt}` }],
+            parts: [{ text: `You are Mycroft, the Oracle of Bluffer Entertainment — an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos". SEMPRE identifique qual PLANO ESTRATÉGICO se aplica ao cenário e informe o nome no campo plan_name.\n\n${prompt}` }],
           }],
           generationConfig: {
             responseMimeType: 'application/json',
@@ -486,6 +486,7 @@ serve(async (req) => {
               type: 'OBJECT',
               properties: {
                 verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
+                plan_name: { type: 'STRING', nullable: true },
                 market: { type: 'STRING' },
                 odd: { type: 'NUMBER' },
                 confidence: { type: 'INTEGER' },
