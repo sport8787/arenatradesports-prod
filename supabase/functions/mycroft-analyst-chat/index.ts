@@ -260,7 +260,7 @@ Use esses princípios para gerar recomendações precisas, adaptadas ao contexto
 
 ━━━ BASE DE CONHECIMENTO ━━━
 Livros de referência: Japanese Candlestick Charting (Nison), Trading in the Zone (Douglas), Reminiscences of a Stock Operator (Livermore).
-${knowledgeBaseContent ? `━━━ DOCUMENTOS ━━━\n${knowledgeBaseContent}\n━━━ FIM ━━━` : "Nenhum documento carregado. Use conhecimento geral dos livros e metodologia Ricardo Santos."}
+${knowledgeBaseContent ? `━━━ DOCUMENTOS ━━━\n${knowledgeBaseContent}\n━━━ FIM ━━━` : "Nenhum documento carregado. Use conhecimento geral dos livros e estratégias validadas no mercado."}
 
 ${marketContext}
 
