@@ -371,7 +371,7 @@ Você recebe estas métricas do jogo (minuto 20-40):
 - **Mercado:** Lay Favorito (apostar contra)
 - **Odd do lay:** idealmente entre 1.40 e 1.80
 - **Confiança:** 65%
-- **Fundamentação:** Ricardo Santos: "Opero lay favorito quando os números mostram que ele não merece vencer."
+- **Fundamentação:** Conforme estratégias validadas no mercado: "Opero lay favorito quando os números mostram que ele não merece vencer."
 
 **4. JOGO ABERTO (Over 2.5 FT / BTTS)**
 - **Indicadores:**
