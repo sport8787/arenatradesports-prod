@@ -414,22 +414,112 @@ function calcTotalsProb(t:any) {
 }
 
 // AI call
+function parseStructuredJson(raw: string) {
+  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  if (!cleaned) throw new Error('Empty response')
+
+  const tryParse = (text: string) => {
+    try { return JSON.parse(text) } catch { return null }
+  }
+
+  const direct = tryParse(cleaned)
+  if (direct) return direct
+
+  const start = cleaned.indexOf('{')
+  if (start === -1) throw new Error('No JSON')
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+
+    if (ch === '{') depth++
+    if (ch === '}') depth--
+
+    if (depth === 0) {
+      const candidate = cleaned.slice(start, i + 1)
+      const parsed = tryParse(candidate)
+      if (parsed) return parsed
+    }
+  }
+
+  // Best-effort repair for truncated endings (missing closing braces)
+  const tail = cleaned.slice(start)
+  const openCount = (tail.match(/\{/g) || []).length
+  const closeCount = (tail.match(/\}/g) || []).length
+
+  if (openCount > closeCount) {
+    const repaired = `${tail}${'}'.repeat(openCount - closeCount)}`
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']')
+
+    const parsed = tryParse(repaired)
+    if (parsed) {
+      console.warn(`[Mycroft Punter] JSON reparado automaticamente (faltavam ${openCount - closeCount} chaves)`)
+      return parsed
+    }
+  }
+
+  throw new Error('No JSON')
+}
+
 async function callGemini(sys:string, usr:string) {
   const key = Deno.env.get('GEMINI_API_KEY')
   if(!key) throw new Error('GEMINI_API_KEY not configured')
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-    method:'POST', headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
-    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:4000,response_format:{type:'json_object'}})
+
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${sys}\n\n${usr}` }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2500,
+        responseMimeType: 'application/json',
+      },
+    }),
   })
+
   if(!r.ok) {
     const errBody = await r.text()
     console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0,500)}`)
+    if (r.status === 429) throw new Error('RATE_LIMITED')
     throw new Error(`Gemini error ${r.status}`)
   }
+
   const data = await r.json()
-  const content = data.choices?.[0]?.message?.content || ''
-  if(!content) console.error('[Mycroft Punter] Empty Gemini response, usage:', JSON.stringify(data.usage||{}))
-  return content
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+  if(!content) {
+    const finishReason = data.candidates?.[0]?.finishReason
+    console.error('[Mycroft Punter] Empty Gemini response, finishReason:', finishReason)
+    throw new Error('Empty response')
+  }
+
+  return parseStructuredJson(content)
 }
 
 // Main analysis
