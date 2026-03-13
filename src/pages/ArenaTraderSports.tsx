@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2 } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
+import ActivePositions from '@/components/dashboard/ActivePositions';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -57,7 +58,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading, placeBet, settleBets, updateInitialBalance } = useSportsBankroll();
+  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
@@ -68,6 +69,7 @@ export default function ArenaTraderSports() {
   const [isFetching, setIsFetching] = useState(false);
   const [isFetchingV2, setIsFetchingV2] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
 
   // Fetch betted match IDs to prevent duplicates
@@ -154,6 +156,22 @@ export default function ArenaTraderSports() {
       setIsSettling(false);
     }
   }, [settleBets]);
+
+  const handleEvaluateCashouts = useCallback(async () => {
+    setIsEvaluating(true);
+    try {
+      const result = await evaluateCashouts();
+      if (result.success) {
+        toast.success(result.data?.message || 'Posições avaliadas!');
+      } else {
+        toast.error(result.error || 'Erro ao avaliar posições');
+      }
+    } catch (e) {
+      toast.error('Erro ao avaliar posições');
+    } finally {
+      setIsEvaluating(false);
+    }
+  }, [evaluateCashouts]);
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
@@ -282,7 +300,11 @@ export default function ArenaTraderSports() {
             </GoldButton>
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
-              {isSettling ? 'Liquidando...' : 'Liquidar Apostas'}
+              {isSettling ? 'Liquidando...' : 'Liquidar'}
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleEvaluateCashouts} disabled={isEvaluating} variant="outline">
+              <Banknote className={cn("w-4 h-4 mr-1", isEvaluating && "animate-spin")} />
+              {isEvaluating ? 'Avaliando...' : 'Avaliar Cash Out'}
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
@@ -309,6 +331,9 @@ export default function ArenaTraderSports() {
         {bankroll && !bankrollLoading && (
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
         )}
+
+        {/* Active Positions with Cash Out */}
+        <ActivePositions onCashOut={cashOut} />
 
         {/* Filters */}
         <div className="space-y-3">
