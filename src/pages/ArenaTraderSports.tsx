@@ -271,6 +271,7 @@ export default function ArenaTraderSports() {
           </div>
 
           <div className="flex items-center gap-2">
+            <LiveCronToggle />
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
               {isFetching ? 'Analisando...' : 'Fazer Análise'}
