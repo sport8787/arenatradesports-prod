@@ -157,6 +157,22 @@ export default function ArenaTraderSports() {
     }
   }, [settleBets]);
 
+  const handleEvaluateCashouts = useCallback(async () => {
+    setIsEvaluating(true);
+    try {
+      const result = await evaluateCashouts();
+      if (result.success) {
+        toast.success(result.data?.message || 'Posições avaliadas!');
+      } else {
+        toast.error(result.error || 'Erro ao avaliar posições');
+      }
+    } catch (e) {
+      toast.error('Erro ao avaliar posições');
+    } finally {
+      setIsEvaluating(false);
+    }
+  }, [evaluateCashouts]);
+
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
     const base = liveMatches.length > 0
