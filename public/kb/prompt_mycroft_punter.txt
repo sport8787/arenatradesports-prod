@@ -167,10 +167,11 @@ FILTROS ADICIONAIS DE QUALIDADE
 FILTRO 1 — Mercados Permitidos
 ✓ Resultado (1X2)
 ✓ Dupla Chance
-✓ Over/Under (linhas 2.5, 3.5)
-✓ Ambas marcam
+✓ Over/Under (linhas 1.5, 2.5, 3.5)
+✓ Ambas marcam (BTTS)
 ✓ Asian Handicap (com liquidez)
-✗ Mercados de canto, cartões (baixa liquidez)
+✓ Escanteios (Over/Under linhas 8.5, 9.5, 10.5)
+✓ Cartões Amarelos (Over/Under linhas 3.5, 4.5, 5.5)
 ✗ Placar exato
 ✗ Primeiros/últimos gols
 
