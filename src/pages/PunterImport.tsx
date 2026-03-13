@@ -183,8 +183,8 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
     setLastSync(connRes.data?.last_sync_at || null);
   };
 
-  const handleSync = async () => {
-    const result = await syncBetfair();
+  const handleSync = async (force = false) => {
+    const result = await syncBetfair(force);
     if (result.success) {
       toast.success(`${result.synced} apostas sincronizadas da Betfair!`);
       loadStats();
