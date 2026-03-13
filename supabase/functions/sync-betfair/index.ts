@@ -21,11 +21,19 @@ async function bfPost(endpoint: string, body: any, token: string, appKey: string
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    const errorText = await res.text();
     if (useBr) {
       console.log(`[BetfairSync] BR failed for ${endpoint}, trying global...`);
       return bfPost(endpoint, body, token, appKey, false);
     }
-    throw new Error(`Betfair API error ${res.status}: ${await res.text()}`);
+    // Check for expired/invalid session token
+    if (res.status === 400 && (errorText.includes('DSC-0024') || errorText.includes('DSC-0018') || errorText.includes('ANGX-0004'))) {
+      throw new Error('SSOID_EXPIRED');
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('SSOID_EXPIRED');
+    }
+    throw new Error(`Betfair API error ${res.status}: ${errorText}`);
   }
   return res.json();
 }
