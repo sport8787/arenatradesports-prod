@@ -367,6 +367,19 @@ export default function MinhasApostasPage() {
               Minhas Posições
             </h1>
           </div>
+          <GoldButton size="sm" onClick={() => {
+            const totalStaked = filtered.reduce((s, b) => s + b.stake, 0);
+            generateBetReportPdf(filtered, {
+              totalBets: stats.total, greens: stats.greens, reds: stats.reds, pending: stats.pending,
+              winRate: stats.winRate, totalProfit: stats.totalProfit, totalStaked,
+              roi: totalStaked > 0 ? (stats.totalProfit / totalStaked) * 100 : 0,
+              balance: bankroll?.balance || 0,
+            }, 'Relatório — Minhas Posições', `minhas_apostas_${new Date().toISOString().slice(0,10)}.pdf`);
+            toast.success('PDF gerado com sucesso!');
+          }}>
+            <FileDown className="w-4 h-4 mr-1" />
+            PDF
+          </GoldButton>
         </div>
       </header>
 
