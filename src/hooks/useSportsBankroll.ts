@@ -99,36 +99,23 @@ export function useSportsBankroll() {
 
     console.log('[SportsBankroll] Inserting bet:', { user_id: user.id, signal_id: analysis.id, match_id: analysis.match_id, market: analysis.market, odd: analysis.odd, stake });
 
-    const withTimeout = async <T,>(promise: PromiseLike<T>, ms = 12000): Promise<T> => {
-      return await Promise.race([
-        Promise.resolve(promise),
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout na comunicação com o servidor')), ms)),
-      ]);
-    };
-
-    const betResponse = await withTimeout(
-      Promise.resolve(
-        supabase
-          .from('virtual_bets')
-          .insert({
-            user_id: user.id,
-            signal_id: analysis.id,
-            match_id: String(analysis.match_id),
-            match_name: matchName,
-            market: analysis.market,
-            odd: Number(analysis.odd),
-            stake,
-            status: 'pending',
-            entry_odd: Number(analysis.odd),
-            cashout_value: stake,
-            current_odd: Number(analysis.odd),
-          })
-          .select()
-          .single()
-      )
-    );
-
-    const { data: bet, error: betError } = betResponse;
+    const { data: bet, error: betError } = await supabase
+      .from('virtual_bets')
+      .insert({
+        user_id: user.id,
+        signal_id: analysis.id,
+        match_id: String(analysis.match_id),
+        match_name: matchName,
+        market: analysis.market,
+        odd: Number(analysis.odd),
+        stake,
+        status: 'pending',
+        entry_odd: Number(analysis.odd),
+        cashout_value: stake,
+        current_odd: Number(analysis.odd),
+      })
+      .select()
+      .single();
 
     if (betError) {
       console.error('[SportsBankroll] Insert error:', betError);
