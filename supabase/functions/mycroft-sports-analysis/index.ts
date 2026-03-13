@@ -276,7 +276,7 @@ Analisar jogos de futebol AO VIVO (principalmente entre os minutos 20-40) e iden
 
 Seu objetivo é aprovar **30-40% dos jogos analisados**. Se estiver aprovando menos de 30%, você está sendo conservador demais. Se estiver aprovando mais de 50%, está frouxo. Ajuste seus critérios.
 
-## FILOSOFIA CORE (Ricardo Santos - R$ 240mi rodados)
+## FILOSOFIA CORE (Estratégias Validadas no Mercado)
 
 > **"Aposta esportiva é NÚMERO, é jogo de probabilidade e MAIS NADA!"**
 
