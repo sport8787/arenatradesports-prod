@@ -74,9 +74,23 @@ function mapOrder(order: any, userId: string, batchId: string, marketInfo: Recor
 
   const mktId = order.marketId || '';
   const selId = String(order.selectionId || '');
+  
+  // Priority 1: itemDescription from includeItemDescription (works for settled markets)
+  const itemDesc = order.itemDescription;
+  // Priority 2: catalogue info (works for active markets)
   const mkt = marketInfo[mktId];
-  const eventName = mkt?.eventName || mktId || 'Unknown';
-  const selectionName = mkt?.runners?.[selId] || `Selection ${selId}`;
+  
+  let eventName = 'Unknown';
+  let selectionName = `Selection ${selId}`;
+  
+  if (itemDesc) {
+    eventName = itemDesc.eventDesc || itemDesc.marketDesc || mktId;
+    selectionName = itemDesc.runnerDesc || `Selection ${selId}`;
+  } else if (mkt) {
+    eventName = mkt.eventName || mktId;
+    selectionName = mkt.runners?.[selId] || `Selection ${selId}`;
+  }
+  
   const side = order.side === 'LAY' ? ' (LAY)' : '';
 
   return {
