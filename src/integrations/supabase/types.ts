@@ -1654,6 +1654,7 @@ export type Database = {
           market: string
           match_id: string
           odd: number | null
+          plan_name: string | null
           risk_management: Json | null
           thesis: string
           verdict: string
@@ -1667,6 +1668,7 @@ export type Database = {
           market: string
           match_id: string
           odd?: number | null
+          plan_name?: string | null
           risk_management?: Json | null
           thesis: string
           verdict: string
@@ -1680,6 +1682,7 @@ export type Database = {
           market?: string
           match_id?: string
           odd?: number | null
+          plan_name?: string | null
           risk_management?: Json | null
           thesis?: string
           verdict?: string

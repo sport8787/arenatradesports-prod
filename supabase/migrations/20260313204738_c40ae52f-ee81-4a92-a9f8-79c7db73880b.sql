@@ -1,0 +1,1 @@
+ALTER TABLE mycroft_analyses ADD COLUMN IF NOT EXISTS plan_name text DEFAULT null;
