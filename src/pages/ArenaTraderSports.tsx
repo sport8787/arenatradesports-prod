@@ -160,7 +160,7 @@ export default function ArenaTraderSports() {
     const base = liveMatches.length > 0
       ? liveMatches.map(mapLiveMatchToMatch)
       : mockMatches;
-    return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.id) }));
+    return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.matchId || m.id) }));
   }, [liveMatches, bettedMatchIds]);
 
   // Dynamic championships from real data
