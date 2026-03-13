@@ -16,6 +16,7 @@ import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
+import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
