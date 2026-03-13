@@ -431,6 +431,19 @@ export default function BetHistoryPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <GoldButton size="sm" onClick={() => {
+              const totalStaked = filteredBets.reduce((s, b) => s + b.stake, 0);
+              generateBetReportPdf(filteredBets, {
+                totalBets: stats.total, greens: stats.greens, reds: stats.reds, pending: stats.pending,
+                winRate: stats.winRate, totalProfit: stats.totalProfit, totalStaked,
+                roi: totalStaked > 0 ? (stats.totalProfit / totalStaked) * 100 : 0,
+                balance: bankroll?.balance || 0,
+              }, 'Relatório — Posições do Hórus', `horus_apostas_${new Date().toISOString().slice(0,10)}.pdf`);
+              toast.success('PDF gerado com sucesso!');
+            }}>
+              <FileDown className="w-4 h-4 mr-1" />
+              PDF
+            </GoldButton>
             <GoldButton size="sm" onClick={() => setImportOpen(true)}>
               <Download className="w-4 h-4 mr-1" />
               Importar
