@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, Download, FileDown } from 'lucide-react';
 import BetImportPanel from '@/components/punter/BetImportPanel';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
 interface Bet {
   id: string;
@@ -430,6 +431,19 @@ export default function BetHistoryPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <GoldButton size="sm" onClick={() => {
+              const totalStaked = filtered.reduce((s, b) => s + b.stake, 0);
+              generateBetReportPdf(filtered, {
+                totalBets: stats.total, greens: stats.greens, reds: stats.reds, pending: stats.pending,
+                winRate: stats.winRate, totalProfit: stats.totalProfit, totalStaked,
+                roi: totalStaked > 0 ? (stats.totalProfit / totalStaked) * 100 : 0,
+                balance: bankroll?.balance || 0,
+              }, 'Relatório — Posições do Hórus', `horus_apostas_${new Date().toISOString().slice(0,10)}.pdf`);
+              toast.success('PDF gerado com sucesso!');
+            }}>
+              <FileDown className="w-4 h-4 mr-1" />
+              PDF
+            </GoldButton>
             <GoldButton size="sm" onClick={() => setImportOpen(true)}>
               <Download className="w-4 h-4 mr-1" />
               Importar
