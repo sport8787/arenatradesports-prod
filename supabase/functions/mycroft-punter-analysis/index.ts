@@ -610,15 +610,7 @@ Edge≥2% + Confiança≥58% = APROVAR. META: 50-70%. MAIOR EDGE = mercado recom
 
   for (let att=0;att<3;att++) {
     try {
-      const txt = await callGemini(sysPr, usrPr)
-      if(!txt) { console.error(`[Mycroft Punter] Empty response (attempt ${att+1})`); if(att<2) continue; throw new Error('Empty response') }
-      const clean=txt.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()
-      let parsed:any = null
-      try { parsed = JSON.parse(clean) } catch {
-        const jm=clean.match(/\{[\s\S]*\}/)
-        if(!jm) { console.error(`[Mycroft Punter] No JSON (attempt ${att+1}), response preview: ${clean.substring(0,200)}`); if(att<2) continue; throw new Error('No JSON') }
-        parsed = JSON.parse(jm[0])
-      }
+      const parsed = await callGemini(sysPr, usrPr)
       const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       if(a.value_percentage==null) a.value_percentage=a.edge_percentage||a.ev_percentage||a.edge||a.value||null
