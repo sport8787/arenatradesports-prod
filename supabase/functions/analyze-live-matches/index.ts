@@ -25,13 +25,15 @@ serve(async (req) => {
 
     const { bankroll } = await req.json();
 
-    // Get all live matches with stats that haven't been analyzed yet
+    // Get live matches with stats that haven't been analyzed yet (limit 5 per cycle)
     const { data: matches, error: matchError } = await supabase
       .from('live_matches')
       .select('*')
       .eq('status', 'live')
       .is('mycroft_analysis_id', null)
-      .gte('minute', 20);
+      .gte('minute', 20)
+      .order('minute', { ascending: false })
+      .limit(5);
 
     if (matchError) {
       console.error('[AnalyzeLive] Error fetching matches:', matchError);
