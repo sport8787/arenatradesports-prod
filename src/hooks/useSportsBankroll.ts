@@ -119,6 +119,9 @@ export function useSportsBankroll() {
             odd: Number(analysis.odd),
             stake,
             status: 'pending',
+            entry_odd: Number(analysis.odd),
+            cashout_value: stake,
+            current_odd: Number(analysis.odd),
           })
           .select()
           .single()
