@@ -21,11 +21,19 @@ async function bfPost(endpoint: string, body: any, token: string, appKey: string
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    const errorText = await res.text();
     if (useBr) {
       console.log(`[BetfairSync] BR failed for ${endpoint}, trying global...`);
       return bfPost(endpoint, body, token, appKey, false);
     }
-    throw new Error(`Betfair API error ${res.status}: ${await res.text()}`);
+    // Check for expired/invalid session token
+    if (res.status === 400 && (errorText.includes('DSC-0024') || errorText.includes('DSC-0018') || errorText.includes('ANGX-0004'))) {
+      throw new Error('SSOID_EXPIRED');
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('SSOID_EXPIRED');
+    }
+    throw new Error(`Betfair API error ${res.status}: ${errorText}`);
   }
   return res.json();
 }
@@ -198,6 +206,11 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
+    if (e.message === 'SSOID_EXPIRED') {
+      return new Response(JSON.stringify({ 
+        error: 'Seu SSOID expirou. Acesse a Betfair, copie um novo SSOID e atualize nas Configurações → Conexões → Betfair.' 
+      }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
