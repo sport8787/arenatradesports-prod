@@ -11,6 +11,7 @@ import type { Match } from '@/components/dashboard/MatchCard';
 export interface MycroftAnalysisData {
   id: string;
   verdict: string;
+  plan_name?: string | null;
   market: string;
   odd: number;
   confidence: number;
