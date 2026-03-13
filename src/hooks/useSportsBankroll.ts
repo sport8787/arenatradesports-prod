@@ -99,46 +99,54 @@ export function useSportsBankroll() {
 
     console.log('[SportsBankroll] Inserting bet:', { user_id: user.id, signal_id: analysis.id, match_id: analysis.match_id, market: analysis.market, odd: analysis.odd, stake });
 
-    const withTimeout = async <T,>(promise: Promise<T>, ms = 12000): Promise<T> => {
+    const withTimeout = async <T,>(promise: PromiseLike<T>, ms = 12000): Promise<T> => {
       return await Promise.race([
-        promise,
+        Promise.resolve(promise),
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout na comunicação com o servidor')), ms)),
       ]);
     };
 
-    const { data: bet, error: betError } = await withTimeout(
-      supabase
-        .from('virtual_bets')
-        .insert({
-          user_id: user.id,
-          signal_id: analysis.id,
-          match_id: String(analysis.match_id),
-          match_name: matchName,
-          market: analysis.market,
-          odd: Number(analysis.odd),
-          stake,
-          status: 'pending',
-        })
-        .select()
-        .single()
+    const betResponse = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from('virtual_bets')
+          .insert({
+            user_id: user.id,
+            signal_id: analysis.id,
+            match_id: String(analysis.match_id),
+            match_name: matchName,
+            market: analysis.market,
+            odd: Number(analysis.odd),
+            stake,
+            status: 'pending',
+          })
+          .select()
+          .single()
+      )
     );
+
+    const { data: bet, error: betError } = betResponse;
 
     if (betError) {
       console.error('[SportsBankroll] Insert error:', betError);
       return { success: false, error: betError.message };
     }
 
-    const { error: updateError } = await withTimeout(
-      supabase
-        .from('sports_bankroll' as any)
-        .update({
-          balance: bankroll.balance - stake,
-          total_staked: bankroll.total_staked + stake,
-          total_bets: bankroll.total_bets + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
+    const updateResponse = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from('sports_bankroll' as any)
+          .update({
+            balance: bankroll.balance - stake,
+            total_staked: bankroll.total_staked + stake,
+            total_bets: bankroll.total_bets + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+      )
     );
+
+    const { error: updateError } = updateResponse;
 
     if (updateError) {
       console.error('[SportsBankroll] Bankroll update error:', updateError);
