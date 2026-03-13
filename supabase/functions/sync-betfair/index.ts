@@ -119,6 +119,13 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    // Parse request body for options
+    let forceResync = false;
+    try {
+      const body = await req.json();
+      forceResync = body?.forceResync === true;
+    } catch {}
+
     const { data: { user }, error: authError } = await createClient(
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
@@ -135,8 +142,16 @@ serve(async (req) => {
     const sessionToken = connection.session_token;
     if (!sessionToken) return new Response(JSON.stringify({ error: 'SSOID não configurado. Atualize o token nas configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    // If force resync, delete old betfair imported bets and reset date
+    if (forceResync) {
+      console.log('[BetfairSync] Force resync: deleting old betfair bets...');
+      await supabase.from('imported_bets').delete().eq('user_id', user.id).eq('source', 'betfair');
+    }
+
     const batchId = crypto.randomUUID();
-    const fromDate = connection.last_sync_at || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const fromDate = forceResync
+      ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+      : (connection.last_sync_at || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
     console.log('[BetfairSync] Fetching settled orders...');
     const settledData = await bfPost('listClearedOrders', {
