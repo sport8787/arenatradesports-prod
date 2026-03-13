@@ -119,18 +119,21 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
         away_team: match.away,
       });
 
-    if (result.success) {
-      // Also record in signal history
-      if (analysis.id) {
-        await recordAction(analysis.id, 'entered', result.stake);
+      if (result.success) {
+        if (analysis.id) {
+          await recordAction(analysis.id, 'entered', result.stake);
+        }
+        toast({
+          title: '💰 Entrada registrada!',
+          description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
+        });
+        onClose();
+      } else {
+        toast({ title: '❌ Erro', description: result.error });
       }
-      toast({
-        title: '💰 Entrada registrada!',
-        description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
-      });
-      onClose();
-    } else {
-      toast({ title: '❌ Erro', description: result.error });
+    } catch (err: any) {
+      console.error('Bet placement error:', err);
+      toast({ title: '❌ Erro', description: err?.message || 'Erro ao registrar entrada' });
     }
 
     setPlacing(false);
