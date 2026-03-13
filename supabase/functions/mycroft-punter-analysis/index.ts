@@ -414,22 +414,156 @@ function calcTotalsProb(t:any) {
 }
 
 // AI call
+function recoverPartialAnalysis(raw: string) {
+  const esc = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const getString = (key: string) => {
+    const match = raw.match(new RegExp(`"${esc(key)}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`))
+    return match?.[1]?.replace(/\\"/g, '"').trim() ?? null
+  }
+  const getNumber = (key: string) => {
+    const match = raw.match(new RegExp(`"${esc(key)}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`))
+    return match ? Number(match[1]) : null
+  }
+
+  const verdictRaw = getString('verdict')
+  const market = getString('market')
+  const odd = getNumber('odd')
+
+  if (!verdictRaw && !market && odd == null) return null
+
+  return {
+    verdict: verdictRaw?.toUpperCase().includes('APROVADO') ? 'APROVADO' : 'VETADO',
+    tier: getNumber('tier'),
+    model_level: getString('model_level') ?? 'NIVEL_3',
+    market: market,
+    bookmaker: getString('bookmaker') ?? 'N/A',
+    odd: odd ?? 0,
+    fair_odd: getNumber('fair_odd'),
+    implied_probability: getNumber('implied_probability'),
+    estimated_probability: getNumber('estimated_probability'),
+    expected_value: getNumber('expected_value') ?? 0,
+    value_percentage: getNumber('value_percentage') ?? getNumber('edge_percentage') ?? getNumber('ev_percentage') ?? getNumber('edge') ?? 0,
+    confidence: getNumber('confidence') ?? 0,
+    data_strength: getString('data_strength'),
+    stake_percentage: getNumber('stake_percentage') ?? 0,
+    thesis: getString('thesis') ?? 'Resposta parcial recuperada da IA.',
+    analysis: getString('analysis') ?? 'Saída truncada da IA; recomendação registrada com fallback conservador.',
+    risk_factors: getString('risk_factors') ?? 'Dados incompletos na resposta da IA.',
+    api_predictions_agree: null,
+  }
+}
+
+function parseStructuredJson(raw: string) {
+  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  if (!cleaned) throw new Error('Empty response')
+
+  const tryParse = (text: string) => {
+    try { return JSON.parse(text) } catch { return null }
+  }
+
+  const direct = tryParse(cleaned)
+  if (direct) return direct
+
+  const start = cleaned.indexOf('{')
+  if (start === -1) throw new Error('No JSON')
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (ch === '\\') {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+
+    if (ch === '{') depth++
+    if (ch === '}') depth--
+
+    if (depth === 0) {
+      const candidate = cleaned.slice(start, i + 1)
+      const parsed = tryParse(candidate)
+      if (parsed) return parsed
+    }
+  }
+
+  const tail = cleaned.slice(start)
+  const openCount = (tail.match(/\{/g) || []).length
+  const closeCount = (tail.match(/\}/g) || []).length
+
+  if (openCount > closeCount) {
+    const repaired = `${tail}${'}'.repeat(openCount - closeCount)}`
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']')
+
+    const parsed = tryParse(repaired)
+    if (parsed) {
+      console.warn(`[Mycroft Punter] JSON reparado automaticamente (faltavam ${openCount - closeCount} chaves)`)
+      return parsed
+    }
+  }
+
+  const recovered = recoverPartialAnalysis(cleaned)
+  if (recovered) {
+    console.warn('[Mycroft Punter] JSON parcial recuperado via fallback heurístico')
+    return recovered
+  }
+
+  throw new Error('No JSON')
+}
+
 async function callGemini(sys:string, usr:string) {
   const key = Deno.env.get('GEMINI_API_KEY')
   if(!key) throw new Error('GEMINI_API_KEY not configured')
-  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-    method:'POST', headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
-    body: JSON.stringify({model:'gemini-2.5-flash',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.3,max_tokens:4000,response_format:{type:'json_object'}})
+
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${sys}\n\n${usr}` }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2500,
+        responseMimeType: 'application/json',
+      },
+    }),
   })
+
   if(!r.ok) {
     const errBody = await r.text()
     console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0,500)}`)
+    if (r.status === 429) throw new Error('RATE_LIMITED')
     throw new Error(`Gemini error ${r.status}`)
   }
+
   const data = await r.json()
-  const content = data.choices?.[0]?.message?.content || ''
-  if(!content) console.error('[Mycroft Punter] Empty Gemini response, usage:', JSON.stringify(data.usage||{}))
-  return content
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+  if(!content) {
+    const finishReason = data.candidates?.[0]?.finishReason
+    console.error('[Mycroft Punter] Empty Gemini response, finishReason:', finishReason)
+    throw new Error('Empty response')
+  }
+
+  return parseStructuredJson(content)
 }
 
 // Main analysis
@@ -497,7 +631,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
+  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE TAMANHO: thesis até 280 caracteres, analysis até 500 caracteres, risk_factors até 220 caracteres.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
@@ -520,15 +654,7 @@ Edge≥2% + Confiança≥58% = APROVAR. META: 50-70%. MAIOR EDGE = mercado recom
 
   for (let att=0;att<3;att++) {
     try {
-      const txt = await callGemini(sysPr, usrPr)
-      if(!txt) { console.error(`[Mycroft Punter] Empty response (attempt ${att+1})`); if(att<2) continue; throw new Error('Empty response') }
-      const clean=txt.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()
-      let parsed:any = null
-      try { parsed = JSON.parse(clean) } catch {
-        const jm=clean.match(/\{[\s\S]*\}/)
-        if(!jm) { console.error(`[Mycroft Punter] No JSON (attempt ${att+1}), response preview: ${clean.substring(0,200)}`); if(att<2) continue; throw new Error('No JSON') }
-        parsed = JSON.parse(jm[0])
-      }
+      const parsed = await callGemini(sysPr, usrPr)
       const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       if(a.value_percentage==null) a.value_percentage=a.edge_percentage||a.ev_percentage||a.edge||a.value||null
