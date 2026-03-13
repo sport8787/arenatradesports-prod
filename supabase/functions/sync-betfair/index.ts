@@ -206,6 +206,11 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
+    if (e.message === 'SSOID_EXPIRED') {
+      return new Response(JSON.stringify({ 
+        error: 'Seu SSOID expirou. Acesse a Betfair, copie um novo SSOID e atualize nas Configurações → Conexões → Betfair.' 
+      }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
