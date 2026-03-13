@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, AlertTriangle, Banknote, Shield, Clock, Zap, ToggleLeft, ToggleRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Banknote, Clock, Zap, ToggleLeft, ToggleRight, Eye, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { Slider } from '@/components/ui/slider';
 
 interface Position {
   id: string;
@@ -18,6 +19,8 @@ interface Position {
   mycroft_cashout_signal: boolean;
   mycroft_cashout_reason: string | null;
   auto_cashout_enabled: boolean;
+  auto_cashout_min_value: number | null;
+  odd_fonte: string | null;
   last_cashout_update: string | null;
   created_at: string;
 }
@@ -32,6 +35,7 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [cashingOut, setCashingOut] = useState<string | null>(null);
+  const [editingMinValue, setEditingMinValue] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -39,7 +43,7 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
     async function fetchPositions() {
       const { data } = await supabase
         .from('virtual_bets')
-        .select('id, match_name, market, odd, stake, entry_odd, current_odd, cashout_value, mycroft_cashout_signal, mycroft_cashout_reason, auto_cashout_enabled, last_cashout_update, created_at')
+        .select('id, match_name, market, odd, stake, entry_odd, current_odd, cashout_value, mycroft_cashout_signal, mycroft_cashout_reason, auto_cashout_enabled, auto_cashout_min_value, odd_fonte, last_cashout_update, created_at')
         .eq('user_id', user!.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -50,17 +54,9 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
 
     fetchPositions();
 
-    // Realtime updates
     const channel = supabase
       .channel(`positions_${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'virtual_bets',
-        filter: `user_id=eq.${user.id}`,
-      }, () => {
-        fetchPositions();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'virtual_bets', filter: `user_id=eq.${user.id}` }, () => fetchPositions())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -70,6 +66,15 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
     if (!pos.cashout_value || cashingOut) return;
     setCashingOut(pos.id);
     
+    // Log signal acceptance
+    await supabase.from('cashout_signals_log' as any).insert({
+      bet_id: pos.id, user_id: user!.id, match_id: '', match_name: pos.match_name,
+      market: pos.market, entry_odd: pos.entry_odd || pos.odd,
+      current_odd: pos.current_odd || pos.odd, cashout_value: pos.cashout_value,
+      stake: pos.stake, signal_type: 'MANUAL', position_health: pos.mycroft_cashout_signal ? 'CRITICAL' : 'HEALTHY',
+      mycroft_reason: 'Cash out manual pelo trader', was_accepted: true, accepted_at: new Date().toISOString(),
+    });
+
     const result = await onCashOut(pos.id, pos.cashout_value);
     if (result.success) {
       toast({ title: '💰 Cash Out realizado!', description: `R$ ${pos.cashout_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} devolvido à banca` });
@@ -82,13 +87,15 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
 
   const toggleAutoCashout = async (pos: Position) => {
     const newVal = !pos.auto_cashout_enabled;
-    await supabase
-      .from('virtual_bets')
-      .update({ auto_cashout_enabled: newVal })
-      .eq('id', pos.id);
-    
+    await supabase.from('virtual_bets').update({ auto_cashout_enabled: newVal } as any).eq('id', pos.id);
     setPositions(prev => prev.map(p => p.id === pos.id ? { ...p, auto_cashout_enabled: newVal } : p));
     toast({ title: newVal ? '🤖 Auto Cash Out ativado' : '🔒 Auto Cash Out desativado' });
+  };
+
+  const updateMinValue = async (pos: Position, pct: number) => {
+    const minVal = parseFloat((pos.stake * pct / 100).toFixed(2));
+    await supabase.from('virtual_bets').update({ auto_cashout_min_value: minVal } as any).eq('id', pos.id);
+    setPositions(prev => prev.map(p => p.id === pos.id ? { ...p, auto_cashout_min_value: minVal } : p));
   };
 
   if (loading || positions.length === 0) return null;
@@ -111,30 +118,21 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
             const pnl = cashoutValue - pos.stake;
             const pnlPct = ((cashoutValue / pos.stake) - 1) * 100;
             const isProfit = pnl >= 0;
+            const isEstimated = pos.odd_fonte !== 'real';
+            const minPct = pos.auto_cashout_min_value ? Math.round((pos.auto_cashout_min_value / pos.stake) * 100) : 80;
             const healthColor = pos.mycroft_cashout_signal 
               ? 'border-destructive/50 bg-destructive/5' 
-              : isProfit 
-                ? 'border-success/30 bg-success/5' 
-                : 'border-warning/30 bg-warning/5';
+              : isProfit ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5';
 
             return (
-              <motion.div
-                key={pos.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className={cn('border rounded-xl p-4 space-y-3', healthColor)}
-              >
+              <motion.div key={pos.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+                className={cn('border rounded-xl p-4 space-y-3', healthColor)}>
+                
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="font-orbitron text-xs font-bold text-foreground truncate">
-                      {pos.match_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {pos.market} @ {entryOdd.toFixed(2)}
-                    </p>
+                    <p className="font-orbitron text-xs font-bold text-foreground truncate">{pos.match_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{pos.market} @ {entryOdd.toFixed(2)}</p>
                   </div>
                   <div className={cn('flex items-center gap-1 text-xs font-bold', isProfit ? 'text-success' : 'text-destructive')}>
                     {isProfit ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
@@ -158,7 +156,7 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
                   </div>
                 </div>
 
-                {/* Odd movement */}
+                {/* Odd movement + fonte indicator */}
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-muted-foreground">Odd:</span>
                   <span className="font-mono">{entryOdd.toFixed(2)}</span>
@@ -166,6 +164,18 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
                   <span className={cn('font-mono font-bold', currentOdd < entryOdd ? 'text-success' : currentOdd > entryOdd ? 'text-destructive' : 'text-foreground')}>
                     {currentOdd.toFixed(2)}
                   </span>
+
+                  {/* Odd fonte badge */}
+                  {isEstimated ? (
+                    <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-warning/15 border border-warning/30 text-warning text-[10px] font-bold">
+                      <Eye className="w-2.5 h-2.5" /> EST
+                    </span>
+                  ) : (
+                    <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-success/15 border border-success/30 text-success text-[10px] font-bold">
+                      <Shield className="w-2.5 h-2.5" /> REAL
+                    </span>
+                  )}
+
                   {pos.last_cashout_update && (
                     <span className="text-muted-foreground ml-auto flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -174,13 +184,18 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
                   )}
                 </div>
 
+                {/* Estimated odd warning */}
+                {isEstimated && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-warning/10 border border-warning/20 rounded-lg">
+                    <Eye className="w-3.5 h-3.5 text-warning flex-shrink-0" />
+                    <p className="text-[10px] text-warning">Odd estimada por IA — pode divergir do mercado real</p>
+                  </div>
+                )}
+
                 {/* Mycroft signal */}
                 {pos.mycroft_cashout_signal && pos.mycroft_cashout_reason && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/30 rounded-lg"
-                  >
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                    className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/30 rounded-lg">
                     <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs font-bold text-destructive">Mycroft recomenda sair</p>
@@ -191,35 +206,41 @@ export default function ActivePositions({ onCashOut }: ActivePositionsProps) {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleCashOut(pos)}
-                    disabled={cashingOut === pos.id || !pos.cashout_value}
+                  <button onClick={() => handleCashOut(pos)} disabled={cashingOut === pos.id || !pos.cashout_value}
                     className={cn(
                       'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-orbitron text-xs font-bold uppercase transition-all disabled:opacity-50',
                       pos.mycroft_cashout_signal
                         ? 'bg-destructive text-destructive-foreground animate-pulse'
-                        : isProfit
-                          ? 'bg-success text-success-foreground hover:brightness-110'
-                          : 'bg-warning text-warning-foreground hover:brightness-110'
-                    )}
-                  >
+                        : isProfit ? 'bg-success text-success-foreground hover:brightness-110' : 'bg-warning text-warning-foreground hover:brightness-110'
+                    )}>
                     <Banknote className="w-4 h-4" />
                     {cashingOut === pos.id ? 'Saindo...' : `CASH OUT R$ ${cashoutValue.toFixed(2)}`}
                   </button>
 
-                  <button
-                    onClick={() => toggleAutoCashout(pos)}
+                  <button onClick={() => toggleAutoCashout(pos)}
                     className={cn(
                       'p-2.5 rounded-lg border transition-all',
-                      pos.auto_cashout_enabled 
-                        ? 'border-primary bg-primary/10 text-primary' 
-                        : 'border-border text-muted-foreground hover:text-foreground'
+                      pos.auto_cashout_enabled ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
                     )}
-                    title={pos.auto_cashout_enabled ? 'Auto Cash Out ativo' : 'Ativar Auto Cash Out'}
-                  >
+                    title={pos.auto_cashout_enabled ? 'Auto Cash Out ativo' : 'Ativar Auto Cash Out'}>
                     {pos.auto_cashout_enabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                   </button>
                 </div>
+
+                {/* Auto cashout min value slider */}
+                {pos.auto_cashout_enabled && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-1.5 pt-1 border-t border-border/50">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-muted-foreground font-orbitron uppercase">Proteção mínima</p>
+                      <p className="text-xs font-bold text-foreground">{minPct}% (R$ {(pos.auto_cashout_min_value ?? pos.stake * 0.8).toFixed(2)})</p>
+                    </div>
+                    <Slider defaultValue={[minPct]} min={30} max={100} step={5}
+                      onValueCommit={(val) => updateMinValue(pos, val[0])}
+                      className="w-full" />
+                    <p className="text-[9px] text-muted-foreground">Auto-cashout só executa se valor ≥ {minPct}% do stake</p>
+                  </motion.div>
+                )}
               </motion.div>
             );
           })}

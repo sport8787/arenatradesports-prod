@@ -1083,6 +1083,78 @@ export type Database = {
         }
         Relationships: []
       }
+      cashout_signals_log: {
+        Row: {
+          accepted_at: string | null
+          bet_id: string
+          bet_would_have_won: boolean | null
+          cashout_value: number
+          confidence: number | null
+          created_at: string | null
+          current_odd: number
+          entry_odd: number
+          id: string
+          market: string
+          match_final_result: string | null
+          match_final_score: string | null
+          match_id: string
+          match_name: string
+          mycroft_reason: string | null
+          position_health: string
+          potential_profit_loss: number | null
+          signal_type: string
+          stake: number
+          user_id: string
+          was_accepted: boolean | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          bet_id: string
+          bet_would_have_won?: boolean | null
+          cashout_value: number
+          confidence?: number | null
+          created_at?: string | null
+          current_odd: number
+          entry_odd: number
+          id?: string
+          market: string
+          match_final_result?: string | null
+          match_final_score?: string | null
+          match_id: string
+          match_name: string
+          mycroft_reason?: string | null
+          position_health: string
+          potential_profit_loss?: number | null
+          signal_type?: string
+          stake: number
+          user_id: string
+          was_accepted?: boolean | null
+        }
+        Update: {
+          accepted_at?: string | null
+          bet_id?: string
+          bet_would_have_won?: boolean | null
+          cashout_value?: number
+          confidence?: number | null
+          created_at?: string | null
+          current_odd?: number
+          entry_odd?: number
+          id?: string
+          market?: string
+          match_final_result?: string | null
+          match_final_score?: string | null
+          match_id?: string
+          match_name?: string
+          mycroft_reason?: string | null
+          position_health?: string
+          potential_profit_loss?: number | null
+          signal_type?: string
+          stake?: number
+          user_id?: string
+          was_accepted?: boolean | null
+        }
+        Relationships: []
+      }
       consent_records: {
         Row: {
           consent_given: boolean
@@ -3401,6 +3473,7 @@ export type Database = {
       virtual_bets: {
         Row: {
           auto_cashout_enabled: boolean | null
+          auto_cashout_min_value: number | null
           cashed_out_at: string | null
           cashout_odd: number | null
           cashout_value: number | null
@@ -3415,6 +3488,7 @@ export type Database = {
           mycroft_cashout_reason: string | null
           mycroft_cashout_signal: boolean | null
           odd: number
+          odd_fonte: string | null
           placed_at: string | null
           profit_loss: number | null
           red_card_away: boolean | null
@@ -3429,6 +3503,7 @@ export type Database = {
         }
         Insert: {
           auto_cashout_enabled?: boolean | null
+          auto_cashout_min_value?: number | null
           cashed_out_at?: string | null
           cashout_odd?: number | null
           cashout_value?: number | null
@@ -3443,6 +3518,7 @@ export type Database = {
           mycroft_cashout_reason?: string | null
           mycroft_cashout_signal?: boolean | null
           odd: number
+          odd_fonte?: string | null
           placed_at?: string | null
           profit_loss?: number | null
           red_card_away?: boolean | null
@@ -3457,6 +3533,7 @@ export type Database = {
         }
         Update: {
           auto_cashout_enabled?: boolean | null
+          auto_cashout_min_value?: number | null
           cashed_out_at?: string | null
           cashout_odd?: number | null
           cashout_value?: number | null
@@ -3471,6 +3548,7 @@ export type Database = {
           mycroft_cashout_reason?: string | null
           mycroft_cashout_signal?: boolean | null
           odd?: number
+          odd_fonte?: string | null
           placed_at?: string | null
           profit_loss?: number | null
           red_card_away?: boolean | null
