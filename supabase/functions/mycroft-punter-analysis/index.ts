@@ -414,6 +414,45 @@ function calcTotalsProb(t:any) {
 }
 
 // AI call
+function recoverPartialAnalysis(raw: string) {
+  const esc = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const getString = (key: string) => {
+    const match = raw.match(new RegExp(`"${esc(key)}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`))
+    return match?.[1]?.replace(/\\"/g, '"').trim() ?? null
+  }
+  const getNumber = (key: string) => {
+    const match = raw.match(new RegExp(`"${esc(key)}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`))
+    return match ? Number(match[1]) : null
+  }
+
+  const verdictRaw = getString('verdict')
+  const market = getString('market')
+  const odd = getNumber('odd')
+
+  if (!verdictRaw && !market && odd == null) return null
+
+  return {
+    verdict: verdictRaw?.toUpperCase().includes('APROVADO') ? 'APROVADO' : 'VETADO',
+    tier: getNumber('tier'),
+    model_level: getString('model_level') ?? 'NIVEL_3',
+    market: market,
+    bookmaker: getString('bookmaker') ?? 'N/A',
+    odd: odd ?? 0,
+    fair_odd: getNumber('fair_odd'),
+    implied_probability: getNumber('implied_probability'),
+    estimated_probability: getNumber('estimated_probability'),
+    expected_value: getNumber('expected_value') ?? 0,
+    value_percentage: getNumber('value_percentage') ?? getNumber('edge_percentage') ?? getNumber('ev_percentage') ?? getNumber('edge') ?? 0,
+    confidence: getNumber('confidence') ?? 0,
+    data_strength: getString('data_strength'),
+    stake_percentage: getNumber('stake_percentage') ?? 0,
+    thesis: getString('thesis') ?? 'Resposta parcial recuperada da IA.',
+    analysis: getString('analysis') ?? 'Saída truncada da IA; recomendação registrada com fallback conservador.',
+    risk_factors: getString('risk_factors') ?? 'Dados incompletos na resposta da IA.',
+    api_predictions_agree: null,
+  }
+}
+
 function parseStructuredJson(raw: string) {
   const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   if (!cleaned) throw new Error('Empty response')
@@ -461,7 +500,6 @@ function parseStructuredJson(raw: string) {
     }
   }
 
-  // Best-effort repair for truncated endings (missing closing braces)
   const tail = cleaned.slice(start)
   const openCount = (tail.match(/\{/g) || []).length
   const closeCount = (tail.match(/\}/g) || []).length
@@ -476,6 +514,12 @@ function parseStructuredJson(raw: string) {
       console.warn(`[Mycroft Punter] JSON reparado automaticamente (faltavam ${openCount - closeCount} chaves)`)
       return parsed
     }
+  }
+
+  const recovered = recoverPartialAnalysis(cleaned)
+  if (recovered) {
+    console.warn('[Mycroft Punter] JSON parcial recuperado via fallback heurístico')
+    return recovered
   }
 
   throw new Error('No JSON')
