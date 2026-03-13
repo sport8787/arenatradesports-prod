@@ -94,21 +94,19 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
 
   const handleEntered = async () => {
     if (!analysis || !match) return;
-    
-    // Validate odd before placing bet
+
     if (!analysis.odd || analysis.odd <= 0) {
       toast({ title: '❌ Erro', description: 'Odd inválida — análise pode estar incompleta (truncada)' });
       return;
     }
-    
-    setPlacing(true);
 
     if (!bankrollProps) {
       toast({ title: '❌ Erro', description: 'Banca não disponível' });
-      setPlacing(false);
       return;
     }
-    
+
+    setPlacing(true);
+
     try {
       const betPayload = {
         id: analysis.id,
@@ -118,30 +116,36 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
         home_team: match.home,
         away_team: match.away,
       };
-      console.log('[AnalysisModal] placeBet payload:', JSON.stringify(betPayload));
-      
-      const result = await bankrollProps.placeBet(betPayload);
-      console.log('[AnalysisModal] placeBet result:', JSON.stringify(result));
+
+      const result = await Promise.race([
+        bankrollProps.placeBet(betPayload),
+        new Promise<{ success: false; error: string }>((resolve) =>
+          setTimeout(() => resolve({ success: false, error: 'Timeout ao registrar entrada. Tente novamente.' }), 12000)
+        ),
+      ]);
 
       if (result.success) {
-        if (analysis.id) {
-          await recordAction(analysis.id, 'entered', result.stake);
-        }
+        // Não bloquear UX por falha/latência em histórico
+        void recordAction(analysis.id, 'entered', result.stake).catch((e) => {
+          console.error('[AnalysisModal] recordAction failed (non-blocking):', e);
+        });
+
         toast({
           title: '💰 Entrada registrada!',
           description: `Stake: R$ ${result.stake?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Boa sorte!`,
         });
         onClose();
-      } else {
-        console.error('[AnalysisModal] placeBet failed:', result.error);
-        toast({ title: '❌ Erro', description: result.error || 'Erro desconhecido ao registrar entrada' });
+        return;
       }
+
+      console.error('[AnalysisModal] placeBet failed:', result.error);
+      toast({ title: '❌ Erro', description: result.error || 'Erro desconhecido ao registrar entrada' });
     } catch (err: any) {
       console.error('[AnalysisModal] Bet placement exception:', err);
       toast({ title: '❌ Erro', description: err?.message || 'Erro ao registrar entrada' });
+    } finally {
+      setPlacing(false);
     }
-
-    setPlacing(false);
   };
 
   const handleDismissed = async () => {
