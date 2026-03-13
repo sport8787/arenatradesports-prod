@@ -97,15 +97,17 @@ export function useSportsBankroll() {
       ? `${analysis.home_team} vs ${analysis.away_team}`
       : analysis.match_id;
 
+    console.log('[SportsBankroll] Inserting bet:', { user_id: user.id, signal_id: analysis.id, match_id: analysis.match_id, market: analysis.market, odd: analysis.odd, stake });
+
     const { data: bet, error: betError } = await supabase
       .from('virtual_bets')
       .insert({
         user_id: user.id,
         signal_id: analysis.id,
-        match_id: analysis.match_id,
+        match_id: String(analysis.match_id),
         match_name: matchName,
         market: analysis.market,
-        odd: analysis.odd,
+        odd: Number(analysis.odd),
         stake: stake,
         status: 'pending',
       })
@@ -113,6 +115,7 @@ export function useSportsBankroll() {
       .single();
 
     if (betError) {
+      console.error('[SportsBankroll] Insert error:', betError);
       return { success: false, error: betError.message };
     }
 
