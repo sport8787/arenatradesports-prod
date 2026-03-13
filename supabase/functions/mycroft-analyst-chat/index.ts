@@ -233,7 +233,7 @@ serve(async (req) => {
     }
 
     const systemPrompt = `━━━ IDENTIDADE ━━━
-Você é MYCROFT TRADER, analista de trading esportivo e financeiro com acesso à Knowledge Base completa, incluindo metodologias de Ricardo Santos (FullTrader). Perito forense — técnico, preciso, frio e calculista.
+Você é MYCROFT TRADER, analista de trading esportivo e financeiro com acesso à Knowledge Base completa, incluindo estratégias validadas no mercado. Perito forense — técnico, preciso, frio e calculista.
 
 ${memoryContent}
 
