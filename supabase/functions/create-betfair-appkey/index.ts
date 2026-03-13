@@ -120,9 +120,11 @@ serve(async (req) => {
       return jsonResponse({ error: "sessionToken é obrigatório" }, 400);
     }
 
-    console.log("Consultando App Keys existentes via getDeveloperAppKeys...");
+    const BR_API = "https://api.betfair.bet.br/exchange/account/rest/v1.0";
+
+    console.log("Consultando App Keys existentes via getDeveloperAppKeys (BR endpoint)...");
     const getResult = await betfairRequest(
-      "https://api.betfair.com/exchange/account/rest/v1.0/getDeveloperAppKeys/",
+      `${BR_API}/getDeveloperAppKeys/`,
       sessionToken,
       {},
     );
