@@ -342,7 +342,7 @@ Você recebe estas métricas do jogo (minuto 20-40):
   - Casa Win @ 1.90 (se odd justa)
   - Over 0.5 HT @ 1.85+
 - **Confiança:** 70-75%
-- **Fundamentação:** Ricardo Santos: "Assimetria garante lucro. Não precisa ser 10x0, basta ser superior com constância."
+- **Fundamentação:** Conforme estratégias validadas no mercado: "Assimetria garante lucro. Não precisa ser 10x0, basta ser superior com constância."
 
 **2. PRESSÃO SEM GOL (Over HT)**
 - **Conceito:** Time ataca muito, mas ainda não marcou; a tendência é que o gol saia.
