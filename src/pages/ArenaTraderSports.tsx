@@ -300,7 +300,11 @@ export default function ArenaTraderSports() {
             </GoldButton>
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
-              {isSettling ? 'Liquidando...' : 'Liquidar Apostas'}
+              {isSettling ? 'Liquidando...' : 'Liquidar'}
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleEvaluateCashouts} disabled={isEvaluating} variant="outline">
+              <Banknote className={cn("w-4 h-4 mr-1", isEvaluating && "animate-spin")} />
+              {isEvaluating ? 'Avaliando...' : 'Avaliar Cash Out'}
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
