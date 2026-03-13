@@ -236,10 +236,16 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
             Configurações
           </button>.
         </p>
-        <Button onClick={handleSync} disabled={syncing} variant="outline" className="w-full">
-          <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
-          {syncing ? 'Sincronizando...' : 'Sincronizar Betfair'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => handleSync(false)} disabled={syncing} variant="outline" className="flex-1">
+            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+          </Button>
+          <Button onClick={() => handleSync(true)} disabled={syncing} variant="secondary" className="flex-1">
+            <RefreshCw className={cn("w-4 h-4 mr-2", syncing && "animate-spin")} />
+            {syncing ? '...' : 'Re-sync Completo'}
+          </Button>
+        </div>
       </motion.div>
 
       {/* CSV/PDF/Image Import */}

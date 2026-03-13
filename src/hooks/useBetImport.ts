@@ -146,12 +146,14 @@ export function useBetImport() {
     }
   }, [user, format]);
 
-  const syncBetfair = useCallback(async () => {
+  const syncBetfair = useCallback(async (forceResync = false) => {
     if (!user) return { success: false, error: 'Não autenticado' };
     setSyncing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('sync-betfair');
+      const { data, error } = await supabase.functions.invoke('sync-betfair', {
+        body: { forceResync },
+      });
       if (error) {
         // Try to extract the error message from the response body
         let msg = error.message || 'Erro desconhecido';
