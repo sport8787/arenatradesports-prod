@@ -402,9 +402,11 @@ export default function ArenaTraderSports() {
           balance: bankroll.balance,
           recommendedStake: Math.round(bankroll.balance * 0.05 * 100) / 100,
           placeBet: async (a) => {
-            const result = await placeBet(a);
+            // Use the API match_id (matchId) instead of DB row id
+            const matchId = selectedMatch?.matchId || a.match_id;
+            const result = await placeBet({ ...a, match_id: matchId });
             if (result.success) {
-              setBettedMatchIds(prev => new Set([...prev, a.match_id]));
+              setBettedMatchIds(prev => new Set([...prev, matchId]));
             }
             return result;
           },
