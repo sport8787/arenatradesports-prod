@@ -93,7 +93,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   };
 
   const handleEntered = async () => {
-    if (!analysis) return;
+    if (!analysis || !match) return;
     
     // Validate odd before placing bet
     if (!analysis.odd || analysis.odd <= 0) {
@@ -108,14 +108,16 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
       setPlacing(false);
       return;
     }
-    const result = await bankrollProps.placeBet({
-      id: analysis.id,
-      match_id: match.matchId || match.id,
-      market: analysis.market,
-      odd: analysis.odd,
-      home_team: match.home,
-      away_team: match.away,
-    });
+    
+    try {
+      const result = await bankrollProps.placeBet({
+        id: analysis.id,
+        match_id: match.matchId || match.id,
+        market: analysis.market,
+        odd: analysis.odd,
+        home_team: match.home,
+        away_team: match.away,
+      });
 
     if (result.success) {
       // Also record in signal history
