@@ -178,7 +178,7 @@ serve(async (req) => {
 
     return jsonResponse({
       success: true,
-      source: "existing",
+      source: keys.appName ? "existing" : "created",
       appName: keys.appName,
       delayedKey: keys.delayedKey,
       liveKey: keys.liveKey,
