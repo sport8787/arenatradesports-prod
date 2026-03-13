@@ -649,8 +649,8 @@ ${totals.length?`TOTALS: ${totals.map((t:any)=>`${t.bookmaker}: O${t.line} ${t.o
 ${calcProb(odds[0])} ${totals.length?calcTotalsProb(totals[0]):''}
 ${method?`KB: ${method.substring(0,500)}`:''}${vGuide?`\nGuia: ${vGuide.substring(0,500)}`:''}
 
-Retorne JSON: {"verdict":"APROVADO"|"VETADO","tier":1|2|3|null,"model_level":"${en.model_level}","market":${mkts.join('|')}|null,"bookmaker":"...","odd":0,"fair_odd":0,"implied_probability":0,"estimated_probability":0,"expected_value":0,"value_percentage":0,"confidence":0,"data_strength":"${dsl}","stake_percentage":0,"thesis":"...","analysis":"...","risk_factors":"...","api_predictions_agree":null${incCorners?',"corner_prediction":{"line":0,"expected_total":0,"prob_over":0,"value":""}':''}${incCards?',"card_prediction":{"market":"","expected_total":0,"prob_over":0,"value":""},"referee_impact":""':''}}
-Edge≥2% + Confiança≥58% = APROVAR. META: 50-70%. MAIOR EDGE = mercado recomendado.`
+Retorne JSON: {"verdict":"APROVADO_ELITE"|"APROVADO_FORTE"|"APROVADO_TEM_VALOR"|"VETADO","tier":1|2|3|null,"veto_reason":null|"...","model_level":"${en.model_level}","market":${mkts.join('|')}|null,"bookmaker":"...","odd":0,"baseline_sharp_odd":0,"implied_probability_sharp":0,"estimated_probability":0,"edge_percentage":0,"expected_value":0,"confidence":0,"data_strength":"${dsl}","stake_percentage":0,"filters_passed":[],"thesis":"...","analysis":"...","risk_factors":"...","api_predictions_agree":null${incCorners?',"corner_prediction":{"line":0,"expected_total":0,"prob_over":0,"value":""}':''}${incCards?',"card_prediction":{"market":"","expected_total":0,"prob_over":0,"value":""},"referee_impact":""':''}}
+SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no system prompt. MAIOR EDGE = mercado recomendado.`
 
   for (let att=0;att<3;att++) {
     try {
