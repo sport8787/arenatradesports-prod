@@ -16,6 +16,7 @@ import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
+import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -270,6 +271,7 @@ export default function ArenaTraderSports() {
           </div>
 
           <div className="flex items-center gap-2">
+            <LiveCronToggle />
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
               {isFetching ? 'Analisando...' : 'Fazer Análise'}
