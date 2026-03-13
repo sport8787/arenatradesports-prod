@@ -63,10 +63,27 @@ serve(async (req) => {
     const scoresData = await scoresRes.json();
     console.log('[CronLive] ✅ update-live-scores resultado:', JSON.stringify(scoresData));
 
+    // Call analyze-live-matches to trigger Mycroft analysis
+    const analyzeRes = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-live-matches`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ bankroll: 500 }),
+      }
+    );
+
+    const analyzeData = await analyzeRes.json();
+    console.log('[CronLive] ✅ analyze-live-matches resultado:', JSON.stringify(analyzeData));
+
     return new Response(JSON.stringify({
       success: true,
       fetch: fetchData,
       scores: scoresData,
+      analysis: analyzeData,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
