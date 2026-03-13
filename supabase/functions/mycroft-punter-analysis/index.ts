@@ -739,6 +739,27 @@ serve(async (req) => {
     console.log(`[Mycroft Punter] Total: ${games.length} jogos`)
     if(!games.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,leagues_scanned:leagues.length,message:`Nenhum jogo nas próximas ${hours_ahead}h`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
 
+    // ANTI-DUPLICATION: Fetch ALL existing bets (pending + settled) to skip already-bet matches
+    const { data: existingBets } = await sb.from('virtual_bets_punter').select('match_id, status').in('status', ['pending', 'green', 'red'])
+    const existingMatchIds = new Set((existingBets || []).map((b: any) => (b.match_id || '').toLowerCase()))
+    
+    // Filter out games that already have bets placed
+    const filteredGames = games.filter((g: any) => {
+      // Build match_id the same way the frontend does
+      const matchId = `${g.home_team}_${g.away_team}`.replace(/\s+/g, '_').toLowerCase()
+      // Also check with market suffix patterns (any market)
+      const hasExisting = [...existingMatchIds].some(eid => eid.startsWith(matchId))
+      if (hasExisting) {
+        console.log(`[Mycroft Punter] ⏭️ Pulando ${g.home_team} vs ${g.away_team} — aposta já existente`)
+      }
+      return !hasExisting
+    })
+    
+    const skippedCount = games.length - filteredGames.length
+    if (skippedCount > 0) console.log(`[Mycroft Punter] 🔒 ${skippedCount} jogos ignorados (apostas já existentes)`)
+    
+    if(!filteredGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,skipped_existing:skippedCount,leagues_scanned:leagues.length,message:`Todos os ${skippedCount} jogos já possuem apostas`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+
     // KB
     let meth='',vg='',cp=''
     try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('punter-methodology.md');if(d)meth=await d.text()}catch{}
