@@ -1,8 +1,7 @@
-import { ArrowLeft, Settings, Link2, Bell } from 'lucide-react';
+import { ArrowLeft, Settings, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
-import BetfairConfig from '@/components/punter/BetfairConfig';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 
 export default function PunterConfig() {
