@@ -6,8 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const BETFAIR_LOGIN_URL = 'https://identitysso.betfair.com/api/login';
-const BETFAIR_API_URL = 'https://api.betfair.com/exchange/betting/rest/v1.0';
+// Use BR endpoint to avoid geographic blocking
+const BETFAIR_API_URL = 'https://api.betfair.bet.br/exchange/betting/rest/v1.0';
+const BETFAIR_API_GLOBAL = 'https://api.betfair.com/exchange/betting/rest/v1.0';
 
 function getSupabaseAdmin() {
   return createClient(
@@ -16,25 +17,7 @@ function getSupabaseAdmin() {
   );
 }
 
-async function loginBetfair(appKey: string, username: string, password: string): Promise<string> {
-  const res = await fetch(BETFAIR_LOGIN_URL, {
-    method: 'POST',
-    headers: {
-      'X-Application': appKey,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-    },
-    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
-  });
-
-  const data = await res.json();
-  if (data.status !== 'SUCCESS' || !data.token) {
-    throw new Error(data.error || 'Betfair login failed');
-  }
-  return data.token;
-}
-
-async function fetchBetfairOrders(sessionToken: string, appKey: string, settled: boolean, fromDate?: string) {
+async function fetchBetfairOrders(sessionToken: string, appKey: string, settled: boolean, fromDate?: string, useBrEndpoint = true) {
   const endpoint = settled ? 'listClearedOrders' : 'listCurrentOrders';
   const body: any = {};
 
@@ -46,7 +29,9 @@ async function fetchBetfairOrders(sessionToken: string, appKey: string, settled:
     body.recordCount = 1000;
   }
 
-  const res = await fetch(`${BETFAIR_API_URL}/${endpoint}/`, {
+  const baseUrl = useBrEndpoint ? BETFAIR_API_URL : BETFAIR_API_GLOBAL;
+  
+  const res = await fetch(`${baseUrl}/${endpoint}/`, {
     method: 'POST',
     headers: {
       'X-Application': appKey,
@@ -59,6 +44,11 @@ async function fetchBetfairOrders(sessionToken: string, appKey: string, settled:
 
   if (!res.ok) {
     const errText = await res.text();
+    // If BR fails, try global as fallback
+    if (useBrEndpoint) {
+      console.log(`[BetfairSync] BR endpoint failed for ${endpoint}, trying global...`);
+      return fetchBetfairOrders(sessionToken, appKey, settled, fromDate, false);
+    }
     throw new Error(`Betfair API error ${res.status}: ${errText}`);
   }
 
@@ -147,36 +137,24 @@ serve(async (req) => {
       );
     }
 
-    // Login to Betfair
-    console.log('[BetfairSync] Logging in...');
-    let sessionToken: string;
-    try {
-      sessionToken = await loginBetfair(
-        connection.app_key,
-        connection.username,
-        connection.encrypted_password // In production, this should be decrypted
-      );
-    } catch (e) {
+    // Use stored SSOID directly — no login needed
+    const sessionToken = connection.session_token;
+    if (!sessionToken) {
       return new Response(
-        JSON.stringify({ error: `Login Betfair falhou: ${e.message}` }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'SSOID não configurado. Atualize o token nas configurações.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Save session token
-    await supabase
-      .from('bookmaker_connections')
-      .update({
-        session_token: sessionToken,
-        token_expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', connection.id);
+    // Check if token might be expired
+    if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
+      console.log('[BetfairSync] Token may be expired, attempting sync anyway...');
+    }
 
     const batchId = crypto.randomUUID();
     const fromDate = connection.last_sync_at || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch settled orders
+    // Fetch settled orders (tries BR first, falls back to global)
     console.log('[BetfairSync] Fetching settled orders...');
     const settledData = await fetchBetfairOrders(sessionToken, connection.app_key, true, fromDate);
     const settledOrders = settledData.clearedOrders || [];
