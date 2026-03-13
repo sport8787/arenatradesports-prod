@@ -298,13 +298,13 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
 
-    // Check if Hórus already bet on this match
+    // Check if Hórus already bet on this match (any status — prevents re-betting on re-analysis)
     const { data: existingBets } = await supabase
       .from('virtual_bets_punter')
       .select('id')
       .eq('user_id', user.id)
       .eq('match_id', matchId)
-      .eq('status', 'pending');
+      .in('status', ['pending', 'green', 'red']);
 
     if (existingBets && existingBets.length > 0) return false; // Already bet
 
@@ -449,12 +449,12 @@ export default function PunterPage() {
 
       // Auto-place Hórus bets — robust anti-duplication via fresh DB check
       if (bankroll && mergedSignals.length > 0) {
-        // Fetch ALL pending bets fresh from DB to prevent duplicates
+        // Fetch ALL bets (pending + settled) to prevent duplicates across re-analyses
         const { data: freshPending } = await supabase
           .from('virtual_bets_punter')
-          .select('match_id')
+          .select('match_id, status')
           .eq('user_id', user.id)
-          .eq('status', 'pending');
+          .in('status', ['pending', 'green', 'red']);
         
         const existingMatchIds = new Set(
           (freshPending || []).map((b: any) => (b.match_id || '').toLowerCase())
