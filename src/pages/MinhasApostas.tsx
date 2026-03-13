@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useManualBankroll } from '@/hooks/useManualBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
 interface ManualBet {
   id: string;
