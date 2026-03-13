@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Upload, RefreshCw, TrendingUp, TrendingDown, Wallet,
-  BarChart3, Target, FileText, Scale, ChevronDown
+  BarChart3, Target, FileText, Scale, ChevronDown, CheckCircle, XCircle, Clock
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBetImport } from '@/hooks/useBetImport';
@@ -79,11 +79,96 @@ export default function PunterImport() {
   );
 }
 
+// ─── Imported Bets List ───
+interface ImportedBet {
+  id: string;
+  event_name: string | null;
+  selection: string | null;
+  market: string;
+  odd: number;
+  stake: number;
+  profit_loss: number | null;
+  result: string | null;
+  bet_date: string | null;
+  bookmaker: string | null;
+  source: string;
+}
+
+function ImportedBetsList({ userId }: { userId: string }) {
+  const [bets, setBets] = useState<ImportedBet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('imported_bets')
+        .select('id, event_name, selection, market, odd, stake, profit_loss, result, bet_date, bookmaker, source')
+        .eq('user_id', userId)
+        .order('bet_date', { ascending: false })
+        .limit(50);
+      setBets((data as ImportedBet[]) || []);
+      setLoading(false);
+    })();
+  }, [userId]);
+
+  if (loading) return <p className="text-xs text-muted-foreground text-center py-4">Carregando apostas...</p>;
+  if (!bets.length) return <p className="text-xs text-muted-foreground text-center py-4">Nenhuma aposta importada ainda.</p>;
+
+  const resultIcon = (r: string | null) => {
+    if (r === 'green') return <CheckCircle className="w-3.5 h-3.5 text-success" />;
+    if (r === 'red') return <XCircle className="w-3.5 h-3.5 text-destructive" />;
+    return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
+
+  const totalPL = bets.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+      className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="font-mono text-xs font-bold text-foreground uppercase">Apostas Importadas</h3>
+        <span className={cn("font-mono text-xs font-bold", totalPL >= 0 ? "text-success" : "text-destructive")}>
+          P/L: {totalPL >= 0 ? '+' : ''}{totalPL.toFixed(2)}
+        </span>
+      </div>
+      <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+        {bets.map(bet => (
+          <div key={bet.id} className="px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors">
+            <div className="shrink-0">{resultIcon(bet.result)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground truncate">{bet.event_name || 'Evento desconhecido'}</p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {bet.selection || bet.market} • {bet.bookmaker || bet.source}
+              </p>
+              {bet.bet_date && (
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(bet.bet_date).toLocaleDateString('pt-BR')} {new Date(bet.bet_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs font-mono font-bold text-foreground">@{bet.odd.toFixed(2)}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">R${bet.stake.toFixed(2)}</p>
+              {bet.profit_loss != null && bet.result !== 'pending' && (
+                <p className={cn("text-[10px] font-mono font-bold", (bet.profit_loss || 0) >= 0 ? "text-success" : "text-destructive")}>
+                  {(bet.profit_loss || 0) >= 0 ? '+' : ''}{bet.profit_loss.toFixed(2)}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Import Tab ───
 function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () => void }) {
   const { syncBetfair, syncing } = useBetImport();
   const [importedCount, setImportedCount] = useState(0);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadStats();
@@ -103,6 +188,7 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
     if (result.success) {
       toast.success(`${result.synced} apostas sincronizadas da Betfair!`);
       loadStats();
+      setRefreshKey(k => k + 1);
     } else {
       toast.error(result.error || 'Erro ao sincronizar');
     }
@@ -175,6 +261,9 @@ function ImportTab({ userId, onOpenPanel }: { userId: string; onOpenPanel: () =>
           Importar Arquivo
         </Button>
       </motion.div>
+
+      {/* Imported Bets List */}
+      <ImportedBetsList key={refreshKey} userId={userId} />
     </div>
   );
 }
