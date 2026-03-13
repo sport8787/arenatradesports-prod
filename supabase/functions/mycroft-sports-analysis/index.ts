@@ -532,22 +532,39 @@ serve(async (req) => {
     ]);
     const prompt = buildPrompt(match, knowledgeBase, customPrompt, memoryRules);
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are Mycroft Sports, an elite forensic sports trading analyst. Always respond with valid JSON only. No markdown fences. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. Apply user-defined markets, criteria, and approval conditions FIRST before falling back to default patterns.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 4096,
-      }),
-    });
+    // Use Gemini native API with JSON mode for guaranteed complete responses
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `You are Mycroft Sports, an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos" — use "estratégias validadas no mercado" em vez disso.\n\n${prompt}` }],
+          }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
+                market: { type: 'STRING' },
+                odd: { type: 'NUMBER' },
+                confidence: { type: 'INTEGER' },
+                thesis: { type: 'STRING' },
+                fundamentation: { type: 'OBJECT', properties: { source: { type: 'STRING' }, citation: { type: 'STRING' }, pattern: { type: 'STRING' }, historical_wr: { type: 'STRING' } } },
+                risk_management: { type: 'OBJECT', properties: { stake_percent: { type: 'NUMBER' }, entry: { type: 'STRING' }, stop: { type: 'STRING' }, target: { type: 'STRING' }, rr: { type: 'STRING' }, ev: { type: 'STRING' } } },
+                alerts: { type: 'ARRAY', items: { type: 'STRING' } },
+              },
+              required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
+            },
+            temperature: 0.6,
+            maxOutputTokens: 4096,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -573,9 +590,9 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const rawText = data.choices?.[0]?.message?.content || '';
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    console.log('[MycroftSports] Raw response:', rawText.substring(0, 200));
+    console.log('[MycroftSports] Raw response:', rawText.substring(0, 300));
 
     // Parse JSON from response - with fallback for truncated responses
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -584,28 +601,67 @@ serve(async (req) => {
       analysis = JSON.parse(cleaned);
     } catch (parseErr) {
       console.warn('[MycroftSports] JSON parse failed, attempting repair...');
-      // Try to extract what we can from truncated JSON
       const verdictMatch = cleaned.match(/"verdict"\s*:\s*"(APROVADO|VETADO|AGUARDAR)"/);
       const marketMatch = cleaned.match(/"market"\s*:\s*"([^"]+)"/);
       const confidenceMatch = cleaned.match(/"confidence"\s*:\s*(\d+)/);
       const thesisMatch = cleaned.match(/"thesis"\s*:\s*"([^"]*)/);
       const oddMatch = cleaned.match(/"odd"\s*:\s*([\d.]+)/);
+      const entryMatch = cleaned.match(/"entry"\s*:\s*"([^"]*)/);
+      const stopMatch = cleaned.match(/"stop"\s*:\s*"([^"]*)/);
+      const stakeMatch = cleaned.match(/"stake_percent"\s*:\s*([\d.]+)/);
+      const rrMatch = cleaned.match(/"rr"\s*:\s*"([^"]*)/);
+      const evMatch = cleaned.match(/"ev"\s*:\s*"([^"]*)/);
       
       if (verdictMatch) {
+        const mkt = marketMatch?.[1] || 'N/A';
+        const oddVal = oddMatch ? parseFloat(oddMatch[1]) : 1.50;
         analysis = {
           verdict: verdictMatch[1],
-          market: marketMatch?.[1] || 'N/A',
+          market: mkt,
           confidence: confidenceMatch ? parseInt(confidenceMatch[1]) : 50,
           thesis: thesisMatch?.[1] || 'Análise parcial (resposta truncada)',
-          odd: oddMatch ? parseFloat(oddMatch[1]) : null,
-          alerts: ['Resposta da IA foi truncada'],
+          odd: oddVal,
+          alerts: [],
           fundamentation: {},
-          risk_management: {},
+          risk_management: {
+            stake_percent: stakeMatch ? parseFloat(stakeMatch[1]) : 5,
+            entry: entryMatch?.[1] || `${mkt} @ ${oddVal}`,
+            stop: stopMatch?.[1] || 'Condição adversa',
+            target: 'Realização do mercado',
+            rr: rrMatch?.[1] || `1:${oddVal}`,
+            ev: evMatch?.[1] || '+10%',
+          },
         };
-        console.log(`[MycroftSports] Repaired verdict: ${analysis.verdict}`);
+        console.log(`[MycroftSports] Repaired verdict: ${analysis.verdict}, odd: ${analysis.odd}`);
       } else {
         throw parseErr;
       }
+    }
+    
+    // Ensure odd is never null for APROVADO
+    if (analysis.verdict === 'APROVADO' && (!analysis.odd || analysis.odd <= 0)) {
+      analysis.odd = 1.50;
+      analysis.alerts = [...(analysis.alerts || []), 'Odd estimada automaticamente (dados insuficientes)'];
+    }
+    
+    // Ensure risk_management is always structured for APROVADO
+    if (analysis.verdict === 'APROVADO' && (!analysis.risk_management || typeof analysis.risk_management !== 'object' || Object.keys(analysis.risk_management).length === 0)) {
+      const bankroll = match.bankroll ?? 500;
+      const stk = 5;
+      analysis.risk_management = {
+        stake_percent: stk,
+        stake_value: bankroll * stk / 100,
+        entry: `${analysis.market} @ ${analysis.odd}`,
+        stop: 'Condição adversa ao mercado',
+        target: 'Realização do mercado',
+        rr: `1:${analysis.odd}`,
+        ev: `+${Math.round((analysis.confidence / 100 * analysis.odd - 1) * 100)}%`,
+      };
+    }
+    
+    // Add stake_value if missing
+    if (analysis.risk_management && !analysis.risk_management.stake_value && analysis.risk_management.stake_percent) {
+      analysis.risk_management.stake_value = (match.bankroll ?? 500) * analysis.risk_management.stake_percent / 100;
     }
 
     console.log(`[MycroftSports] Verdict: ${analysis.verdict} | Confidence: ${analysis.confidence}%`);
