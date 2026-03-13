@@ -657,7 +657,11 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       const parsed = await callGemini(sysPr, usrPr)
       const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
-      if(a.value_percentage==null) a.value_percentage=a.edge_percentage||a.ev_percentage||a.edge||a.value||null
+      // Map new field names to existing DB columns
+      if(a.edge_percentage!=null&&a.value_percentage==null) a.value_percentage=a.edge_percentage
+      if(a.baseline_sharp_odd!=null&&a.fair_odd==null) a.fair_odd=a.baseline_sharp_odd
+      if(a.implied_probability_sharp!=null&&a.implied_probability==null) a.implied_probability=a.implied_probability_sharp
+      if(a.value_percentage==null) a.value_percentage=a.ev_percentage||a.edge||a.value||null
       if(a.value_percentage==null&&a.estimated_probability&&a.odd) a.value_percentage=Math.round((a.estimated_probability-(1/a.odd)*100)*10)/10
       if(a.value_percentage==null) a.value_percentage=0
 
