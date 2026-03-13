@@ -215,7 +215,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase font-orbitron">Odd</p>
-                <p className="text-sm font-bold text-primary mt-0.5">{analysis.odd}</p>
+                <p className="text-sm font-bold text-primary mt-0.5">{analysis.odd || '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase font-orbitron">Confiança</p>
