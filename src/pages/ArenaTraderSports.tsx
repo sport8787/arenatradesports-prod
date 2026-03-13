@@ -332,6 +332,9 @@ export default function ArenaTraderSports() {
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
         )}
 
+        {/* Active Positions with Cash Out */}
+        <ActivePositions onCashOut={cashOut} />
+
         {/* Filters */}
         <div className="space-y-3">
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
