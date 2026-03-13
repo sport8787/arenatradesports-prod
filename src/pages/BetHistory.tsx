@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
 interface Bet {
   id: string;
