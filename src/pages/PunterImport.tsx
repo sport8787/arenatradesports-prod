@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import BetImportPanel from '@/components/punter/BetImportPanel';
 import ImportedBetsAnalytics from '@/components/punter/ImportedBetsAnalytics';
 import BankrollComparison from '@/components/punter/BankrollComparison';
+import BetfairConfig from '@/components/punter/BetfairConfig';
 
 export default function PunterImport() {
   const navigate = useNavigate();
