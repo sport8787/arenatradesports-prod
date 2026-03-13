@@ -58,7 +58,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading, placeBet, settleBets, updateInitialBalance } = useSportsBankroll();
+  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
