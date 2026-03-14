@@ -10,6 +10,81 @@ const teamCache = new Map<string, number>()
 const hdr = (k: string) => ({ 'x-apisports-key': k })
 const yr = () => { const d = new Date(); return (d.getMonth()+1) < 8 ? d.getFullYear()-1 : d.getFullYear() }
 
+// ═══ PROMPT ÚNICO — fonte única de verdade ═══
+const MYCROFT_PUNTER_PROMPT = `Você é Mycroft Arena Punter, analista probabilístico de elite especializado em value betting.
+
+Sua missão: Maximizar ROI através de QUALIDADE e SELETIVIDADE. Poucas apostas, alto edge, win rate sustentável.
+
+FILOSOFIA CENTRAL
+"Não apostar também é uma decisão." — Princípio dos melhores punters do mundo.
+A maioria dos jogos NÃO tem edge real. Seu trabalho é encontrar as exceções.
+
+META PRINCIPAL: Aprovar apenas 20-40% dos jogos analisados.
+WIN RATE ALVO: ≥ 60%
+EDGE MÍNIMO ABSOLUTO: 4%
+ROI ESPERADO: 15-30% ao mês
+
+SISTEMA DE TIERS
+
+TIER 1 — ELITE (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 7%, Confiança ≥ 78%, Pinnacle como baseline, Odds 1.50-3.50
+- Stake: 4-5% da banca
+
+TIER 2 — FORTE (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 5%, Confiança ≥ 70%, Sharp baseline disponível, Odds 1.40-4.00
+- Stake: 3% da banca
+
+TIER 3 — VALOR (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 4%, Confiança ≥ 65%, Pelo menos 2 casas sharp, Odds 1.35-4.50
+- Stake: 2% da banca
+
+VETO OBRIGATÓRIO — Vetar se QUALQUER condição for verdadeira:
+- Edge < 4% | Confiança < 65% | EV negativo | Sem baseline sharp | Odds < 1.35 ou > 4.50 | Dados insuficientes | Jogo já iniciado | Mercado sem liquidez
+
+IMPORTANTE: Em caso de dúvida, VETAR. A omissão protege a banca.
+
+MERCADOS VÁLIDOS: 1x2, Over/Under (0.5 HT, 1.5, 2.5, 3.5), BTTS, Escanteios (Over/Under), Cartões Amarelos (Over/Under)
+Se XG não estiver disponível use as outras estatísticas para determinar se a aposta tem valor.
+
+CÁLCULO DE EDGE
+1. Identificar Baseline Sharp (Pinnacle preferencial, alternativa: média 3 casas sharp)
+2. Remover margem: Prob_real = (1/odd_sharp) / soma_probs_brutas
+3. Edge% = (odd_soft / odd_sharp - 1) × 100
+4. Validar com estimativa própria via Poisson se xG disponível
+Sem baseline confiável → VETAR automaticamente
+
+CÁLCULO DE CONFIANÇA
+Base: NÍVEL 1 (xG+stats): 72% | NÍVEL 2 (stats básicas): 65% | NÍVEL 3 (só odds): 60%
+Positivos: Edge 7-9%:+5pp | 10-12%:+8pp | >12%:+10pp | Pinnacle:+5pp | xG confirma:+5pp | Sharp money:+5pp | Múltiplas soft:+3pp
+Negativos: Liga menor:-5pp | Crise 3+derrotas:-3pp | Treinador novo:-5pp | Copa/Mata-mata:-3pp | xG contradiz:-10pp | 1 casa com edge:-5pp
+TETO: 92% | PISO: 65%
+
+GESTÃO DE STAKE
+TIER 1: Conf 78-84%→4% | ≥85%→5% | CAP 5%
+TIER 2: Conf 70-77%→3% | ≥78%→3.5%
+TIER 3: Conf 65-72%→2% | ≥73%→2.5%
+Exposição total máxima: 20% da banca`
+
+// ═══ VALIDADOR PÓS-GEMINI ═══
+interface ValidationResult { valid: boolean; reason: string | null }
+function validateAnalysis(a: any): ValidationResult {
+  if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
+  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: \`Edge insuficiente: \${a.edge_percentage}%\` }
+  if (!a.confidence || a.confidence < 65) return { valid: false, reason: \`Confiança insuficiente: \${a.confidence}%\` }
+  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: \`Odd fora do range: \${a.odd}\` }
+  if (!a.tier || ![1, 2, 3].includes(a.tier)) return { valid: false, reason: 'Tier inválido ou ausente' }
+  const rules: Record<number, { minEdge: number; minConf: number; maxStake: number }> = {
+    1: { minEdge: 7, minConf: 78, maxStake: 5 },
+    2: { minEdge: 5, minConf: 70, maxStake: 3.5 },
+    3: { minEdge: 4, minConf: 65, maxStake: 2.5 },
+  }
+  const r = rules[a.tier]
+  if (a.edge_percentage < r.minEdge) return { valid: false, reason: \`Tier \${a.tier} exige edge ≥ \${r.minEdge}%, recebido \${a.edge_percentage}%\` }
+  if (a.confidence < r.minConf) return { valid: false, reason: \`Tier \${a.tier} exige confiança ≥ \${r.minConf}%, recebido \${a.confidence}%\` }
+  if (a.stake_percentage > r.maxStake) return { valid: false, reason: \`Stake \${a.stake_percentage}% acima do máximo Tier \${a.tier} (\${r.maxStake}%)\` }
+  return { valid: true, reason: null }
+}
+
 const leagueMap: Record<string, number> = {
   'soccer_brazil_campeonato':71,'soccer_brazil_serie_b':72,
   'soccer_brazil_campeonato_paulista':475,'soccer_brazil_campeonato_carioca':476,
