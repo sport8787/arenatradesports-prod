@@ -663,10 +663,13 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.` }],
+      },
       contents: [
         {
           role: 'user',
-          parts: [{ text: `${sys}\n\n${usr}` }],
+          parts: [{ text: usr }],
         },
       ],
       generationConfig: {
