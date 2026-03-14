@@ -366,6 +366,20 @@ export default function PunterPage() {
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
 
+    // CRITICAL: Only auto-bet on signals with stake_confirmed = true
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
+    const { data: confirmedSignal } = await supabase
+      .from('punter_signals')
+      .select('id, stake_confirmed')
+      .eq('match_id', matchId)
+      .eq('stake_confirmed', true)
+      .maybeSingle();
+
+    if (!confirmedSignal) {
+      console.log(`[Hórus] Skipping ${matchId} — stake not confirmed`);
+      return false;
+    }
+
     // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
     const estimatedProb = signal.recommendation.fair_odd > 0
       ? (1 / signal.recommendation.fair_odd) * 100
@@ -383,7 +397,6 @@ export default function PunterPage() {
     if (stake <= 0 || stake > bankroll.balance) return false;
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
 
     // Check if Hórus already bet on this match (any status — prevents re-betting on re-analysis)
     const { data: existingBets } = await supabase
