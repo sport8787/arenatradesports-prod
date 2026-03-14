@@ -659,7 +659,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
         },
       ],
       generationConfig: {
-        temperature: 0.3,
+        temperature: 0.1,
         maxOutputTokens: 8192,
         responseMimeType: 'application/json',
         responseSchema: {
