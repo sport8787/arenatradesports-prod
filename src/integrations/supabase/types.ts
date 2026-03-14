@@ -1815,6 +1815,66 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_planos: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          categoria: string
+          codigo: string
+          conceito: string | null
+          criado_em: string | null
+          criterios: Json
+          emoji: string | null
+          execucao: string | null
+          id: string
+          janela: string
+          mercado: string
+          nome: string
+          observacao: string | null
+          risco: string
+          versao: number | null
+          vetos: Json
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          categoria: string
+          codigo: string
+          conceito?: string | null
+          criado_em?: string | null
+          criterios?: Json
+          emoji?: string | null
+          execucao?: string | null
+          id?: string
+          janela: string
+          mercado: string
+          nome: string
+          observacao?: string | null
+          risco: string
+          versao?: number | null
+          vetos?: Json
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          categoria?: string
+          codigo?: string
+          conceito?: string | null
+          criado_em?: string | null
+          criterios?: Json
+          emoji?: string | null
+          execucao?: string | null
+          id?: string
+          janela?: string
+          mercado?: string
+          nome?: string
+          observacao?: string | null
+          risco?: string
+          versao?: number | null
+          vetos?: Json
+        }
+        Relationships: []
+      }
       mycroft_vetoed_log: {
         Row: {
           confianca_recebida: number | null
