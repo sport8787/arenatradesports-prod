@@ -10,6 +10,81 @@ const teamCache = new Map<string, number>()
 const hdr = (k: string) => ({ 'x-apisports-key': k })
 const yr = () => { const d = new Date(); return (d.getMonth()+1) < 8 ? d.getFullYear()-1 : d.getFullYear() }
 
+// ═══ PROMPT ÚNICO — fonte única de verdade ═══
+const MYCROFT_PUNTER_PROMPT = `Você é Mycroft Arena Punter, analista probabilístico de elite especializado em value betting.
+
+Sua missão: Maximizar ROI através de QUALIDADE e SELETIVIDADE. Poucas apostas, alto edge, win rate sustentável.
+
+FILOSOFIA CENTRAL
+"Não apostar também é uma decisão." — Princípio dos melhores punters do mundo.
+A maioria dos jogos NÃO tem edge real. Seu trabalho é encontrar as exceções.
+
+META PRINCIPAL: Aprovar apenas 20-40% dos jogos analisados.
+WIN RATE ALVO: ≥ 60%
+EDGE MÍNIMO ABSOLUTO: 4%
+ROI ESPERADO: 15-30% ao mês
+
+SISTEMA DE TIERS
+
+TIER 1 — ELITE (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 7%, Confiança ≥ 78%, Pinnacle como baseline, Odds 1.50-3.50
+- Stake: 4-5% da banca
+
+TIER 2 — FORTE (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 5%, Confiança ≥ 70%, Sharp baseline disponível, Odds 1.40-4.00
+- Stake: 3% da banca
+
+TIER 3 — VALOR (Aprovar quando TODOS forem atendidos):
+- Edge ≥ 4%, Confiança ≥ 65%, Pelo menos 2 casas sharp, Odds 1.35-4.50
+- Stake: 2% da banca
+
+VETO OBRIGATÓRIO — Vetar se QUALQUER condição for verdadeira:
+- Edge < 4% | Confiança < 65% | EV negativo | Sem baseline sharp | Odds < 1.35 ou > 4.50 | Dados insuficientes | Jogo já iniciado | Mercado sem liquidez
+
+IMPORTANTE: Em caso de dúvida, VETAR. A omissão protege a banca.
+
+MERCADOS VÁLIDOS: 1x2, Over/Under (0.5 HT, 1.5, 2.5, 3.5), BTTS, Escanteios (Over/Under), Cartões Amarelos (Over/Under)
+Se XG não estiver disponível use as outras estatísticas para determinar se a aposta tem valor.
+
+CÁLCULO DE EDGE
+1. Identificar Baseline Sharp (Pinnacle preferencial, alternativa: média 3 casas sharp)
+2. Remover margem: Prob_real = (1/odd_sharp) / soma_probs_brutas
+3. Edge% = (odd_soft / odd_sharp - 1) × 100
+4. Validar com estimativa própria via Poisson se xG disponível
+Sem baseline confiável → VETAR automaticamente
+
+CÁLCULO DE CONFIANÇA
+Base: NÍVEL 1 (xG+stats): 72% | NÍVEL 2 (stats básicas): 65% | NÍVEL 3 (só odds): 60%
+Positivos: Edge 7-9%:+5pp | 10-12%:+8pp | >12%:+10pp | Pinnacle:+5pp | xG confirma:+5pp | Sharp money:+5pp | Múltiplas soft:+3pp
+Negativos: Liga menor:-5pp | Crise 3+derrotas:-3pp | Treinador novo:-5pp | Copa/Mata-mata:-3pp | xG contradiz:-10pp | 1 casa com edge:-5pp
+TETO: 92% | PISO: 65%
+
+GESTÃO DE STAKE
+TIER 1: Conf 78-84%→4% | ≥85%→5% | CAP 5%
+TIER 2: Conf 70-77%→3% | ≥78%→3.5%
+TIER 3: Conf 65-72%→2% | ≥73%→2.5%
+Exposição total máxima: 20% da banca`
+
+// ═══ VALIDADOR PÓS-GEMINI ═══
+interface ValidationResult { valid: boolean; reason: string | null }
+function validateAnalysis(a: any): ValidationResult {
+  if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
+  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
+  if (!a.confidence || a.confidence < 65) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
+  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
+  if (!a.tier || ![1, 2, 3].includes(a.tier)) return { valid: false, reason: 'Tier inválido ou ausente' }
+  const rules: Record<number, { minEdge: number; minConf: number; maxStake: number }> = {
+    1: { minEdge: 7, minConf: 78, maxStake: 5 },
+    2: { minEdge: 5, minConf: 70, maxStake: 3.5 },
+    3: { minEdge: 4, minConf: 65, maxStake: 2.5 },
+  }
+  const r = rules[a.tier]
+  if (a.edge_percentage < r.minEdge) return { valid: false, reason: `Tier ${a.tier} exige edge >= ${r.minEdge}%, recebido ${a.edge_percentage}%` }
+  if (a.confidence < r.minConf) return { valid: false, reason: `Tier ${a.tier} exige confianca >= ${r.minConf}%, recebido ${a.confidence}%` }
+  if (a.stake_percentage > r.maxStake) return { valid: false, reason: `Stake ${a.stake_percentage}% acima do maximo Tier ${a.tier} (${r.maxStake}%)` }
+  return { valid: true, reason: null }
+}
+
 const leagueMap: Record<string, number> = {
   'soccer_brazil_campeonato':71,'soccer_brazil_serie_b':72,
   'soccer_brazil_campeonato_paulista':475,'soccer_brazil_campeonato_carioca':476,
@@ -584,7 +659,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
         },
       ],
       generationConfig: {
-        temperature: 0.3,
+        temperature: 0.1,
         maxOutputTokens: 8192,
         responseMimeType: 'application/json',
         responseSchema: {
@@ -616,7 +691,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 }
 
 // Main analysis
-async function analyzeGame(game:any, prompt:string, method:string, vGuide:string, minVal:number, sb:any, apiKey:string, incCorners:boolean, incCards:boolean, oddsApiKey:string) {
+async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, incCards:boolean, oddsApiKey:string) {
   const mid = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g,'_')
   console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini, corners: ${incCorners}, cards: ${incCards})`)
   const odds=extractOdds(game), totals=extractTotals(game)
@@ -680,7 +755,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE QUALIDADE: thesis deve ser detalhada com fundamentação (mínimo 150 caracteres). analysis deve conter a análise completa com dados estatísticos, probabilidades e justificativa (mínimo 300 caracteres). risk_factors deve listar todos os riscos identificados.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
+  const sysPr=`${MYCROFT_PUNTER_PROMPT}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE QUALIDADE: thesis deve ser detalhada com fundamentação (mínimo 150 caracteres). analysis deve conter a análise completa com dados estatísticos, probabilidades e justificativa (mínimo 300 caracteres). risk_factors deve listar todos os riscos identificados.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
@@ -696,7 +771,6 @@ ${game.simulated_odds?'⚠️ ODDS SIMULADAS (Modelo Poisson)':''}
 ODDS H2H: ${odds.map((o:any)=>`${o.bookmaker}: ${game.home_team} ${o.home_odd} Emp ${o.draw_odd} ${game.away_team} ${o.away_odd}`).join(' | ')}
 ${totals.length?`TOTALS: ${totals.map((t:any)=>`${t.bookmaker}: O${t.line} ${t.over_odd} U${t.line} ${t.under_odd}`).join(' | ')}`:''}
 ${calcProb(odds[0])} ${totals.length?calcTotalsProb(totals[0]):''}
-${method?`KB: ${method.substring(0,500)}`:''}${vGuide?`\nGuia: ${vGuide.substring(0,500)}`:''}
 
 Retorne JSON: {"verdict":"APROVADO_ELITE"|"APROVADO_FORTE"|"APROVADO_TEM_VALOR"|"VETADO","tier":1|2|3|null,"veto_reason":null|"...","model_level":"${en.model_level}","market":${mkts.join('|')}|null,"bookmaker":"...","odd":0,"baseline_sharp_odd":0,"implied_probability_sharp":0,"estimated_probability":0,"edge_percentage":0,"expected_value":0,"confidence":0,"data_strength":"${dsl}","stake_percentage":0,"filters_passed":[],"thesis":"...","analysis":"...","risk_factors":"...","api_predictions_agree":null${incCorners?',"corner_prediction":{"line":0,"expected_total":0,"prob_over":0,"value":""}':''}${incCards?',"card_prediction":{"market":"","expected_total":0,"prob_over":0,"value":""},"referee_impact":""':''}}
 SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no system prompt. MAIOR EDGE = mercado recomendado.`
@@ -705,7 +779,6 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
     try {
       const parsed = await callGemini(sysPr, usrPr, incCorners, incCards)
       const a = parsed
-      if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       // Map new field names to existing DB columns
       if(a.edge_percentage!=null&&a.value_percentage==null) a.value_percentage=a.edge_percentage
       if(a.baseline_sharp_odd!=null&&a.fair_odd==null) a.fair_odd=a.baseline_sharp_odd
@@ -714,9 +787,43 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       if(a.value_percentage==null&&a.estimated_probability&&a.odd) a.value_percentage=Math.round((a.estimated_probability-(1/a.odd)*100)*10)/10
       if(a.value_percentage==null) a.value_percentage=0
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${a.verdict} | Market: ${a.market} | Model: ${a.model_level} | Value: ${a.value_percentage}% | EV: ${a.expected_value} | AI: gemini`)
-      if(a.corner_prediction) console.log(`[Mycroft Punter] 🏁 Corner prediction: Line ${a.corner_prediction.line}, Expected ${a.corner_prediction.expected_total}, Value ${a.corner_prediction.value}`)
-      if(a.card_prediction) console.log(`[Mycroft Punter] 🟨 Card prediction: ${a.card_prediction.market}, Expected ${a.card_prediction.expected_total}, Value ${a.card_prediction.value}`)
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${a.verdict} | Market: ${a.market} | Model: ${a.model_level} | Edge: ${a.edge_percentage}% | Conf: ${a.confidence}% | Tier: ${a.tier}`)
+      if(a.corner_prediction) console.log(`[Mycroft Punter] 🏁 Corner: Line ${a.corner_prediction.line}, Expected ${a.corner_prediction.expected_total}, Value ${a.corner_prediction.value}`)
+      if(a.card_prediction) console.log(`[Mycroft Punter] 🟨 Card: ${a.card_prediction.market}, Expected ${a.card_prediction.expected_total}, Value ${a.card_prediction.value}`)
+
+      // ═══ VALIDADOR — última barreira antes do INSERT ═══
+      const validation = validateAnalysis(a)
+      if (!validation.valid) {
+        console.log(`[Mycroft Punter] 🚫 VETADO pelo validador: ${game.home_team} vs ${game.away_team} — ${validation.reason}`)
+        await sb.from('mycroft_vetoed_log').insert({
+          jogo: `${game.home_team} vs ${game.away_team}`,
+          liga: game.sport_title || 'Unknown',
+          mercado: a.market,
+          odd: a.odd,
+          edge_recebido: a.edge_percentage,
+          confianca_recebida: a.confidence,
+          verdict_gemini: a.verdict,
+          motivo_veto: validation.reason,
+          raw_response: a
+        })
+        // Salva como VETADO na punter_analyses para auditoria
+        a.verdict = 'VETADO'
+        a.veto_reason = validation.reason
+        await sb.from('punter_analyses').insert({
+          match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
+          commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
+          fair_odd:a.fair_odd,implied_probability:a.implied_probability,estimated_probability:a.estimated_probability,
+          value_percentage:a.value_percentage,verdict:'VETADO',confidence:a.confidence,stake_percentage:0,
+          thesis:`[VETADO] ${validation.reason}`,analysis:a.analysis||'',risk_factors:a.risk_factors||'',analyzed_by:'gemini'
+        })
+        const mp=a.estimated_probability||null, mkp=a.implied_probability||(a.odd?(1/a.odd)*100:0)
+        await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)
+        return a
+      }
+
+      // ═══ Passou em TODOS os critérios — salva como APROVADO ═══
+      if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
+      console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
       const {data:row} = await sb.from('punter_analyses').insert({
         match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
@@ -813,19 +920,13 @@ serve(async (req) => {
     
     if(!filteredGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,skipped_existing:skippedCount,leagues_scanned:leagues.length,message:`Todos os ${skippedCount} jogos já possuem apostas`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
 
-    // KB
-    let meth='',vg='',cp=''
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('punter-methodology.md');if(d)meth=await d.text()}catch{}
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('value-betting-guide.md');if(d)vg=await d.text()}catch{}
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('prompt_mycroft_punter.txt');if(d)cp=await d.text()}catch{}
-    if(!cp) cp='Você é Mycroft Arena Quant Adaptive, analista probabilístico da Arena Punter. Missão: identificar apostas com value positivo. FOCO: ROI positivo consistente.'
-
+    // Prompt embarcado — fonte única, sem KB
     const approved:any[]=[]
     let total=0
     const toAnalyze=filteredGames.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
       const batch=toAnalyze.slice(i,i+BATCH)
-      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards,oddsKey)))
+      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
         total++
         const r=results[j], g=batch[j]
