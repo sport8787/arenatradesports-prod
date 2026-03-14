@@ -779,7 +779,6 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
     try {
       const parsed = await callGemini(sysPr, usrPr, incCorners, incCards)
       const a = parsed
-      if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       // Map new field names to existing DB columns
       if(a.edge_percentage!=null&&a.value_percentage==null) a.value_percentage=a.edge_percentage
       if(a.baseline_sharp_odd!=null&&a.fair_odd==null) a.fair_odd=a.baseline_sharp_odd
@@ -788,9 +787,43 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       if(a.value_percentage==null&&a.estimated_probability&&a.odd) a.value_percentage=Math.round((a.estimated_probability-(1/a.odd)*100)*10)/10
       if(a.value_percentage==null) a.value_percentage=0
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${a.verdict} | Market: ${a.market} | Model: ${a.model_level} | Value: ${a.value_percentage}% | EV: ${a.expected_value} | AI: gemini`)
-      if(a.corner_prediction) console.log(`[Mycroft Punter] 🏁 Corner prediction: Line ${a.corner_prediction.line}, Expected ${a.corner_prediction.expected_total}, Value ${a.corner_prediction.value}`)
-      if(a.card_prediction) console.log(`[Mycroft Punter] 🟨 Card prediction: ${a.card_prediction.market}, Expected ${a.card_prediction.expected_total}, Value ${a.card_prediction.value}`)
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${a.verdict} | Market: ${a.market} | Model: ${a.model_level} | Edge: ${a.edge_percentage}% | Conf: ${a.confidence}% | Tier: ${a.tier}`)
+      if(a.corner_prediction) console.log(`[Mycroft Punter] 🏁 Corner: Line ${a.corner_prediction.line}, Expected ${a.corner_prediction.expected_total}, Value ${a.corner_prediction.value}`)
+      if(a.card_prediction) console.log(`[Mycroft Punter] 🟨 Card: ${a.card_prediction.market}, Expected ${a.card_prediction.expected_total}, Value ${a.card_prediction.value}`)
+
+      // ═══ VALIDADOR — última barreira antes do INSERT ═══
+      const validation = validateAnalysis(a)
+      if (!validation.valid) {
+        console.log(`[Mycroft Punter] 🚫 VETADO pelo validador: ${game.home_team} vs ${game.away_team} — ${validation.reason}`)
+        await sb.from('mycroft_vetoed_log').insert({
+          jogo: `${game.home_team} vs ${game.away_team}`,
+          liga: game.sport_title || 'Unknown',
+          mercado: a.market,
+          odd: a.odd,
+          edge_recebido: a.edge_percentage,
+          confianca_recebida: a.confidence,
+          verdict_gemini: a.verdict,
+          motivo_veto: validation.reason,
+          raw_response: a
+        })
+        // Salva como VETADO na punter_analyses para auditoria
+        a.verdict = 'VETADO'
+        a.veto_reason = validation.reason
+        await sb.from('punter_analyses').insert({
+          match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
+          commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
+          fair_odd:a.fair_odd,implied_probability:a.implied_probability,estimated_probability:a.estimated_probability,
+          value_percentage:a.value_percentage,verdict:'VETADO',confidence:a.confidence,stake_percentage:0,
+          thesis:`[VETADO] ${validation.reason}`,analysis:a.analysis||'',risk_factors:a.risk_factors||'',analyzed_by:'gemini'
+        })
+        const mp=a.estimated_probability||null, mkp=a.implied_probability||(a.odd?(1/a.odd)*100:0)
+        await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)
+        return a
+      }
+
+      // ═══ Passou em TODOS os critérios — salva como APROVADO ═══
+      if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
+      console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
       const {data:row} = await sb.from('punter_analyses').insert({
         match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
