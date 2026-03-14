@@ -1,25 +1,22 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, Download, FileDown } from 'lucide-react';
-import BetImportPanel from '@/components/punter/BetImportPanel';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, FileDown } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
 import ManualSettleModal from '@/components/bet-history/ManualSettleModal';
 import PeriodFilter, { PeriodOption, getPeriodStartDate } from '@/components/bet-history/PeriodFilter';
-import LeagueFilter, { extractLeague } from '@/components/bet-history/LeagueFilter';
 import PendingDateSort, { PendingSortOption } from '@/components/bet-history/PendingDateSort';
 import BankrollEvolutionChart from '@/components/bet-history/BankrollEvolutionChart';
-import AdvancedFilters from '@/components/bet-history/AdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useBankroll } from '@/hooks/useBankroll';
+import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
-interface Bet {
+interface TradingBet {
   id: string;
   match_name: string;
   market: string;
@@ -30,33 +27,29 @@ interface Bet {
   profit_loss: number | null;
   placed_at: string;
   settled_at?: string;
-  source: 'sports' | 'punter';
   score_home?: number | null;
   score_away?: number | null;
   red_card_home?: boolean;
   red_card_away?: boolean;
-  thesis?: string | null;
   commence_time?: string | null;
-  league?: string;
+  cashout_value?: number | null;
+  odd_fonte?: string | null;
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
 
-export default function BetHistoryPage() {
+export default function TradingHistory() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { bankroll, settleBets } = useBankroll();
-  const [bets, setBets] = useState<Bet[]>([]);
+  const { bankroll, settleBets } = useSportsBankroll();
+  const [bets, setBets] = useState<TradingBet[]>([]);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [period, setPeriod] = useState<PeriodOption>('all');
-  const [league, setLeague] = useState('all');
   const [pendingSort, setPendingSort] = useState<PendingSortOption>('date_asc');
   const [settleModalOpen, setSettleModalOpen] = useState(false);
-  const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const [advancedFiltered, setAdvancedFiltered] = useState<Bet[]>([]);
+  const [selectedBet, setSelectedBet] = useState<TradingBet | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -67,45 +60,40 @@ export default function BetHistoryPage() {
     if (!user) return;
     setLoading(true);
 
-    const { data: punterData } = await supabase
-      .from('virtual_bets_punter')
-      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)')
+    const { data } = await supabase
+      .from('virtual_bets')
+      .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('placed_at', { ascending: false });
 
-    const punterBets: Bet[] = (punterData || []).map((b: any) => ({
+    const mapped: TradingBet[] = (data || []).map((b: any) => ({
       id: b.id,
       match_name: b.match_name || b.match_id,
       market: b.market,
       odd: parseFloat(b.odd),
       stake: parseFloat(b.stake),
       status: b.status,
-      result: b.result,
+      result: b.status === 'settled' ? (b.profit_loss > 0 ? 'green' : 'red') : undefined,
       profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
-      placed_at: b.created_at,
-      settled_at: b.status === 'settled' ? b.updated_at : undefined,
-      source: 'punter' as const,
+      placed_at: b.placed_at,
+      settled_at: b.settled_at,
       score_home: b.score_home,
       score_away: b.score_away,
       red_card_home: b.red_card_home,
       red_card_away: b.red_card_away,
-      thesis: b.thesis,
       commence_time: b.commence_time,
-      league: b.punter_analyses?.league || undefined,
+      cashout_value: b.cashout_value ? parseFloat(b.cashout_value) : null,
+      odd_fonte: b.odd_fonte,
     }));
 
-    setBets(punterBets.sort((a, b) =>
-      new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
-    ));
+    setBets(mapped);
     setLoading(false);
   };
 
   const handleSettle = async () => {
     setSettling(true);
     const result = await settleBets();
-    if (result.success) {
-      await fetchBets();
-    }
+    if (result.success) await fetchBets();
     setSettling(false);
   };
 
@@ -118,7 +106,6 @@ export default function BetHistoryPage() {
     source: 'sports' | 'punter';
   }) => {
     if (!user || !bankroll) return;
-
     const bet = bets.find(b => b.id === data.betId);
     if (!bet) return;
 
@@ -132,73 +119,37 @@ export default function BetHistoryPage() {
     const homeTeamNorm = (teams[0] || '').toLowerCase().trim();
     const awayTeamNorm = (teams[1] || '').toLowerCase().trim();
 
-    if (market === 'casa' || market === 'home' || market === '1') {
-      isGreen = h > a;
-    } else if (market === 'fora' || market === 'away' || market === '2') {
-      isGreen = a > h;
-    } else if (market === 'empate' || market === 'draw' || market === 'x') {
-      isGreen = h === a;
-    } else if (market.includes('over')) {
-      const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5;
-      isGreen = totalGoals > line;
-    } else if (market.includes('under')) {
-      const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5;
-      isGreen = totalGoals < line;
-    } else if (market.includes('btts') || market.includes('ambas')) {
-      isGreen = h > 0 && a > 0;
-    } else if (homeTeamNorm.includes(market) || market.includes(homeTeamNorm) ||
-               homeTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
-      isGreen = h > a;
-    } else if (awayTeamNorm.includes(market) || market.includes(awayTeamNorm) ||
-               awayTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) {
-      isGreen = a > h;
-    } else {
-      isGreen = h > a;
-    }
+    if (market === 'casa' || market === 'home' || market === '1') isGreen = h > a;
+    else if (market === 'fora' || market === 'away' || market === '2') isGreen = a > h;
+    else if (market === 'empate' || market === 'draw' || market === 'x') isGreen = h === a;
+    else if (market.includes('over')) { const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5; isGreen = totalGoals > line; }
+    else if (market.includes('under')) { const line = parseFloat(market.replace(/[^0-9.]/g, '')) || 2.5; isGreen = totalGoals < line; }
+    else if (market.includes('btts') || market.includes('ambas')) isGreen = h > 0 && a > 0;
+    else if (homeTeamNorm.includes(market) || market.includes(homeTeamNorm) || homeTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) isGreen = h > a;
+    else if (awayTeamNorm.includes(market) || market.includes(awayTeamNorm) || awayTeamNorm.split(' ').some(w => w.length > 3 && market.includes(w))) isGreen = a > h;
+    else isGreen = h > a;
 
     const betResult = isGreen ? 'green' : 'red';
-    const profitLoss = isGreen
-      ? +(bet.stake * (bet.odd - 1)).toFixed(2)
-      : -bet.stake;
-
-    const table = data.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
-
-    const updatePayload = data.source === 'punter'
-      ? {
-          status: 'settled',
-          result: betResult,
-          profit_loss: profitLoss,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          updated_at: new Date().toISOString(),
-        }
-      : {
-          status: betResult,
-          profit_loss: profitLoss,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          settled_at: new Date().toISOString(),
-        };
+    const profitLoss = isGreen ? +(bet.stake * (bet.odd - 1)).toFixed(2) : -bet.stake;
 
     const { error: betError } = await supabase
-      .from(table)
-      .update(updatePayload)
+      .from('virtual_bets')
+      .update({
+        status: betResult,
+        profit_loss: profitLoss,
+        score_home: h,
+        score_away: a,
+        red_card_home: data.redCardHome,
+        red_card_away: data.redCardAway,
+        settled_at: new Date().toISOString(),
+      })
       .eq('id', data.betId);
 
-    if (betError) {
-      toast.error('Erro ao liquidar aposta');
-      console.error(betError);
-      return;
-    }
+    if (betError) { toast.error('Erro ao liquidar posição'); return; }
 
     const balanceChange = isGreen ? bet.stake * bet.odd : 0;
-
     await supabase
-      .from('user_bankroll')
+      .from('sports_bankroll' as any)
       .update({
         balance: +(bankroll.balance + balanceChange).toFixed(2),
         total_profit: +(bankroll.total_profit + profitLoss).toFixed(2),
@@ -206,54 +157,28 @@ export default function BetHistoryPage() {
         red_bets: bankroll.red_bets + (isGreen ? 0 : 1),
         win_rate: +((bankroll.green_bets + (isGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets + 1) * 100).toFixed(2),
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq('user_id', user.id);
 
-    if (data.source === 'punter') {
-      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
-      await supabase
-        .from('punter_signals')
-        .update({
-          result: betResult,
-          status: 'settled',
-          profit_loss: isGreen ? +(bet.odd * 3).toFixed(2) : -3,
-          score_home: h,
-          score_away: a,
-          red_card_home: data.redCardHome,
-          red_card_away: data.redCardAway,
-          resulted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
-        .eq('status', 'pending');
-    }
-
-    toast.success(`Aposta liquidada: ${betResult.toUpperCase()}`);
+    toast.success(`Posição liquidada: ${betResult.toUpperCase()}`);
     await fetchBets();
   }, [user, bankroll, bets]);
 
-  const revertToPending = useCallback(async (bet: Bet) => {
+  const revertToPending = useCallback(async (bet: TradingBet) => {
     if (!user || !bankroll) return;
-
-    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
     const wasGreen = bet.result === 'green' || bet.status === 'green';
-
     const balanceChange = wasGreen ? -(bet.stake * bet.odd) : 0;
     const profitReverse = -(bet.profit_loss || 0);
 
-    const updatePayload = bet.source === 'punter'
-      ? { status: 'pending', result: null, profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, updated_at: new Date().toISOString() }
-      : { status: 'pending', profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, settled_at: null };
+    const { error } = await supabase
+      .from('virtual_bets')
+      .update({ status: 'pending', profit_loss: null, score_home: null, score_away: null, red_card_home: false, red_card_away: false, settled_at: null })
+      .eq('id', bet.id);
 
-    const { error } = await supabase.from(table).update(updatePayload).eq('id', bet.id);
-    if (error) {
-      toast.error('Erro ao reverter aposta');
-      console.error(error);
-      return;
-    }
+    if (error) { toast.error('Erro ao reverter posição'); return; }
 
     await supabase
-      .from('user_bankroll')
+      .from('sports_bankroll' as any)
       .update({
         balance: +(bankroll.balance + balanceChange).toFixed(2),
         total_profit: +(bankroll.total_profit + profitReverse).toFixed(2),
@@ -263,51 +188,25 @@ export default function BetHistoryPage() {
           ? +((bankroll.green_bets - (wasGreen ? 1 : 0)) / (bankroll.green_bets + bankroll.red_bets - 1) * 100).toFixed(2)
           : 0,
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq('user_id', user.id);
 
-    if (bet.source === 'punter') {
-      const matchId = bet.match_name.replace(/ vs /g, '_').replace(/ /g, '_');
-      await supabase
-        .from('punter_signals')
-        .update({
-          result: null,
-          status: 'pending',
-          profit_loss: null,
-          score_home: null,
-          score_away: null,
-          red_card_home: false,
-          red_card_away: false,
-          resulted_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .ilike('match_id', `%${matchId.split('_').slice(0, 2).join('%')}%`)
-        .eq('status', 'settled');
-    }
-
-    toast.success('Aposta revertida para pendente');
+    toast.success('Posição revertida para pendente');
     await fetchBets();
-  }, [user, bankroll, bets]);
+  }, [user, bankroll]);
 
-  const cancelBet = useCallback(async (bet: Bet) => {
+  const cancelBet = useCallback(async (bet: TradingBet) => {
     if (!user || !bankroll) return;
 
-    const table = bet.source === 'punter' ? 'virtual_bets_punter' : 'virtual_bets';
-    const bankrollTable = bet.source === 'punter' ? 'user_bankroll' : 'sports_bankroll';
-
     const { error } = await supabase
-      .from(table)
+      .from('virtual_bets')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
       .eq('id', bet.id);
 
-    if (error) {
-      toast.error('Erro ao cancelar aposta');
-      console.error(error);
-      return;
-    }
+    if (error) { toast.error('Erro ao cancelar posição'); return; }
 
     await supabase
-      .from(bankrollTable as any)
+      .from('sports_bankroll' as any)
       .update({
         balance: bankroll.balance + bet.stake,
         total_staked: Math.max(0, bankroll.total_staked - bet.stake),
@@ -315,7 +214,7 @@ export default function BetHistoryPage() {
       } as any)
       .eq('user_id', user.id);
 
-    toast.success(`Aposta cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
+    toast.success(`Posição cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
     await fetchBets();
   }, [user, bankroll]);
 
@@ -325,77 +224,51 @@ export default function BetHistoryPage() {
     return bets.filter(b => new Date(b.placed_at) >= start);
   }, [bets, period]);
 
-  const leagueFiltered = useMemo(() => {
-    if (league === 'all') return periodFiltered;
-    return periodFiltered.filter(b => extractLeague(b) === league);
-  }, [periodFiltered, league]);
-
-  // Advanced filters are applied to league-filtered bets
-  // advancedFiltered state is managed by AdvancedFilters component
-
   const filtered = useMemo(() => {
-    let src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
+    let src = periodFiltered;
     if (filter === 'all') src = src.filter(b => b.status !== 'cancelled');
     else if (filter === 'pending') src = src.filter(b => b.status === 'pending');
     else if (filter === 'green') src = src.filter(b => b.result === 'green' || b.status === 'green');
     else if (filter === 'red') src = src.filter(b => b.result === 'red' || b.status === 'red');
     else if (filter === 'cancelled') src = src.filter(b => b.status === 'cancelled');
 
-    // Apply pending sort when on pending tab
     if (filter === 'pending') {
       return [...src].sort((a, b) => {
         if (pendingSort === 'date_asc') {
-          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : Infinity;
-          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : Infinity;
-          return aTime - bTime;
+          const aT = a.commence_time ? new Date(a.commence_time).getTime() : Infinity;
+          const bT = b.commence_time ? new Date(b.commence_time).getTime() : Infinity;
+          return aT - bT;
         }
         if (pendingSort === 'date_desc') {
-          const aTime = a.commence_time ? new Date(a.commence_time).getTime() : 0;
-          const bTime = b.commence_time ? new Date(b.commence_time).getTime() : 0;
-          return bTime - aTime;
+          const aT = a.commence_time ? new Date(a.commence_time).getTime() : 0;
+          const bT = b.commence_time ? new Date(b.commence_time).getTime() : 0;
+          return bT - aT;
         }
         return new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime();
       });
     }
-
     return src;
-  }, [advancedFiltered, leagueFiltered, filter, pendingSort]);
+  }, [periodFiltered, filter, pendingSort]);
 
   const stats = useMemo(() => {
-    const src = advancedFiltered.length > 0 ? advancedFiltered : leagueFiltered;
-    const settled = src.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
+    const settled = periodFiltered.filter(b => b.status === 'settled' || b.status === 'green' || b.status === 'red');
     const greens = settled.filter(b => b.result === 'green' || b.status === 'green');
     const reds = settled.filter(b => b.result === 'red' || b.status === 'red');
     const totalProfit = settled.reduce((sum, b) => sum + (b.profit_loss || 0), 0);
-    const pending = src.filter(b => b.status === 'pending');
+    const pending = periodFiltered.filter(b => b.status === 'pending');
     const pendingStake = pending.reduce((sum, b) => sum + b.stake, 0);
-    return {
-      total: src.length,
-      greens: greens.length,
-      reds: reds.length,
-      pending: pending.length,
-      pendingStake,
-      totalProfit,
-      winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0,
-    };
-  }, [advancedFiltered, leagueFiltered]);
+    return { total: periodFiltered.length, greens: greens.length, reds: reds.length, pending: pending.length, pendingStake, totalProfit, winRate: settled.length > 0 ? (greens.length / settled.length * 100) : 0 };
+  }, [periodFiltered]);
 
-  const formatDate = (d: string) => {
-    const date = new Date(d);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  };
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   const formatCommenceTime = (d: string) => {
     const date = new Date(d);
     const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrow = date.toDateString() === tomorrow.toDateString();
-
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
     const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return `Hoje ${time}`;
-    if (isTomorrow) return `Amanhã ${time}`;
+    if (date.toDateString() === now.toDateString()) return `Hoje ${time}`;
+    if (date.toDateString() === tomorrow.toDateString()) return `Amanhã ${time}`;
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ` ${time}`;
   };
 
@@ -404,11 +277,11 @@ export default function BetHistoryPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => navigate('/arena-trader-sports')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-              Posições do Hórus
+              📊 Histórico de Trades
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -419,15 +292,10 @@ export default function BetHistoryPage() {
                 winRate: stats.winRate, totalProfit: stats.totalProfit, totalStaked,
                 roi: totalStaked > 0 ? (stats.totalProfit / totalStaked) * 100 : 0,
                 balance: bankroll?.balance || 0,
-              }, 'Relatório — Posições do Hórus', `horus_apostas_${new Date().toISOString().slice(0,10)}.pdf`);
-              toast.success('PDF gerado com sucesso!');
+              }, 'Relatório — Trades Esportivos', `trades_esportivos_${new Date().toISOString().slice(0, 10)}.pdf`);
+              toast.success('PDF gerado!');
             }}>
-              <FileDown className="w-4 h-4 mr-1" />
-              PDF
-            </GoldButton>
-            <GoldButton size="sm" onClick={() => setImportOpen(true)}>
-              <Download className="w-4 h-4 mr-1" />
-              Importar
+              <FileDown className="w-4 h-4 mr-1" /> PDF
             </GoldButton>
             <GoldButton size="sm" onClick={handleSettle} disabled={settling}>
               <CheckCircle2 className={cn("w-4 h-4 mr-1", settling && "animate-spin")} />
@@ -440,11 +308,8 @@ export default function BetHistoryPage() {
       <div className="container mx-auto px-4 py-4 space-y-4">
         {/* Bankroll Summary */}
         {bankroll && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card border border-primary/30 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
-          >
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-card border border-primary/30 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Wallet className="w-5 h-5 text-primary" />
               <div>
@@ -457,7 +322,7 @@ export default function BetHistoryPage() {
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-warning" />
               <div>
-                <p className="text-xs text-muted-foreground font-orbitron uppercase">Posições Pendentes</p>
+                <p className="text-xs text-muted-foreground font-orbitron uppercase">Em Exposição</p>
                 <p className="text-lg font-orbitron font-bold text-warning">
                   R$ {stats.pendingStake.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
@@ -466,23 +331,13 @@ export default function BetHistoryPage() {
           </motion.div>
         )}
 
-        {/* Period & League Filters */}
+        {/* Period Filter */}
         <div className="flex flex-wrap items-center gap-3">
           <PeriodFilter value={period} onChange={setPeriod} />
-          <LeagueFilter bets={bets} value={league} onChange={setLeague} />
         </div>
 
-        {/* Advanced Filters */}
-        <AdvancedFilters
-          bets={leagueFiltered as any}
-          onFilteredChange={(filtered) => setAdvancedFiltered(filtered as any)}
-        />
-
-        {/* Bankroll Evolution Chart */}
-        <BankrollEvolutionChart
-          bets={leagueFiltered}
-          initialBalance={bankroll?.initial_balance || 10000}
-        />
+        {/* Chart */}
+        <BankrollEvolutionChart bets={periodFiltered} initialBalance={bankroll?.initial_balance || 500} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -493,13 +348,8 @@ export default function BetHistoryPage() {
             { label: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, icon: CheckCircle2, color: stats.winRate >= 55 ? 'text-success' : stats.winRate >= 50 ? 'text-warning' : 'text-destructive' },
             { label: 'Lucro', value: `R$ ${stats.totalProfit >= 1000 ? (stats.totalProfit / 1000).toFixed(1) + 'k' : stats.totalProfit.toFixed(2)}`, icon: Wallet, color: stats.totalProfit >= 0 ? 'text-success' : 'text-destructive' },
           ].map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-card border border-border rounded-xl p-4 space-y-1"
-            >
+            <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              className="bg-card border border-border rounded-xl p-4 space-y-1">
               <div className="flex items-center gap-2">
                 <s.icon className={cn("w-4 h-4", s.color)} />
                 <span className="text-xs text-muted-foreground font-orbitron uppercase">{s.label}</span>
@@ -520,7 +370,6 @@ export default function BetHistoryPage() {
           </TabsList>
         </Tabs>
 
-        {/* Pending sort */}
         {filter === 'pending' && (
           <div className="flex items-center gap-2">
             <PendingDateSort value={pendingSort} onChange={setPendingSort} />
@@ -534,52 +383,40 @@ export default function BetHistoryPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <p className="font-orbitron">Nenhuma aposta encontrada</p>
+            <p className="font-orbitron">Nenhuma posição encontrada</p>
           </div>
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
               {filtered.map((bet, i) => (
-                <motion.div
-                  key={bet.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ delay: i * 0.03 }}
+                <motion.div key={bet.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.03 }}
                   className={cn(
-                    "bg-card border rounded-xl p-4 space-y-3 hover:border-primary/50 transition-colors cursor-pointer",
+                    "bg-card border rounded-xl p-4 space-y-3 hover:border-primary/50 transition-colors",
                     bet.result === 'green' || bet.status === 'green' ? 'border-success/40' :
-                    bet.result === 'red' || bet.status === 'red' ? 'border-destructive/40' :
-                    'border-border'
-                  )}
-                >
-                  {/* Header with sport icon and match name */}
+                    bet.result === 'red' || bet.status === 'red' ? 'border-destructive/40' : 'border-border'
+                  )}>
+                  {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">⚽</span>
+                      <span className="text-2xl">📈</span>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px] font-orbitron">
-                            {bet.source === 'punter' ? 'Punter' : 'Sports'}
+                        <h3 className="font-orbitron text-sm font-bold text-foreground">{bet.match_name}</h3>
+                        {bet.odd_fonte && (
+                          <Badge variant="outline" className={cn("text-[10px] font-orbitron mt-0.5",
+                            bet.odd_fonte === 'real' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'
+                          )}>
+                            {bet.odd_fonte === 'real' ? '🛡️ REAL' : '👁️ EST'}
                           </Badge>
-                          <h3 className="font-orbitron text-sm font-bold text-foreground">
-                            {bet.match_name}
-                          </h3>
-                        </div>
-                        {bet.league && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{extractLeague(bet)}</p>
                         )}
                       </div>
                     </div>
-                    
-                    {/* Status Badge */}
                     {bet.status !== 'cancelled' && (
                       (bet.result === 'green' || bet.status === 'green') ? (
                         <Badge className="bg-success/20 text-success border-success/40 font-orbitron font-bold">GREEN ✓</Badge>
                       ) : (bet.result === 'red' || bet.status === 'red') ? (
                         <Badge className="bg-destructive/20 text-destructive border-destructive/40 font-orbitron font-bold">RED ✗</Badge>
                       ) : bet.status === 'pending' ? (
-                        <Badge className="bg-warning/20 text-warning border-warning/40 font-orbitron font-bold">PENDENTE ⏳</Badge>
+                        <Badge className="bg-warning/20 text-warning border-warning/40 font-orbitron font-bold">ABERTA ⏳</Badge>
                       ) : null
                     )}
                     {bet.status === 'cancelled' && (
@@ -587,7 +424,7 @@ export default function BetHistoryPage() {
                     )}
                   </div>
 
-                  {/* Commence time for pending */}
+                  {/* Commence time */}
                   {bet.status === 'pending' && bet.commence_time && (
                     <div className="flex items-center gap-1.5 text-xs bg-primary/10 rounded-lg px-3 py-1.5 w-fit">
                       <CalendarDays className="w-3.5 h-3.5 text-primary" />
@@ -595,7 +432,7 @@ export default function BetHistoryPage() {
                     </div>
                   )}
 
-                  {/* Details Grid */}
+                  {/* Details */}
                   <div className="grid grid-cols-4 gap-3 text-sm">
                     <div>
                       <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">Mercado</p>
@@ -611,32 +448,35 @@ export default function BetHistoryPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs font-orbitron uppercase mb-1">
-                        {bet.profit_loss != null ? 'Resultado' : 'EV'}
+                        {bet.profit_loss != null ? 'P&L' : 'EV'}
                       </p>
-                      <p className={cn(
-                        "font-medium font-orbitron",
-                        bet.profit_loss != null 
-                          ? (bet.profit_loss >= 0 ? 'text-success' : 'text-destructive')
-                          : 'text-primary'
+                      <p className={cn("font-medium font-orbitron",
+                        bet.profit_loss != null ? (bet.profit_loss >= 0 ? 'text-success' : 'text-destructive') : 'text-primary'
                       )}>
-                        {bet.profit_loss != null 
+                        {bet.profit_loss != null
                           ? `${bet.profit_loss >= 0 ? '+' : ''}R$ ${bet.profit_loss.toFixed(2)}`
-                          : `+R$ ${(bet.stake * (bet.odd - 1)).toFixed(2)}`
-                        }
+                          : `+R$ ${(bet.stake * (bet.odd - 1)).toFixed(2)}`}
                       </p>
                     </div>
                   </div>
 
-                  {/* Additional Info */}
+                  {/* Cash out value for pending */}
+                  {bet.status === 'pending' && bet.cashout_value != null && (
+                    <div className="flex items-center gap-2 text-xs bg-accent/10 rounded-lg px-3 py-1.5 w-fit">
+                      <span className="text-muted-foreground font-orbitron">Cash Out atual:</span>
+                      <span className={cn("font-orbitron font-bold", bet.cashout_value >= bet.stake ? 'text-success' : 'text-destructive')}>
+                        R$ {bet.cashout_value.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Footer info */}
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {formatDate(bet.placed_at)}
+                      <Clock className="w-3 h-3" /> {formatDate(bet.placed_at)}
                     </span>
                     {bet.score_home != null && bet.score_away != null && (
-                      <span className="font-medium text-foreground">
-                        Placar: {bet.score_home} × {bet.score_away}
-                      </span>
+                      <span className="font-medium text-foreground">Placar: {bet.score_home} × {bet.score_away}</span>
                     )}
                     {(bet.red_card_home || bet.red_card_away) && (
                       <span className="text-destructive font-medium">
@@ -645,41 +485,23 @@ export default function BetHistoryPage() {
                     )}
                   </div>
 
-                  {/* Thesis */}
-                  {bet.thesis && (
-                    <div className="bg-secondary/20 rounded-lg px-3 py-2">
-                      <p className="text-xs leading-relaxed">
-                        <span className="text-primary">💡</span> <span className="text-foreground/80">{bet.thesis}</span>
-                      </p>
-                    </div>
-                  )}
-
                   {/* Actions */}
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                     {bet.status === 'pending' ? (
                       <>
-                        <button
-                          onClick={() => cancelBet(bet)}
-                          className="flex items-center gap-1 text-xs font-orbitron text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                          Cancelar
+                        <button onClick={() => cancelBet(bet)}
+                          className="flex items-center gap-1 text-xs font-orbitron text-destructive hover:text-destructive/80 hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors">
+                          <Ban className="w-3.5 h-3.5" /> Cancelar
                         </button>
-                        <button
-                          onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
-                          className="flex items-center gap-1 text-xs font-orbitron bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md transition-colors font-medium"
-                        >
-                          <Gavel className="w-3.5 h-3.5" />
-                          Liquidar
+                        <button onClick={() => { setSelectedBet(bet); setSettleModalOpen(true); }}
+                          className="flex items-center gap-1 text-xs font-orbitron bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md transition-colors font-medium">
+                          <Gavel className="w-3.5 h-3.5" /> Liquidar
                         </button>
                       </>
                     ) : (bet.status === 'settled' || bet.status === 'green' || bet.status === 'red') && (
-                      <button
-                        onClick={() => revertToPending(bet)}
-                        className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground hover:bg-muted/50 px-3 py-1.5 rounded-md transition-colors"
-                      >
-                        <Undo2 className="w-3.5 h-3.5" />
-                        Corrigir
+                      <button onClick={() => revertToPending(bet)}
+                        className="flex items-center gap-1 text-xs font-orbitron text-muted-foreground hover:text-foreground hover:bg-muted/50 px-3 py-1.5 rounded-md transition-colors">
+                        <Undo2 className="w-3.5 h-3.5" /> Corrigir
                       </button>
                     )}
                   </div>
@@ -693,11 +515,9 @@ export default function BetHistoryPage() {
       <ManualSettleModal
         open={settleModalOpen}
         onClose={() => { setSettleModalOpen(false); setSelectedBet(null); }}
-        bet={selectedBet}
+        bet={selectedBet ? { ...selectedBet, source: 'sports' as const } : null}
         onSettle={handleManualSettle}
       />
-
-      <BetImportPanel isOpen={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }
