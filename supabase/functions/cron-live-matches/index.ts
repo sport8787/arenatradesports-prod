@@ -31,7 +31,10 @@ serve(async (req) => {
       });
     }
 
-    console.log('[CronLive] ▶️ Cron ativado, disparando jobs em paralelo...');
+    const currentMinute = new Date().getMinutes();
+    const isAnalysisMinute = currentMinute % 2 === 1; // ímpares = análise
+
+    console.log(`[CronLive] ▶️ Minuto ${currentMinute} — ${isAnalysisMinute ? 'STATS + ANÁLISE' : 'STATS ONLY'}`);
 
     const baseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,8 +43,8 @@ serve(async (req) => {
       'Authorization': `Bearer ${serviceKey}`,
     };
 
-    // Fire all 3 jobs in parallel — analyze uses data already in DB
-    const [fetchRes, scoresRes, analyzeRes] = await Promise.allSettled([
+    // SEMPRE rodar stats (fetch + scores)
+    const statsJobs: Promise<any>[] = [
       fetch(`${baseUrl}/functions/v1/fetch-live-matches`, {
         method: 'POST', headers,
       }).then(r => r.json()),
@@ -49,25 +52,35 @@ serve(async (req) => {
       fetch(`${baseUrl}/functions/v1/update-live-scores`, {
         method: 'POST', headers,
       }).then(r => r.json()),
+    ];
 
-      fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ bankroll: 500 }),
-      }).then(r => r.json()),
-    ]);
+    const [fetchRes, scoresRes] = await Promise.allSettled(statsJobs);
 
-    const result = {
+    const result: Record<string, any> = {
       success: true,
+      minute: currentMinute,
+      phase: isAnalysisMinute ? 'stats+analysis' : 'stats_only',
       fetch: fetchRes.status === 'fulfilled' ? fetchRes.value : { error: fetchRes.reason?.message },
       scores: scoresRes.status === 'fulfilled' ? scoresRes.value : { error: scoresRes.reason?.message },
-      analysis: analyzeRes.status === 'fulfilled' ? analyzeRes.value : { error: analyzeRes.reason?.message },
     };
 
+    // SÓ nos minutos ímpares → análise Mycroft com dados já atualizados
+    if (isAnalysisMinute) {
+      const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ bankroll: 500 }),
+      }).then(r => r.json()).catch(e => ({ error: e.message }));
+
+      result.analysis = analyzeRes;
+      console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
+    }
+
     console.log('[CronLive] ✅ Resultados:', JSON.stringify({
+      minute: currentMinute,
+      phase: result.phase,
       fetch_ok: fetchRes.status === 'fulfilled',
       scores_ok: scoresRes.status === 'fulfilled',
-      analysis_ok: analyzeRes.status === 'fulfilled',
-      analyzed: analyzeRes.status === 'fulfilled' ? analyzeRes.value?.analyzed : 0,
+      analysis_ok: isAnalysisMinute ? !!result.analysis : 'skipped',
     }));
 
     return new Response(JSON.stringify(result), {
