@@ -169,8 +169,28 @@ serve(async (req) => {
     const rawText = await res.text();
     console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
     const data = JSON.parse(rawText);
-    const fixtures = data.response || [];
-    console.log(`[FetchLive] Found ${fixtures.length} live matches, errors: ${JSON.stringify(data.errors)}, results: ${data.results}`);
+    const allFixtures = data.response || [];
+    console.log(`[FetchLive] Found ${allFixtures.length} total live matches`);
+
+    // 1b. Filtrar apenas ligas permitidas
+    const fixtures = allFixtures.filter((f: any) => {
+      const leagueId = f.league?.id;
+      return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
+    });
+
+    console.log(`[FetchLive] ✅ ${fixtures.length}/${allFixtures.length} jogos passaram no filtro de ligas`);
+
+    // Log de auditoria do filtro
+    try {
+      await supabase.from('cron_logs').insert({
+        tipo: 'filtro_ligas',
+        total_recebidos: allFixtures.length,
+        total_filtrados: fixtures.length,
+        ligas_encontradas: [...new Set(fixtures.map((f: any) => `${f.league.id}: ${f.league.name}`))],
+      });
+    } catch (logErr) {
+      console.warn('[FetchLive] Falha ao gravar log de filtro:', logErr);
+    }
 
     const results: any[] = [];
     // analyzedCount removed - analysis is now manual only
