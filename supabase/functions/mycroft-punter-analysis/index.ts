@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 const MAX_GAMES = 50, BATCH = 5, API_FB = 'https://v3.football.api-sports.io'
+const MAX_EXEC_MS = 240_000 // 240s guard — stop before Supabase 300s wall clock
+let execStart = 0
+const isTimedOut = () => Date.now() - execStart > MAX_EXEC_MS
 const teamCache = new Map<string, number>()
 const hdr = (k: string) => ({ 'x-apisports-key': k })
 const yr = () => { const d = new Date(); return (d.getMonth()+1) < 8 ? d.getFullYear()-1 : d.getFullYear() }
@@ -121,19 +124,27 @@ async function searchTeamId(name: string, key: string): Promise<number|null> {
   if (!key) return null
   const ck = name.toLowerCase().trim()
   if (teamCache.has(ck)) return teamCache.get(ck)!
-  let d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(name)}`, key)
-  let id = d?.response?.[0]?.team?.id || null
-  if (!id && name.split(' ').length > 1) {
-    const parts = name.split(' ')
-    const short = parts.length > 2 ? parts.slice(0,2).join(' ') : parts[parts.length-1]
-    console.log(`[API-Football] Team "${name}" not found, trying "${short}"...`)
-    d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(short)}`, key)
+  // Clean common prefixes/suffixes that break API search
+  const clean = name.replace(/^(1\.\s*)?FC\s+/i, '').replace(/\s+(FC|SC|CF|BA|AC|AS|SV|SK|FK|BV)$/i, '').replace(/^(TSG|VfB|VfL|FSV|RB|SV|SC|FC|1\.)\s+/i, '').trim()
+  const candidates = [name]
+  if (clean !== name && clean.length > 2) candidates.push(clean)
+  // Also try last word (e.g., "Köln" from "1. FC Köln")
+  const lastWord = name.split(' ').pop() || ''
+  if (lastWord.length > 2 && lastWord !== clean && lastWord !== name) candidates.push(lastWord)
+  
+  let id: number | null = null
+  for (const attempt of candidates) {
+    const d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(attempt)}`, key)
     id = d?.response?.[0]?.team?.id || null
-    if (id) console.log(`[API-Football] ✅ Found team "${name}" as "${d.response[0].team.name}" (ID: ${id})`)
+    if (id) {
+      console.log(`[API-Football] ✅ Team "${name}" -> ID: ${id} (via "${attempt}")`)
+      teamCache.set(ck, id)
+      return id
+    }
+    if (attempt !== candidates[candidates.length - 1]) console.log(`[API-Football] Team "${name}" not found via "${attempt}", trying next...`)
   }
-  if (!id) console.warn(`[API-Football] ⚠️ Team "${name}" not found`)
-  else { console.log(`[API-Football] ✅ Team "${name}" -> ID: ${id}`); teamCache.set(ck, id) }
-  return id
+  console.warn(`[API-Football] ⚠️ Team "${name}" not found (tried: ${candidates.join(', ')})`)
+  return null
 }
 
 async function fetchFixtures(teamId: number, key: string, last=5) {
@@ -851,6 +862,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 // Main handler
 serve(async (req) => {
   if (req.method==='OPTIONS') return new Response('ok',{headers:corsHeaders})
+  execStart = Date.now()
   try {
     const sb=createClient(Deno.env.get('SUPABASE_URL')??'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'',{auth:{persistSession:false}})
     const body=await req.json()
@@ -865,6 +877,7 @@ serve(async (req) => {
     const games:any[]=[], noOdds:string[]=[]
 
     for(const lg of leagues) {
+      if(isTimedOut()) { console.warn('[Mycroft Punter] ⏱️ Time guard na busca de odds'); break }
       try {
         const r=await fetch(`https://api.the-odds-api.com/v4/sports/${lg}/odds?apiKey=${oddsKey}&regions=br,eu&markets=h2h,spreads,totals&bookmakers=${bookmakers.join(',')}&oddsFormat=decimal`)
         if(!r.ok) { if(estaduaisMap[lg]) noOdds.push(lg); continue }
@@ -922,9 +935,15 @@ serve(async (req) => {
 
     // Prompt embarcado — fonte única, sem KB
     const approved:any[]=[]
-    let total=0
+    let total=0, timedOut=false
     const toAnalyze=filteredGames.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
+      // ⏱️ Time guard — return partial results before Supabase kills us
+      if(isTimedOut()) {
+        console.warn(`[Mycroft Punter] ⏱️ Time guard ativado em ${Math.round((Date.now()-execStart)/1000)}s — retornando ${approved.length} resultados parciais (${total} analisados de ${toAnalyze.length})`)
+        timedOut=true
+        break
+      }
       const batch=toAnalyze.slice(i,i+BATCH)
       const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
@@ -935,7 +954,7 @@ serve(async (req) => {
           approved.push({match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
         } else if(r.status==='rejected') console.error(`[Mycroft Punter] Erro: ${g.home_team} vs ${g.away_team}:`,r.reason)
       }
-      if(i+BATCH<toAnalyze.length) await new Promise(r=>setTimeout(r,300))
+      if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
     }
 
     // DEDUPLICATION: Keep only the highest-edge entry per match
@@ -961,8 +980,9 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Mycroft Punter] Análise completa: ${dedupApproved.length}/${total} aprovados (${skippedCount} já apostados, ${approved.length-dedupApproved.length} conflitos removidos)`)
-    return new Response(JSON.stringify({success:true,signals:dedupApproved,total_analyzed:total,total_approved:dedupApproved.length,skipped_existing:skippedCount,conflicts_removed:approved.length-dedupApproved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+    const execTime = Math.round((Date.now()-execStart)/1000)
+    console.log(`[Mycroft Punter] Análise ${timedOut?'parcial':'completa'} em ${execTime}s: ${dedupApproved.length}/${total} aprovados (${skippedCount} já apostados, ${approved.length-dedupApproved.length} conflitos removidos${timedOut?`, ${toAnalyze.length-total} pendentes`:''})`)
+    return new Response(JSON.stringify({success:true,signals:dedupApproved,total_analyzed:total,total_approved:dedupApproved.length,skipped_existing:skippedCount,conflicts_removed:approved.length-dedupApproved.length,leagues_scanned:leagues.length,ai_provider:'gemini',timed_out:timedOut,remaining_games:timedOut?toAnalyze.length-total:0,execution_time_s:execTime,timestamp:new Date().toISOString()}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
   } catch(e:any) {
     console.error('[Mycroft Punter] ERRO:',e)
     return new Response(JSON.stringify({success:false,error:e.message}),{status:500,headers:{...corsHeaders,'Content-Type':'application/json'}})
