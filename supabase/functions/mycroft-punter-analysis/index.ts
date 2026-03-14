@@ -69,9 +69,9 @@ Exposição total máxima: 20% da banca`
 interface ValidationResult { valid: boolean; reason: string | null }
 function validateAnalysis(a: any): ValidationResult {
   if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
-  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: \`Edge insuficiente: \${a.edge_percentage}%\` }
-  if (!a.confidence || a.confidence < 65) return { valid: false, reason: \`Confiança insuficiente: \${a.confidence}%\` }
-  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: \`Odd fora do range: \${a.odd}\` }
+  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
+  if (!a.confidence || a.confidence < 65) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
+  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
   if (!a.tier || ![1, 2, 3].includes(a.tier)) return { valid: false, reason: 'Tier inválido ou ausente' }
   const rules: Record<number, { minEdge: number; minConf: number; maxStake: number }> = {
     1: { minEdge: 7, minConf: 78, maxStake: 5 },
@@ -79,9 +79,9 @@ function validateAnalysis(a: any): ValidationResult {
     3: { minEdge: 4, minConf: 65, maxStake: 2.5 },
   }
   const r = rules[a.tier]
-  if (a.edge_percentage < r.minEdge) return { valid: false, reason: \`Tier \${a.tier} exige edge ≥ \${r.minEdge}%, recebido \${a.edge_percentage}%\` }
-  if (a.confidence < r.minConf) return { valid: false, reason: \`Tier \${a.tier} exige confiança ≥ \${r.minConf}%, recebido \${a.confidence}%\` }
-  if (a.stake_percentage > r.maxStake) return { valid: false, reason: \`Stake \${a.stake_percentage}% acima do máximo Tier \${a.tier} (\${r.maxStake}%)\` }
+  if (a.edge_percentage < r.minEdge) return { valid: false, reason: `Tier ${a.tier} exige edge >= ${r.minEdge}%, recebido ${a.edge_percentage}%` }
+  if (a.confidence < r.minConf) return { valid: false, reason: `Tier ${a.tier} exige confianca >= ${r.minConf}%, recebido ${a.confidence}%` }
+  if (a.stake_percentage > r.maxStake) return { valid: false, reason: `Stake ${a.stake_percentage}% acima do maximo Tier ${a.tier} (${r.maxStake}%)` }
   return { valid: true, reason: null }
 }
 
