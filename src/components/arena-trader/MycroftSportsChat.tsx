@@ -339,6 +339,24 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
                     {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                     Upload (.txt, .md, .csv, .pdf)
                   </button>
+                  <button
+                    onClick={learnFromKB}
+                    disabled={learningFromKB || isLoading || kbFiles.length === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                    title="Mycroft lê todos os documentos e cria regras permanentes"
+                  >
+                    {learningFromKB ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
+                    Aprender da KB
+                  </button>
+                </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] text-[10px] hover:bg-[#FFD700]/20 transition-colors disabled:opacity-50"
+                  >
+                    {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                    Upload (.txt, .md, .csv, .pdf)
+                  </button>
                 </div>
 
                 {kbFiles.length > 0 && (
