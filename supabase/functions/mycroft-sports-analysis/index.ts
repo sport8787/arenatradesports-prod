@@ -346,13 +346,13 @@ Formato obrigatório: "🔱 MYCROFT ATIVOU — [NOME DO PLANO]" na thesis.
 - Mercado: Ambas Marcam / Over 2.5 ao vivo
 - Risco: ALTO
 
-### REGRAS DOS PLANOS:
+### REGRAS DOS PLANOS (OBRIGATÓRIO):
 1. SEMPRE anunciar o nome do PLANO antes da análise na thesis
 2. Se múltiplos PLANOs ativos: anunciar o de maior confiança
-3. Se nenhum PLANO identificado: analisar normalmente como padrão genérico
-4. Nunca inventar nomes fora do catálogo oficial
-5. Se situação não se encaixa perfeitamente: mencionar o PLANO mais próximo com ressalva
-6. O campo "plan_name" no JSON deve conter o nome exato do plano (ex: "PLANO ECLIPSE") ou null se nenhum
+3. Se nenhum PLANO identificado: analisar normalmente como padrão genérico e usar plan_name: null
+4. ⛔ PROIBIDO INVENTAR NOMES DE PLANOS. Os ÚNICOS nomes válidos são: PLANO LABAREDA, PLANO ECLIPSE, PLANO DILÚVIO, PLANO ARMADILHA, PLANO INVASÃO, PLANO BUNKER, PLANO RESSURREIÇÃO, PLANO FANTASMA, PLANO AVALANCHE, PLANO TSUNAMI. QUALQUER outro nome (ex: "CACHORRO LOUCO", "FÊNIX", etc.) é uma VIOLAÇÃO GRAVE.
+5. Se situação não se encaixa perfeitamente: mencionar o PLANO mais próximo com ressalva OU usar plan_name: null
+6. O campo "plan_name" no JSON deve conter o nome exato do plano (ex: "PLANO ECLIPSE") ou null se nenhum se aplica
 
 ## FILOSOFIA CORE
 
@@ -478,7 +478,7 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             role: 'user',
-            parts: [{ text: `You are Mycroft, the Oracle of Bluffer Entertainment — an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos". SEMPRE identifique qual PLANO ESTRATÉGICO se aplica ao cenário e informe o nome no campo plan_name.\n\n${prompt}` }],
+            parts: [{ text: `You are Mycroft, the Oracle of Bluffer Entertainment — an elite forensic sports trading analyst. IMPORTANT: You MUST decide APROVADO or VETADO for every match with stats. Only use AGUARDAR if stats are literally all zeros or pattern is still forming (min < 25). CRITICAL: If the prompt contains "REGRAS DO USUÁRIO (PRIORIDADE MÁXIMA)", those rules OVERRIDE any hardcoded patterns. NUNCA mencione "Ricardo Santos". SEMPRE identifique qual PLANO ESTRATÉGICO se aplica. CRITICAL: plan_name MUST be one of the 10 official names (PLANO LABAREDA, PLANO ECLIPSE, PLANO DILÚVIO, PLANO ARMADILHA, PLANO INVASÃO, PLANO BUNKER, PLANO RESSURREIÇÃO, PLANO FANTASMA, PLANO AVALANCHE, PLANO TSUNAMI) or null. NEVER invent plan names.\n\n${prompt}` }],
           }],
           generationConfig: {
             responseMimeType: 'application/json',
@@ -486,7 +486,7 @@ serve(async (req) => {
               type: 'OBJECT',
               properties: {
                 verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
-                plan_name: { type: 'STRING', nullable: true },
+                plan_name: { type: 'STRING', nullable: true, enum: ['PLANO LABAREDA', 'PLANO ECLIPSE', 'PLANO DILÚVIO', 'PLANO ARMADILHA', 'PLANO INVASÃO', 'PLANO BUNKER', 'PLANO RESSURREIÇÃO', 'PLANO FANTASMA', 'PLANO AVALANCHE', 'PLANO TSUNAMI'] },
                 market: { type: 'STRING' },
                 odd: { type: 'NUMBER' },
                 confidence: { type: 'INTEGER' },
