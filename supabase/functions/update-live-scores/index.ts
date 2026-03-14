@@ -8,6 +8,33 @@ const corsHeaders = {
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 
+// Whitelist de ligas permitidas (mesma do fetch-live-matches)
+const LIGAS_PERMITIDAS: Record<number, string> = {
+  39:  "Premier League",
+  140: "La Liga",
+  135: "Serie A",
+  78:  "Bundesliga",
+  61:  "Ligue 1",
+  94:  "Primeira Liga (Portugal)",
+  88:  "Eredivisie",
+  144: "Pro League (Bélgica)",
+  197: "Super League (Grécia)",
+  203: "Süper Lig (Turquia)",
+  40:  "Championship (Inglaterra — 2ª divisão)",
+  2:   "Champions League",
+  3:   "Europa League",
+  848: "Conference League",
+  13:  "Libertadores",
+  11:  "Sul-Americana",
+  71:  "Brasileirão Série A",
+  72:  "Brasileirão Série B",
+  73:  "Brasileirão Série C",
+  238: "Argentine Primera División",
+  253: "MLS",
+};
+
+const LIGAS_BLOQUEADAS: number[] = [667, 668];
+
 function getSupabaseAdmin() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -98,8 +125,14 @@ serve(async (req) => {
     }
 
     const data = await res.json();
-    const fixtures = data.response || [];
-    console.log(`[LiveScores] ${fixtures.length} live fixtures found`);
+    const allFixtures = data.response || [];
+    
+    // Filtrar apenas ligas permitidas
+    const fixtures = allFixtures.filter((f: any) => {
+      const leagueId = f.league?.id;
+      return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
+    });
+    console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas`);
 
     if (fixtures.length === 0) {
       const { data: staleLive } = await supabase

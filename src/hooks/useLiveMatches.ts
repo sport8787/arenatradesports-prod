@@ -40,6 +40,7 @@ export function useLiveMatches() {
     const { data, error } = await supabase
       .from('live_matches')
       .select('*')
+      .in('status', ['live', 'halftime'])
       .order('updated_at', { ascending: false });
 
     if (error) {
