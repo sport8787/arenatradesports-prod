@@ -2168,10 +2168,15 @@ export type Database = {
       punter_signals: {
         Row: {
           analysis_id: string | null
+          bankroll_at_recalc: number | null
           bookmaker: string
+          commence_time: string | null
           created_at: string | null
+          dismissed: boolean | null
+          dismissed_at: string | null
           id: string
           market: string
+          match_date: string | null
           match_id: string
           odd: number
           profit_loss: number | null
@@ -2182,17 +2187,26 @@ export type Database = {
           score_away: number | null
           score_home: number | null
           sent_at: string | null
+          stake_amount: number | null
+          stake_confirmed: boolean | null
           stake_percentage: number | null
+          stake_percentage_original: number | null
+          stake_recalculated_at: string | null
           status: string | null
           updated_at: string | null
           value_percentage: number | null
         }
         Insert: {
           analysis_id?: string | null
+          bankroll_at_recalc?: number | null
           bookmaker: string
+          commence_time?: string | null
           created_at?: string | null
+          dismissed?: boolean | null
+          dismissed_at?: string | null
           id?: string
           market: string
+          match_date?: string | null
           match_id: string
           odd: number
           profit_loss?: number | null
@@ -2203,17 +2217,26 @@ export type Database = {
           score_away?: number | null
           score_home?: number | null
           sent_at?: string | null
+          stake_amount?: number | null
+          stake_confirmed?: boolean | null
           stake_percentage?: number | null
+          stake_percentage_original?: number | null
+          stake_recalculated_at?: string | null
           status?: string | null
           updated_at?: string | null
           value_percentage?: number | null
         }
         Update: {
           analysis_id?: string | null
+          bankroll_at_recalc?: number | null
           bookmaker?: string
+          commence_time?: string | null
           created_at?: string | null
+          dismissed?: boolean | null
+          dismissed_at?: string | null
           id?: string
           market?: string
+          match_date?: string | null
           match_id?: string
           odd?: number
           profit_loss?: number | null
@@ -2224,7 +2247,11 @@ export type Database = {
           score_away?: number | null
           score_home?: number | null
           sent_at?: string | null
+          stake_amount?: number | null
+          stake_confirmed?: boolean | null
           stake_percentage?: number | null
+          stake_percentage_original?: number | null
+          stake_recalculated_at?: string | null
           status?: string | null
           updated_at?: string | null
           value_percentage?: number | null

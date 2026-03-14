@@ -845,8 +845,33 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       }).select().maybeSingle()
 
       if(a.verdict==='APROVADO'&&row) {
-        await sb.from('punter_signals').insert({analysis_id:row.id,match_id:mid,market:a.market,bookmaker:a.bookmaker,odd:a.odd,value_percentage:a.value_percentage,stake_percentage:a.stake_percentage,status:'pending'})
-        console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
+        // ═══ Fluxo desacoplado: hoje = stake imediato, futuro = aguardar recálculo ═══
+        const hoje = new Date().toISOString().split('T')[0]
+        const commenceDate = game.commence_time ? new Date(game.commence_time) : new Date()
+        const matchDate = commenceDate.toISOString().split('T')[0]
+        const isHoje = matchDate === hoje
+
+        if (isHoje) {
+          // Jogo é hoje — fluxo imediato (stake calculado agora)
+          await sb.from('punter_signals').insert({
+            analysis_id:row.id, match_id:mid, market:a.market, bookmaker:a.bookmaker, odd:a.odd,
+            value_percentage:a.value_percentage, stake_percentage:a.stake_percentage,
+            status:'pending', stake_confirmed:true, match_date:matchDate,
+            commence_time:game.commence_time
+          })
+          console.log(`[Mycroft Punter] ✅ Sinal HOJE registrado — stake ${a.stake_percentage}%`)
+        } else {
+          // Jogo futuro — aprovação sem stake (será recalculado no dia do jogo)
+          await sb.from('punter_signals').insert({
+            analysis_id:row.id, match_id:mid, market:a.market, bookmaker:a.bookmaker, odd:a.odd,
+            value_percentage:a.value_percentage, stake_percentage:null,
+            stake_percentage_original:a.stake_percentage,
+            status:'awaiting_stake', stake_confirmed:false, match_date:matchDate,
+            commence_time:game.commence_time
+          })
+          const diasRestantes = Math.ceil((commenceDate.getTime() - Date.now()) / (1000*60*60*24))
+          console.log(`[Mycroft Punter] ⏳ Sinal FUTURO registrado (${matchDate}, ${diasRestantes}d) — stake será recalculado`)
+        }
       }
       const mp=a.estimated_probability||null, mkp=a.implied_probability||(a.odd?(1/a.odd)*100:0)
       await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)

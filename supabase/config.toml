@@ -68,5 +68,8 @@ verify_jwt = false
 [functions.elevenlabs-tts]
 verify_jwt = false
 
+[functions.recalcular-stakes-diarios]
+verify_jwt = false
+
 [functions.create-betfair-appkey]
 verify_jwt = false
