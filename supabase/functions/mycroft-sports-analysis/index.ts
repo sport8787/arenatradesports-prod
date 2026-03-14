@@ -216,7 +216,7 @@ serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: `You are Mycroft, elite forensic sports trading analyst. DECIDE APROVADO or VETADO for every match with stats. Only AGUARDAR if stats are literally all zeros or min < 25. CRITICAL: plan_name MUST be one of the loaded plans or null. NEVER invent plan names.\n\n${prompt}` }] }],
+          contents: [{ role: 'user', parts: [{ text: `Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO ou VETADO para cada jogo com estatísticas. Só use AGUARDAR se as stats forem literalmente todas zero ou minuto < 25. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.\n\n${prompt}` }] }],
           generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: {
