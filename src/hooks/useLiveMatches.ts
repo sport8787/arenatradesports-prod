@@ -1,5 +1,26 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+// Whitelist de ligas permitidas (mesma do backend)
+const LIGAS_PERMITIDAS = new Set([
+  'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
+  'Primeira Liga', 'Eredivisie', 'Pro League', 'Super League', 'Süper Lig',
+  'Championship', 'Champions League', 'Europa League', 'Conference League',
+  'Libertadores', 'Sul-Americana',
+  'Brasileirão Série A', 'Serie A', 'Série A', 'Brasileirão Série B', 'Serie B', 'Série B',
+  'Brasileirão Série C', 'Serie C', 'Série C',
+  'Argentine Primera División', 'Primera División',
+  'MLS',
+]);
+
+function isAllowedLeague(championship: string): boolean {
+  if (!championship) return false;
+  const lower = championship.toLowerCase();
+  for (const liga of LIGAS_PERMITIDAS) {
+    if (lower.includes(liga.toLowerCase())) return true;
+  }
+  return false;
+}
 
 export interface LiveMatch {
   id: string;
@@ -35,11 +56,13 @@ export interface LiveMatch {
 export function useLiveMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMatches = useCallback(async () => {
+    // Single query with join instead of N+1
     const { data, error } = await supabase
       .from('live_matches')
-      .select('*')
+      .select('*, mycroft_analyses(*)')
       .in('status', ['live', 'halftime'])
       .order('updated_at', { ascending: false });
 
@@ -49,24 +72,26 @@ export function useLiveMatches() {
       return;
     }
 
-    // Fetch associated analyses for matches that have one
-    const matchesWithAnalysis = await Promise.all(
-      (data || []).map(async (match: any) => {
-        if (match.mycroft_analysis_id) {
-          const { data: analysis } = await supabase
-            .from('mycroft_analyses')
-            .select('*')
-            .eq('id', match.mycroft_analysis_id)
-            .single();
-          return { ...match, mycroft_analysis: analysis };
-        }
-        return { ...match, mycroft_analysis: null };
-      })
-    );
+    // Map joined data and filter by allowed leagues
+    const mapped = (data || [])
+      .filter((match: any) => isAllowedLeague(match.championship))
+      .map((match: any) => {
+        const analysis = match.mycroft_analyses || null;
+        const { mycroft_analyses, ...rest } = match;
+        return { ...rest, mycroft_analysis: analysis } as LiveMatch;
+      });
 
-    setMatches(matchesWithAnalysis);
+    setMatches(mapped);
     setLoading(false);
   }, []);
+
+  // Debounced refetch to avoid rapid-fire updates from realtime
+  const debouncedRefetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchMatches();
+    }, 2000); // 2s debounce
+  }, [fetchMatches]);
 
   useEffect(() => {
     fetchMatches();
@@ -76,19 +101,20 @@ export function useLiveMatches() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'live_matches' },
-        () => fetchMatches()
+        () => debouncedRefetch()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'mycroft_analyses' },
-        () => fetchMatches()
+        () => debouncedRefetch()
       )
       .subscribe();
 
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [fetchMatches]);
+  }, [fetchMatches, debouncedRefetch]);
 
   return { matches, loading, refetch: fetchMatches };
 }
