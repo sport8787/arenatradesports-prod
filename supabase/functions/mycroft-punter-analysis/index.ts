@@ -124,19 +124,27 @@ async function searchTeamId(name: string, key: string): Promise<number|null> {
   if (!key) return null
   const ck = name.toLowerCase().trim()
   if (teamCache.has(ck)) return teamCache.get(ck)!
-  let d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(name)}`, key)
-  let id = d?.response?.[0]?.team?.id || null
-  if (!id && name.split(' ').length > 1) {
-    const parts = name.split(' ')
-    const short = parts.length > 2 ? parts.slice(0,2).join(' ') : parts[parts.length-1]
-    console.log(`[API-Football] Team "${name}" not found, trying "${short}"...`)
-    d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(short)}`, key)
+  // Clean common prefixes/suffixes that break API search
+  const clean = name.replace(/^(1\.\s*)?FC\s+/i, '').replace(/\s+(FC|SC|CF|BA|AC|AS|SV|SK|FK|BV)$/i, '').replace(/^(TSG|VfB|VfL|FSV|RB|SV|SC|FC|1\.)\s+/i, '').trim()
+  const candidates = [name]
+  if (clean !== name && clean.length > 2) candidates.push(clean)
+  // Also try last word (e.g., "Köln" from "1. FC Köln")
+  const lastWord = name.split(' ').pop() || ''
+  if (lastWord.length > 2 && lastWord !== clean && lastWord !== name) candidates.push(lastWord)
+  
+  let id: number | null = null
+  for (const attempt of candidates) {
+    const d = await apiFetch(`${API_FB}/teams?search=${encodeURIComponent(attempt)}`, key)
     id = d?.response?.[0]?.team?.id || null
-    if (id) console.log(`[API-Football] ✅ Found team "${name}" as "${d.response[0].team.name}" (ID: ${id})`)
+    if (id) {
+      console.log(`[API-Football] ✅ Team "${name}" -> ID: ${id} (via "${attempt}")`)
+      teamCache.set(ck, id)
+      return id
+    }
+    if (attempt !== candidates[candidates.length - 1]) console.log(`[API-Football] Team "${name}" not found via "${attempt}", trying next...`)
   }
-  if (!id) console.warn(`[API-Football] ⚠️ Team "${name}" not found`)
-  else { console.log(`[API-Football] ✅ Team "${name}" -> ID: ${id}`); teamCache.set(ck, id) }
-  return id
+  console.warn(`[API-Football] ⚠️ Team "${name}" not found (tried: ${candidates.join(', ')})`)
+  return null
 }
 
 async function fetchFixtures(teamId: number, key: string, last=5) {
