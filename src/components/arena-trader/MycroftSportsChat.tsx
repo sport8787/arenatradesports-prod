@@ -157,7 +157,6 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
       
       const data = await response.json();
 
-      if (error) throw error;
 
       const assistantMsg: ChatMessage = {
         role: 'assistant',
