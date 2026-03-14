@@ -241,6 +241,81 @@ export default function PunterPage() {
     setSettlingBets(false);
   };
 
+  // Confirm a future signal — place bet with recalculated stake
+  const confirmFutureSignal = async (signal: any) => {
+    if (!user || !bankroll) return;
+
+    const analysis = signal.punter_analyses;
+    if (!analysis) return;
+
+    const stakePercent = signal.stake_percentage || signal.stake_percentage_original || 3;
+    const stakeAmount = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
+
+    if (stakeAmount <= 0 || stakeAmount > bankroll.balance) {
+      toast.error('Saldo insuficiente para confirmar esta aposta');
+      return;
+    }
+
+    const matchName = `${analysis.home_team} vs ${analysis.away_team}`;
+    const matchId = signal.match_id;
+
+    // Place the bet
+    const { error: betError } = await supabase
+      .from('virtual_bets_punter')
+      .insert({
+        user_id: user.id,
+        match_id: matchId,
+        match_name: matchName,
+        market: signal.market,
+        odd: signal.odd,
+        stake: stakeAmount,
+        status: 'pending',
+        thesis: analysis.thesis || null,
+        commence_time: signal.commence_time || null,
+        analysis_id: signal.analysis_id,
+        signal_id: signal.id,
+      } as any);
+
+    if (betError) {
+      toast.error('Erro ao confirmar aposta');
+      return;
+    }
+
+    // Deduct bankroll
+    await supabase.rpc('deduct_bankroll' as any, {
+      p_user_id: user.id,
+      p_amount: stakeAmount,
+    });
+
+    // Update signal status
+    await supabase
+      .from('punter_signals')
+      .update({ status: 'confirmed', stake_confirmed: true, stake_amount: stakeAmount } as any)
+      .eq('id', signal.id);
+
+    // Refresh states
+    setFutureSignals(prev => prev.filter(s => s.id !== signal.id));
+    const { data: refreshed } = await supabase
+      .from('virtual_bets_punter')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (refreshed) setPendingBets(refreshed);
+
+    toast.success(`✅ Confirmado: R$ ${stakeAmount.toFixed(2)} em ${matchName}`);
+  };
+
+  // Dismiss a future signal
+  const dismissFutureSignal = async (signal: any) => {
+    await supabase
+      .from('punter_signals')
+      .update({ dismissed: true, dismissed_at: new Date().toISOString(), status: 'dismissed' } as any)
+      .eq('id', signal.id);
+
+    setFutureSignals(prev => prev.filter(s => s.id !== signal.id));
+    toast.info('Sinal dispensado');
+
   const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
     const now = new Date().toISOString();
     const { data: savedAnalyses } = await supabase
