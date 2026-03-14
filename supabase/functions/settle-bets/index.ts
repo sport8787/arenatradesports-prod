@@ -234,7 +234,10 @@ Deno.serve(async (req) => {
 
       // Update correct bankroll
       const balanceChange = result.isGreen ? bet.stake * bet.odd : 0;
-      const bankrollTable = bet.table === 'virtual_bets_manual' ? 'manual_bankroll' : 'user_bankroll';
+      // Route virtual_bets to sports_bankroll, others to user_bankroll/manual_bankroll
+      const bankrollTable = bet.table === 'virtual_bets' ? 'sports_bankroll' 
+        : bet.table === 'virtual_bets_manual' ? 'manual_bankroll' 
+        : 'user_bankroll';
 
       const { data: currentBankroll } = await supabase
         .from(bankrollTable)
