@@ -67,32 +67,13 @@ export default function BetHistoryPage() {
     if (!user) return;
     setLoading(true);
 
-    const [sportsRes, punterRes] = await Promise.all([
-      supabase.from('virtual_bets').select('*').eq('user_id', user.id).order('placed_at', { ascending: false }),
-      supabase.from('virtual_bets_punter').select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)').eq('user_id', user.id).order('created_at', { ascending: false }),
-    ]);
+    const { data: punterData } = await supabase
+      .from('virtual_bets_punter')
+      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-    const sportsBets: Bet[] = (sportsRes.data || []).map((b: any) => ({
-      id: b.id,
-      match_name: b.match_name || b.match_id,
-      market: b.market,
-      odd: parseFloat(b.odd),
-      stake: parseFloat(b.stake),
-      status: b.status,
-      result: b.status === 'settled' ? (b.profit_loss > 0 ? 'green' : 'red') : undefined,
-      profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
-      placed_at: b.placed_at,
-      settled_at: b.settled_at,
-      source: 'sports' as const,
-      score_home: b.score_home,
-      score_away: b.score_away,
-      red_card_home: b.red_card_home,
-      red_card_away: b.red_card_away,
-      commence_time: b.commence_time,
-      league: undefined, // sports bets don't have league directly
-    }));
-
-    const punterBets: Bet[] = (punterRes.data || []).map((b: any) => ({
+    const punterBets: Bet[] = (punterData || []).map((b: any) => ({
       id: b.id,
       match_name: b.match_name || b.match_id,
       market: b.market,
