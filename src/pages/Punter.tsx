@@ -1107,6 +1107,113 @@ export default function PunterPage() {
           </div>
         )}
 
+        {/* Future Signals — Awaiting Stake / Ready to Confirm */}
+        {futureSignals.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                SINAIS FUTUROS ({futureSignals.length})
+              </span>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-warning">
+                <Calendar className="w-3 h-3" />
+                AGUARDANDO
+              </div>
+            </div>
+            <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
+              {futureSignals.map((signal: any) => {
+                const analysis = signal.punter_analyses;
+                const isStakeCalculated = signal.status === 'stake_calculated';
+                const isAwaitingStake = signal.status === 'awaiting_stake';
+                const matchName = analysis ? `${analysis.home_team} vs ${analysis.away_team}` : signal.match_id;
+                const matchDate = signal.match_date ? new Date(signal.match_date + 'T12:00:00') : null;
+                const stakePercent = signal.stake_percentage || signal.stake_percentage_original || 3;
+                const stakeAmount = bankroll ? Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100 : 0;
+
+                return (
+                  <div key={signal.id} className={cn(
+                    "p-3 space-y-2 bg-card transition-colors",
+                    isStakeCalculated && "bg-warning/5 border-l-2 border-l-warning"
+                  )}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-sm font-semibold text-foreground truncate">{matchName}</p>
+                          {isStakeCalculated ? (
+                            <Badge className="bg-warning/20 text-warning border-warning/30 text-[9px] animate-pulse">
+                              CONFIRMAR HOJE
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-accent/20 text-accent border-accent/30 text-[9px]">
+                              APROVADO — STAKE PENDENTE
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="font-mono text-[10px] text-muted-foreground">
+                          {signal.market} @ {parseFloat(signal.odd).toFixed(2)}
+                          {analysis?.league && <span className="ml-2 opacity-60">{analysis.league}</span>}
+                          {matchDate && (
+                            <span className="ml-2">
+                              📅 {matchDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {isStakeCalculated ? (
+                          <>
+                            <p className="font-mono text-sm font-bold text-foreground">R$ {stakeAmount.toFixed(2)}</p>
+                            <p className="font-mono text-[10px] text-muted-foreground">{stakePercent}% Kelly</p>
+                          </>
+                        ) : (
+                          <p className="font-mono text-[10px] text-muted-foreground italic">Stake no dia do jogo</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Thesis preview */}
+                    {analysis?.thesis && (
+                      <p className="text-[10px] text-foreground/60 font-mono leading-relaxed line-clamp-2">
+                        {analysis.thesis}
+                      </p>
+                    )}
+
+                    {/* Action buttons for stake_calculated */}
+                    {isStakeCalculated && (
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-8 font-mono text-xs"
+                          onClick={() => confirmFutureSignal(signal)}
+                        >
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          CONFIRMAR
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 font-mono text-xs text-muted-foreground"
+                          onClick={() => dismissFutureSignal(signal)}
+                        >
+                          <XCircle className="w-3 h-3 mr-1" />
+                          DISPENSAR
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Info for awaiting_stake */}
+                    {isAwaitingStake && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        <span>Stake será calculado às 10:00 do dia {matchDate?.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Pending Positions */}
         {pendingBets.length > 0 && (
           <div className="space-y-3">
