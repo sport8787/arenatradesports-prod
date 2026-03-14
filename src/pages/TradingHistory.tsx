@@ -515,7 +515,7 @@ export default function TradingHistory() {
       <ManualSettleModal
         open={settleModalOpen}
         onClose={() => { setSettleModalOpen(false); setSelectedBet(null); }}
-        bet={selectedBet}
+        bet={selectedBet ? { ...selectedBet, source: 'sports' as const } : null}
         onSettle={handleManualSettle}
       />
     </div>

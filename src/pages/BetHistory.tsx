@@ -94,7 +94,7 @@ export default function BetHistoryPage() {
       league: b.punter_analyses?.league || undefined,
     }));
 
-    setBets([...sportsBets, ...punterBets].sort((a, b) =>
+    setBets(punterBets.sort((a, b) =>
       new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
     ));
     setLoading(false);
