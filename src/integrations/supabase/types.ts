@@ -1815,6 +1815,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_vetoed_log: {
+        Row: {
+          confianca_recebida: number | null
+          created_at: string | null
+          edge_recebido: number | null
+          id: string
+          jogo: string | null
+          liga: string | null
+          mercado: string | null
+          motivo_veto: string | null
+          odd: number | null
+          raw_response: Json | null
+          user_id: string | null
+          verdict_gemini: string | null
+        }
+        Insert: {
+          confianca_recebida?: number | null
+          created_at?: string | null
+          edge_recebido?: number | null
+          id?: string
+          jogo?: string | null
+          liga?: string | null
+          mercado?: string | null
+          motivo_veto?: string | null
+          odd?: number | null
+          raw_response?: Json | null
+          user_id?: string | null
+          verdict_gemini?: string | null
+        }
+        Update: {
+          confianca_recebida?: number | null
+          created_at?: string | null
+          edge_recebido?: number | null
+          id?: string
+          jogo?: string | null
+          liga?: string | null
+          mercado?: string | null
+          motivo_veto?: string | null
+          odd?: number | null
+          raw_response?: Json | null
+          user_id?: string | null
+          verdict_gemini?: string | null
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           avatar_url: string | null
