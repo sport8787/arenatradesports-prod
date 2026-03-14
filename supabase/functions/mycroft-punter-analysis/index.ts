@@ -934,9 +934,15 @@ serve(async (req) => {
 
     // Prompt embarcado — fonte única, sem KB
     const approved:any[]=[]
-    let total=0
+    let total=0, timedOut=false
     const toAnalyze=filteredGames.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
+      // ⏱️ Time guard — return partial results before Supabase kills us
+      if(isTimedOut()) {
+        console.warn(`[Mycroft Punter] ⏱️ Time guard ativado em ${Math.round((Date.now()-execStart)/1000)}s — retornando ${approved.length} resultados parciais (${total} analisados de ${toAnalyze.length})`)
+        timedOut=true
+        break
+      }
       const batch=toAnalyze.slice(i,i+BATCH)
       const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
@@ -947,7 +953,7 @@ serve(async (req) => {
           approved.push({match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
         } else if(r.status==='rejected') console.error(`[Mycroft Punter] Erro: ${g.home_team} vs ${g.away_team}:`,r.reason)
       }
-      if(i+BATCH<toAnalyze.length) await new Promise(r=>setTimeout(r,300))
+      if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
     }
 
     // DEDUPLICATION: Keep only the highest-edge entry per match
