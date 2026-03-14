@@ -315,6 +315,8 @@ export default function PunterPage() {
 
     setFutureSignals(prev => prev.filter(s => s.id !== signal.id));
     toast.info('Sinal dispensado');
+  };
+
 
   const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
     const now = new Date().toISOString();
