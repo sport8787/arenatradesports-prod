@@ -487,7 +487,7 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
       response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-        body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: 2000 }),
+        body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: query.includes("INSTRUÇÃO ESPECIAL") ? 4000 : 2000 }),
         signal: controller.signal,
       });
     } catch (fetchErr) {
