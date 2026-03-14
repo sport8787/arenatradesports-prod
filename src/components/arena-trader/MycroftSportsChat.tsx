@@ -349,15 +349,6 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
                     Aprender da KB
                   </button>
                 </div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] text-[10px] hover:bg-[#FFD700]/20 transition-colors disabled:opacity-50"
-                  >
-                    {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                    Upload (.txt, .md, .csv, .pdf)
-                  </button>
-                </div>
 
                 {kbFiles.length > 0 && (
                   <div className="space-y-1 max-h-24 overflow-y-auto">
