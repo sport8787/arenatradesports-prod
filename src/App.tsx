@@ -67,6 +67,7 @@ const App = () => {
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/paywall" element={<Paywall />} />
               <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
               <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
