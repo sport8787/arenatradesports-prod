@@ -703,7 +703,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
   for (let att=0;att<3;att++) {
     try {
-      const parsed = await callGemini(sysPr, usrPr)
+      const parsed = await callGemini(sysPr, usrPr, incCorners, incCards)
       const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       // Map new field names to existing DB columns
