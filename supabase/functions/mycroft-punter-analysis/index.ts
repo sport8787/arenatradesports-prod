@@ -525,9 +525,53 @@ function parseStructuredJson(raw: string) {
   throw new Error('No JSON')
 }
 
-async function callGemini(sys:string, usr:string) {
+async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
   const key = Deno.env.get('GEMINI_API_KEY')
   if(!key) throw new Error('GEMINI_API_KEY not configured')
+
+  const schemaProperties: Record<string,any> = {
+    verdict: { type: 'STRING', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
+    tier: { type: 'INTEGER', nullable: true },
+    veto_reason: { type: 'STRING', nullable: true },
+    model_level: { type: 'STRING', enum: ['NIVEL_1','NIVEL_2','NIVEL_3'] },
+    market: { type: 'STRING', nullable: true },
+    bookmaker: { type: 'STRING' },
+    odd: { type: 'NUMBER' },
+    baseline_sharp_odd: { type: 'NUMBER', nullable: true },
+    implied_probability_sharp: { type: 'NUMBER', nullable: true },
+    estimated_probability: { type: 'NUMBER', nullable: true },
+    edge_percentage: { type: 'NUMBER' },
+    expected_value: { type: 'NUMBER' },
+    confidence: { type: 'NUMBER' },
+    data_strength: { type: 'STRING' },
+    stake_percentage: { type: 'NUMBER' },
+    filters_passed: { type: 'ARRAY', items: { type: 'STRING' } },
+    thesis: { type: 'STRING' },
+    analysis: { type: 'STRING' },
+    risk_factors: { type: 'STRING' },
+    api_predictions_agree: { type: 'BOOLEAN', nullable: true },
+  }
+  const requiredFields = ['verdict','model_level','market','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
+
+  if (incCorners) {
+    schemaProperties.corner_prediction = {
+      type: 'OBJECT', nullable: true,
+      properties: {
+        line: { type: 'NUMBER' }, expected_total: { type: 'NUMBER' },
+        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+      }
+    }
+  }
+  if (incCards) {
+    schemaProperties.card_prediction = {
+      type: 'OBJECT', nullable: true,
+      properties: {
+        market: { type: 'STRING' }, expected_total: { type: 'NUMBER' },
+        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+      }
+    }
+    schemaProperties.referee_impact = { type: 'STRING', nullable: true }
+  }
 
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
     method: 'POST',
@@ -541,8 +585,13 @@ async function callGemini(sys:string, usr:string) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 2500,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: schemaProperties,
+          required: requiredFields,
+        },
       },
     }),
   })
@@ -631,7 +680,7 @@ async function analyzeGame(game:any, prompt:string, method:string, vGuide:string
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE TAMANHO: thesis até 280 caracteres, analysis até 500 caracteres, risk_factors até 220 caracteres.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
+  const sysPr=`${prompt}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE QUALIDADE: thesis deve ser detalhada com fundamentação (mínimo 150 caracteres). analysis deve conter a análise completa com dados estatísticos, probabilidades e justificativa (mínimo 300 caracteres). risk_factors deve listar todos os riscos identificados.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
 ${fmtTeam(game.home_team,en.home)}
@@ -654,7 +703,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
   for (let att=0;att<3;att++) {
     try {
-      const parsed = await callGemini(sysPr, usrPr)
+      const parsed = await callGemini(sysPr, usrPr, incCorners, incCards)
       const a = parsed
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       // Map new field names to existing DB columns
