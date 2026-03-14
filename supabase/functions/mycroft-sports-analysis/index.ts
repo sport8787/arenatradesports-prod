@@ -486,7 +486,7 @@ serve(async (req) => {
               type: 'OBJECT',
               properties: {
                 verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
-                plan_name: { type: 'STRING', nullable: true },
+                plan_name: { type: 'STRING', nullable: true, enum: ['PLANO LABAREDA', 'PLANO ECLIPSE', 'PLANO DILÚVIO', 'PLANO ARMADILHA', 'PLANO INVASÃO', 'PLANO BUNKER', 'PLANO RESSURREIÇÃO', 'PLANO FANTASMA', 'PLANO AVALANCHE', 'PLANO TSUNAMI'] },
                 market: { type: 'STRING' },
                 odd: { type: 'NUMBER' },
                 confidence: { type: 'INTEGER' },
