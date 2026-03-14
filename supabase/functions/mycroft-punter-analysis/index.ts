@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 const MAX_GAMES = 50, BATCH = 5, API_FB = 'https://v3.football.api-sports.io'
+const MAX_EXEC_MS = 240_000 // 240s guard — stop before Supabase 300s wall clock
+let execStart = 0
+const isTimedOut = () => Date.now() - execStart > MAX_EXEC_MS
 const teamCache = new Map<string, number>()
 const hdr = (k: string) => ({ 'x-apisports-key': k })
 const yr = () => { const d = new Date(); return (d.getMonth()+1) < 8 ? d.getFullYear()-1 : d.getFullYear() }
