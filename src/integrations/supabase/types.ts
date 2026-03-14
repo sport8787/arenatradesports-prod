@@ -1212,6 +1212,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          ligas_encontradas: Json | null
+          tipo: string | null
+          total_filtrados: number | null
+          total_recebidos: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ligas_encontradas?: Json | null
+          tipo?: string | null
+          total_filtrados?: number | null
+          total_recebidos?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ligas_encontradas?: Json | null
+          tipo?: string | null
+          total_filtrados?: number | null
+          total_recebidos?: number | null
+        }
+        Relationships: []
+      }
       cron_settings: {
         Row: {
           id: string

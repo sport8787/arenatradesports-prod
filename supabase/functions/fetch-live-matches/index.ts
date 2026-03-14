@@ -8,6 +8,42 @@ const corsHeaders = {
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 
+// Whitelist de ligas permitidas (league_id → nome)
+const LIGAS_PERMITIDAS: Record<number, string> = {
+  // Europa — Primeiras divisões
+  39:  "Premier League",
+  140: "La Liga",
+  135: "Serie A",
+  78:  "Bundesliga",
+  61:  "Ligue 1",
+  94:  "Primeira Liga (Portugal)",
+  88:  "Eredivisie",
+  144: "Pro League (Bélgica)",
+  197: "Super League (Grécia)",
+  203: "Süper Lig (Turquia)",
+  // Europa — Segundas divisões
+  40:  "Championship (Inglaterra — 2ª divisão)",
+  // UEFA
+  2:   "Champions League",
+  3:   "Europa League",
+  848: "Conference League",
+  // América do Sul
+  13:  "Libertadores",
+  11:  "Sul-Americana",
+  71:  "Brasileirão Série A",
+  72:  "Brasileirão Série B",
+  73:  "Brasileirão Série C",
+  238: "Argentine Primera División",
+  // América do Norte
+  253: "MLS",
+};
+
+// IDs de ligas bloqueadas
+const LIGAS_BLOQUEADAS: number[] = [
+  667, // Amistosos clubes
+  668, // Amistosos seleções
+];
+
 function getSupabaseAdmin() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
