@@ -125,8 +125,14 @@ serve(async (req) => {
     }
 
     const data = await res.json();
-    const fixtures = data.response || [];
-    console.log(`[LiveScores] ${fixtures.length} live fixtures found`);
+    const allFixtures = data.response || [];
+    
+    // Filtrar apenas ligas permitidas
+    const fixtures = allFixtures.filter((f: any) => {
+      const leagueId = f.league?.id;
+      return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
+    });
+    console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas`);
 
     if (fixtures.length === 0) {
       const { data: staleLive } = await supabase
