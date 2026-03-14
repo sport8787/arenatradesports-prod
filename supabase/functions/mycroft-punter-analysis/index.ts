@@ -525,9 +525,53 @@ function parseStructuredJson(raw: string) {
   throw new Error('No JSON')
 }
 
-async function callGemini(sys:string, usr:string) {
+async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
   const key = Deno.env.get('GEMINI_API_KEY')
   if(!key) throw new Error('GEMINI_API_KEY not configured')
+
+  const schemaProperties: Record<string,any> = {
+    verdict: { type: 'STRING', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
+    tier: { type: 'INTEGER', nullable: true },
+    veto_reason: { type: 'STRING', nullable: true },
+    model_level: { type: 'STRING', enum: ['NIVEL_1','NIVEL_2','NIVEL_3'] },
+    market: { type: 'STRING', nullable: true },
+    bookmaker: { type: 'STRING' },
+    odd: { type: 'NUMBER' },
+    baseline_sharp_odd: { type: 'NUMBER', nullable: true },
+    implied_probability_sharp: { type: 'NUMBER', nullable: true },
+    estimated_probability: { type: 'NUMBER', nullable: true },
+    edge_percentage: { type: 'NUMBER' },
+    expected_value: { type: 'NUMBER' },
+    confidence: { type: 'NUMBER' },
+    data_strength: { type: 'STRING' },
+    stake_percentage: { type: 'NUMBER' },
+    filters_passed: { type: 'ARRAY', items: { type: 'STRING' } },
+    thesis: { type: 'STRING' },
+    analysis: { type: 'STRING' },
+    risk_factors: { type: 'STRING' },
+    api_predictions_agree: { type: 'BOOLEAN', nullable: true },
+  }
+  const requiredFields = ['verdict','model_level','market','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
+
+  if (incCorners) {
+    schemaProperties.corner_prediction = {
+      type: 'OBJECT', nullable: true,
+      properties: {
+        line: { type: 'NUMBER' }, expected_total: { type: 'NUMBER' },
+        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+      }
+    }
+  }
+  if (incCards) {
+    schemaProperties.card_prediction = {
+      type: 'OBJECT', nullable: true,
+      properties: {
+        market: { type: 'STRING' }, expected_total: { type: 'NUMBER' },
+        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+      }
+    }
+    schemaProperties.referee_impact = { type: 'STRING', nullable: true }
+  }
 
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
     method: 'POST',
@@ -541,8 +585,13 @@ async function callGemini(sys:string, usr:string) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 2500,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: schemaProperties,
+          required: requiredFields,
+        },
       },
     }),
   })
