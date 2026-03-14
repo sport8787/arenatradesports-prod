@@ -148,7 +148,7 @@ export default function PunterPage() {
             let autoPlaced = 0;
             const newAutoIds = new Set<string>();
             for (const signal of savedSignals) {
-              const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
               if (pendingIds.has(matchId)) continue;
               const placed = await autoPlaceHorusBet(signal);
               if (placed) {
@@ -366,8 +366,8 @@ export default function PunterPage() {
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
 
-    // CRITICAL: Only auto-bet on signals with stake_confirmed = true
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
+    // CRITICAL: match_id must match the format used by the edge function: Home_Away_commence_time
+    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
     const { data: confirmedSignal } = await supabase
       .from('punter_signals')
       .select('id, stake_confirmed')
@@ -595,7 +595,7 @@ export default function PunterPage() {
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
-          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`.replace(/\s+/g, '_').toLowerCase();
+          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
