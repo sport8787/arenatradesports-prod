@@ -176,6 +176,87 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
     }
   };
 
+  const [learningFromKB, setLearningFromKB] = useState(false);
+
+  const learnFromKB = async () => {
+    if (learningFromKB || isLoading) return;
+    if (kbFiles.length === 0) {
+      toast({ title: '📚 Nenhum arquivo na KB. Envie documentos primeiro.', variant: 'destructive' });
+      return;
+    }
+    setLearningFromKB(true);
+    const learningPrompt = `INSTRUÇÃO ESPECIAL: Leia TODOS os documentos da Knowledge Base com atenção máxima. Para cada documento:
+
+1. Identifique os conceitos-chave, estratégias, regras e princípios do autor
+2. Extraia as lições mais importantes para trading esportivo
+3. Crie regras permanentes baseadas nesses ensinamentos
+
+Para cada regra extraída, use o formato:
+"A partir de agora, [regra baseada no conteúdo do livro/documento]. Fonte: [nome do arquivo/autor]"
+
+Priorize:
+- Gestão de risco e banca
+- Controle emocional e psicologia
+- Critérios de entrada e saída
+- Análise de value e probabilidades
+- Disciplina operacional
+
+Ao final, liste todas as regras criadas como um resumo organizado por categoria.`;
+    
+    setInput('');
+    const userMsg: ChatMessage = { role: 'user', content: '📚 Aprender da Knowledge Base', timestamp: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
+    setIsLoading(true);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3min for learning
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-sports-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            query: learningPrompt,
+            conversationHistory: [],
+            userId: session?.user?.id || null,
+          }),
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.response || `Erro ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: data?.response || '⚠️ Sem resposta do Mycroft.',
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+      toast({ title: '🧠 Mycroft aprendeu com a Knowledge Base!' });
+    } catch (err) {
+      console.error('KB Learning error:', err);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '⚠️ Erro ao processar a Knowledge Base. Os documentos podem ser muito grandes. Tente novamente.',
+        timestamp: Date.now(),
+      }]);
+    } finally {
+      setIsLoading(false);
+      setLearningFromKB(false);
+    }
+  };
+
   const quickPrompts = [
     'Onde tem value agora?',
     'Analise o Over 0.5 HT',
