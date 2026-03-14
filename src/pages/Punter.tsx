@@ -421,13 +421,45 @@ export default function PunterPage() {
       const savedSignals = await fetchSavedSignals();
       const hoursAhead = timeWindow === '15min' ? 0.25 : 48;
       const functionName = aiProvider === 'anthropic' ? 'mycroft-punter-anthropic' : 'mycroft-punter-analysis';
-      const { data, error: fnError } = await supabase.functions.invoke(functionName, {
-        body: {
-          hours_ahead: hoursAhead,
-          bookmakers: ['bet365', 'pinnacle', 'betfair'],
-          min_value: 5,
+      
+      // Use fetch with extended timeout (5 min) — supabase.functions.invoke times out too early
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300_000); // 5 min
+      let data: any = null;
+      let fnError: any = null;
+      try {
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              hours_ahead: hoursAhead,
+              bookmakers: ['bet365', 'pinnacle', 'betfair'],
+              min_value: 5,
+            }),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeoutId);
+        if (!resp.ok) {
+          fnError = new Error(`Edge Function error: ${resp.status}`);
+          try { data = await resp.json(); } catch { data = null; }
+        } else {
+          data = await resp.json();
         }
-      });
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          fnError = new Error('Análise excedeu o tempo limite de 5 minutos');
+        } else {
+          fnError = fetchErr;
+        }
+      }
 
       const newSignals: PunterSignal[] = (data?.signals || []);
       const newAnalyzed = data?.total_analyzed || 0;
