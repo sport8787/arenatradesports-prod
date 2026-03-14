@@ -877,6 +877,7 @@ serve(async (req) => {
     const games:any[]=[], noOdds:string[]=[]
 
     for(const lg of leagues) {
+      if(isTimedOut()) { console.warn('[Mycroft Punter] ⏱️ Time guard na busca de odds'); break }
       try {
         const r=await fetch(`https://api.the-odds-api.com/v4/sports/${lg}/odds?apiKey=${oddsKey}&regions=br,eu&markets=h2h,spreads,totals&bookmakers=${bookmakers.join(',')}&oddsFormat=decimal`)
         if(!r.ok) { if(estaduaisMap[lg]) noOdds.push(lg); continue }

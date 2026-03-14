@@ -498,9 +498,13 @@ export default function PunterPage() {
         }
       } else {
         const savedOnly = mergedSignals.length - newApproved;
-        const msg = savedOnly > 0
+        const timedOut = data?.timed_out;
+        const remaining = data?.remaining_games || 0;
+        const execTime = data?.execution_time_s || 0;
+        let msg = savedOnly > 0
           ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`
           : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`;
+        if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
         // 🔊 Hórus TTS: announce results with user's name
