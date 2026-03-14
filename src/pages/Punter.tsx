@@ -124,6 +124,15 @@ export default function PunterPage() {
       if (!horusRes.error && horusRes.data) setPendingBets(horusRes.data);
       if (!manualRes.error && manualRes.data) setManualPendingBets(manualRes.data);
 
+      // Load future signals (awaiting_stake + stake_calculated)
+      const { data: futureData } = await supabase
+        .from('punter_signals')
+        .select('*, punter_analyses!punter_signals_analysis_id_fkey(home_team, away_team, league, market, thesis, confidence, stake_percentage)')
+        .in('status', ['awaiting_stake', 'stake_calculated'])
+        .eq('dismissed', false)
+        .order('match_date', { ascending: true });
+      if (futureData) setFutureSignals(futureData);
+
       // Auto-load saved approved signals from DB (from automated cron or previous analyses)
       try {
         const savedSignals = await fetchSavedSignals();
