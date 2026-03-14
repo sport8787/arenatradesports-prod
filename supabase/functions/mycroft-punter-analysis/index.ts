@@ -920,19 +920,13 @@ serve(async (req) => {
     
     if(!filteredGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,skipped_existing:skippedCount,leagues_scanned:leagues.length,message:`Todos os ${skippedCount} jogos já possuem apostas`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
 
-    // KB
-    let meth='',vg='',cp=''
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('punter-methodology.md');if(d)meth=await d.text()}catch{}
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('value-betting-guide.md');if(d)vg=await d.text()}catch{}
-    try{const{data:d}=await sb.storage.from('sports-knowledge-base').download('prompt_mycroft_punter.txt');if(d)cp=await d.text()}catch{}
-    if(!cp) cp='Você é Mycroft Arena Quant Adaptive, analista probabilístico da Arena Punter. Missão: identificar apostas com value positivo. FOCO: ROI positivo consistente.'
-
+    // Prompt embarcado — fonte única, sem KB
     const approved:any[]=[]
     let total=0
     const toAnalyze=filteredGames.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
       const batch=toAnalyze.slice(i,i+BATCH)
-      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,cp,meth,vg,min_value,sb,apiKey,include_corners,include_cards,oddsKey)))
+      const results=await Promise.allSettled(batch.map(g=>analyzeGame(g,sb,apiKey,include_corners,include_cards,oddsKey)))
       for(let j=0;j<results.length;j++) {
         total++
         const r=results[j], g=batch[j]
