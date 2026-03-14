@@ -478,11 +478,27 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-      body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: 2000 }),
-    });
+    // Timeout de 90s para evitar travamento
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000);
+
+    let response: Response;
+    try {
+      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
+        body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: 2000 }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(timeout);
+      if (fetchErr.name === 'AbortError') {
+        console.error("[MycroftSportsChat] Timeout após 90s");
+        return new Response(JSON.stringify({ error: "Timeout", response: "⚠️ A análise demorou demais. Tente uma pergunta mais curta ou específica." }), { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      throw fetchErr;
+    }
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const status = response.status;

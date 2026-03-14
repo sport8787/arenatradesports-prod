@@ -127,17 +127,36 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
     setIsLoading(true);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2min client timeout
+      
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('mycroft-sports-chat', {
-        body: {
-          query: userMsg.content,
-          matchContext,
-          conversationHistory: messages.slice(-10),
-          userId: session?.user?.id || null,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-sports-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            query: userMsg.content,
+            matchContext,
+            conversationHistory: messages.slice(-10),
+            userId: session?.user?.id || null,
+          }),
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.response || `Erro ${response.status}`);
+      }
+      
+      const data = await response.json();
 
-      if (error) throw error;
 
       const assistantMsg: ChatMessage = {
         role: 'assistant',
