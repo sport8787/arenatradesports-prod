@@ -181,8 +181,8 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) return new Response(JSON.stringify({ error: 'API key not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const { match } = await req.json() as { match: MatchData };
     if (!match) return new Response(JSON.stringify({ error: 'Match data required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -210,49 +210,67 @@ serve(async (req) => {
     // Build valid plan_name enum from loaded plans
     const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: `Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO ou VETADO para cada jogo com estatísticas. Só use AGUARDAR se as stats forem literalmente todas zero ou minuto < 25. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.\n\n${prompt}` }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'OBJECT',
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO ou VETADO para cada jogo com estatísticas. Só use AGUARDAR se as stats forem literalmente todas zero ou minuto < 25. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.' },
+          { role: 'user', content: prompt },
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'sports_analysis',
+            description: 'Return the structured sports trading analysis.',
+            parameters: {
+              type: 'object',
               properties: {
-                verdict: { type: 'STRING', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
-                plan_name: { type: 'STRING', nullable: true, enum: planEnumValues },
-                market: { type: 'STRING' },
-                odd: { type: 'NUMBER' },
-                confidence: { type: 'INTEGER' },
-                thesis: { type: 'STRING' },
-                criterios_atendidos: { type: 'ARRAY', items: { type: 'STRING' } },
-                criterios_ausentes: { type: 'ARRAY', items: { type: 'STRING' } },
-                fundamentation: { type: 'OBJECT', properties: { source: { type: 'STRING' }, citation: { type: 'STRING' }, pattern: { type: 'STRING' }, historical_wr: { type: 'STRING' } } },
-                risk_management: { type: 'OBJECT', properties: { stake_percent: { type: 'NUMBER' }, entry: { type: 'STRING' }, stop: { type: 'STRING' }, target: { type: 'STRING' }, rr: { type: 'STRING' }, ev: { type: 'STRING' } } },
-                alerts: { type: 'ARRAY', items: { type: 'STRING' } },
+                verdict: { type: 'string', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
+                plan_name: { type: 'string', nullable: true, enum: planEnumValues },
+                market: { type: 'string' },
+                odd: { type: 'number' },
+                confidence: { type: 'integer' },
+                thesis: { type: 'string' },
+                criterios_atendidos: { type: 'array', items: { type: 'string' } },
+                criterios_ausentes: { type: 'array', items: { type: 'string' } },
+                fundamentation: { type: 'object', properties: { source: { type: 'string' }, citation: { type: 'string' }, pattern: { type: 'string' }, historical_wr: { type: 'string' } } },
+                risk_management: { type: 'object', properties: { stake_percent: { type: 'number' }, entry: { type: 'string' }, stop: { type: 'string' }, target: { type: 'string' }, rr: { type: 'string' }, ev: { type: 'string' } } },
+                alerts: { type: 'array', items: { type: 'string' } },
               },
               required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
+              additionalProperties: false,
             },
-            temperature: 0.1,
-            maxOutputTokens: 4096,
           },
-        }),
-      }
-    );
+        }],
+        tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
+        temperature: 0.1,
+        max_tokens: 4096,
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] Gemini error ${response.status}:`, errorText);
+      console.error(`[MycroftSports] AI Gateway error ${response.status}:`, errorText);
       if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // Extract from tool call response
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    let rawText = '';
+    if (toolCall?.function?.arguments) {
+      rawText = toolCall.function.arguments;
+    } else {
+      rawText = data.choices?.[0]?.message?.content || '';
+    }
     console.log('[MycroftSports] Raw:', rawText.substring(0, 300));
 
     let analysis;
