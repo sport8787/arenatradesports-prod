@@ -151,7 +151,7 @@ export default function PunterPage() {
             let autoPlaced = 0;
             const newAutoIds = new Set<string>();
             for (const signal of savedSignals) {
-              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
               if (pendingIds.has(matchId)) continue;
               const placed = await autoPlaceHorusBet(signal);
               if (placed) {
