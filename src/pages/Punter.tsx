@@ -1342,6 +1342,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
     confidence: signal.recommendation.confidence,
     odd: signal.recommendation.odd,
     bookmaker: signal.recommendation.bookmaker,
+    estimated_probability: signal.recommendation.estimated_probability ?? undefined,
   });
   const gradeConfig = getGradeConfig(assetScore.grade);
 
