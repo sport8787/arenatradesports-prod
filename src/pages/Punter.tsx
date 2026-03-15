@@ -577,7 +577,9 @@ export default function PunterPage() {
         );
         clearTimeout(timeoutId);
         if (!resp.ok) {
-          fnError = new Error(`Edge Function error: ${resp.status}`);
+          // Check if it's a timeout/gateway error
+          const statusText = resp.status >= 500 ? 'Servidor sobrecarregado — tente novamente ou use janela 15min' : `Edge Function error: ${resp.status}`;
+          fnError = new Error(statusText);
           try { data = await resp.json(); } catch { data = null; }
         } else {
           data = await resp.json();
@@ -585,7 +587,9 @@ export default function PunterPage() {
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {
-          fnError = new Error('Análise excedeu o tempo limite de 5 minutos');
+          fnError = new Error('Análise excedeu o tempo limite de 5 minutos. Tente janela "15min" para análise mais rápida.');
+        } else if (fetchErr.message?.includes('Failed to fetch') || fetchErr.message?.includes('NetworkError')) {
+          fnError = new Error('Conexão perdida — o servidor pode ter excedido o tempo. Tente janela "15min".');
         } else {
           fnError = fetchErr;
         }
