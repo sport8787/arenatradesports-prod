@@ -78,7 +78,7 @@ export function calculateAssetScore(prediction: {
     grade,
     classification,
     expected_roi: edge,
-    implied_probability: Math.round(impliedProb * 10) / 10,
+    implied_probability: Math.round(impliedProbFinal * 10) / 10,
     model_probability: Math.round(modelProb * 10) / 10,
   };
 }
