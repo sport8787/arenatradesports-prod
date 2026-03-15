@@ -356,6 +356,8 @@ export default function PunterPage() {
         fair_odd: a.fair_odd,
         value_percentage: a.value_percentage,
         confidence: a.confidence,
+        estimated_probability: a.estimated_probability,
+        implied_probability: a.implied_probability,
         stake_percentage: a.stake_percentage,
         thesis: a.thesis,
         analysis: a.analysis,
