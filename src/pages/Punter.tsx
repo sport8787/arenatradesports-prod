@@ -424,11 +424,12 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
 
     // Check if Hórus already bet on this match (any status — prevents re-betting on re-analysis)
+    // Check both canonical and constructed match_id to be safe
     const { data: existingBets } = await supabase
       .from('virtual_bets_punter')
       .select('id')
       .eq('user_id', user.id)
-      .eq('match_id', matchId)
+      .or(`match_id.eq.${canonicalMatchId},match_id.eq.${matchId}`)
       .in('status', ['pending', 'green', 'red']);
 
     if (existingBets && existingBets.length > 0) return false; // Already bet
