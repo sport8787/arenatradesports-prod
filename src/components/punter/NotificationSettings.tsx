@@ -125,7 +125,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
                 ✅ Apostas aprovadas são enviadas automaticamente ao grupo Telegram
               </p>
               <a
-                href="https://t.me/oraculo_mycroft_vip"
+                href="https://t.me/oraculo_mycroft"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] text-[10px] font-mono rounded-lg transition-colors"
