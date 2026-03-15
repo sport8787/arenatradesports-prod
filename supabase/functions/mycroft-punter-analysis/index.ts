@@ -758,14 +758,87 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
 
   // ═══ POISSON BIVARIADA — Etapa pré-Gemini ═══
+  // Modelo de Força de Ataque/Defesa normalizado pela média da liga
   let poissonBlk = ''
   let poissonResult: PoissonResult | null = null
   let poissonEdges: EdgeResult[] = []
   let poissonDadosReais = false
   {
-    // Extract goal averages from season stats (already fetched)
+    // Compute league average from standings data
+    const standings = en.standings as any[] || []
+    let mediaLiga = 1.25 // default: ~2.5 goals/game total
+    if (standings.length >= 6) {
+      let totalGoalsFor = 0, totalPlayed = 0
+      for (const t of standings) {
+        totalGoalsFor += (t.all?.goals?.for || 0)
+        totalPlayed += (t.all?.played || 0)
+      }
+      if (totalPlayed > 0) {
+        mediaLiga = totalGoalsFor / totalPlayed
+        console.log(`[Poisson] Liga média calculada: ${mediaLiga.toFixed(3)} gols/time/jogo (${totalGoalsFor} gols em ${totalPlayed} jogos-time)`)
+      }
+    } else {
+      console.log(`[Poisson] Standings insuficientes (${standings.length} times), usando média padrão: ${mediaLiga}`)
+    }
+
+    // Extract goal averages from season stats (home/away split when available)
     const hSS = en.homeSeasonStats as any
     const aSS = en.awaySeasonStats as any
+    const hGoalsForAvg = hSS?.goals?.for?.average?.home ? parseFloat(hSS.goals.for.average.home) : null
+    const hGoalsAgainstAvg = hSS?.goals?.against?.average?.home ? parseFloat(hSS.goals.against.average.home) : null
+    const aGoalsForAvg = aSS?.goals?.for?.average?.away ? parseFloat(aSS.goals.for.average.away) : null
+    const aGoalsAgainstAvg = aSS?.goals?.against?.average?.away ? parseFloat(aSS.goals.against.average.away) : null
+
+    // Fallback from recent fixtures if season stats unavailable
+    const hAvgScored = hGoalsForAvg ?? (en.home ? parseFloat(en.home.avg_goals_scored) : 1.3)
+    const hAvgConceded = hGoalsAgainstAvg ?? (en.home ? parseFloat(en.home.avg_goals_conceded) : 1.2)
+    const aAvgScored = aGoalsForAvg ?? (en.away ? parseFloat(en.away.avg_goals_scored) : 1.1)
+    const aAvgConceded = aGoalsAgainstAvg ?? (en.away ? parseFloat(en.away.avg_goals_conceded) : 1.3)
+
+    poissonDadosReais = !!(hGoalsForAvg && hGoalsAgainstAvg && aGoalsForAvg && aGoalsAgainstAvg)
+
+    // Pass league average to strength model — no more raw multiplication
+    poissonResult = calcularPoisson(hAvgScored, aAvgScored, hAvgConceded, aAvgConceded, mediaLiga)
+
+    console.log(`[Poisson] ${game.home_team}: Atq=${poissonResult.forcaAtqCasa} Def=${poissonResult.forcaDefCasa} | ${game.away_team}: Atq=${poissonResult.forcaAtqVisitante} Def=${poissonResult.forcaDefVisitante} | Liga=${mediaLiga.toFixed(2)}`)
+
+    // Build odds map from extracted odds for edge calc
+    const pinnacle = odds.find((o:any) => (o.bookmaker||'').toLowerCase().includes('pinnacle'))
+    const bestH2H = pinnacle || odds[0]
+    const bestTotals25 = totals.find((t:any) => Math.abs(t.line - 2.5) < 0.1)
+    const bestTotals35 = totals.find((t:any) => Math.abs(t.line - 3.5) < 0.1)
+    const bestTotals15 = totals.find((t:any) => Math.abs(t.line - 1.5) < 0.1)
+
+    poissonEdges = calcularEdges(poissonResult, {
+      casa: bestH2H?.home_odd,
+      empate: bestH2H?.draw_odd,
+      visitante: bestH2H?.away_odd,
+      over25: bestTotals25?.over_odd,
+      under25: bestTotals25?.under_odd,
+      over35: bestTotals35?.over_odd,
+      under35: bestTotals35?.under_odd,
+      over15: bestTotals15?.over_odd,
+      under15: bestTotals15?.under_odd,
+    })
+
+    poissonBlk = formatarBlocoPoisson(poissonResult, poissonEdges, game.home_team, game.away_team)
+    console.log(`[Poisson] ${game.home_team} vs ${game.away_team}: λH=${poissonResult.lambdaCasa} λA=${poissonResult.lambdaVisitante} xG=${poissonResult.xGCombinado} Dados=${poissonDadosReais?'REAIS':'FALLBACK'} Edges=${poissonEdges.filter(e=>e.temEdge).length}`)
+
+    // Log to poisson_log (non-blocking)
+    sb.from('poisson_log').insert({
+      jogo: `${game.home_team} vs ${game.away_team}`,
+      liga: game.sport_title || 'Unknown',
+      lambda_casa: poissonResult.lambdaCasa,
+      lambda_visitante: poissonResult.lambdaVisitante,
+      prob_casa: poissonResult.probCasa,
+      prob_empate: poissonResult.probEmpate,
+      prob_visitante: poissonResult.probVisitante,
+      prob_over25: poissonResult.probOver25,
+      prob_btts: poissonResult.probBTTS,
+      edges_positivos: poissonEdges.filter(e => e.temEdge).map(e => ({ mercado: e.mercado, edge: e.edge, oddJusta: e.oddJusta })),
+      dados_reais: poissonDadosReais,
+    }).then(() => {}).catch((e: any) => console.warn('[Poisson] Log insert error:', e))
+  }
     const hGoalsForAvg = hSS?.goals?.for?.average?.home ? parseFloat(hSS.goals.for.average.home) : null
     const hGoalsAgainstAvg = hSS?.goals?.against?.average?.home ? parseFloat(hSS.goals.against.average.home) : null
     const aGoalsForAvg = aSS?.goals?.for?.average?.away ? parseFloat(aSS.goals.for.average.away) : null
