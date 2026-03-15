@@ -43,13 +43,7 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
     music.volume = 0.6;
     music.play().catch(console.error);
 
-    // Play welcome voice after a short delay
-    const voiceTimer = setTimeout(() => {
-      const voice = new Audio('/audio/horus/bem_vindos.mp3');
-      audioRef.current = voice;
-      voice.volume = 0.9;
-      voice.play().catch(console.error);
-    }, 2000);
+    // Welcome voice disabled to avoid audio overlap with background music
 
     const timers = [
       setTimeout(() => setShowSkipButton(true), 3000),
