@@ -972,6 +972,7 @@ export default function PunterPage() {
                 confidence: s.recommendation.confidence,
                 odd: s.recommendation.odd,
                 bookmaker: s.recommendation.bookmaker,
+                estimated_probability: s.recommendation.estimated_probability ?? undefined,
               }));
               const avgScore = Math.round(scores.reduce((a, s) => a + s.final_score, 0) / scores.length);
               const avgROI = (scores.reduce((a, s) => a + s.expected_roi, 0) / scores.length).toFixed(1);
