@@ -325,7 +325,32 @@ serve(async (req) => {
       analysis.risk_management.stake_value = (match.bankroll ?? 500) * analysis.risk_management.stake_percent / 100;
     }
 
-    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || 'DIRETO'} | Conf: ${analysis.confidence}%`);
+    // === BAS (Bluffer Asset Score) — composite quality score ===
+    {
+      let bas = 0;
+      // 1. Confidence (0-40 pts)
+      bas += Math.min(40, Math.round((analysis.confidence || 0) * 0.4));
+      // 2. Odd value sweet spot 1.40-3.00 (0-20 pts)
+      const odd = analysis.odd || 0;
+      if (odd >= 1.40 && odd <= 3.00) bas += 20;
+      else if (odd > 3.00 && odd <= 5.00) bas += 10;
+      else if (odd > 1.10 && odd < 1.40) bas += 5;
+      // 3. Plan activated (0-20 pts)
+      if (analysis.plan_name) bas += 20;
+      // 4. Criteria met vs missing (0-20 pts)
+      const met = analysis.criterios_atendidos?.length || 0;
+      const missing = analysis.criterios_ausentes?.length || 0;
+      if (met > 0 && missing === 0) bas += 20;
+      else if (met > missing) bas += Math.min(15, Math.round((met / (met + missing)) * 15));
+
+      analysis.asset_score = Math.min(100, bas);
+      analysis.asset_classification =
+        bas >= 80 ? 'ELITE' :
+        bas >= 65 ? 'PREMIUM' :
+        bas >= 50 ? 'FORTE' : 'ESPECULATIVO';
+    }
+
+    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
 
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {

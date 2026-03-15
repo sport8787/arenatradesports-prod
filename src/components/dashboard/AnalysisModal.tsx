@@ -19,7 +19,16 @@ export interface MycroftAnalysisData {
   fundamentation: any;
   risk_management: any;
   alerts: string[];
+  asset_score?: number | null;
+  asset_classification?: string | null;
 }
+
+const basConfig: Record<string, { color: string; icon: string; border: string }> = {
+  ELITE: { color: 'text-amber-400', icon: '👑', border: 'border-amber-400/40' },
+  PREMIUM: { color: 'text-cyan-400', icon: '💎', border: 'border-cyan-400/40' },
+  FORTE: { color: 'text-emerald-400', icon: '⚡', border: 'border-emerald-400/40' },
+  ESPECULATIVO: { color: 'text-orange-400', icon: '🎯', border: 'border-orange-400/40' },
+};
 
 const verdictConfig: Record<string, { icon: string; bg: string; text: string; glow: string }> = {
   APROVADO: { icon: '✅', bg: 'bg-success', text: 'text-success-foreground', glow: 'shadow-[0_0_30px_hsl(142_76%_36%/0.5)]' },
@@ -246,6 +255,39 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
                 <p className="text-sm font-bold text-success mt-0.5">{analysis.confidence}%</p>
               </div>
             </div>
+
+            {/* BAS (Asset Score) */}
+            {analysis.asset_score != null && analysis.asset_classification && (
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.35, type: 'spring', stiffness: 180 }}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-secondary/30 max-w-sm w-full',
+                  basConfig[analysis.asset_classification]?.border || 'border-border'
+                )}
+              >
+                <span className="text-xl">{basConfig[analysis.asset_classification]?.icon || '📊'}</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className={cn('text-xs font-orbitron font-bold uppercase tracking-wider', basConfig[analysis.asset_classification]?.color || 'text-foreground')}>
+                      {analysis.asset_classification}
+                    </span>
+                    <span className={cn('text-lg font-orbitron font-black', basConfig[analysis.asset_classification]?.color || 'text-foreground')}>
+                      {analysis.asset_score}
+                    </span>
+                  </div>
+                  <Progress value={analysis.asset_score} className={cn('h-1.5 mt-1', 
+                    analysis.asset_classification === 'ELITE' ? '[&>div]:bg-amber-400' :
+                    analysis.asset_classification === 'PREMIUM' ? '[&>div]:bg-cyan-400' :
+                    analysis.asset_classification === 'FORTE' ? '[&>div]:bg-emerald-400' :
+                    '[&>div]:bg-orange-400'
+                  )} />
+                </div>
+                <span className="text-[10px] text-muted-foreground font-orbitron">BAS</span>
+              </motion.div>
+            )}
+
             <Progress value={analysis.confidence} className="h-2 max-w-sm w-full [&>div]:bg-success" />
           </motion.div>
 
