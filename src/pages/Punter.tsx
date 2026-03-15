@@ -50,6 +50,8 @@ interface PunterSignal {
     fair_odd: number;
     value_percentage: number;
     confidence: number;
+    estimated_probability: number | null;
+    implied_probability: number | null;
     stake_percentage: number;
     thesis: string;
     analysis: string;
