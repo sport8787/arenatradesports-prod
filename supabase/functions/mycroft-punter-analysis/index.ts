@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-const MAX_GAMES = 50, BATCH = 5, API_FB = 'https://v3.football.api-sports.io'
-const MAX_EXEC_MS = 240_000 // 240s guard — stop before Supabase 300s wall clock
+const MAX_GAMES = 30, BATCH = 3, API_FB = 'https://v3.football.api-sports.io'
+const MAX_EXEC_MS = 180_000 // 180s guard — stop well before Supabase 300s wall clock to avoid context cancellation
 let execStart = 0
 const isTimedOut = () => Date.now() - execStart > MAX_EXEC_MS
 const teamCache = new Map<string, number>()
