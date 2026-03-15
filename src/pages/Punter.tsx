@@ -36,6 +36,7 @@ import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
 
 interface PunterSignal {
+  analysis_id?: string; // ID from punter_analyses for reliable signal lookup
   match: {
     home_team: string;
     away_team: string;
