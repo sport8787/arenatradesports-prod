@@ -25,7 +25,11 @@ export function calculateAssetScore(prediction: {
   const confidence = prediction.confidence || 50;
   const odd = prediction.odd || 2;
 
-  const probabilityScore = Math.min(100, confidence);
+  // Use estimated_probability (real event probability) for scoring, not confidence
+  const estimatedProb = prediction.estimated_probability ?? confidence;
+  const impliedProb = odd > 0 ? (1 / odd) * 100 : 50;
+  // Score based on how much model probability exceeds implied probability
+  const probabilityScore = Math.min(100, Math.round((estimatedProb / impliedProb) * 50));
   // Edge scale: 0%=0, 5%=50, 10%=75, 15%=90, 20%+=100
   const edgeScore = Math.min(100, Math.round((1 - Math.exp(-edge / 8)) * 100));
 

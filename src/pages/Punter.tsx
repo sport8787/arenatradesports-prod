@@ -1422,7 +1422,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <DataCell label="MERCADO" value={signal.recommendation.market} />
             <DataCell label="CASA" value={signal.recommendation.bookmaker} />
             <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <DataCell label="PROB." value={`${assetScore.model_probability}%`} />
+            <DataCell label="PROB." value={`${(signal.recommendation.estimated_probability ?? assetScore.model_probability).toFixed(1)}%`} />
             <DataCell label="EDGE" value={signal.recommendation.value_percentage != null ? `+${signal.recommendation.value_percentage.toFixed(1)}%` : 'N/A'} highlight />
             <DataCell label="KELLY" value={`${stakePercent}% · R$${horusStake.toFixed(0)}`} />
           </div>
