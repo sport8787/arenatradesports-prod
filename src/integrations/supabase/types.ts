@@ -1997,6 +1997,54 @@ export type Database = {
           },
         ]
       }
+      poisson_log: {
+        Row: {
+          created_at: string | null
+          dados_reais: boolean | null
+          edges_positivos: Json | null
+          id: string
+          jogo: string | null
+          lambda_casa: number | null
+          lambda_visitante: number | null
+          liga: string | null
+          prob_btts: number | null
+          prob_casa: number | null
+          prob_empate: number | null
+          prob_over25: number | null
+          prob_visitante: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          dados_reais?: boolean | null
+          edges_positivos?: Json | null
+          id?: string
+          jogo?: string | null
+          lambda_casa?: number | null
+          lambda_visitante?: number | null
+          liga?: string | null
+          prob_btts?: number | null
+          prob_casa?: number | null
+          prob_empate?: number | null
+          prob_over25?: number | null
+          prob_visitante?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          dados_reais?: boolean | null
+          edges_positivos?: Json | null
+          id?: string
+          jogo?: string | null
+          lambda_casa?: number | null
+          lambda_visitante?: number | null
+          liga?: string | null
+          prob_btts?: number | null
+          prob_casa?: number | null
+          prob_empate?: number | null
+          prob_over25?: number | null
+          prob_visitante?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           bc_balance: number
