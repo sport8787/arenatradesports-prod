@@ -65,7 +65,7 @@ export function calculateAssetScore(prediction: {
   else if (finalScore >= 60) classification = 'Moderate';
   else classification = 'Avoid';
 
-  const impliedProb = odd > 0 ? (1 / odd) * 100 : 0;
+  const impliedProbFinal = odd > 0 ? (1 / odd) * 100 : 0;
   const modelProb = prediction.estimated_probability ?? confidence;
 
   return {
