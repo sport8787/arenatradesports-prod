@@ -1014,9 +1014,8 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              const kellyProb = signal.recommendation.fair_odd > 0
-                ? (1 / signal.recommendation.fair_odd) * 100
-                : (signal.recommendation.confidence || 55);
+              const kellyProb = signal.recommendation.estimated_probability
+                ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
                 probability: kellyProb,
                 odd: signal.recommendation.odd,
