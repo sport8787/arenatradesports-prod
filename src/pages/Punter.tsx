@@ -36,6 +36,7 @@ import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
 
 interface PunterSignal {
+  analysis_id?: string; // ID from punter_analyses for reliable signal lookup
   match: {
     home_team: string;
     away_team: string;
@@ -150,7 +151,7 @@ export default function PunterPage() {
             let autoPlaced = 0;
             const newAutoIds = new Set<string>();
             for (const signal of savedSignals) {
-              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
               if (pendingIds.has(matchId)) continue;
               const placed = await autoPlaceHorusBet(signal);
               if (placed) {
@@ -342,6 +343,7 @@ export default function PunterPage() {
     }
 
     return Array.from(dedupMap.values()).map((a: any) => ({
+      analysis_id: a.id, // Include analysis ID for reliable signal lookup
       match: {
         home_team: a.home_team,
         away_team: a.away_team,
@@ -370,19 +372,39 @@ export default function PunterPage() {
   const autoPlaceHorusBet = async (signal: PunterSignal) => {
     if (!bankroll || !user) return false;
 
-    // CRITICAL: match_id must match the format used by the edge function: Home_Away_commence_time
+    // Build match_id for bet storage (normalize timestamp to avoid Postgres format differences)
     const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
-    const { data: confirmedSignal } = await supabase
-      .from('punter_signals')
-      .select('id, stake_confirmed')
-      .eq('match_id', matchId)
-      .eq('stake_confirmed', true)
-      .maybeSingle();
+    
+    // Use analysis_id FK for reliable signal lookup (avoids timestamp format mismatch between API and Postgres)
+    let confirmedSignal: any = null;
+    if (signal.analysis_id) {
+      const { data } = await supabase
+        .from('punter_signals')
+        .select('id, stake_confirmed, match_id')
+        .eq('analysis_id', signal.analysis_id)
+        .eq('stake_confirmed', true)
+        .maybeSingle();
+      confirmedSignal = data;
+    }
+    
+    // Fallback: try by home/away team match (handles cases without analysis_id)
+    if (!confirmedSignal) {
+      const { data } = await supabase
+        .from('punter_signals')
+        .select('id, stake_confirmed, match_id')
+        .eq('stake_confirmed', true)
+        .eq('status', 'pending')
+        .ilike('match_id', `${signal.match.home_team}_${signal.match.away_team}%`.replace(/\s+/g, '_'));
+      confirmedSignal = data?.[0] || null;
+    }
 
     if (!confirmedSignal) {
-      console.log(`[Hórus] Skipping ${matchId} — stake not confirmed`);
+      console.log(`[Hórus] Skipping ${signal.match.home_team} vs ${signal.match.away_team} — no confirmed signal found`);
       return false;
     }
+    
+    // Use the match_id from the signal record (canonical format from edge function)
+    const canonicalMatchId = confirmedSignal.match_id || matchId;
 
     // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
     const estimatedProb = signal.recommendation.estimated_probability
@@ -402,11 +424,12 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
 
     // Check if Hórus already bet on this match (any status — prevents re-betting on re-analysis)
+    // Check both canonical and constructed match_id to be safe
     const { data: existingBets } = await supabase
       .from('virtual_bets_punter')
       .select('id')
       .eq('user_id', user.id)
-      .eq('match_id', matchId)
+      .or(`match_id.eq.${canonicalMatchId},match_id.eq.${matchId}`)
       .in('status', ['pending', 'green', 'red']);
 
     if (existingBets && existingBets.length > 0) return false; // Already bet
@@ -424,7 +447,7 @@ export default function PunterPage() {
       .from('virtual_bets_punter')
       .insert({
         user_id: user.id,
-        match_id: matchId,
+        match_id: canonicalMatchId,
         match_name: matchName,
         market: signal.recommendation.market,
         odd: signal.recommendation.odd,
@@ -435,7 +458,10 @@ export default function PunterPage() {
         asset_score: assetScoreResult.final_score,
       } as any);
 
-    if (betError) return false;
+    if (betError) {
+      console.error(`[Hórus] Bet insert error for ${matchName}:`, betError.message);
+      return false;
+    }
 
     // Atomic bankroll deduction to avoid race conditions in sequential auto-bets
     const { error: bankrollErr } = await supabase.rpc('deduct_bankroll' as any, {
@@ -599,7 +625,7 @@ export default function PunterPage() {
         let autoPlaced = 0;
         const newAutoIds = new Set<string>();
         for (const signal of mergedSignals) {
-          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+          const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
