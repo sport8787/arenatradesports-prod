@@ -230,7 +230,7 @@ Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`
           { role: 'user', content: userMessage }
         ],
         temperature: 0.5,
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 
@@ -262,7 +262,28 @@ Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`
       jsonStr = jsonObjMatch[0];
     }
 
-    const parsed = JSON.parse(jsonStr);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      // Attempt to repair truncated JSON by closing open braces/brackets
+      console.warn("[ArenaTrader] JSON parse failed, attempting repair...");
+      let repaired = jsonStr;
+      const openBraces = (repaired.match(/{/g) || []).length;
+      const closeBraces = (repaired.match(/}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/\]/g) || []).length;
+      // Remove trailing incomplete key/value
+      repaired = repaired.replace(/,\s*"[^"]*"?\s*:?\s*[^,}\]]*$/, '');
+      for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']';
+      for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}';
+      try {
+        parsed = JSON.parse(repaired);
+        console.log("[ArenaTrader] JSON repair successful");
+      } catch {
+        throw parseErr; // Original error if repair also fails
+      }
+    }
 
     const stressToRisk: Record<string, number> = {
       'Baixo': 3, 'Médio': 6, 'Crítico': 9,
