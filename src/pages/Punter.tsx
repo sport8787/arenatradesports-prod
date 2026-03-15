@@ -343,6 +343,7 @@ export default function PunterPage() {
     }
 
     return Array.from(dedupMap.values()).map((a: any) => ({
+      analysis_id: a.id, // Include analysis ID for reliable signal lookup
       match: {
         home_team: a.home_team,
         away_team: a.away_team,
