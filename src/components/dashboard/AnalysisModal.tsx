@@ -19,7 +19,16 @@ export interface MycroftAnalysisData {
   fundamentation: any;
   risk_management: any;
   alerts: string[];
+  asset_score?: number | null;
+  asset_classification?: string | null;
 }
+
+const basConfig: Record<string, { color: string; icon: string; border: string }> = {
+  ELITE: { color: 'text-amber-400', icon: '👑', border: 'border-amber-400/40' },
+  PREMIUM: { color: 'text-cyan-400', icon: '💎', border: 'border-cyan-400/40' },
+  FORTE: { color: 'text-emerald-400', icon: '⚡', border: 'border-emerald-400/40' },
+  ESPECULATIVO: { color: 'text-orange-400', icon: '🎯', border: 'border-orange-400/40' },
+};
 
 const verdictConfig: Record<string, { icon: string; bg: string; text: string; glow: string }> = {
   APROVADO: { icon: '✅', bg: 'bg-success', text: 'text-success-foreground', glow: 'shadow-[0_0_30px_hsl(142_76%_36%/0.5)]' },
