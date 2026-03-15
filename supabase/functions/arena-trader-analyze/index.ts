@@ -230,7 +230,7 @@ Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`
           { role: 'user', content: userMessage }
         ],
         temperature: 0.5,
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 
