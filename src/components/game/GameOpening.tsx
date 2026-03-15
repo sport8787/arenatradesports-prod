@@ -54,7 +54,6 @@ export const GameOpening: React.FC<GameOpeningProps> = ({ onComplete }) => {
     ];
 
     return () => {
-      clearTimeout(voiceTimer);
       timers.forEach(clearTimeout);
       music.pause();
       if (audioRef.current) audioRef.current.pause();
