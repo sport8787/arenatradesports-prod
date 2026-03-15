@@ -447,7 +447,7 @@ export default function PunterPage() {
       .from('virtual_bets_punter')
       .insert({
         user_id: user.id,
-        match_id: matchId,
+        match_id: canonicalMatchId,
         match_name: matchName,
         market: signal.recommendation.market,
         odd: signal.recommendation.odd,
@@ -458,7 +458,10 @@ export default function PunterPage() {
         asset_score: assetScoreResult.final_score,
       } as any);
 
-    if (betError) return false;
+    if (betError) {
+      console.error(`[Hórus] Bet insert error for ${matchName}:`, betError.message);
+      return false;
+    }
 
     // Atomic bankroll deduction to avoid race conditions in sequential auto-bets
     const { error: bankrollErr } = await supabase.rpc('deduct_bankroll' as any, {
