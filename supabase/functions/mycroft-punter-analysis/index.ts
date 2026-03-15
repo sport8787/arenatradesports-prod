@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { calcularPoisson, calcularEdges, formatarBlocoPoisson, type PoissonResult, type EdgeResult } from '../_shared/poisson.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -738,6 +739,68 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   const det=computeDetectors(odds,totals,null,null)
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
 
+  // ═══ POISSON BIVARIADA — Etapa pré-Gemini ═══
+  let poissonBlk = ''
+  let poissonResult: PoissonResult | null = null
+  let poissonEdges: EdgeResult[] = []
+  let poissonDadosReais = false
+  {
+    // Extract goal averages from season stats (already fetched)
+    const hSS = en.homeSeasonStats as any
+    const aSS = en.awaySeasonStats as any
+    const hGoalsForAvg = hSS?.goals?.for?.average?.home ? parseFloat(hSS.goals.for.average.home) : null
+    const hGoalsAgainstAvg = hSS?.goals?.against?.average?.home ? parseFloat(hSS.goals.against.average.home) : null
+    const aGoalsForAvg = aSS?.goals?.for?.average?.away ? parseFloat(aSS.goals.for.average.away) : null
+    const aGoalsAgainstAvg = aSS?.goals?.against?.average?.away ? parseFloat(aSS.goals.against.average.away) : null
+
+    // Fallback from recent fixtures if season stats unavailable
+    const hAvgScored = hGoalsForAvg ?? (en.home ? parseFloat(en.home.avg_goals_scored) : 1.3)
+    const hAvgConceded = hGoalsAgainstAvg ?? (en.home ? parseFloat(en.home.avg_goals_conceded) : 1.2)
+    const aAvgScored = aGoalsForAvg ?? (en.away ? parseFloat(en.away.avg_goals_scored) : 1.1)
+    const aAvgConceded = aGoalsAgainstAvg ?? (en.away ? parseFloat(en.away.avg_goals_conceded) : 1.3)
+
+    poissonDadosReais = !!(hGoalsForAvg && hGoalsAgainstAvg && aGoalsForAvg && aGoalsAgainstAvg)
+
+    poissonResult = calcularPoisson(hAvgScored, aAvgScored, hAvgConceded, aAvgConceded)
+
+    // Build odds map from extracted odds for edge calc
+    const pinnacle = odds.find((o:any) => (o.bookmaker||'').toLowerCase().includes('pinnacle'))
+    const bestH2H = pinnacle || odds[0]
+    const bestTotals25 = totals.find((t:any) => Math.abs(t.line - 2.5) < 0.1)
+    const bestTotals35 = totals.find((t:any) => Math.abs(t.line - 3.5) < 0.1)
+    const bestTotals15 = totals.find((t:any) => Math.abs(t.line - 1.5) < 0.1)
+
+    poissonEdges = calcularEdges(poissonResult, {
+      casa: bestH2H?.home_odd,
+      empate: bestH2H?.draw_odd,
+      visitante: bestH2H?.away_odd,
+      over25: bestTotals25?.over_odd,
+      under25: bestTotals25?.under_odd,
+      over35: bestTotals35?.over_odd,
+      under35: bestTotals35?.under_odd,
+      over15: bestTotals15?.over_odd,
+      under15: bestTotals15?.under_odd,
+    })
+
+    poissonBlk = formatarBlocoPoisson(poissonResult, poissonEdges, game.home_team, game.away_team)
+    console.log(`[Poisson] ${game.home_team} vs ${game.away_team}: λH=${poissonResult.lambdaCasa} λA=${poissonResult.lambdaVisitante} xG=${poissonResult.xGCombinado} Dados=${poissonDadosReais?'REAIS':'FALLBACK'} Edges=${poissonEdges.filter(e=>e.temEdge).length}`)
+
+    // Log to poisson_log (non-blocking)
+    sb.from('poisson_log').insert({
+      jogo: `${game.home_team} vs ${game.away_team}`,
+      liga: game.sport_title || 'Unknown',
+      lambda_casa: poissonResult.lambdaCasa,
+      lambda_visitante: poissonResult.lambdaVisitante,
+      prob_casa: poissonResult.probCasa,
+      prob_empate: poissonResult.probEmpate,
+      prob_visitante: poissonResult.probVisitante,
+      prob_over25: poissonResult.probOver25,
+      prob_btts: poissonResult.probBTTS,
+      edges_positivos: poissonEdges.filter(e => e.temEdge).map(e => ({ mercado: e.mercado, edge: e.edge, oddJusta: e.oddJusta })),
+      dados_reais: poissonDadosReais,
+    }).then(() => {}).catch((e: any) => console.warn('[Poisson] Log insert error:', e))
+  }
+
   let cornBlk='', cardBlk='', cornEst:any=null, cardEst:any=null
   if(incCorners) {
     cornBlk=`\nESCANTEIOS:\n${fmtCorner(game.home_team,en.corners?.home)}\n${fmtCorner(game.away_team,en.corners?.away)}`
@@ -769,9 +832,10 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   if(incCorners) mkts.push('"Over 8.5 Escanteios"','"Under 8.5 Escanteios"','"Over 9.5 Escanteios"','"Under 9.5 Escanteios"','"Over 10.5 Escanteios"','"Under 10.5 Escanteios"')
   if(incCards) mkts.push('"Over 3.5 Cartões"','"Under 3.5 Cartões"','"Over 4.5 Cartões"','"Under 4.5 Cartões"','"Over 5.5 Cartões"','"Under 5.5 Cartões"')
 
-  const sysPr=`${MYCROFT_PUNTER_PROMPT}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE IDIOMA: Todas as respostas (thesis, analysis, risk_factors, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.\nREGRA DE QUALIDADE: thesis deve ser detalhada com fundamentação (mínimo 150 caracteres). analysis deve conter a análise completa com dados estatísticos, probabilidades e justificativa (mínimo 300 caracteres). risk_factors deve listar todos os riscos identificados.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
+  const sysPr=`${MYCROFT_PUNTER_PROMPT}\nREGRA: Retorne APENAS JSON válido. Sem texto livre.\nREGRA DE IDIOMA: Todas as respostas (thesis, analysis, risk_factors, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.\nREGRA DE QUALIDADE: thesis deve ser detalhada com fundamentação (mínimo 150 caracteres). analysis deve conter a análise completa com dados estatísticos, probabilidades e justificativa (mínimo 300 caracteres). risk_factors deve listar todos os riscos identificados.\nREGRA ANTI-CONFLITO: Recomende NO MÁXIMO 1 mercado por jogo. Escolha o mercado com MAIOR EDGE positivo. NUNCA aprove Casa e Fora no mesmo jogo. NUNCA aprove Over e Under na mesma linha.\nREGRA POISSON: As probabilidades Poisson Bivariada fornecidas são a BASE MATEMÁTICA. Use-as como referência principal para estimated_probability. Ajuste apenas com fundamentação contextual.\n${incCorners?'ESCANTEIOS: Compare probabilidades Poisson com odds disponíveis. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e probabilidade Poisson >= 55%.\n':''}${incCards?'CARTÕES: Compare estimativa de cartões com odds disponíveis e perfil do árbitro. Se odds não disponíveis, use fair_odd = 1/probabilidade_modelo. Aprovação requer edge >= 5% e confiança no modelo.\n':''}Escolha o mercado com MAIOR edge. Escanteios e cartões são mercados VÁLIDOS — não os ignore se tiverem edge.`
 
   const usrPr=`JOGO: ${game.home_team} vs ${game.away_team} | Liga: ${game.sport_title||'?'} | ${new Date(game.commence_time).toLocaleString('pt-BR')} | Dados: ${dsl} | Modelo: ${en.model_level}
+${poissonBlk}
 ${fmtTeam(game.home_team,en.home)}
 ${fmtTeam(game.away_team,en.away)}
 ${fmtH2H(en.h2h)}
@@ -787,7 +851,7 @@ ${totals.length?`TOTALS: ${totals.map((t:any)=>`${t.bookmaker}: O${t.line} ${t.o
 ${calcProb(odds[0])} ${totals.length?calcTotalsProb(totals[0]):''}
 
 Retorne JSON: {"verdict":"APROVADO_ELITE"|"APROVADO_FORTE"|"APROVADO_TEM_VALOR"|"VETADO","tier":1|2|3|null,"veto_reason":null|"...","model_level":"${en.model_level}","market":${mkts.join('|')}|null,"bookmaker":"...","odd":0,"baseline_sharp_odd":0,"implied_probability_sharp":0,"estimated_probability":0,"edge_percentage":0,"expected_value":0,"confidence":0,"data_strength":"${dsl}","stake_percentage":0,"filters_passed":[],"thesis":"...","analysis":"...","risk_factors":"...","api_predictions_agree":null${incCorners?',"corner_prediction":{"line":0,"expected_total":0,"prob_over":0,"value":""}':''}${incCards?',"card_prediction":{"market":"","expected_total":0,"prob_over":0,"value":""},"referee_impact":""':''}}
-SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no system prompt. MAIOR EDGE = mercado recomendado.`
+SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no system prompt. MAIOR EDGE = mercado recomendado. Use as probabilidades Poisson como base para estimated_probability.`
 
   for (let att=0;att<3;att++) {
     try {
