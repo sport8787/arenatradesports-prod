@@ -685,6 +685,7 @@ export default function PunterPage() {
       confidence: signal.recommendation.confidence,
       odd: signal.recommendation.odd,
       bookmaker: signal.recommendation.bookmaker,
+      estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
     const result = await placeManualBet({
