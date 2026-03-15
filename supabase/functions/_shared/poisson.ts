@@ -1,5 +1,6 @@
 // ═══ POISSON BIVARIADA — Módulo Compartilhado ═══
-// Usado por mycroft-punter-analysis (pré-jogo) e futuramente pelo Trader (ao vivo)
+// Modelo de Força de Ataque/Defesa normalizado pela média da liga
+// Referência: Dixon & Coles (1997), Maher (1982)
 
 const factorialCache: Record<number, number> = { 0: 1, 1: 1 }
 
@@ -46,17 +47,56 @@ export interface PoissonResult {
   lambdaCasa: number
   lambdaVisitante: number
   xGCombinado: number
+  // Strength model details
+  forcaAtqCasa: number
+  forcaDefCasa: number
+  forcaAtqVisitante: number
+  forcaDefVisitante: number
+  mediaLiga: number
 }
 
+/**
+ * Calcula Poisson Bivariada usando modelo de Força de Ataque/Defesa
+ * 
+ * Fórmula correta:
+ *   Força_Ataque = média_gols_marcados / média_liga
+ *   Força_Defesa = média_gols_sofridos / média_liga
+ *   λ_casa = Força_Atq_Casa × Força_Def_Visitante × média_liga × fator_mandante
+ *   λ_fora = Força_Atq_Visitante × Força_Def_Casa × média_liga
+ * 
+ * @param mediaGolsCasa - Média de gols marcados pelo time da casa (em casa)
+ * @param mediaGolsVisitante - Média de gols marcados pelo visitante (fora)
+ * @param mediaGolsSofridosCasa - Média de gols sofridos pelo mandante (em casa)
+ * @param mediaGolsSofridosVisitante - Média de gols sofridos pelo visitante (fora)
+ * @param mediaLiga - Média de gols por time por jogo na liga (default: 1.25 ≈ 2.5 total/jogo)
+ * @param fatorMandante - Fator de vantagem do mandante (default: 1.05)
+ */
 export function calcularPoisson(
   mediaGolsCasa: number,
   mediaGolsVisitante: number,
   mediaGolsSofridosCasa: number,
   mediaGolsSofridosVisitante: number,
-  fatorMandante: number = 1.1
+  mediaLiga: number = 1.25,
+  fatorMandante: number = 1.05
 ): PoissonResult {
-  const lambdaCasa = mediaGolsCasa * mediaGolsSofridosVisitante * fatorMandante
-  const lambdaVisitante = mediaGolsVisitante * mediaGolsSofridosCasa
+  // Clamp league avg to reasonable bounds
+  const ml = Math.max(0.8, Math.min(2.0, mediaLiga))
+
+  // Attack/Defense Strength normalized by league average
+  const forcaAtqCasa = mediaGolsCasa / ml
+  const forcaDefCasa = mediaGolsSofridosCasa / ml
+  const forcaAtqVisitante = mediaGolsVisitante / ml
+  const forcaDefVisitante = mediaGolsSofridosVisitante / ml
+
+  // λ = attack_strength × opponent_defense_weakness × league_avg
+  // Defense > 1.0 = worse than average (concedes more) → opponent scores more
+  // Defense < 1.0 = better than average → opponent scores less
+  let lambdaCasa = forcaAtqCasa * forcaDefVisitante * ml * fatorMandante
+  let lambdaVisitante = forcaAtqVisitante * forcaDefCasa * ml
+
+  // Clamp lambdas to reasonable range
+  lambdaCasa = Math.max(0.3, Math.min(4.5, lambdaCasa))
+  lambdaVisitante = Math.max(0.2, Math.min(4.0, lambdaVisitante))
 
   const matrix = buildScoreMatrix(lambdaCasa, lambdaVisitante)
 
@@ -107,6 +147,11 @@ export function calcularPoisson(
     lambdaCasa: Math.round(lambdaCasa * 100) / 100,
     lambdaVisitante: Math.round(lambdaVisitante * 100) / 100,
     xGCombinado: Math.round((lambdaCasa + lambdaVisitante) * 100) / 100,
+    forcaAtqCasa: Math.round(forcaAtqCasa * 100) / 100,
+    forcaDefCasa: Math.round(forcaDefCasa * 100) / 100,
+    forcaAtqVisitante: Math.round(forcaAtqVisitante * 100) / 100,
+    forcaDefVisitante: Math.round(forcaDefVisitante * 100) / 100,
+    mediaLiga: Math.round(ml * 100) / 100,
   }
 }
 
@@ -183,7 +228,18 @@ export function formatarBlocoPoisson(
   return `
 ═══════════════════════════════════════
 ANÁLISE QUANTITATIVA — POISSON BIVARIADA
+(Modelo de Força de Ataque/Defesa)
 ═══════════════════════════════════════
+
+Média da Liga: ${poisson.mediaLiga} gols/time/jogo
+
+Forças calculadas (>1.0 = acima da média, <1.0 = abaixo):
+  ${timeCasa} (Casa):
+    Força de Ataque: ${poisson.forcaAtqCasa} ${poisson.forcaAtqCasa > 1.1 ? '🔥' : poisson.forcaAtqCasa < 0.9 ? '❄️' : ''}
+    Força de Defesa: ${poisson.forcaDefCasa} ${poisson.forcaDefCasa < 0.9 ? '🛡️' : poisson.forcaDefCasa > 1.1 ? '⚠️' : ''}
+  ${timeVisitante} (Fora):
+    Força de Ataque: ${poisson.forcaAtqVisitante} ${poisson.forcaAtqVisitante > 1.1 ? '🔥' : poisson.forcaAtqVisitante < 0.9 ? '❄️' : ''}
+    Força de Defesa: ${poisson.forcaDefVisitante} ${poisson.forcaDefVisitante < 0.9 ? '🛡️' : poisson.forcaDefVisitante > 1.1 ? '⚠️' : ''}
 
 Lambdas calculados:
   ${timeCasa}: λ = ${poisson.lambdaCasa} gols esperados
@@ -222,6 +278,7 @@ ${edgesNegativos
   .join('\n')}
 
 INSTRUÇÃO: Use estas probabilidades como BASE MATEMÁTICA da análise.
+Os lambdas foram calculados via Força de Ataque/Defesa normalizada pela média da liga.
 Ajuste apenas se houver informação contextual forte (lesão de titular,
 motivação, condições climáticas, H2H recente) que justifique desvio.
 Documente qualquer ajuste feito e o motivo.
