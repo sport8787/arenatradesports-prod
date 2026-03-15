@@ -57,6 +57,12 @@ CÁLCULO DE EDGE
 4. Validar com estimativa própria via Poisson se xG disponível
 Sem baseline confiável → VETAR automaticamente
 
+REGRA FAIR ODD OBRIGATÓRIA: fair_odd DEVE ser calculado como 1 / estimated_probability.
+NUNCA retornar fair_odd igual à odd de mercado. Isso implica edge=0 e é um erro.
+Exemplo: se estimated_probability = 0.6121, então fair_odd = 1/0.6121 = 1.634.
+estimated_probability é a probabilidade REAL do evento acontecer (ex: 61.21% para Over 2.5).
+NÃO confundir com confidence (que mede certeza na análise, não probabilidade do evento).
+
 CÁLCULO DE CONFIANÇA
 Base: NÍVEL 1 (xG+stats): 72% | NÍVEL 2 (stats básicas): 65% | NÍVEL 3 (só odds): 60%
 Positivos: Edge 7-9%:+5pp | 10-12%:+8pp | >12%:+10pp | Pinnacle:+5pp | xG confirma:+5pp | Sharp money:+5pp | Múltiplas soft:+3pp

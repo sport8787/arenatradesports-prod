@@ -50,6 +50,8 @@ interface PunterSignal {
     fair_odd: number;
     value_percentage: number;
     confidence: number;
+    estimated_probability: number | null;
+    implied_probability: number | null;
     stake_percentage: number;
     thesis: string;
     analysis: string;
@@ -354,6 +356,8 @@ export default function PunterPage() {
         fair_odd: a.fair_odd,
         value_percentage: a.value_percentage,
         confidence: a.confidence,
+        estimated_probability: a.estimated_probability,
+        implied_probability: a.implied_probability,
         stake_percentage: a.stake_percentage,
         thesis: a.thesis,
         analysis: a.analysis,
@@ -381,9 +385,8 @@ export default function PunterPage() {
     }
 
     // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
-    const estimatedProb = signal.recommendation.fair_odd > 0
-      ? (1 / signal.recommendation.fair_odd) * 100
-      : (signal.recommendation.confidence || 55);
+    const estimatedProb = signal.recommendation.estimated_probability
+      ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
     const kelly = calculateKellyStake({
       probability: estimatedProb,
       odd: signal.recommendation.odd,
@@ -414,6 +417,7 @@ export default function PunterPage() {
       confidence: signal.recommendation.confidence,
       odd: signal.recommendation.odd,
       bookmaker: signal.recommendation.bookmaker,
+      estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
     const { error: betError } = await supabase
@@ -680,6 +684,7 @@ export default function PunterPage() {
       confidence: signal.recommendation.confidence,
       odd: signal.recommendation.odd,
       bookmaker: signal.recommendation.bookmaker,
+      estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
     const result = await placeManualBet({
@@ -966,6 +971,7 @@ export default function PunterPage() {
                 confidence: s.recommendation.confidence,
                 odd: s.recommendation.odd,
                 bookmaker: s.recommendation.bookmaker,
+                estimated_probability: s.recommendation.estimated_probability ?? undefined,
               }));
               const avgScore = Math.round(scores.reduce((a, s) => a + s.final_score, 0) / scores.length);
               const avgROI = (scores.reduce((a, s) => a + s.expected_roi, 0) / scores.length).toFixed(1);
@@ -1008,9 +1014,8 @@ export default function PunterPage() {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
-              const kellyProb = signal.recommendation.fair_odd > 0
-                ? (1 / signal.recommendation.fair_odd) * 100
-                : (signal.recommendation.confidence || 55);
+              const kellyProb = signal.recommendation.estimated_probability
+                ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
                 probability: kellyProb,
                 odd: signal.recommendation.odd,
@@ -1338,6 +1343,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
     confidence: signal.recommendation.confidence,
     odd: signal.recommendation.odd,
     bookmaker: signal.recommendation.bookmaker,
+    estimated_probability: signal.recommendation.estimated_probability ?? undefined,
   });
   const gradeConfig = getGradeConfig(assetScore.grade);
 
@@ -1417,7 +1423,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <DataCell label="MERCADO" value={signal.recommendation.market} />
             <DataCell label="CASA" value={signal.recommendation.bookmaker} />
             <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
-            <DataCell label="PROB." value={`${assetScore.model_probability}%`} />
+            <DataCell label="PROB." value={`${(signal.recommendation.estimated_probability ?? assetScore.model_probability).toFixed(1)}%`} />
             <DataCell label="EDGE" value={signal.recommendation.value_percentage != null ? `+${signal.recommendation.value_percentage.toFixed(1)}%` : 'N/A'} highlight />
             <DataCell label="KELLY" value={`${stakePercent}% · R$${horusStake.toFixed(0)}`} />
           </div>
