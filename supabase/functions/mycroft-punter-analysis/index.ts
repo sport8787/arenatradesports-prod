@@ -613,92 +613,104 @@ function parseStructuredJson(raw: string) {
 }
 
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
-  const key = Deno.env.get('GEMINI_API_KEY')
-  if(!key) throw new Error('GEMINI_API_KEY not configured')
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
+  if(!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
 
   const schemaProperties: Record<string,any> = {
-    verdict: { type: 'STRING', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
-    tier: { type: 'INTEGER', nullable: true },
-    veto_reason: { type: 'STRING', nullable: true },
-    model_level: { type: 'STRING', enum: ['NIVEL_1','NIVEL_2','NIVEL_3'] },
-    market: { type: 'STRING', nullable: true },
-    bookmaker: { type: 'STRING' },
-    odd: { type: 'NUMBER' },
-    baseline_sharp_odd: { type: 'NUMBER', nullable: true },
-    implied_probability_sharp: { type: 'NUMBER', nullable: true },
-    estimated_probability: { type: 'NUMBER', nullable: true },
-    edge_percentage: { type: 'NUMBER' },
-    expected_value: { type: 'NUMBER' },
-    confidence: { type: 'NUMBER' },
-    data_strength: { type: 'STRING' },
-    stake_percentage: { type: 'NUMBER' },
-    filters_passed: { type: 'ARRAY', items: { type: 'STRING' } },
-    thesis: { type: 'STRING' },
-    analysis: { type: 'STRING' },
-    risk_factors: { type: 'STRING' },
-    api_predictions_agree: { type: 'BOOLEAN', nullable: true },
+    verdict: { type: 'string', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
+    tier: { type: 'integer', nullable: true },
+    veto_reason: { type: 'string', nullable: true },
+    model_level: { type: 'string', enum: ['NIVEL_1','NIVEL_2','NIVEL_3'] },
+    market: { type: 'string', nullable: true },
+    bookmaker: { type: 'string' },
+    odd: { type: 'number' },
+    baseline_sharp_odd: { type: 'number', nullable: true },
+    implied_probability_sharp: { type: 'number', nullable: true },
+    estimated_probability: { type: 'number', nullable: true },
+    edge_percentage: { type: 'number' },
+    expected_value: { type: 'number' },
+    confidence: { type: 'number' },
+    data_strength: { type: 'string' },
+    stake_percentage: { type: 'number' },
+    filters_passed: { type: 'array', items: { type: 'string' } },
+    thesis: { type: 'string' },
+    analysis: { type: 'string' },
+    risk_factors: { type: 'string' },
+    api_predictions_agree: { type: 'boolean', nullable: true },
   }
   const requiredFields = ['verdict','model_level','market','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
 
   if (incCorners) {
     schemaProperties.corner_prediction = {
-      type: 'OBJECT', nullable: true,
+      type: 'object', nullable: true,
       properties: {
-        line: { type: 'NUMBER' }, expected_total: { type: 'NUMBER' },
-        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+        line: { type: 'number' }, expected_total: { type: 'number' },
+        prob_over: { type: 'number' }, value: { type: 'string' }
       }
     }
   }
   if (incCards) {
     schemaProperties.card_prediction = {
-      type: 'OBJECT', nullable: true,
+      type: 'object', nullable: true,
       properties: {
-        market: { type: 'STRING' }, expected_total: { type: 'NUMBER' },
-        prob_over: { type: 'NUMBER' }, value: { type: 'STRING' }
+        market: { type: 'string' }, expected_total: { type: 'number' },
+        prob_over: { type: 'number' }, value: { type: 'string' }
       }
     }
-    schemaProperties.referee_impact = { type: 'STRING', nullable: true }
+    schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.` }],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: usr }],
-        },
+      model: 'google/gemini-2.5-pro',
+      messages: [
+        { role: 'system', content: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.` },
+        { role: 'user', content: usr },
       ],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: schemaProperties,
-          required: requiredFields,
+      tools: [{
+        type: 'function',
+        function: {
+          name: 'punter_analysis',
+          description: 'Return the structured analysis result for this match.',
+          parameters: {
+            type: 'object',
+            properties: schemaProperties,
+            required: requiredFields,
+            additionalProperties: false,
+          },
         },
-      },
+      }],
+      tool_choice: { type: 'function', function: { name: 'punter_analysis' } },
+      temperature: 0.1,
+      max_tokens: 8192,
     }),
   })
 
   if(!r.ok) {
     const errBody = await r.text()
-    console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0,500)}`)
+    console.error(`[Mycroft Punter] AI Gateway error ${r.status}: ${errBody.substring(0,500)}`)
     if (r.status === 429) throw new Error('RATE_LIMITED')
-    throw new Error(`Gemini error ${r.status}`)
+    if (r.status === 402) throw new Error('PAYMENT_REQUIRED')
+    throw new Error(`AI Gateway error ${r.status}`)
   }
 
   const data = await r.json()
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
+  // Extract from tool call response
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0]
+  if (toolCall?.function?.arguments) {
+    return parseStructuredJson(toolCall.function.arguments)
+  }
+
+  // Fallback: try content
+  const content = data.choices?.[0]?.message?.content || ''
   if(!content) {
-    const finishReason = data.candidates?.[0]?.finishReason
-    console.error('[Mycroft Punter] Empty Gemini response, finishReason:', finishReason)
+    console.error('[Mycroft Punter] Empty AI Gateway response')
     throw new Error('Empty response')
   }
 
