@@ -500,8 +500,15 @@ export default function PunterPage() {
 
   // Manual button: place Hórus bets for all approved signals
   const manualPlaceAllHorusBets = async () => {
-    if (!bankroll || !user || signals.length === 0) {
-      toast.error('Sem sinais aprovados ou bankroll indisponível');
+    if (!bankroll || !user) {
+      toast.error('Bankroll ou login indisponível');
+      return;
+    }
+
+    // Use signals if available, otherwise reload from DB
+    let signalsToPlace = signals.length > 0 ? signals : await fetchSavedSignals();
+    if (signalsToPlace.length === 0) {
+      toast.error('Sem sinais aprovados para executar');
       return;
     }
     setPlacingHorusBets(true);
@@ -518,7 +525,7 @@ export default function PunterPage() {
       );
 
       let placed = 0;
-      for (const signal of signals) {
+      for (const signal of signalsToPlace) {
         const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
         if (existingIds.has(matchId)) continue;
         
@@ -1039,8 +1046,8 @@ export default function PunterPage() {
               )}
             </GoldButton>
 
-            {/* Manual Hórus bet button */}
-            {signals.length > 0 && (
+            {/* Manual Hórus bet button — visible when signals OR futureSignals exist */}
+            {(signals.length > 0 || futureSignals.length > 0) && (
               <Button
                 onClick={manualPlaceAllHorusBets}
                 disabled={placingHorusBets || !bankroll || bankroll.balance <= 0}
@@ -1050,7 +1057,7 @@ export default function PunterPage() {
                 {placingHorusBets ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> EXECUTANDO ENTRADAS...</>
                 ) : (
-                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length} sinais)</>
+                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length || futureSignals.length} sinais)</>
                 )}
               </Button>
             )}

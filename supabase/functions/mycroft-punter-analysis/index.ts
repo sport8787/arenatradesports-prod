@@ -1001,6 +1001,10 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
       console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
+      // Dedup: remove old analysis+signal for same match+market before inserting
+      await sb.from('punter_signals').delete().eq('match_id',mid).eq('market',a.market||'N/A')
+      await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',a.market||'N/A')
+
       const {data:row} = await sb.from('punter_analyses').insert({
         match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
         commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
