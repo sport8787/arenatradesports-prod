@@ -525,7 +525,7 @@ export default function PunterPage() {
       );
 
       let placed = 0;
-      for (const signal of signals) {
+      for (const signal of signalsToPlace) {
         const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
         if (existingIds.has(matchId)) continue;
         
