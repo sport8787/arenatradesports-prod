@@ -1042,8 +1042,24 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)
       return a
     } catch(e:any) {
-      if(att<2) { const rl=e?.message?.includes('429'); await new Promise(r=>setTimeout(r,rl?(att+1)*5000:1000)); continue }
-      throw e
+      const msg = String(e?.message || e || 'unknown_error')
+      const isRateLimited = msg.includes('RATE_LIMITED') || msg.includes('429')
+      const isTimeout = msg.includes('GEMINI_TIMEOUT')
+
+      // Não bloquear o batch inteiro por timeout individual de IA
+      if (isTimeout) {
+        console.warn(`[Mycroft Punter] Timeout Gemini em ${game.home_team} vs ${game.away_team} — aplicando veto de fallback`) 
+        return buildGeminiFallbackVeto('Timeout da IA durante análise', incCorners, incCards)
+      }
+
+      // Retry curto: 1 tentativa normal, até 3 apenas para rate limit
+      if ((isRateLimited && att < 2) || (!isRateLimited && att < 1)) {
+        await new Promise(r => setTimeout(r, isRateLimited ? (att + 1) * 4000 : 800))
+        continue
+      }
+
+      console.warn(`[Mycroft Punter] Falha definitiva em ${game.home_team} vs ${game.away_team}: ${msg} — aplicando veto de fallback`)
+      return buildGeminiFallbackVeto(`Falha da IA: ${msg.slice(0, 120)}`, incCorners, incCards)
     }
   }
   return null
