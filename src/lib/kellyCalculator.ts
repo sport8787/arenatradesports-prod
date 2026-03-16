@@ -15,8 +15,16 @@ export interface KellyResult {
   edge: number;            // Expected edge
 }
 
+function normalizeProbability(probability: number): number {
+  if (!Number.isFinite(probability)) return 0;
+
+  // Accept both formats: 0-1 (decimal) and 0-100 (percentage)
+  const percentage = probability <= 1 ? probability * 100 : probability;
+  return Math.min(100, Math.max(0, percentage));
+}
+
 export function calculateKellyStake(params: {
-  probability: number;  // 0-100 (estimated real probability)
+  probability: number;  // 0-1 or 0-100 (estimated real probability)
   odd: number;          // Decimal odd (e.g. 2.05)
   bankroll: number;     // Current balance
   fraction?: number;    // Kelly fraction (default 0.25 = 25%)
@@ -32,26 +40,34 @@ export function calculateKellyStake(params: {
     maxStake = 5,
   } = params;
 
-  const p = probability / 100;
-  const q = 1 - p;
+  const p = normalizeProbability(probability) / 100;
+  const edge = (p * odd - 1) * 100;
+
+  // Invalid odd or no edge = don't bet
+  if (odd <= 1) {
+    return {
+      fullKelly: 0,
+      fractionalKelly: 0,
+      stakePercent: 0,
+      stakeAmount: 0,
+      edge: Math.round(edge * 100) / 100,
+    };
+  }
 
   // Kelly formula: f* = (p * o - 1) / (o - 1)
-  const fullKelly = ((p * odd - 1) / (odd - 1)) * 100; // as percentage
+  const fullKelly = ((p * odd - 1) / (odd - 1)) * 100;
 
-  // If negative edge, Kelly says don't bet
   if (fullKelly <= 0) {
     return {
       fullKelly: 0,
       fractionalKelly: 0,
       stakePercent: 0,
       stakeAmount: 0,
-      edge: (p * odd - 1) * 100,
+      edge: Math.round(edge * 100) / 100,
     };
   }
 
   const fractionalKelly = fullKelly * fraction;
-
-  // Cap between min and max
   const stakePercent = Math.min(maxStake, Math.max(minStake, fractionalKelly));
   const stakeAmount = Math.round(bankroll * (stakePercent / 100) * 100) / 100;
 
@@ -60,6 +76,6 @@ export function calculateKellyStake(params: {
     fractionalKelly: Math.round(fractionalKelly * 100) / 100,
     stakePercent: Math.round(stakePercent * 100) / 100,
     stakeAmount,
-    edge: Math.round((p * odd - 1) * 100 * 100) / 100,
+    edge: Math.round(edge * 100) / 100,
   };
 }
