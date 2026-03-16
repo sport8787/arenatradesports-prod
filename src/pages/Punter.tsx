@@ -452,6 +452,7 @@ export default function PunterPage() {
       estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
+    console.log(`[Hórus] 🎯 Inserindo aposta: ${matchName} | Stake: ${stake} | Odd: ${signal.recommendation.odd} | MatchID: ${canonicalMatchId}`);
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
