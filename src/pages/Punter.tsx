@@ -1039,7 +1039,22 @@ export default function PunterPage() {
               )}
             </GoldButton>
 
-            {/* Cached games info */}
+            {/* Manual Hórus bet button */}
+            {signals.length > 0 && (
+              <Button
+                onClick={manualPlaceAllHorusBets}
+                disabled={placingHorusBets || !bankroll || bankroll.balance <= 0}
+                variant="outline"
+                className="w-full font-mono text-xs tracking-wider border-primary/50 text-primary hover:bg-primary/10"
+              >
+                {placingHorusBets ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> EXECUTANDO ENTRADAS...</>
+                ) : (
+                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length} sinais)</>
+                )}
+              </Button>
+            )}
+
             {!cachedLoading && cachedGames.length > 0 && (
               <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border border-border/50 rounded px-2.5 py-1.5 bg-muted/20">
                 <div className="flex items-center gap-1.5">
