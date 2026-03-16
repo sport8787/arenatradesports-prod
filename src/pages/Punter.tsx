@@ -656,7 +656,7 @@ export default function PunterPage() {
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
-          const placed = await autoPlaceHorusBet(signal);
+          const placed = await autoPlaceHorusBet(signal, true); // skipSignalCheck for fresh analysis
           if (placed) {
             autoPlaced++;
             newAutoIds.add(matchId);
