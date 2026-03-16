@@ -90,6 +90,7 @@ export default function PunterPage() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
+  const [placingHorusBets, setPlacingHorusBets] = useState(false);
   
   // Cached odds - loaded from daily cron (no API call on user access)
   const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
