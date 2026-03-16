@@ -620,6 +620,39 @@ function parseStructuredJson(raw: string) {
   throw new Error('No JSON')
 }
 
+function buildGeminiFallbackVeto(reason: string, incCorners:boolean=false, incCards:boolean=false) {
+  const fallback: any = {
+    verdict: 'VETADO',
+    tier: null,
+    veto_reason: reason,
+    model_level: 'NIVEL_3',
+    market: null,
+    bookmaker: 'N/A',
+    odd: 0,
+    baseline_sharp_odd: null,
+    implied_probability_sharp: null,
+    estimated_probability: null,
+    edge_percentage: 0,
+    expected_value: 0,
+    confidence: 0,
+    data_strength: 'BAIXA',
+    stake_percentage: 0,
+    filters_passed: ['fallback_vazio'],
+    thesis: 'Análise vetada por resposta vazia/inválida da IA.',
+    analysis: 'A IA retornou resposta vazia, bloqueada ou sem estrutura válida; o jogo foi vetado por segurança.',
+    risk_factors: reason,
+    api_predictions_agree: null,
+  }
+
+  if (incCorners) fallback.corner_prediction = null
+  if (incCards) {
+    fallback.card_prediction = null
+    fallback.referee_impact = null
+  }
+
+  return fallback
+}
+
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
   // Uses direct Gemini API for lower latency (no gateway overhead)
 
@@ -645,7 +678,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     risk_factors: { type: 'string' },
     api_predictions_agree: { type: 'boolean', nullable: true },
   }
-  const requiredFields = ['verdict','model_level','market','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
+  const requiredFields = ['verdict','model_level','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
 
   if (incCorners) {
     schemaProperties.corner_prediction = {
@@ -672,6 +705,16 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
 
+  const mapType = (type?: string) => {
+    if (type === 'string') return 'STRING'
+    if (type === 'number') return 'NUMBER'
+    if (type === 'integer') return 'INTEGER'
+    if (type === 'boolean') return 'BOOLEAN'
+    if (type === 'array') return 'ARRAY'
+    if (type === 'object') return 'OBJECT'
+    return type
+  }
+
   // Build function declaration for structured output
   const functionDeclaration = {
     name: 'punter_analysis',
@@ -680,25 +723,17 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
       type: 'OBJECT',
       properties: Object.fromEntries(
         Object.entries(schemaProperties).map(([k, v]: [string, any]) => {
-          const mapped: any = { ...v }
-          // Convert OpenAI-style types to Gemini-style
-          if (mapped.type === 'string') mapped.type = 'STRING'
-          else if (mapped.type === 'number') mapped.type = 'NUMBER'
-          else if (mapped.type === 'boolean') mapped.type = 'BOOLEAN'
-          else if (mapped.type === 'array') { mapped.type = 'ARRAY'; if (mapped.items?.type === 'string') mapped.items = { type: 'STRING' } }
-          else if (mapped.type === 'object') {
-            mapped.type = 'OBJECT'
-            if (mapped.properties) {
-              mapped.properties = Object.fromEntries(
-                Object.entries(mapped.properties).map(([pk, pv]: [string, any]) => {
-                  const pm: any = { ...pv }
-                  if (pm.type === 'string') pm.type = 'STRING'
-                  else if (pm.type === 'number') pm.type = 'NUMBER'
-                  else if (pm.type === 'boolean') pm.type = 'BOOLEAN'
-                  return [pk, pm]
-                })
-              )
-            }
+          const mapped: any = { ...v, type: mapType(v.type) }
+          if (mapped.type === 'ARRAY' && mapped.items?.type) {
+            mapped.items = { ...mapped.items, type: mapType(mapped.items.type) }
+          }
+          if (mapped.type === 'OBJECT' && mapped.properties) {
+            mapped.properties = Object.fromEntries(
+              Object.entries(mapped.properties).map(([pk, pv]: [string, any]) => {
+                const pm: any = { ...pv, type: mapType(pv.type) }
+                return [pk, pm]
+              })
+            )
           }
           delete mapped.nullable
           return [k, mapped]
@@ -708,21 +743,33 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     },
   }
 
-  const r = await fetch(geminiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
-      ],
-      tools: [{ functionDeclarations: [functionDeclaration] }],
-      toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['punter_analysis'] } },
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 8192,
-      },
-    }),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 25_000)
+
+  let r: Response
+  try {
+    r = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
+        ],
+        tools: [{ functionDeclarations: [functionDeclaration] }],
+        toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['punter_analysis'] } },
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      }),
+      signal: controller.signal,
+    })
+  } catch (e: any) {
+    if (e?.name === 'AbortError') throw new Error('GEMINI_TIMEOUT')
+    throw e
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!r.ok) {
     const errBody = await r.text()
@@ -732,25 +779,26 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
   }
 
   const data = await r.json()
+  const candidate = data.candidates?.[0]
+  const parts = candidate?.content?.parts || []
 
-  // Extract from Gemini function call response
-  const parts = data.candidates?.[0]?.content?.parts || []
-  const fnCall = parts.find((p: any) => p.functionCall)
-  if (fnCall?.functionCall?.args) {
-    // Gemini returns args as object directly
-    const args = fnCall.functionCall.args
-    if (typeof args === 'string') return parseStructuredJson(args)
-    return args
+  const fnArgs =
+    parts.find((p: any) => p.functionCall?.args)?.functionCall?.args ??
+    candidate?.functionCalls?.[0]?.args ??
+    parts.find((p: any) => p.functionCall?.arguments)?.functionCall?.arguments
+
+  if (fnArgs) {
+    if (typeof fnArgs === 'string') return parseStructuredJson(fnArgs)
+    return fnArgs
   }
 
-  // Fallback: try text content
-  const textPart = parts.find((p: any) => p.text)
-  if (!textPart?.text) {
-    console.error('[Mycroft Punter] Empty Gemini response')
-    throw new Error('Empty response')
-  }
+  const textPart = parts.find((p: any) => p.text)?.text || candidate?.content?.text
+  if (textPart) return parseStructuredJson(textPart)
 
-  return parseStructuredJson(textPart.text)
+  const finishReason = candidate?.finishReason || 'UNKNOWN'
+  const blockReason = data?.promptFeedback?.blockReason || null
+  console.error(`[Mycroft Punter] Empty Gemini response | finish=${finishReason} block=${blockReason ?? 'none'}`)
+  return buildGeminiFallbackVeto(`Resposta vazia da IA (finish=${finishReason}${blockReason ? `, block=${blockReason}` : ''})`, incCorners, incCards)
 }
 
 // Main analysis
