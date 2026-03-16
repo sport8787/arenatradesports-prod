@@ -369,42 +369,51 @@ export default function PunterPage() {
   };
 
   // Auto-place Hórus bet for a single signal (no toast per bet)
-  const autoPlaceHorusBet = async (signal: PunterSignal) => {
-    if (!bankroll || !user) return false;
+  const autoPlaceHorusBet = async (signal: PunterSignal, skipSignalCheck = false) => {
+    if (!bankroll || !user) {
+      console.log(`[Hórus] ❌ Bankroll ou user indisponível`);
+      return false;
+    }
 
     // Build match_id for bet storage (normalize timestamp to avoid Postgres format differences)
     const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
     
-    // Use analysis_id FK for reliable signal lookup (avoids timestamp format mismatch between API and Postgres)
-    let confirmedSignal: any = null;
-    if (signal.analysis_id) {
-      const { data } = await supabase
-        .from('punter_signals')
-        .select('id, stake_confirmed, match_id')
-        .eq('analysis_id', signal.analysis_id)
-        .eq('stake_confirmed', true)
-        .maybeSingle();
-      confirmedSignal = data;
-    }
+    // For fresh analysis signals, skip the punter_signals lookup (signal already approved by AI)
+    let canonicalMatchId = matchId;
     
-    // Fallback: try by home/away team match (handles cases without analysis_id)
-    if (!confirmedSignal) {
-      const { data } = await supabase
-        .from('punter_signals')
-        .select('id, stake_confirmed, match_id')
-        .eq('stake_confirmed', true)
-        .eq('status', 'pending')
-        .ilike('match_id', `${signal.match.home_team}_${signal.match.away_team}%`.replace(/\s+/g, '_'));
-      confirmedSignal = data?.[0] || null;
-    }
+    if (!skipSignalCheck) {
+      // Use analysis_id FK for reliable signal lookup
+      let confirmedSignal: any = null;
+      if (signal.analysis_id) {
+        const { data } = await supabase
+          .from('punter_signals')
+          .select('id, stake_confirmed, match_id')
+          .eq('analysis_id', signal.analysis_id)
+          .eq('stake_confirmed', true)
+          .maybeSingle();
+        confirmedSignal = data;
+      }
+      
+      // Fallback: try by home/away team match
+      if (!confirmedSignal) {
+        const { data } = await supabase
+          .from('punter_signals')
+          .select('id, stake_confirmed, match_id')
+          .eq('stake_confirmed', true)
+          .eq('status', 'pending')
+          .ilike('match_id', `${signal.match.home_team}_${signal.match.away_team}%`.replace(/\s+/g, '_'));
+        confirmedSignal = data?.[0] || null;
+      }
 
-    if (!confirmedSignal) {
-      console.log(`[Hórus] Skipping ${signal.match.home_team} vs ${signal.match.away_team} — no confirmed signal found`);
-      return false;
+      if (!confirmedSignal) {
+        console.log(`[Hórus] ⚠️ Nenhum sinal confirmado para ${signal.match.home_team} vs ${signal.match.away_team} — tentando aposta direta`);
+        // Don't block — proceed with direct placement since signal came from analysis
+      } else {
+        canonicalMatchId = confirmedSignal.match_id || matchId;
+      }
+    } else {
+      console.log(`[Hórus] ✅ Aposta direta (fresh analysis): ${signal.match.home_team} vs ${signal.match.away_team}`);
     }
-    
-    // Use the match_id from the signal record (canonical format from edge function)
-    const canonicalMatchId = confirmedSignal.match_id || matchId;
 
     // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
     const estimatedProb = signal.recommendation.estimated_probability
@@ -443,6 +452,7 @@ export default function PunterPage() {
       estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
+    console.log(`[Hórus] 🎯 Inserindo aposta: ${matchName} | Stake: ${stake} | Odd: ${signal.recommendation.odd} | MatchID: ${canonicalMatchId}`);
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
@@ -647,7 +657,7 @@ export default function PunterPage() {
           // Skip if already has a pending bet (from any source)
           if (existingMatchIds.has(matchId)) continue;
           
-          const placed = await autoPlaceHorusBet(signal);
+          const placed = await autoPlaceHorusBet(signal, true); // skipSignalCheck for fresh analysis
           if (placed) {
             autoPlaced++;
             newAutoIds.add(matchId);
