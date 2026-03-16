@@ -498,7 +498,60 @@ export default function PunterPage() {
     return true;
   };
 
-  const analyzeGames = async () => {
+  // Manual button: place Hórus bets for all approved signals
+  const manualPlaceAllHorusBets = async () => {
+    if (!bankroll || !user || signals.length === 0) {
+      toast.error('Sem sinais aprovados ou bankroll indisponível');
+      return;
+    }
+    setPlacingHorusBets(true);
+    try {
+      // Fetch existing bets to avoid duplicates
+      const { data: existingBets } = await supabase
+        .from('virtual_bets_punter')
+        .select('match_id')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'green', 'red']);
+      
+      const existingIds = new Set(
+        (existingBets || []).map((b: any) => (b.match_id || '').toLowerCase())
+      );
+
+      let placed = 0;
+      for (const signal of signals) {
+        const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
+        if (existingIds.has(matchId)) continue;
+        
+        const success = await autoPlaceHorusBet(signal, true);
+        if (success) {
+          placed++;
+          existingIds.add(matchId);
+        }
+      }
+
+      if (placed > 0) {
+        toast.success(`🤖 Hórus executou ${placed} entradas com Kelly`);
+        playHorusTrigger('provocacao');
+        // Refresh pending bets
+        const { data: updated } = await supabase
+          .from('virtual_bets_punter')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        if (updated) setPendingBets(updated);
+      } else {
+        toast.info('Todas as entradas já foram realizadas');
+      }
+    } catch (err: any) {
+      console.error('[Hórus] Manual bet error:', err);
+      toast.error('Erro ao executar entradas');
+    } finally {
+      setPlacingHorusBets(false);
+    }
+  };
+
+
     if (!user) {
       setError('Você precisa estar logado para analisar jogos');
       return;
