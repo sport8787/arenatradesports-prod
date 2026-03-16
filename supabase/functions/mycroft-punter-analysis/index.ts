@@ -732,28 +732,9 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   const odds=extractOdds(game), totals=extractTotals(game)
   if(!odds.length&&!totals.length) return null
 
-  // Fetch event-specific corner/card odds from The Odds API additional markets
-  let cornOdds:any[]=[], cardOdds:any[]=[]
-  if((incCorners||incCards)&&game.id&&!game.simulated_odds&&oddsApiKey) {
-    try {
-      const addMkts:string[]=[]
-      if(incCorners) addMkts.push('alternate_totals_corners')
-      if(incCards) addMkts.push('alternate_spreads_cards','alternate_totals_cards')
-      const evUrl=`https://api.the-odds-api.com/v4/sports/${game.sport_key}/events/${game.id}/odds?apiKey=${oddsApiKey}&regions=br,eu&markets=${addMkts.join(',')}&oddsFormat=decimal`
-      const evResp=await fetch(evUrl)
-      if(evResp.ok) {
-        const evData=await evResp.json()
-        cornOdds=incCorners?extractCornersOdds(evData):[]
-        cardOdds=incCards?extractCardsOdds(evData):[]
-        if(cornOdds.length) console.log(`[Mycroft Punter] 🏁 ${game.home_team} vs ${game.away_team}: ${cornOdds.length} bookmakers com odds de escanteios`)
-        if(cardOdds.length) console.log(`[Mycroft Punter] 🟨 ${game.home_team} vs ${game.away_team}: ${cardOdds.length} bookmakers com odds de cartões`)
-        if(!cornOdds.length&&incCorners) console.log(`[Mycroft Punter] ⚠️ ${game.home_team} vs ${game.away_team}: Nenhuma odd de escanteios disponível nesta liga/bookmaker`)
-        if(!cardOdds.length&&incCards) console.log(`[Mycroft Punter] ⚠️ ${game.home_team} vs ${game.away_team}: Nenhuma odd de cartões disponível nesta liga/bookmaker`)
-      } else {
-        console.log(`[Mycroft Punter] ⚠️ Event odds ${evResp.status} for ${game.id} - corners/cards odds unavailable`)
-      }
-    } catch(e) { console.error(`[Mycroft Punter] Event odds fetch error:`, e) }
-  }
+  // Skip individual event odds calls (corners/cards) — they consistently return 422 and waste ~2-3s per game
+  // Instead, rely on Poisson model estimates for corners/cards markets
+  const cornOdds:any[]=[], cardOdds:any[]=[]
 
   const en = await fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards)
   const det=computeDetectors(odds,totals,null,null)
