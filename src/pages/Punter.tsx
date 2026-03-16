@@ -500,8 +500,15 @@ export default function PunterPage() {
 
   // Manual button: place Hórus bets for all approved signals
   const manualPlaceAllHorusBets = async () => {
-    if (!bankroll || !user || signals.length === 0) {
-      toast.error('Sem sinais aprovados ou bankroll indisponível');
+    if (!bankroll || !user) {
+      toast.error('Bankroll ou login indisponível');
+      return;
+    }
+
+    // Use signals if available, otherwise reload from DB
+    let signalsToPlace = signals.length > 0 ? signals : await fetchSavedSignals();
+    if (signalsToPlace.length === 0) {
+      toast.error('Sem sinais aprovados para executar');
       return;
     }
     setPlacingHorusBets(true);
