@@ -1038,6 +1038,8 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
           console.log(`[Mycroft Punter] ⏳ Sinal FUTURO registrado (${matchDate}, ${diasRestantes}d) — stake será recalculado`)
         }
       }
+      // Attach analysis_id to returned object so client can use it for auto-betting
+      if(row) a.analysis_id = row.id
       const mp=a.estimated_probability||null, mkp=a.implied_probability||(a.odd?(1/a.odd)*100:0)
       await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)
       return a
@@ -1157,7 +1159,7 @@ serve(async (req) => {
         const r=results[j], g=batch[j]
         if(r.status==='fulfilled'&&r.value?.verdict?.startsWith('APROVADO')) {
           const rec=r.value; if(g.simulated_odds) rec.simulated_odds=true
-          approved.push({match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
+          approved.push({analysis_id:rec.analysis_id, match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
         } else if(r.status==='rejected') console.error(`[Mycroft Punter] Erro: ${g.home_team} vs ${g.away_team}:`,r.reason)
       }
       if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))

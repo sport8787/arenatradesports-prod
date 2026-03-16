@@ -610,8 +610,17 @@ export default function PunterPage() {
 
       const mergedMap = new Map<string, PunterSignal>();
       // Saved signals first (older), then new signals overwrite (fresher data)
+      // But preserve analysis_id from saved signals if new ones don't have it
       for (const s of savedSignals) mergedMap.set(signalKey(s), s);
-      for (const s of newSignals) mergedMap.set(signalKey(s), s);
+      for (const s of newSignals) {
+        const key = signalKey(s);
+        const existing = mergedMap.get(key);
+        // Preserve analysis_id from saved signal if new signal doesn't have one
+        if (existing?.analysis_id && !s.analysis_id) {
+          s.analysis_id = existing.analysis_id;
+        }
+        mergedMap.set(key, s);
+      }
       const mergedSignals = Array.from(mergedMap.values());
 
       setSignals(mergedSignals);
