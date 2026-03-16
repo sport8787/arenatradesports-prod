@@ -577,9 +577,14 @@ export default function PunterPage() {
         );
         clearTimeout(timeoutId);
         if (!resp.ok) {
-          // Check if it's a timeout/gateway error
-          const statusText = resp.status >= 500 ? 'Servidor sobrecarregado — tente novamente ou use janela 15min' : `Edge Function error: ${resp.status}`;
-          fnError = new Error(statusText);
+          // Gateway timeout or server error — signals may still be saved in DB
+          if (resp.status >= 502 && resp.status <= 504) {
+            console.warn(`[Punter] Gateway timeout (${resp.status}) — reloading saved signals from DB`);
+            fnError = new Error('gateway_timeout');
+          } else {
+            const statusText = resp.status >= 500 ? 'Servidor sobrecarregado — tente novamente ou use janela 15min' : `Edge Function error: ${resp.status}`;
+            fnError = new Error(statusText);
+          }
           try { data = await resp.json(); } catch { data = null; }
         } else {
           data = await resp.json();
@@ -587,9 +592,9 @@ export default function PunterPage() {
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {
-          fnError = new Error('Análise excedeu o tempo limite de 5 minutos. Tente janela "15min" para análise mais rápida.');
+          fnError = new Error('gateway_timeout');
         } else if (fetchErr.message?.includes('Failed to fetch') || fetchErr.message?.includes('NetworkError')) {
-          fnError = new Error('Conexão perdida — o servidor pode ter excedido o tempo. Tente janela "15min".');
+          fnError = new Error('gateway_timeout');
         } else {
           fnError = fetchErr;
         }
@@ -657,7 +662,24 @@ export default function PunterPage() {
       }
 
       if (fnError) {
-        if (savedSignals.length > 0) {
+        // On gateway timeout, re-fetch saved signals from DB (function may have saved results before dying)
+        if (fnError.message === 'gateway_timeout') {
+          const freshSaved = await fetchSavedSignals();
+          if (freshSaved.length > 0) {
+            // Merge fresh DB signals with any new signals we got
+            const freshMap = new Map<string, PunterSignal>();
+            for (const s of mergedSignals) freshMap.set(signalKey(s), s);
+            for (const s of freshSaved) freshMap.set(signalKey(s), s);
+            const allSignals = Array.from(freshMap.values());
+            setSignals(allSignals);
+            setTotalApproved(allSignals.length);
+            toast.info(`⏱️ Análise parcial — ${allSignals.length} sinais carregados do banco`);
+          } else if (savedSignals.length > 0) {
+            toast.info(`${savedSignals.length} sinais salvos carregados (análise excedeu tempo)`);
+          } else {
+            toast.warning('Análise excedeu o tempo. Tente janela "15min" para análise mais rápida.');
+          }
+        } else if (savedSignals.length > 0) {
           toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
         } else {
           throw fnError;
