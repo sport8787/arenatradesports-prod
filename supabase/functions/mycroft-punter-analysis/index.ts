@@ -1038,6 +1038,8 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
           console.log(`[Mycroft Punter] ⏳ Sinal FUTURO registrado (${matchDate}, ${diasRestantes}d) — stake será recalculado`)
         }
       }
+      // Attach analysis_id to returned object so client can use it for auto-betting
+      if(row) a.analysis_id = row.id
       const mp=a.estimated_probability||null, mkp=a.implied_probability||(a.odd?(1/a.odd)*100:0)
       await persistDetectors(sb,mid,a.market||'h2h',computeDetectors(odds,totals,mp,a.market),mp,mkp)
       return a
