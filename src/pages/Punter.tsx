@@ -662,7 +662,24 @@ export default function PunterPage() {
       }
 
       if (fnError) {
-        if (savedSignals.length > 0) {
+        // On gateway timeout, re-fetch saved signals from DB (function may have saved results before dying)
+        if (fnError.message === 'gateway_timeout') {
+          const freshSaved = await fetchSavedSignals();
+          if (freshSaved.length > 0) {
+            // Merge fresh DB signals with any new signals we got
+            const freshMap = new Map<string, PunterSignal>();
+            for (const s of mergedSignals) freshMap.set(signalKey(s), s);
+            for (const s of freshSaved) freshMap.set(signalKey(s), s);
+            const allSignals = Array.from(freshMap.values());
+            setSignals(allSignals);
+            setTotalApproved(allSignals.length);
+            toast.info(`⏱️ Análise parcial — ${allSignals.length} sinais carregados do banco`);
+          } else if (savedSignals.length > 0) {
+            toast.info(`${savedSignals.length} sinais salvos carregados (análise excedeu tempo)`);
+          } else {
+            toast.warning('Análise excedeu o tempo. Tente janela "15min" para análise mais rápida.');
+          }
+        } else if (savedSignals.length > 0) {
           toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
         } else {
           throw fnError;
