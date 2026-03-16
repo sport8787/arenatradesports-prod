@@ -552,7 +552,7 @@ export default function PunterPage() {
   };
 
   const analyzeGames = async () => {
-
+    if (!user) {
       setError('Você precisa estar logado para analisar jogos');
       return;
     }
