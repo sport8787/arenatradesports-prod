@@ -675,7 +675,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-pro',
+      model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.` },
         { role: 'user', content: usr },
