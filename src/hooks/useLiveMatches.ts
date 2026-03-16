@@ -9,7 +9,7 @@ const LIGAS_PERMITIDAS = new Set([
   'Libertadores', 'Sul-Americana',
   'Brasileirão Série A', 'Serie A', 'Série A', 'Brasileirão Série B', 'Serie B', 'Série B',
   'Brasileirão Série C', 'Serie C', 'Série C',
-  'Argentine Primera División', 'Primera División',
+  'Argentine Primera División', 'Primera División', 'Liga Profesional Argentina',
   'MLS',
 ]);
 
