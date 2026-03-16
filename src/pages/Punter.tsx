@@ -90,6 +90,7 @@ export default function PunterPage() {
   const [showCertificate, setShowCertificate] = useState(false);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
+  const [placingHorusBets, setPlacingHorusBets] = useState(false);
   
   // Cached odds - loaded from daily cron (no API call on user access)
   const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
@@ -495,6 +496,59 @@ export default function PunterPage() {
     bankroll.total_bets += 1;
 
     return true;
+  };
+
+  // Manual button: place Hórus bets for all approved signals
+  const manualPlaceAllHorusBets = async () => {
+    if (!bankroll || !user || signals.length === 0) {
+      toast.error('Sem sinais aprovados ou bankroll indisponível');
+      return;
+    }
+    setPlacingHorusBets(true);
+    try {
+      // Fetch existing bets to avoid duplicates
+      const { data: existingBets } = await supabase
+        .from('virtual_bets_punter')
+        .select('match_id')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'green', 'red']);
+      
+      const existingIds = new Set(
+        (existingBets || []).map((b: any) => (b.match_id || '').toLowerCase())
+      );
+
+      let placed = 0;
+      for (const signal of signals) {
+        const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').toLowerCase();
+        if (existingIds.has(matchId)) continue;
+        
+        const success = await autoPlaceHorusBet(signal, true);
+        if (success) {
+          placed++;
+          existingIds.add(matchId);
+        }
+      }
+
+      if (placed > 0) {
+        toast.success(`🤖 Hórus executou ${placed} entradas com Kelly`);
+        playHorusTrigger('provocacao');
+        // Refresh pending bets
+        const { data: updated } = await supabase
+          .from('virtual_bets_punter')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        if (updated) setPendingBets(updated);
+      } else {
+        toast.info('Todas as entradas já foram realizadas');
+      }
+    } catch (err: any) {
+      console.error('[Hórus] Manual bet error:', err);
+      toast.error('Erro ao executar entradas');
+    } finally {
+      setPlacingHorusBets(false);
+    }
   };
 
   const analyzeGames = async () => {
@@ -985,7 +1039,22 @@ export default function PunterPage() {
               )}
             </GoldButton>
 
-            {/* Cached games info */}
+            {/* Manual Hórus bet button */}
+            {signals.length > 0 && (
+              <Button
+                onClick={manualPlaceAllHorusBets}
+                disabled={placingHorusBets || !bankroll || bankroll.balance <= 0}
+                variant="outline"
+                className="w-full font-mono text-xs tracking-wider border-primary/50 text-primary hover:bg-primary/10"
+              >
+                {placingHorusBets ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> EXECUTANDO ENTRADAS...</>
+                ) : (
+                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length} sinais)</>
+                )}
+              </Button>
+            )}
+
             {!cachedLoading && cachedGames.length > 0 && (
               <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border border-border/50 rounded px-2.5 py-1.5 bg-muted/20">
                 <div className="flex items-center gap-1.5">
