@@ -621,8 +621,7 @@ function parseStructuredJson(raw: string) {
 }
 
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if(!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+  // Uses direct Gemini API for lower latency (no gateway overhead)
 
   const schemaProperties: Record<string,any> = {
     verdict: { type: 'string', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
@@ -668,61 +667,90 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
+  const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
+
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
+
+  // Build function declaration for structured output
+  const functionDeclaration = {
+    name: 'punter_analysis',
+    description: 'Return the structured analysis result for this match.',
+    parameters: {
+      type: 'OBJECT',
+      properties: Object.fromEntries(
+        Object.entries(schemaProperties).map(([k, v]: [string, any]) => {
+          const mapped: any = { ...v }
+          // Convert OpenAI-style types to Gemini-style
+          if (mapped.type === 'string') mapped.type = 'STRING'
+          else if (mapped.type === 'number') mapped.type = 'NUMBER'
+          else if (mapped.type === 'boolean') mapped.type = 'BOOLEAN'
+          else if (mapped.type === 'array') { mapped.type = 'ARRAY'; if (mapped.items?.type === 'string') mapped.items = { type: 'STRING' } }
+          else if (mapped.type === 'object') {
+            mapped.type = 'OBJECT'
+            if (mapped.properties) {
+              mapped.properties = Object.fromEntries(
+                Object.entries(mapped.properties).map(([pk, pv]: [string, any]) => {
+                  const pm: any = { ...pv }
+                  if (pm.type === 'string') pm.type = 'STRING'
+                  else if (pm.type === 'number') pm.type = 'NUMBER'
+                  else if (pm.type === 'boolean') pm.type = 'BOOLEAN'
+                  return [pk, pm]
+                })
+              )
+            }
+          }
+          delete mapped.nullable
+          return [k, mapped]
+        })
+      ),
+      required: requiredFields,
     },
+  }
+
+  const r = await fetch(geminiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.` },
-        { role: 'user', content: usr },
+      contents: [
+        { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
       ],
-      tools: [{
-        type: 'function',
-        function: {
-          name: 'punter_analysis',
-          description: 'Return the structured analysis result for this match.',
-          parameters: {
-            type: 'object',
-            properties: schemaProperties,
-            required: requiredFields,
-            additionalProperties: false,
-          },
-        },
-      }],
-      tool_choice: { type: 'function', function: { name: 'punter_analysis' } },
-      temperature: 0.1,
-      max_tokens: 8192,
+      tools: [{ functionDeclarations: [functionDeclaration] }],
+      toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['punter_analysis'] } },
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+      },
     }),
   })
 
-  if(!r.ok) {
+  if (!r.ok) {
     const errBody = await r.text()
-    console.error(`[Mycroft Punter] AI Gateway error ${r.status}: ${errBody.substring(0,500)}`)
+    console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0, 500)}`)
     if (r.status === 429) throw new Error('RATE_LIMITED')
-    if (r.status === 402) throw new Error('PAYMENT_REQUIRED')
-    throw new Error(`AI Gateway error ${r.status}`)
+    throw new Error(`Gemini API error ${r.status}`)
   }
 
   const data = await r.json()
 
-  // Extract from tool call response
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0]
-  if (toolCall?.function?.arguments) {
-    return parseStructuredJson(toolCall.function.arguments)
+  // Extract from Gemini function call response
+  const parts = data.candidates?.[0]?.content?.parts || []
+  const fnCall = parts.find((p: any) => p.functionCall)
+  if (fnCall?.functionCall?.args) {
+    // Gemini returns args as object directly
+    const args = fnCall.functionCall.args
+    if (typeof args === 'string') return parseStructuredJson(args)
+    return args
   }
 
-  // Fallback: try content
-  const content = data.choices?.[0]?.message?.content || ''
-  if(!content) {
-    console.error('[Mycroft Punter] Empty AI Gateway response')
+  // Fallback: try text content
+  const textPart = parts.find((p: any) => p.text)
+  if (!textPart?.text) {
+    console.error('[Mycroft Punter] Empty Gemini response')
     throw new Error('Empty response')
   }
 
-  return parseStructuredJson(content)
+  return parseStructuredJson(textPart.text)
 }
 
 // Main analysis
