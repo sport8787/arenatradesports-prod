@@ -1039,8 +1039,8 @@ export default function PunterPage() {
               )}
             </GoldButton>
 
-            {/* Manual Hórus bet button */}
-            {signals.length > 0 && (
+            {/* Manual Hórus bet button — visible when signals OR futureSignals exist */}
+            {(signals.length > 0 || futureSignals.length > 0) && (
               <Button
                 onClick={manualPlaceAllHorusBets}
                 disabled={placingHorusBets || !bankroll || bankroll.balance <= 0}
@@ -1050,7 +1050,7 @@ export default function PunterPage() {
                 {placingHorusBets ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> EXECUTANDO ENTRADAS...</>
                 ) : (
-                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length} sinais)</>
+                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length || futureSignals.length} sinais)</>
                 )}
               </Button>
             )}
