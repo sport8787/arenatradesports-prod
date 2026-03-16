@@ -1159,7 +1159,7 @@ serve(async (req) => {
         const r=results[j], g=batch[j]
         if(r.status==='fulfilled'&&r.value?.verdict?.startsWith('APROVADO')) {
           const rec=r.value; if(g.simulated_odds) rec.simulated_odds=true
-          approved.push({match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
+          approved.push({analysis_id:rec.analysis_id, match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
         } else if(r.status==='rejected') console.error(`[Mycroft Punter] Erro: ${g.home_team} vs ${g.away_team}:`,r.reason)
       }
       if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
