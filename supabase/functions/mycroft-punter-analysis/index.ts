@@ -621,8 +621,7 @@ function parseStructuredJson(raw: string) {
 }
 
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if(!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured')
+  // Uses direct Gemini API for lower latency (no gateway overhead)
 
   const schemaProperties: Record<string,any> = {
     verdict: { type: 'string', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
