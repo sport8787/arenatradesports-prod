@@ -577,9 +577,14 @@ export default function PunterPage() {
         );
         clearTimeout(timeoutId);
         if (!resp.ok) {
-          // Check if it's a timeout/gateway error
-          const statusText = resp.status >= 500 ? 'Servidor sobrecarregado — tente novamente ou use janela 15min' : `Edge Function error: ${resp.status}`;
-          fnError = new Error(statusText);
+          // Gateway timeout or server error — signals may still be saved in DB
+          if (resp.status >= 502 && resp.status <= 504) {
+            console.warn(`[Punter] Gateway timeout (${resp.status}) — reloading saved signals from DB`);
+            fnError = new Error('gateway_timeout');
+          } else {
+            const statusText = resp.status >= 500 ? 'Servidor sobrecarregado — tente novamente ou use janela 15min' : `Edge Function error: ${resp.status}`;
+            fnError = new Error(statusText);
+          }
           try { data = await resp.json(); } catch { data = null; }
         } else {
           data = await resp.json();
@@ -587,9 +592,9 @@ export default function PunterPage() {
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {
-          fnError = new Error('Análise excedeu o tempo limite de 5 minutos. Tente janela "15min" para análise mais rápida.');
+          fnError = new Error('gateway_timeout');
         } else if (fetchErr.message?.includes('Failed to fetch') || fetchErr.message?.includes('NetworkError')) {
-          fnError = new Error('Conexão perdida — o servidor pode ter excedido o tempo. Tente janela "15min".');
+          fnError = new Error('gateway_timeout');
         } else {
           fnError = fetchErr;
         }
