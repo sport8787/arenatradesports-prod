@@ -919,7 +919,7 @@ export default function PunterPage() {
             const data = await resp.json();
             console.log(`[Corners] ${game.home_team} vs ${game.away_team}: aprovados=${data.aprovados_count}`);
             if (data.success && data.aprovados_count > 0 && data.veredicto) {
-              results.push(data);
+              results.push({ ...data, _game: game });
             }
           }
         } catch (err) {
