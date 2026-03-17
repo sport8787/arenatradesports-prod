@@ -97,6 +97,34 @@ export default function PunterPage() {
   // Cached odds - loaded from daily cron (no API call on user access)
   const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
   const ANALYSIS_NT_COST = 50; // NT cost per analysis run
+  const LOCAL_CORNERS_SIGNALS_KEY = 'punter_corners_signals_v1';
+
+  const loadLocalCornersSignals = (): PunterSignal[] => {
+    try {
+      const raw = localStorage.getItem(LOCAL_CORNERS_SIGNALS_KEY);
+      if (!raw) return [];
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+
+      const nowTs = Date.now();
+      return parsed.filter((item: any) => {
+        if (!item?.match || !item?.recommendation) return false;
+        const kickoffTs = item.match.commence_time ? Date.parse(item.match.commence_time) : NaN;
+        return Number.isNaN(kickoffTs) || kickoffTs > nowTs;
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalCornersSignals = (items: PunterSignal[]) => {
+    try {
+      localStorage.setItem(LOCAL_CORNERS_SIGNALS_KEY, JSON.stringify(items.slice(0, 200)));
+    } catch {
+      // ignore localStorage failures
+    }
+  };
 
   // Set of pending bet match keys for "NOVO" badge
   const pendingMatchKeys = useMemo(() => {
