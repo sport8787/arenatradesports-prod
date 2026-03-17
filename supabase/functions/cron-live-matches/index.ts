@@ -34,7 +34,7 @@ serve(async (req) => {
     const currentMinute = new Date().getMinutes();
     const isAnalysisMinute = currentMinute % 2 === 1; // ímpares = análise
 
-    console.log(`[CronLive] ▶️ Minuto ${currentMinute} — ${isAnalysisMinute ? 'STATS + ANÁLISE' : 'STATS ONLY'}`);
+    console.log(`[CronLive] ▶️ Minuto ${currentMinute} — ${isAnalysisMinute ? 'STATS x2 + ANÁLISE' : 'STATS x2'}`);
 
     const baseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -43,25 +43,31 @@ serve(async (req) => {
       'Authorization': `Bearer ${serviceKey}`,
     };
 
-    // SEMPRE rodar stats (fetch + scores)
-    const statsJobs: Promise<any>[] = [
-      fetch(`${baseUrl}/functions/v1/fetch-live-matches`, {
-        method: 'POST', headers,
-      }).then(r => r.json()),
+    const runStats = async (label: string) => {
+      const jobs = [
+        fetch(`${baseUrl}/functions/v1/fetch-live-matches`, { method: 'POST', headers }).then(r => r.json()),
+        fetch(`${baseUrl}/functions/v1/update-live-scores`, { method: 'POST', headers }).then(r => r.json()),
+      ];
+      const [fetchR, scoresR] = await Promise.allSettled(jobs);
+      console.log(`[CronLive] ${label} fetch_ok=${fetchR.status === 'fulfilled'} scores_ok=${scoresR.status === 'fulfilled'}`);
+      return { fetch: fetchR, scores: scoresR };
+    };
 
-      fetch(`${baseUrl}/functions/v1/update-live-scores`, {
-        method: 'POST', headers,
-      }).then(r => r.json()),
-    ];
+    // 1ª rodada de stats (segundo 0)
+    const round1 = await runStats('🔄 Round1 (0s)');
 
-    const [fetchRes, scoresRes] = await Promise.allSettled(statsJobs);
+    // Aguarda 30 segundos e roda stats novamente
+    await new Promise(resolve => setTimeout(resolve, 30_000));
+    const round2 = await runStats('🔄 Round2 (30s)');
 
     const result: Record<string, any> = {
       success: true,
       minute: currentMinute,
-      phase: isAnalysisMinute ? 'stats+analysis' : 'stats_only',
-      fetch: fetchRes.status === 'fulfilled' ? fetchRes.value : { error: fetchRes.reason?.message },
-      scores: scoresRes.status === 'fulfilled' ? scoresRes.value : { error: scoresRes.reason?.message },
+      phase: isAnalysisMinute ? 'stats_x2+analysis' : 'stats_x2',
+      round1_fetch: round1.fetch.status === 'fulfilled' ? round1.fetch.value : { error: (round1.fetch as any).reason?.message },
+      round1_scores: round1.scores.status === 'fulfilled' ? round1.scores.value : { error: (round1.scores as any).reason?.message },
+      round2_fetch: round2.fetch.status === 'fulfilled' ? round2.fetch.value : { error: (round2.fetch as any).reason?.message },
+      round2_scores: round2.scores.status === 'fulfilled' ? round2.scores.value : { error: (round2.scores as any).reason?.message },
     };
 
     // SÓ nos minutos ímpares → análise Mycroft com dados já atualizados
@@ -78,8 +84,8 @@ serve(async (req) => {
     console.log('[CronLive] ✅ Resultados:', JSON.stringify({
       minute: currentMinute,
       phase: result.phase,
-      fetch_ok: fetchRes.status === 'fulfilled',
-      scores_ok: scoresRes.status === 'fulfilled',
+      r1_fetch_ok: round1.fetch.status === 'fulfilled',
+      r2_fetch_ok: round2.fetch.status === 'fulfilled',
       analysis_ok: isAnalysisMinute ? !!result.analysis : 'skipped',
     }));
 
