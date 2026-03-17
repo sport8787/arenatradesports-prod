@@ -839,7 +839,7 @@ export default function PunterPage() {
       for (const game of gamesToAnalyze) {
         try {
           const resp = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-analyzer`,
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-punter`,
             {
               method: 'POST',
               headers: {
@@ -854,8 +854,9 @@ export default function PunterPage() {
                 home_team_name: game.home_team,
                 away_team_name: game.away_team,
                 liga: game.sport_key,
+                season: 2025,
                 linha_total: 9.5,
-                modo: 'completo',
+                odds: null,
               }),
             }
           );
