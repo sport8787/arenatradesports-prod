@@ -934,7 +934,9 @@ export default function PunterPage() {
         const cornersSignals: PunterSignal[] = [];
         
         for (const r of results.filter(r => r.veredicto && r.veredicto.verdict?.startsWith('APROVADO'))) {
-          const mid = `${r.mandante}_${r.visitante}_${new Date().toISOString().slice(0, 10)}`.replace(/\s+/g, '_');
+          const commenceTime = r._game?.commence_time || new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+          const matchDate = commenceTime.slice(0, 10);
+          const mid = `${r.mandante}_${r.visitante}_${commenceTime}`.replace(/\s+/g, '_');
           const market = `Escanteios: ${r.veredicto.market}`;
           const verdict = r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR';
           const odd = r.veredicto.odd || 1.80;
