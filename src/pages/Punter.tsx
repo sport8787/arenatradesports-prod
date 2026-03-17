@@ -1175,7 +1175,19 @@ export default function PunterPage() {
               )}
             </GoldButton>
 
-            {/* Manual Hórus bet button — visible when signals OR futureSignals exist */}
+            <Button
+              onClick={analyzeCornersMarket}
+              disabled={cornersLoading || loading}
+              variant="outline"
+              className="w-full font-mono text-xs tracking-wider border-primary/50 text-primary hover:bg-primary/10"
+            >
+              {cornersLoading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO ESCANTEIOS...</>
+              ) : (
+                <><CornerDownRight className="mr-2 h-4 w-4" /> ANALISAR ESCANTEIOS ({ANALYSIS_NT_COST} NT)</>
+              )}
+            </Button>
+
             {(signals.length > 0 || futureSignals.length > 0) && (
               <Button
                 onClick={manualPlaceAllHorusBets}
