@@ -18,6 +18,7 @@ import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import TradingHistory from "./pages/TradingHistory";
+import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
 import BetHistory from "./pages/BetHistory";
