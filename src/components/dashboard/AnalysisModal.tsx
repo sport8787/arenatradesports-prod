@@ -339,6 +339,21 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
             </div>
           </motion.div>
 
+          {/* Odds Comparator */}
+          <motion.div variants={fadeUp} className="space-y-3">
+            <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4" /> Comparador de Odds
+            </h3>
+            <div className="luxury-card p-4">
+              <OddsComparator
+                matchId={match.matchId || match.id}
+                homeTeam={match.home}
+                awayTeam={match.away}
+                market={analysis.market}
+              />
+            </div>
+          </motion.div>
+
           {/* Risk Management - structured or text */}
           {(riskItems.length > 0 || riskText) && (
             <motion.div variants={fadeUp} className="space-y-3">
