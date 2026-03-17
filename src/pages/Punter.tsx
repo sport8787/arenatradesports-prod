@@ -1024,6 +1024,12 @@ export default function PunterPage() {
               merged.push(cs);
             }
           }
+
+          const onlyCorners = merged.filter((s) =>
+            (s.recommendation.market || '').toLowerCase().includes('escanteios')
+          );
+          saveLocalCornersSignals(onlyCorners);
+
           return merged;
         });
 
