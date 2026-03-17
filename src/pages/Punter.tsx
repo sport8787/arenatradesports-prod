@@ -955,7 +955,7 @@ export default function PunterPage() {
             home_team: r.mandante,
             away_team: r.visitante,
             league: r.liga || 'Escanteios',
-            commence_time: new Date().toISOString(),
+            commence_time: commenceTime,
             market,
             bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
             odd,
