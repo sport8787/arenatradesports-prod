@@ -15,6 +15,7 @@ import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
