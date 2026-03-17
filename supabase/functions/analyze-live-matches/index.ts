@@ -25,29 +25,68 @@ serve(async (req) => {
 
     const { bankroll } = await req.json();
 
-    // Get live matches eligible for first analysis (from kickoff, no minute gate)
-    const { data: matchesNew, error: matchError1 } = await supabase
+    // Helper: check if match has special early context (knockout needing comeback, or high xG)
+    const hasSpecialEarlyContext = (m: any): boolean => {
+      const stats = m.stats || {};
+      const championship = (m.championship || '').toLowerCase();
+      const isKnockout = /copa|cup|eliminat|playoff|mata-mata|knockout|libertadores|champions|europa league/i.test(championship);
+      // Check if home team is behind on aggregate or score
+      const homeBehind = (m.score_home ?? 0) < (m.score_away ?? 0);
+      if (isKnockout && homeBehind) return true;
+      // Check xG > 0.3 for home team
+      const xgHome = parseFloat(stats.xg_home ?? stats.expected_goals_home ?? '0') || 0;
+      if (xgHome > 0.3) return true;
+      return false;
+    };
+
+    // Get live matches eligible for FIRST analysis (no previous analysis)
+    const { data: allNewMatches, error: matchError1 } = await supabase
       .from('live_matches')
       .select('*')
       .eq('status', 'live')
       .is('mycroft_analysis_id', null)
       .order('minute', { ascending: false })
-      .limit(5);
+      .limit(10);
 
-    // Re-analyze AGUARDAR matches every 1 minute (no minute gate)
+    // FAIXA 1 (0-10): only special context. FAIXA 2+ (10+): all.
+    const matchesNew = (allNewMatches || []).filter((m: any) => {
+      const min = m.minute ?? 0;
+      if (min < 10) {
+        const special = hasSpecialEarlyContext(m);
+        if (!special) {
+          console.log(`[AnalyzeLive] ⏭️ Skipping ${m.home_team} vs ${m.away_team} (${min}') — no special early context`);
+        }
+        return special;
+      }
+      return true; // min >= 10: analyze all
+    }).slice(0, 5);
+
+    // Re-analyze AGUARDAR matches with tiered intervals
     const { data: matchesAguardar, error: matchError2 } = await supabase
       .from('live_matches')
       .select('*, mycroft_analyses!inner(id, verdict, created_at)')
       .eq('status', 'live')
       .eq('mycroft_status', 'aguardar')
       .order('minute', { ascending: false })
-      .limit(5);
+      .limit(10);
 
     const now = Date.now();
     const reAnalyzable = (matchesAguardar || []).filter((m: any) => {
+      const min = m.minute ?? 0;
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
-      return (now - analysisTime) > 1 * 60 * 1000; // 1 minute
-    });
+      const elapsed = now - analysisTime;
+
+      // FAIXA 1 (0-10): re-analyze every 5 min, only if special context
+      if (min < 10) {
+        return elapsed > 5 * 60 * 1000 && hasSpecialEarlyContext(m);
+      }
+      // FAIXA 2 (10-25): re-analyze every 5 min
+      if (min < 25) {
+        return elapsed > 5 * 60 * 1000;
+      }
+      // FAIXA 3 (25+): re-analyze every 1 min
+      return elapsed > 1 * 60 * 1000;
+    }).slice(0, 5);
 
     if (reAnalyzable.length > 0) {
       console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} AGUARDAR matches eligible for re-analysis`);
