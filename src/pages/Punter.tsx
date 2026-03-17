@@ -862,7 +862,7 @@ export default function PunterPage() {
           );
           if (resp.ok) {
             const data = await resp.json();
-            if (data.success && data.aprovados_count > 0) {
+            if (data.success && data.aprovados_count > 0 && data.veredicto) {
               results.push(data);
             }
           }
