@@ -877,10 +877,61 @@ export default function PunterPage() {
       setCornersResults(results);
 
       if (results.length > 0) {
-        // Add corners signals to main signals list
-        const cornersSignals: PunterSignal[] = results
-          .filter(r => r.veredicto && r.veredicto.verdict?.startsWith('APROVADO'))
-          .map(r => ({
+        // Persist corners signals to DB (same pattern as main analysis)
+        const cornersSignals: PunterSignal[] = [];
+        
+        for (const r of results.filter(r => r.veredicto && r.veredicto.verdict?.startsWith('APROVADO'))) {
+          const mid = `${r.mandante}_${r.visitante}_${new Date().toISOString().slice(0, 10)}`.replace(/\s+/g, '_');
+          const market = `Escanteios: ${r.veredicto.market}`;
+          const verdict = r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR';
+          const odd = r.veredicto.odd || 1.80;
+          const confidence = r.veredicto.confidence || 0;
+          const edge = r.veredicto.edge_percentage || 0;
+          const stakePerc = r.veredicto.stake_percentage || 2;
+          const thesis = `${r.veredicto.plano_ativado}: ${r.veredicto.thesis}`;
+
+          // Dedup: remove old corners analysis+signal for same match+market
+          await supabase.from('punter_signals').delete().eq('match_id', mid).eq('market', market);
+          await supabase.from('punter_analyses').delete().eq('match_id', mid).eq('market', market);
+
+          // Insert into punter_analyses
+          const { data: row } = await supabase.from('punter_analyses').insert({
+            match_id: mid,
+            home_team: r.mandante,
+            away_team: r.visitante,
+            league: r.liga || 'Escanteios',
+            commence_time: new Date().toISOString(),
+            market,
+            bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
+            odd,
+            fair_odd: confidence > 0 ? Math.round((1 / (confidence / 100)) * 100) / 100 : 1.70,
+            value_percentage: edge,
+            confidence,
+            thesis,
+            analysis: r.veredicto.analysis || '',
+            risk_factors: r.veredicto.risk_factors || '',
+            verdict: 'APROVADO',
+            stake_percentage: stakePerc,
+            source: 'mycroft-corners-punter',
+          } as any).select().single();
+
+          if (row) {
+            // Insert into punter_signals
+            await supabase.from('punter_signals').insert({
+              analysis_id: row.id,
+              match_id: mid,
+              market,
+              bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
+              odd,
+              value_percentage: edge,
+              stake_percentage: stakePerc,
+              status: 'stake_calculated',
+              match_date: new Date().toISOString().slice(0, 10),
+              stake_confirmed: false,
+            } as any);
+          }
+
+          cornersSignals.push({
             match: {
               home_team: r.mandante,
               away_team: r.visitante,
@@ -888,21 +939,22 @@ export default function PunterPage() {
               league: r.liga,
             },
             recommendation: {
-              verdict: r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR',
-              market: `Escanteios: ${r.veredicto.market}`,
+              verdict,
+              market,
               bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
-              odd: r.veredicto.odd || 1.80,
-              fair_odd: r.veredicto.odd ? Math.round((1 / (r.veredicto.confidence / 100)) * 100) / 100 : 1.70,
-              value_percentage: r.veredicto.edge_percentage || 0,
-              confidence: r.veredicto.confidence || 0,
+              odd,
+              fair_odd: confidence > 0 ? Math.round((1 / (confidence / 100)) * 100) / 100 : 1.70,
+              value_percentage: edge,
+              confidence,
               estimated_probability: null,
               implied_probability: null,
-              stake_percentage: r.veredicto.stake_percentage || 2,
-              thesis: `${r.veredicto.plano_ativado}: ${r.veredicto.thesis}`,
+              stake_percentage: stakePerc,
+              thesis,
               analysis: r.veredicto.analysis || '',
               risk_factors: r.veredicto.risk_factors || '',
             },
-          }));
+          });
+        }
 
         setSignals(prev => {
           const merged = [...prev];
