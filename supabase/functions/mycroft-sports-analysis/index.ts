@@ -312,19 +312,74 @@ serve(async (req) => {
         analysis.alerts = [...(analysis.alerts || []), `Plano ${analysis.plan_name} não encontrado na base`];
         analysis.plan_name = null;
       } else if (analysis.criterios_ausentes?.length > 0) {
-        console.warn(`[MycroftSports] VETO: ${analysis.plan_name} com ${analysis.criterios_ausentes.length} critérios ausentes`);
-        await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
-          jogo: `${match.home} vs ${match.away}`,
-          liga: match.championship,
-          mercado: analysis.market,
-          odd: analysis.odd,
-          confianca_recebida: analysis.confidence,
-          verdict_gemini: 'APROVADO_INCONSISTENTE',
-          motivo_veto: `Critérios ausentes para ${planCode}: ${analysis.criterios_ausentes.join(', ')}`,
-          raw_response: analysis,
-        });
-        analysis.verdict = 'VETADO';
-        analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode} com critérios ausentes: ${analysis.criterios_ausentes.join(', ')}`];
+        // Classificar critérios ausentes:
+        // - "dado não fornecido", "não disponível", "sem dados", "não informado" = falta de dados históricos (recuperável)
+        // - "jogos insuficientes", "sem jogos", "temporada insuficiente", "amostra insuficiente" = estruturalmente inexistente (veto)
+        const STRUCTURAL_KEYWORDS = ['jogos insuficientes', 'sem jogos', 'temporada insuficiente', 'amostra insuficiente', 'sem histórico na temporada', 'menos de', 'poucos jogos'];
+        const DATA_GAP_KEYWORDS = ['dado não fornecido', 'não disponível', 'sem dados', 'não informado', 'dado não', 'não fornecid', 'indisponível'];
+
+        const structuralMissing: string[] = [];
+        const dataGapMissing: string[] = [];
+
+        for (const criterio of analysis.criterios_ausentes) {
+          const lower = criterio.toLowerCase();
+          if (STRUCTURAL_KEYWORDS.some(kw => lower.includes(kw))) {
+            structuralMissing.push(criterio);
+          } else {
+            dataGapMissing.push(criterio);
+          }
+        }
+
+        if (structuralMissing.length > 0) {
+          // Caso 2: Dados estruturalmente inexistentes → VETO firme
+          console.warn(`[MycroftSports] VETO: ${analysis.plan_name} com critérios estruturalmente ausentes: ${structuralMissing.join(', ')}`);
+          await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
+            jogo: `${match.home} vs ${match.away}`,
+            liga: match.championship,
+            mercado: analysis.market,
+            odd: analysis.odd,
+            confianca_recebida: analysis.confidence,
+            verdict_gemini: 'APROVADO_INCONSISTENTE',
+            motivo_veto: `Critérios estruturalmente ausentes para ${planCode}: ${structuralMissing.join(', ')}`,
+            raw_response: analysis,
+          });
+          analysis.verdict = 'VETADO';
+          analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode} vetado: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
+        } else if (dataGapMissing.length > 0) {
+          // Caso 1: Falta de dados históricos (API não forneceu) → Penalizar confiança, não vetar automaticamente
+          const originalConfidence = analysis.confidence;
+          const penalty = 15 * dataGapMissing.length;
+          analysis.confidence = Math.max(0, analysis.confidence - penalty);
+
+          console.log(`[MycroftSports] ⚠️ ${analysis.plan_name}: ${dataGapMissing.length} critério(s) com dados não fornecidos. Confiança ${originalConfidence}% → ${analysis.confidence}% (-${penalty}pp)`);
+
+          if (analysis.confidence >= 65) {
+            // Aprovado com penalidade — dados ausentes não invalidam se a confiança se mantém
+            analysis.alerts = [...(analysis.alerts || []),
+              `Plano ${planCode}: ${dataGapMissing.length} critério(s) sem dados da API — confiança reduzida de ${originalConfidence}% para ${analysis.confidence}%`,
+              ...dataGapMissing.map(c => `⚠️ Critério sem dado: ${c}`),
+            ];
+            console.log(`[MycroftSports] ✅ ${analysis.plan_name} APROVADO com penalidade (conf ${analysis.confidence}% ≥ 65%)`);
+          } else {
+            // Confiança caiu abaixo de 65% → VETO
+            console.warn(`[MycroftSports] VETO: ${analysis.plan_name} — confiança pós-penalidade ${analysis.confidence}% < 65%`);
+            await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
+              jogo: `${match.home} vs ${match.away}`,
+              liga: match.championship,
+              mercado: analysis.market,
+              odd: analysis.odd,
+              confianca_recebida: originalConfidence,
+              edge_recebido: analysis.confidence,
+              verdict_gemini: 'APROVADO_PENALIZADO',
+              motivo_veto: `Confiança pós-penalidade ${analysis.confidence}% < 65% (original: ${originalConfidence}%, -${penalty}pp por dados ausentes)`,
+              raw_response: analysis,
+            });
+            analysis.verdict = 'VETADO';
+            analysis.alerts = [...(analysis.alerts || []),
+              `Plano ${planCode}: confiança ${originalConfidence}% → ${analysis.confidence}% após penalidade por dados ausentes (limiar 65%)`,
+            ];
+          }
+        }
       }
     }
 
