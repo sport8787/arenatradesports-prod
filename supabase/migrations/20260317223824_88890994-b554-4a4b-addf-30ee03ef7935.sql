@@ -1,0 +1,1 @@
+UPDATE live_matches SET status = 'finished', updated_at = now() WHERE status IN ('live', 'halftime') AND updated_at < '2026-03-17';
