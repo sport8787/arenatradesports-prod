@@ -33,6 +33,8 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   71:  "Brasileirão Série A",
   72:  "Brasileirão Série B",
   73:  "Brasileirão Série C",
+  75:  "Copa Do Brasil",
+  128: "Liga Profesional Argentina",
   238: "Argentine Primera División",
   // América do Norte
   253: "MLS",
