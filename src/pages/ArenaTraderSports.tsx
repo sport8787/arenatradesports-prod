@@ -230,9 +230,7 @@ export default function ArenaTraderSports() {
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
-    const base = liveMatches.length > 0
-      ? liveMatches.map(mapLiveMatchToMatch)
-      : mockMatches;
+    const base = liveMatches.map(mapLiveMatchToMatch);
     return base.map(m => ({ ...m, hasBet: bettedMatchIds.has(m.matchId || m.id) }));
   }, [liveMatches, bettedMatchIds]);
 
