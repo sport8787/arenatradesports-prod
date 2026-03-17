@@ -1,0 +1,176 @@
+═══════════════════════════════════════════════════════════
+MYCROFT CORNERS ANALYZER — GUIA COMPLETO
+Baseado em 5 transcrições de estratégias validadas
+Bluffer Entertainment © 2026
+═══════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+RESUMO DAS ESTRATÉGIAS IDENTIFICADAS NAS TRANSCRIÇÕES
+────────────────────────────────────────────────────────
+
+ESTRATÉGIA 1 — APOSTA COMPARATIVA (escanteio_1)
+Fonte: Canal "Guilherme" — Vila Nova vs Operário
+Conceito: Back mandante para ter MAIS escanteios que visitante,
+com opção de handicap (-1.5) quando diferença de médias ≥ 2.0.
+Critérios:
+  • Mandante média em casa ≥ 5.0 escanteios
+  • Visitante média fora ≤ 4.5 escanteios
+  • Diferença ≥ 1.5 escanteios entre as médias
+  • Visitante com média baixa de escanteios cedidos fora
+PLANO MYCROFT: PLANO DOMINÂNCIA
+
+────────────────────────────────────────────────────────
+
+ESTRATÉGIA 2 — TRÊS ELEMENTOS (escanteio_2)
+Fonte: Canal "Guilherme" — Chapecoense, Pai Sandu vs Criciúma
+Conceito: 3 entradas em sequência no mesmo jogo:
+  Elemento 1: Ambos marcam escanteio nos primeiros 10 min (OD ~1.60)
+  Elemento 2: Mandante Over 4.5 escanteios no 1T (OD alta ~4-5x) — CASHOUT
+  Elemento 3: Over 2.5 escanteios ao vivo entre 20-25min do 1T
+Distribuição de banca: 47% + 20% + 33% (valores compensatórios)
+Critérios:
+  • Mandante com histórico de escanteios cedo (primeiros 10min)
+  • Média em casa ≥ 5.0 por jogo
+  • Times com estilo ofensivo desde o início
+PLANO MYCROFT: PLANO AVALANCHE
+
+────────────────────────────────────────────────────────
+
+ESTRATÉGIA 3 — PRÉ-LIVE 1T (escanteio_3)
+Fonte: Canal "João" — Botafogo vs Criciúma, Tottenham vs Westham
+Conceito: Back mandante favorito Over 2.5 escanteios no 1T.
+Funciona melhor quando o time buscará o gol no 1T.
+AMPLIFICADOR: Se favorito não marca no 1T, odds sobem e
+a aposta fica ainda melhor — ciclo de lucro.
+Ferramentas: The Stats Online + PickBall
+  • The Stats Online: corners for/against por tempo, liga
+  • PickBall: médias detalhadas casa/fora por competição
+Critérios:
+  • Mandante média 1T ≥ 2.5 escanteios
+  • OD mínima: 1.50 (time muito dominante) | ideal: ≥ 1.70
+  • Visitante que cede escanteios no 1T (half corners against)
+  • Mandante favorito no resultado do jogo
+PLANO MYCROFT: PLANO ECLIPSE (Escanteios)
+
+────────────────────────────────────────────────────────
+
+ESTRATÉGIA 4 — OVER/UNDER TOTAL (escanteio_4)
+Fonte: Canal "Tutorial" — Corinthians vs Juventude
+Conceito: Calcular média de escanteios dos últimos 3-5 jogos
+de cada time e apostar Under quando média ≤ 9 ou Over quando ≥ 12.
+Ferramentas: SofaScore (corner kicks por jogo)
+  • Analisar apenas jogos do mesmo campeonato
+  • Ignorar copas/competições paralelas
+Linha ideal por média:
+  • Média combinada ≤ 7.5 → Under 8.5
+  • Média combinada 7.5-9.0 → Under 9.5
+  • Média combinada ≥ 11.5 → Over 10.5
+  • OD mínima: 1.65 para Over | 1.60 para Under
+  • OD ideal: ≥ 1.70 para qualquer direção
+PLANO MYCROFT: PLANO BUNKER (Under) / PLANO DILÚVIO (Over)
+
+────────────────────────────────────────────────────────
+
+ESTRATÉGIA 5 — VALUE BETTING (+EV) (escanteio_5)
+Fonte: Canal "Danilo Pereira" — Princípios profissionais
+Conceito: Calcular probabilidade justa própria e comparar com
+odd de mercado. Apostar apenas quando odd de mercado > odd justa.
+Fluxo:
+  1. Analisar jogo → chegar ao preço justo
+  2. Comparar com mercado → identificar +EV
+  3. Gestão de banca → stake level
+  4. Timing → encontrar melhor linha antes do fechamento
+Regras:
+  • Não apostar sem +EV claro
+  • "Menos é mais" — só o que tem edge real
+  • Timing: early, today ou live — cada um tem momento ideal
+  • Fortalecer mindset para executar o sistema
+PLANO MYCROFT: PLANO DOMINÂNCIA (quando +EV confirmado)
+
+────────────────────────────────────────────────────────
+PONTOS EM COMUM ENTRE TODOS OS MÉTODOS
+────────────────────────────────────────────────────────
+
+1. NUNCA apostar sem analisar as médias do time específico
+2. Verificar desempenho CASA/FORA separadamente (diferem muito)
+3. Mínimo 5 jogos para tirar média confiável
+4. Usar o mesmo campeonato — ignorar copas
+5. OD mínima como filtro de valor (geralmente ≥ 1.60)
+6. Jogar na maior probabilidade, não na maior odd
+7. Gestão de banca é o que mantém o sistema vivo
+
+────────────────────────────────────────────────────────
+FONTES DE DADOS GRATUITAS CITADAS
+────────────────────────────────────────────────────────
+
+The Stats Online (thestats.online):
+  → Corners for/against por tempo (1T separado)
+  → Ranking por liga de quem faz/cede mais
+  → Separado por casa e fora
+
+PickBall (pickball.com):
+  → Médias detalhadas casa/fora por competição
+  → Filtro por temporada e últimos N jogos
+
+SofaScore (sofascore.com):
+  → Estatísticas por jogo (corner kicks)
+  → H2H histórico
+  → Filtrar por campeonato específico
+
+API-Football:
+  → Automatiza a coleta acima via API
+  → Endpoint: /fixtures/statistics → "Corner Kicks"
+
+────────────────────────────────────────────────────────
+EDGE FUNCTION — COMO USAR
+────────────────────────────────────────────────────────
+
+Deploy:
+  supabase functions deploy mycroft-corners-analyzer
+
+Variáveis necessárias:
+  API_FOOTBALL_KEY — API-Football Ultra
+  GEMINI_API_KEY — Gemini 2.5 Flash
+
+Chamada:
+  POST /functions/v1/mycroft-corners-analyzer
+  {
+    "fixture_id": 12345,
+    "home_team_id": 1001,
+    "away_team_id": 1002,
+    "home_team_name": "Botafogo",
+    "away_team_name": "Criciúma",
+    "liga": "Brasileirão Série A",
+    "linha_total": 9.5,
+    "modo": "completo"
+  }
+
+Resposta chave:
+  • recomendacao.aprovado — se tem entrada
+  • recomendacao.melhor_entrada — o melhor método
+  • recomendacao.alerta — nível de convergência
+  • planos_ativados — quais PLANOs foram ativados
+  • analise_gemini — análise final do Mycroft
+  • aprovados_count — quantos dos 5 métodos aprovaram
+
+────────────────────────────────────────────────────────
+INTEGRAÇÃO COM O SCANNER MYCROFT
+────────────────────────────────────────────────────────
+
+O scanner principal pode chamar essa função para cada jogo
+antes de rodar o Mycroft Punter padrão. Se corners_analyzer
+retornar aprovados_count ≥ 2, adicionar os mercados de
+escanteios aprovados à lista de análises do dia.
+
+Threshold de aprovação recomendado:
+  • aprovados_count ≥ 3 → entrada forte, stake 3%
+  • aprovados_count = 2 → entrada moderada, stake 2%
+  • aprovados_count = 1 → entrada conservadora, stake 1.5%
+  • aprovados_count = 0 → ignorar mercado de escanteios
+
+PLANOs e seus gatilhos:
+  PLANO DOMINÂNCIA  → Aposta Comparativa aprovada
+  PLANO AVALANCHE   → Três Elementos aprovado
+  PLANO ECLIPSE     → Pré-Live 1T aprovado
+  PLANO BUNKER      → Under Total aprovado
+  PLANO DILÚVIO     → Over Total aprovado
