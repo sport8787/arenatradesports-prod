@@ -389,6 +389,10 @@ export default function ArenaTraderSports() {
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
+              <TrendingUp className="w-4 h-4 mr-1" />
+              Performance
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/historico')}>
               <Wallet className="w-4 h-4 mr-1" />
               Meus Trades
@@ -397,6 +401,21 @@ export default function ArenaTraderSports() {
               <Dumbbell className="w-4 h-4 mr-1" />
               Treino
             </GoldButton>
+            {/* View toggle */}
+            <div className="flex items-center border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <TableProperties className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
