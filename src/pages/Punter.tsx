@@ -895,7 +895,7 @@ export default function PunterPage() {
           await supabase.from('punter_analyses').delete().eq('match_id', mid).eq('market', market);
 
           // Insert into punter_analyses
-          const { data: row } = await supabase.from('punter_analyses').insert({
+          const { data: row, error: insertErr } = await supabase.from('punter_analyses').insert({
             match_id: mid,
             home_team: r.mandante,
             away_team: r.visitante,
@@ -912,8 +912,12 @@ export default function PunterPage() {
             risk_factors: r.veredicto.risk_factors || '',
             verdict: 'APROVADO',
             stake_percentage: stakePerc,
-            source: 'mycroft-corners-punter',
+            analyzed_by: 'mycroft-corners-punter',
           } as any).select().single();
+
+          if (insertErr) {
+            console.error('[Corners] Insert punter_analyses error:', insertErr);
+          }
 
           if (row) {
             // Insert into punter_signals

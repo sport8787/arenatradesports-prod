@@ -341,7 +341,7 @@ Emita o veredicto JSON:`;
             { role: "model", parts: [{ text: "Entendido. Aguardando dados do jogo para análise de escanteios." }] },
             { role: "user", parts: [{ text: userPrompt }] },
           ],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 }
         })
       }
     );
