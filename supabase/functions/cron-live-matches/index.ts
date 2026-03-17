@@ -32,9 +32,8 @@ serve(async (req) => {
     }
 
     const currentMinute = new Date().getMinutes();
-    const isAnalysisMinute = currentMinute % 2 === 1; // ímpares = análise
 
-    console.log(`[CronLive] ▶️ Minuto ${currentMinute} — ${isAnalysisMinute ? 'STATS x2 + ANÁLISE' : 'STATS x2'}`);
+    console.log(`[CronLive] ▶️ Minuto ${currentMinute} — STATS x2 + ANÁLISE`);
 
     const baseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -63,30 +62,28 @@ serve(async (req) => {
     const result: Record<string, any> = {
       success: true,
       minute: currentMinute,
-      phase: isAnalysisMinute ? 'stats_x2+analysis' : 'stats_x2',
+      phase: 'stats_x2+analysis',
       round1_fetch: round1.fetch.status === 'fulfilled' ? round1.fetch.value : { error: (round1.fetch as any).reason?.message },
       round1_scores: round1.scores.status === 'fulfilled' ? round1.scores.value : { error: (round1.scores as any).reason?.message },
       round2_fetch: round2.fetch.status === 'fulfilled' ? round2.fetch.value : { error: (round2.fetch as any).reason?.message },
       round2_scores: round2.scores.status === 'fulfilled' ? round2.scores.value : { error: (round2.scores as any).reason?.message },
     };
 
-    // SÓ nos minutos ímpares → análise Mycroft com dados já atualizados
-    if (isAnalysisMinute) {
-      const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ bankroll: 500 }),
-      }).then(r => r.json()).catch(e => ({ error: e.message }));
+    // Análise a cada minuto, após as duas rodadas de atualização
+    const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ bankroll: 500 }),
+    }).then(r => r.json()).catch(e => ({ error: e.message }));
 
-      result.analysis = analyzeRes;
-      console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
-    }
+    result.analysis = analyzeRes;
+    console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
 
     console.log('[CronLive] ✅ Resultados:', JSON.stringify({
       minute: currentMinute,
       phase: result.phase,
       r1_fetch_ok: round1.fetch.status === 'fulfilled',
       r2_fetch_ok: round2.fetch.status === 'fulfilled',
-      analysis_ok: isAnalysisMinute ? !!result.analysis : 'skipped',
+      analysis_ok: !!result.analysis,
     }));
 
     return new Response(JSON.stringify(result), {

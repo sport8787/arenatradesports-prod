@@ -195,7 +195,7 @@ serve(async (req) => {
     const results: any[] = [];
     // analyzedCount removed - analysis is now manual only
 
-    // 2. Process each fixture - only fetch stats for matches >= 20 min to save API calls
+    // 2. Process each fixture - fetch stats from kickoff
     for (const fixture of fixtures) {
       const fixtureId = String(fixture.fixture.id);
       const minute = fixture.fixture.status?.elapsed ?? 0;
@@ -217,11 +217,8 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // 3. Only fetch stats for matches >= 20 min (save API quota)
-      let stats: FixtureStats | null = null;
-      if (minute >= 20) {
-        stats = await fetchFixtureStats(fixture.fixture.id, apiKey);
-      }
+      // 3. Fetch live stats for all live matches
+      const stats: FixtureStats | null = await fetchFixtureStats(fixture.fixture.id, apiKey);
 
       // 4. Upsert match (preserve mycroft fields)
       const { data: existing } = await supabase
