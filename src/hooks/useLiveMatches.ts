@@ -6,10 +6,11 @@ const LIGAS_PERMITIDAS = new Set([
   'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
   'Primeira Liga', 'Eredivisie', 'Pro League', 'Super League', 'Süper Lig',
   'Championship', 'Champions League', 'Europa League', 'Conference League',
-  'Libertadores', 'Sul-Americana',
+  'Libertadores', 'Sul-Americana', 'Copa Do Brasil', 'Copa do Brasil',
   'Brasileirão Série A', 'Serie A', 'Série A', 'Brasileirão Série B', 'Serie B', 'Série B',
   'Brasileirão Série C', 'Serie C', 'Série C',
   'Argentine Primera División', 'Primera División', 'Liga Profesional Argentina',
+  'Copa Argentina', 'Copa Sudamericana',
   'MLS',
 ]);
 
