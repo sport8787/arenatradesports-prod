@@ -194,6 +194,42 @@ serve(async (req) => {
             confidence: analysis.confidence,
             market: analysis.market,
           });
+
+          // === TELEGRAM NOTIFICATION for APROVADO ===
+          if (analysis.verdict === 'APROVADO') {
+            try {
+              const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+              const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
+              if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
+                const tierEmoji = analysis.asset_classification === 'ELITE' ? '🏆' : analysis.asset_classification === 'PREMIUM' ? '💎' : '⚡';
+                const planLabel = analysis.plan_name ? ` | Plano: *${analysis.plan_name}*` : '';
+                const msg = [
+                  `${tierEmoji} *SINAL APROVADO — ARENA TRADER SPORTS*`,
+                  ``,
+                  `⚽ *${match.home_team} vs ${match.away_team}*`,
+                  `🏟️ ${match.championship} | ${match.minute ?? 0}'`,
+                  `📊 Mercado: *${analysis.market}*`,
+                  `💰 Odd: *${analysis.odd ?? '—'}*`,
+                  `🎯 Confiança: *${analysis.confidence}%*${planLabel}`,
+                  ``,
+                  `📝 _${analysis.thesis || 'Análise concluída'}_`,
+                  ``,
+                  analysis.risk_management?.stake_value ? `💵 Stake sugerida: *R$ ${Number(analysis.risk_management.stake_value).toFixed(2)}* (${analysis.risk_management.stake_percent}% da banca)` : '',
+                  ``,
+                  `🔗 [Abrir Arena Trader](https://arenatradesports.lovable.app/arena-trader-sports)`,
+                ].filter(Boolean).join('\n');
+
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
+                });
+                console.log(`[AnalyzeLive] 📲 Telegram sent for ${match.home_team} vs ${match.away_team}`);
+              }
+            } catch (tgErr) {
+              console.warn('[AnalyzeLive] Telegram notification error:', tgErr);
+            }
+          }
         }
       } catch (e) {
         console.error(`[AnalyzeLive] Error for ${match.match_id}:`, e);
