@@ -418,7 +418,7 @@ Responda em 3 parágrafos curtos e objetivos. Não repita os números já inform
 // ════════════════════════════════════════════════════
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
