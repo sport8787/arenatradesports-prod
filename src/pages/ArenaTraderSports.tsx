@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote, CornerDownRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -70,6 +70,7 @@ export default function ArenaTraderSports() {
   const [isFetchingV2, setIsFetchingV2] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
 
   // Fetch betted match IDs to prevent duplicates
@@ -172,6 +173,60 @@ export default function ArenaTraderSports() {
       setIsEvaluating(false);
     }
   }, [evaluateCashouts]);
+
+  const handleAnalyzeCorners = useCallback(async () => {
+    setIsAnalyzingCorners(true);
+    try {
+      // Get live matches that have stats
+      const matchesToAnalyze = liveMatches
+        .filter(lm => lm.status === 'live' || lm.status === 'halftime')
+        .slice(0, 10);
+
+      if (matchesToAnalyze.length === 0) {
+        toast.warning('Nenhum jogo ao vivo para analisar escanteios');
+        return;
+      }
+
+      let analyzed = 0;
+      let approved = 0;
+
+      for (const match of matchesToAnalyze) {
+        try {
+          const stats = match.stats as any;
+          const { data, error } = await supabase.functions.invoke('mycroft-corners-analyzer', {
+            body: {
+              fixture_id: match.match_id,
+              home_team_id: stats?.home_team_id || 0,
+              away_team_id: stats?.away_team_id || 0,
+              home_team_name: match.home_team,
+              away_team_name: match.away_team,
+              liga: match.championship,
+              linha_total: 9.5,
+              modo: 'completo',
+            },
+          });
+          if (!error && data?.success) {
+            analyzed++;
+            if (data.aprovados_count > 0) approved++;
+          }
+        } catch (err) {
+          console.warn(`Corners analysis failed for ${match.home_team} vs ${match.away_team}:`, err);
+        }
+      }
+
+      if (approved > 0) {
+        toast.success(`⚽ ${approved} jogos com oportunidade em escanteios!`);
+      } else {
+        toast.info(`${analyzed} jogos analisados — nenhuma oportunidade em escanteios`);
+      }
+      await refetch();
+    } catch (e) {
+      console.error('Corners analysis error:', e);
+      toast.error('Erro ao analisar escanteios');
+    } finally {
+      setIsAnalyzingCorners(false);
+    }
+  }, [liveMatches, refetch]);
 
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
@@ -293,6 +348,10 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
               {isFetching ? 'Analisando...' : 'Fazer Análise'}
+            </GoldButton>
+            <GoldButton size="sm" onClick={handleAnalyzeCorners} disabled={isAnalyzingCorners} variant="outline">
+              <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
+              {isAnalyzingCorners ? 'Analisando...' : 'Escanteios'}
             </GoldButton>
             <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
               <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />

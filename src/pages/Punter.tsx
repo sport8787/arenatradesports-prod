@@ -839,7 +839,7 @@ export default function PunterPage() {
       for (const game of gamesToAnalyze) {
         try {
           const resp = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-analyzer`,
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-punter`,
             {
               method: 'POST',
               headers: {
@@ -854,14 +854,15 @@ export default function PunterPage() {
                 home_team_name: game.home_team,
                 away_team_name: game.away_team,
                 liga: game.sport_key,
+                season: 2025,
                 linha_total: 9.5,
-                modo: 'completo',
+                odds: null,
               }),
             }
           );
           if (resp.ok) {
             const data = await resp.json();
-            if (data.success && data.aprovados_count > 0) {
+            if (data.success && data.aprovados_count > 0 && data.veredicto) {
               results.push(data);
             }
           }
@@ -875,7 +876,7 @@ export default function PunterPage() {
       if (results.length > 0) {
         // Add corners signals to main signals list
         const cornersSignals: PunterSignal[] = results
-          .filter(r => r.recomendacao?.melhor_entrada)
+          .filter(r => r.veredicto && r.veredicto.verdict?.startsWith('APROVADO'))
           .map(r => ({
             match: {
               home_team: r.mandante,
@@ -884,19 +885,19 @@ export default function PunterPage() {
               league: r.liga,
             },
             recommendation: {
-              verdict: r.aprovados_count >= 3 ? 'APROVADO_ELITE' : r.aprovados_count >= 2 ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR',
-              market: `Escanteios: ${r.recomendacao.melhor_entrada.mercado}`,
-              bookmaker: 'Mycroft Corners',
-              odd: r.recomendacao.melhor_entrada.odd_minima || 1.80,
-              fair_odd: 1.70,
-              value_percentage: r.recomendacao.melhor_entrada.edge_estimado,
-              confidence: r.recomendacao.melhor_entrada.confianca,
+              verdict: r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR',
+              market: `Escanteios: ${r.veredicto.market}`,
+              bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
+              odd: r.veredicto.odd || 1.80,
+              fair_odd: r.veredicto.odd ? Math.round((1 / (r.veredicto.confidence / 100)) * 100) / 100 : 1.70,
+              value_percentage: r.veredicto.edge_percentage || 0,
+              confidence: r.veredicto.confidence || 0,
               estimated_probability: null,
               implied_probability: null,
-              stake_percentage: r.recomendacao.melhor_entrada.stake_sugerido,
-              thesis: `${r.recomendacao.melhor_entrada.nome_plano}: ${r.recomendacao.melhor_entrada.motivo}`,
-              analysis: r.analise_gemini || r.recomendacao.resumo,
-              risk_factors: r.recomendacao.alerta,
+              stake_percentage: r.veredicto.stake_percentage || 2,
+              thesis: `${r.veredicto.plano_ativado}: ${r.veredicto.thesis}`,
+              analysis: r.veredicto.analysis || '',
+              risk_factors: r.veredicto.risk_factors || '',
             },
           }));
 

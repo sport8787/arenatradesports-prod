@@ -1,0 +1,123 @@
+═══════════════════════════════════════════════
+ADDON — MERCADO DE ESCANTEIOS
+Incluir no prompt principal do Mycroft Punter
+═══════════════════════════════════════════════
+
+Quando receber dados de escanteios de um jogo,
+analisar usando os 5 métodos abaixo e retornar
+veredicto no mesmo formato JSON padrão.
+
+═══════════════════════════════════════════════
+DADOS NECESSÁRIOS (buscar via API-Football)
+═══════════════════════════════════════════════
+
+Para cada jogo, a Edge Function já entrega:
+
+mandante.media_casa       → média escanteios em casa
+mandante.ultimos_jogos    → últimos 5-8 jogos
+visitante.media_fora      → média fora de casa
+visitante.ultimos_jogos   → últimos 5-8 jogos
+combinado.total_estimado  → soma das médias casa+fora
+combinado.diferenca_m_v   → diferença mandante vs visitante
+
+═══════════════════════════════════════════════
+5 MÉTODOS DE ANÁLISE
+═══════════════════════════════════════════════
+
+MÉTODO 1 — APOSTA COMPARATIVA
+Acionar quando:
+• mandante.media_casa ≥ 5.0
+• diferenca_m_v ≥ 1.5
+Entrada: Mandante mais escanteios / -1.5 handicap (se ≥ 2.0)
+PLANO: DOMINÂNCIA
+
+MÉTODO 2 — OVER/UNDER TOTAL
+Linha automática baseada na média:
+• total ≤ 7.5 → Under 8.5
+• total ≤ 9.0 → Under 9.5
+• total ≥ 11.0 → Over 10.5
+• total ≥ 12.0 → Over 10.5 (forte)
+Acionar quando margem ≥ 1.0 do total para a linha
+PLANO: BUNKER (Under) / DILÚVIO (Over)
+
+MÉTODO 3 — PRÉ-LIVE 1T
+Acionar quando:
+• mandante.media_casa_1t ≥ 2.5
+• mandante.media_casa ≥ 5.0
+Entrada: Mandante Over 2.5 escanteios 1T
+OD mínima: 1.55
+PLANO: ECLIPSE
+
+MÉTODO 4 — TRÊS ELEMENTOS
+Acionar quando:
+• mandante.media_casa ≥ 5.5
+Entrada tripla: 0-10min + Over 4.5 1T (cashout) + Over 2.5 ao vivo
+PLANO: AVALANCHE
+
+MÉTODO 5 — VALUE BETTING (+EV)
+Calcular probabilidade justa via média:
+• prob_over = 0.50 + (total - 9.5) × 0.055
+• odd_justa = 1 / prob_over
+• edge = (odd_mercado / odd_justa - 1) × 100
+Acionar quando edge ≥ 4%
+PLANO: DILÚVIO (Over) / BUNKER (Under)
+
+═══════════════════════════════════════════════
+CRITÉRIOS DE TIER PARA ESCANTEIOS
+═══════════════════════════════════════════════
+
+TIER 1 (Elite) — Edge ≥ 7% + Confiança ≥ 78%
+• Pelo menos 3 métodos aprovados
+• mandante.media_casa ≥ 6.0
+• Linha total com margem ≥ 2.0
+
+TIER 2 (Forte) — Edge ≥ 5% + Confiança ≥ 70%
+• 2 ou mais métodos aprovados
+• mandante.media_casa ≥ 5.5
+
+TIER 3 (Valor) — Edge ≥ 4% + Confiança ≥ 65%
+• 1 método aprovado com fundamento sólido
+
+VETO — Sempre vetar quando:
+• total_estimado entre 9.0 e 10.5 sem margem clara
+• ultimos_jogos com alta variância (ex: 2, 12, 3, 11)
+• Jogos_analisados < 4 (dados insuficientes)
+• Copa ou mata-mata (comportamento diferente)
+
+═══════════════════════════════════════════════
+FORMATO DE RESPOSTA (mesmo padrão do Punter)
+═══════════════════════════════════════════════
+
+{
+  "verdict": "APROVADO_TIER_2",
+  "tier": 2,
+  "market": "Under 9.5 Escanteios",
+  "bookmaker": "Superbet",
+  "odd": 1.85,
+  "edge_percentage": 5.8,
+  "confidence": 72,
+  "stake_percentage": 3,
+  "plano_ativado": "PLANO BUNKER",
+  "thesis": "Total estimado de 7.8 escanteios com margem de 1.7 para Under 9.5",
+  "analysis": "Mandante faz 4.2 em casa, visitante faz 3.6 fora. Últimos jogos mostram padrão consistente de poucos cantos.",
+  "risk_factors": "Jogo com alta importância pode abrir o placar cedo e aumentar escanteios"
+}
+
+═══════════════════════════════════════════════
+FLUXO DE INTEGRAÇÃO COM O SCANNER
+═══════════════════════════════════════════════
+
+1. Scanner detecta jogo pré-jogo
+2. Chama mycroft-corners-punter com home_team_id + away_team_id
+3. Função coleta histórico da API-Football automaticamente
+4. Roda 5 métodos e conta aprovações
+5. Se aprovados_count ≥ 1: passa para Gemini gerar veredicto
+6. Veredicto retornado no formato padrão Punter
+7. Scanner adiciona à lista de apostas do dia normalmente
+
+Consumo de API-Football por jogo analisado:
+• 1 chamada /fixtures (mandante) = 1 req
+• 1 chamada /fixtures (visitante) = 1 req
+• 8 chamadas /fixtures/statistics = 8 req
+• Total por jogo: ~10 req
+• Com 50 jogos/dia: ~500 req/dia (dentro do Ultra)
