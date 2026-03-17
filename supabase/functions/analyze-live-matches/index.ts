@@ -25,37 +25,32 @@ serve(async (req) => {
 
     const { bankroll } = await req.json();
 
-    // Get live matches eligible for analysis (limit 5 per cycle)
-    // Include: matches without analysis (minute >= 25) OR matches with AGUARDAR that progressed 10+ minutes
+    // Get live matches eligible for first analysis (from kickoff, no minute gate)
     const { data: matchesNew, error: matchError1 } = await supabase
       .from('live_matches')
       .select('*')
       .eq('status', 'live')
       .is('mycroft_analysis_id', null)
-      .gte('minute', 25)
       .order('minute', { ascending: false })
       .limit(5);
 
-    // Re-analyze AGUARDAR matches that have progressed significantly
+    // Re-analyze AGUARDAR matches every 1 minute (no minute gate)
     const { data: matchesAguardar, error: matchError2 } = await supabase
       .from('live_matches')
       .select('*, mycroft_analyses!inner(id, verdict, created_at)')
       .eq('status', 'live')
       .eq('mycroft_status', 'aguardar')
-      .gte('minute', 35)
       .order('minute', { ascending: false })
-      .limit(3);
+      .limit(5);
 
-    // Filter AGUARDAR matches: only re-analyze if 10+ min since last analysis
     const now = Date.now();
     const reAnalyzable = (matchesAguardar || []).filter((m: any) => {
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
-      return (now - analysisTime) > 10 * 60 * 1000; // 10 minutes
+      return (now - analysisTime) > 1 * 60 * 1000; // 1 minute
     });
 
     if (reAnalyzable.length > 0) {
       console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} AGUARDAR matches eligible for re-analysis`);
-      // Clear their analysis reference so they get fresh analysis
       for (const m of reAnalyzable) {
         await supabase.from('live_matches').update({
           mycroft_analysis_id: null,
@@ -66,7 +61,7 @@ serve(async (req) => {
     }
 
     const matchError = matchError1 || matchError2;
-    const matches = [...(matchesNew || []), ...reAnalyzable];
+    const eligibleMatches = [...(matchesNew || []), ...reAnalyzable];
 
     if (matchError) {
       console.error('[AnalyzeLive] Error fetching matches:', matchError);
@@ -74,16 +69,6 @@ serve(async (req) => {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const eligibleMatches = (matches || []).filter((m: any) => {
-      const stats = m.stats;
-      if (!stats) return false;
-      return (
-        (stats.attacks_home || 0) + (stats.attacks_away || 0) > 0 ||
-        (stats.shots_total_home || 0) + (stats.shots_total_away || 0) > 0 ||
-        (stats.possession_home || 0) + (stats.possession_away || 0) > 0
-      );
-    });
 
     console.log(`[AnalyzeLive] Found ${eligibleMatches.length} matches to analyze`);
 
