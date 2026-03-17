@@ -18,6 +18,7 @@ import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import TradingHistory from "./pages/TradingHistory";
+import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
 import BetHistory from "./pages/BetHistory";
@@ -68,6 +69,7 @@ const App = () => {
               <Route path="/paywall" element={<Paywall />} />
               <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
               <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
               <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />

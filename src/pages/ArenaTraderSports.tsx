@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote, CornerDownRight } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection'
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -88,6 +89,7 @@ export default function ArenaTraderSports() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   // Fetch betted match IDs to prevent duplicates
   useEffect(() => {
@@ -387,6 +389,10 @@ export default function ArenaTraderSports() {
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
+              <TrendingUp className="w-4 h-4 mr-1" />
+              Performance
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/historico')}>
               <Wallet className="w-4 h-4 mr-1" />
               Meus Trades
@@ -395,6 +401,21 @@ export default function ArenaTraderSports() {
               <Dumbbell className="w-4 h-4 mr-1" />
               Treino
             </GoldButton>
+            {/* View toggle */}
+            <div className="flex items-center border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <TableProperties className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -463,16 +484,20 @@ export default function ArenaTraderSports() {
             <p className="text-sm text-muted-foreground font-orbitron">Carregando jogos...</p>
           </div>
         ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((match, i) => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                index={i}
-                onAnalysisClick={handleViewAnalysis}
-              />
-            ))}
-          </div>
+          viewMode === 'table' ? (
+            <CompactMatchTable matches={filtered} onRowClick={handleViewAnalysis} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filtered.map((match, i) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  index={i}
+                  onAnalysisClick={handleViewAnalysis}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
