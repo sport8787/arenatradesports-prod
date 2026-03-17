@@ -484,16 +484,20 @@ export default function ArenaTraderSports() {
             <p className="text-sm text-muted-foreground font-orbitron">Carregando jogos...</p>
           </div>
         ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((match, i) => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                index={i}
-                onAnalysisClick={handleViewAnalysis}
-              />
-            ))}
-          </div>
+          viewMode === 'table' ? (
+            <CompactMatchTable matches={filtered} onRowClick={handleViewAnalysis} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filtered.map((match, i) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  index={i}
+                  onAnalysisClick={handleViewAnalysis}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
