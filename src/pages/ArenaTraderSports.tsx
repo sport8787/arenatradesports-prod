@@ -509,7 +509,7 @@ export default function ArenaTraderSports() {
             <span className="text-6xl">⚽</span>
             <h2 className="font-orbitron text-xl text-foreground">Nenhum jogo ao vivo agora</h2>
             <p className="text-muted-foreground text-sm">Próximos jogos começam em 2h30min</p>
-            <GoldButton size="sm">
+            <GoldButton size="sm" onClick={() => requestPush()}>
               <Bell className="w-4 h-4 mr-1" />
               Ativar Notificações
             </GoldButton>
