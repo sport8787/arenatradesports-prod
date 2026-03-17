@@ -995,7 +995,7 @@ export default function PunterPage() {
             match: {
               home_team: r.mandante,
               away_team: r.visitante,
-              commence_time: new Date().toISOString(),
+              commence_time: commenceTime,
               league: r.liga,
             },
             recommendation: {
