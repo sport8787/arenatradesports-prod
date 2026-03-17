@@ -97,6 +97,34 @@ export default function PunterPage() {
   // Cached odds - loaded from daily cron (no API call on user access)
   const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
   const ANALYSIS_NT_COST = 50; // NT cost per analysis run
+  const LOCAL_CORNERS_SIGNALS_KEY = 'punter_corners_signals_v1';
+
+  const loadLocalCornersSignals = (): PunterSignal[] => {
+    try {
+      const raw = localStorage.getItem(LOCAL_CORNERS_SIGNALS_KEY);
+      if (!raw) return [];
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+
+      const nowTs = Date.now();
+      return parsed.filter((item: any) => {
+        if (!item?.match || !item?.recommendation) return false;
+        const kickoffTs = item.match.commence_time ? Date.parse(item.match.commence_time) : NaN;
+        return Number.isNaN(kickoffTs) || kickoffTs > nowTs;
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const saveLocalCornersSignals = (items: PunterSignal[]) => {
+    try {
+      localStorage.setItem(LOCAL_CORNERS_SIGNALS_KEY, JSON.stringify(items.slice(0, 200)));
+    } catch {
+      // ignore localStorage failures
+    }
+  };
 
   // Set of pending bet match keys for "NOVO" badge
   const pendingMatchKeys = useMemo(() => {
@@ -325,28 +353,27 @@ export default function PunterPage() {
 
 
   const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
-    const now = new Date().toISOString();
+    const nowIso = new Date().toISOString();
+    const nowTs = Date.now();
+
     const { data: savedAnalyses } = await supabase
       .from('punter_analyses')
       .select('*')
       .eq('verdict', 'APROVADO')
-      .gt('commence_time', now)
+      .gt('commence_time', nowIso)
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (!savedAnalyses || savedAnalyses.length === 0) return [];
-
-    // Deduplicate: keep only the MOST RECENT analysis per match+market
-    const dedupMap = new Map<string, any>();
-    for (const a of savedAnalyses) {
+    const dbDedupMap = new Map<string, any>();
+    for (const a of savedAnalyses || []) {
       const key = `${a.home_team}_${a.away_team}_${a.market}`.toLowerCase().replace(/\s+/g, '_');
-      if (!dedupMap.has(key)) {
-        dedupMap.set(key, a); // first = most recent (ordered by created_at desc)
+      if (!dbDedupMap.has(key)) {
+        dbDedupMap.set(key, a);
       }
     }
 
-    return Array.from(dedupMap.values()).map((a: any) => ({
-      analysis_id: a.id, // Include analysis ID for reliable signal lookup
+    const dbSignals: PunterSignal[] = Array.from(dbDedupMap.values()).map((a: any) => ({
+      analysis_id: a.id,
       match: {
         home_team: a.home_team,
         away_team: a.away_team,
@@ -369,6 +396,31 @@ export default function PunterPage() {
         risk_factors: a.risk_factors,
       },
     }));
+
+    const localCorners = loadLocalCornersSignals();
+
+    const mergedMap = new Map<string, PunterSignal>();
+    for (const signal of [...localCorners, ...dbSignals]) {
+      const key = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+      const kickoffTs = signal.match.commence_time ? Date.parse(signal.match.commence_time) : NaN;
+      if (Number.isNaN(kickoffTs) || kickoffTs > nowTs) {
+        mergedMap.set(key, signal);
+      }
+    }
+
+    const merged = Array.from(mergedMap.values()).sort((a, b) => {
+      const ta = Date.parse(a.match.commence_time || '') || Number.MAX_SAFE_INTEGER;
+      const tb = Date.parse(b.match.commence_time || '') || Number.MAX_SAFE_INTEGER;
+      return ta - tb;
+    });
+
+    saveLocalCornersSignals(
+      merged.filter((s) => (s.recommendation.market || '').toLowerCase().includes('escanteios'))
+    );
+
+    return merged;
   };
 
   // Auto-place Hórus bet for a single signal (no toast per bet)
@@ -857,6 +909,7 @@ export default function PunterPage() {
                 away_team_name: game.away_team,
                 liga: game.sport_key,
                 season: 2025,
+                commence_time: game.commence_time,
               }),
             }
           );
@@ -866,7 +919,7 @@ export default function PunterPage() {
             const data = await resp.json();
             console.log(`[Corners] ${game.home_team} vs ${game.away_team}: aprovados=${data.aprovados_count}`);
             if (data.success && data.aprovados_count > 0 && data.veredicto) {
-              results.push(data);
+              results.push({ ...data, _game: game });
             }
           }
         } catch (err) {
@@ -881,7 +934,9 @@ export default function PunterPage() {
         const cornersSignals: PunterSignal[] = [];
         
         for (const r of results.filter(r => r.veredicto && r.veredicto.verdict?.startsWith('APROVADO'))) {
-          const mid = `${r.mandante}_${r.visitante}_${new Date().toISOString().slice(0, 10)}`.replace(/\s+/g, '_');
+          const commenceTime = r._game?.commence_time || new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+          const matchDate = commenceTime.slice(0, 10);
+          const mid = `${r.mandante}_${r.visitante}_${commenceTime}`.replace(/\s+/g, '_');
           const market = `Escanteios: ${r.veredicto.market}`;
           const verdict = r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR';
           const odd = r.veredicto.odd || 1.80;
@@ -900,7 +955,7 @@ export default function PunterPage() {
             home_team: r.mandante,
             away_team: r.visitante,
             league: r.liga || 'Escanteios',
-            commence_time: new Date().toISOString(),
+            commence_time: commenceTime,
             market,
             bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
             odd,
@@ -930,7 +985,8 @@ export default function PunterPage() {
               value_percentage: edge,
               stake_percentage: stakePerc,
               status: 'stake_calculated',
-              match_date: new Date().toISOString().slice(0, 10),
+              match_date: matchDate,
+              commence_time: commenceTime,
               stake_confirmed: false,
             } as any);
           }
@@ -939,7 +995,7 @@ export default function PunterPage() {
             match: {
               home_team: r.mandante,
               away_team: r.visitante,
-              commence_time: new Date().toISOString(),
+              commence_time: commenceTime,
               league: r.liga,
             },
             recommendation: {
@@ -968,6 +1024,12 @@ export default function PunterPage() {
               merged.push(cs);
             }
           }
+
+          const onlyCorners = merged.filter((s) =>
+            (s.recommendation.market || '').toLowerCase().includes('escanteios')
+          );
+          saveLocalCornersSignals(onlyCorners);
+
           return merged;
         });
 
