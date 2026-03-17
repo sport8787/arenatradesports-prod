@@ -833,35 +833,38 @@ export default function PunterPage() {
       }
 
       const results: any[] = [];
-      // Analyze first 15 games max to avoid timeout
-      const gamesToAnalyze = games.slice(0, 15);
+      // Analyze max 5 games (each calls API-Football ~12 times)
+      const gamesToAnalyze = games.slice(0, 5);
+      toast.info(`🔍 Analisando escanteios de ${gamesToAnalyze.length} jogos... (pode levar até 2 min)`);
 
       for (const game of gamesToAnalyze) {
         try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 60000); // 60s per game
+
           const resp = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-punter`,
             {
               method: 'POST',
+              signal: controller.signal,
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
                 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
               },
               body: JSON.stringify({
-                fixture_id: game.event_id,
-                home_team_id: (game as any).home_team_id || 0,
-                away_team_id: (game as any).away_team_id || 0,
                 home_team_name: game.home_team,
                 away_team_name: game.away_team,
                 liga: game.sport_key,
                 season: 2025,
-                linha_total: 9.5,
-                odds: null,
               }),
             }
           );
+          clearTimeout(timeout);
+
           if (resp.ok) {
             const data = await resp.json();
+            console.log(`[Corners] ${game.home_team} vs ${game.away_team}: aprovados=${data.aprovados_count}`);
             if (data.success && data.aprovados_count > 0 && data.veredicto) {
               results.push(data);
             }
