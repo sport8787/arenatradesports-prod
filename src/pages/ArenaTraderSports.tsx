@@ -36,22 +36,38 @@ const getChampionshipColor = (name: string): Match['championshipColor'] => {
   return 'red';
 };
 
-const mapLiveMatchToMatch = (lm: LiveMatch): Match => ({
-  id: lm.id,
-  championship: lm.championship,
-  championshipColor: getChampionshipColor(lm.championship),
-  home: lm.home_team,
-  away: lm.away_team,
-  homeLogo: lm.home_logo || '⚽',
-  awayLogo: lm.away_logo || '⚽',
-  scoreHome: lm.score_home ?? 0,
-  scoreAway: lm.score_away ?? 0,
-  minute: lm.minute ?? 0,
-  period: lm.period ?? '',
-  status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
-  mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
-  matchId: lm.match_id,
-});
+const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
+  const s = lm.stats as any;
+  return {
+    id: lm.id,
+    championship: lm.championship,
+    championshipColor: getChampionshipColor(lm.championship),
+    home: lm.home_team,
+    away: lm.away_team,
+    homeLogo: lm.home_logo || '⚽',
+    awayLogo: lm.away_logo || '⚽',
+    scoreHome: lm.score_home ?? 0,
+    scoreAway: lm.score_away ?? 0,
+    minute: lm.minute ?? 0,
+    period: lm.period ?? '',
+    status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
+    mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
+    matchId: lm.match_id,
+    stats: s ? {
+      possession_home: s.possession_home ?? undefined,
+      possession_away: s.possession_away ?? undefined,
+      attacks_home: s.attacks_home ?? s.dangerous_attacks_home ?? undefined,
+      attacks_away: s.attacks_away ?? s.dangerous_attacks_away ?? undefined,
+      shots_home: s.shots_on_target_home ?? s.shots_home ?? undefined,
+      shots_away: s.shots_on_target_away ?? s.shots_away ?? undefined,
+      corners_home: s.corners_home ?? undefined,
+      corners_away: s.corners_away ?? undefined,
+      xG_home: s.xG_home ?? undefined,
+      xG_away: s.xG_away ?? undefined,
+    } : null,
+    planName: lm.mycroft_analysis?.fundamentation?.plan_name ?? null,
+  };
+};
 
 type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'simulado';
 
