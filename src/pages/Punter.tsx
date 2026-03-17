@@ -924,6 +924,7 @@ export default function PunterPage() {
     }
   };
 
+  const placeBetManual = useCallback(async (signal: PunterSignal, customStake: number) => {
     if (!manualBankroll || !user) {
       toast.error('Bankroll Manual não carregada');
       return;
