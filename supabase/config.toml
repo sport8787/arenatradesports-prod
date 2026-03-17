@@ -73,3 +73,6 @@ verify_jwt = false
 
 [functions.create-betfair-appkey]
 verify_jwt = false
+
+[functions.mycroft-corners-analyzer]
+verify_jwt = false
