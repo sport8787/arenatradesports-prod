@@ -73,15 +73,22 @@ export function useLiveMatches() {
       return;
     }
 
+    console.log(`[useLiveMatches] Raw from DB: ${(data || []).length} matches`, (data || []).map((m: any) => `${m.match_id}: ${m.championship} (${m.home_team} vs ${m.away_team})`));
+
     // Map joined data and filter by allowed leagues
     const mapped = (data || [])
-      .filter((match: any) => isAllowedLeague(match.championship))
+      .filter((match: any) => {
+        const allowed = isAllowedLeague(match.championship);
+        if (!allowed) console.warn(`[useLiveMatches] Filtered out: ${match.championship} (${match.home_team})`);
+        return allowed;
+      })
       .map((match: any) => {
         const analysis = match.mycroft_analyses || null;
         const { mycroft_analyses, ...rest } = match;
         return { ...rest, mycroft_analysis: analysis } as LiveMatch;
       });
 
+    console.log(`[useLiveMatches] After filter: ${mapped.length} matches`);
     setMatches(mapped);
     setLoading(false);
   }, []);
