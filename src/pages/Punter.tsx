@@ -985,7 +985,8 @@ export default function PunterPage() {
               value_percentage: edge,
               stake_percentage: stakePerc,
               status: 'stake_calculated',
-              match_date: new Date().toISOString().slice(0, 10),
+              match_date: matchDate,
+              commence_time: commenceTime,
               stake_confirmed: false,
             } as any);
           }
