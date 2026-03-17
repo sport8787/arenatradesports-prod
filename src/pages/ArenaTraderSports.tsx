@@ -174,6 +174,60 @@ export default function ArenaTraderSports() {
     }
   }, [evaluateCashouts]);
 
+  const handleAnalyzeCorners = useCallback(async () => {
+    setIsAnalyzingCorners(true);
+    try {
+      // Get live matches that have stats
+      const matchesToAnalyze = liveMatches
+        .filter(lm => lm.status === 'live' || lm.status === 'halftime')
+        .slice(0, 10);
+
+      if (matchesToAnalyze.length === 0) {
+        toast.warning('Nenhum jogo ao vivo para analisar escanteios');
+        return;
+      }
+
+      let analyzed = 0;
+      let approved = 0;
+
+      for (const match of matchesToAnalyze) {
+        try {
+          const stats = match.stats as any;
+          const { data, error } = await supabase.functions.invoke('mycroft-corners-analyzer', {
+            body: {
+              fixture_id: match.match_id,
+              home_team_id: stats?.home_team_id || 0,
+              away_team_id: stats?.away_team_id || 0,
+              home_team_name: match.home_team,
+              away_team_name: match.away_team,
+              liga: match.championship,
+              linha_total: 9.5,
+              modo: 'completo',
+            },
+          });
+          if (!error && data?.success) {
+            analyzed++;
+            if (data.aprovados_count > 0) approved++;
+          }
+        } catch (err) {
+          console.warn(`Corners analysis failed for ${match.home_team} vs ${match.away_team}:`, err);
+        }
+      }
+
+      if (approved > 0) {
+        toast.success(`⚽ ${approved} jogos com oportunidade em escanteios!`);
+      } else {
+        toast.info(`${analyzed} jogos analisados — nenhuma oportunidade em escanteios`);
+      }
+      await refetch();
+    } catch (e) {
+      console.error('Corners analysis error:', e);
+      toast.error('Erro ao analisar escanteios');
+    } finally {
+      setIsAnalyzingCorners(false);
+    }
+  }, [liveMatches, refetch]);
+
   // Use real data if available, fallback to mock
   const allMatches = useMemo(() => {
     const base = liveMatches.length > 0
