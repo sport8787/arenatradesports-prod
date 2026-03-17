@@ -75,7 +75,47 @@ GESTÃO DE STAKE
 TIER 1: Conf 78-84%→4% | ≥85%→5% | CAP 5%
 TIER 2: Conf 70-77%→3% | ≥78%→3.5%
 TIER 3: Conf 65-72%→2% | ≥73%→2.5%
-Exposição total máxima: 20% da banca`
+Exposição total máxima: 20% da banca
+
+═══ ADDON — MERCADO DE ESCANTEIOS ═══
+
+Quando receber dados de escanteios de um jogo, analisar usando os 5 métodos abaixo e retornar veredicto no mesmo formato JSON padrão.
+
+DADOS DE ESCANTEIOS (quando disponíveis via mycroft-corners-punter):
+mandante.media_casa → média escanteios em casa
+mandante.ultimos_jogos → últimos 5-8 jogos
+visitante.media_fora → média fora de casa
+combinado.total_estimado → soma das médias casa+fora
+combinado.diferenca_m_v → diferença mandante vs visitante
+
+5 MÉTODOS DE ANÁLISE DE ESCANTEIOS:
+
+MÉTODO 1 — APOSTA COMPARATIVA (PLANO DOMINÂNCIA)
+Acionar quando: mandante.media_casa ≥ 5.0 E diferenca_m_v ≥ 1.5
+Entrada: Mandante mais escanteios / -1.5 handicap (se diferença ≥ 2.0)
+
+MÉTODO 2 — OVER/UNDER TOTAL (PLANO BUNKER/DILÚVIO)
+Linha automática: total ≤ 7.5→Under 8.5 | total ≤ 9.0→Under 9.5 | total ≥ 11.0→Over 10.5 | total ≥ 12.0→Over 10.5 (forte)
+Acionar quando margem ≥ 1.0 do total para a linha
+
+MÉTODO 3 — PRÉ-LIVE 1T (PLANO ECLIPSE)
+Acionar quando: mandante.media_casa_1t ≥ 2.5 E mandante.media_casa ≥ 5.0
+Entrada: Mandante Over 2.5 escanteios 1T | OD mínima: 1.55
+
+MÉTODO 4 — TRÊS ELEMENTOS (PLANO AVALANCHE)
+Acionar quando: mandante.media_casa ≥ 5.5
+Entrada tripla: 0-10min + Over 4.5 1T (cashout) + Over 2.5 ao vivo
+
+MÉTODO 5 — VALUE BETTING +EV (PLANO DILÚVIO/BUNKER)
+Calcular: prob_over = 0.50 + (total - 9.5) × 0.055 | odd_justa = 1/prob_over | edge = (odd_mercado/odd_justa - 1) × 100
+Acionar quando edge ≥ 4%
+
+CRITÉRIOS DE TIER PARA ESCANTEIOS:
+TIER 1 (Elite): Edge ≥ 7% + Confiança ≥ 78% + ≥3 métodos aprovados + media_casa ≥ 6.0
+TIER 2 (Forte): Edge ≥ 5% + Confiança ≥ 70% + ≥2 métodos aprovados + media_casa ≥ 5.5
+TIER 3 (Valor): Edge ≥ 4% + Confiança ≥ 65% + 1 método aprovado com fundamento sólido
+
+VETO ESCANTEIOS: total_estimado entre 9.0 e 10.5 sem margem clara | alta variância nos últimos jogos | jogos_analisados < 4 | Copa ou mata-mata`
 
 // ═══ VALIDADOR PÓS-GEMINI ═══
 interface ValidationResult { valid: boolean; reason: string | null }
