@@ -15,6 +15,7 @@ import { useLiveMatches, type LiveMatch } from '@/hooks/useLiveMatches';
 import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { useScheduledGames } from '@/hooks/useScheduledGames';
 import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
@@ -77,6 +78,7 @@ export default function ArenaTraderSports() {
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
+  const { requestPush, isSupported: pushSupported } = usePushNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -507,7 +509,7 @@ export default function ArenaTraderSports() {
             <span className="text-6xl">⚽</span>
             <h2 className="font-orbitron text-xl text-foreground">Nenhum jogo ao vivo agora</h2>
             <p className="text-muted-foreground text-sm">Próximos jogos começam em 2h30min</p>
-            <GoldButton size="sm">
+            <GoldButton size="sm" onClick={() => requestPush()}>
               <Bell className="w-4 h-4 mr-1" />
               Ativar Notificações
             </GoldButton>

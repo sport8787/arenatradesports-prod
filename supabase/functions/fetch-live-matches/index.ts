@@ -10,23 +10,42 @@ const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 
 // Whitelist de ligas permitidas (league_id → nome)
 const LIGAS_PERMITIDAS: Record<number, string> = {
-  // Europa — Primeiras divisões
+  // Europa — Top 5 + segundas divisões
   39:  "Premier League",
+  40:  "Championship (Inglaterra — 2ª divisão)",
+  41:  "League One (Inglaterra — 3ª divisão)",
   140: "La Liga",
+  141: "Segunda División (Espanha)",
   135: "Serie A",
+  136: "Serie B (Itália)",
   78:  "Bundesliga",
+  79:  "2. Bundesliga",
   61:  "Ligue 1",
+  62:  "Ligue 2 (França)",
+  // Europa — Primeiras divisões relevantes
   94:  "Primeira Liga (Portugal)",
   88:  "Eredivisie",
+  89:  "Eerste Divisie (Holanda — 2ª divisão)",
   144: "Pro League (Bélgica)",
   197: "Super League (Grécia)",
   203: "Süper Lig (Turquia)",
-  // Europa — Segundas divisões
-  40:  "Championship (Inglaterra — 2ª divisão)",
-  // UEFA
+  207: "Super Lig (Suíça)",
+  113: "Allsvenskan (Suécia)",
+  103: "Eliteserien (Noruega)",
+  119: "Superliga (Dinamarca)",
+  244: "Veikkausliiga (Finlândia)",
+  218: "Bundesliga (Áustria)",
+  332: "Ekstraklasa (Polônia)",
+  235: "Premiership (Escócia)",
+  271: "Prva HNL (Croácia)",
+  283: "Superliga (Sérvia)",
+  172: "Fortuna Liga (Eslováquia)",
+  345: "Chance Liga (Tchéquia)",
+  // UEFA Competições
   2:   "Champions League",
   3:   "Europa League",
   848: "Conference League",
+  4:   "Euro Qualifiers",
   // América do Sul
   13:  "Libertadores",
   11:  "Sul-Americana",
@@ -36,8 +55,24 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   75:  "Copa Do Brasil",
   128: "Liga Profesional Argentina",
   238: "Argentine Primera División",
-  // América do Norte
+  239: "Copa Argentina",
+  350: "Primera A (Colômbia)",
+  268: "Liga 1 (Peru)",
+  262: "Liga Pro (Equador)",
+  296: "Primera División (Uruguai)",
+  // América do Norte / Central
   253: "MLS",
+  262: "Liga MX",
+  // Ásia
+  292: "K-League 1 (Coreia do Sul)",
+  98:  "J1 League (Japão)",
+  169: "Super League (China)",
+  // Oceania / África
+  188: "A-League (Austrália)",
+  233: "Premier Soccer League (África do Sul)",
+  // Mundo
+  1:   "Copa do Mundo",
+  15:  "Copa do Mundo — Qualificatórias",
 };
 
 // IDs de ligas bloqueadas

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet } from 'lucide-react';
+import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet, DollarSign } from 'lucide-react';
+import OddsComparator from './OddsComparator';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
@@ -335,6 +336,21 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
               <p className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed italic">
                 {analysis.thesis}
               </p>
+            </div>
+          </motion.div>
+
+          {/* Odds Comparator */}
+          <motion.div variants={fadeUp} className="space-y-3">
+            <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4" /> Comparador de Odds
+            </h3>
+            <div className="luxury-card p-4">
+              <OddsComparator
+                matchId={match.matchId || match.id}
+                homeTeam={match.home}
+                awayTeam={match.away}
+                market={analysis.market}
+              />
             </div>
           </motion.div>
 
