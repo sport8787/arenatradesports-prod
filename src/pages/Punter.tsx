@@ -797,7 +797,133 @@ export default function PunterPage() {
     }
   };
 
-  const placeBetManual = useCallback(async (signal: PunterSignal, customStake: number) => {
+  // ═══ ANALISAR ESCANTEIOS ═══
+  const analyzeCornersMarket = async () => {
+    if (!user) {
+      toast.error('Você precisa estar logado');
+      return;
+    }
+
+    // NT cost
+    try {
+      const { data: spentOk } = await supabase.rpc('spend_nt_balance', {
+        p_user_id: user.id,
+        p_amount: ANALYSIS_NT_COST,
+      });
+      if (spentOk === false) {
+        toast.error(`⚡ Saldo insuficiente! Precisa de ${ANALYSIS_NT_COST} NT.`);
+        return;
+      }
+      toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise de escanteios`);
+    } catch {
+      console.warn('NT check failed, proceeding');
+    }
+    refetchProfile();
+
+    setCornersLoading(true);
+    setCornersResults([]);
+
+    try {
+      // Get cached games to find fixtures
+      const games = cachedGames.length > 0 ? cachedGames : [];
+      if (games.length === 0) {
+        toast.warning('Nenhum jogo em cache. Execute "Analisar Mercado" primeiro para popular o cache.');
+        setCornersLoading(false);
+        return;
+      }
+
+      const results: any[] = [];
+      // Analyze first 15 games max to avoid timeout
+      const gamesToAnalyze = games.slice(0, 15);
+
+      for (const game of gamesToAnalyze) {
+        try {
+          const resp = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-corners-analyzer`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({
+                fixture_id: game.event_id,
+                home_team_id: (game as any).home_team_id || 0,
+                away_team_id: (game as any).away_team_id || 0,
+                home_team_name: game.home_team,
+                away_team_name: game.away_team,
+                liga: game.sport_key,
+                linha_total: 9.5,
+                modo: 'completo',
+              }),
+            }
+          );
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.success && data.aprovados_count > 0) {
+              results.push(data);
+            }
+          }
+        } catch (err) {
+          console.warn(`Corners analysis failed for ${game.home_team} vs ${game.away_team}:`, err);
+        }
+      }
+
+      setCornersResults(results);
+
+      if (results.length > 0) {
+        // Add corners signals to main signals list
+        const cornersSignals: PunterSignal[] = results
+          .filter(r => r.recomendacao?.melhor_entrada)
+          .map(r => ({
+            match: {
+              home_team: r.mandante,
+              away_team: r.visitante,
+              commence_time: new Date().toISOString(),
+              league: r.liga,
+            },
+            recommendation: {
+              verdict: r.aprovados_count >= 3 ? 'APROVADO_ELITE' : r.aprovados_count >= 2 ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR',
+              market: `Escanteios: ${r.recomendacao.melhor_entrada.mercado}`,
+              bookmaker: 'Mycroft Corners',
+              odd: r.recomendacao.melhor_entrada.odd_minima || 1.80,
+              fair_odd: 1.70,
+              value_percentage: r.recomendacao.melhor_entrada.edge_estimado,
+              confidence: r.recomendacao.melhor_entrada.confianca,
+              estimated_probability: null,
+              implied_probability: null,
+              stake_percentage: r.recomendacao.melhor_entrada.stake_sugerido,
+              thesis: `${r.recomendacao.melhor_entrada.nome_plano}: ${r.recomendacao.melhor_entrada.motivo}`,
+              analysis: r.analise_gemini || r.recomendacao.resumo,
+              risk_factors: r.recomendacao.alerta,
+            },
+          }));
+
+        setSignals(prev => {
+          const merged = [...prev];
+          for (const cs of cornersSignals) {
+            const key = `${cs.match.home_team}_${cs.match.away_team}_${cs.recommendation.market}`.toLowerCase();
+            if (!merged.some(s => `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase() === key)) {
+              merged.push(cs);
+            }
+          }
+          return merged;
+        });
+
+        toast.success(`⚽ ${results.length} jogos com oportunidade em escanteios! (${results.reduce((sum, r) => sum + r.aprovados_count, 0)} métodos aprovados)`);
+        playHorusTrigger('provocacao');
+      } else {
+        toast.info('Nenhuma oportunidade encontrada no mercado de escanteios.');
+      }
+    } catch (err: any) {
+      console.error('Corners analysis error:', err);
+      toast.error('Erro na análise de escanteios');
+    } finally {
+      setCornersLoading(false);
+    }
+  };
+
     if (!manualBankroll || !user) {
       toast.error('Bankroll Manual não carregada');
       return;
