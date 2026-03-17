@@ -70,6 +70,7 @@ export default function ArenaTraderSports() {
   const [isFetchingV2, setIsFetchingV2] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
 
   // Fetch betted match IDs to prevent duplicates
