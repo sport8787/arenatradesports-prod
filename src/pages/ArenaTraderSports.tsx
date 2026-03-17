@@ -18,6 +18,7 @@ import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection'
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
