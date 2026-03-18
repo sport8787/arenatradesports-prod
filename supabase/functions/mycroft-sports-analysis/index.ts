@@ -314,7 +314,7 @@ serve(async (req) => {
             parameters: {
               type: 'object',
               properties: {
-                verdict: { type: 'string', enum: ['APROVADO', 'VETADO', 'AGUARDAR', 'APROVADO_SITUACIONAL'] },
+                verdict: { type: 'string', enum: ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA', 'CUIDADO', 'JOGO_MORTO', 'AGUARDAR'] },
                 plan_name: { type: 'string', nullable: true, enum: planEnumValues },
                 market: { type: 'string' },
                 odd: { type: 'number' },
