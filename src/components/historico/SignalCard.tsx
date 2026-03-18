@@ -9,7 +9,10 @@ interface SignalCardProps {
 
 const verdictConfig = {
   APROVADO: { bg: 'bg-success/15', border: 'border-success/30', text: 'text-success', label: '✅ APROVADO' },
-  VETADO: { bg: 'bg-destructive/15', border: 'border-destructive/30', text: 'text-destructive', label: '❌ VETADO' },
+  VETADO: { bg: 'bg-muted/15', border: 'border-muted/30', text: 'text-muted-foreground', label: '💀 JOGO MORTO' },
+  JOGO_MORTO: { bg: 'bg-muted/15', border: 'border-muted/30', text: 'text-muted-foreground', label: '💀 JOGO MORTO' },
+  LABAREDA: { bg: 'bg-[#7C2D12]/15', border: 'border-[#F97316]/30', text: 'text-[#FB923C]', label: '⚡ LABAREDA' },
+  CUIDADO: { bg: 'bg-primary/15', border: 'border-primary/30', text: 'text-primary', label: '⚠️ CUIDADO' },
   AGUARDAR: { bg: 'bg-primary/15', border: 'border-primary/30', text: 'text-primary', label: '⏸️ AGUARDAR' },
 };
 
