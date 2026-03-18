@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Clock, Target, ShieldAlert, Loader2, Zap } from 'lucide-react';
+import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Match } from './MatchCard';
 
@@ -32,8 +32,12 @@ function computeCriteriaCompact(match: Match) {
 const statusIcon: Record<string, React.ReactNode> = {
   APROVADO: <Target className="w-3.5 h-3.5 text-[#4ADE80]" />,
   opportunity: <Target className="w-3.5 h-3.5 text-[#4ADE80]" />,
-  VETADO: <ShieldAlert className="w-3.5 h-3.5 text-[#F87171]" />,
-  no_value: <ShieldAlert className="w-3.5 h-3.5 text-[#F87171]" />,
+  APROVADO_SITUACIONAL: <Target className="w-3.5 h-3.5 text-[#6EE7B7]" />,
+  LABAREDA: <Flame className="w-3.5 h-3.5 text-[#FB923C]" />,
+  CUIDADO: <AlertTriangle className="w-3.5 h-3.5 text-[#FBBF24]" />,
+  JOGO_MORTO: <Skull className="w-3.5 h-3.5 text-[#A8A29E]" />,
+  VETADO: <Skull className="w-3.5 h-3.5 text-[#A8A29E]" />,
+  no_value: <Skull className="w-3.5 h-3.5 text-[#A8A29E]" />,
   AGUARDAR: <Clock className="w-3.5 h-3.5 text-[#FBBF24]" />,
   analyzing: <Loader2 className="w-3.5 h-3.5 text-[#60A5FA] animate-spin" />,
 };
@@ -41,8 +45,12 @@ const statusIcon: Record<string, React.ReactNode> = {
 const statusColors: Record<string, string> = {
   APROVADO: 'text-[#4ADE80]',
   opportunity: 'text-[#4ADE80]',
-  VETADO: 'text-[#F87171]',
-  no_value: 'text-[#F87171]',
+  APROVADO_SITUACIONAL: 'text-[#6EE7B7]',
+  LABAREDA: 'text-[#FB923C]',
+  CUIDADO: 'text-[#FBBF24]',
+  JOGO_MORTO: 'text-[#A8A29E]',
+  VETADO: 'text-[#A8A29E]',
+  no_value: 'text-[#A8A29E]',
   AGUARDAR: 'text-[#FBBF24]',
   analyzing: 'text-[#60A5FA]',
 };
@@ -50,8 +58,12 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   APROVADO: 'APROVADO',
   opportunity: 'APROVADO',
-  VETADO: 'VETADO',
-  no_value: 'VETADO',
+  APROVADO_SITUACIONAL: 'SITUACIONAL',
+  LABAREDA: 'LABAREDA',
+  CUIDADO: 'CUIDADO',
+  JOGO_MORTO: 'MORTO',
+  VETADO: 'MORTO',
+  no_value: 'MORTO',
   AGUARDAR: 'AGUARDAR',
   analyzing: 'ANALISANDO',
 };
@@ -84,11 +96,13 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
               const rowBorder =
                 m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity'
                   ? 'border-l-2 border-l-[#22C55E]'
-                  : m.mycroftStatus === 'VETADO' || m.mycroftStatus === 'no_value'
-                    ? 'border-l-2 border-l-[#7F1D1D]'
-                    : isImminent
+                  : m.mycroftStatus === 'LABAREDA'
+                    ? 'border-l-2 border-l-[#F97316]'
+                    : m.mycroftStatus === 'CUIDADO'
                       ? 'border-l-2 border-l-[#F59E0B]'
-                      : '';
+                      : isImminent
+                        ? 'border-l-2 border-l-[#F59E0B]'
+                        : '';
 
               return (
                 <tr
@@ -99,45 +113,30 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                     rowBorder,
                   )}
                 >
-                  {/* Minute */}
                   <td className="px-3 py-2 font-orbitron text-foreground whitespace-nowrap">
                     {m.status === 'live' && (
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-destructive mr-1 animate-pulse" />
                     )}
                     {m.minute}'
                   </td>
-
-                  {/* Teams */}
                   <td className="px-3 py-2 text-foreground font-medium max-w-[180px] truncate">
                     {m.home} vs {m.away}
                   </td>
-
-                  {/* Score */}
                   <td className="px-3 py-2 text-center font-orbitron font-bold text-foreground">
                     {m.scoreHome} - {m.scoreAway}
                   </td>
-
-                  {/* League */}
                   <td className="px-3 py-2 text-muted-foreground max-w-[120px] truncate">{m.championship}</td>
-
-                  {/* Possession */}
                   <td className="px-3 py-2 text-center text-muted-foreground">
                     {m.stats?.possession_home ? `${m.stats.possession_home}%` : '—'}
                   </td>
-
-                  {/* Shots */}
                   <td className="px-3 py-2 text-center text-muted-foreground">
                     {m.stats?.shots_home != null ? `${m.stats.shots_home}-${m.stats.shots_away ?? 0}` : '—'}
                   </td>
-
-                  {/* xG */}
                   <td className="px-3 py-2 text-center text-muted-foreground">
                     {m.stats?.xG_home != null
                       ? `${m.stats.xG_home.toFixed(1)}-${(m.stats.xG_away ?? 0).toFixed(1)}`
                       : '—'}
                   </td>
-
-                  {/* Criteria */}
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-0.5">
                       {[0, 1, 2, 3, 4].map(i => (
@@ -153,8 +152,6 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                       ))}
                     </div>
                   </td>
-
-                  {/* Status */}
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
                       {statusIcon[m.mycroftStatus] ?? null}
@@ -164,11 +161,11 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                       {isImminent && <Zap className="w-3 h-3 text-[#FBBF24] animate-pulse" />}
                     </div>
                   </td>
-
-                  {/* Plan */}
                   <td className="px-3 py-2 text-left">
                     {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity') && m.planName ? (
                       <span className="font-orbitron text-primary font-bold text-[10px]">{m.planName}</span>
+                    ) : m.mycroftStatus === 'LABAREDA' ? (
+                      <span className="font-orbitron text-[#FB923C] font-bold text-[10px]">⚡ LABAREDA</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

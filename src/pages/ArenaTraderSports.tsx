@@ -54,7 +54,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     minute: lm.minute ?? 0,
     period: lm.period ?? '',
     status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
-    mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
+    mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'JOGO_MORTO' : (lm.mycroft_status || 'AGUARDAR')) as Match['mycroftStatus'],
     matchId: lm.match_id,
     stats: s ? {
       possession_home: s.possession_home ?? undefined,
