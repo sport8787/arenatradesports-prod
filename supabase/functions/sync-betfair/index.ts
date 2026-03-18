@@ -6,15 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const BF_BR = 'https://api.betfair.bet.br/exchange/betting/rest/v1.0';
-const BF_GLOBAL = 'https://api.betfair.com/exchange/betting/rest/v1.0';
+const BF_BR = 'https://api.betfair.bet.br/exchange';
+const BF_GLOBAL = 'https://api.betfair.com/exchange';
 
 function getSupabaseAdmin() {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 }
 
-async function bfPost(endpoint: string, body: any, token: string, appKey: string, useBr = true): Promise<any> {
-  const url = `${useBr ? BF_BR : BF_GLOBAL}/${endpoint}/`;
+async function bfPost(basePath: string, endpoint: string, body: any, token: string, appKey: string, useBr = true): Promise<any> {
+  const base = useBr ? BF_BR : BF_GLOBAL;
+  const url = `${base}/${basePath}/rest/v1.0/${endpoint}/`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'X-Application': appKey, 'X-Authentication': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -24,9 +25,8 @@ async function bfPost(endpoint: string, body: any, token: string, appKey: string
     const errorText = await res.text();
     if (useBr) {
       console.log(`[BetfairSync] BR failed for ${endpoint}, trying global...`);
-      return bfPost(endpoint, body, token, appKey, false);
+      return bfPost(basePath, endpoint, body, token, appKey, false);
     }
-    // Check for expired/invalid session token
     if (res.status === 400 && (errorText.includes('DSC-0024') || errorText.includes('DSC-0018') || errorText.includes('ANGX-0004'))) {
       throw new Error('SSOID_EXPIRED');
     }
@@ -38,16 +38,25 @@ async function bfPost(endpoint: string, body: any, token: string, appKey: string
   return res.json();
 }
 
+// Shortcut for betting API
+function bfBetting(endpoint: string, body: any, token: string, appKey: string) {
+  return bfPost('betting', endpoint, body, token, appKey);
+}
+
+// Shortcut for account API
+function bfAccount(endpoint: string, body: any, token: string, appKey: string) {
+  return bfPost('account', endpoint, body, token, appKey);
+}
+
 // Resolve marketIds to event names and selection names
 async function resolveMarketInfo(marketIds: string[], token: string, appKey: string) {
   const info: Record<string, { eventName: string; runners: Record<string, string> }> = {};
   if (!marketIds.length) return info;
 
-  // Batch in groups of 40
   for (let i = 0; i < marketIds.length; i += 40) {
     const batch = marketIds.slice(i, i + 40);
     try {
-      const catalogue = await bfPost('listMarketCatalogue', {
+      const catalogue = await bfBetting('listMarketCatalogue', {
         filter: { marketIds: batch },
         marketProjection: ['EVENT', 'RUNNER_DESCRIPTION'],
         maxResults: batch.length,
@@ -70,16 +79,14 @@ async function resolveMarketInfo(marketIds: string[], token: string, appKey: str
   return info;
 }
 
-function mapOrder(order: any, userId: string, batchId: string, marketInfo: Record<string, any>): any {
+function mapExchangeOrder(order: any, userId: string, batchId: string, marketInfo: Record<string, any>): any {
   const isSettled = order.betOutcome != null;
   let result = 'pending', profitLoss = 0;
 
   if (isSettled) {
-    // Always use profit field - it already accounts for cashouts/partial closes
     profitLoss = order.profit != null ? order.profit : 0;
     if (order.betOutcome === 'WON') { result = 'green'; }
     else if (order.betOutcome === 'LOST') { 
-      // If profit is 0 or positive despite LOST outcome, it was a cashout
       result = profitLoss >= 0 ? 'green' : 'red'; 
     }
     else { result = 'void'; }
@@ -87,10 +94,7 @@ function mapOrder(order: any, userId: string, batchId: string, marketInfo: Recor
 
   const mktId = order.marketId || '';
   const selId = String(order.selectionId || '');
-  
-  // Priority 1: itemDescription from includeItemDescription (works for settled markets)
   const itemDesc = order.itemDescription;
-  // Priority 2: catalogue info (works for active markets)
   const mkt = marketInfo[mktId];
   
   let eventName = 'Unknown';
@@ -124,6 +128,87 @@ function mapOrder(order: any, userId: string, batchId: string, marketInfo: Recor
   };
 }
 
+// Parse getAccountStatement items to extract Sportsbook bets
+function parseSportsbookFromStatement(items: any[], userId: string, batchId: string, existingRefIds: Set<string>): any[] {
+  const bets: any[] = [];
+  
+  for (const item of items) {
+    // Skip exchange items (already handled), deposits/withdrawals, and unknown
+    const itemClass = item.itemClass;
+    if (!itemClass || itemClass === 'UNKNOWN') continue;
+    
+    // Parse the itemClassData which contains bet details
+    const data = item.itemClassData || {};
+    const unknownItem = data.unknownStatementItem;
+    
+    // Try to parse the unknown statement item JSON string
+    let parsed: any = null;
+    if (unknownItem && typeof unknownItem === 'string') {
+      try { parsed = JSON.parse(unknownItem); } catch {}
+    }
+    
+    // Use parsed data or raw itemClassData
+    const betData = parsed || data;
+    
+    // Skip if no meaningful bet data or if it's an exchange bet
+    const betCategoryType = betData.betCategoryType;
+    if (betCategoryType === 'E') continue; // E = Exchange
+    
+    // Sportsbook bets typically have betCategoryType 'S' or 'M' (multiples)
+    // Also catch anything that isn't Exchange
+    const transactionType = betData.transactionType || '';
+    if (!['ACCOUNT_DEBIT', 'ACCOUNT_CREDIT'].includes(transactionType) && 
+        !betData.betSize && !betData.avgPrice) continue;
+    
+    // Build a unique ref for dedup
+    const refId = item.refId || `${item.itemDate}_${item.amount}`;
+    if (existingRefIds.has(refId)) continue;
+    existingRefIds.add(refId);
+    
+    const amount = item.amount || 0;
+    const betSize = betData.betSize || Math.abs(amount) || 0;
+    const avgPrice = betData.avgPrice || betData.avgPriceRaw || 0;
+    const winLose = betData.winLose || '';
+    const eventName = betData.fullMarketName || betData.eventDesc || 'Betfair Sportsbook';
+    const selectionName = betData.selectionName || 'Sportsbook Bet';
+    
+    let result = 'pending';
+    let profitLoss = amount;
+    
+    if (winLose === 'WON' || winLose === 'RESULT_WON') {
+      result = 'green';
+    } else if (winLose === 'LOST' || winLose === 'RESULT_LOST') {
+      result = 'red';
+      profitLoss = amount < 0 ? amount : -betSize;
+    } else if (winLose === 'RESULT_NOT_APPLICABLE') {
+      // Could be a void, cashout, or non-bet transaction - skip
+      continue;
+    }
+    
+    // Skip zero-amount non-bet entries
+    if (betSize === 0 && avgPrice === 0) continue;
+    
+    bets.push({
+      user_id: userId,
+      source: 'betfair-sportsbook',
+      bookmaker: 'Betfair Sportsbook',
+      event_name: eventName,
+      market: betData.marketDesc || 'Sportsbook',
+      selection: selectionName,
+      odd: avgPrice,
+      stake: betSize,
+      profit_loss: Math.round(profitLoss * 100) / 100,
+      result,
+      bet_date: item.itemDate ? new Date(item.itemDate).toISOString() : new Date().toISOString(),
+      settle_date: item.itemDate ? new Date(item.itemDate).toISOString() : null,
+      raw_data: { statementItem: item, parsed: betData },
+      import_batch_id: batchId,
+    });
+  }
+  
+  return bets;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -132,7 +217,6 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // Parse request body for options
     let forceResync = false;
     try {
       const body = await req.json();
@@ -155,10 +239,10 @@ serve(async (req) => {
     const sessionToken = connection.session_token;
     if (!sessionToken) return new Response(JSON.stringify({ error: 'SSOID não configurado. Atualize o token nas configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // If force resync, delete old betfair imported bets and reset date
     if (forceResync) {
       console.log('[BetfairSync] Force resync: deleting old betfair bets...');
       await supabase.from('imported_bets').delete().eq('user_id', user.id).eq('source', 'betfair');
+      await supabase.from('imported_bets').delete().eq('user_id', user.id).eq('source', 'betfair-sportsbook');
     }
 
     const batchId = crypto.randomUUID();
@@ -166,8 +250,9 @@ serve(async (req) => {
       ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
       : (connection.last_sync_at || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-    console.log('[BetfairSync] Fetching settled orders...');
-    const settledData = await bfPost('listClearedOrders', {
+    // ── Exchange: settled + current orders ──
+    console.log('[BetfairSync] Fetching Exchange settled orders...');
+    const settledData = await bfBetting('listClearedOrders', {
       betStatus: 'SETTLED',
       settledDateRange: { from: fromDate },
       includeItemDescription: true,
@@ -175,21 +260,43 @@ serve(async (req) => {
     }, sessionToken, connection.app_key);
     const settledOrders = settledData.clearedOrders || [];
 
-    console.log('[BetfairSync] Fetching current orders...');
-    const currentData = await bfPost('listCurrentOrders', {}, sessionToken, connection.app_key);
+    console.log('[BetfairSync] Fetching Exchange current orders...');
+    const currentData = await bfBetting('listCurrentOrders', {}, sessionToken, connection.app_key);
     const currentOrders = currentData.currentOrders || [];
 
-    // Collect unique marketIds to resolve names
     const allRawOrders = [...settledOrders, ...currentOrders];
     const uniqueMarketIds = [...new Set(allRawOrders.map((o: any) => o.marketId).filter(Boolean))];
 
     console.log(`[BetfairSync] Resolving ${uniqueMarketIds.length} markets...`);
     const marketInfo = await resolveMarketInfo(uniqueMarketIds as string[], sessionToken, connection.app_key);
+    const exchangeBets = allRawOrders.map((o: any) => mapExchangeOrder(o, user.id, batchId, marketInfo));
 
-    const allOrders = allRawOrders.map((o: any) => mapOrder(o, user.id, batchId, marketInfo));
+    // ── Sportsbook: via Account Statement ──
+    let sportsbookBets: any[] = [];
+    try {
+      console.log('[BetfairSync] Fetching Account Statement for Sportsbook bets...');
+      const statementData = await bfAccount('getAccountStatement', {
+        itemDateRange: { from: fromDate },
+        includeItem: 'ALL',
+        recordCount: 1000,
+      }, sessionToken, connection.app_key);
 
-    if (allOrders.length > 0) {
-      const { error: insertErr } = await supabase.from('imported_bets').upsert(allOrders, { onConflict: 'id' });
+      const statementItems = statementData.accountStatement || [];
+      console.log(`[BetfairSync] Account statement returned ${statementItems.length} items`);
+
+      // Build set of existing exchange refIds to avoid duplicates
+      const exchangeRefIds = new Set(settledOrders.map((o: any) => o.betId).filter(Boolean));
+      sportsbookBets = parseSportsbookFromStatement(statementItems, user.id, batchId, exchangeRefIds);
+      console.log(`[BetfairSync] Extracted ${sportsbookBets.length} Sportsbook bets from statement`);
+    } catch (e) {
+      console.log(`[BetfairSync] Account Statement fetch failed (non-fatal): ${e.message}`);
+      // Non-fatal: sportsbook extraction is best-effort
+    }
+
+    const allBets = [...exchangeBets, ...sportsbookBets];
+
+    if (allBets.length > 0) {
+      const { error: insertErr } = await supabase.from('imported_bets').upsert(allBets, { onConflict: 'id' });
       if (insertErr) console.error('[BetfairSync] Insert error:', insertErr);
     }
 
@@ -198,11 +305,16 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     }).eq('id', connection.id);
 
-    console.log(`[BetfairSync] Synced ${allOrders.length} bets (${settledOrders.length} settled, ${currentOrders.length} pending)`);
+    console.log(`[BetfairSync] Synced ${allBets.length} total bets (${exchangeBets.length} exchange, ${sportsbookBets.length} sportsbook)`);
 
     return new Response(JSON.stringify({
-      success: true, synced: allOrders.length,
-      settled: settledOrders.length, pending: currentOrders.length, batch_id: batchId,
+      success: true, 
+      synced: allBets.length,
+      exchange: exchangeBets.length,
+      sportsbook: sportsbookBets.length,
+      settled: settledOrders.length, 
+      pending: currentOrders.length, 
+      batch_id: batchId,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
