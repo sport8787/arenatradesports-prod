@@ -404,8 +404,46 @@ export default function TradingHistory() {
           </div>
         )}
 
-        {/* Bet List */}
-        {loading ? (
+        {/* Entries List (grouped by fixture) */}
+        {filter === 'entries' ? (
+          entries.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <p className="font-orbitron">Nenhuma entrada registrada</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {entries.map((game: any) => (
+                <motion.div key={game.fixture_id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-orbitron text-sm font-bold text-foreground">{game.fixture_label}</h3>
+                    <span className={cn('text-sm font-orbitron font-bold', game.total_pnl >= 0 ? 'text-success' : 'text-destructive')}>
+                      {game.total_pnl >= 0 ? '+' : ''}R$ {Math.abs(game.total_pnl).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {game.entries.map((entry: any, idx: number) => {
+                      const statusColor = entry.status === 'green' ? 'border-l-success' : entry.status === 'red' ? 'border-l-destructive' : entry.status === 'cashout' ? 'border-l-blue-500' : 'border-l-warning';
+                      const pnl = entry.status === 'green' ? `+R$ ${(Number(entry.pnl) || 0).toFixed(2)}` : entry.status === 'red' ? `-R$ ${Number(entry.stake_value).toFixed(2)}` : entry.status === 'cashout' ? `R$ ${(Number(entry.pnl) || 0).toFixed(2)}` : 'pendente';
+                      return (
+                        <div key={entry.id} className={cn('flex items-center justify-between p-2 rounded-md border-l-2 bg-muted/20', statusColor)}>
+                          <div>
+                            <div className="text-[10px] text-muted-foreground font-orbitron">#{idx + 1} · Min {entry.minute_entered} · {entry.plano}</div>
+                            <div className="text-xs text-foreground font-medium">{entry.market}</div>
+                            <div className="text-[10px] text-muted-foreground">Odd {Number(entry.odd).toFixed(2)} · R$ {Number(entry.stake_value).toFixed(2)} ({Number(entry.stake_pct).toFixed(0)}%)</div>
+                          </div>
+                          <span className={cn('text-xs font-orbitron font-medium',
+                            entry.status === 'green' ? 'text-success' : entry.status === 'red' ? 'text-destructive' : entry.status === 'cashout' ? 'text-blue-400' : 'text-warning'
+                          )}>{pnl}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
+        ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <Clock className="w-6 h-6 text-primary animate-spin" />
           </div>
