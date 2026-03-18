@@ -446,6 +446,137 @@ serve(async (req) => {
       }
     }
 
+    // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
+    // Se VETADO por dados insuficientes (não por critério técnico reprovado), tentar regras S1-S4
+    if (analysis.verdict === 'VETADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+      const isDataGapVeto = analysis.verdict === 'VETADO' && (
+        (analysis.alerts || []).some((a: string) => /dados ausentes|dados insuficientes|sem dados|confiança.*penalidade|critérios.*ausentes/i.test(a)) ||
+        (analysis.criterios_ausentes?.length > 0)
+      );
+      // Also accept if AI already identified situational approval
+      const isAISituational = analysis.verdict === 'APROVADO_SITUACIONAL';
+
+      if (isDataGapVeto || isAISituational) {
+        const s = match.stats || {};
+        const min = match.minute ?? 0;
+        const scoreH = match.scoreHome ?? 0;
+        const scoreA = match.scoreAway ?? 0;
+        const xgH = s.xG_home ?? 0;
+        const xgA = s.xG_away ?? 0;
+        const possH = s.possession_home ?? 0;
+        const possA = s.possession_away ?? 0;
+        const sotH = s.shots_on_target_home ?? s.shots_home ?? 0;
+        const sotA = s.shots_on_target_away ?? s.shots_away ?? 0;
+        const champ = (match.championship || '').toLowerCase();
+        const isKnockout = /copa|cup|eliminat|playoff|mata-mata|knockout|libertadores|champions|europa league|sul-americana/i.test(champ);
+
+        let situationalRule: string | null = null;
+        let situationalMarket = '';
+        let situationalConf = 65;
+        let situationalStake = 2;
+        let situationalContext = '';
+
+        // Determine dominant team (home perspective)
+        const homeDominant = possH > possA && (sotH > sotA || xgH > xgA);
+        const awayDominant = possA > possH && (sotA > sotH || xgA > xgH);
+        const domXg = homeDominant ? xgH : xgA;
+        const domPoss = homeDominant ? possH : possA;
+        const domSot = homeDominant ? sotH : sotA;
+        const oppSot = homeDominant ? sotA : sotH;
+        const domGoals = homeDominant ? scoreH : scoreA;
+        const oppGoals = homeDominant ? scoreA : scoreH;
+        const domName = homeDominant ? match.home : match.away;
+
+        // REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+        if (!situationalRule && min >= 5 && min <= 35) {
+          const placarOk = (scoreH + scoreA) <= 1; // 0-0 or 1-0
+          const xgOk = domXg >= 0.4 || domSot >= 2;
+          const possOk = domPoss >= 58;
+          const oppClean = oppSot === 0;
+          if ((homeDominant || awayDominant) && placarOk && xgOk && possOk && oppClean) {
+            situationalRule = 'S1';
+            situationalMarket = min < 45 ? 'Over 0.5 HT' : 'Over 1.5 Total';
+            situationalConf = 65;
+            situationalStake = 2;
+            situationalContext = `${domName} com xG ${domXg}, posse ${domPoss}%, ${domSot} finalizações no alvo. Adversário sem finalização.`;
+          }
+        }
+
+        // REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+        if (!situationalRule && min >= 20 && min <= 60) {
+          const diff = Math.abs(scoreH - scoreA);
+          const totalGoals = scoreH + scoreA;
+          const placarExpressivo = (diff >= 2 && totalGoals >= 2) || (totalGoals >= 4 && diff >= 2);
+          const xgTotalOk = (xgH + xgA) >= 2.0;
+          const loserPoss = scoreH > scoreA ? possA : possH;
+          const jogoAberto = loserPoss >= 40;
+          if (placarExpressivo && xgTotalOk && jogoAberto) {
+            situationalRule = 'S2';
+            situationalMarket = totalGoals < 4 && min < 40 ? 'Over 3.5 Total' : 'Over 0.5 Próximo Gol';
+            situationalConf = 68;
+            situationalStake = 2;
+            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse — jogo aberto.`;
+          }
+        }
+
+        // REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+        if (!situationalRule && isKnockout) {
+          const diff = Math.abs(scoreH - scoreA);
+          if (diff >= 1 && diff <= 2 && (scoreH !== scoreA)) {
+            const teamBehind = scoreH < scoreA ? match.home : match.away;
+            situationalRule = 'S3';
+            situationalMarket = min < 60 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
+            situationalConf = diff === 1 ? 72 : 66;
+            situationalStake = diff === 1 ? 3 : 2;
+            situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar.`;
+          }
+        }
+
+        // REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
+        // Note: corners data may not always be available in stats, check if present
+        if (!situationalRule && min >= 10 && min <= 40 && (homeDominant || awayDominant)) {
+          if (domXg >= 0.6 && domGoals <= 1) {
+            // We can't always check corners, so use shots + xG as proxy
+            if (domSot >= 3 && domGoals === 0) {
+              situationalRule = 'S4';
+              situationalMarket = 'Over 0.5 HT';
+              situationalConf = 65;
+              situationalStake = 2;
+              situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações no alvo, ${domGoals} gol(s) — pressão acumulada sem conversão.`;
+            }
+          }
+        }
+
+        // Apply override
+        if (situationalRule && min <= 70) {
+          console.log(`[MycroftSports] 🔄 SITUACIONAL: Regra ${situationalRule} ativada para ${match.home} vs ${match.away}`);
+          analysis.verdict = 'APROVADO';
+          analysis.situational_rule = situationalRule;
+          analysis.market = analysis.market === 'N/A' || !analysis.market ? situationalMarket : analysis.market;
+          analysis.confidence = Math.max(analysis.confidence || 0, situationalConf);
+          analysis.plan_name = null; // Situacional não usa planos
+          analysis.alerts = [
+            ...(analysis.alerts || []),
+            `✅ Aprovação situacional via Regra ${situationalRule}: ${situationalContext}`,
+            `⚠️ Aprovação baseada em leitura situacional. Dados históricos insuficientes para cálculo de edge.`,
+          ];
+          analysis.thesis = `📍 APROVADO SITUACIONAL (Regra ${situationalRule}) — ${situationalContext}`;
+          // Cap stake at VALOR tier max
+          const bankroll = match.bankroll ?? 500;
+          const stakePercent = Math.min(situationalStake, 3); // Max 3% for S3, 2% for others
+          analysis.risk_management = {
+            stake_percent: stakePercent,
+            stake_value: bankroll * stakePercent / 100,
+            entry: `${analysis.market} @ ${analysis.odd || 1.50}`,
+            stop: 'Condição adversa ou gol contra',
+            target: 'Realização do mercado',
+            rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
+            ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 1.50) - 1) * 100)}%`,
+          };
+        }
+      }
+    }
+
     // Ensure odd/risk_management defaults for APROVADO
     if (analysis.verdict === 'APROVADO') {
       if (!analysis.odd || analysis.odd <= 0) {
@@ -464,16 +595,14 @@ serve(async (req) => {
     // === BAS (Bluffer Asset Score) — composite quality score ===
     {
       let bas = 0;
-      // 1. Confidence (0-40 pts)
       bas += Math.min(40, Math.round((analysis.confidence || 0) * 0.4));
-      // 2. Odd value sweet spot 1.40-3.00 (0-20 pts)
       const odd = analysis.odd || 0;
       if (odd >= 1.40 && odd <= 3.00) bas += 20;
       else if (odd > 3.00 && odd <= 5.00) bas += 10;
       else if (odd > 1.10 && odd < 1.40) bas += 5;
-      // 3. Plan activated (0-20 pts)
       if (analysis.plan_name) bas += 20;
-      // 4. Criteria met vs missing (0-20 pts)
+      // Situational approval gets a small plan-like bonus
+      if (analysis.situational_rule) bas += 10;
       const met = analysis.criterios_atendidos?.length || 0;
       const missing = analysis.criterios_ausentes?.length || 0;
       if (met > 0 && missing === 0) bas += 20;
@@ -486,7 +615,7 @@ serve(async (req) => {
         bas >= 50 ? 'FORTE' : 'ESPECULATIVO';
     }
 
-    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
+    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || analysis.situational_rule || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
 
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
