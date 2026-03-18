@@ -760,7 +760,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     risk_factors: { type: 'string' },
     api_predictions_agree: { type: 'boolean', nullable: true },
   }
-  const requiredFields = ['verdict','model_level','bookmaker','odd','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
+  const requiredFields = ['verdict','model_level','bookmaker','odd','estimated_probability','edge_percentage','expected_value','confidence','data_strength','stake_percentage','thesis','analysis','risk_factors']
 
   if (incCorners) {
     schemaProperties.corner_prediction = {
