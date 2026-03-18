@@ -73,7 +73,21 @@ export function useBetImport() {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          fullText += content.items.map((item: any) => item.str).join(' ') + '\n';
+          // Group text items by Y coordinate to reconstruct proper lines
+          const itemsByY = new Map<number, any[]>();
+          for (const item of content.items as any[]) {
+            if (!item.str?.trim()) continue;
+            const y = Math.round(item.transform[5]);
+            if (!itemsByY.has(y)) itemsByY.set(y, []);
+            itemsByY.get(y)!.push(item);
+          }
+          // Sort Y descending (top of page first), X ascending within each line
+          const sortedYs = [...itemsByY.keys()].sort((a, b) => b - a);
+          const pageLines = sortedYs.map(y => {
+            const items = itemsByY.get(y)!.sort((a: any, b: any) => a.transform[4] - b.transform[4]);
+            return items.map((it: any) => it.str).join(' ');
+          });
+          fullText += pageLines.join('\n') + '\n';
         }
         const bets = parsePDFText(fullText);
         setPreview(bets);
