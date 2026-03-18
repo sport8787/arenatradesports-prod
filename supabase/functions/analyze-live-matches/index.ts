@@ -196,7 +196,7 @@ serve(async (req) => {
           });
 
           // === TELEGRAM NOTIFICATION for APROVADO ===
-          if (analysis.verdict === 'APROVADO') {
+          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
             try {
               const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
               const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
