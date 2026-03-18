@@ -284,6 +284,60 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_trader_entries: {
+        Row: {
+          created_at: string | null
+          fixture_id: string
+          fixture_label: string
+          id: string
+          market: string
+          minute_entered: number
+          notes: string | null
+          odd: number
+          plano: string
+          pnl: number | null
+          result: string | null
+          stake_pct: number
+          stake_value: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          fixture_id: string
+          fixture_label: string
+          id?: string
+          market: string
+          minute_entered: number
+          notes?: string | null
+          odd: number
+          plano: string
+          pnl?: number | null
+          result?: string | null
+          stake_pct: number
+          stake_value: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          fixture_id?: string
+          fixture_label?: string
+          id?: string
+          market?: string
+          minute_entered?: number
+          notes?: string | null
+          odd?: number
+          plano?: string
+          pnl?: number | null
+          result?: string | null
+          stake_pct?: number
+          stake_value?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       arena_trader_rankings: {
         Row: {
           atc_balance: number

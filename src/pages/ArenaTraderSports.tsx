@@ -6,7 +6,8 @@ import { useSportsTrainingStatus } from '@/hooks/useSportsTrainingStatus';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import MatchCard, { type Match } from '@/components/dashboard/MatchCard';
+import { type Match } from '@/components/dashboard/MatchCard';
+import MatchCardWithEntries from '@/components/dashboard/MatchCardWithEntries';
 import AnalysisModal, { type MycroftAnalysisData } from '@/components/dashboard/AnalysisModal';
 import GoldButton from '@/components/game/GoldButton';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
@@ -94,12 +95,14 @@ export default function ArenaTraderSports() {
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   // Fetch betted match IDs to prevent duplicates
   useEffect(() => {
     async function fetchBettedIds() {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) return;
+      setCurrentUserId(session.session.user.id);
       const { data } = await supabase
         .from('virtual_bets')
         .select('match_id')
@@ -519,10 +522,12 @@ export default function ArenaTraderSports() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map((match, i) => (
-                <MatchCard
+                <MatchCardWithEntries
                   key={match.id}
                   match={match}
                   index={i}
+                  userId={currentUserId}
+                  bankrollBalance={bankroll?.balance ?? 500}
                   onAnalysisClick={handleViewAnalysis}
                 />
               ))}
