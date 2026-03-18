@@ -328,7 +328,7 @@ serve(async (req) => {
           type: 'function',
           function: {
             name: 'sports_analysis',
-            description: 'Return the structured sports trading analysis.',
+            description: 'Return the structured sports trading analysis. Include additional_markets when multiple independent opportunities exist.',
             parameters: {
               type: 'object',
               properties: {
@@ -343,6 +343,20 @@ serve(async (req) => {
                 fundamentation: { type: 'object', properties: { source: { type: 'string' }, citation: { type: 'string' }, pattern: { type: 'string' }, historical_wr: { type: 'string' } } },
                 risk_management: { type: 'object', properties: { stake_percent: { type: 'number' }, entry: { type: 'string' }, stop: { type: 'string' }, target: { type: 'string' }, rr: { type: 'string' }, ev: { type: 'string' } } },
                 alerts: { type: 'array', items: { type: 'string' } },
+                additional_markets: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      market: { type: 'string' },
+                      odd: { type: 'number' },
+                      confidence: { type: 'integer' },
+                      thesis: { type: 'string' },
+                      stake_percent: { type: 'number' },
+                    },
+                    required: ['market', 'odd', 'confidence', 'thesis', 'stake_percent'],
+                  },
+                },
               },
               required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
               additionalProperties: false,
