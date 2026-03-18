@@ -235,6 +235,7 @@ function getStatusConfig(status: Match['mycroftStatus']) {
 function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: number) {
   switch (status) {
     case 'APROVADO':
+    case 'APROVADO_SITUACIONAL':
     case 'opportunity':
       return 'border-[#22C55E]/70 shadow-[0_0_15px_rgba(34,197,94,0.15)]';
     case 'VETADO':
