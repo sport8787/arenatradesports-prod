@@ -458,7 +458,7 @@ serve(async (req) => {
               motivo_veto: `Confiança pós-penalidade ${analysis.confidence}% < 65% (original: ${originalConfidence}%, -${penalty}pp por dados ausentes)`,
               raw_response: analysis,
             });
-            analysis.verdict = 'VETADO';
+            analysis.verdict = 'JOGO_MORTO';
             analysis.alerts = [...(analysis.alerts || []),
               `Plano ${planCode}: confiança ${originalConfidence}% → ${analysis.confidence}% após penalidade por dados ausentes (limiar 65%)`,
             ];
