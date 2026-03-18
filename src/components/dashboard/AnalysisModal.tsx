@@ -9,6 +9,15 @@ import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
 
+export interface AdditionalMarket {
+  market: string;
+  odd: number;
+  confidence: number;
+  thesis: string;
+  stake_percent: number;
+  stake_value?: number;
+}
+
 export interface MycroftAnalysisData {
   id: string;
   verdict: string;
@@ -22,6 +31,7 @@ export interface MycroftAnalysisData {
   alerts: string[];
   asset_score?: number | null;
   asset_classification?: string | null;
+  additional_markets?: AdditionalMarket[];
 }
 
 const basConfig: Record<string, { color: string; icon: string; border: string }> = {
@@ -386,7 +396,36 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
             </motion.div>
           )}
 
-          {/* Bankroll Preview + Actions (desktop) */}
+          {/* Additional Markets */}
+          {analysis.additional_markets && analysis.additional_markets.length > 0 && (
+            <motion.div variants={fadeUp} className="space-y-3">
+              <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Target className="w-4 h-4" /> Mercados Adicionais ({analysis.additional_markets.length})
+              </h3>
+              <div className="space-y-2">
+                {analysis.additional_markets.map((am, i) => (
+                  <div key={i} className="luxury-card p-4 border-l-4 border-l-primary/60 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-orbitron text-sm font-bold text-foreground">{am.market}</span>
+                      <span className="text-xs font-orbitron text-primary">Odd {am.odd}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{am.thesis}</p>
+                    <div className="flex items-center gap-3 text-[11px]">
+                      <span className="text-muted-foreground">Confiança: <strong className="text-foreground">{am.confidence}%</strong></span>
+                      <span className="text-muted-foreground">Stake: <strong className="text-foreground">{am.stake_percent}%</strong></span>
+                      {am.stake_value && (
+                        <span className="text-muted-foreground">= <strong className="text-foreground">R$ {am.stake_value.toFixed(2)}</strong></span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground/60 italic">
+                💡 Mercados complementares com fundamento independente. Registre cada entrada separadamente.
+              </p>
+            </motion.div>
+          )}
+
           <motion.div variants={fadeUp} className="hidden md:block space-y-4">
             {/* Already bet banner */}
             {alreadyBet && (

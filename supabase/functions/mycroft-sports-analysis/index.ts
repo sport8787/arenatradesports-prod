@@ -91,6 +91,20 @@ Você é Mycroft, o Oráculo da Bluffer Entertainment. Analista de trading espor
 Analisar jogos de futebol AO VIVO e identificar oportunidades de valor usando os PLANOS ESTRATÉGICOS OFICIAIS carregados da base de dados.
 Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 50% = frouxo.
 
+## MÚLTIPLAS ENTRADAS POR JOGO
+Um mesmo jogo pode ter MÚLTIPLAS oportunidades em mercados diferentes. Quando identificar mais de uma oportunidade com valor, retorne mercados adicionais no campo "additional_markets".
+Exemplos de cenários com múltiplas entradas válidas:
+- Over 2.5 Total + Back time dominante (mercados independentes)
+- Over 0.5 HT + Ambas marcam (se ambos atacam no 1T)
+- Back favorito + Over 1.5 Total (jogo aberto com favorito pressionando)
+REGRAS para additional_markets:
+1. Máximo 2 mercados adicionais (total 3 contando o principal)
+2. Cada mercado adicional DEVE ter fundamento independente
+3. NÃO incluir mercados opostos (ex: Over 2.5 + Under 2.5)
+4. NÃO duplicar o mercado principal
+5. Cada mercado adicional precisa de confidence >= 60%
+6. Stake dos adicionais NUNCA excede 2% (são complementares)
+
 ## PRINCÍPIO CENTRAL
 Nenhum jogo ao vivo é descartado até o apito final. A análise é contínua. O que muda é a intensidade e a frequência de reavaliação.
 VETADO NÃO EXISTE. Todo jogo tem potencial de oportunidade em algum momento.
@@ -314,7 +328,7 @@ serve(async (req) => {
           type: 'function',
           function: {
             name: 'sports_analysis',
-            description: 'Return the structured sports trading analysis.',
+            description: 'Return the structured sports trading analysis. Include additional_markets when multiple independent opportunities exist.',
             parameters: {
               type: 'object',
               properties: {
@@ -329,6 +343,20 @@ serve(async (req) => {
                 fundamentation: { type: 'object', properties: { source: { type: 'string' }, citation: { type: 'string' }, pattern: { type: 'string' }, historical_wr: { type: 'string' } } },
                 risk_management: { type: 'object', properties: { stake_percent: { type: 'number' }, entry: { type: 'string' }, stop: { type: 'string' }, target: { type: 'string' }, rr: { type: 'string' }, ev: { type: 'string' } } },
                 alerts: { type: 'array', items: { type: 'string' } },
+                additional_markets: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      market: { type: 'string' },
+                      odd: { type: 'number' },
+                      confidence: { type: 'integer' },
+                      thesis: { type: 'string' },
+                      stake_percent: { type: 'number' },
+                    },
+                    required: ['market', 'odd', 'confidence', 'thesis', 'stake_percent'],
+                  },
+                },
               },
               required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
               additionalProperties: false,
@@ -632,6 +660,36 @@ serve(async (req) => {
     }
     if (analysis.risk_management && !analysis.risk_management.stake_value && analysis.risk_management.stake_percent) {
       analysis.risk_management.stake_value = (match.bankroll ?? 500) * analysis.risk_management.stake_percent / 100;
+    }
+
+    // === VALIDAR ADDITIONAL_MARKETS ===
+    if (analysis.additional_markets?.length > 0 && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA')) {
+      const bankroll = match.bankroll ?? 500;
+      const primaryMarket = analysis.market;
+      analysis.additional_markets = analysis.additional_markets
+        .filter((am: any) => {
+          if (!am.market || !am.odd || !am.confidence) return false;
+          if (am.confidence < 60) return false;
+          if (am.market === primaryMarket) return false;
+          // Block opposite markets
+          const opposites: Record<string, string> = {
+            'Over 0.5 Total': 'Under 0.5 Total', 'Over 1.5 Total': 'Under 1.5 Total',
+            'Over 2.5 Total': 'Under 2.5 Total', 'Over 3.5 Total': 'Under 3.5 Total',
+          };
+          if (opposites[am.market] === primaryMarket || opposites[primaryMarket] === am.market) return false;
+          return true;
+        })
+        .slice(0, 2)
+        .map((am: any) => ({
+          ...am,
+          stake_percent: Math.min(am.stake_percent || 2, 2),
+          stake_value: bankroll * Math.min(am.stake_percent || 2, 2) / 100,
+        }));
+      if (analysis.additional_markets.length > 0) {
+        console.log(`[MycroftSports] 📊 ${analysis.additional_markets.length} mercado(s) adicional(is): ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
+      }
+    } else {
+      analysis.additional_markets = [];
     }
 
     // === BAS (Bluffer Asset Score) — composite quality score ===
