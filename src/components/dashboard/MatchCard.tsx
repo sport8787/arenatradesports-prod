@@ -228,9 +228,14 @@ function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: numbe
     case 'APROVADO_SITUACIONAL':
     case 'opportunity':
       return 'border-[#22C55E]/70 shadow-[0_0_15px_rgba(34,197,94,0.15)]';
+    case 'LABAREDA':
+      return 'border-[#F97316]/70 shadow-[0_0_15px_rgba(249,115,22,0.15)]';
+    case 'CUIDADO':
+      return 'border-[#F59E0B]/50';
+    case 'JOGO_MORTO':
     case 'VETADO':
     case 'no_value':
-      return 'border-[#7F1D1D]/70';
+      return 'border-[#78716C]/40';
     case 'AGUARDAR':
       return criteriaCount >= 4 ? 'border-[#F59E0B]/70 animate-pulse-border-yellow' : 'border-border';
     case 'analyzing':
@@ -239,7 +244,6 @@ function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: numbe
       return 'border-border';
   }
 }
-
 interface MatchCardProps {
   match: Match;
   index: number;
