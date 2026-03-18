@@ -468,16 +468,15 @@ serve(async (req) => {
     }
 
     // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
-    // Se VETADO por dados insuficientes (não por critério técnico reprovado), tentar regras S1-S4
-    if (analysis.verdict === 'VETADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
-      const isDataGapVeto = analysis.verdict === 'VETADO' && (
+    // Se JOGO_MORTO por dados insuficientes, tentar regras S1-S4
+    if (analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+      const isDataGapDead = analysis.verdict === 'JOGO_MORTO' && (
         (analysis.alerts || []).some((a: string) => /dados ausentes|dados insuficientes|sem dados|confiança.*penalidade|critérios.*ausentes/i.test(a)) ||
         (analysis.criterios_ausentes?.length > 0)
       );
-      // Also accept if AI already identified situational approval
       const isAISituational = analysis.verdict === 'APROVADO_SITUACIONAL';
 
-      if (isDataGapVeto || isAISituational) {
+      if (isDataGapDead || isAISituational) {
         const s = match.stats || {};
         const min = match.minute ?? 0;
         const scoreH = match.scoreHome ?? 0;
@@ -497,7 +496,6 @@ serve(async (req) => {
         let situationalStake = 2;
         let situationalContext = '';
 
-        // Determine dominant team (home perspective)
         const homeDominant = possH > possA && (sotH > sotA || xgH > xgA);
         const awayDominant = possA > possH && (sotA > sotH || xgA > xgH);
         const domXg = homeDominant ? xgH : xgA;
@@ -505,12 +503,11 @@ serve(async (req) => {
         const domSot = homeDominant ? sotH : sotA;
         const oppSot = homeDominant ? sotA : sotH;
         const domGoals = homeDominant ? scoreH : scoreA;
-        const oppGoals = homeDominant ? scoreA : scoreH;
         const domName = homeDominant ? match.home : match.away;
 
-        // REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+        // REGRA S1
         if (!situationalRule && min >= 5 && min <= 35) {
-          const placarOk = (scoreH + scoreA) <= 1; // 0-0 or 1-0
+          const placarOk = (scoreH + scoreA) <= 1;
           const xgOk = domXg >= 0.4 || domSot >= 2;
           const possOk = domPoss >= 58;
           const oppClean = oppSot === 0;
@@ -518,32 +515,27 @@ serve(async (req) => {
             situationalRule = 'S1';
             situationalMarket = min < 45 ? 'Over 0.5 HT' : 'Over 1.5 Total';
             situationalConf = 65;
-            situationalStake = 2;
             situationalContext = `${domName} com xG ${domXg}, posse ${domPoss}%, ${domSot} finalizações no alvo. Adversário sem finalização.`;
           }
         }
-
-        // REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+        // REGRA S2
         if (!situationalRule && min >= 20 && min <= 60) {
           const diff = Math.abs(scoreH - scoreA);
           const totalGoals = scoreH + scoreA;
           const placarExpressivo = (diff >= 2 && totalGoals >= 2) || (totalGoals >= 4 && diff >= 2);
           const xgTotalOk = (xgH + xgA) >= 2.0;
           const loserPoss = scoreH > scoreA ? possA : possH;
-          const jogoAberto = loserPoss >= 40;
-          if (placarExpressivo && xgTotalOk && jogoAberto) {
+          if (placarExpressivo && xgTotalOk && loserPoss >= 40) {
             situationalRule = 'S2';
             situationalMarket = totalGoals < 4 && min < 40 ? 'Over 3.5 Total' : 'Over 0.5 Próximo Gol';
             situationalConf = 68;
-            situationalStake = 2;
-            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse — jogo aberto.`;
+            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse.`;
           }
         }
-
-        // REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+        // REGRA S3
         if (!situationalRule && isKnockout) {
           const diff = Math.abs(scoreH - scoreA);
-          if (diff >= 1 && diff <= 2 && (scoreH !== scoreA)) {
+          if (diff >= 1 && diff <= 2 && scoreH !== scoreA) {
             const teamBehind = scoreH < scoreA ? match.home : match.away;
             situationalRule = 'S3';
             situationalMarket = min < 60 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
@@ -552,47 +544,72 @@ serve(async (req) => {
             situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar.`;
           }
         }
-
-        // REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
-        // Note: corners data may not always be available in stats, check if present
+        // REGRA S4
         if (!situationalRule && min >= 10 && min <= 40 && (homeDominant || awayDominant)) {
-          if (domXg >= 0.6 && domGoals <= 1) {
-            // We can't always check corners, so use shots + xG as proxy
-            if (domSot >= 3 && domGoals === 0) {
-              situationalRule = 'S4';
-              situationalMarket = 'Over 0.5 HT';
-              situationalConf = 65;
-              situationalStake = 2;
-              situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações no alvo, ${domGoals} gol(s) — pressão acumulada sem conversão.`;
-            }
+          if (domXg >= 0.6 && domGoals <= 1 && domSot >= 3 && domGoals === 0) {
+            situationalRule = 'S4';
+            situationalMarket = 'Over 0.5 HT';
+            situationalConf = 65;
+            situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações, pressão acumulada sem conversão.`;
           }
         }
 
-        // Apply override
         if (situationalRule && min <= 70) {
           console.log(`[MycroftSports] 🔄 SITUACIONAL: Regra ${situationalRule} ativada para ${match.home} vs ${match.away}`);
           analysis.verdict = 'APROVADO_SITUACIONAL';
           analysis.situational_rule = situationalRule;
           analysis.market = analysis.market === 'N/A' || !analysis.market ? situationalMarket : analysis.market;
           analysis.confidence = Math.max(analysis.confidence || 0, situationalConf);
-          analysis.plan_name = null; // Situacional não usa planos
+          analysis.plan_name = null;
           analysis.alerts = [
             ...(analysis.alerts || []),
             `✅ Aprovação situacional via Regra ${situationalRule}: ${situationalContext}`,
-            `⚠️ Aprovação baseada em leitura situacional. Dados históricos insuficientes para cálculo de edge.`,
+            `⚠️ Aprovação baseada em leitura situacional.`,
           ];
           analysis.thesis = `📍 APROVADO SITUACIONAL (Regra ${situationalRule}) — ${situationalContext}`;
-          // Cap stake at VALOR tier max
           const bankroll = match.bankroll ?? 500;
-          const stakePercent = Math.min(situationalStake, 3); // Max 3% for S3, 2% for others
+          const stakePercent = Math.min(situationalStake, 3);
           analysis.risk_management = {
-            stake_percent: stakePercent,
-            stake_value: bankroll * stakePercent / 100,
-            entry: `${analysis.market} @ ${analysis.odd || 1.50}`,
-            stop: 'Condição adversa ou gol contra',
-            target: 'Realização do mercado',
-            rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
+            stake_percent: stakePercent, stake_value: bankroll * stakePercent / 100,
+            entry: `${analysis.market} @ ${analysis.odd || 1.50}`, stop: 'Condição adversa ou gol contra',
+            target: 'Realização do mercado', rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
             ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 1.50) - 1) * 100)}%`,
+          };
+        }
+      }
+    }
+
+    // === LABAREDA DETECTION (server-side) ===
+    // If JOGO_MORTO but late-game with losing team pressing, upgrade to LABAREDA
+    if (analysis.verdict === 'JOGO_MORTO') {
+      const s = match.stats || {};
+      const min = match.minute ?? 0;
+      const scoreH = match.scoreHome ?? 0;
+      const scoreA = match.scoreAway ?? 0;
+      const diff = Math.abs(scoreH - scoreA);
+      const xgLoser = scoreH < scoreA ? (s.xG_home ?? 0) : (s.xG_away ?? 0);
+      const sotLoser = scoreH < scoreA ? (s.shots_on_target_home ?? s.shots_home ?? 0) : (s.shots_on_target_away ?? s.shots_away ?? 0);
+
+      if (min >= 60 && diff === 1 && scoreH !== scoreA) {
+        // Check LABAREDA triggers (need 2 of 4)
+        let triggers = 0;
+        if (min >= 65) triggers++; // Trigger 1: min 65+ losing by 1
+        if (xgLoser >= 0.8) triggers++; // Trigger 2: xG ≥ 0.8
+        if (sotLoser >= 3) triggers++; // Trigger 4 proxy: pressure via shots
+        // Trigger 3 (odd ≥ 2.5) we can't check without live odds
+
+        if (triggers >= 2) {
+          const loserName = scoreH < scoreA ? match.home : match.away;
+          console.log(`[MycroftSports] ⚡ LABAREDA ativado para ${match.home} vs ${match.away} (${triggers} gatilhos)`);
+          analysis.verdict = 'LABAREDA';
+          analysis.thesis = `⚡ LABAREDA — ${loserName} perdendo por 1 gol no min ${min}', com xG ${xgLoser} e ${sotLoser} finalizações. Potencial de gol tardio.`;
+          analysis.market = analysis.market === 'N/A' ? 'Over 0.5 Próximo Gol' : analysis.market;
+          analysis.alerts = [...(analysis.alerts || []), `⚡ LABAREDA: ${triggers} gatilhos ativados — oportunidade tardia detectada`];
+          analysis.risk_management = {
+            stake_percent: 2, stake_value: (match.bankroll ?? 500) * 0.02,
+            entry: `${analysis.market} @ ${analysis.odd || 2.50}`, stop: 'Gol contra ou perda de pressão',
+            target: 'Gol do time perdedor', rr: `1:${(analysis.odd || 2.50).toFixed(1)}`,
+            ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 2.50) - 1) * 100)}%`,
           };
         }
       }
