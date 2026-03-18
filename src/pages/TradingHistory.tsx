@@ -55,6 +55,7 @@ export default function TradingHistory() {
   useEffect(() => {
     if (!user) return;
     fetchBets();
+    fetchEntries();
   }, [user]);
 
   const fetchBets = async () => {
