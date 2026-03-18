@@ -424,7 +424,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           </div>
 
           {/* CTA for approved */}
-          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO') && (
+          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL') && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
