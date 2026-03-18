@@ -377,66 +377,68 @@ function parseBetfairMyAccountPDF(text: string): ParsedBet[] {
   const bets: ParsedBet[] = [];
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-  // State machine: collect bet blocks between "ID da aposta:" markers
-  let i = 0;
-  while (i < lines.length) {
-    // Look for "ID da aposta:" to anchor a bet
-    const idMatch = lines[i].match(/ID da aposta:\s*(O\/[\d\/]+)/);
-    if (!idMatch) { i++; continue; }
+  console.log('[BetfairPDF] Total lines:', lines.length);
+  console.log('[BetfairPDF] First 40 lines:', lines.slice(0, 40));
 
-    const betId = idMatch[1];
-
-    // Walk backwards from this ID line to collect the bet block
-    // We need: Tipo (Simples / N Seleções), Event, Market, Selection+Odd, Valor Apostado, Ganhos/Cash Out
-    // The structure varies: table format (page 1) vs free-form (pages 2+)
-
-    // Collect context: scan backwards up to 25 lines or previous bet ID
-    const blockStart = Math.max(0, i - 25);
-    let startIdx = blockStart;
-    for (let j = i - 1; j >= blockStart; j--) {
-      if (lines[j].match(/ID da aposta:/)) { startIdx = j + 1; break; }
-      startIdx = j;
+  // Find all "ID da aposta:" occurrences
+  const betIdIndices: { idx: number; betId: string }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const idMatch = lines[i].match(/ID da aposta[:\s]*(O\/[\d\/]+)/);
+    if (idMatch) {
+      betIdIndices.push({ idx: i, betId: idMatch[1] });
     }
-    const block = lines.slice(startIdx, i + 1);
+  }
+
+  console.log('[BetfairPDF] Found bet IDs:', betIdIndices.length);
+
+  for (let b = 0; b < betIdIndices.length; b++) {
+    const { idx, betId } = betIdIndices[b];
+
+    // Collect block: from previous bet ID end to a few lines after this one
+    const blockStart = b > 0 ? betIdIndices[b - 1].idx + 1 : Math.max(0, idx - 30);
+    const blockEnd = Math.min(lines.length, idx + 15);
+    const block = lines.slice(blockStart, blockEnd);
     const blockText = block.join('\n');
 
     // Extract stake
-    const stakeMatch = blockText.match(/Valor Apostado[:\s]*R\$\s*([\d.,]+)/);
-    const stake = stakeMatch ? parseBRL(stakeMatch[1]) : 0;
+    let stake = 0;
+    const stakeMatch = blockText.match(/Valor Apostado[:\s]*R\$\s*([\d.,]+)/i);
+    if (stakeMatch) stake = parseBRL(stakeMatch[1]);
 
     // Extract winnings
-    const ganhoMatch = blockText.match(/Ganhos[:\s]*R\$\s*([\d.,]+)/);
-    const ganhos = ganhoMatch ? parseBRL(ganhoMatch[1]) : 0;
+    let ganhos = 0;
+    const ganhoMatch = blockText.match(/Ganhos[:\s]*R\$\s*([\d.,]+)/i);
+    if (ganhoMatch) ganhos = parseBRL(ganhoMatch[1]);
+    const vocGanhouMatch = blockText.match(/Voc[êe] ganhou R\$\s*([\d.,]+)/i);
+    if (vocGanhouMatch && ganhos === 0) ganhos = parseBRL(vocGanhouMatch[1]);
 
-    // Check for Cash Out
-    const cashoutMatch = blockText.match(/Total de Cash Out[:\s]*R\$\s*([\d.,]+)/);
+    // Cash out
+    const cashoutMatch = blockText.match(/Total de Cash Out[:\s]*R\$\s*([\d.,]+)/i);
     const cashout = cashoutMatch ? parseBRL(cashoutMatch[1]) : 0;
     const isCashout = cashout > 0;
 
-    // Check if it's a multiple bet ("N Seleções")
-    const multiMatch = blockText.match(/(\d+)\s*Seleções?\s*\(x\d+\)/);
+    // Multiple bet?
+    const multiMatch = blockText.match(/(\d+)\s*Sele[çc][õo]es?\s*\(x\d+\)/i);
     const isMultiple = !!multiMatch;
 
-    // Extract all selections: pattern "V/P SelectionName ODD" 
-    // e.g. "V Sporting 1.40" or "P Rayo Vallecano 1.95"
+    // Extract selections
     const selections: { result: 'V' | 'P'; selection: string; odd: number; event: string; market: string }[] = [];
-
-    // Find event + market + selection lines
-    // Events contain " x " (team vs team)
-    // Markets are lines like "Mais/Menos de X,X Gols", "Resultado da partida", "Resultado final - 2 Gols de Vantagem", "Intervalo"
     let currentEvent = '';
     let currentMarket = '';
 
     for (const line of block) {
+      // Skip non-content lines
+      if (line.match(/ID da aposta/) || line.match(/^https?:\/\//) || line.match(/^\d+\/\d+$/)) continue;
+
       // Event line: "Team A x Team B - Market"
       const eventMarketMatch = line.match(/^(.+?\s+x\s+.+?)\s*-\s*(.+)$/);
-      if (eventMarketMatch) {
+      if (eventMarketMatch && !line.match(/^[VP]\s/) && !line.match(/^Simples/)) {
         currentEvent = eventMarketMatch[1].trim();
         currentMarket = eventMarketMatch[2].trim();
         continue;
       }
-      // Standalone event (no market in same line)
-      if (line.match(/\s+x\s+/) && !line.match(/^[VP]\s/)) {
+      // Standalone event
+      if (line.match(/\s+x\s+/) && !line.match(/^[VP]\s/) && !line.match(/^Simples/) && !line.match(/ID da aposta/)) {
         currentEvent = line.trim();
         continue;
       }
@@ -446,7 +448,7 @@ function parseBetfairMyAccountPDF(text: string): ParsedBet[] {
         continue;
       }
 
-      // Selection line: "V/P SelectionName ODD"
+      // Selection: "V/P SelectionName ODD"
       const selMatch = line.match(/^([VP])\s+(.+?)\s+(\d+[.,]\d{2})\s*$/);
       if (selMatch) {
         selections.push({
@@ -456,33 +458,52 @@ function parseBetfairMyAccountPDF(text: string): ParsedBet[] {
           event: currentEvent,
           market: currentMarket,
         });
+        continue;
+      }
+
+      // Inline result: "P - Mais de 1,5 gols"
+      const inlineResultMatch = line.match(/^([VP])\s*-\s*(.+?)$/);
+      if (inlineResultMatch) {
+        selections.push({
+          result: inlineResultMatch[1] as 'V' | 'P',
+          selection: inlineResultMatch[2].trim(),
+          odd: 0,
+          event: currentEvent,
+          market: currentMarket,
+        });
+        continue;
+      }
+
+      // Table row: "Simples Event - Market P/V - Selection R$XX R$XX ID"
+      const tableRowMatch = line.match(/Simples\s+(.+?\s+x\s+.+?)\s*-\s*(.+?)\s+([VP])\s*-\s*(.+?)\s+R\$([\d.,]+)\s+R\$([\d.,]+)/);
+      if (tableRowMatch) {
+        const [, ev, mkt, res, sel, stk, win] = tableRowMatch;
+        if (stake === 0) stake = parseBRL(stk);
+        if (ganhos === 0) ganhos = parseBRL(win);
+        selections.push({
+          result: res as 'V' | 'P',
+          selection: sel.trim(),
+          odd: 0,
+          event: ev.trim(),
+          market: mkt.trim(),
+        });
       }
     }
 
-    // Also check table format from page 1: "Simples | Event - Market | V/P - Selection | R$xx | R$xx | ID"
-    // These are already captured in the table rows before the block system
-    // Handle case with inline table format
-    const tableMatch = blockText.match(/Simples\s+(.+?\s+x\s+.+?)\s*-\s*(.+?)\s+([VP])\s*-\s*(.+?)\s+R\$([\d.,]+)\s+R\$([\d.,]+)/);
-    if (tableMatch && selections.length === 0) {
-      const [, event, market, res, sel, stk, win] = tableMatch;
-      selections.push({
-        result: res as 'V' | 'P',
-        selection: sel.trim(),
-        odd: 0,
-        event: event.trim(),
-        market: market.trim(),
-      });
+    // Calculate odd from ganhos/stake if missing
+    for (const sel of selections) {
+      if (sel.odd === 0 && ganhos > 0 && stake > 0 && !isMultiple) {
+        sel.odd = Math.round((ganhos / stake) * 100) / 100;
+      }
     }
+
+    console.log(`[BetfairPDF] Bet ${betId}: stake=${stake}, ganhos=${ganhos}, sels=${selections.length}, cashout=${cashout}`);
 
     if (stake > 0 && selections.length > 0) {
       if (isMultiple) {
-        // Multiple bet: one entry with combined odd
-        const combinedOdd = selections.reduce((acc, s) => acc * s.odd, 1);
-        const allWon = selections.every(s => s.result === 'V');
-        const anyLost = selections.some(s => s.result === 'P');
+        const combinedOdd = selections.reduce((acc, s) => acc * (s.odd || 1), 1);
         const eventNames = selections.map(s => s.event || s.selection).join(' + ');
         const profitLoss = isCashout ? (cashout - stake) : (ganhos > 0 ? ganhos - stake : -stake);
-
         bets.push({
           event_name: eventNames.substring(0, 120),
           market: `Múltipla ${selections.length} seleções`,
@@ -496,10 +517,8 @@ function parseBetfairMyAccountPDF(text: string): ParsedBet[] {
           raw_line: `[PDF] ${betId} | ${eventNames}`,
         });
       } else {
-        // Simple bet
         const sel = selections[0];
         const profitLoss = isCashout ? (cashout - stake) : (ganhos > 0 ? ganhos - stake : -stake);
-
         bets.push({
           event_name: sel.event || 'Betfair Sportsbook',
           market: sel.market || 'Sportsbook',
@@ -513,9 +532,22 @@ function parseBetfairMyAccountPDF(text: string): ParsedBet[] {
           raw_line: `[PDF] ${betId} | ${sel.event} - ${sel.market}`,
         });
       }
+    } else if (stake > 0) {
+      // No selections but have stake
+      const profitLoss = isCashout ? (cashout - stake) : (ganhos > 0 ? ganhos - stake : -stake);
+      bets.push({
+        event_name: `Betfair ${betId}`,
+        market: 'Sportsbook',
+        selection: 'Aposta',
+        odd: ganhos > 0 && stake > 0 ? Math.round((ganhos / stake) * 100) / 100 : 0,
+        stake,
+        profit_loss: Math.round(profitLoss * 100) / 100,
+        result: isCashout ? 'void' : (ganhos > 0 ? 'green' : 'red'),
+        bet_date: new Date().toISOString(),
+        bookmaker: 'Betfair Sportsbook',
+        raw_line: `[PDF] ${betId}`,
+      });
     }
-
-    i++;
   }
 
   return bets;
