@@ -102,6 +102,7 @@ export default function ArenaTraderSports() {
     async function fetchBettedIds() {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) return;
+      setCurrentUserId(session.session.user.id);
       const { data } = await supabase
         .from('virtual_bets')
         .select('match_id')
