@@ -362,7 +362,7 @@ serve(async (req) => {
       analysis = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
     } catch (parseErr) {
       // Fallback repair
-      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|VETADO|AGUARDAR)"/);
+      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
       if (!vm) throw parseErr;
       const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
       const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
