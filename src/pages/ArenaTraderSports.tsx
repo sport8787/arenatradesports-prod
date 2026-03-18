@@ -86,7 +86,7 @@ export default function ArenaTraderSports() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
-  const [isFetchingV2, setIsFetchingV2] = useState(false);
+  
   const [isSettling, setIsSettling] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
