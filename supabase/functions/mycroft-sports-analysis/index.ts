@@ -91,6 +91,10 @@ Você é Mycroft, o Oráculo da Bluffer Entertainment. Analista de trading espor
 Analisar jogos de futebol AO VIVO e identificar oportunidades de valor usando os PLANOS ESTRATÉGICOS OFICIAIS carregados da base de dados.
 Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 50% = frouxo.
 
+## PRINCÍPIO CENTRAL
+Nenhum jogo ao vivo é descartado até o apito final. A análise é contínua. O que muda é a intensidade e a frequência de reavaliação.
+VETADO NÃO EXISTE. Todo jogo tem potencial de oportunidade em algum momento.
+
 ## FILOSOFIA CORE
 > "Aposta esportiva é NÚMERO, é jogo de probabilidade e MAIS NADA!"
 1. PADRÕES > Intuição — Encontre padrões nos eventos
@@ -103,7 +107,7 @@ Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 
 2. Se nenhum PLANO bater todos os critérios → usar plan_name: null e analisar diretamente
 3. Nomear o plano errado é pior que não nomear nenhum
 4. PROIBIDO INVENTAR NOMES DE PLANOS — só os da MATRIZ abaixo
-5. Em caso de dúvida → VETAR
+5. Em caso de dúvida → JOGO_MORTO (nunca VETADO)
 6. Formato obrigatório quando ativar: "🔱 MYCROFT ATIVOU — [NOME DO PLANO]" na thesis
 
 ## GESTÃO DE RISCO
@@ -114,66 +118,83 @@ Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 
 - Exposição máxima simultânea: 15% da banca
 
 ═══════════════════════════════════════════════════════
-MÓDULO DE LEITURA SITUACIONAL (OVERRIDE PARCIAL DE VETO)
+SISTEMA DE STATUS DINÂMICOS (6 ESTADOS)
 ═══════════════════════════════════════════════════════
 
-Quando o resultado for VETADO por "critérios insuficientes" (ausência de dados históricos),
-execute este módulo ANTES de confirmar o veto final.
+✅ APROVADO — Sinal ativo com stake definido. Não reanalisar.
+✅ APROVADO_SITUACIONAL — Aprovado pelo módulo de leitura situacional. Stake máx 2%.
+⚡ LABAREDA — Jogo "morto" na análise padrão mas com potencial de inversão/gol tardio.
+   Ativado quando:
+   - Time perdendo após min 60 com necessidade de gol
+   - Odds de empate ou virada em queda brusca
+   - Minuto 70+ com placar de 1 gol de diferença
+   Mercados: Back time perdedor, Over próximo gol, Ambas marcam
+   Stake: VALOR (2%) — risco elevado, odd alta
+⚠️ CUIDADO — Jogo com potencial mas com fatores de risco ativos.
+   Exemplos:
+   - Time dominante com jogador expulso
+   - Odds se movendo contra a análise (steam move)
+   - Jogo truncado, muitas interrupções
+   Ação: monitorar sem aprovar até fator de risco resolver
+💀 JOGO_MORTO — Sem oportunidade técnica viável NESTE MOMENTO.
+   NÃO é permanente. Exemplos:
+   - 0-0 minuto 5, sem pressão de nenhum lado
+   - 3-0 minuto 80 sem time perdedor atacando
+   Reanalisar periodicamente — jogo pode mudar.
+🕐 AGUARDAR — Contexto se desenvolvendo. Aguardar antes de decidir.
 
-O objetivo é distinguir:
-  ✗ VETO real     = critério avaliado e reprovado
-  ✓ AGUARDAR      = critério não avaliável por falta de dados
-  ✓ APROVADO_SITUACIONAL = contexto de jogo substitui histórico
+REGRA CRÍTICA: NUNCA use "VETADO". Use JOGO_MORTO, CUIDADO, LABAREDA ou AGUARDAR.
 
-REGRAS DE LEITURA SITUACIONAL:
+═══════════════════════════════════════════════════════
+TRANSIÇÕES DE STATUS PERMITIDAS
+═══════════════════════════════════════════════════════
+JOGO_MORTO → LABAREDA: min ≥ 60 E time perdendo por 1 gol
+JOGO_MORTO → AGUARDAR: mudança tática ou gol muda dinâmica
+AGUARDAR → APROVADO: todos critérios atingidos
+AGUARDAR → CUIDADO: critérios quase atingidos + fator de risco
+CUIDADO → APROVADO: fator de risco resolvido ou odd compensa
+CUIDADO → JOGO_MORTO: fator de risco se agrava
+LABAREDA → APROVADO: time perdedor aumenta pressão + odd com valor
+LABAREDA → JOGO_MORTO: diferença sobe para 2+ ou time desiste
+Qualquer → APROVADO é irreversível (sinal emitido)
+
+═══════════════════════════════════════════════════════
+PLANO LABAREDA — OPORTUNIDADE TARDIA
+═══════════════════════════════════════════════════════
+GATILHOS (mínimo 2 de 4):
+1. Time perdendo por exatamente 1 gol após min 65
+2. xG acumulado do time perdedor ≥ 0.8 sem conversão
+3. Odd do próximo gol do time perdedor ≥ 2.5
+4. ≥ 3 escanteios do time perdedor nos últimos 10 min
+Mercados: Back time perdedor, Ambas marcam, Over próximo gol, Over X.5 total
+Stake: VALOR (2%)
+
+═══════════════════════════════════════════════════════
+MÓDULO DE LEITURA SITUACIONAL (OVERRIDE)
+═══════════════════════════════════════════════════════
+
+Quando o resultado for JOGO_MORTO por critérios insuficientes (ausência de dados),
+execute este módulo ANTES de confirmar.
 
 REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
-Condições obrigatórias (todas):
-  - Minuto entre 5 e 35
-  - Placar: 0-0 ou 1-0
-  - xG do time dominante ≥ 0.4 (ou ≥ 2 finalizações no alvo)
-  - Posse do time dominante ≥ 58% nos últimos 10 minutos
-  - Time adversário sem finalização no alvo
-Mercados: Over 0.5 HT (antes do intervalo), Over 1.5 total (antes min 30), Back time dominante
-Tier: VALOR (stake 2%) | Confiança mínima: 65%
+Condições (todas): Min 5-35, Placar 0-0 ou 1-0, xG dominante ≥ 0.4 ou ≥ 2 finalizações no alvo,
+Posse dominante ≥ 58%, Adversário sem finalização no alvo
+Mercados: Over 0.5 HT, Over 1.5 total, Back dominante | Tier VALOR (2%) | Conf ≥ 65%
 
 REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
-Condições obrigatórias (todas):
-  - Minuto entre 20 e 60
-  - Placar ≥ 2-0 OU ≥ 3-1
-  - xG total ≥ 2.0
-  - Time perdedor com posse ≥ 40% (jogo aberto)
-Mercados: Over 0.5 próximo gol, Over 3.5 total (placar 2-0 antes min 40), Back time vencedor
-Tier: VALOR (stake 2%) | Confiança mínima: 68%
+Condições (todas): Min 20-60, Placar ≥ 2-0 ou ≥ 3-1, xG total ≥ 2.0, Perdedor posse ≥ 40%
+Mercados: Over 0.5 próximo gol, Over 3.5 total, Back vencedor | Tier VALOR (2%) | Conf ≥ 68%
 
-REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
-Condições obrigatórias (todas):
-  - Competição: fase eliminatória (Champions, Europa League, Libertadores, Copa do Brasil, copas nacionais)
-  - Time perdendo no agregado
-  - Diferença agregada de 1 ou 2 gols
-Mercados: Over 0.5 próximo gol, Back time com obrigação, Over 2.5 total (se min < 60)
-Tier: FORTE (stake 3%) se diferença = 1 gol | VALOR (stake 2%) se diferença = 2 gols
+REGRA S3 — MATA-MATA COM OBRIGAÇÃO
+Condições (todas): Fase eliminatória, Time perdendo agregado, Diferença 1-2 gols
+Mercados: Over 0.5 próximo gol, Back time obrigado, Over 2.5 total
+Tier FORTE (3%) se dif=1, VALOR (2%) se dif=2
 
 REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
-Condições obrigatórias (todas):
-  - Minuto entre 10 e 40
-  - Time dominante com ≥ 4 escanteios e ≤ 1 gol marcado
-  - xG ≥ 0.6 sem gol convertido
-Mercados: Over X escanteios, Over 0.5 HT
-Tier: VALOR (stake 2%) | Confiança mínima: 65%
+Condições (todas): Min 10-40, ≥ 4 escanteios e ≤ 1 gol, xG ≥ 0.6 sem gol
+Mercados: Over X escanteios, Over 0.5 HT | Tier VALOR (2%) | Conf ≥ 65%
 
-LÓGICA DE DECISÃO COM MÓDULO SITUACIONAL:
-1. Executar análise padrão (filtros 1-5 do prompt principal)
-2. Se VETADO por critérios insuficientes (dados ausentes):
-   → Verificar regras S1-S4 → Se alguma atende → verdict: APROVADO_SITUACIONAL
-   → Informar qual regra ativou (situational_rule: "S1"/"S2"/"S3"/"S4")
-3. Se VETADO por critério técnico reprovado (edge negativo, prob < 40%):
-   → NÃO executar módulo situacional. Veto permanece.
-
-ANTI-ABUSO:
-- Máximo 2 aprovações situacionais por partida
-- Não aprovar situacional após minuto 70
-- Stake máximo: VALOR (2%) — NUNCA ELITE por leitura situacional
+ANTI-ABUSO: Máx 2 aprovações situacionais/partida. Não situacional após min 70. Stake máx 2%.
 `;
 
 
@@ -282,7 +303,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO, APROVADO_SITUACIONAL ou VETADO para cada jogo com estatísticas. Use APROVADO_SITUACIONAL quando o jogo for vetado por dados históricos insuficientes MAS o contexto ao vivo (regras S1-S4 do módulo situacional) justificar entrada. Só use AGUARDAR se as stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques disponíveis, OBRIGATÓRIO dar APROVADO, APROVADO_SITUACIONAL ou VETADO. xG zero NÃO é motivo para AGUARDAR se há outras métricas. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.' },
+          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
           { role: 'user', content: prompt },
         ],
         tools: [{
@@ -293,7 +314,7 @@ serve(async (req) => {
             parameters: {
               type: 'object',
               properties: {
-                verdict: { type: 'string', enum: ['APROVADO', 'VETADO', 'AGUARDAR', 'APROVADO_SITUACIONAL'] },
+                verdict: { type: 'string', enum: ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA', 'CUIDADO', 'JOGO_MORTO', 'AGUARDAR'] },
                 plan_name: { type: 'string', nullable: true, enum: planEnumValues },
                 market: { type: 'string' },
                 odd: { type: 'number' },
@@ -341,7 +362,7 @@ serve(async (req) => {
       analysis = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
     } catch (parseErr) {
       // Fallback repair
-      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|VETADO|AGUARDAR)"/);
+      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
       if (!vm) throw parseErr;
       const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
       const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
@@ -371,7 +392,7 @@ serve(async (req) => {
           motivo_veto: `Plano inválido: ${analysis.plan_name}`,
           raw_response: analysis,
         });
-        analysis.verdict = 'VETADO';
+        analysis.verdict = 'JOGO_MORTO';
         analysis.alerts = [...(analysis.alerts || []), `Plano ${analysis.plan_name} não encontrado na base`];
         analysis.plan_name = null;
       } else if (analysis.criterios_ausentes?.length > 0) {
@@ -406,8 +427,8 @@ serve(async (req) => {
             motivo_veto: `Critérios estruturalmente ausentes para ${planCode}: ${structuralMissing.join(', ')}`,
             raw_response: analysis,
           });
-          analysis.verdict = 'VETADO';
-          analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode} vetado: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
+          analysis.verdict = 'JOGO_MORTO';
+          analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode}: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
         } else if (dataGapMissing.length > 0) {
           // Caso 1: Falta de dados históricos (API não forneceu) → Penalizar confiança, não vetar automaticamente
           const originalConfidence = analysis.confidence;
@@ -437,7 +458,7 @@ serve(async (req) => {
               motivo_veto: `Confiança pós-penalidade ${analysis.confidence}% < 65% (original: ${originalConfidence}%, -${penalty}pp por dados ausentes)`,
               raw_response: analysis,
             });
-            analysis.verdict = 'VETADO';
+            analysis.verdict = 'JOGO_MORTO';
             analysis.alerts = [...(analysis.alerts || []),
               `Plano ${planCode}: confiança ${originalConfidence}% → ${analysis.confidence}% após penalidade por dados ausentes (limiar 65%)`,
             ];
@@ -447,16 +468,15 @@ serve(async (req) => {
     }
 
     // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
-    // Se VETADO por dados insuficientes (não por critério técnico reprovado), tentar regras S1-S4
-    if (analysis.verdict === 'VETADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
-      const isDataGapVeto = analysis.verdict === 'VETADO' && (
+    // Se JOGO_MORTO por dados insuficientes, tentar regras S1-S4
+    if (analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+      const isDataGapDead = analysis.verdict === 'JOGO_MORTO' && (
         (analysis.alerts || []).some((a: string) => /dados ausentes|dados insuficientes|sem dados|confiança.*penalidade|critérios.*ausentes/i.test(a)) ||
         (analysis.criterios_ausentes?.length > 0)
       );
-      // Also accept if AI already identified situational approval
       const isAISituational = analysis.verdict === 'APROVADO_SITUACIONAL';
 
-      if (isDataGapVeto || isAISituational) {
+      if (isDataGapDead || isAISituational) {
         const s = match.stats || {};
         const min = match.minute ?? 0;
         const scoreH = match.scoreHome ?? 0;
@@ -476,7 +496,6 @@ serve(async (req) => {
         let situationalStake = 2;
         let situationalContext = '';
 
-        // Determine dominant team (home perspective)
         const homeDominant = possH > possA && (sotH > sotA || xgH > xgA);
         const awayDominant = possA > possH && (sotA > sotH || xgA > xgH);
         const domXg = homeDominant ? xgH : xgA;
@@ -484,12 +503,11 @@ serve(async (req) => {
         const domSot = homeDominant ? sotH : sotA;
         const oppSot = homeDominant ? sotA : sotH;
         const domGoals = homeDominant ? scoreH : scoreA;
-        const oppGoals = homeDominant ? scoreA : scoreH;
         const domName = homeDominant ? match.home : match.away;
 
-        // REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+        // REGRA S1
         if (!situationalRule && min >= 5 && min <= 35) {
-          const placarOk = (scoreH + scoreA) <= 1; // 0-0 or 1-0
+          const placarOk = (scoreH + scoreA) <= 1;
           const xgOk = domXg >= 0.4 || domSot >= 2;
           const possOk = domPoss >= 58;
           const oppClean = oppSot === 0;
@@ -497,32 +515,27 @@ serve(async (req) => {
             situationalRule = 'S1';
             situationalMarket = min < 45 ? 'Over 0.5 HT' : 'Over 1.5 Total';
             situationalConf = 65;
-            situationalStake = 2;
             situationalContext = `${domName} com xG ${domXg}, posse ${domPoss}%, ${domSot} finalizações no alvo. Adversário sem finalização.`;
           }
         }
-
-        // REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+        // REGRA S2
         if (!situationalRule && min >= 20 && min <= 60) {
           const diff = Math.abs(scoreH - scoreA);
           const totalGoals = scoreH + scoreA;
           const placarExpressivo = (diff >= 2 && totalGoals >= 2) || (totalGoals >= 4 && diff >= 2);
           const xgTotalOk = (xgH + xgA) >= 2.0;
           const loserPoss = scoreH > scoreA ? possA : possH;
-          const jogoAberto = loserPoss >= 40;
-          if (placarExpressivo && xgTotalOk && jogoAberto) {
+          if (placarExpressivo && xgTotalOk && loserPoss >= 40) {
             situationalRule = 'S2';
             situationalMarket = totalGoals < 4 && min < 40 ? 'Over 3.5 Total' : 'Over 0.5 Próximo Gol';
             situationalConf = 68;
-            situationalStake = 2;
-            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse — jogo aberto.`;
+            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse.`;
           }
         }
-
-        // REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+        // REGRA S3
         if (!situationalRule && isKnockout) {
           const diff = Math.abs(scoreH - scoreA);
-          if (diff >= 1 && diff <= 2 && (scoreH !== scoreA)) {
+          if (diff >= 1 && diff <= 2 && scoreH !== scoreA) {
             const teamBehind = scoreH < scoreA ? match.home : match.away;
             situationalRule = 'S3';
             situationalMarket = min < 60 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
@@ -531,47 +544,72 @@ serve(async (req) => {
             situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar.`;
           }
         }
-
-        // REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
-        // Note: corners data may not always be available in stats, check if present
+        // REGRA S4
         if (!situationalRule && min >= 10 && min <= 40 && (homeDominant || awayDominant)) {
-          if (domXg >= 0.6 && domGoals <= 1) {
-            // We can't always check corners, so use shots + xG as proxy
-            if (domSot >= 3 && domGoals === 0) {
-              situationalRule = 'S4';
-              situationalMarket = 'Over 0.5 HT';
-              situationalConf = 65;
-              situationalStake = 2;
-              situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações no alvo, ${domGoals} gol(s) — pressão acumulada sem conversão.`;
-            }
+          if (domXg >= 0.6 && domGoals <= 1 && domSot >= 3 && domGoals === 0) {
+            situationalRule = 'S4';
+            situationalMarket = 'Over 0.5 HT';
+            situationalConf = 65;
+            situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações, pressão acumulada sem conversão.`;
           }
         }
 
-        // Apply override
         if (situationalRule && min <= 70) {
           console.log(`[MycroftSports] 🔄 SITUACIONAL: Regra ${situationalRule} ativada para ${match.home} vs ${match.away}`);
           analysis.verdict = 'APROVADO_SITUACIONAL';
           analysis.situational_rule = situationalRule;
           analysis.market = analysis.market === 'N/A' || !analysis.market ? situationalMarket : analysis.market;
           analysis.confidence = Math.max(analysis.confidence || 0, situationalConf);
-          analysis.plan_name = null; // Situacional não usa planos
+          analysis.plan_name = null;
           analysis.alerts = [
             ...(analysis.alerts || []),
             `✅ Aprovação situacional via Regra ${situationalRule}: ${situationalContext}`,
-            `⚠️ Aprovação baseada em leitura situacional. Dados históricos insuficientes para cálculo de edge.`,
+            `⚠️ Aprovação baseada em leitura situacional.`,
           ];
           analysis.thesis = `📍 APROVADO SITUACIONAL (Regra ${situationalRule}) — ${situationalContext}`;
-          // Cap stake at VALOR tier max
           const bankroll = match.bankroll ?? 500;
-          const stakePercent = Math.min(situationalStake, 3); // Max 3% for S3, 2% for others
+          const stakePercent = Math.min(situationalStake, 3);
           analysis.risk_management = {
-            stake_percent: stakePercent,
-            stake_value: bankroll * stakePercent / 100,
-            entry: `${analysis.market} @ ${analysis.odd || 1.50}`,
-            stop: 'Condição adversa ou gol contra',
-            target: 'Realização do mercado',
-            rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
+            stake_percent: stakePercent, stake_value: bankroll * stakePercent / 100,
+            entry: `${analysis.market} @ ${analysis.odd || 1.50}`, stop: 'Condição adversa ou gol contra',
+            target: 'Realização do mercado', rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
             ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 1.50) - 1) * 100)}%`,
+          };
+        }
+      }
+    }
+
+    // === LABAREDA DETECTION (server-side) ===
+    // If JOGO_MORTO but late-game with losing team pressing, upgrade to LABAREDA
+    if (analysis.verdict === 'JOGO_MORTO') {
+      const s = match.stats || {};
+      const min = match.minute ?? 0;
+      const scoreH = match.scoreHome ?? 0;
+      const scoreA = match.scoreAway ?? 0;
+      const diff = Math.abs(scoreH - scoreA);
+      const xgLoser = scoreH < scoreA ? (s.xG_home ?? 0) : (s.xG_away ?? 0);
+      const sotLoser = scoreH < scoreA ? (s.shots_on_target_home ?? s.shots_home ?? 0) : (s.shots_on_target_away ?? s.shots_away ?? 0);
+
+      if (min >= 60 && diff === 1 && scoreH !== scoreA) {
+        // Check LABAREDA triggers (need 2 of 4)
+        let triggers = 0;
+        if (min >= 65) triggers++; // Trigger 1: min 65+ losing by 1
+        if (xgLoser >= 0.8) triggers++; // Trigger 2: xG ≥ 0.8
+        if (sotLoser >= 3) triggers++; // Trigger 4 proxy: pressure via shots
+        // Trigger 3 (odd ≥ 2.5) we can't check without live odds
+
+        if (triggers >= 2) {
+          const loserName = scoreH < scoreA ? match.home : match.away;
+          console.log(`[MycroftSports] ⚡ LABAREDA ativado para ${match.home} vs ${match.away} (${triggers} gatilhos)`);
+          analysis.verdict = 'LABAREDA';
+          analysis.thesis = `⚡ LABAREDA — ${loserName} perdendo por 1 gol no min ${min}', com xG ${xgLoser} e ${sotLoser} finalizações. Potencial de gol tardio.`;
+          analysis.market = analysis.market === 'N/A' ? 'Over 0.5 Próximo Gol' : analysis.market;
+          analysis.alerts = [...(analysis.alerts || []), `⚡ LABAREDA: ${triggers} gatilhos ativados — oportunidade tardia detectada`];
+          analysis.risk_management = {
+            stake_percent: 2, stake_value: (match.bankroll ?? 500) * 0.02,
+            entry: `${analysis.market} @ ${analysis.odd || 2.50}`, stop: 'Gol contra ou perda de pressão',
+            target: 'Gol do time perdedor', rr: `1:${(analysis.odd || 2.50).toFixed(1)}`,
+            ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 2.50) - 1) * 100)}%`,
           };
         }
       }

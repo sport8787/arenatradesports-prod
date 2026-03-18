@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -30,7 +30,7 @@ export interface Match {
   minute: number;
   period: string;
   status: 'live' | 'scheduled' | 'finished';
-  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO';
+  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO' | 'LABAREDA' | 'CUIDADO' | 'JOGO_MORTO';
   matchId?: string;
   hasBet?: boolean;
   stats?: MatchStats | null;
@@ -176,71 +176,66 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'APROVADO':
     case 'opportunity':
       return {
-        bg: 'bg-[#14532D]',
-        border: 'border-[#22C55E]',
-        text: 'text-[#4ADE80]',
-        label: '✅ APROVADO',
-        animate: 'animate-pulse-green',
-        icon: <Target className="w-4 h-4" />,
+        bg: 'bg-[#14532D]', border: 'border-[#22C55E]', text: 'text-[#4ADE80]',
+        label: '✅ APROVADO', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
       };
     case 'APROVADO_SITUACIONAL':
       return {
-        bg: 'bg-[#1A3A2A]',
-        border: 'border-[#34D399]',
-        text: 'text-[#6EE7B7]',
-        label: '📍 SITUACIONAL',
-        animate: 'animate-pulse-green',
-        icon: <Target className="w-4 h-4" />,
+        bg: 'bg-[#1A3A2A]', border: 'border-[#34D399]', text: 'text-[#6EE7B7]',
+        label: '📍 SITUACIONAL', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
+      };
+    case 'LABAREDA':
+      return {
+        bg: 'bg-[#7C2D12]', border: 'border-[#F97316]', text: 'text-[#FB923C]',
+        label: '⚡ LABAREDA', animate: 'animate-pulse', icon: <Flame className="w-4 h-4" />,
+      };
+    case 'CUIDADO':
+      return {
+        bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
+        label: '⚠️ CUIDADO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
+      };
+    case 'JOGO_MORTO':
+      return {
+        bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
+        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'VETADO':
     case 'no_value':
       return {
-        bg: 'bg-[#7F1D1D]',
-        border: 'border-[#EF4444]',
-        text: 'text-[#F87171]',
-        label: '⛔ VETADO',
-        animate: 'animate-pulse-red',
-        icon: <ShieldAlert className="w-4 h-4" />,
+        bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
+        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'AGUARDAR':
       return {
-        bg: 'bg-[#713F12]',
-        border: 'border-[#F59E0B]',
-        text: 'text-[#FBBF24]',
-        label: '⏳ AGUARDAR',
-        animate: '',
-        icon: <Clock className="w-4 h-4" />,
+        bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
+        label: '⏳ AGUARDAR', animate: '', icon: <Clock className="w-4 h-4" />,
       };
     case 'analyzing':
       return {
-        bg: 'bg-[#1E3A5F]',
-        border: 'border-[#3B82F6]',
-        text: 'text-[#60A5FA]',
-        label: '🔍 ANALISANDO...',
-        animate: 'animate-shimmer',
-        icon: <Loader2 className="w-4 h-4 animate-spin" />,
+        bg: 'bg-[#1E3A5F]', border: 'border-[#3B82F6]', text: 'text-[#60A5FA]',
+        label: '🔍 ANALISANDO...', animate: 'animate-shimmer', icon: <Loader2 className="w-4 h-4 animate-spin" />,
       };
     default:
       return {
-        bg: 'bg-muted/50',
-        border: 'border-border',
-        text: 'text-muted-foreground',
-        label: '—',
-        animate: '',
-        icon: <Eye className="w-4 h-4" />,
+        bg: 'bg-muted/50', border: 'border-border', text: 'text-muted-foreground',
+        label: '—', animate: '', icon: <Eye className="w-4 h-4" />,
       };
   }
 }
-
 function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: number) {
   switch (status) {
     case 'APROVADO':
     case 'APROVADO_SITUACIONAL':
     case 'opportunity':
       return 'border-[#22C55E]/70 shadow-[0_0_15px_rgba(34,197,94,0.15)]';
+    case 'LABAREDA':
+      return 'border-[#F97316]/70 shadow-[0_0_15px_rgba(249,115,22,0.15)]';
+    case 'CUIDADO':
+      return 'border-[#F59E0B]/50';
+    case 'JOGO_MORTO':
     case 'VETADO':
     case 'no_value':
-      return 'border-[#7F1D1D]/70';
+      return 'border-[#78716C]/40';
     case 'AGUARDAR':
       return criteriaCount >= 4 ? 'border-[#F59E0B]/70 animate-pulse-border-yellow' : 'border-border';
     case 'analyzing':
@@ -249,7 +244,6 @@ function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: numbe
       return 'border-border';
   }
 }
-
 interface MatchCardProps {
   match: Match;
   index: number;
@@ -415,23 +409,38 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                   📍 SITUACIONAL
                 </span>
               )}
-              {(match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
-                <span className="font-orbitron text-[#F87171]">
-                  {vetoSummary ? `⛔ Vetado: ${vetoSummary}` : `Critérios insuficientes (${criteriaMet}/5)`}
+              {match.mycroftStatus === 'LABAREDA' && (
+                <span className="font-orbitron font-bold text-[#FB923C]">
+                  ⚡ Potencial de gol tardio
+                </span>
+              )}
+              {match.mycroftStatus === 'CUIDADO' && (
+                <span className="font-orbitron text-[#FBBF24]">
+                  ⚠️ Fator de risco ativo
+                </span>
+              )}
+              {(match.mycroftStatus === 'JOGO_MORTO' || match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
+                <span className="font-orbitron text-[#A8A29E]">
+                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade (${criteriaMet}/5)`}
                 </span>
               )}
             </div>
           </div>
 
           {/* CTA for approved */}
-          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL') && (
+          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA') && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onAnalysisClick?.(match.id)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#22C55E] text-black font-orbitron font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all"
+              className={cn(
+                "w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-orbitron font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all",
+                match.mycroftStatus === 'LABAREDA'
+                  ? 'bg-[#F97316] text-black'
+                  : 'bg-[#22C55E] text-black'
+              )}
             >
-              Ver Análise Completa
+              {match.mycroftStatus === 'LABAREDA' ? 'Ver Oportunidade Labareda' : 'Ver Análise Completa'}
               <ArrowRight className="w-4 h-4" />
             </motion.button>
           )}

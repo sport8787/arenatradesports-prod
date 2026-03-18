@@ -26,9 +26,9 @@ import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 const mockMatches: Match[] = [
   { id: '1', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Brasil', away: 'Argentina', homeLogo: '🇧🇷', awayLogo: '🇦🇷', scoreHome: 2, scoreAway: 1, minute: 34, period: '1º Tempo', status: 'live', mycroftStatus: 'APROVADO' },
   { id: '2', championship: 'Champions League', championshipColor: 'blue', home: 'Real Madrid', away: 'Barcelona', homeLogo: '⚪', awayLogo: '🔴', scoreHome: 0, scoreAway: 0, minute: 23, period: '1º Tempo', status: 'live', mycroftStatus: 'AGUARDAR' },
-  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'VETADO' },
-  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 0, minute: 0, period: 'Início 21:00', status: 'scheduled', mycroftStatus: 'VETADO' },
-  { id: '5', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Alemanha', away: 'França', homeLogo: '🇩🇪', awayLogo: '🇫🇷', scoreHome: 3, scoreAway: 2, minute: 90, period: 'Encerrado', status: 'finished', mycroftStatus: 'VETADO' },
+  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'JOGO_MORTO' },
+  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 1, minute: 72, period: '2º Tempo', status: 'live', mycroftStatus: 'LABAREDA' },
+  { id: '5', championship: 'Europa League', championshipColor: 'blue', home: 'Braga', away: 'Ferencvaros', homeLogo: '🔴', awayLogo: '🟢', scoreHome: 2, scoreAway: 0, minute: 55, period: '2º Tempo', status: 'live', mycroftStatus: 'CUIDADO' },
 ];
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
@@ -54,7 +54,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     minute: lm.minute ?? 0,
     period: lm.period ?? '',
     status: (lm.status === 'halftime' ? 'live' : lm.status) as Match['status'],
-    mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'VETADO' : (lm.mycroft_status || 'VETADO')) as Match['mycroftStatus'],
+    mycroftStatus: (lm.mycroft_status === 'done' && lm.mycroft_analysis?.verdict ? lm.mycroft_analysis.verdict : lm.mycroft_status === 'analyzing' ? 'AGUARDAR' : lm.mycroft_status === 'opportunity' ? 'APROVADO' : lm.mycroft_status === 'no_value' ? 'JOGO_MORTO' : (lm.mycroft_status || 'AGUARDAR')) as Match['mycroftStatus'],
     matchId: lm.match_id,
     stats: s ? {
       possession_home: s.possession_home ?? undefined,
@@ -294,7 +294,7 @@ export default function ArenaTraderSports() {
   };
 
   const filtered = useMemo(() => {
-    const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, AGUARDAR: 1, analyzing: 1, VETADO: 2, no_value: 2 };
+    const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, APROVADO_SITUACIONAL: 0, LABAREDA: 1, CUIDADO: 2, AGUARDAR: 3, analyzing: 3, JOGO_MORTO: 4, VETADO: 4, no_value: 4 };
     return allMatches
       .filter(m => {
         if (statusFilter === 'proximos') return false;

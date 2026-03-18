@@ -33,7 +33,11 @@ const basConfig: Record<string, { color: string; icon: string; border: string }>
 
 const verdictConfig: Record<string, { icon: string; bg: string; text: string; glow: string }> = {
   APROVADO: { icon: '✅', bg: 'bg-success', text: 'text-success-foreground', glow: 'shadow-[0_0_30px_hsl(142_76%_36%/0.5)]' },
-  VETADO: { icon: '❌', bg: 'bg-destructive', text: 'text-destructive-foreground', glow: 'shadow-[0_0_30px_hsl(0_72%_51%/0.5)]' },
+  APROVADO_SITUACIONAL: { icon: '📍', bg: 'bg-success', text: 'text-success-foreground', glow: 'shadow-[0_0_30px_hsl(142_76%_36%/0.5)]' },
+  LABAREDA: { icon: '⚡', bg: 'bg-[#7C2D12]', text: 'text-[#FB923C]', glow: 'shadow-[0_0_30px_rgba(249,115,22,0.5)]' },
+  CUIDADO: { icon: '⚠️', bg: 'bg-warning', text: 'text-warning-foreground', glow: 'shadow-[0_0_30px_hsl(38_92%_50%/0.5)]' },
+  JOGO_MORTO: { icon: '💀', bg: 'bg-muted', text: 'text-muted-foreground', glow: '' },
+  VETADO: { icon: '💀', bg: 'bg-muted', text: 'text-muted-foreground', glow: '' },
   AGUARDAR: { icon: '⏸️', bg: 'bg-warning', text: 'text-warning-foreground', glow: 'shadow-[0_0_30px_hsl(38_92%_50%/0.5)]' },
 };
 
