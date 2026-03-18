@@ -145,7 +145,7 @@ async function triggerMycroftAnalysis(
         .eq('match_id', matchData.match_id);
 
       // Auto-create signal if APROVADO
-      if (analysis.verdict === 'APROVADO') {
+      if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
         await supabase.from('signals_sent').insert({
           match_id: matchData.match_id,
           analysis_id: analysisRow.id,
