@@ -30,7 +30,7 @@ export interface Match {
   minute: number;
   period: string;
   status: 'live' | 'scheduled' | 'finished';
-  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO';
+  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO' | 'LABAREDA' | 'CUIDADO' | 'JOGO_MORTO';
   matchId?: string;
   hasBet?: boolean;
   stats?: MatchStats | null;
