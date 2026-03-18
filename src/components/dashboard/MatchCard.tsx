@@ -428,14 +428,19 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           </div>
 
           {/* CTA for approved */}
-          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL') && (
+          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA') && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onAnalysisClick?.(match.id)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#22C55E] text-black font-orbitron font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all"
+              className={cn(
+                "w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-orbitron font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all",
+                match.mycroftStatus === 'LABAREDA'
+                  ? 'bg-[#F97316] text-black'
+                  : 'bg-[#22C55E] text-black'
+              )}
             >
-              Ver Análise Completa
+              {match.mycroftStatus === 'LABAREDA' ? 'Ver Oportunidade Labareda' : 'Ver Análise Completa'}
               <ArrowRight className="w-4 h-4" />
             </motion.button>
           )}
