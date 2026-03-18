@@ -340,21 +340,34 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             {match.status === 'live' && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-center gap-2">
-                  {criteria.map((c) => (
-                    <Tooltip key={c.key}>
-                      <TooltipTrigger asChild>
-                        <div className={cn(
-                          'w-3 h-3 rounded-full border transition-all duration-300 cursor-help',
-                          c.met
-                            ? 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]'
-                            : 'bg-transparent border-muted-foreground/40'
-                        )} />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        <span className="font-semibold">{c.label}:</span> {c.detail} {c.met ? '✓' : '✗'}
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
+                    {criteria.map((c) => {
+                      const dotColors = {
+                        green: 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]',
+                        red: 'bg-[#EF4444] border-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.6)]',
+                        yellow: 'bg-[#F59E0B] border-[#F59E0B] shadow-[0_0_6px_rgba(245,158,11,0.6)]',
+                        gray: 'bg-transparent border-muted-foreground/40',
+                      };
+                      const stateEmoji = { green: '✓', red: '✗', yellow: '⚠', gray: '—' };
+                      return (
+                        <Tooltip key={c.key}>
+                          <TooltipTrigger asChild>
+                            <div className={cn(
+                              'w-3 h-3 rounded-full border transition-all duration-300 cursor-help',
+                              dotColors[c.state]
+                            )} />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[200px]">
+                            {c.state === 'red' ? (
+                              <span>❌ <span className="font-semibold">{c.label}:</span> {c.detail} — {c.vetoReason}</span>
+                            ) : c.state === 'yellow' ? (
+                              <span>⚠️ <span className="font-semibold">{c.label}:</span> {c.detail} — risco</span>
+                            ) : (
+                              <span><span className="font-semibold">{c.label}:</span> {c.detail} {stateEmoji[c.state]}</span>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   <span className="text-[10px] text-muted-foreground font-orbitron ml-1">
                     {criteriaMet}/5
                   </span>
