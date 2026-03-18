@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+
 // Normalize team/match names for comparison
 const normalize = (name: string) =>
   name.toLowerCase()
@@ -14,27 +16,26 @@ const normalize = (name: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Determine if a bet is eligible for settlement based on commence_time
+// Determine if a bet is eligible for settlement based on time
 function isEligibleForSettlement(bet: any): boolean {
   const now = Date.now();
 
-  // If bet has commence_time, the match must have started at least 90 min ago
   if (bet.commence_time) {
     const matchStart = new Date(bet.commence_time).getTime();
-    const minElapsed = 90 * 60 * 1000; // 90 minutes minimum for a match to finish
+    const minElapsed = 90 * 60 * 1000;
     if (matchStart + minElapsed > now) {
-      console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — match hasn't finished yet (starts ${bet.commence_time})`);
+      console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — match hasn't finished yet`);
       return false;
     }
     return true;
   }
 
-  // Fallback: if no commence_time, bet must be at least 3 hours old
-  if (bet.created_at || bet.placed_at) {
-    const betTime = new Date(bet.created_at || bet.placed_at).getTime();
-    const minAge = 3 * 60 * 60 * 1000; // 3 hours
+  // Fallback: bet must be at least 3 hours old
+  const betTime = new Date(bet.placed_at || bet.created_at).getTime();
+  if (betTime) {
+    const minAge = 3 * 60 * 60 * 1000;
     if (betTime + minAge > now) {
-      console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — bet too recent, no commence_time (created ${bet.created_at || bet.placed_at})`);
+      console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — bet too recent`);
       return false;
     }
   }
@@ -47,7 +48,6 @@ function findResult(
   matchName: string,
   market: string,
   completedGames: any[],
-  commenceTime?: string,
 ) {
   const normalizedMatch = normalize(matchName);
 
@@ -63,35 +63,11 @@ function findResult(
 
     if (!homeMatches || !awayMatches) continue;
 
-    // Date cross-reference: if bet has commence_time, verify it matches the game's date (±24h)
-    if (commenceTime && game.commence_time) {
-      const betMatchTime = new Date(commenceTime).getTime();
-      const gameTime = new Date(game.commence_time).getTime();
-      const timeDiff = Math.abs(betMatchTime - gameTime);
-      const maxDiff = 24 * 60 * 60 * 1000; // 24 hours tolerance
-      if (timeDiff > maxDiff) {
-        console.log(`[settle-bets] SKIP date mismatch: ${matchName} bet=${commenceTime} game=${game.commence_time}`);
-        continue;
-      }
-    }
+    const h = game.score_home;
+    const a = game.score_away;
+    if (h == null || a == null) continue;
 
-    // Verify game actually completed (not future)
-    if (game.commence_time) {
-      const gameStart = new Date(game.commence_time).getTime();
-      if (gameStart > Date.now()) {
-        console.log(`[settle-bets] SKIP future game: ${game.home_team} vs ${game.away_team}`);
-        continue;
-      }
-    }
-
-    const homeScore = game.scores?.find((s: any) => s.name === game.home_team)?.score;
-    const awayScore = game.scores?.find((s: any) => s.name === game.away_team)?.score;
-    if (homeScore == null || awayScore == null) continue;
-
-    const h = parseInt(homeScore);
-    const a = parseInt(awayScore);
     const totalGoals = h + a;
-
     const marketLower = market.toLowerCase().trim();
     const marketNorm = normalize(market);
     let isGreen = false;
@@ -105,7 +81,7 @@ function findResult(
       isGreen = h === a;
     } else if (marketLower.includes('over')) {
       const line = parseFloat(marketLower.replace(/[^0-9.]/g, '')) || 2.5;
-      if (marketLower.includes('ht') || marketLower.includes('1t')) return null;
+      if (marketLower.includes('ht') || marketLower.includes('1t')) return null; // can't settle HT markets
       isGreen = totalGoals > line;
     } else if (marketLower.includes('under')) {
       const line = parseFloat(marketLower.replace(/[^0-9.]/g, '')) || 2.5;
@@ -113,10 +89,10 @@ function findResult(
       isGreen = totalGoals < line;
     } else if (marketLower.includes('btts') || marketLower.includes('ambas')) {
       isGreen = h > 0 && a > 0;
-    } else if (homeNorm.includes(marketNorm) || marketNorm.includes(homeNorm) ||
+    } else if (marketLower.includes('back casa') || homeNorm.includes(marketNorm) || marketNorm.includes(homeNorm) ||
                homeNorm.split(' ').some((w: string) => w.length > 3 && marketNorm.includes(w))) {
       isGreen = h > a;
-    } else if (awayNorm.includes(marketNorm) || marketNorm.includes(awayNorm) ||
+    } else if (marketLower.includes('back fora') || awayNorm.includes(marketNorm) || marketNorm.includes(awayNorm) ||
                awayNorm.split(' ').some((w: string) => w.length > 3 && marketNorm.includes(w))) {
       isGreen = a > h;
     } else {
@@ -131,6 +107,48 @@ function findResult(
   return null;
 }
 
+// Fetch finished fixtures from API-Football for the last N days
+async function fetchFinishedFixtures(apiKey: string, daysBack: number = 3): Promise<any[]> {
+  const results: any[] = [];
+  
+  for (let d = 0; d <= daysBack; d++) {
+    const date = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    try {
+      console.log(`[settle-bets] Fetching finished fixtures for ${dateStr}...`);
+      const res = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${dateStr}&status=FT-AET-PEN`, {
+        headers: { 'x-apisports-key': apiKey },
+      });
+      
+      if (!res.ok) {
+        console.error(`[settle-bets] API-Football error for ${dateStr}: ${res.status}`);
+        continue;
+      }
+      
+      const data = await res.json();
+      const fixtures = data.response || [];
+      
+      for (const fix of fixtures) {
+        results.push({
+          home_team: fix.teams?.home?.name || '',
+          away_team: fix.teams?.away?.name || '',
+          score_home: fix.goals?.home ?? null,
+          score_away: fix.goals?.away ?? null,
+          commence_time: fix.fixture?.date || null,
+          league: fix.league?.name || '',
+        });
+      }
+      
+      console.log(`[settle-bets] ${dateStr}: ${fixtures.length} finished fixtures`);
+    } catch (e) {
+      console.error(`[settle-bets] Error fetching ${dateStr}:`, e);
+    }
+  }
+  
+  return results;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -139,8 +157,16 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')!;
+    const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY');
+    const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    if (!apiFootballKey && !oddsApiKey) {
+      return new Response(JSON.stringify({ error: 'No API key configured (API_FOOTBALL_KEY or THE_ODDS_API_KEY)' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // 1. Fetch all pending bets
     const [betsRes, punterRes, manualRes, signalsRes] = await Promise.all([
@@ -171,34 +197,57 @@ Deno.serve(async (req) => {
 
     console.log(`[settle-bets] ${eligibleBets.length}/${allPending.length} bets eligible, ${pendingSignals.length} signals`);
 
-    // 3. Fetch scores from The Odds API
-    const allLeagues = [
-      'soccer_brazil_campeonato', 'soccer_brazil_serie_b',
-      'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
-      'soccer_italy_serie_a', 'soccer_france_ligue_one',
-      'soccer_uefa_champs_league', 'soccer_uefa_europa_league',
-      'soccer_uefa_europa_conference_league',
-      'soccer_conmebol_libertadores', 'soccer_south_america_copa_sudamericana',
-      'soccer_argentina_primera_division',
-    ];
+    // 3. Fetch completed game results — prefer API-Football (covers all leagues)
+    let completedGames: any[] = [];
 
-    const allScores: any[] = [];
-    for (const league of allLeagues) {
-      try {
-        const res = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${league}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          allScores.push(...data);
-        }
-      } catch (e) {
-        console.error(`Error fetching ${league}:`, e);
-      }
+    if (apiFootballKey) {
+      completedGames = await fetchFinishedFixtures(apiFootballKey, 3);
+      console.log(`[settle-bets] ${completedGames.length} completed games from API-Football`);
     }
 
-    const completedGames = allScores.filter((g: any) => g.completed === true && g.scores);
-    console.log(`[settle-bets] ${completedGames.length} completed games from API`);
+    // Fallback to The Odds API if API-Football unavailable or returned nothing
+    if (completedGames.length === 0 && oddsApiKey) {
+      console.log('[settle-bets] Falling back to The Odds API...');
+      const allLeagues = [
+        'soccer_brazil_campeonato', 'soccer_brazil_serie_b',
+        'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
+        'soccer_italy_serie_a', 'soccer_france_ligue_one',
+        'soccer_uefa_champs_league', 'soccer_uefa_europa_league',
+        'soccer_uefa_europa_conference_league',
+        'soccer_conmebol_libertadores', 'soccer_south_america_copa_sudamericana',
+        'soccer_argentina_primera_division',
+      ];
+
+      for (const league of allLeagues) {
+        try {
+          const res = await fetch(
+            `https://api.the-odds-api.com/v4/sports/${league}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            for (const g of data) {
+              if (g.completed && g.scores) {
+                const homeScore = g.scores.find((s: any) => s.name === g.home_team)?.score;
+                const awayScore = g.scores.find((s: any) => s.name === g.away_team)?.score;
+                if (homeScore != null && awayScore != null) {
+                  completedGames.push({
+                    home_team: g.home_team,
+                    away_team: g.away_team,
+                    score_home: parseInt(homeScore),
+                    score_away: parseInt(awayScore),
+                    commence_time: g.commence_time,
+                    league: '',
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Error fetching ${league}:`, e);
+        }
+      }
+      console.log(`[settle-bets] ${completedGames.length} completed games from Odds API (fallback)`);
+    }
 
     // 4. Settle eligible bets
     let settledCount = 0;
@@ -206,7 +255,7 @@ Deno.serve(async (req) => {
 
     for (const bet of eligibleBets) {
       const matchRef = bet.match_name || bet.match_id || '';
-      const result = findResult(matchRef, bet.market, completedGames, bet.commence_time);
+      const result = findResult(matchRef, bet.market, completedGames);
       if (!result) continue;
 
       const profitLoss = result.isGreen
@@ -234,7 +283,6 @@ Deno.serve(async (req) => {
 
       // Update correct bankroll
       const balanceChange = result.isGreen ? bet.stake * bet.odd : 0;
-      // Route virtual_bets to sports_bankroll, others to user_bankroll/manual_bankroll
       const bankrollTable = bet.table === 'virtual_bets' ? 'sports_bankroll' 
         : bet.table === 'virtual_bets_manual' ? 'manual_bankroll' 
         : 'user_bankroll';
@@ -306,6 +354,7 @@ Deno.serve(async (req) => {
       skipped: allPending.length - eligibleBets.length,
       results,
       completed_games: completedGames.length,
+      source: apiFootballKey ? 'api-football' : 'odds-api',
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {

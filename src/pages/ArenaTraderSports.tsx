@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, Globe, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -86,7 +86,7 @@ export default function ArenaTraderSports() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
-  const [isFetchingV2, setIsFetchingV2] = useState(false);
+  
   const [isSettling, setIsSettling] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
@@ -147,20 +147,6 @@ export default function ArenaTraderSports() {
     }
   }, [refetch, bankroll]);
 
-  const handleFetchV2 = useCallback(async () => {
-    setIsFetchingV2(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-live-matches-v2');
-      if (error) throw error;
-      toast.success(`API 2: ${data.total_matches} ao vivo, ${data.analyzed} analisados, ${data.scheduled} agendados`);
-      refetch();
-    } catch (e) {
-      console.error('Fetch V2 error:', e);
-      toast.error('Erro ao buscar jogos (API 2)');
-    } finally {
-      setIsFetchingV2(false);
-    }
-  }, [refetch]);
 
   const handleSettleBets = useCallback(async () => {
     setIsSettling(true);
@@ -389,10 +375,6 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" onClick={handleAnalyzeCorners} disabled={isAnalyzingCorners} variant="outline">
               <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
               Escanteios
-            </GoldButton>
-            <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
-              <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
-              API 2
             </GoldButton>
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
