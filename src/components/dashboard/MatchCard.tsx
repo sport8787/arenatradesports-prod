@@ -405,9 +405,14 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               <span className="font-orbitron">{match.minute}' | {match.period}</span>
             </div>
             <div className="truncate max-w-[60%] text-right">
-              {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'opportunity') && match.planName && (
+              {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'opportunity') && match.planName && (
                 <span className="font-orbitron font-bold text-primary">
                   PLANO {match.planName}
+                </span>
+              )}
+              {match.mycroftStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
+                <span className="font-orbitron font-bold text-[#6EE7B7]">
+                  📍 SITUACIONAL
                 </span>
               )}
               {(match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
