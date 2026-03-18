@@ -167,7 +167,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
 
                   {/* Plan */}
                   <td className="px-3 py-2 text-left">
-                    {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'opportunity') && m.planName ? (
+                    {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity') && m.planName ? (
                       <span className="font-orbitron text-primary font-bold text-[10px]">{m.planName}</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>

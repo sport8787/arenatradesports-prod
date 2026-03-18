@@ -578,7 +578,7 @@ serve(async (req) => {
     }
 
     // Ensure odd/risk_management defaults for APROVADO
-    if (analysis.verdict === 'APROVADO') {
+    if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
       if (!analysis.odd || analysis.odd <= 0) {
         analysis.odd = 1.50;
         analysis.alerts = [...(analysis.alerts || []), 'Odd estimada automaticamente'];
