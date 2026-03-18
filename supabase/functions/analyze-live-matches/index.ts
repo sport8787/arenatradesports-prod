@@ -13,6 +13,29 @@ function getSupabaseAdmin() {
   );
 }
 
+// Reanalysis intervals (ms) by status and minute range
+function getReanalysisInterval(status: string, minute: number): number {
+  const MIN = 60 * 1000;
+  if (status === 'aguardar' || status === 'AGUARDAR') {
+    if (minute < 25) return 5 * MIN;
+    return 1 * MIN;
+  }
+  if (status === 'jogo_morto' || status === 'JOGO_MORTO') {
+    if (minute < 60) return 5 * MIN;
+    if (minute < 75) return 3 * MIN;
+    return 2 * MIN;
+  }
+  if (status === 'cuidado' || status === 'CUIDADO') {
+    if (minute < 60) return 3 * MIN;
+    if (minute < 75) return 2 * MIN;
+    return 1 * MIN;
+  }
+  if (status === 'labareda' || status === 'LABAREDA') {
+    return 1 * MIN; // Always 1 min for LABAREDA
+  }
+  return 5 * MIN; // default
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -25,15 +48,13 @@ serve(async (req) => {
 
     const { bankroll } = await req.json();
 
-    // Helper: check if match has special early context (knockout needing comeback, or high xG)
+    // Helper: check if match has special early context
     const hasSpecialEarlyContext = (m: any): boolean => {
       const stats = m.stats || {};
       const championship = (m.championship || '').toLowerCase();
       const isKnockout = /copa|cup|eliminat|playoff|mata-mata|knockout|libertadores|champions|europa league/i.test(championship);
-      // Check if home team is behind on aggregate or score
       const homeBehind = (m.score_home ?? 0) < (m.score_away ?? 0);
       if (isKnockout && homeBehind) return true;
-      // Check xG > 0.3 for home team
       const xgHome = parseFloat(stats.xg_home ?? stats.expected_goals_home ?? '0') || 0;
       if (xgHome > 0.3) return true;
       return false;
@@ -48,48 +69,54 @@ serve(async (req) => {
       .order('minute', { ascending: false })
       .limit(10);
 
-    // FAIXA 1 (0-10): only special context. FAIXA 2+ (10+): all.
     const matchesNew = (allNewMatches || []).filter((m: any) => {
       const min = m.minute ?? 0;
       if (min < 10) {
         const special = hasSpecialEarlyContext(m);
-        if (!special) {
-          console.log(`[AnalyzeLive] ⏭️ Skipping ${m.home_team} vs ${m.away_team} (${min}') — no special early context`);
-        }
+        if (!special) console.log(`[AnalyzeLive] ⏭️ Skipping ${m.home_team} vs ${m.away_team} (${min}') — no special early context`);
         return special;
       }
-      return true; // min >= 10: analyze all
+      return true;
     }).slice(0, 5);
 
-    // Re-analyze AGUARDAR matches with tiered intervals
-    const { data: matchesAguardar, error: matchError2 } = await supabase
+    // Re-analyze ALL non-APROVADO matches with tiered intervals
+    // Statuses eligible for reanalysis: aguardar, jogo_morto, cuidado, labareda
+    const REANALYSIS_STATUSES = ['aguardar', 'jogo_morto', 'cuidado', 'labareda'];
+    
+    const { data: matchesForReanalysis, error: matchError2 } = await supabase
       .from('live_matches')
       .select('*, mycroft_analyses!inner(id, verdict, created_at)')
       .eq('status', 'live')
-      .eq('mycroft_status', 'aguardar')
+      .in('mycroft_status', ['aguardar', 'done'])
       .order('minute', { ascending: false })
-      .limit(10);
+      .limit(20);
 
     const now = Date.now();
-    const reAnalyzable = (matchesAguardar || []).filter((m: any) => {
+    const reAnalyzable = (matchesForReanalysis || []).filter((m: any) => {
       const min = m.minute ?? 0;
+      const verdict = m.mycroft_analyses?.verdict || '';
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
       const elapsed = now - analysisTime;
 
-      // FAIXA 1 (0-10): re-analyze every 5 min, only if special context
-      if (min < 10) {
-        return elapsed > 5 * 60 * 1000 && hasSpecialEarlyContext(m);
+      // APROVADO and APROVADO_SITUACIONAL are NOT reanalyzed (signal already emitted)
+      if (verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') return false;
+
+      // Determine effective status for interval calculation
+      const effectiveStatus = verdict || m.mycroft_status || 'aguardar';
+      const interval = getReanalysisInterval(effectiveStatus, min);
+
+      // For early minutes, also check special context
+      if (min < 10 && !hasSpecialEarlyContext(m)) return false;
+
+      if (elapsed > interval) {
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        return true;
       }
-      // FAIXA 2 (10-25): re-analyze every 5 min
-      if (min < 25) {
-        return elapsed > 5 * 60 * 1000;
-      }
-      // FAIXA 3 (25+): re-analyze every 1 min
-      return elapsed > 1 * 60 * 1000;
+      return false;
     }).slice(0, 5);
 
     if (reAnalyzable.length > 0) {
-      console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} AGUARDAR matches eligible for re-analysis`);
+      console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} matches eligible for re-analysis`);
       for (const m of reAnalyzable) {
         await supabase.from('live_matches').update({
           mycroft_analysis_id: null,
@@ -176,7 +203,17 @@ serve(async (req) => {
         }
 
         if (analysisRow) {
-          const statusToSet = analysis.verdict === 'AGUARDAR' ? 'aguardar' : 'done';
+          // Map verdict to mycroft_status
+          const verdictToStatus: Record<string, string> = {
+            'APROVADO': 'done',
+            'APROVADO_SITUACIONAL': 'done',
+            'AGUARDAR': 'aguardar',
+            'JOGO_MORTO': 'done',
+            'LABAREDA': 'done',
+            'CUIDADO': 'done',
+          };
+          const statusToSet = verdictToStatus[analysis.verdict] || 'done';
+          
           await supabase
             .from('live_matches')
             .update({
@@ -195,16 +232,16 @@ serve(async (req) => {
             market: analysis.market,
           });
 
-          // === TELEGRAM NOTIFICATION for APROVADO ===
-          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+          // === TELEGRAM NOTIFICATION for APROVADO / LABAREDA ===
+          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA') {
             try {
               const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
               const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
               if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-                const tierEmoji = analysis.asset_classification === 'ELITE' ? '🏆' : analysis.asset_classification === 'PREMIUM' ? '💎' : '⚡';
+                const statusEmoji = analysis.verdict === 'LABAREDA' ? '⚡' : '✅';
                 const planLabel = analysis.plan_name ? ` | Plano: *${analysis.plan_name}*` : '';
                 const msg = [
-                  `${tierEmoji} *SINAL APROVADO — ARENA TRADER SPORTS*`,
+                  `${statusEmoji} *SINAL ${analysis.verdict} — ARENA TRADER SPORTS*`,
                   ``,
                   `⚽ *${match.home_team} vs ${match.away_team}*`,
                   `🏟️ ${match.championship} | ${match.minute ?? 0}'`,
