@@ -95,6 +95,7 @@ export default function ArenaTraderSports() {
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   // Fetch betted match IDs to prevent duplicates
   useEffect(() => {
