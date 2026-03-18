@@ -14,13 +14,15 @@ export function useSportsTrainingStatus() {
         return;
       }
 
+      // Use type assertion since column was just added via migration
       const { data } = await supabase
         .from('profiles')
-        .select('sports_training_completed')
+        .select('*')
         .eq('user_id', user.id)
         .single();
 
-      setCompleted(data?.sports_training_completed ?? false);
+      const profile = data as any;
+      setCompleted(profile?.sports_training_completed ?? false);
       setLoading(false);
     };
 
@@ -31,8 +33,8 @@ export function useSportsTrainingStatus() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase
-      .from('profiles')
+    // Use type assertion for new column
+    await (supabase.from('profiles') as any)
       .update({
         sports_training_completed: true,
         sports_training_completed_at: new Date().toISOString(),
