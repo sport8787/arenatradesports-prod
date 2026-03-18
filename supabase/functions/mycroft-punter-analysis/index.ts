@@ -1045,6 +1045,41 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       if(a.value_percentage==null&&a.estimated_probability&&a.odd) a.value_percentage=Math.round((a.estimated_probability-(1/a.odd)*100)*10)/10
       if(a.value_percentage==null) a.value_percentage=0
 
+      // ═══ GARANTIR estimated_probability preenchido ═══
+      // Fallback: usar dados Poisson quando a IA não preencher corretamente
+      if (!a.estimated_probability || a.estimated_probability <= 0) {
+        let fallbackProb: number | null = null
+        if (poissonResult && a.market) {
+          const mkt = (a.market || '').toLowerCase()
+          if (mkt.includes('over 2.5')) fallbackProb = poissonResult.probOver25 * 100
+          else if (mkt.includes('under 2.5')) fallbackProb = (1 - poissonResult.probOver25) * 100
+          else if (mkt.includes('over 3.5')) fallbackProb = poissonResult.probOver35 * 100
+          else if (mkt.includes('under 3.5')) fallbackProb = (1 - poissonResult.probOver35) * 100
+          else if (mkt.includes('over 1.5')) fallbackProb = poissonResult.probOver15 * 100
+          else if (mkt.includes('under 1.5')) fallbackProb = (1 - poissonResult.probOver15) * 100
+          else if (mkt.includes('casa') || mkt.includes('home')) fallbackProb = poissonResult.probCasa * 100
+          else if (mkt.includes('empate') || mkt.includes('draw')) fallbackProb = poissonResult.probEmpate * 100
+          else if (mkt.includes('fora') || mkt.includes('away')) fallbackProb = poissonResult.probVisitante * 100
+          else if (mkt.includes('btts') || mkt.includes('ambas')) fallbackProb = poissonResult.probBTTS * 100
+        }
+        // Last resort: derive from odd (implied probability)
+        if (!fallbackProb && a.odd && a.odd > 1) {
+          fallbackProb = (1 / a.odd) * 100
+        }
+        if (fallbackProb) {
+          a.estimated_probability = Math.round(fallbackProb * 100) / 100
+          console.log(`[Mycroft Punter] ⚠️ estimated_probability preenchido via fallback: ${a.estimated_probability}% (market: ${a.market})`)
+        }
+      }
+
+      // Recalcular fair_odd baseado em estimated_probability
+      if (a.estimated_probability && a.estimated_probability > 0) {
+        const correctFairOdd = Math.round((1 / (a.estimated_probability / 100)) * 100) / 100
+        if (!a.fair_odd || Math.abs(a.fair_odd - a.odd) < 0.01) {
+          a.fair_odd = correctFairOdd
+        }
+      }
+
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${a.verdict} | Market: ${a.market} | Model: ${a.model_level} | Edge: ${a.edge_percentage}% | Conf: ${a.confidence}% | Tier: ${a.tier}`)
       if(a.corner_prediction) console.log(`[Mycroft Punter] 🏁 Corner: Line ${a.corner_prediction.line}, Expected ${a.corner_prediction.expected_total}, Value ${a.corner_prediction.value}`)
       if(a.card_prediction) console.log(`[Mycroft Punter] 🟨 Card: ${a.card_prediction.market}, Expected ${a.card_prediction.expected_total}, Value ${a.card_prediction.value}`)
