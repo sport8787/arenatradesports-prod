@@ -36,7 +36,7 @@ interface TradingBet {
   odd_fonte?: string | null;
 }
 
-type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
+type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled' | 'entries';
 
 export default function TradingHistory() {
   const navigate = useNavigate();
