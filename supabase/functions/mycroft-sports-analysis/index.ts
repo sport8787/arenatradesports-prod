@@ -662,6 +662,36 @@ serve(async (req) => {
       analysis.risk_management.stake_value = (match.bankroll ?? 500) * analysis.risk_management.stake_percent / 100;
     }
 
+    // === VALIDAR ADDITIONAL_MARKETS ===
+    if (analysis.additional_markets?.length > 0 && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA')) {
+      const bankroll = match.bankroll ?? 500;
+      const primaryMarket = analysis.market;
+      analysis.additional_markets = analysis.additional_markets
+        .filter((am: any) => {
+          if (!am.market || !am.odd || !am.confidence) return false;
+          if (am.confidence < 60) return false;
+          if (am.market === primaryMarket) return false;
+          // Block opposite markets
+          const opposites: Record<string, string> = {
+            'Over 0.5 Total': 'Under 0.5 Total', 'Over 1.5 Total': 'Under 1.5 Total',
+            'Over 2.5 Total': 'Under 2.5 Total', 'Over 3.5 Total': 'Under 3.5 Total',
+          };
+          if (opposites[am.market] === primaryMarket || opposites[primaryMarket] === am.market) return false;
+          return true;
+        })
+        .slice(0, 2)
+        .map((am: any) => ({
+          ...am,
+          stake_percent: Math.min(am.stake_percent || 2, 2),
+          stake_value: bankroll * Math.min(am.stake_percent || 2, 2) / 100,
+        }));
+      if (analysis.additional_markets.length > 0) {
+        console.log(`[MycroftSports] 📊 ${analysis.additional_markets.length} mercado(s) adicional(is): ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
+      }
+    } else {
+      analysis.additional_markets = [];
+    }
+
     // === BAS (Bluffer Asset Score) — composite quality score ===
     {
       let bas = 0;
