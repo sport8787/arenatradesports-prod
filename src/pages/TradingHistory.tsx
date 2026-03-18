@@ -92,6 +92,31 @@ export default function TradingHistory() {
     setLoading(false);
   };
 
+  const fetchEntries = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('arena_trader_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    // Group by fixture
+    const grouped = (data || []).reduce((acc: any, entry: any) => {
+      if (!acc[entry.fixture_id]) {
+        acc[entry.fixture_id] = {
+          fixture_id: entry.fixture_id,
+          fixture_label: entry.fixture_label,
+          entries: [],
+          total_pnl: 0,
+        };
+      }
+      acc[entry.fixture_id].entries.push(entry);
+      acc[entry.fixture_id].total_pnl += Number(entry.pnl) || 0;
+      return acc;
+    }, {} as Record<string, any>);
+    setEntries(Object.values(grouped));
+  };
+
   const handleSettle = async () => {
     setSettling(true);
     const result = await settleBets();
