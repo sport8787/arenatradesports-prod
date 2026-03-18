@@ -125,7 +125,7 @@ export default function Historico() {
                 <TabsList className="bg-secondary/50">
                   <TabsTrigger value="all">Todos</TabsTrigger>
                   <TabsTrigger value="APROVADO">Aprovados</TabsTrigger>
-                  <TabsTrigger value="VETADO">Vetados</TabsTrigger>
+                  <TabsTrigger value="VETADO">Jogo Morto</TabsTrigger>
                 </TabsList>
               </Tabs>
 
