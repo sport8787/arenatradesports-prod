@@ -402,7 +402,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               )}
               {(match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
                 <span className="font-orbitron text-[#F87171]">
-                  Critérios insuficientes ({criteriaMet}/5)
+                  {vetoSummary ? `⛔ Vetado: ${vetoSummary}` : `Critérios insuficientes (${criteriaMet}/5)`}
                 </span>
               )}
             </div>
