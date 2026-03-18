@@ -152,13 +152,22 @@ SISTEMA DE STATUS DINÂMICOS (6 ESTADOS)
    Ação: monitorar sem aprovar até fator de risco resolver
 💀 JOGO_MORTO — Sem oportunidade técnica viável NESTE MOMENTO.
    NÃO é permanente. Reanalisar periodicamente — jogo pode mudar.
-   ⚠️ REGRA OBRIGATÓRIA: NUNCA classificar como JOGO_MORTO antes do minuto 20.
+   ⚠️ REGRA OBRIGATÓRIA 1: NUNCA classificar como JOGO_MORTO antes do minuto 20.
    Antes do minuto 20, usar AGUARDAR (contexto insuficiente para determinar jogo morto).
+   ⚠️ REGRA OBRIGATÓRIA 2: NUNCA classificar como JOGO_MORTO se:
+   - Placar tem gols (1-0, 1-1, 2-1, etc.) E diferença ≤ 2 gols E minuto < 80
+   - Total de finalizações ≥ 4 ou finalizações no alvo ≥ 2
+   - Um time tem posse ≥ 55% e está atacando
+   Nesses casos usar CUIDADO (jogo ativo com potencial) ou AGUARDAR.
+   JOGO_MORTO é APENAS para jogos REALMENTE parados: 0-0 sem chutes, ou goleada 3+ gols com time perdedor sem atacar.
    Exemplos válidos de JOGO_MORTO (após min 20):
-   - 0-0 minuto 25, sem pressão de nenhum lado, 0 finalizações
-   - 3-0 minuto 80 sem time perdedor atacando
-   Exemplos INVÁLIDOS (usar AGUARDAR):
-   - Qualquer jogo antes do minuto 20, mesmo com pouca atividade
+   - 0-0 minuto 30, 0 finalizações no alvo de ambos os lados
+   - 4-0 minuto 80 sem time perdedor atacando
+   Exemplos INVÁLIDOS (NÃO usar JOGO_MORTO):
+   - Qualquer jogo antes do minuto 20
+   - Jogo 1-0 com finalizações ativas (usar CUIDADO)
+   - Jogo 1-1 ou 2-1 em qualquer minuto (usar CUIDADO)
+   - Jogo com xG total ≥ 0.5 (usar CUIDADO ou AGUARDAR)
 🕐 AGUARDAR — Contexto se desenvolvendo. Aguardar antes de decidir.
 
 REGRA CRÍTICA: NUNCA use "VETADO". Use JOGO_MORTO, CUIDADO, LABAREDA ou AGUARDAR.
