@@ -176,62 +176,52 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'APROVADO':
     case 'opportunity':
       return {
-        bg: 'bg-[#14532D]',
-        border: 'border-[#22C55E]',
-        text: 'text-[#4ADE80]',
-        label: '✅ APROVADO',
-        animate: 'animate-pulse-green',
-        icon: <Target className="w-4 h-4" />,
+        bg: 'bg-[#14532D]', border: 'border-[#22C55E]', text: 'text-[#4ADE80]',
+        label: '✅ APROVADO', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
       };
     case 'APROVADO_SITUACIONAL':
       return {
-        bg: 'bg-[#1A3A2A]',
-        border: 'border-[#34D399]',
-        text: 'text-[#6EE7B7]',
-        label: '📍 SITUACIONAL',
-        animate: 'animate-pulse-green',
-        icon: <Target className="w-4 h-4" />,
+        bg: 'bg-[#1A3A2A]', border: 'border-[#34D399]', text: 'text-[#6EE7B7]',
+        label: '📍 SITUACIONAL', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
+      };
+    case 'LABAREDA':
+      return {
+        bg: 'bg-[#7C2D12]', border: 'border-[#F97316]', text: 'text-[#FB923C]',
+        label: '⚡ LABAREDA', animate: 'animate-pulse', icon: <Flame className="w-4 h-4" />,
+      };
+    case 'CUIDADO':
+      return {
+        bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
+        label: '⚠️ CUIDADO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
+      };
+    case 'JOGO_MORTO':
+      return {
+        bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
+        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'VETADO':
     case 'no_value':
       return {
-        bg: 'bg-[#7F1D1D]',
-        border: 'border-[#EF4444]',
-        text: 'text-[#F87171]',
-        label: '⛔ VETADO',
-        animate: 'animate-pulse-red',
-        icon: <ShieldAlert className="w-4 h-4" />,
+        bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
+        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'AGUARDAR':
       return {
-        bg: 'bg-[#713F12]',
-        border: 'border-[#F59E0B]',
-        text: 'text-[#FBBF24]',
-        label: '⏳ AGUARDAR',
-        animate: '',
-        icon: <Clock className="w-4 h-4" />,
+        bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
+        label: '⏳ AGUARDAR', animate: '', icon: <Clock className="w-4 h-4" />,
       };
     case 'analyzing':
       return {
-        bg: 'bg-[#1E3A5F]',
-        border: 'border-[#3B82F6]',
-        text: 'text-[#60A5FA]',
-        label: '🔍 ANALISANDO...',
-        animate: 'animate-shimmer',
-        icon: <Loader2 className="w-4 h-4 animate-spin" />,
+        bg: 'bg-[#1E3A5F]', border: 'border-[#3B82F6]', text: 'text-[#60A5FA]',
+        label: '🔍 ANALISANDO...', animate: 'animate-shimmer', icon: <Loader2 className="w-4 h-4 animate-spin" />,
       };
     default:
       return {
-        bg: 'bg-muted/50',
-        border: 'border-border',
-        text: 'text-muted-foreground',
-        label: '—',
-        animate: '',
-        icon: <Eye className="w-4 h-4" />,
+        bg: 'bg-muted/50', border: 'border-border', text: 'text-muted-foreground',
+        label: '—', animate: '', icon: <Eye className="w-4 h-4" />,
       };
   }
 }
-
 function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: number) {
   switch (status) {
     case 'APROVADO':
