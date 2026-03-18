@@ -332,7 +332,8 @@ export default function ArenaTraderSports() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        {/* Top row: title + bankroll info */}
+        <div className="container mx-auto px-4 pt-3 pb-2 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
@@ -342,9 +343,9 @@ export default function ArenaTraderSports() {
             </h1>
           </div>
 
-          <div className="hidden md:flex items-center gap-5">
+          <div className="flex items-center gap-4">
             {bankroll && (
-              <>
+              <div className="hidden md:flex items-center gap-5">
                 <div className="flex items-center gap-1.5 text-sm">
                   <Wallet className="w-4 h-4 text-primary" />
                   <span className="text-muted-foreground">Banca:</span>
@@ -357,31 +358,49 @@ export default function ArenaTraderSports() {
                   <span className="text-muted-foreground">Win Rate:</span>
                   <span className="font-orbitron font-bold text-success">{bankroll.win_rate.toFixed(0)}%</span>
                 </div>
-              </>
+              </div>
             )}
-          </div>
-
-          <div className="flex items-center gap-2">
             <LiveCronToggle />
+            {/* View toggle */}
+            <div className="flex items-center border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+              >
+                <TableProperties className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons row - scrollable */}
+        <div className="container mx-auto px-4 pb-3">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
             <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
               <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
               {isFetching ? 'Analisando...' : 'Fazer Análise'}
             </GoldButton>
             <GoldButton size="sm" onClick={handleAnalyzeCorners} disabled={isAnalyzingCorners} variant="outline">
               <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
-              {isAnalyzingCorners ? 'Analisando...' : 'Escanteios'}
+              Escanteios
             </GoldButton>
             <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
               <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
-              {isFetchingV2 ? 'Buscando...' : 'API 2'}
+              API 2
             </GoldButton>
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
-              {isSettling ? 'Liquidando...' : 'Liquidar'}
+              Liquidar
             </GoldButton>
             <GoldButton size="sm" onClick={handleEvaluateCashouts} disabled={isEvaluating} variant="outline">
               <Banknote className={cn("w-4 h-4 mr-1", isEvaluating && "animate-spin")} />
-              {isEvaluating ? 'Avaliando...' : 'Avaliar Cash Out'}
+              Cash Out
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
@@ -403,21 +422,6 @@ export default function ArenaTraderSports() {
               <Dumbbell className="w-4 h-4 mr-1" />
               Treino
             </GoldButton>
-            {/* View toggle */}
-            <div className="flex items-center border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <TableProperties className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
       </header>
