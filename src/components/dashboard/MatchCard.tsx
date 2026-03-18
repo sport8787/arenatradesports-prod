@@ -409,9 +409,19 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                   📍 SITUACIONAL
                 </span>
               )}
-              {(match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
-                <span className="font-orbitron text-[#F87171]">
-                  {vetoSummary ? `⛔ Vetado: ${vetoSummary}` : `Critérios insuficientes (${criteriaMet}/5)`}
+              {match.mycroftStatus === 'LABAREDA' && (
+                <span className="font-orbitron font-bold text-[#FB923C]">
+                  ⚡ Potencial de gol tardio
+                </span>
+              )}
+              {match.mycroftStatus === 'CUIDADO' && (
+                <span className="font-orbitron text-[#FBBF24]">
+                  ⚠️ Fator de risco ativo
+                </span>
+              )}
+              {(match.mycroftStatus === 'JOGO_MORTO' || match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
+                <span className="font-orbitron text-[#A8A29E]">
+                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade (${criteriaMet}/5)`}
                 </span>
               )}
             </div>
