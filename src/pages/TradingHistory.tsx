@@ -43,6 +43,7 @@ export default function TradingHistory() {
   const { user } = useAuth();
   const { bankroll, settleBets } = useSportsBankroll();
   const [bets, setBets] = useState<TradingBet[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
