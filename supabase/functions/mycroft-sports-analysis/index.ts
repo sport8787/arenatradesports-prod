@@ -392,7 +392,7 @@ serve(async (req) => {
           motivo_veto: `Plano inválido: ${analysis.plan_name}`,
           raw_response: analysis,
         });
-        analysis.verdict = 'VETADO';
+        analysis.verdict = 'JOGO_MORTO';
         analysis.alerts = [...(analysis.alerts || []), `Plano ${analysis.plan_name} não encontrado na base`];
         analysis.plan_name = null;
       } else if (analysis.criterios_ausentes?.length > 0) {
