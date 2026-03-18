@@ -152,13 +152,22 @@ SISTEMA DE STATUS DINÂMICOS (6 ESTADOS)
    Ação: monitorar sem aprovar até fator de risco resolver
 💀 JOGO_MORTO — Sem oportunidade técnica viável NESTE MOMENTO.
    NÃO é permanente. Reanalisar periodicamente — jogo pode mudar.
-   ⚠️ REGRA OBRIGATÓRIA: NUNCA classificar como JOGO_MORTO antes do minuto 20.
+   ⚠️ REGRA OBRIGATÓRIA 1: NUNCA classificar como JOGO_MORTO antes do minuto 20.
    Antes do minuto 20, usar AGUARDAR (contexto insuficiente para determinar jogo morto).
+   ⚠️ REGRA OBRIGATÓRIA 2: NUNCA classificar como JOGO_MORTO se:
+   - Placar tem gols (1-0, 1-1, 2-1, etc.) E diferença ≤ 2 gols E minuto < 80
+   - Total de finalizações ≥ 4 ou finalizações no alvo ≥ 2
+   - Um time tem posse ≥ 55% e está atacando
+   Nesses casos usar CUIDADO (jogo ativo com potencial) ou AGUARDAR.
+   JOGO_MORTO é APENAS para jogos REALMENTE parados: 0-0 sem chutes, ou goleada 3+ gols com time perdedor sem atacar.
    Exemplos válidos de JOGO_MORTO (após min 20):
-   - 0-0 minuto 25, sem pressão de nenhum lado, 0 finalizações
-   - 3-0 minuto 80 sem time perdedor atacando
-   Exemplos INVÁLIDOS (usar AGUARDAR):
-   - Qualquer jogo antes do minuto 20, mesmo com pouca atividade
+   - 0-0 minuto 30, 0 finalizações no alvo de ambos os lados
+   - 4-0 minuto 80 sem time perdedor atacando
+   Exemplos INVÁLIDOS (NÃO usar JOGO_MORTO):
+   - Qualquer jogo antes do minuto 20
+   - Jogo 1-0 com finalizações ativas (usar CUIDADO)
+   - Jogo 1-1 ou 2-1 em qualquer minuto (usar CUIDADO)
+   - Jogo com xG total ≥ 0.5 (usar CUIDADO ou AGUARDAR)
 🕐 AGUARDAR — Contexto se desenvolvendo. Aguardar antes de decidir.
 
 REGRA CRÍTICA: NUNCA use "VETADO". Use JOGO_MORTO, CUIDADO, LABAREDA ou AGUARDAR.
@@ -611,6 +620,56 @@ serve(async (req) => {
       }
     }
 
+    // === ANTI-JOGO_MORTO FALSO (server-side safety net) ===
+    // A game with goals, active shots, and reasonable possession should NEVER be JOGO_MORTO
+    // unless it's a blowout in the final minutes
+    if (analysis.verdict === 'JOGO_MORTO') {
+      const s = match.stats || {};
+      const min = match.minute ?? 0;
+      const scoreH = match.scoreHome ?? 0;
+      const scoreA = match.scoreAway ?? 0;
+      const totalGoals = scoreH + scoreA;
+      const diff = Math.abs(scoreH - scoreA);
+      const totalShots = (s.shots_total_home ?? s.shots_home ?? 0) + (s.shots_total_away ?? s.shots_away ?? 0);
+      const totalSot = (s.shots_on_target_home ?? s.shots_home ?? 0) + (s.shots_on_target_away ?? s.shots_away ?? 0);
+      const xgTotal = (s.xG_home ?? 0) + (s.xG_away ?? 0);
+
+      // Rule 1: Game with goals and not a blowout → CUIDADO (never dead)
+      // A 1-0, 1-1, 2-1 game is NEVER dead unless it's 85'+ with 3+ goal lead
+      const isBlowout = diff >= 3 && min >= 75;
+      if (totalGoals > 0 && !isBlowout) {
+        // Check if there's real activity (shots, xG)
+        const hasActivity = totalShots >= 4 || totalSot >= 2 || xgTotal >= 0.5;
+        if (hasActivity || diff <= 1) {
+          console.log(`[MycroftSports] 🛡️ OVERRIDE: ${match.home} vs ${match.away} (${scoreH}-${scoreA}, ${min}') — JOGO_MORTO → CUIDADO (jogo com gols e atividade não pode ser morto)`);
+          analysis.verdict = 'CUIDADO';
+          analysis.confidence = Math.max(analysis.confidence || 0, 50);
+          analysis.alerts = [
+            ...(analysis.alerts || []),
+            `🛡️ Override: Jogo com placar ${scoreH}-${scoreA} e ${totalShots} chutes reclassificado de JOGO_MORTO para CUIDADO`,
+          ];
+          if (!analysis.market || analysis.market === 'N/A') {
+            if (diff <= 1 && min < 70) {
+              analysis.market = totalGoals >= 2 ? `Over ${totalGoals + 0.5} Total` : 'Over 1.5 Total';
+            } else {
+              analysis.market = 'Over 0.5 Próximo Gol';
+            }
+          }
+        }
+      }
+
+      // Rule 2: First half game (< 45') with any shots on target → AGUARDAR at minimum
+      if (analysis.verdict === 'JOGO_MORTO' && min < 45 && totalSot >= 2) {
+        console.log(`[MycroftSports] 🛡️ OVERRIDE: ${match.home} vs ${match.away} (${min}') — JOGO_MORTO → AGUARDAR (1º tempo com atividade)`);
+        analysis.verdict = 'AGUARDAR';
+        analysis.confidence = Math.max(analysis.confidence || 0, 40);
+        analysis.alerts = [
+          ...(analysis.alerts || []),
+          `🛡️ Override: Jogo no 1º tempo com ${totalSot} finalizações no alvo não pode ser JOGO_MORTO`,
+        ];
+      }
+    }
+
     // === LABAREDA DETECTION (server-side) ===
     // If JOGO_MORTO but late-game with losing team pressing, upgrade to LABAREDA
     if (analysis.verdict === 'JOGO_MORTO') {
@@ -623,12 +682,10 @@ serve(async (req) => {
       const sotLoser = scoreH < scoreA ? (s.shots_on_target_home ?? s.shots_home ?? 0) : (s.shots_on_target_away ?? s.shots_away ?? 0);
 
       if (min >= 60 && diff === 1 && scoreH !== scoreA) {
-        // Check LABAREDA triggers (need 2 of 4)
         let triggers = 0;
-        if (min >= 65) triggers++; // Trigger 1: min 65+ losing by 1
-        if (xgLoser >= 0.8) triggers++; // Trigger 2: xG ≥ 0.8
-        if (sotLoser >= 3) triggers++; // Trigger 4 proxy: pressure via shots
-        // Trigger 3 (odd ≥ 2.5) we can't check without live odds
+        if (min >= 65) triggers++;
+        if (xgLoser >= 0.8) triggers++;
+        if (sotLoser >= 3) triggers++;
 
         if (triggers >= 2) {
           const loserName = scoreH < scoreA ? match.home : match.away;
