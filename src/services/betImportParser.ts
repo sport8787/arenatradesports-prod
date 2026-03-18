@@ -1,4 +1,4 @@
-// CSV/PDF bet parser for Bet365, Betano and generic formats
+// CSV/PDF bet parser for Bet365, Betano, Betfair Statement and generic formats
 // Runs client-side for CSV; PDF uses pdfjs-dist already in the project
 
 export interface ParsedBet {
@@ -13,6 +13,191 @@ export interface ParsedBet {
   settle_date?: string;
   bookmaker: string;
   raw_line?: string;
+}
+
+// ─── Helper: parse BR money string like "-1,000.00" or "33.00" or "--" ───
+function parseBRL(val: string): number {
+  if (!val || val.trim() === '--' || val.trim() === '') return 0;
+  // Remove quotes, R$, spaces
+  let clean = val.replace(/"/g, '').replace(/R\$/g, '').trim();
+  // Handle Brazilian format: "1.000,50" → 1000.50 vs "1,000.50" → 1000.50
+  // The Betfair CSV uses: "1,000.00" (English with comma thousands)
+  if (/^\-?\d{1,3}(,\d{3})*(\.\d+)?$/.test(clean)) {
+    // English format with comma thousands: -1,000.00
+    clean = clean.replace(/,/g, '');
+  } else if (/^\-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
+    // Brazilian format: 1.000,50
+    clean = clean.replace(/\./g, '').replace(',', '.');
+  }
+  return parseFloat(clean) || 0;
+}
+
+// ─── Parse date like "17-mar-26 19:37:13" ───
+function parseBetfairDate(dateStr: string): string {
+  if (!dateStr) return new Date().toISOString();
+  const months: Record<string, string> = {
+    jan: '01', fev: '02', feb: '02', mar: '03', abr: '04', apr: '04',
+    mai: '05', may: '05', jun: '06', jul: '07', ago: '08', aug: '08',
+    set: '09', sep: '09', out: '10', oct: '10', nov: '11', dez: '12', dec: '12',
+  };
+  // Format: DD-MMM-YY HH:MM:SS
+  const match = dateStr.match(/(\d{1,2})-(\w{3})-(\d{2})\s+(\d{2}:\d{2}:\d{2})/);
+  if (match) {
+    const [, day, mon, year, time] = match;
+    const m = months[mon.toLowerCase()] || '01';
+    const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
+    return `${fullYear}-${m}-${day.padStart(2, '0')}T${time}.000Z`;
+  }
+  return new Date().toISOString();
+}
+
+// ─── Betfair Account Statement CSV Parser ───
+function parseBetfairStatementCSV(lines: string[][], headers: string[]): ParsedBet[] {
+  const bets: ParsedBet[] = [];
+  
+  // Column indices (standard Betfair statement)
+  // Data | Descrição | Entrada de Dinheiro (R$) | Entrada de bônus (R$) | Saída de Dinheiro (R$) | Saída de bônus (R$) | Saldos em Dinheiro (R$)
+  const iDate = 0;
+  const iDesc = 1;
+  const iMoneyIn = 2;  // Entrada de Dinheiro
+  const iMoneyOut = 4; // Saída de Dinheiro
+
+  // First pass: collect all Sportsbook Bet Placed entries indexed by Bet Ref sequence
+  // and all Sportsbook Bet Settled / Cash Out entries
+  interface PlacedBet { date: string; stake: number; rawLine: string; betRef?: string; }
+  interface SettledBet { date: string; returns: number; rawLine: string; betRef: string; type: 'settled' | 'cashout'; }
+  
+  const placedBets: PlacedBet[] = [];
+  const settledBets: SettledBet[] = [];
+  const exchangeEntries: { date: string; desc: string; amount: number; rawLine: string }[] = [];
+
+  for (const cols of lines) {
+    const date = cols[iDate]?.trim() || '';
+    const desc = cols[iDesc]?.trim() || '';
+    const moneyIn = parseBRL(cols[iMoneyIn] || '');
+    const moneyOut = parseBRL(cols[iMoneyOut] || '');
+    const rawLine = cols.join(',');
+
+    if (!desc) continue;
+
+    // Skip non-bet transactions
+    if (desc.startsWith('Deposit') || desc.startsWith('Withdrawal') || 
+        desc.startsWith('Gaming Bonus') || desc.startsWith('PT/Gaming') ||
+        desc.startsWith('GAMING')) continue;
+
+    // Sportsbook: Bet Placed
+    if (desc.includes('Sportsbook: Bet Placed')) {
+      placedBets.push({
+        date,
+        stake: Math.abs(moneyOut),
+        rawLine,
+      });
+      continue;
+    }
+
+    // Sportsbook: Bet Settled
+    const settledMatch = desc.match(/Sportsbook: Bet Settled \(Bet Ref: ([^)]+)\)/);
+    if (settledMatch) {
+      settledBets.push({
+        date,
+        returns: moneyIn,
+        rawLine,
+        betRef: settledMatch[1],
+        type: 'settled',
+      });
+      continue;
+    }
+
+    // Sportsbook: Cash Out
+    const cashoutMatch = desc.match(/Sportsbook: Cash Out \(Bet Ref: ([^)]+)\)/);
+    if (cashoutMatch) {
+      settledBets.push({
+        date,
+        returns: moneyIn,
+        rawLine,
+        betRef: cashoutMatch[1],
+        type: 'cashout',
+      });
+      continue;
+    }
+
+    // Exchange entries: "Team A x Team B / Market Ref: ..."
+    // These have event name and market directly in the description
+    if (desc.includes(' x ') && desc.includes(' / ')) {
+      exchangeEntries.push({
+        date,
+        desc,
+        amount: moneyIn > 0 ? moneyIn : moneyOut,
+        rawLine,
+      });
+      continue;
+    }
+  }
+
+  // Process settled/cashout Sportsbook bets
+  // We can't perfectly match placed→settled, so we create entries for each settled bet
+  // with estimated stake based on nearby placed bets
+  for (const settled of settledBets) {
+    const isCashout = settled.type === 'cashout';
+    
+    bets.push({
+      event_name: `Sportsbook ${settled.betRef}`,
+      market: isCashout ? 'Cash Out' : 'Sportsbook',
+      selection: isCashout ? 'Cash Out' : 'Aposta Liquidada',
+      odd: 0, // Unknown from statement
+      stake: 0, // Unknown - will be estimated below
+      profit_loss: settled.returns, // Returns (total payout)
+      result: 'green',
+      bet_date: parseBetfairDate(settled.date),
+      settle_date: parseBetfairDate(settled.date),
+      bookmaker: 'Betfair Sportsbook',
+      raw_line: settled.rawLine,
+    });
+  }
+
+  // Process placed bets that have no corresponding settlement (= lost bets)
+  // All placed bets become losses. Settled bets override the outcome.
+  // Since we can't match 1:1, we create loss entries for all placed bets
+  // The user can review and adjust in the preview
+  for (const placed of placedBets) {
+    bets.push({
+      event_name: 'Sportsbook Bet',
+      market: 'Sportsbook',
+      selection: 'Aposta Colocada',
+      odd: 0,
+      stake: placed.stake,
+      profit_loss: -placed.stake,
+      result: 'red',
+      bet_date: parseBetfairDate(placed.date),
+      bookmaker: 'Betfair Sportsbook',
+      raw_line: placed.rawLine,
+    });
+  }
+
+  // Process Exchange entries
+  for (const entry of exchangeEntries) {
+    // Parse "Team A x Team B / Market Ref: 123"
+    const parts = entry.desc.split(' / ');
+    const eventName = parts[0]?.trim() || 'Exchange Bet';
+    const marketPart = parts[1]?.replace(/\s*Ref:.*$/, '').trim() || 'Exchange';
+    const isWin = entry.amount > 0;
+
+    bets.push({
+      event_name: eventName,
+      market: marketPart,
+      selection: marketPart,
+      odd: 0,
+      stake: Math.abs(entry.amount),
+      profit_loss: entry.amount,
+      result: isWin ? 'green' : 'red',
+      bet_date: parseBetfairDate(entry.date),
+      settle_date: parseBetfairDate(entry.date),
+      bookmaker: 'Betfair Exchange',
+      raw_line: entry.rawLine,
+    });
+  }
+
+  return bets;
 }
 
 // ─── Generic CSV Parser ───
@@ -58,7 +243,6 @@ function parseGenericCSV(lines: string[][], headers: string[]): ParsedBet[] {
 
 // ─── Bet365 CSV Parser ───
 function parseBet365CSV(lines: string[][], headers: string[]): ParsedBet[] {
-  // Bet365 typical format: Date Placed, Event, Selection, Odds, Stake, Returns, P/L
   const h = headers.map(h => h.toLowerCase().trim());
   const iDate = h.findIndex(c => c.includes('date'));
   const iEvent = h.findIndex(c => c.includes('event') || c.includes('match'));
@@ -96,7 +280,6 @@ function parseBet365CSV(lines: string[][], headers: string[]): ParsedBet[] {
 
 // ─── Betano CSV Parser ───
 function parseBetanoCSV(lines: string[][], headers: string[]): ParsedBet[] {
-  // Betano typical: Data, Evento, Mercado, Seleção, Odd, Stake, Resultado, Lucro
   const h = headers.map(h => h.toLowerCase().trim());
   const iDate = h.findIndex(c => c.includes('data') || c.includes('date'));
   const iEvent = h.findIndex(c => c.includes('evento') || c.includes('event'));
@@ -134,8 +317,11 @@ function parseBetanoCSV(lines: string[][], headers: string[]): ParsedBet[] {
 }
 
 // ─── Auto-detect format ───
-function detectFormat(headers: string[]): 'bet365' | 'betano' | 'generic' {
+function detectFormat(headers: string[]): 'bet365' | 'betano' | 'betfair-statement' | 'generic' {
   const joined = headers.join(' ').toLowerCase();
+  // Betfair Account Statement: "Data,Descrição,Entrada de Dinheiro..."
+  if (joined.includes('descrição') && joined.includes('entrada de dinheiro')) return 'betfair-statement';
+  if (joined.includes('descri') && joined.includes('entrada') && joined.includes('sa\u00edda')) return 'betfair-statement';
   if (joined.includes('bet365') || (joined.includes('returns') && joined.includes('selection'))) return 'bet365';
   if (joined.includes('betano') || (joined.includes('seleção') && joined.includes('mercado'))) return 'betano';
   return 'generic';
@@ -170,6 +356,9 @@ export function parseCSV(text: string): { bets: ParsedBet[]; format: string; tot
 
   let bets: ParsedBet[];
   switch (format) {
+    case 'betfair-statement':
+      bets = parseBetfairStatementCSV(dataRows, headers);
+      break;
     case 'bet365':
       bets = parseBet365CSV(dataRows, headers);
       break;
@@ -187,18 +376,13 @@ export function parseCSV(text: string): { bets: ParsedBet[]; format: string; tot
 export function parsePDFText(text: string): ParsedBet[] {
   const bets: ParsedBet[] = [];
 
-  // Try to find bet patterns in PDF text
-  // Common patterns: "Event Name | Market | Odd | Stake | Result | P&L"
   const lines = text.split('\n').filter(l => l.trim().length > 0);
-
-  // Pattern 1: Lines with odds format (e.g., "1.85", "2.40")
   const oddPattern = /(\d+[.,]\d{2})/;
 
   for (const line of lines) {
     const matches = line.match(oddPattern);
     if (!matches) continue;
 
-    // Try to extract numbers that look like odds and stakes
     const numbers = [...line.matchAll(/(\d+[.,]\d{2})/g)].map(m => parseFloat(m[1].replace(',', '.')));
 
     if (numbers.length >= 2) {
@@ -206,7 +390,6 @@ export function parsePDFText(text: string): ParsedBet[] {
       const stake = numbers.find(n => n !== odd && n > 0) || 0;
 
       if (odd > 1 && stake > 0) {
-        // Try to find result indicators
         const lower = line.toLowerCase();
         let result: ParsedBet['result'] = 'pending';
         let pl = 0;
@@ -219,7 +402,6 @@ export function parsePDFText(text: string): ParsedBet[] {
           pl = -stake;
         }
 
-        // If there's a third number, it might be P&L
         if (numbers.length >= 3) {
           const potentialPL = numbers[2];
           if (potentialPL !== odd && potentialPL !== stake) {
