@@ -9,6 +9,15 @@ import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
 
+export interface AdditionalMarket {
+  market: string;
+  odd: number;
+  confidence: number;
+  thesis: string;
+  stake_percent: number;
+  stake_value?: number;
+}
+
 export interface MycroftAnalysisData {
   id: string;
   verdict: string;
@@ -22,6 +31,7 @@ export interface MycroftAnalysisData {
   alerts: string[];
   asset_score?: number | null;
   asset_classification?: string | null;
+  additional_markets?: AdditionalMarket[];
 }
 
 const basConfig: Record<string, { color: string; icon: string; border: string }> = {
