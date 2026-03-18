@@ -376,10 +376,6 @@ export default function ArenaTraderSports() {
               <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
               Escanteios
             </GoldButton>
-            <GoldButton size="sm" onClick={handleFetchV2} disabled={isFetchingV2} variant="outline">
-              <Globe className={cn("w-4 h-4 mr-1", isFetchingV2 && "animate-spin")} />
-              API 2
-            </GoldButton>
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
               Liquidar
