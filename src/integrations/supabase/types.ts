@@ -2057,6 +2057,8 @@ export type Database = {
           matches_played: number
           nt_balance: number
           rank_title: string
+          sports_training_completed: boolean
+          sports_training_completed_at: string | null
           updated_at: string
           user_id: string
           username: string
@@ -2073,6 +2075,8 @@ export type Database = {
           matches_played?: number
           nt_balance?: number
           rank_title?: string
+          sports_training_completed?: boolean
+          sports_training_completed_at?: string | null
           updated_at?: string
           user_id: string
           username: string
@@ -2089,6 +2093,8 @@ export type Database = {
           matches_played?: number
           nt_balance?: number
           rank_title?: string
+          sports_training_completed?: boolean
+          sports_training_completed_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string
@@ -2731,6 +2737,48 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           win_rate?: number | null
+        }
+        Relationships: []
+      }
+      sports_training_sessions: {
+        Row: {
+          accuracy: number
+          bluff_coins_earned: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          passed: boolean
+          scenarios_answered: number
+          scenarios_correct: number
+          scenarios_data: Json | null
+          scenarios_total: number
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number
+          bluff_coins_earned?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          passed?: boolean
+          scenarios_answered?: number
+          scenarios_correct?: number
+          scenarios_data?: Json | null
+          scenarios_total?: number
+          user_id: string
+        }
+        Update: {
+          accuracy?: number
+          bluff_coins_earned?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          passed?: boolean
+          scenarios_answered?: number
+          scenarios_correct?: number
+          scenarios_data?: Json | null
+          scenarios_total?: number
+          user_id?: string
         }
         Relationships: []
       }
