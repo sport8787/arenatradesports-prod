@@ -37,62 +37,120 @@ export interface Match {
   planName?: string | null;
 }
 
+type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
+
 interface CriteriaResult {
   key: string;
   label: string;
-  met: boolean;
+  state: CriteriaState;
   detail: string;
+  vetoReason?: string;
 }
 
 function computeCriteria(match: Match): CriteriaResult[] {
   const s = match.stats;
-  const possHome = s?.possession_home ?? 0;
-  const possAway = s?.possession_away ?? 0;
-  const atkHome = s?.attacks_home ?? 0;
-  const atkAway = s?.attacks_away ?? 0;
-  const shotsHome = s?.shots_home ?? 0;
-  const cornersHome = s?.corners_home ?? 0;
-  const xgHome = s?.xG_home ?? 0;
-  const xgAway = s?.xG_away ?? 0;
+  const possHome = s?.possession_home;
+  const atkHome = s?.attacks_home;
+  const atkAway = s?.attacks_away;
+  const shotsHome = s?.shots_home;
+  const cornersHome = s?.corners_home;
+  const xgHome = s?.xG_home;
+  const xgAway = s?.xG_away;
 
-  const dominio = (possHome > 55) || (atkHome > atkAway * 1.3);
-  const pressao = (shotsHome >= 3) || (cornersHome >= 2);
-  const xgFav = xgHome > xgAway;
-  const placarNeutro = match.scoreHome >= match.scoreAway;
-  const timing = match.minute >= 25 && match.minute <= 80;
+  // 1 — DOMÍNIO
+  let dominioState: CriteriaState = 'gray';
+  let dominioDetail = 'Dados indisponíveis';
+  let dominioVeto: string | undefined;
+  if (possHome != null || atkHome != null) {
+    const poss = possHome ?? 0;
+    const atk = atkHome ?? 0;
+    const atkOpp = atkAway ?? 0;
+    dominioDetail = poss > 0 ? `${poss}% posse` : `${atk} vs ${atkOpp} ataques`;
+    if (poss > 55 || atk > atkOpp * 1.3) {
+      dominioState = 'green';
+    } else if (poss < 45 && atk < atkOpp) {
+      dominioState = 'red';
+      dominioVeto = `sem domínio (${poss}% posse, ${atk} vs ${atkOpp} ataques)`;
+    } else {
+      dominioState = 'gray';
+    }
+  }
+
+  // 2 — PRESSÃO
+  let pressaoState: CriteriaState = 'gray';
+  let pressaoDetail = 'Dados indisponíveis';
+  let pressaoVeto: string | undefined;
+  if (shotsHome != null || cornersHome != null) {
+    const shots = shotsHome ?? 0;
+    const corners = cornersHome ?? 0;
+    pressaoDetail = `${shots} finalizações, ${corners} escanteios`;
+    if (shots >= 3 || corners >= 2) {
+      pressaoState = 'green';
+    } else if (shots <= 1 && corners <= 1) {
+      pressaoState = 'red';
+      pressaoVeto = `sem pressão (${shots} finalizações, ${corners} escanteios)`;
+    } else {
+      pressaoState = 'gray';
+    }
+  }
+
+  // 3 — xG
+  let xgState: CriteriaState = 'gray';
+  let xgDetail = 'xG indisponível';
+  let xgVeto: string | undefined;
+  if (xgHome != null && xgAway != null) {
+    xgDetail = `${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)}`;
+    if (xgHome > xgAway) {
+      xgState = 'green';
+    } else if (xgAway > 0 && xgHome < xgAway * 0.5) {
+      xgState = 'red';
+      xgVeto = `xG muito inferior (${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)})`;
+    } else {
+      xgState = 'gray';
+    }
+  }
+
+  // 4 — PLACAR
+  const diff = match.scoreHome - match.scoreAway;
+  let placarState: CriteriaState;
+  let placarDetail = `${match.scoreHome} - ${match.scoreAway}`;
+  let placarVeto: string | undefined;
+  if (diff >= 0) {
+    placarState = 'green';
+  } else if (diff === -1) {
+    placarState = 'yellow';
+    placarVeto = `perdendo por 1 gol (${match.scoreHome}-${match.scoreAway})`;
+  } else {
+    placarState = 'red';
+    placarVeto = `placar desfavorável (${match.scoreHome}-${match.scoreAway})`;
+  }
+
+  // 5 — TIMING
+  let timingState: CriteriaState;
+  let timingDetail = `${match.minute}'`;
+  let timingVeto: string | undefined;
+  if (match.minute >= 25 && match.minute <= 80) {
+    timingState = 'green';
+  } else if (match.minute > 82) {
+    timingState = 'red';
+    timingVeto = `minuto avançado (${match.minute}')`;
+  } else {
+    timingState = 'gray';
+  }
 
   return [
-    {
-      key: 'dominio',
-      label: 'Domínio',
-      met: dominio,
-      detail: possHome > 0 ? `${possHome}% posse` : `${atkHome} vs ${atkAway} ataques`,
-    },
-    {
-      key: 'pressao',
-      label: 'Pressão',
-      met: pressao,
-      detail: `${shotsHome} finalizações, ${cornersHome} escanteios`,
-    },
-    {
-      key: 'xg',
-      label: 'xG favorável',
-      met: xgFav,
-      detail: `${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)}`,
-    },
-    {
-      key: 'placar',
-      label: 'Placar neutro/favorável',
-      met: placarNeutro,
-      detail: `${match.scoreHome} - ${match.scoreAway}`,
-    },
-    {
-      key: 'timing',
-      label: 'Timing',
-      met: timing,
-      detail: `${match.minute}'`,
-    },
+    { key: 'dominio', label: 'Domínio', state: dominioState, detail: dominioDetail, vetoReason: dominioVeto },
+    { key: 'pressao', label: 'Pressão', state: pressaoState, detail: pressaoDetail, vetoReason: pressaoVeto },
+    { key: 'xg', label: 'xG favorável', state: xgState, detail: xgDetail, vetoReason: xgVeto },
+    { key: 'placar', label: 'Placar', state: placarState, detail: placarDetail, vetoReason: placarVeto },
+    { key: 'timing', label: 'Timing', state: timingState, detail: timingDetail, vetoReason: timingVeto },
   ];
+}
+
+function getVetoSummary(criteria: CriteriaResult[]): string | null {
+  const reds = criteria.filter(c => c.state === 'red' && c.vetoReason);
+  if (reds.length === 0) return null;
+  return reds[0].vetoReason!;
 }
 
 const championshipColors: Record<string, string> = {
