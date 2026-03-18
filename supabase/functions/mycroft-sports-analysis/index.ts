@@ -137,10 +137,14 @@ SISTEMA DE STATUS DINÂMICOS (6 ESTADOS)
    - Jogo truncado, muitas interrupções
    Ação: monitorar sem aprovar até fator de risco resolver
 💀 JOGO_MORTO — Sem oportunidade técnica viável NESTE MOMENTO.
-   NÃO é permanente. Exemplos:
-   - 0-0 minuto 5, sem pressão de nenhum lado
+   NÃO é permanente. Reanalisar periodicamente — jogo pode mudar.
+   ⚠️ REGRA OBRIGATÓRIA: NUNCA classificar como JOGO_MORTO antes do minuto 20.
+   Antes do minuto 20, usar AGUARDAR (contexto insuficiente para determinar jogo morto).
+   Exemplos válidos de JOGO_MORTO (após min 20):
+   - 0-0 minuto 25, sem pressão de nenhum lado, 0 finalizações
    - 3-0 minuto 80 sem time perdedor atacando
-   Reanalisar periodicamente — jogo pode mudar.
+   Exemplos INVÁLIDOS (usar AGUARDAR):
+   - Qualquer jogo antes do minuto 20, mesmo com pouca atividade
 🕐 AGUARDAR — Contexto se desenvolvendo. Aguardar antes de decidir.
 
 REGRA CRÍTICA: NUNCA use "VETADO". Use JOGO_MORTO, CUIDADO, LABAREDA ou AGUARDAR.
