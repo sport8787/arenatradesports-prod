@@ -427,8 +427,8 @@ serve(async (req) => {
             motivo_veto: `Critérios estruturalmente ausentes para ${planCode}: ${structuralMissing.join(', ')}`,
             raw_response: analysis,
           });
-          analysis.verdict = 'VETADO';
-          analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode} vetado: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
+          analysis.verdict = 'JOGO_MORTO';
+          analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode}: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
         } else if (dataGapMissing.length > 0) {
           // Caso 1: Falta de dados históricos (API não forneceu) → Penalizar confiança, não vetar automaticamente
           const originalConfidence = analysis.confidence;
