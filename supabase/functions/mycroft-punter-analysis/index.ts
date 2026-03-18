@@ -748,7 +748,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     odd: { type: 'number' },
     baseline_sharp_odd: { type: 'number', nullable: true },
     implied_probability_sharp: { type: 'number', nullable: true },
-    estimated_probability: { type: 'number', nullable: true },
+    estimated_probability: { type: 'number' },
     edge_percentage: { type: 'number' },
     expected_value: { type: 'number' },
     confidence: { type: 'number' },
