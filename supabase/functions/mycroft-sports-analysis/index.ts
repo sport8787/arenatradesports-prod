@@ -550,7 +550,7 @@ serve(async (req) => {
         // Apply override
         if (situationalRule && min <= 70) {
           console.log(`[MycroftSports] 🔄 SITUACIONAL: Regra ${situationalRule} ativada para ${match.home} vs ${match.away}`);
-          analysis.verdict = 'APROVADO';
+          analysis.verdict = 'APROVADO_SITUACIONAL';
           analysis.situational_rule = situationalRule;
           analysis.market = analysis.market === 'N/A' || !analysis.market ? situationalMarket : analysis.market;
           analysis.confidence = Math.max(analysis.confidence || 0, situationalConf);
