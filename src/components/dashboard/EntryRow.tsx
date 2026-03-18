@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Check, X, DollarSign } from 'lucide-react';
+import { Check, X, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
 export interface TraderEntry {
   id: string;
@@ -17,6 +17,8 @@ export interface TraderEntry {
   result: string | null;
   pnl: number | null;
   notes: string | null;
+  estimatedOdd?: number | null;
+  estimatedCashout?: number | null;
 }
 
 interface EntryRowProps {
@@ -42,6 +44,10 @@ const pnlColors = {
 };
 
 export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkCashout }: EntryRowProps) {
+  const isPending = entry.status === 'pending';
+  const hasEstimate = isPending && entry.estimatedCashout != null && entry.estimatedOdd != null;
+
+  // For settled entries, show actual P&L
   const pnlDisplay =
     entry.status === 'green'
       ? `+R$ ${(entry.pnl ?? 0).toFixed(2)}`
@@ -49,7 +55,21 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
       ? `-R$ ${entry.stake_value.toFixed(2)}`
       : entry.status === 'cashout'
       ? `R$ ${(entry.pnl ?? 0).toFixed(2)}`
+      : hasEstimate
+      ? (() => {
+          const diff = entry.estimatedCashout! - Number(entry.stake_value);
+          return `${diff >= 0 ? '+' : ''}R$ ${diff.toFixed(2)}`;
+        })()
       : 'pendente';
+
+  // Determine color for pending with estimate
+  const pendingPnlColor = hasEstimate
+    ? (entry.estimatedCashout! >= Number(entry.stake_value)
+        ? 'text-[hsl(142,71%,45%)]'
+        : 'text-[hsl(0,84%,60%)]')
+    : pnlColors.pending;
+
+  const effectivePnlColor = isPending ? pendingPnlColor : pnlColors[entry.status];
 
   return (
     <div
@@ -64,12 +84,39 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
         </div>
         <div className="text-xs text-foreground font-medium truncate">{entry.market}</div>
         <div className="text-[10px] text-muted-foreground mt-0.5">
-          Odd {Number(entry.odd).toFixed(2)} · R$ {Number(entry.stake_value).toFixed(2)} ({Number(entry.stake_pct).toFixed(0)}%)
+          Odd {Number(entry.odd).toFixed(2)}
+          {hasEstimate && (
+            <>
+              <span className="text-muted-foreground"> → </span>
+              <span className={cn(
+                'font-bold',
+                entry.estimatedOdd! < Number(entry.odd) ? 'text-[hsl(142,71%,45%)]' : 'text-[hsl(0,84%,60%)]'
+              )}>
+                {entry.estimatedOdd!.toFixed(2)}
+              </span>
+              <span className="ml-0.5 text-[9px] text-muted-foreground/70">EST</span>
+            </>
+          )}
+          {' '}· R$ {Number(entry.stake_value).toFixed(2)} ({Number(entry.stake_pct).toFixed(0)}%)
         </div>
+
+        {/* Estimated cashout value for pending */}
+        {hasEstimate && (
+          <div className="flex items-center gap-1 mt-1 text-[10px]">
+            {entry.estimatedCashout! >= Number(entry.stake_value)
+              ? <TrendingUp className="w-3 h-3 text-[hsl(142,71%,45%)]" />
+              : <TrendingDown className="w-3 h-3 text-[hsl(0,84%,60%)]" />
+            }
+            <span className="text-muted-foreground">Cashout:</span>
+            <span className={cn('font-bold', effectivePnlColor)}>
+              R$ {entry.estimatedCashout!.toFixed(2)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className={cn('text-xs font-medium font-orbitron', pnlColors[entry.status])}>
+        <span className={cn('text-xs font-medium font-orbitron', effectivePnlColor)}>
           {pnlDisplay}
         </span>
 

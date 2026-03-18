@@ -26,11 +26,19 @@ export default function MatchCardWithEntries({
   onAnalysisClick,
 }: MatchCardWithEntriesProps) {
   const fixtureId = match.matchId || match.id;
+
+  // Pass match context for live P&L estimation
+  const matchContext = {
+    minute: match.minute,
+    scoreHome: match.scoreHome,
+    scoreAway: match.scoreAway,
+  };
+
   const { entries, totalStakePct, gamePnL, addEntry, markGreen, markRed, markCashout } =
-    useFixtureEntries(fixtureId, userId);
+    useFixtureEntries(fixtureId, userId, matchContext);
 
   const [showNewEntry, setShowNewEntry] = useState(false);
-  const [cashoutEntry, setCashoutEntry] = useState<{ id: string; stakeValue: number } | null>(null);
+  const [cashoutEntry, setCashoutEntry] = useState<{ id: string; stakeValue: number; estimatedCashout: number | null } | null>(null);
   const [cashoutValue, setCashoutValue] = useState('');
 
   const handleConfirmEntry = async (form: EntryFormData) => {
@@ -57,6 +65,7 @@ export default function MatchCardWithEntries({
   };
 
   const hasEntries = entries.length > 0;
+  const hasPendingEntries = entries.some(e => e.status === 'pending');
 
   return (
     <div className="relative">
@@ -77,6 +86,9 @@ export default function MatchCardWithEntries({
               )}
             >
               {gamePnL >= 0 ? '+' : ''}R$ {Math.abs(gamePnL).toFixed(2)}
+              {hasPendingEntries && (
+                <span className="ml-1 text-[9px] text-muted-foreground/70 font-normal">EST</span>
+              )}
             </span>
           </div>
 
@@ -89,8 +101,9 @@ export default function MatchCardWithEntries({
               onMarkGreen={(e) => markGreen(e.id, Number(e.odd), Number(e.stake_value))}
               onMarkRed={(e) => markRed(e.id, Number(e.stake_value))}
               onMarkCashout={(e) => {
-                setCashoutEntry({ id: e.id, stakeValue: Number(e.stake_value) });
-                setCashoutValue('');
+                const estimated = e.estimatedCashout ?? null;
+                setCashoutEntry({ id: e.id, stakeValue: Number(e.stake_value), estimatedCashout: estimated });
+                setCashoutValue(estimated ? estimated.toFixed(2) : '');
               }}
             />
           ))}
@@ -137,6 +150,18 @@ export default function MatchCardWithEntries({
             <DialogTitle className="font-orbitron text-sm">Cashout</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {cashoutEntry?.estimatedCashout != null && (
+              <div className={cn(
+                'text-xs p-2 rounded-lg border',
+                cashoutEntry.estimatedCashout >= cashoutEntry.stakeValue
+                  ? 'bg-[hsl(142,71%,45%)]/10 border-[hsl(142,71%,45%)]/30 text-[hsl(142,71%,45%)]'
+                  : 'bg-[hsl(0,84%,60%)]/10 border-[hsl(0,84%,60%)]/30 text-[hsl(0,84%,60%)]'
+              )}>
+                <span className="text-muted-foreground">Valor estimado: </span>
+                <span className="font-bold font-orbitron">R$ {cashoutEntry.estimatedCashout.toFixed(2)}</span>
+                <span className="text-[9px] text-muted-foreground/70 ml-1">EST</span>
+              </div>
+            )}
             <div>
               <Label className="text-xs">Valor recebido no cashout (R$)</Label>
               <Input
