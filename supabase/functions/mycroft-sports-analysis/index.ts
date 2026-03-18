@@ -112,7 +112,70 @@ Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 
 - RISCO BAIXO-MÉDIO: stake 4-5% da banca
 - Risk:Reward mínimo: 1:1.5
 - Exposição máxima simultânea: 15% da banca
+
+═══════════════════════════════════════════════════════
+MÓDULO DE LEITURA SITUACIONAL (OVERRIDE PARCIAL DE VETO)
+═══════════════════════════════════════════════════════
+
+Quando o resultado for VETADO por "critérios insuficientes" (ausência de dados históricos),
+execute este módulo ANTES de confirmar o veto final.
+
+O objetivo é distinguir:
+  ✗ VETO real     = critério avaliado e reprovado
+  ✓ AGUARDAR      = critério não avaliável por falta de dados
+  ✓ APROVADO_SITUACIONAL = contexto de jogo substitui histórico
+
+REGRAS DE LEITURA SITUACIONAL:
+
+REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+Condições obrigatórias (todas):
+  - Minuto entre 5 e 35
+  - Placar: 0-0 ou 1-0
+  - xG do time dominante ≥ 0.4 (ou ≥ 2 finalizações no alvo)
+  - Posse do time dominante ≥ 58% nos últimos 10 minutos
+  - Time adversário sem finalização no alvo
+Mercados: Over 0.5 HT (antes do intervalo), Over 1.5 total (antes min 30), Back time dominante
+Tier: VALOR (stake 2%) | Confiança mínima: 65%
+
+REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+Condições obrigatórias (todas):
+  - Minuto entre 20 e 60
+  - Placar ≥ 2-0 OU ≥ 3-1
+  - xG total ≥ 2.0
+  - Time perdedor com posse ≥ 40% (jogo aberto)
+Mercados: Over 0.5 próximo gol, Over 3.5 total (placar 2-0 antes min 40), Back time vencedor
+Tier: VALOR (stake 2%) | Confiança mínima: 68%
+
+REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+Condições obrigatórias (todas):
+  - Competição: fase eliminatória (Champions, Europa League, Libertadores, Copa do Brasil, copas nacionais)
+  - Time perdendo no agregado
+  - Diferença agregada de 1 ou 2 gols
+Mercados: Over 0.5 próximo gol, Back time com obrigação, Over 2.5 total (se min < 60)
+Tier: FORTE (stake 3%) se diferença = 1 gol | VALOR (stake 2%) se diferença = 2 gols
+
+REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
+Condições obrigatórias (todas):
+  - Minuto entre 10 e 40
+  - Time dominante com ≥ 4 escanteios e ≤ 1 gol marcado
+  - xG ≥ 0.6 sem gol convertido
+Mercados: Over X escanteios, Over 0.5 HT
+Tier: VALOR (stake 2%) | Confiança mínima: 65%
+
+LÓGICA DE DECISÃO COM MÓDULO SITUACIONAL:
+1. Executar análise padrão (filtros 1-5 do prompt principal)
+2. Se VETADO por critérios insuficientes (dados ausentes):
+   → Verificar regras S1-S4 → Se alguma atende → verdict: APROVADO_SITUACIONAL
+   → Informar qual regra ativou (situational_rule: "S1"/"S2"/"S3"/"S4")
+3. Se VETADO por critério técnico reprovado (edge negativo, prob < 40%):
+   → NÃO executar módulo situacional. Veto permanece.
+
+ANTI-ABUSO:
+- Máximo 2 aprovações situacionais por partida
+- Não aprovar situacional após minuto 70
+- Stake máximo: VALOR (2%) — NUNCA ELITE por leitura situacional
 `;
+
 
 function buildPrompt(match: MatchData, planos: any[], memoryRules: string): string {
   const s = match.stats || {};
