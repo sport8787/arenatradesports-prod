@@ -147,20 +147,6 @@ export default function ArenaTraderSports() {
     }
   }, [refetch, bankroll]);
 
-  const handleFetchV2 = useCallback(async () => {
-    setIsFetchingV2(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-live-matches-v2');
-      if (error) throw error;
-      toast.success(`API 2: ${data.total_matches} ao vivo, ${data.analyzed} analisados, ${data.scheduled} agendados`);
-      refetch();
-    } catch (e) {
-      console.error('Fetch V2 error:', e);
-      toast.error('Erro ao buscar jogos (API 2)');
-    } finally {
-      setIsFetchingV2(false);
-    }
-  }, [refetch]);
 
   const handleSettleBets = useCallback(async () => {
     setIsSettling(true);
