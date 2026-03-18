@@ -248,7 +248,8 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const criteria = useMemo(() => computeCriteria(match), [match]);
-  const criteriaMet = criteria.filter(c => c.met).length;
+  const criteriaMet = criteria.filter(c => c.state === 'green').length;
+  const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
   const statusConfig = getStatusConfig(match.mycroftStatus);
   const borderClass = getCardBorderClass(match.mycroftStatus, criteriaMet);
   const isImminent = criteriaMet >= 4 && (match.mycroftStatus === 'AGUARDAR' || match.mycroftStatus === 'analyzing');
