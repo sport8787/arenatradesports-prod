@@ -183,6 +183,15 @@ function getStatusConfig(status: Match['mycroftStatus']) {
         animate: 'animate-pulse-green',
         icon: <Target className="w-4 h-4" />,
       };
+    case 'APROVADO_SITUACIONAL':
+      return {
+        bg: 'bg-[#1A3A2A]',
+        border: 'border-[#34D399]',
+        text: 'text-[#6EE7B7]',
+        label: '📍 SITUACIONAL',
+        animate: 'animate-pulse-green',
+        icon: <Target className="w-4 h-4" />,
+      };
     case 'VETADO':
     case 'no_value':
       return {
