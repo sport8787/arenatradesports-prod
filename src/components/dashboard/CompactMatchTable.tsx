@@ -82,7 +82,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
               const critMet = computeCriteriaCompact(m);
               const isImminent = critMet >= 4 && (m.mycroftStatus === 'AGUARDAR' || m.mycroftStatus === 'analyzing');
               const rowBorder =
-                m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'opportunity'
+                m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity'
                   ? 'border-l-2 border-l-[#22C55E]'
                   : m.mycroftStatus === 'VETADO' || m.mycroftStatus === 'no_value'
                     ? 'border-l-2 border-l-[#7F1D1D]'
@@ -167,7 +167,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
 
                   {/* Plan */}
                   <td className="px-3 py-2 text-left">
-                    {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'opportunity') && m.planName ? (
+                    {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity') && m.planName ? (
                       <span className="font-orbitron text-primary font-bold text-[10px]">{m.planName}</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>

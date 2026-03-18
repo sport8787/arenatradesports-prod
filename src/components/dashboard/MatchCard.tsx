@@ -30,7 +30,7 @@ export interface Match {
   minute: number;
   period: string;
   status: 'live' | 'scheduled' | 'finished';
-  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'AGUARDAR' | 'VETADO';
+  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO';
   matchId?: string;
   hasBet?: boolean;
   stats?: MatchStats | null;
@@ -183,6 +183,15 @@ function getStatusConfig(status: Match['mycroftStatus']) {
         animate: 'animate-pulse-green',
         icon: <Target className="w-4 h-4" />,
       };
+    case 'APROVADO_SITUACIONAL':
+      return {
+        bg: 'bg-[#1A3A2A]',
+        border: 'border-[#34D399]',
+        text: 'text-[#6EE7B7]',
+        label: '📍 SITUACIONAL',
+        animate: 'animate-pulse-green',
+        icon: <Target className="w-4 h-4" />,
+      };
     case 'VETADO':
     case 'no_value':
       return {
@@ -226,6 +235,7 @@ function getStatusConfig(status: Match['mycroftStatus']) {
 function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: number) {
   switch (status) {
     case 'APROVADO':
+    case 'APROVADO_SITUACIONAL':
     case 'opportunity':
       return 'border-[#22C55E]/70 shadow-[0_0_15px_rgba(34,197,94,0.15)]';
     case 'VETADO':
@@ -395,9 +405,14 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               <span className="font-orbitron">{match.minute}' | {match.period}</span>
             </div>
             <div className="truncate max-w-[60%] text-right">
-              {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'opportunity') && match.planName && (
+              {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'opportunity') && match.planName && (
                 <span className="font-orbitron font-bold text-primary">
                   PLANO {match.planName}
+                </span>
+              )}
+              {match.mycroftStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
+                <span className="font-orbitron font-bold text-[#6EE7B7]">
+                  📍 SITUACIONAL
                 </span>
               )}
               {(match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
@@ -409,7 +424,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           </div>
 
           {/* CTA for approved */}
-          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO') && (
+          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL') && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

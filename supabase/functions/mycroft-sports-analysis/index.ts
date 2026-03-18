@@ -112,7 +112,70 @@ Aprovar 30-40% dos jogos analisados. Menos de 30% = conservador demais. Mais de 
 - RISCO BAIXO-MÉDIO: stake 4-5% da banca
 - Risk:Reward mínimo: 1:1.5
 - Exposição máxima simultânea: 15% da banca
+
+═══════════════════════════════════════════════════════
+MÓDULO DE LEITURA SITUACIONAL (OVERRIDE PARCIAL DE VETO)
+═══════════════════════════════════════════════════════
+
+Quando o resultado for VETADO por "critérios insuficientes" (ausência de dados históricos),
+execute este módulo ANTES de confirmar o veto final.
+
+O objetivo é distinguir:
+  ✗ VETO real     = critério avaliado e reprovado
+  ✓ AGUARDAR      = critério não avaliável por falta de dados
+  ✓ APROVADO_SITUACIONAL = contexto de jogo substitui histórico
+
+REGRAS DE LEITURA SITUACIONAL:
+
+REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+Condições obrigatórias (todas):
+  - Minuto entre 5 e 35
+  - Placar: 0-0 ou 1-0
+  - xG do time dominante ≥ 0.4 (ou ≥ 2 finalizações no alvo)
+  - Posse do time dominante ≥ 58% nos últimos 10 minutos
+  - Time adversário sem finalização no alvo
+Mercados: Over 0.5 HT (antes do intervalo), Over 1.5 total (antes min 30), Back time dominante
+Tier: VALOR (stake 2%) | Confiança mínima: 65%
+
+REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+Condições obrigatórias (todas):
+  - Minuto entre 20 e 60
+  - Placar ≥ 2-0 OU ≥ 3-1
+  - xG total ≥ 2.0
+  - Time perdedor com posse ≥ 40% (jogo aberto)
+Mercados: Over 0.5 próximo gol, Over 3.5 total (placar 2-0 antes min 40), Back time vencedor
+Tier: VALOR (stake 2%) | Confiança mínima: 68%
+
+REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+Condições obrigatórias (todas):
+  - Competição: fase eliminatória (Champions, Europa League, Libertadores, Copa do Brasil, copas nacionais)
+  - Time perdendo no agregado
+  - Diferença agregada de 1 ou 2 gols
+Mercados: Over 0.5 próximo gol, Back time com obrigação, Over 2.5 total (se min < 60)
+Tier: FORTE (stake 3%) se diferença = 1 gol | VALOR (stake 2%) se diferença = 2 gols
+
+REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
+Condições obrigatórias (todas):
+  - Minuto entre 10 e 40
+  - Time dominante com ≥ 4 escanteios e ≤ 1 gol marcado
+  - xG ≥ 0.6 sem gol convertido
+Mercados: Over X escanteios, Over 0.5 HT
+Tier: VALOR (stake 2%) | Confiança mínima: 65%
+
+LÓGICA DE DECISÃO COM MÓDULO SITUACIONAL:
+1. Executar análise padrão (filtros 1-5 do prompt principal)
+2. Se VETADO por critérios insuficientes (dados ausentes):
+   → Verificar regras S1-S4 → Se alguma atende → verdict: APROVADO_SITUACIONAL
+   → Informar qual regra ativou (situational_rule: "S1"/"S2"/"S3"/"S4")
+3. Se VETADO por critério técnico reprovado (edge negativo, prob < 40%):
+   → NÃO executar módulo situacional. Veto permanece.
+
+ANTI-ABUSO:
+- Máximo 2 aprovações situacionais por partida
+- Não aprovar situacional após minuto 70
+- Stake máximo: VALOR (2%) — NUNCA ELITE por leitura situacional
 `;
+
 
 function buildPrompt(match: MatchData, planos: any[], memoryRules: string): string {
   const s = match.stats || {};
@@ -219,7 +282,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO ou VETADO para cada jogo com estatísticas. Só use AGUARDAR se as stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques disponíveis, OBRIGATÓRIO dar APROVADO ou VETADO. xG zero NÃO é motivo para AGUARDAR se há outras métricas. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.' },
+          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. DECIDA APROVADO, APROVADO_SITUACIONAL ou VETADO para cada jogo com estatísticas. Use APROVADO_SITUACIONAL quando o jogo for vetado por dados históricos insuficientes MAS o contexto ao vivo (regras S1-S4 do módulo situacional) justificar entrada. Só use AGUARDAR se as stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques disponíveis, OBRIGATÓRIO dar APROVADO, APROVADO_SITUACIONAL ou VETADO. xG zero NÃO é motivo para AGUARDAR se há outras métricas. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes de planos. REGRA DE IDIOMA: Todas as respostas (thesis, alerts, market, todos os campos de texto) DEVEM ser em português brasileiro. NUNCA responda em inglês.' },
           { role: 'user', content: prompt },
         ],
         tools: [{
@@ -230,7 +293,7 @@ serve(async (req) => {
             parameters: {
               type: 'object',
               properties: {
-                verdict: { type: 'string', enum: ['APROVADO', 'VETADO', 'AGUARDAR'] },
+                verdict: { type: 'string', enum: ['APROVADO', 'VETADO', 'AGUARDAR', 'APROVADO_SITUACIONAL'] },
                 plan_name: { type: 'string', nullable: true, enum: planEnumValues },
                 market: { type: 'string' },
                 odd: { type: 'number' },
@@ -383,8 +446,139 @@ serve(async (req) => {
       }
     }
 
+    // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
+    // Se VETADO por dados insuficientes (não por critério técnico reprovado), tentar regras S1-S4
+    if (analysis.verdict === 'VETADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+      const isDataGapVeto = analysis.verdict === 'VETADO' && (
+        (analysis.alerts || []).some((a: string) => /dados ausentes|dados insuficientes|sem dados|confiança.*penalidade|critérios.*ausentes/i.test(a)) ||
+        (analysis.criterios_ausentes?.length > 0)
+      );
+      // Also accept if AI already identified situational approval
+      const isAISituational = analysis.verdict === 'APROVADO_SITUACIONAL';
+
+      if (isDataGapVeto || isAISituational) {
+        const s = match.stats || {};
+        const min = match.minute ?? 0;
+        const scoreH = match.scoreHome ?? 0;
+        const scoreA = match.scoreAway ?? 0;
+        const xgH = s.xG_home ?? 0;
+        const xgA = s.xG_away ?? 0;
+        const possH = s.possession_home ?? 0;
+        const possA = s.possession_away ?? 0;
+        const sotH = s.shots_on_target_home ?? s.shots_home ?? 0;
+        const sotA = s.shots_on_target_away ?? s.shots_away ?? 0;
+        const champ = (match.championship || '').toLowerCase();
+        const isKnockout = /copa|cup|eliminat|playoff|mata-mata|knockout|libertadores|champions|europa league|sul-americana/i.test(champ);
+
+        let situationalRule: string | null = null;
+        let situationalMarket = '';
+        let situationalConf = 65;
+        let situationalStake = 2;
+        let situationalContext = '';
+
+        // Determine dominant team (home perspective)
+        const homeDominant = possH > possA && (sotH > sotA || xgH > xgA);
+        const awayDominant = possA > possH && (sotA > sotH || xgA > xgH);
+        const domXg = homeDominant ? xgH : xgA;
+        const domPoss = homeDominant ? possH : possA;
+        const domSot = homeDominant ? sotH : sotA;
+        const oppSot = homeDominant ? sotA : sotH;
+        const domGoals = homeDominant ? scoreH : scoreA;
+        const oppGoals = homeDominant ? scoreA : scoreH;
+        const domName = homeDominant ? match.home : match.away;
+
+        // REGRA S1 — PRESSÃO DOMINANTE PRÉ-GOL
+        if (!situationalRule && min >= 5 && min <= 35) {
+          const placarOk = (scoreH + scoreA) <= 1; // 0-0 or 1-0
+          const xgOk = domXg >= 0.4 || domSot >= 2;
+          const possOk = domPoss >= 58;
+          const oppClean = oppSot === 0;
+          if ((homeDominant || awayDominant) && placarOk && xgOk && possOk && oppClean) {
+            situationalRule = 'S1';
+            situationalMarket = min < 45 ? 'Over 0.5 HT' : 'Over 1.5 Total';
+            situationalConf = 65;
+            situationalStake = 2;
+            situationalContext = `${domName} com xG ${domXg}, posse ${domPoss}%, ${domSot} finalizações no alvo. Adversário sem finalização.`;
+          }
+        }
+
+        // REGRA S2 — PLACAR EXPRESSIVO EM JOGO ABERTO
+        if (!situationalRule && min >= 20 && min <= 60) {
+          const diff = Math.abs(scoreH - scoreA);
+          const totalGoals = scoreH + scoreA;
+          const placarExpressivo = (diff >= 2 && totalGoals >= 2) || (totalGoals >= 4 && diff >= 2);
+          const xgTotalOk = (xgH + xgA) >= 2.0;
+          const loserPoss = scoreH > scoreA ? possA : possH;
+          const jogoAberto = loserPoss >= 40;
+          if (placarExpressivo && xgTotalOk && jogoAberto) {
+            situationalRule = 'S2';
+            situationalMarket = totalGoals < 4 && min < 40 ? 'Over 3.5 Total' : 'Over 0.5 Próximo Gol';
+            situationalConf = 68;
+            situationalStake = 2;
+            situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse — jogo aberto.`;
+          }
+        }
+
+        // REGRA S3 — MATA-MATA COM OBRIGAÇÃO DE VIRAR
+        if (!situationalRule && isKnockout) {
+          const diff = Math.abs(scoreH - scoreA);
+          if (diff >= 1 && diff <= 2 && (scoreH !== scoreA)) {
+            const teamBehind = scoreH < scoreA ? match.home : match.away;
+            situationalRule = 'S3';
+            situationalMarket = min < 60 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
+            situationalConf = diff === 1 ? 72 : 66;
+            situationalStake = diff === 1 ? 3 : 2;
+            situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar.`;
+          }
+        }
+
+        // REGRA S4 — ESCANTEIOS EM PRESSÃO ACUMULADA
+        // Note: corners data may not always be available in stats, check if present
+        if (!situationalRule && min >= 10 && min <= 40 && (homeDominant || awayDominant)) {
+          if (domXg >= 0.6 && domGoals <= 1) {
+            // We can't always check corners, so use shots + xG as proxy
+            if (domSot >= 3 && domGoals === 0) {
+              situationalRule = 'S4';
+              situationalMarket = 'Over 0.5 HT';
+              situationalConf = 65;
+              situationalStake = 2;
+              situationalContext = `${domName} com xG ${domXg}, ${domSot} finalizações no alvo, ${domGoals} gol(s) — pressão acumulada sem conversão.`;
+            }
+          }
+        }
+
+        // Apply override
+        if (situationalRule && min <= 70) {
+          console.log(`[MycroftSports] 🔄 SITUACIONAL: Regra ${situationalRule} ativada para ${match.home} vs ${match.away}`);
+          analysis.verdict = 'APROVADO_SITUACIONAL';
+          analysis.situational_rule = situationalRule;
+          analysis.market = analysis.market === 'N/A' || !analysis.market ? situationalMarket : analysis.market;
+          analysis.confidence = Math.max(analysis.confidence || 0, situationalConf);
+          analysis.plan_name = null; // Situacional não usa planos
+          analysis.alerts = [
+            ...(analysis.alerts || []),
+            `✅ Aprovação situacional via Regra ${situationalRule}: ${situationalContext}`,
+            `⚠️ Aprovação baseada em leitura situacional. Dados históricos insuficientes para cálculo de edge.`,
+          ];
+          analysis.thesis = `📍 APROVADO SITUACIONAL (Regra ${situationalRule}) — ${situationalContext}`;
+          // Cap stake at VALOR tier max
+          const bankroll = match.bankroll ?? 500;
+          const stakePercent = Math.min(situationalStake, 3); // Max 3% for S3, 2% for others
+          analysis.risk_management = {
+            stake_percent: stakePercent,
+            stake_value: bankroll * stakePercent / 100,
+            entry: `${analysis.market} @ ${analysis.odd || 1.50}`,
+            stop: 'Condição adversa ou gol contra',
+            target: 'Realização do mercado',
+            rr: `1:${(analysis.odd || 1.50).toFixed(1)}`,
+            ev: `+${Math.round(((analysis.confidence / 100) * (analysis.odd || 1.50) - 1) * 100)}%`,
+          };
+        }
+      }
+    }
+
     // Ensure odd/risk_management defaults for APROVADO
-    if (analysis.verdict === 'APROVADO') {
+    if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
       if (!analysis.odd || analysis.odd <= 0) {
         analysis.odd = 1.50;
         analysis.alerts = [...(analysis.alerts || []), 'Odd estimada automaticamente'];
@@ -401,16 +595,14 @@ serve(async (req) => {
     // === BAS (Bluffer Asset Score) — composite quality score ===
     {
       let bas = 0;
-      // 1. Confidence (0-40 pts)
       bas += Math.min(40, Math.round((analysis.confidence || 0) * 0.4));
-      // 2. Odd value sweet spot 1.40-3.00 (0-20 pts)
       const odd = analysis.odd || 0;
       if (odd >= 1.40 && odd <= 3.00) bas += 20;
       else if (odd > 3.00 && odd <= 5.00) bas += 10;
       else if (odd > 1.10 && odd < 1.40) bas += 5;
-      // 3. Plan activated (0-20 pts)
       if (analysis.plan_name) bas += 20;
-      // 4. Criteria met vs missing (0-20 pts)
+      // Situational approval gets a small plan-like bonus
+      if (analysis.situational_rule) bas += 10;
       const met = analysis.criterios_atendidos?.length || 0;
       const missing = analysis.criterios_ausentes?.length || 0;
       if (met > 0 && missing === 0) bas += 20;
@@ -423,7 +615,7 @@ serve(async (req) => {
         bas >= 50 ? 'FORTE' : 'ESPECULATIVO';
     }
 
-    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
+    console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || analysis.situational_rule || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
 
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
