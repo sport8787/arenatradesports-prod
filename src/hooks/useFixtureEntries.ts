@@ -14,7 +14,64 @@ const OPPOSITE_MARKETS: Record<string, string> = {
   'Under 3.5 Total': 'Over 3.5 Total',
 };
 
-export function useFixtureEntries(fixtureId: string | undefined, userId: string | undefined) {
+interface MatchContext {
+  minute?: number;
+  scoreHome?: number;
+  scoreAway?: number;
+}
+
+/**
+ * Estimate current odd based on match progression.
+ * Uses time decay and score changes as factors.
+ * This is a simple deterministic model — will be replaced
+ * by real odds from Live API key in the future.
+ */
+function estimateCurrentOdd(entryOdd: number, entryMinute: number, market: string, ctx: MatchContext): number {
+  const currentMinute = ctx.minute ?? entryMinute;
+  const totalGoals = (ctx.scoreHome ?? 0) + (ctx.scoreAway ?? 0);
+  const elapsed = Math.max(0, currentMinute - entryMinute);
+
+  // Time factor: odds decrease as game progresses (less time = less uncertainty)
+  const remainingPct = Math.max(0, (90 - currentMinute) / 90);
+
+  const isOver = market.toLowerCase().startsWith('over');
+  const isUnder = market.toLowerCase().startsWith('under');
+
+  if (isOver) {
+    // Extract target from market name e.g. "Over 2.5 Total" -> 2.5
+    const targetMatch = market.match(/(\d+\.?\d*)/);
+    const target = targetMatch ? parseFloat(targetMatch[1]) : 1.5;
+    const remaining = target - totalGoals;
+
+    if (remaining <= 0) {
+      // Already hit — odd drops close to 1.0 (green)
+      return Math.max(1.01, 1 + (entryOdd - 1) * 0.05);
+    }
+    // Odd adjusts based on goals needed vs time remaining
+    const difficultyFactor = remaining / Math.max(0.1, remainingPct * 3);
+    return Math.max(1.01, entryOdd * (0.5 + difficultyFactor * 0.5));
+  }
+
+  if (isUnder) {
+    const targetMatch = market.match(/(\d+\.?\d*)/);
+    const target = targetMatch ? parseFloat(targetMatch[1]) : 1.5;
+    const margin = target - totalGoals;
+
+    if (margin <= 0) {
+      // Busted — odd spikes (red)
+      return entryOdd * 5;
+    }
+    // Under gets better with time passing without goals
+    const timeSafety = (1 - remainingPct) * 0.7;
+    return Math.max(1.01, entryOdd * (1 - timeSafety));
+  }
+
+  // Generic market: simple time decay
+  const timeFactor = 1 - (elapsed / 90) * 0.3;
+  return Math.max(1.01, entryOdd * timeFactor);
+}
+
+export function useFixtureEntries(fixtureId: string | undefined, userId: string | undefined, matchContext?: MatchContext) {
   const queryClient = useQueryClient();
   const queryKey = ['arena-entries', fixtureId, userId];
 
@@ -35,12 +92,28 @@ export function useFixtureEntries(fixtureId: string | undefined, userId: string 
   });
 
   const totalStakePct = entries.reduce((s, e) => s + Number(e.stake_pct), 0);
+
+  // Calculate live P&L using estimated current odds
   const gamePnL = entries.reduce((s, e) => {
     if (e.status === 'green') return s + (Number(e.pnl) || 0);
     if (e.status === 'red') return s - Number(e.stake_value);
     if (e.status === 'cashout') return s + (Number(e.pnl) || 0);
+    // For pending entries, estimate P&L from current odd
+    if (e.status === 'pending' && matchContext) {
+      const currentOdd = estimateCurrentOdd(Number(e.odd), e.minute_entered, e.market, matchContext);
+      const estimatedCashout = Number(e.stake_value) * (Number(e.odd) / currentOdd);
+      return s + (estimatedCashout - Number(e.stake_value));
+    }
     return s;
   }, 0);
+
+  // Provide estimated cashout values for each pending entry
+  const entriesWithEstimates = entries.map(e => {
+    if (e.status !== 'pending' || !matchContext) return { ...e, estimatedOdd: null, estimatedCashout: null };
+    const currentOdd = estimateCurrentOdd(Number(e.odd), e.minute_entered, e.market, matchContext);
+    const estimatedCashout = parseFloat((Number(e.stake_value) * (Number(e.odd) / currentOdd)).toFixed(2));
+    return { ...e, estimatedOdd: parseFloat(currentOdd.toFixed(2)), estimatedCashout };
+  });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
@@ -81,5 +154,5 @@ export function useFixtureEntries(fixtureId: string | undefined, userId: string 
     invalidate();
   };
 
-  return { entries, totalStakePct, gamePnL, addEntry, markGreen, markRed, markCashout, canAddEntry, invalidate, ...rest };
+  return { entries: entriesWithEstimates, totalStakePct, gamePnL, addEntry, markGreen, markRed, markCashout, canAddEntry, invalidate, ...rest };
 }
