@@ -1220,6 +1220,23 @@ export default function PunterPage() {
           </button>
 
           <button
+            onClick={() => navigate('/arena-trader-sports')}
+            className="w-full border border-primary/30 rounded-lg bg-primary/5 p-3 flex items-center justify-between hover:bg-primary/10 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Activity className="w-4 h-4 text-primary" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Trading Esportivo</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Apostas ao vivo com análise Mycroft em tempo real</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-mono bg-destructive/20 text-destructive px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+            </div>
+          </button>
+
+          <button
             onClick={() => navigate('/punter/config')}
             className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
           >
@@ -1232,6 +1249,22 @@ export default function PunterPage() {
             </div>
             <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
           </button>
+
+          <a
+            href="https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <MessageCircle className="w-4 h-4 text-green-500" />
+              <div className="text-left">
+                <p className="font-mono text-xs font-semibold text-foreground">Suporte via WhatsApp</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Dúvidas, bugs ou sugestões — fale conosco</p>
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
+          </a>
         </div>
 
         {/* Scanner Panel */}
