@@ -15,6 +15,7 @@ import {
   ArrowLeft, Play, Settings, Shield, AlertTriangle,
   RotateCcw, Eye
 } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import {
   getOptimalDecision, calculateHandTotal, getCardValue,
   type Hand, type Action, type Decision
