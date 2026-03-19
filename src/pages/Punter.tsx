@@ -1250,21 +1250,7 @@ export default function PunterPage() {
             <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
           </button>
 
-          <a
-            href="https://wa.me/5581997950345?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
-          >
-            <div className="flex items-center gap-2.5">
-              <MessageCircle className="w-4 h-4 text-green-500" />
-              <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Suporte via WhatsApp</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Dúvidas, bugs ou sugestões — fale conosco</p>
-              </div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-          </a>
+          <WhatsAppSupportButton variant="full" className="w-full" />
         </div>
 
         {/* Scanner Panel */}
