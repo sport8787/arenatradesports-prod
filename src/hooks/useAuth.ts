@@ -133,7 +133,7 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = 'https://futebol.blefadormilionario.com.br/auth';
+    const redirectUrl = `${window.location.origin}/auth`;
     
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
