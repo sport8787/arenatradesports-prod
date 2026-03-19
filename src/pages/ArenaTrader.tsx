@@ -823,6 +823,7 @@ export default function ArenaTrader() {
             <button onClick={() => navigate('/arena-trader/rankings')} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Rankings">
               <Trophy className="w-5 h-5 text-amber-400" />
             </button>
+            <WhatsAppSupportButton />
           </div>
         </div>
 

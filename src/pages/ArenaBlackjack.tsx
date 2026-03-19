@@ -670,6 +670,7 @@ export default function ArenaBlackjack() {
               <h1 className="font-orbitron text-xl text-primary">Arena Blackjack</h1>
               <p className="text-xs text-muted-foreground">Assistente Inteligente • Hi-Lo + Sistema Híbrido</p>
             </div>
+            <WhatsAppSupportButton />
           </div>
 
           <Alert>

@@ -269,6 +269,7 @@ const ArenaPoker = () => {
                 </Button>
               </>
             )}
+            <WhatsAppSupportButton />
           </div>
         </div>
       </header>

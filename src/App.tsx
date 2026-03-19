@@ -85,6 +85,7 @@ const App = () => {
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
               <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
+              <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
               <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
