@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, BarChart3, Volume2, VolumeX, Trophy, Share2, BookOpen } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -806,7 +807,7 @@ export default function ArenaTrader() {
       <div className="pt-16 px-3 pb-4 max-w-7xl mx-auto">
         {/* Top Bar */}
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-amber-400/80 hover:text-amber-400 transition-colors">
+          <button onClick={() => navigate('/lobby')} className="flex items-center gap-2 text-amber-400/80 hover:text-amber-400 transition-colors">
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Voltar</span>
           </button>
@@ -822,6 +823,7 @@ export default function ArenaTrader() {
             <button onClick={() => navigate('/arena-trader/rankings')} className="p-2 rounded-lg hover:bg-white/5 transition-colors" title="Rankings">
               <Trophy className="w-5 h-5 text-amber-400" />
             </button>
+            <WhatsAppSupportButton />
           </div>
         </div>
 

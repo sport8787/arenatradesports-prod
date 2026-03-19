@@ -15,6 +15,7 @@ import {
   ArrowLeft, Play, Settings, Shield, AlertTriangle,
   RotateCcw, Eye
 } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import {
   getOptimalDecision, calculateHandTotal, getCardValue,
   type Hand, type Action, type Decision
@@ -647,7 +648,7 @@ export default function ArenaBlackjack() {
               </div>
               <div className="flex gap-2">
                 <GoldButton className="flex-1" onClick={() => { setPhase('config'); setStopReason(null); }}>Nova Sessão</GoldButton>
-                <Button variant="outline" onClick={() => navigate('/')}>Voltar</Button>
+                <Button variant="outline" onClick={() => navigate('/lobby')}>Voltar</Button>
               </div>
             </CardContent>
           </Card>
@@ -662,13 +663,14 @@ export default function ArenaBlackjack() {
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-lg mx-auto space-y-6">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/lobby')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
               <h1 className="font-orbitron text-xl text-primary">Arena Blackjack</h1>
               <p className="text-xs text-muted-foreground">Assistente Inteligente • Hi-Lo + Sistema Híbrido</p>
             </div>
+            <WhatsAppSupportButton />
           </div>
 
           <Alert>

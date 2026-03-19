@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Lock, Target } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { useSportsTrainingStatus } from '@/hooks/useSportsTrainingStatus';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -366,7 +367,7 @@ export default function ArenaTraderSports() {
         {/* Top row: title + bankroll info */}
         <div className="container mx-auto px-4 pt-3 pb-2 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/punter')} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary truncate">
@@ -391,6 +392,7 @@ export default function ArenaTraderSports() {
                 </div>
               </div>
             )}
+            <WhatsAppSupportButton />
             <LiveCronToggle />
             {/* View toggle */}
             <div className="flex items-center border border-border rounded-lg overflow-hidden">

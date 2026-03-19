@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, RotateCcw, Activity, Trophy, Users, FolderOpen, BookOpen } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
@@ -171,7 +172,7 @@ const ArenaPoker = () => {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/punter')} className="text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </Button>
             <div className="h-5 w-px bg-border" />
@@ -268,6 +269,7 @@ const ArenaPoker = () => {
                 </Button>
               </>
             )}
+            <WhatsAppSupportButton />
           </div>
         </div>
       </header>
