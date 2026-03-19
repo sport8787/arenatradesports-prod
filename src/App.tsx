@@ -28,6 +28,7 @@ import PunterWidgets from "./pages/PunterWidgets";
 import PunterConfig from "./pages/PunterConfig";
 import PunterImport from "./pages/PunterImport";
 import ArenaTrader from "./pages/ArenaTrader";
+import ArenaPoker from "./pages/ArenaPoker";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import ArenaBlackjack from "./pages/ArenaBlackjack";
