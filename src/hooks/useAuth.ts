@@ -83,7 +83,7 @@ export const useAuth = () => {
   }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
+    const redirectUrl = `${window.location.origin}/punter`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
