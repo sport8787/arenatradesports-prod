@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, RotateCcw, Activity, Trophy, Users, FolderOpen, BookOpen } from 'lucide-react';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import FileImporter from '@/components/arena-poker/FileImporter';
