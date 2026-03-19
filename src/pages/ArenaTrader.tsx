@@ -806,7 +806,7 @@ export default function ArenaTrader() {
       <div className="pt-16 px-3 pb-4 max-w-7xl mx-auto">
         {/* Top Bar */}
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-amber-400/80 hover:text-amber-400 transition-colors">
+          <button onClick={() => navigate('/lobby')} className="flex items-center gap-2 text-amber-400/80 hover:text-amber-400 transition-colors">
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Voltar</span>
           </button>

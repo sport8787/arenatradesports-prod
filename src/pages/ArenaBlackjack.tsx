@@ -662,7 +662,7 @@ export default function ArenaBlackjack() {
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-lg mx-auto space-y-6">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/lobby')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
