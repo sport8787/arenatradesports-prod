@@ -1251,7 +1251,7 @@ export default function PunterPage() {
           </button>
 
           <a
-            href="https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft"
+            href="https://wa.me/5581997950345?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
