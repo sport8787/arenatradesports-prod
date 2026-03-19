@@ -18,7 +18,7 @@ export default function LandingPage() {
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/lobby', { replace: true });
+      navigate('/punter', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 

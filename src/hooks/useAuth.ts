@@ -83,7 +83,7 @@ export const useAuth = () => {
   }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = 'https://futebol.blefadormilionario.com.br/';
+    const redirectUrl = `${window.location.origin}/punter`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -108,7 +108,7 @@ export const useAuth = () => {
   const signInWithGoogle = async () => {
     const { lovable } = await import('@/integrations/lovable/index');
     const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: 'https://futebol.blefadormilionario.com.br/',
+      redirect_uri: `${window.location.origin}/punter`,
     });
     return { data: result, error: result?.error || null };
   };
@@ -116,7 +116,7 @@ export const useAuth = () => {
   const signInWithApple = async () => {
     const { lovable } = await import('@/integrations/lovable/index');
     const result = await lovable.auth.signInWithOAuth('apple', {
-      redirect_uri: 'https://futebol.blefadormilionario.com.br/',
+      redirect_uri: `${window.location.origin}/punter`,
     });
     return { data: result, error: result?.error || null };
   };
@@ -133,7 +133,7 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = 'https://futebol.blefadormilionario.com.br/auth';
+    const redirectUrl = `${window.location.origin}/auth`;
     
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
