@@ -26,6 +26,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { Progress } from '@/components/ui/progress';
