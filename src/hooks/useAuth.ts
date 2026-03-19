@@ -116,7 +116,7 @@ export const useAuth = () => {
   const signInWithApple = async () => {
     const { lovable } = await import('@/integrations/lovable/index');
     const result = await lovable.auth.signInWithOAuth('apple', {
-      redirect_uri: 'https://futebol.blefadormilionario.com.br/',
+      redirect_uri: `${window.location.origin}/punter`,
     });
     return { data: result, error: result?.error || null };
   };
