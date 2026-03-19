@@ -647,7 +647,7 @@ export default function ArenaBlackjack() {
               </div>
               <div className="flex gap-2">
                 <GoldButton className="flex-1" onClick={() => { setPhase('config'); setStopReason(null); }}>Nova Sessão</GoldButton>
-                <Button variant="outline" onClick={() => navigate('/')}>Voltar</Button>
+                <Button variant="outline" onClick={() => navigate('/lobby')}>Voltar</Button>
               </div>
             </CardContent>
           </Card>
