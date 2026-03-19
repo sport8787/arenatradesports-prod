@@ -154,7 +154,7 @@ const Auth = () => {
     
     sessionStorage.setItem('guestMode', 'true');
     sessionStorage.setItem('guestNickname', guestNickname);
-    navigate('/lobby');
+    navigate('/punter');
   };
 
   const handleSaveNickname = async () => {
