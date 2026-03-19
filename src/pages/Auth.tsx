@@ -35,7 +35,7 @@ const Auth = () => {
       if (profile.username === 'Jogador') {
         setShowNicknameSetup(true);
       } else {
-        navigate('/lobby');
+        navigate('/punter');
       }
     }
   }, [isAuthenticated, loading, profile, navigate]);
