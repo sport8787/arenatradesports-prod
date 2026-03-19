@@ -92,7 +92,7 @@ const Auth = () => {
         } else {
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso' });
-          navigate('/lobby');
+          navigate('/punter');
         }
       } else {
         const { data, error } = await signUp(email, password, username);
