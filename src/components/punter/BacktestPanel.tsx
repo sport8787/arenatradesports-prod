@@ -269,7 +269,7 @@ export default function BacktestPanel({ onClose }: Props) {
 
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
               <p><strong className="text-accent">Pipeline:</strong> Backtest No-Lookahead + Monte Carlo (10.000 simulações)</p>
-              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme Tiers | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
+              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme nível do sinal | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
               <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de apostas — sem crescimento infinito</p>
             </div>
 
