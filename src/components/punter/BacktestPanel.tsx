@@ -433,7 +433,8 @@ export default function BacktestPanel({ onClose }: Props) {
                                 {t.roi >= 0 ? '+' : ''}{t.roi.toFixed(1)}%
                               </span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </CardContent>
                     </Card>
