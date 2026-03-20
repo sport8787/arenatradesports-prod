@@ -40,11 +40,16 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
 
   bets.forEach((bet, index) => {
     const score = bet.confidence ?? 70;
-    const tierEmoji = score >= 90 ? "⭐⭐⭐" : score >= 70 ? "⭐⭐" : "⭐";
-    const tierLabel = score >= 90 ? "ELITE" : score >= 70 ? "PREMIUM" : "FORTE";
-    const edge = bet.value_percentage ?? 0;
     const stake = bet.stake_percentage ?? 1;
     const num = numberEmojis[index] || `${index + 1}.`;
+
+    // User-friendly tier labels
+    let tierIcon: string, tierLabel: string;
+    if (stake >= 4) { tierIcon = '⚡'; tierLabel = 'SINAL FORTE'; }
+    else if (stake >= 3) { tierIcon = '✅'; tierLabel = 'SINAL BOM'; }
+    else { tierIcon = '🎯'; tierLabel = 'SINAL MODERADO'; }
+
+    const edge = bet.value_percentage ?? 0;
 
     const gameTime = new Date(bet.commence_time).toLocaleString("pt-BR", {
       day: "2-digit",
@@ -59,9 +64,9 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
     message += `🏆 ${bet.league}\n`;
     message += `🎲 Mercado: ${bet.market}\n`;
     message += `💰 Odd: ${bet.odd.toFixed(2)} (${bet.bookmaker})\n`;
-    message += `${tierEmoji} Nível de Confiança: ${score} ${tierLabel}\n`;
-    message += `📈 Vantagem: +${edge.toFixed(1)}%\n`;
-    message += `💵 Investimento Sugerido: ${stake.toFixed(1)}% da banca\n`;
+    message += `${tierIcon} ${tierLabel}\n`;
+    message += `📊 Confiança: ${score}% · Vantagem: +${edge.toFixed(1)}%\n`;
+    message += `💵 Mycroft recomenda: ${stake.toFixed(1)}% da banca\n`;
     message += `🕐 ${gameTime}\n`;
   });
 

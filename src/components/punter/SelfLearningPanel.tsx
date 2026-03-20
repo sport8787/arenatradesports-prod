@@ -119,18 +119,22 @@ export default function SelfLearningPanel() {
           {/* Tier Performance */}
           {tierData.length > 0 && (
             <div>
-              <p className="text-[10px] font-mono text-muted-foreground mb-2">PERFORMANCE POR TIER</p>
+              <p className="text-[10px] font-mono text-muted-foreground mb-2">PERFORMANCE POR SINAL</p>
               <div className="space-y-1">
-                {tierData.map((t, i) => (
+                {tierData.map((t, i) => {
+                  const labelMap: Record<string, string> = { 'Elite': '⚡ SINAL FORTE', 'Forte': '✅ SINAL BOM', 'Valor': '🎯 SINAL MODERADO', 'Tier 1': '⚡ SINAL FORTE', 'Tier 2': '✅ SINAL BOM', 'Tier 3': '🎯 SINAL MODERADO' };
+                  const tierLabel = labelMap[t.tier] || t.tier;
+                  return (
                   <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg px-3 py-2 border border-border">
-                    <span className="text-[10px] font-mono font-bold text-foreground">{t.tier}</span>
+                    <span className="text-[10px] font-mono font-bold text-foreground">{tierLabel}</span>
                     <div className="flex gap-3 text-[10px] font-mono">
                       <span className="text-muted-foreground">{t.total} bets</span>
                       <span className={cn(t.roi >= 0 ? 'text-green-400' : 'text-red-400')}>ROI {t.roi.toFixed(1)}%</span>
                       <span className="text-primary">WR {t.win_rate.toFixed(0)}%</span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

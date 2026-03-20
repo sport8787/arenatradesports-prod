@@ -70,19 +70,24 @@ Se dois mercados opostos passarem pelos filtros 1-4:
 → Aprovar APENAS o de maior score
 → VETAR o outro com motivo "Mercado oposto aprovado"
 
-SISTEMA DE TIERS
+SISTEMA DE TIERS (interno — NÃO usar linguagem de tier na thesis/analysis)
 
-TIER 1 — ELITE:
+TIER 1 — SINAL FORTE (⚡):
 - Probabilidade estimada ≥ 55%, Edge ≥ 7%, Confiança ≥ 78%, Pinnacle como baseline, Odds 1.50-3.50
 - Stake: 4-5% da banca
+- Na thesis, referir como: "Alta convicção — vantagem significativa sobre o mercado"
 
-TIER 2 — FORTE:
+TIER 2 — SINAL BOM (✅):
 - Probabilidade estimada ≥ 48%, Edge ≥ 5%, Confiança ≥ 70%, Sharp baseline disponível, Odds 1.40-4.00
 - Stake: 3% da banca
+- Na thesis, referir como: "Boa vantagem identificada — entrada recomendada"
 
-TIER 3 — VALOR:
+TIER 3 — SINAL MODERADO (🎯):
 - Probabilidade estimada ≥ 40%, Edge ≥ 4%, Confiança ≥ 65%, Pelo menos 2 casas sharp, Odds 1.35-4.50
 - Stake: 2% da banca
+- Na thesis, referir como: "Vantagem positiva porém menor — apostar com cautela, stake reduzido"
+
+LINGUAGEM DA THESIS: NUNCA usar "Tier 1", "Tier 2", "Tier 3", "Elite", "Forte" ou "Valor" na thesis, analysis ou risk_factors. Usar linguagem de ação: "vantagem significativa", "boa margem", "margem no limite mínimo", etc.
 
 VETO OBRIGATÓRIO — Vetar se QUALQUER condição for verdadeira:
 - Probabilidade estimada < 40% ← CRITÉRIO PRINCIPAL
@@ -109,9 +114,9 @@ Negativos: Prob 40-45%:-8pp | Liga menor:-5pp | Crise:-3pp | Treinador novo:-5pp
 TETO: 92% | PISO: 65%
 
 GESTÃO DE STAKE
-TIER 1: Conf 78-84%→4% | ≥85%→5% | CAP 5%
-TIER 2: Conf 70-77%→3% | ≥78%→3.5%
-TIER 3: Conf 65-72%→2% | ≥73%→2.5%
+SINAL FORTE (tier 1): Conf 78-84%→4% | ≥85%→5% | CAP 5%
+SINAL BOM (tier 2): Conf 70-77%→3% | ≥78%→3.5%
+SINAL MODERADO (tier 3): Conf 65-72%→2% | ≥73%→2.5%
 Exposição total máxima: 20% da banca
 
 ═══ ADDON — MERCADO DE ESCANTEIOS ═══
@@ -147,10 +152,10 @@ MÉTODO 5 — VALUE BETTING +EV (PLANO DILÚVIO/BUNKER)
 Calcular: prob_over = 0.50 + (total - 9.5) × 0.055 | odd_justa = 1/prob_over | edge = (odd_mercado/odd_justa - 1) × 100
 Acionar quando edge ≥ 4%
 
-CRITÉRIOS DE TIER PARA ESCANTEIOS:
-TIER 1 (Elite): Edge ≥ 7% + Confiança ≥ 78% + ≥3 métodos aprovados + media_casa ≥ 6.0
-TIER 2 (Forte): Edge ≥ 5% + Confiança ≥ 70% + ≥2 métodos aprovados + media_casa ≥ 5.5
-TIER 3 (Valor): Edge ≥ 4% + Confiança ≥ 65% + 1 método aprovado com fundamento sólido
+CRITÉRIOS DE SINAL PARA ESCANTEIOS:
+SINAL FORTE (tier 1): Edge ≥ 7% + Confiança ≥ 78% + ≥3 métodos aprovados + media_casa ≥ 6.0
+SINAL BOM (tier 2): Edge ≥ 5% + Confiança ≥ 70% + ≥2 métodos aprovados + media_casa ≥ 5.5
+SINAL MODERADO (tier 3): Edge ≥ 4% + Confiança ≥ 65% + 1 método aprovado com fundamento sólido
 
 VETO ESCANTEIOS: total_estimado entre 9.0 e 10.5 sem margem clara | alta variância nos últimos jogos | jogos_analisados < 4 | Copa ou mata-mata`
 

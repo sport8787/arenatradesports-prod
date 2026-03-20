@@ -28,6 +28,7 @@ import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
+import { getTierFromStake } from '@/lib/tierLabels';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -940,6 +941,7 @@ export default function PunterPage() {
           const mid = `${r.mandante}_${r.visitante}_${commenceTime}`.replace(/\s+/g, '_');
           const market = `Escanteios: ${r.veredicto.market}`;
           const verdict = r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR';
+          // Note: verdict stored in DB stays internal; user-facing label derived from stake %
           const odd = r.veredicto.odd || 1.80;
           const confidence = r.veredicto.confidence || 0;
           const edge = r.veredicto.edge_percentage || 0;
@@ -1790,21 +1792,34 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
       <div className={cn("border rounded-lg bg-card overflow-hidden transition-all hover:border-primary/30", gradeConfig.border)}>
-        {/* Top bar with grade + status */}
-        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        {/* Top bar with tier signal + grade */}
+        <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {(() => {
+              const tierInfo = getTierFromStake(stakePercent);
+              return (
+                <>
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-mono font-bold border",
+                    tierInfo.bgClass, tierInfo.textClass, tierInfo.borderClass
+                  )}>
+                    {tierInfo.icon} {tierInfo.label}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{tierInfo.sublabel}</span>
+                </>
+              );
+            })()}
+          </div>
+          <div className="flex items-center gap-1.5">
             <span className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold border",
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border",
               gradeConfig.bg, gradeConfig.text, gradeConfig.border
             )}>
               {gradeConfig.emoji} {assetScore.grade}
             </span>
-            <span className="font-mono text-xs text-muted-foreground">{gradeConfig.label}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
             {signal.recommendation.simulated_odds && (
               <span className="text-[10px] font-mono text-warning bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded">
-                ⚠️ ODDS SIMULADAS
+                ⚠️ SIMULADAS
               </span>
             )}
             {isNew && (
@@ -1848,14 +1863,39 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             </div>
           </div>
 
+          {/* Confidence bar */}
+          {(() => {
+            const tierInfo = getTierFromStake(stakePercent);
+            const confidence = signal.recommendation.confidence ?? 70;
+            const edge = signal.recommendation.value_percentage;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-muted-foreground">Confiança do Mycroft: {confidence}%</span>
+                  {edge != null && <span className="text-muted-foreground">Vantagem: +{edge.toFixed(1)}%</span>}
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(confidence, 100)}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className={cn("h-full rounded-full", tierInfo.bgClass.replace('/15', ''))}
+                  />
+                </div>
+                <p className={cn("text-[10px] font-mono", tierInfo.textClass)}>
+                  Stake sugerido: {tierInfo.stakeLabel} · R$ {horusStake.toFixed(2)}
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Data Grid */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5">
             <DataCell label="MERCADO" value={signal.recommendation.market} />
             <DataCell label="CASA" value={signal.recommendation.bookmaker} />
             <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
             <DataCell label="PROB." value={`${(signal.recommendation.estimated_probability ?? assetScore.model_probability).toFixed(1)}%`} />
             <DataCell label="EDGE" value={signal.recommendation.value_percentage != null ? `+${signal.recommendation.value_percentage.toFixed(1)}%` : 'N/A'} highlight />
-            <DataCell label="KELLY" value={`${stakePercent}% · R$${horusStake.toFixed(0)}`} />
           </div>
 
           {/* Factor Bars */}

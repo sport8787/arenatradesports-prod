@@ -269,7 +269,7 @@ export default function BacktestPanel({ onClose }: Props) {
 
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
               <p><strong className="text-accent">Pipeline:</strong> Backtest No-Lookahead + Monte Carlo (10.000 simulações)</p>
-              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme Tiers | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
+              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme nível do sinal | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
               <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de apostas — sem crescimento infinito</p>
             </div>
 
@@ -398,7 +398,7 @@ export default function BacktestPanel({ onClose }: Props) {
                   {metrics.tier_breakdown && metrics.tier_breakdown.length > 0 && (
                     <Card className="border-border">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-orbitron">ROI por Tier</CardTitle>
+                        <CardTitle className="text-sm font-orbitron">ROI por Tipo de Sinal</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="h-44">
@@ -423,14 +423,18 @@ export default function BacktestPanel({ onClose }: Props) {
                           </ResponsiveContainer>
                         </div>
                         <div className="mt-2 space-y-1">
-                          {metrics.tier_breakdown.map((t, i) => (
+                          {metrics.tier_breakdown.map((t, i) => {
+                            const labelMap: Record<string, string> = { 'Elite': '⚡ SINAL FORTE', 'Forte': '✅ SINAL BOM', 'Valor': '🎯 SINAL MODERADO', 'Tier 1': '⚡ SINAL FORTE', 'Tier 2': '✅ SINAL BOM', 'Tier 3': '🎯 SINAL MODERADO' };
+                            const tierLabel = labelMap[t.tier] || t.tier;
+                            return (
                             <div key={i} className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">{t.tier}: {t.count} apostas ({t.greens}G / {t.reds}R) | Acerto: {t.hit_rate}%</span>
+                              <span className="text-muted-foreground">{tierLabel}: {t.count} apostas ({t.greens}G / {t.reds}R) | Acerto: {t.hit_rate}%</span>
                               <span className={cn("font-bold", t.roi >= 0 ? 'text-success' : 'text-destructive')}>
                                 {t.roi >= 0 ? '+' : ''}{t.roi.toFixed(1)}%
                               </span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </CardContent>
                     </Card>
