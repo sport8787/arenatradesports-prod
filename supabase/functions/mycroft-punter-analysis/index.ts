@@ -152,10 +152,10 @@ MÉTODO 5 — VALUE BETTING +EV (PLANO DILÚVIO/BUNKER)
 Calcular: prob_over = 0.50 + (total - 9.5) × 0.055 | odd_justa = 1/prob_over | edge = (odd_mercado/odd_justa - 1) × 100
 Acionar quando edge ≥ 4%
 
-CRITÉRIOS DE TIER PARA ESCANTEIOS:
-TIER 1 (Elite): Edge ≥ 7% + Confiança ≥ 78% + ≥3 métodos aprovados + media_casa ≥ 6.0
-TIER 2 (Forte): Edge ≥ 5% + Confiança ≥ 70% + ≥2 métodos aprovados + media_casa ≥ 5.5
-TIER 3 (Valor): Edge ≥ 4% + Confiança ≥ 65% + 1 método aprovado com fundamento sólido
+CRITÉRIOS DE SINAL PARA ESCANTEIOS:
+SINAL FORTE (tier 1): Edge ≥ 7% + Confiança ≥ 78% + ≥3 métodos aprovados + media_casa ≥ 6.0
+SINAL BOM (tier 2): Edge ≥ 5% + Confiança ≥ 70% + ≥2 métodos aprovados + media_casa ≥ 5.5
+SINAL MODERADO (tier 3): Edge ≥ 4% + Confiança ≥ 65% + 1 método aprovado com fundamento sólido
 
 VETO ESCANTEIOS: total_estimado entre 9.0 e 10.5 sem margem clara | alta variância nos últimos jogos | jogos_analisados < 4 | Copa ou mata-mata`
 

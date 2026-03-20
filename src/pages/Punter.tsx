@@ -941,6 +941,7 @@ export default function PunterPage() {
           const mid = `${r.mandante}_${r.visitante}_${commenceTime}`.replace(/\s+/g, '_');
           const market = `Escanteios: ${r.veredicto.market}`;
           const verdict = r.veredicto.verdict === 'APROVADO_TIER_1' ? 'APROVADO_ELITE' : r.veredicto.verdict === 'APROVADO_TIER_2' ? 'APROVADO_FORTE' : 'APROVADO_TEM_VALOR';
+          // Note: verdict stored in DB stays internal; user-facing label derived from stake %
           const odd = r.veredicto.odd || 1.80;
           const confidence = r.veredicto.confidence || 0;
           const edge = r.veredicto.edge_percentage || 0;
