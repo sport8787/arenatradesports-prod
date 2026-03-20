@@ -87,7 +87,7 @@ serve(async (req) => {
       .from('live_matches')
       .select('*, mycroft_analyses!inner(id, verdict, created_at)')
       .eq('status', 'live')
-      .in('mycroft_status', ['aguardar', 'done'])
+      .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
       .limit(20);
 
