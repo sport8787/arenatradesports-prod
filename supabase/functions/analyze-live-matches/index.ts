@@ -87,7 +87,7 @@ serve(async (req) => {
       .from('live_matches')
       .select('*, mycroft_analyses!inner(id, verdict, created_at)')
       .eq('status', 'live')
-      .in('mycroft_status', ['aguardar', 'done'])
+      .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
       .limit(20);
 
@@ -203,16 +203,16 @@ serve(async (req) => {
         }
 
         if (analysisRow) {
-          // Map verdict to mycroft_status
+          // Map verdict to mycroft_status — preserve dynamic statuses for reanalysis
           const verdictToStatus: Record<string, string> = {
             'APROVADO': 'done',
             'APROVADO_SITUACIONAL': 'done',
             'AGUARDAR': 'aguardar',
-            'JOGO_MORTO': 'done',
-            'LABAREDA': 'done',
-            'CUIDADO': 'done',
+            'JOGO_MORTO': 'jogo_morto',
+            'LABAREDA': 'labareda',
+            'CUIDADO': 'cuidado',
           };
-          const statusToSet = verdictToStatus[analysis.verdict] || 'done';
+          const statusToSet = verdictToStatus[analysis.verdict] || 'aguardar';
           
           await supabase
             .from('live_matches')
@@ -232,36 +232,50 @@ serve(async (req) => {
             market: analysis.market,
           });
 
-          // === TELEGRAM NOTIFICATION for APROVADO / LABAREDA ===
+          // === TELEGRAM NOTIFICATION for any APPROVED signal ===
           if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA') {
             try {
-              const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-              const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
-              if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-                const statusEmoji = analysis.verdict === 'LABAREDA' ? '⚡' : '✅';
-                const planLabel = analysis.plan_name ? ` | Plano: *${analysis.plan_name}*` : '';
-                const msg = [
-                  `${statusEmoji} *SINAL ${analysis.verdict} — ARENA TRADER SPORTS*`,
-                  ``,
-                  `⚽ *${match.home_team} vs ${match.away_team}*`,
-                  `🏟️ ${match.championship} | ${match.minute ?? 0}'`,
-                  `📊 Mercado: *${analysis.market}*`,
-                  `💰 Odd: *${analysis.odd ?? '—'}*`,
-                  `🎯 Confiança: *${analysis.confidence}%*${planLabel}`,
-                  ``,
-                  `📝 _${analysis.thesis || 'Análise concluída'}_`,
-                  ``,
-                  analysis.risk_management?.stake_value ? `💵 Stake sugerida: *R$ ${Number(analysis.risk_management.stake_value).toFixed(2)}* (${analysis.risk_management.stake_percent}% da banca)` : '',
-                  ``,
-                  `🔗 [Abrir Arena Trader](https://arenatradesports.lovable.app/arena-trader-sports)`,
-                ].filter(Boolean).join('\n');
+              // Dedup check: only send if no previous Telegram was sent for this match+market combo
+              const marketKey = (analysis.market || 'N/A').trim().toLowerCase();
+              const { count: alreadySent } = await supabase
+                .from('mycroft_analyses')
+                .select('id', { count: 'exact', head: true })
+                .eq('match_id', match.match_id)
+                .ilike('market', marketKey)
+                .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
+                .neq('id', analysisRow.id);
 
-                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
-                });
-                console.log(`[AnalyzeLive] 📲 Telegram sent for ${match.home_team} vs ${match.away_team}`);
+              if ((alreadySent ?? 0) > 0) {
+                console.log(`[AnalyzeLive] ⏭️ Telegram skipped for ${match.home_team} vs ${match.away_team} — already sent for market "${analysis.market}"`);
+              } else {
+                const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+                const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
+                if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
+                  const statusEmoji = analysis.verdict === 'LABAREDA' ? '⚡' : '✅';
+                  const planLabel = analysis.plan_name ? ` | Plano: *${analysis.plan_name}*` : '';
+                  const msg = [
+                    `${statusEmoji} *SINAL ${analysis.verdict} — ARENA TRADER SPORTS*`,
+                    ``,
+                    `⚽ *${match.home_team} vs ${match.away_team}*`,
+                    `🏟️ ${match.championship} | ${match.minute ?? 0}'`,
+                    `📊 Mercado: *${analysis.market}*`,
+                    `💰 Odd: *${analysis.odd ?? '—'}*`,
+                    `🎯 Confiança: *${analysis.confidence}%*${planLabel}`,
+                    ``,
+                    `📝 _${analysis.thesis || 'Análise concluída'}_`,
+                    ``,
+                    analysis.risk_management?.stake_value ? `💵 Stake sugerida: *R$ ${Number(analysis.risk_management.stake_value).toFixed(2)}* (${analysis.risk_management.stake_percent}% da banca)` : '',
+                    ``,
+                    `🔗 [Abrir Arena Trader](https://arenatradesports.lovable.app/arena-trader-sports)`,
+                  ].filter(Boolean).join('\n');
+
+                  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
+                  });
+                  console.log(`[AnalyzeLive] 📲 Telegram sent for ${match.home_team} vs ${match.away_team} (${analysis.verdict})`);
+                }
               }
             } catch (tgErr) {
               console.warn('[AnalyzeLive] Telegram notification error:', tgErr);
