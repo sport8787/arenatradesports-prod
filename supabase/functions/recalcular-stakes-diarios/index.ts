@@ -114,8 +114,9 @@ Deno.serve(async (req) => {
 
       totalRecalculadas++;
 
+      const tierLabel = tier === 1 ? '⚡ SINAL FORTE' : tier === 2 ? '✅ SINAL BOM' : '🎯 SINAL MODERADO';
       console.log(
-        `[Recálculo] ✅ ${analysis.home_team} vs ${analysis.away_team} | Tier ${tier} | Stake ${stakeBase}% | R$ ${stakeAmount}`
+        `[Recálculo] ✅ ${analysis.home_team} vs ${analysis.away_team} | ${tierLabel} | Stake ${stakeBase}% | R$ ${stakeAmount}`
       );
     }
 
@@ -135,7 +136,8 @@ Deno.serve(async (req) => {
             if (originalStake >= 4) tier = 1;
             else if (originalStake >= 3) tier = 2;
             const stakeBase = TIER_STAKE[tier] || 2.25;
-            return `${emoji} ${a.home_team} vs ${a.away_team}\n📊 ${a.market} @ ${s.odd}\n💰 Stake: ${stakeBase}% (Tier ${tier})\n📈 Edge: ${s.value_percentage?.toFixed(1) || "?"}%`;
+            const tierLabel = tier === 1 ? '⚡ SINAL FORTE' : tier === 2 ? '✅ SINAL BOM' : '🎯 SINAL MODERADO';
+            return `${emoji} ${a.home_team} vs ${a.away_team}\n📊 ${a.market} @ ${s.odd}\n💰 Stake: ${stakeBase}% (${tierLabel})\n📈 Edge: ${s.value_percentage?.toFixed(1) || "?"}%`;
           }).filter(Boolean).join("\n━━━━━━━━━━━━━━━━━\n");
 
           const mensagem = `🎯 MYCROFT — STAKES DO DIA\n\n📅 ${hoje}\n⚡ ${totalRecalculadas} apostas com stake recalculado\n\n${linhas}\n\n⚠️ Abra o app para CONFIRMAR ou DISPENSAR`;
