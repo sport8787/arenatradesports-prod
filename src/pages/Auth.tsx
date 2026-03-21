@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft, Sparkles, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('E-mail inválido');
