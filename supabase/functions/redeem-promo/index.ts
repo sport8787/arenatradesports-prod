@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const POSTHOG_KEY = 'phc_RnKvfx3XmL6ASJSDNrNf8WiVBUEEOM57pzru1KwhX2f';
+const POSTHOG_HOST = 'https://us.i.posthog.com';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -121,6 +124,28 @@ serve(async (req) => {
         is_active: true,
       })
       .eq('user_id', user_id);
+
+    // Track event in PostHog
+    try {
+      await fetch(`${POSTHOG_HOST}/capture/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: POSTHOG_KEY,
+          event: 'promo_redeemed',
+          distinct_id: user_id,
+          properties: {
+            promo_code: code || null,
+            referral_source: referral_source || null,
+            partner_name,
+            trial_days,
+            trial_ends_at: trialEnd.toISOString(),
+          },
+        }),
+      });
+    } catch (e) {
+      console.warn('PostHog tracking failed:', e);
+    }
 
     return new Response(JSON.stringify({
       success: true,
