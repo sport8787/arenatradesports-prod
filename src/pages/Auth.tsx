@@ -120,6 +120,31 @@ const Auth = () => {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
         } else {
+          // Account created — try to redeem promo code or referral
+          const userId = data?.user?.id;
+          const storedRef = sessionStorage.getItem('referral_source') || refSource;
+          
+          if (userId && (promoCode || storedRef)) {
+            try {
+              const { data: promoResult } = await supabase.functions.invoke('redeem-promo', {
+                body: {
+                  user_id: userId,
+                  code: promoCode || undefined,
+                  referral_source: !promoCode ? storedRef : undefined,
+                }
+              });
+              if (promoResult?.success) {
+                toast({ 
+                  title: `🎉 ${promoResult.trial_days} dias grátis!`, 
+                  description: `Parceria ${promoResult.partner_name} ativada com sucesso!` 
+                });
+              }
+            } catch (e) {
+              console.warn('Promo redemption failed:', e);
+            }
+            sessionStorage.removeItem('referral_source');
+          }
+          
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
           navigate('/punter');
