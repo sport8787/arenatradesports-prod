@@ -2156,6 +2156,80 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          partner_name: string
+          trial_days: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          partner_name: string
+          trial_days?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          partner_name?: string
+          trial_days?: number
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          created_at: string
+          id: string
+          partner_name: string
+          promo_code_id: string | null
+          referral_source: string | null
+          trial_days_granted: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partner_name: string
+          promo_code_id?: string | null
+          referral_source?: string | null
+          trial_days_granted?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partner_name?: string
+          promo_code_id?: string | null
+          referral_source?: string | null
+          trial_days_granted?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       punter_analyses: {
         Row: {
           analysis: string | null
