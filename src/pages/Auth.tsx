@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, Eye, EyeOff, UserX, ArrowLeft, Sparkles, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('E-mail inválido');
@@ -15,10 +16,12 @@ const usernameSchema = z.string().min(3, 'Username deve ter no mínimo 3 caracte
 type AuthMode = 'login' | 'register' | 'forgot';
 
 const Auth = () => {
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [promoCode, setPromoCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showNicknameSetup, setShowNicknameSetup] = useState(false);
@@ -28,6 +31,20 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signIn, signUp, signInWithGoogle, signInWithApple, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
+
+  // Detect UTM referral and pre-fill promo
+  const refSource = searchParams.get('ref') || searchParams.get('utm_source') || '';
+  const prefilledCode = searchParams.get('promo') || '';
+
+  useEffect(() => {
+    if (prefilledCode) {
+      setPromoCode(prefilledCode.toUpperCase());
+      setMode('register');
+    } else if (refSource) {
+      // Auto-store referral source for later use on signup
+      sessionStorage.setItem('referral_source', refSource);
+    }
+  }, [prefilledCode, refSource]);
 
   // Check if user needs to set nickname (Google login with default "Jogador")
   useEffect(() => {
@@ -103,6 +120,31 @@ const Auth = () => {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
         } else {
+          // Account created — try to redeem promo code or referral
+          const userId = data?.user?.id;
+          const storedRef = sessionStorage.getItem('referral_source') || refSource;
+          
+          if (userId && (promoCode || storedRef)) {
+            try {
+              const { data: promoResult } = await supabase.functions.invoke('redeem-promo', {
+                body: {
+                  user_id: userId,
+                  code: promoCode || undefined,
+                  referral_source: !promoCode ? storedRef : undefined,
+                }
+              });
+              if (promoResult?.success) {
+                toast({ 
+                  title: `🎉 ${promoResult.trial_days} dias grátis!`, 
+                  description: `Parceria ${promoResult.partner_name} ativada com sucesso!` 
+                });
+              }
+            } catch (e) {
+              console.warn('Promo redemption failed:', e);
+            }
+            sessionStorage.removeItem('referral_source');
+          }
+          
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
           navigate('/punter');
@@ -349,6 +391,28 @@ const Auth = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Este será seu nome nas partidas</p>
+                
+                {/* Promo Code */}
+                <div className="mt-3">
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Código promocional (opcional)</label>
+                  <div className="relative">
+                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Ex: SPIN30"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      className="pl-10 bg-background/50 border-border/50 focus:border-primary uppercase"
+                      maxLength={20}
+                    />
+                  </div>
+                  {promoCode && (
+                    <p className="text-xs text-green-400 mt-1">🎁 Código será aplicado ao criar a conta</p>
+                  )}
+                  {!promoCode && refSource && (
+                    <p className="text-xs text-green-400 mt-1">🎁 Parceiro {refSource} detectado — bônus será aplicado automaticamente</p>
+                  )}
+                </div>
               </motion.div>
             )}
 
