@@ -173,6 +173,9 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* Contadores ao vivo */}
+      <LiveStatsCounter />
+
       {/* O que é o Oráculo */}
       <WhatIsOracleSection onCTA={goToAuth} />
 
