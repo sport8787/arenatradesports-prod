@@ -391,6 +391,28 @@ const Auth = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Este será seu nome nas partidas</p>
+                
+                {/* Promo Code */}
+                <div className="mt-3">
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Código promocional (opcional)</label>
+                  <div className="relative">
+                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Ex: SPIN30"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      className="pl-10 bg-background/50 border-border/50 focus:border-primary uppercase"
+                      maxLength={20}
+                    />
+                  </div>
+                  {promoCode && (
+                    <p className="text-xs text-green-400 mt-1">🎁 Código será aplicado ao criar a conta</p>
+                  )}
+                  {!promoCode && refSource && (
+                    <p className="text-xs text-green-400 mt-1">🎁 Parceiro {refSource} detectado — bônus será aplicado automaticamente</p>
+                  )}
+                </div>
               </motion.div>
             )}
 
