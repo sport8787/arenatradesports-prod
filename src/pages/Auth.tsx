@@ -103,19 +103,9 @@ const Auth = () => {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
         } else {
-          // Check if email confirmation is required
-          const needsEmailConfirmation = data?.user && !data.session;
-          if (needsEmailConfirmation) {
-            toast({ 
-              title: '📧 Verifique seu e-mail!', 
-              description: `Enviamos um link de confirmação para ${email}. Confirme para acessar a plataforma.`,
-            });
-            setMode('login');
-          } else {
-            sessionStorage.setItem('showOpening', 'true');
-            toast({ title: 'Conta criada!', description: 'Bem-vindo ao Arena Trade Sports!' });
-            navigate('/punter');
-          }
+          sessionStorage.setItem('showOpening', 'true');
+          toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
+          navigate('/punter');
         }
       }
     } finally {
