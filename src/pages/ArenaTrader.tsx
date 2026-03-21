@@ -804,7 +804,17 @@ export default function ArenaTrader() {
       <MarketEventOverlay event={marketEvent} />
       <TraderBalanceHeader balance={balance} unrealizedPnl={totalUnrealizedPnl} />
 
-      <div className="pt-16 px-3 pb-4 max-w-7xl mx-auto">
+      {/* Development Notice */}
+      <div className="pt-16 px-3 max-w-7xl mx-auto">
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+          <p className="text-sm font-mono text-amber-300">
+            🚧 <span className="font-semibold">Arena Trader Financeiro em desenvolvimento.</span> Algumas funcionalidades podem estar indisponíveis.
+          </p>
+        </div>
+      </div>
+
+      <div className="px-3 pb-4 max-w-7xl mx-auto">
         {/* Top Bar */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => navigate('/lobby')} className="flex items-center gap-2 text-amber-400/80 hover:text-amber-400 transition-colors">
