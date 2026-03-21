@@ -26,6 +26,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
+import OnboardingTour from '@/components/punter/OnboardingTour';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { getTierFromStake } from '@/lib/tierLabels';
@@ -95,7 +96,11 @@ export default function PunterPage() {
   const [placingHorusBets, setPlacingHorusBets] = useState(false);
   const [cornersLoading, setCornersLoading] = useState(false);
   const [cornersResults, setCornersResults] = useState<any[]>([]);
-  
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    const isNew = sessionStorage.getItem('showOpening') === 'true';
+    const completed = localStorage.getItem('onboarding_completed') === 'true';
+    return isNew && !completed;
+  });
   // Cached odds - loaded from daily cron (no API call on user access)
   const { games: cachedGames, loading: cachedLoading, lastFetched, isEmpty: cacheEmpty } = useCachedOdds();
   const ANALYSIS_NT_COST = 50; // NT cost per analysis run
