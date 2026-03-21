@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Lock, Target } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Target } from 'lucide-react';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
-import { useSportsTrainingStatus } from '@/hooks/useSportsTrainingStatus';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -78,7 +77,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
-  const { completed: trainingCompleted, loading: trainingLoading } = useSportsTrainingStatus();
+  
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
@@ -320,45 +319,7 @@ export default function ArenaTraderSports() {
       .sort((a, b) => (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3));
   }, [statusFilter, selectedChampionships, allMatches]);
 
-  // Training gate - block access if not completed
-  if (trainingLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
-  if (!trainingCompleted) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full text-center space-y-6"
-        >
-          <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
-            <Lock className="w-10 h-10 text-primary" />
-          </div>
-          <h1 className="font-orbitron text-2xl font-bold">Modo ao Vivo Bloqueado</h1>
-          <p className="text-muted-foreground">
-            Complete o treino obrigatório com pelo menos <span className="text-primary font-bold">70% de acerto</span> em 15 cenários para desbloquear o acesso ao trading ao vivo.
-          </p>
-          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm"><Target className="w-4 h-4 text-primary" /> Cenários baseados em jogos reais do Mycroft</div>
-            <div className="flex items-center gap-2 text-sm"><Dumbbell className="w-4 h-4 text-primary" /> Treino de disciplina e leitura de mercado</div>
-            <div className="flex items-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4 text-primary" /> Aprovação com 70% de acurácia</div>
-          </div>
-          <GoldButton onClick={() => navigate('/modo-treino')} className="w-full py-6">
-            <Dumbbell className="mr-2 w-5 h-5" /> INICIAR TREINO OBRIGATÓRIO
-          </GoldButton>
-          <button onClick={() => navigate('/')} className="text-sm text-muted-foreground hover:text-foreground">
-            ← Voltar ao menu
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
