@@ -103,43 +103,6 @@ export default function LandingPage() {
                 </button>
               </div>
 
-              {/* Demo Video Modal */}
-              {showDemo && (
-                <div 
-                  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-                  onClick={() => { setShowDemo(false); }}
-                >
-                  <div 
-                    className="relative w-full max-w-5xl mx-4"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => setShowDemo(false)}
-                      className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium flex items-center gap-1"
-                    >
-                      Fechar ✕
-                    </button>
-                    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10">
-                      <video
-                        ref={videoRef}
-                        src={DEMO_VIDEO_URL}
-                        autoPlay
-                        controls
-                        playsInline
-                        className="w-full"
-                        onEnded={() => setShowDemo(false)}
-                      />
-                    </div>
-                    <div className="mt-4 text-center">
-                      <button onClick={goToAuth} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
-                        COMEÇAR AGORA — 7 DIAS GRÁTIS
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-              </div>
-
               <div className="flex items-center gap-8">
                 <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Médio</p></div>
                 <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
