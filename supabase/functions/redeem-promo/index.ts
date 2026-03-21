@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const POSTHOG_KEY = 'phc_RnKvfx3XmL6ASJSDNrNf8WiVBUEEOM57pzru1KwhX2f';
+const POSTHOG_HOST = 'https://us.i.posthog.com';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
