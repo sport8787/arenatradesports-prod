@@ -24,7 +24,10 @@ export default function LandingPage() {
   }, [isAuthenticated, loading, navigate]);
 
   const goToAuth = () => navigate('/auth');
+  const [showDemo, setShowDemo] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  const DEMO_VIDEO_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/demo/demo-oraculo-mycroft.mp4';
 
   return (
     <div className="bg-[#0a0f1e] text-white min-h-screen">
