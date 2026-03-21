@@ -266,7 +266,7 @@ serve(async (req) => {
                     ``,
                     analysis.risk_management?.stake_value ? `💵 Stake sugerida: *R$ ${Number(analysis.risk_management.stake_value).toFixed(2)}* (${analysis.risk_management.stake_percent}% da banca)` : '',
                     ``,
-                    `🔗 [Abrir Arena Trader](https://arenatradesports.lovable.app/arena-trader-sports)`,
+                    `🔗 [Abrir Arena Trader](https://www.oraculo-mycroft.com/arena-trader-sports)`,
                   ].filter(Boolean).join('\n');
 
                   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {

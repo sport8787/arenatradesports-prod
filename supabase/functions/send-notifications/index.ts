@@ -143,7 +143,7 @@ function formatEmailHtml(bets: ApprovedBet[]): string {
       </p>
       ${betsHtml}
       <div style="text-align:center;margin-top:24px;">
-        <a href="https://arenatradesports.lovable.app/punter" 
+        <a href="https://www.oraculo-mycroft.com/punter" 
            style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;">
           VER NO APP →
         </a>
