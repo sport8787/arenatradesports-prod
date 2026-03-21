@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
+import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -171,6 +172,9 @@ export default function LandingPage() {
           </div>
         </motion.div>
       </section>
+
+      {/* Contadores ao vivo */}
+      <LiveStatsCounter />
 
       {/* O que é o Oráculo */}
       <WhatIsOracleSection onCTA={goToAuth} />
