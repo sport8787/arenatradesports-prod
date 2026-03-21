@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -24,9 +24,13 @@ export default function LandingPage() {
   }, [isAuthenticated, loading, navigate]);
 
   const goToAuth = () => navigate('/auth');
+  const [showDemo, setShowDemo] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  const DEMO_VIDEO_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/demo/demo-oraculo-mycroft.mp4';
 
   return (
+    <>
     <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
       <header className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
@@ -94,7 +98,7 @@ export default function LandingPage() {
                   COMEÇAR AGORA
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </button>
-                <button className="px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-lg hover:bg-white/10 transition backdrop-blur-sm flex items-center justify-center gap-2">
+                <button onClick={() => setShowDemo(true)} className="px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-lg hover:bg-white/10 transition backdrop-blur-sm flex items-center justify-center gap-2">
                   <Play className="w-5 h-5" />
                   Ver Demo
                 </button>
@@ -419,6 +423,43 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+
+      {/* Demo Video Modal */}
+      {showDemo && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowDemo(false)}
+        >
+          <div 
+            className="relative w-full max-w-5xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowDemo(false)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium"
+            >
+              Fechar ✕
+            </button>
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10">
+              <video
+                ref={videoRef}
+                src={DEMO_VIDEO_URL}
+                autoPlay
+                controls
+                playsInline
+                className="w-full"
+                onEnded={() => setShowDemo(false)}
+              />
+            </div>
+            <div className="mt-4 text-center">
+              <button onClick={goToAuth} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
+                COMEÇAR AGORA — 7 DIAS GRÁTIS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
