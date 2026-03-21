@@ -1114,6 +1114,12 @@ export default function PunterPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {showOnboarding && (
+        <OnboardingTour onComplete={() => {
+          setShowOnboarding(false);
+          sessionStorage.removeItem('showOpening');
+        }} />
+      )}
       {/* Header — Bloomberg-style top bar */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
