@@ -16,10 +16,12 @@ const usernameSchema = z.string().min(3, 'Username deve ter no mínimo 3 caracte
 type AuthMode = 'login' | 'register' | 'forgot';
 
 const Auth = () => {
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [promoCode, setPromoCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showNicknameSetup, setShowNicknameSetup] = useState(false);
@@ -29,6 +31,20 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { signIn, signUp, signInWithGoogle, signInWithApple, resetPassword, updateProfile, isAuthenticated, profile, loading } = useAuth();
+
+  // Detect UTM referral and pre-fill promo
+  const refSource = searchParams.get('ref') || searchParams.get('utm_source') || '';
+  const prefilledCode = searchParams.get('promo') || '';
+
+  useEffect(() => {
+    if (prefilledCode) {
+      setPromoCode(prefilledCode.toUpperCase());
+      setMode('register');
+    } else if (refSource) {
+      // Auto-store referral source for later use on signup
+      sessionStorage.setItem('referral_source', refSource);
+    }
+  }, [prefilledCode, refSource]);
 
   // Check if user needs to set nickname (Google login with default "Jogador")
   useEffect(() => {
