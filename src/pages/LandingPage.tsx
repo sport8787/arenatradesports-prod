@@ -30,6 +30,7 @@ export default function LandingPage() {
   const DEMO_VIDEO_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/demo/demo-oraculo-mycroft.mp4';
 
   return (
+    <>
     <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
       <header className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
