@@ -116,6 +116,28 @@ export default function WhatIsOracleSection({ onCTA }: WhatIsOracleSectionProps)
           </div>
         </motion.div>
 
+        {/* Mycroft Origin Quote */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="mt-16 max-w-3xl mx-auto text-center"
+        >
+          <div className="relative p-8 bg-gradient-to-br from-[#1a1f36] to-[#0f1729] border border-yellow-500/20 rounded-2xl shadow-xl">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
+              <span className="text-xs font-semibold text-yellow-400 tracking-wider">POR QUE MYCROFT?</span>
+            </div>
+            <p className="text-gray-300 leading-relaxed text-lg italic mt-2">
+              "Todos conhecem o Sherlock Holmes. Mas o que poucos sabem é que <span className="text-yellow-400 font-semibold not-italic">Mycroft é o mais inteligente da família</span> — ele não resolve casos, ele enxerga padrões antes que aconteçam."
+            </p>
+            <p className="text-white font-semibold text-lg mt-4">
+              É essa análise fria e dedutiva que nomeou nossa IA.<br />
+              <span className="text-yellow-400">O Mycroft não torce. Ele calcula.</span>
+            </p>
+          </div>
+        </motion.div>
+
         {/* CTA */}
         <div className="text-center mt-12">
           <p className="text-gray-400 mb-6">É assim que transformamos apostas em investimento sistemático</p>
