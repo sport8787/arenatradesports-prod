@@ -125,6 +125,28 @@ serve(async (req) => {
       })
       .eq('user_id', user_id);
 
+    // Track event in PostHog
+    try {
+      await fetch(`${POSTHOG_HOST}/capture/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: POSTHOG_KEY,
+          event: 'promo_redeemed',
+          distinct_id: user_id,
+          properties: {
+            promo_code: code || null,
+            referral_source: referral_source || null,
+            partner_name,
+            trial_days,
+            trial_ends_at: trialEnd.toISOString(),
+          },
+        }),
+      });
+    } catch (e) {
+      console.warn('PostHog tracking failed:', e);
+    }
+
     return new Response(JSON.stringify({
       success: true,
       partner_name,
