@@ -103,6 +103,8 @@ const Auth = () => {
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             toast({ title: 'Erro', description: 'E-mail ou senha incorretos', variant: 'destructive' });
+          } else if (error.message.includes('security purposes') || error.message.includes('request this after')) {
+            toast({ title: 'Aguarde', description: 'Por segurança, aguarde alguns segundos antes de tentar novamente.', variant: 'destructive' });
           } else {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
@@ -116,6 +118,8 @@ const Auth = () => {
         if (error) {
           if (error.message.includes('already registered')) {
             toast({ title: 'Erro', description: 'Este e-mail já está cadastrado', variant: 'destructive' });
+          } else if (error.message.includes('security purposes') || error.message.includes('request this after')) {
+            toast({ title: 'Aguarde', description: 'Por segurança, aguarde alguns segundos antes de tentar novamente.', variant: 'destructive' });
           } else {
             toast({ title: 'Erro', description: error.message, variant: 'destructive' });
           }
