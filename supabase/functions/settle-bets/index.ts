@@ -34,10 +34,10 @@ function isEligibleForSettlement(bet: any): boolean {
     return true;
   }
 
-  // Fallback: bet must be at least 3 hours old
+  // Fallback: bet must be at least 4 hours old
   const betTime = new Date(bet.placed_at || bet.created_at).getTime();
   if (betTime) {
-    const minAge = 3 * 60 * 60 * 1000;
+    const minAge = 4 * 60 * 60 * 1000;
     if (betTime + minAge > now) {
       console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — bet too recent`);
       return false;
@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
     let completedGames: any[] = [];
 
     if (apiFootballKey) {
-      completedGames = await fetchFinishedFixtures(apiFootballKey, 3);
+      completedGames = await fetchFinishedFixtures(apiFootballKey, 5);
       console.log(`[settle-bets] ${completedGames.length} completed games from API-Football`);
     }
 
