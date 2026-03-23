@@ -890,7 +890,7 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
 // Main analysis
 async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, incCards:boolean, oddsApiKey:string) {
-  const mid = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g,'_')
+  const mid = `${game.home_team}_${game.away_team}_${game.commence_time}`.replace(/\s+/g,'_').replace(/\+00:00/g,'Z')
   console.log(`[Mycroft Punter] Analisando: ${game.home_team} vs ${game.away_team} (AI: gemini, corners: ${incCorners}, cards: ${incCards})`)
   const odds=extractOdds(game), totals=extractTotals(game)
   if(!odds.length&&!totals.length) return null
