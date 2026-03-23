@@ -516,11 +516,13 @@ export default function PunterPage() {
     });
 
     console.log(`[Hórus] 🎯 Inserindo aposta: ${matchName} | Stake: ${stake} | Odd: ${signal.recommendation.odd} | MatchID: ${canonicalMatchId}`);
+    // Normalize match_id to prevent Z vs +00:00 duplicates
+    const normalizedMatchId = canonicalMatchId.replace(/\+00:00/g, 'Z');
     const { error: betError } = await supabase
       .from('virtual_bets_punter')
       .insert({
         user_id: user.id,
-        match_id: canonicalMatchId,
+        match_id: normalizedMatchId,
         match_name: matchName,
         market: signal.recommendation.market,
         odd: signal.recommendation.odd,
@@ -532,6 +534,11 @@ export default function PunterPage() {
       } as any);
 
     if (betError) {
+      // If duplicate constraint error, just skip silently
+      if (betError.code === '23505') {
+        console.log(`[Hórus] ⏭️ Aposta duplicada detectada — ignorando: ${matchName}`);
+        return false;
+      }
       console.error(`[Hórus] Bet insert error for ${matchName}:`, betError.message);
       return false;
     }
