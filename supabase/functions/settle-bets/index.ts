@@ -59,9 +59,9 @@ function findResult(
     const homeNorm = normalize(game.home_team);
     const awayNorm = normalize(game.away_team);
 
-    // STRICT: both teams must match
-    const homeWords = homeNorm.split(' ').filter((w: string) => w.length > 3);
-    const awayWords = awayNorm.split(' ').filter((w: string) => w.length > 3);
+    // STRICT: both teams must match (words >2 chars)
+    const homeWords = getMatchWords(game.home_team);
+    const awayWords = getMatchWords(game.away_team);
     const homeMatches = homeWords.length > 0 && homeWords.some((w: string) => normalizedMatch.includes(w));
     const awayMatches = awayWords.length > 0 && awayWords.some((w: string) => normalizedMatch.includes(w));
 
