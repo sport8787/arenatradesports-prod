@@ -1248,7 +1248,7 @@ serve(async (req) => {
 
     // ANTI-DUPLICATION: Fetch ALL existing bets (pending + settled) to skip already-bet matches
     const { data: existingBets } = await sb.from('virtual_bets_punter').select('match_id, status').in('status', ['pending', 'green', 'red'])
-    const existingMatchIds = new Set((existingBets || []).map((b: any) => (b.match_id || '').toLowerCase()))
+    const existingMatchIds = new Set((existingBets || []).map((b: any) => (b.match_id || '').replace(/\+00:00/g, 'Z').toLowerCase()))
     
     // Filter out games that already have bets placed
     const filteredGames = games.filter((g: any) => {
