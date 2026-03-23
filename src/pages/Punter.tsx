@@ -437,8 +437,9 @@ export default function PunterPage() {
       return false;
     }
 
-    // Build match_id for bet storage (normalize timestamp to avoid Postgres format differences)
-    const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+    // Build match_id for bet storage — ALWAYS normalize +00:00 → Z to prevent duplicates
+    const rawMatchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+    const matchId = rawMatchId.replace(/\+00:00/g, 'Z');
     
     // For fresh analysis signals, skip the punter_signals lookup (signal already approved by AI)
     let canonicalMatchId = matchId;
