@@ -11,10 +11,14 @@ const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 const normalize = (name: string) =>
   name.toLowerCase()
     .replace(/_/g, ' ')
-    .replace(/\d{4}-\d{2}-\d{2}t[\d:z]+/gi, '')
+    .replace(/\d{4}-\d{2}-\d{2}t[\d:.+z]+/gi, '')
     .replace(/[^a-záàãâéêíóôõúüç\s]/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+// Extract meaningful words (>2 chars) for matching
+const getMatchWords = (name: string) =>
+  normalize(name).split(' ').filter((w: string) => w.length > 2);
 
 // Determine if a bet is eligible for settlement based on time
 function isEligibleForSettlement(bet: any): boolean {
@@ -30,10 +34,10 @@ function isEligibleForSettlement(bet: any): boolean {
     return true;
   }
 
-  // Fallback: bet must be at least 3 hours old
+  // Fallback: bet must be at least 4 hours old
   const betTime = new Date(bet.placed_at || bet.created_at).getTime();
   if (betTime) {
-    const minAge = 3 * 60 * 60 * 1000;
+    const minAge = 4 * 60 * 60 * 1000;
     if (betTime + minAge > now) {
       console.log(`[settle-bets] SKIP: ${bet.match_name || bet.match_id} — bet too recent`);
       return false;
@@ -55,9 +59,9 @@ function findResult(
     const homeNorm = normalize(game.home_team);
     const awayNorm = normalize(game.away_team);
 
-    // STRICT: both teams must match
-    const homeWords = homeNorm.split(' ').filter((w: string) => w.length > 3);
-    const awayWords = awayNorm.split(' ').filter((w: string) => w.length > 3);
+    // STRICT: both teams must match (words >2 chars)
+    const homeWords = getMatchWords(game.home_team);
+    const awayWords = getMatchWords(game.away_team);
     const homeMatches = homeWords.length > 0 && homeWords.some((w: string) => normalizedMatch.includes(w));
     const awayMatches = awayWords.length > 0 && awayWords.some((w: string) => normalizedMatch.includes(w));
 
@@ -201,7 +205,7 @@ Deno.serve(async (req) => {
     let completedGames: any[] = [];
 
     if (apiFootballKey) {
-      completedGames = await fetchFinishedFixtures(apiFootballKey, 3);
+      completedGames = await fetchFinishedFixtures(apiFootballKey, 5);
       console.log(`[settle-bets] ${completedGames.length} completed games from API-Football`);
     }
 

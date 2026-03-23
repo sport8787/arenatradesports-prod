@@ -4506,6 +4506,7 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
+      normalize_match_id: { Args: { mid: string }; Returns: string }
       record_arena_session: {
         Args: {
           p_apc_earned: number
