@@ -11,10 +11,14 @@ const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 const normalize = (name: string) =>
   name.toLowerCase()
     .replace(/_/g, ' ')
-    .replace(/\d{4}-\d{2}-\d{2}t[\d:z]+/gi, '')
+    .replace(/\d{4}-\d{2}-\d{2}t[\d:.+z]+/gi, '')
     .replace(/[^a-záàãâéêíóôõúüç\s]/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+// Extract meaningful words (>2 chars) for matching
+const getMatchWords = (name: string) =>
+  normalize(name).split(' ').filter((w: string) => w.length > 2);
 
 // Determine if a bet is eligible for settlement based on time
 function isEligibleForSettlement(bet: any): boolean {
