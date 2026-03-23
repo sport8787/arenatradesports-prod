@@ -298,7 +298,7 @@ export default function PunterPage() {
     }
 
     const matchName = `${analysis.home_team} vs ${analysis.away_team}`;
-    const matchId = signal.match_id;
+    const matchId = (signal.match_id || '').replace(/\+00:00/g, 'Z');
 
     // Place the bet
     const { error: betError } = await supabase
@@ -318,6 +318,10 @@ export default function PunterPage() {
       } as any);
 
     if (betError) {
+      if (betError.code === '23505') {
+        toast.info('Aposta já existe para este jogo');
+        return;
+      }
       toast.error('Erro ao confirmar aposta');
       return;
     }
