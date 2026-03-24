@@ -31,6 +31,7 @@ const DEFAULT_LEAGUES = [
   'soccer_brazil_copa_do_brasil',
   'soccer_brazil_serie_c',
   'soccer_brazil_copa_verde',
+  'soccer_international_friendlies',
 ]
 
 // Estaduais + Copas fallback via API-Football
