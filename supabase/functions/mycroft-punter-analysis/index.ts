@@ -195,6 +195,8 @@ const leagueMap: Record<string, number> = {
   'soccer_uefa_champs_league':2,'soccer_uefa_europa_league':3,
   'soccer_conmebol_copa_libertadores':13,'soccer_conmebol_copa_sudamericana':11,
   'soccer_argentina_primera_division':128,
+  'soccer_brazil_copa_nordeste':76,'soccer_brazil_copa_do_brasil':75,
+  'soccer_brazil_serie_c':73,'soccer_brazil_copa_verde':530,
 }
 
 const estaduaisMap: Record<string, { id: number; name: string }> = {
@@ -206,6 +208,10 @@ const estaduaisMap: Record<string, { id: number; name: string }> = {
   'soccer_brazil_campeonato_paranaense':{id:480,name:'Paranaense'},
   'soccer_brazil_campeonato_catarinense':{id:481,name:'Catarinense'},
   'soccer_brazil_campeonato_pernambucano':{id:604,name:'Pernambucano'},
+  'soccer_brazil_copa_nordeste':{id:76,name:'Copa do Nordeste'},
+  'soccer_brazil_copa_do_brasil':{id:75,name:'Copa do Brasil'},
+  'soccer_brazil_serie_c':{id:73,name:'Brasileirão Série C'},
+  'soccer_brazil_copa_verde':{id:530,name:'Copa Verde'},
 }
 
 async function apiFetch(url: string, key: string) {
@@ -1200,7 +1206,7 @@ serve(async (req) => {
   try {
     const sb=createClient(Deno.env.get('SUPABASE_URL')??'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'',{auth:{persistSession:false}})
     const body=await req.json()
-    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_france_ligue_one','soccer_argentina_primera_division'],
+    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_france_ligue_one','soccer_argentina_primera_division'],
       sport=null as string|null, hours_ahead=48, bookmakers=['bet365','pinnacle','betfair'], min_value=3, include_corners=true, include_cards=true} = body
 
     const leagues:string[] = sport?[sport]:sports
