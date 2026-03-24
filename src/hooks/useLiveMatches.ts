@@ -9,6 +9,8 @@ const LIGAS_PERMITIDAS = new Set([
   'Libertadores', 'Sul-Americana', 'Copa Do Brasil', 'Copa do Brasil',
   'Brasileirão Série A', 'Serie A', 'Série A', 'Brasileirão Série B', 'Serie B', 'Série B',
   'Brasileirão Série C', 'Serie C', 'Série C',
+  'Copa do Nordeste', 'Copa do Norte', 'Copa Verde', 'Copa Paulista',
+  'Copa Espírito Santo', 'Copa Rio',
   'Argentine Primera División', 'Primera División', 'Liga Profesional Argentina',
   'Copa Argentina', 'Copa Sudamericana',
   'MLS',
