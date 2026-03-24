@@ -14,6 +14,7 @@ const LIGAS_PERMITIDAS = new Set([
   'Argentine Primera División', 'Primera División', 'Liga Profesional Argentina',
   'Copa Argentina', 'Copa Sudamericana',
   'MLS',
+  'Amistosos Internacionais', 'International Friendlies', 'Friendlies',
 ]);
 
 function isAllowedLeague(championship: string): boolean {

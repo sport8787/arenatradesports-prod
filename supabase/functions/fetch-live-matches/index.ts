@@ -79,12 +79,12 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   // Mundo
   1:   "Copa do Mundo",
   15:  "Copa do Mundo — Qualificatórias",
+  10:  "Amistosos Internacionais (Seleções)",
 };
 
 // IDs de ligas bloqueadas
 const LIGAS_BLOQUEADAS: number[] = [
   667, // Amistosos clubes
-  668, // Amistosos seleções
 ];
 
 function getSupabaseAdmin() {

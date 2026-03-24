@@ -197,6 +197,7 @@ const leagueMap: Record<string, number> = {
   'soccer_argentina_primera_division':128,
   'soccer_brazil_copa_nordeste':76,'soccer_brazil_copa_do_brasil':75,
   'soccer_brazil_serie_c':73,'soccer_brazil_copa_verde':530,
+  'soccer_international_friendlies':10,
 }
 
 const estaduaisMap: Record<string, { id: number; name: string }> = {
@@ -212,6 +213,7 @@ const estaduaisMap: Record<string, { id: number; name: string }> = {
   'soccer_brazil_copa_do_brasil':{id:75,name:'Copa do Brasil'},
   'soccer_brazil_serie_c':{id:73,name:'Brasileirão Série C'},
   'soccer_brazil_copa_verde':{id:530,name:'Copa Verde'},
+  'soccer_international_friendlies':{id:10,name:'Amistosos Internacionais'},
 }
 
 async function apiFetch(url: string, key: string) {
