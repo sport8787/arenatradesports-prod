@@ -1129,8 +1129,47 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
         return a
       }
 
-      // ═══ Passou em TODOS os critérios — salva como APROVADO ═══
+      // ═══ Passou em TODOS os critérios — verifica conflito antes de salvar ═══
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
+      
+      // ANTI-CONFLITO PRÉ-PERSIST: Verificar se já existe sinal aprovado para este jogo com mercado diferente
+      const { data: existingSignals } = await sb.from('punter_analyses').select('id, market, estimated_probability, value_percentage, confidence').eq('match_id', mid).eq('verdict', 'APROVADO')
+      if (existingSignals && existingSignals.length > 0) {
+        const myScore = (a.estimated_probability || 0) * (a.edge_percentage || a.value_percentage || 0) * (a.confidence || 0)
+        for (const existing of existingSignals) {
+          if (existing.market === a.market) continue // same market = will be deduped by upsert below
+          const existScore = (existing.estimated_probability || 0) * (existing.value_percentage || 0) * (existing.confidence || 0)
+          // Check for mutually exclusive markets
+          const isConflict = (
+            (a.market?.includes('Over') && existing.market?.includes('Under') && a.market?.replace('Over','') === existing.market?.replace('Under','')) ||
+            (a.market?.includes('Under') && existing.market?.includes('Over') && a.market?.replace('Under','') === existing.market?.replace('Over','')) ||
+            (a.market?.includes('Casa') && existing.market?.includes('Fora')) ||
+            (a.market?.includes('Fora') && existing.market?.includes('Casa'))
+          )
+          if (isConflict) {
+            if (myScore > existScore) {
+              // New signal is better — remove old one
+              await sb.from('punter_signals').delete().eq('match_id', mid).eq('market', existing.market)
+              await sb.from('punter_analyses').delete().eq('id', existing.id)
+              console.log(`[Mycroft Punter] 🔄 Conflito resolvido: ${a.market} (score ${myScore.toFixed(0)}) substituiu ${existing.market} (score ${existScore.toFixed(0)})`)
+            } else {
+              // Existing signal is better — veto this one
+              console.log(`[Mycroft Punter] 🚫 Conflito: ${a.market} (score ${myScore.toFixed(0)}) perdeu para ${existing.market} existente (score ${existScore.toFixed(0)})`)
+              a.verdict = 'VETADO'
+              a.veto_reason = `Mercado oposto ${existing.market} já aprovado com score superior`
+              await sb.from('punter_analyses').insert({
+                match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
+                commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
+                fair_odd:a.fair_odd,implied_probability:a.implied_probability,estimated_probability:a.estimated_probability,
+                value_percentage:a.value_percentage,verdict:'VETADO',confidence:a.confidence,stake_percentage:0,
+                thesis:`[VETADO] ${a.veto_reason}`,analysis:a.analysis||'',risk_factors:a.risk_factors||'',analyzed_by:'gemini'
+              })
+              return a
+            }
+          }
+        }
+      }
+
       console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
       // Dedup: remove old analysis+signal for same match+market before inserting
@@ -1210,7 +1249,7 @@ serve(async (req) => {
   try {
     const sb=createClient(Deno.env.get('SUPABASE_URL')??'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'',{auth:{persistSession:false}})
     const body=await req.json()
-    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_france_ligue_one','soccer_argentina_primera_division'],
+    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_france_ligue_one','soccer_argentina_primera_division','soccer_fifa_world_cup_qualifier_europe'],
       sport=null as string|null, hours_ahead=48, bookmakers=['bet365','pinnacle','betfair'], min_value=3, include_corners=true, include_cards=true} = body
 
     const leagues:string[] = sport?[sport]:sports
@@ -1253,18 +1292,31 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Mycroft Punter] Total: ${games.length} jogos`)
-    if(!games.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,leagues_scanned:leagues.length,message:`Nenhum jogo nas próximas ${hours_ahead}h`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+    // PRE-ANALYSIS DEDUP: Remove duplicate games (same home+away+time from different sport_keys)
+    const seenGames = new Map<string, number>()
+    const uniqueGames: typeof games = []
+    for (const g of games) {
+      const gKey = `${g.home_team}__${g.away_team}__${g.commence_time}`.toLowerCase()
+      if (!seenGames.has(gKey)) {
+        seenGames.set(gKey, uniqueGames.length)
+        uniqueGames.push(g)
+      } else {
+        console.log(`[Mycroft Punter] 🔄 Dedup pré-análise: ${g.home_team} vs ${g.away_team} duplicado (${g.sport_key})`)
+      }
+    }
+    const preDedup = games.length - uniqueGames.length
+    if (preDedup > 0) console.log(`[Mycroft Punter] 🔄 ${preDedup} jogos duplicados removidos antes da análise`)
+
+    console.log(`[Mycroft Punter] Total: ${uniqueGames.length} jogos únicos (${games.length} brutos)`)
+    if(!uniqueGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,leagues_scanned:leagues.length,message:`Nenhum jogo nas próximas ${hours_ahead}h`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
 
     // ANTI-DUPLICATION: Fetch ALL existing bets (pending + settled) to skip already-bet matches
     const { data: existingBets } = await sb.from('virtual_bets_punter').select('match_id, status').in('status', ['pending', 'green', 'red'])
     const existingMatchIds = new Set((existingBets || []).map((b: any) => (b.match_id || '').replace(/\+00:00/g, 'Z').toLowerCase()))
     
     // Filter out games that already have bets placed
-    const filteredGames = games.filter((g: any) => {
-      // Build match_id the same way the frontend does
+    const filteredGames = uniqueGames.filter((g: any) => {
       const matchId = `${g.home_team}_${g.away_team}`.replace(/\s+/g, '_').toLowerCase()
-      // Also check with market suffix patterns (any market)
       const hasExisting = [...existingMatchIds].some(eid => eid.startsWith(matchId))
       if (hasExisting) {
         console.log(`[Mycroft Punter] ⏭️ Pulando ${g.home_team} vs ${g.away_team} — aposta já existente`)
@@ -1272,7 +1324,7 @@ serve(async (req) => {
       return !hasExisting
     })
     
-    const skippedCount = games.length - filteredGames.length
+    const skippedCount = uniqueGames.length - filteredGames.length
     if (skippedCount > 0) console.log(`[Mycroft Punter] 🔒 ${skippedCount} jogos ignorados (apostas já existentes)`)
     
     if(!filteredGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,skipped_existing:skippedCount,leagues_scanned:leagues.length,message:`Todos os ${skippedCount} jogos já possuem apostas`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
@@ -1301,25 +1353,27 @@ serve(async (req) => {
       if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
     }
 
-    // DEDUPLICATION: Keep only the highest-edge entry per match
+    // DEDUPLICATION: Keep only the highest-score entry per match (composite: prob × edge × confidence)
+    const calcScore = (rec: any) => (rec.estimated_probability || 0) * (rec.value_percentage || rec.edge_percentage || 0) * (rec.confidence || 0)
     const matchBestMap = new Map<string, number>()
     for(let i=0;i<approved.length;i++) {
       const m=approved[i].match, key=`${m.home_team}__${m.away_team}`
-      const edge=approved[i].recommendation.value_percentage||0
-      if(!matchBestMap.has(key)||edge>(approved[matchBestMap.get(key)!].recommendation.value_percentage||0)) matchBestMap.set(key,i)
+      const score=calcScore(approved[i].recommendation)
+      if(!matchBestMap.has(key)||score>calcScore(approved[matchBestMap.get(key)!].recommendation)) matchBestMap.set(key,i)
     }
     const dedupApproved = [...matchBestMap.values()].map(i=>approved[i])
     if(dedupApproved.length<approved.length) {
       const removed=approved.length-dedupApproved.length
-      console.log(`[Mycroft Punter] 🔄 Dedup: removidos ${removed} sinais conflitantes (1 mercado por jogo)`)
+      console.log(`[Mycroft Punter] 🔄 Dedup: removidos ${removed} sinais conflitantes (1 mercado por jogo, score composto)`)
       // Remove duplicates from DB too
       for(let i=0;i<approved.length;i++) {
-        if(!matchBestMap.has(`${approved[i].match.home_team}__${approved[i].match.away_team}`)||matchBestMap.get(`${approved[i].match.home_team}__${approved[i].match.away_team}`)!==i) {
-          const mid=`${approved[i].match.home_team}_${approved[i].match.away_team}_${approved[i].match.commence_time}`.replace(/\s+/g,'_')
+        const key=`${approved[i].match.home_team}__${approved[i].match.away_team}`
+        if(matchBestMap.get(key)!==i) {
+          const mid=`${approved[i].match.home_team}_${approved[i].match.away_team}_${approved[i].match.commence_time}`.replace(/\s+/g,'_').replace(/\+00:00/g,'Z')
           const mkt=approved[i].recommendation.market
           await sb.from('punter_signals').delete().eq('match_id',mid).eq('market',mkt)
           await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',mkt)
-          console.log(`[Mycroft Punter] 🗑️ Removido sinal conflitante: ${approved[i].match.home_team} vs ${approved[i].match.away_team} (${mkt})`)
+          console.log(`[Mycroft Punter] 🗑️ Removido sinal conflitante: ${approved[i].match.home_team} vs ${approved[i].match.away_team} (${mkt}) — score inferior`)
         }
       }
     }
