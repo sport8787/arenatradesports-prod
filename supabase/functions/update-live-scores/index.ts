@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,20 +10,26 @@ const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
 const LIGAS_PERMITIDAS: Record<number, string> = {
+  // Europa — Top 5 + segundas divisões
   39:  "Premier League",
+  40:  "Championship (Inglaterra — 2ª divisão)",
   140: "La Liga",
   135: "Serie A",
+  136: "Serie B (Itália)",
   78:  "Bundesliga",
+  79:  "2. Bundesliga",
   61:  "Ligue 1",
+  // Europa — Primeiras divisões relevantes
   94:  "Primeira Liga (Portugal)",
   88:  "Eredivisie",
   144: "Pro League (Bélgica)",
   197: "Super League (Grécia)",
   203: "Süper Lig (Turquia)",
-  40:  "Championship (Inglaterra — 2ª divisão)",
+  // UEFA Competições
   2:   "Champions League",
   3:   "Europa League",
   848: "Conference League",
+  // América do Sul
   13:  "Libertadores",
   11:  "Sul-Americana",
   71:  "Brasileirão Série A",
@@ -41,6 +47,12 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   253: "MLS",
   10:  "Amistosos Internacionais (Seleções)",
   32:  "Eliminatórias Copa do Mundo - Europa",
+  // Feminino — Principais ligas
+  746: "UEFA Women's Champions League",
+  766: "WSL (Inglaterra Feminino)",
+  770: "Frauen-Bundesliga (Alemanha Feminino)",
+  764: "NWSL (EUA Feminino)",
+  1382: "Brasileirão Feminino",
 };
 
 const LIGAS_BLOQUEADAS: number[] = [667, 668];

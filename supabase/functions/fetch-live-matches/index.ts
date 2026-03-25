@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,6 +81,12 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   15:  "Copa do Mundo — Qualificatórias",
   10:  "Amistosos Internacionais (Seleções)",
   32:  "Eliminatórias Copa do Mundo - Europa",
+  // Feminino — Principais ligas
+  746: "UEFA Women's Champions League",
+  766: "WSL (Inglaterra Feminino)",
+  770: "Frauen-Bundesliga (Alemanha Feminino)",
+  764: "NWSL (EUA Feminino)",
+  1382: "Brasileirão Feminino",
 };
 
 // IDs de ligas bloqueadas

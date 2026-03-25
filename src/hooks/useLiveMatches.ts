@@ -5,17 +5,23 @@ import { supabase } from '@/integrations/supabase/client';
 const LIGAS_PERMITIDAS = new Set([
   'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
   'Primeira Liga', 'Eredivisie', 'Pro League', 'Super League', 'Süper Lig',
-  'Championship', 'Champions League', 'Europa League', 'Conference League',
-  'Libertadores', 'Sul-Americana', 'Copa Do Brasil', 'Copa do Brasil',
-  'Brasileirão Série A', 'Serie A', 'Série A', 'Brasileirão Série B', 'Serie B', 'Série B',
+  'Championship', '2. Bundesliga', 'Bundesliga 2', 'Serie B',
+  'Champions League', 'Europa League', 'Conference League',
+  'Libertadores', 'Sul-Americana', 'Copa Sudamericana',
+  'Copa Do Brasil', 'Copa do Brasil',
+  'Brasileirão Série A', 'Serie A', 'Série A',
+  'Brasileirão Série B', 'Serie B', 'Série B',
   'Brasileirão Série C', 'Serie C', 'Série C',
   'Copa do Nordeste', 'Copa do Norte', 'Copa Verde', 'Copa Paulista',
   'Copa Espírito Santo', 'Copa Rio',
   'Argentine Primera División', 'Primera División', 'Liga Profesional Argentina',
-  'Copa Argentina', 'Copa Sudamericana',
+  'Copa Argentina',
   'MLS',
   'Amistosos Internacionais', 'International Friendlies', 'Friendlies',
   'Eliminatórias Copa do Mundo - Europa', 'World Cup Qualifiers - Europe', 'WC Qualification Europe',
+  // Feminino
+  "UEFA Women's Champions League", 'WSL', 'Frauen-Bundesliga', 'NWSL', 'Brasileirão Feminino',
+  "Women's Super League",
 ]);
 
 function isAllowedLeague(championship: string): boolean {

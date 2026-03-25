@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,9 +22,12 @@ const DEFAULT_LEAGUES = [
   'soccer_uefa_champs_league',
   'soccer_uefa_europa_league',
   'soccer_epl',
+  'soccer_england_efl_cup',
   'soccer_spain_la_liga',
   'soccer_italy_serie_a',
+  'soccer_italy_serie_b',
   'soccer_germany_bundesliga',
+  'soccer_germany_bundesliga2',
   'soccer_france_ligue_one',
   'soccer_argentina_primera_division',
   'soccer_brazil_copa_nordeste',
@@ -33,6 +36,11 @@ const DEFAULT_LEAGUES = [
   'soccer_brazil_copa_verde',
   'soccer_international_friendlies',
   'soccer_fifa_world_cup_qualifier_europe',
+  'soccer_netherlands_eredivisie',
+  'soccer_portugal_primeira_liga',
+  'soccer_england_league1',
+  // Feminino
+  'soccer_usa_nwsl',
 ]
 
 // Estaduais + Copas fallback via API-Football
