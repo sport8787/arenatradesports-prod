@@ -216,6 +216,7 @@ const estaduaisMap: Record<string, { id: number; name: string }> = {
   'soccer_brazil_copa_verde':{id:530,name:'Copa Verde'},
   'soccer_international_friendlies':{id:10,name:'Amistosos Internacionais'},
   'soccer_fifa_world_cup_qualifier_europe':{id:32,name:'Eliminatórias Copa do Mundo - Europa'},
+  'soccer_usa_nwsl':{id:764,name:'NWSL (EUA Feminino)'},
 }
 
 async function apiFetch(url: string, key: string) {
@@ -1249,7 +1250,7 @@ serve(async (req) => {
   try {
     const sb=createClient(Deno.env.get('SUPABASE_URL')??'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'',{auth:{persistSession:false}})
     const body=await req.json()
-    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_france_ligue_one','soccer_argentina_primera_division','soccer_fifa_world_cup_qualifier_europe'],
+    const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_england_efl_cup','soccer_england_league1','soccer_spain_la_liga','soccer_italy_serie_a','soccer_italy_serie_b','soccer_germany_bundesliga','soccer_germany_bundesliga2','soccer_france_ligue_one','soccer_argentina_primera_division','soccer_fifa_world_cup_qualifier_europe','soccer_netherlands_eredivisie','soccer_portugal_primeira_liga','soccer_international_friendlies','soccer_usa_nwsl'],
       sport=null as string|null, hours_ahead=48, bookmakers=['bet365','pinnacle','betfair'], min_value=3, include_corners=true, include_cards=true} = body
 
     const leagues:string[] = sport?[sport]:sports
