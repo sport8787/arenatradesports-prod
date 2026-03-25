@@ -34,7 +34,24 @@ const PLANS = [
   },
 ];
 
+declare global {
+  interface Window {
+    fbq?: (...args: any[]) => void;
+  }
+}
+
 export default function Paywall() {
+  const handlePlanClick = (plan: typeof PLANS[0]) => {
+    // Meta Pixel - InitiateCheckout
+    if (window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        content_name: plan.name,
+        currency: 'BRL',
+        value: parseFloat(plan.price.replace(',', '.')),
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10" />
@@ -103,7 +120,7 @@ export default function Paywall() {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <a href={plan.url} target="_blank" rel="noopener noreferrer" className="w-full">
+                  <a href={plan.url} target="_blank" rel="noopener noreferrer" className="w-full" onClick={() => handlePlanClick(plan)}>
                     {plan.popular ? (
                       <GoldButton className="w-full gap-2">
                         <Sparkles className="w-4 h-4" />
