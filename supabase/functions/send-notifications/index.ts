@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,7 +72,7 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
 
   message += `\n━━━━━━━━━━━━━━━━━\n\n`;
   message += `✅ Todas disponíveis no app\n`;
-  message += `🔗 futebol.blefadormilionario.com.br\n\n`;
+  message += `🔗 oraculo-mycroft.com\n\n`;
   message += `⚡ Mycroft IA — Arena Punter`;
 
   return message;
