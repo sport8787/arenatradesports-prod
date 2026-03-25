@@ -1314,25 +1314,27 @@ serve(async (req) => {
       if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
     }
 
-    // DEDUPLICATION: Keep only the highest-edge entry per match
+    // DEDUPLICATION: Keep only the highest-score entry per match (composite: prob × edge × confidence)
+    const calcScore = (rec: any) => (rec.estimated_probability || 0) * (rec.value_percentage || rec.edge_percentage || 0) * (rec.confidence || 0)
     const matchBestMap = new Map<string, number>()
     for(let i=0;i<approved.length;i++) {
       const m=approved[i].match, key=`${m.home_team}__${m.away_team}`
-      const edge=approved[i].recommendation.value_percentage||0
-      if(!matchBestMap.has(key)||edge>(approved[matchBestMap.get(key)!].recommendation.value_percentage||0)) matchBestMap.set(key,i)
+      const score=calcScore(approved[i].recommendation)
+      if(!matchBestMap.has(key)||score>calcScore(approved[matchBestMap.get(key)!].recommendation)) matchBestMap.set(key,i)
     }
     const dedupApproved = [...matchBestMap.values()].map(i=>approved[i])
     if(dedupApproved.length<approved.length) {
       const removed=approved.length-dedupApproved.length
-      console.log(`[Mycroft Punter] 🔄 Dedup: removidos ${removed} sinais conflitantes (1 mercado por jogo)`)
+      console.log(`[Mycroft Punter] 🔄 Dedup: removidos ${removed} sinais conflitantes (1 mercado por jogo, score composto)`)
       // Remove duplicates from DB too
       for(let i=0;i<approved.length;i++) {
-        if(!matchBestMap.has(`${approved[i].match.home_team}__${approved[i].match.away_team}`)||matchBestMap.get(`${approved[i].match.home_team}__${approved[i].match.away_team}`)!==i) {
-          const mid=`${approved[i].match.home_team}_${approved[i].match.away_team}_${approved[i].match.commence_time}`.replace(/\s+/g,'_')
+        const key=`${approved[i].match.home_team}__${approved[i].match.away_team}`
+        if(matchBestMap.get(key)!==i) {
+          const mid=`${approved[i].match.home_team}_${approved[i].match.away_team}_${approved[i].match.commence_time}`.replace(/\s+/g,'_').replace(/\+00:00/g,'Z')
           const mkt=approved[i].recommendation.market
           await sb.from('punter_signals').delete().eq('match_id',mid).eq('market',mkt)
           await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',mkt)
-          console.log(`[Mycroft Punter] 🗑️ Removido sinal conflitante: ${approved[i].match.home_team} vs ${approved[i].match.away_team} (${mkt})`)
+          console.log(`[Mycroft Punter] 🗑️ Removido sinal conflitante: ${approved[i].match.home_team} vs ${approved[i].match.away_team} (${mkt}) — score inferior`)
         }
       }
     }
