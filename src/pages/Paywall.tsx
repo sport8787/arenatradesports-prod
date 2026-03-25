@@ -120,7 +120,7 @@ export default function Paywall() {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <a href={plan.url} target="_blank" rel="noopener noreferrer" className="w-full">
+                  <a href={plan.url} target="_blank" rel="noopener noreferrer" className="w-full" onClick={() => handlePlanClick(plan)}>
                     {plan.popular ? (
                       <GoldButton className="w-full gap-2">
                         <Sparkles className="w-4 h-4" />
