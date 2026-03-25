@@ -198,6 +198,7 @@ const leagueMap: Record<string, number> = {
   'soccer_brazil_copa_nordeste':76,'soccer_brazil_copa_do_brasil':75,
   'soccer_brazil_serie_c':73,'soccer_brazil_copa_verde':530,
   'soccer_international_friendlies':10,
+  'soccer_fifa_world_cup_qualifier_europe':32,
 }
 
 const estaduaisMap: Record<string, { id: number; name: string }> = {
