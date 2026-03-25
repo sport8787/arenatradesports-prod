@@ -1276,10 +1276,8 @@ serve(async (req) => {
     const existingMatchIds = new Set((existingBets || []).map((b: any) => (b.match_id || '').replace(/\+00:00/g, 'Z').toLowerCase()))
     
     // Filter out games that already have bets placed
-    const filteredGames = games.filter((g: any) => {
-      // Build match_id the same way the frontend does
+    const filteredGames = uniqueGames.filter((g: any) => {
       const matchId = `${g.home_team}_${g.away_team}`.replace(/\s+/g, '_').toLowerCase()
-      // Also check with market suffix patterns (any market)
       const hasExisting = [...existingMatchIds].some(eid => eid.startsWith(matchId))
       if (hasExisting) {
         console.log(`[Mycroft Punter] ⏭️ Pulando ${g.home_team} vs ${g.away_team} — aposta já existente`)
@@ -1287,7 +1285,7 @@ serve(async (req) => {
       return !hasExisting
     })
     
-    const skippedCount = games.length - filteredGames.length
+    const skippedCount = uniqueGames.length - filteredGames.length
     if (skippedCount > 0) console.log(`[Mycroft Punter] 🔒 ${skippedCount} jogos ignorados (apostas já existentes)`)
     
     if(!filteredGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,skipped_existing:skippedCount,leagues_scanned:leagues.length,message:`Todos os ${skippedCount} jogos já possuem apostas`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
