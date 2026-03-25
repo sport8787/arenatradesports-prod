@@ -40,6 +40,7 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   238: "Argentine Primera División",
   253: "MLS",
   10:  "Amistosos Internacionais (Seleções)",
+  32:  "Eliminatórias Copa do Mundo - Europa",
 };
 
 const LIGAS_BLOQUEADAS: number[] = [667, 668];

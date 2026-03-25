@@ -80,6 +80,7 @@ const LIGAS_PERMITIDAS: Record<number, string> = {
   1:   "Copa do Mundo",
   15:  "Copa do Mundo — Qualificatórias",
   10:  "Amistosos Internacionais (Seleções)",
+  32:  "Eliminatórias Copa do Mundo - Europa",
 };
 
 // IDs de ligas bloqueadas
