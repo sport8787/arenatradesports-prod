@@ -34,7 +34,24 @@ const PLANS = [
   },
 ];
 
+declare global {
+  interface Window {
+    fbq?: (...args: any[]) => void;
+  }
+}
+
 export default function Paywall() {
+  const handlePlanClick = (plan: typeof PLANS[0]) => {
+    // Meta Pixel - InitiateCheckout
+    if (window.fbq) {
+      window.fbq('track', 'InitiateCheckout', {
+        content_name: plan.name,
+        currency: 'BRL',
+        value: parseFloat(plan.price.replace(',', '.')),
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-primary/10" />
