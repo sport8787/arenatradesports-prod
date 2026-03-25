@@ -1253,8 +1253,23 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Mycroft Punter] Total: ${games.length} jogos`)
-    if(!games.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,leagues_scanned:leagues.length,message:`Nenhum jogo nas próximas ${hours_ahead}h`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
+    // PRE-ANALYSIS DEDUP: Remove duplicate games (same home+away+time from different sport_keys)
+    const seenGames = new Map<string, number>()
+    const uniqueGames: typeof games = []
+    for (const g of games) {
+      const gKey = `${g.home_team}__${g.away_team}__${g.commence_time}`.toLowerCase()
+      if (!seenGames.has(gKey)) {
+        seenGames.set(gKey, uniqueGames.length)
+        uniqueGames.push(g)
+      } else {
+        console.log(`[Mycroft Punter] 🔄 Dedup pré-análise: ${g.home_team} vs ${g.away_team} duplicado (${g.sport_key})`)
+      }
+    }
+    const preDedup = games.length - uniqueGames.length
+    if (preDedup > 0) console.log(`[Mycroft Punter] 🔄 ${preDedup} jogos duplicados removidos antes da análise`)
+
+    console.log(`[Mycroft Punter] Total: ${uniqueGames.length} jogos únicos (${games.length} brutos)`)
+    if(!uniqueGames.length) return new Response(JSON.stringify({success:true,signals:[],total_analyzed:0,total_approved:0,leagues_scanned:leagues.length,message:`Nenhum jogo nas próximas ${hours_ahead}h`}),{headers:{...corsHeaders,'Content-Type':'application/json'}})
 
     // ANTI-DUPLICATION: Fetch ALL existing bets (pending + settled) to skip already-bet matches
     const { data: existingBets } = await sb.from('virtual_bets_punter').select('match_id, status').in('status', ['pending', 'green', 'red'])
