@@ -214,6 +214,7 @@ const estaduaisMap: Record<string, { id: number; name: string }> = {
   'soccer_brazil_serie_c':{id:73,name:'Brasileirão Série C'},
   'soccer_brazil_copa_verde':{id:530,name:'Copa Verde'},
   'soccer_international_friendlies':{id:10,name:'Amistosos Internacionais'},
+  'soccer_fifa_world_cup_qualifier_europe':{id:32,name:'Eliminatórias Copa do Mundo - Europa'},
 }
 
 async function apiFetch(url: string, key: string) {
