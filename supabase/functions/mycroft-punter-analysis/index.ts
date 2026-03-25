@@ -1129,8 +1129,47 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
         return a
       }
 
-      // ═══ Passou em TODOS os critérios — salva como APROVADO ═══
+      // ═══ Passou em TODOS os critérios — verifica conflito antes de salvar ═══
       if(a.verdict?.startsWith('APROVADO')) a.verdict='APROVADO'
+      
+      // ANTI-CONFLITO PRÉ-PERSIST: Verificar se já existe sinal aprovado para este jogo com mercado diferente
+      const { data: existingSignals } = await sb.from('punter_analyses').select('id, market, estimated_probability, value_percentage, confidence').eq('match_id', mid).eq('verdict', 'APROVADO')
+      if (existingSignals && existingSignals.length > 0) {
+        const myScore = (a.estimated_probability || 0) * (a.edge_percentage || a.value_percentage || 0) * (a.confidence || 0)
+        for (const existing of existingSignals) {
+          if (existing.market === a.market) continue // same market = will be deduped by upsert below
+          const existScore = (existing.estimated_probability || 0) * (existing.value_percentage || 0) * (existing.confidence || 0)
+          // Check for mutually exclusive markets
+          const isConflict = (
+            (a.market?.includes('Over') && existing.market?.includes('Under') && a.market?.replace('Over','') === existing.market?.replace('Under','')) ||
+            (a.market?.includes('Under') && existing.market?.includes('Over') && a.market?.replace('Under','') === existing.market?.replace('Over','')) ||
+            (a.market?.includes('Casa') && existing.market?.includes('Fora')) ||
+            (a.market?.includes('Fora') && existing.market?.includes('Casa'))
+          )
+          if (isConflict) {
+            if (myScore > existScore) {
+              // New signal is better — remove old one
+              await sb.from('punter_signals').delete().eq('match_id', mid).eq('market', existing.market)
+              await sb.from('punter_analyses').delete().eq('id', existing.id)
+              console.log(`[Mycroft Punter] 🔄 Conflito resolvido: ${a.market} (score ${myScore.toFixed(0)}) substituiu ${existing.market} (score ${existScore.toFixed(0)})`)
+            } else {
+              // Existing signal is better — veto this one
+              console.log(`[Mycroft Punter] 🚫 Conflito: ${a.market} (score ${myScore.toFixed(0)}) perdeu para ${existing.market} existente (score ${existScore.toFixed(0)})`)
+              a.verdict = 'VETADO'
+              a.veto_reason = `Mercado oposto ${existing.market} já aprovado com score superior`
+              await sb.from('punter_analyses').insert({
+                match_id:mid,home_team:game.home_team,away_team:game.away_team,league:game.sport_title||'Unknown',
+                commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
+                fair_odd:a.fair_odd,implied_probability:a.implied_probability,estimated_probability:a.estimated_probability,
+                value_percentage:a.value_percentage,verdict:'VETADO',confidence:a.confidence,stake_percentage:0,
+                thesis:`[VETADO] ${a.veto_reason}`,analysis:a.analysis||'',risk_factors:a.risk_factors||'',analyzed_by:'gemini'
+              })
+              return a
+            }
+          }
+        }
+      }
+
       console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
       // Dedup: remove old analysis+signal for same match+market before inserting
