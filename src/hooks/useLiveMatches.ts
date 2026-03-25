@@ -15,6 +15,7 @@ const LIGAS_PERMITIDAS = new Set([
   'Copa Argentina', 'Copa Sudamericana',
   'MLS',
   'Amistosos Internacionais', 'International Friendlies', 'Friendlies',
+  'Eliminatórias Copa do Mundo - Europa', 'World Cup Qualifiers - Europe', 'WC Qualification Europe',
 ]);
 
 function isAllowedLeague(championship: string): boolean {
