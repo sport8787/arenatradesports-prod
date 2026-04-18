@@ -85,7 +85,7 @@ serve(async (req) => {
     
     const { data: matchesForReanalysis, error: matchError2 } = await supabase
       .from('live_matches')
-      .select('*, mycroft_analyses!inner(id, verdict, created_at)')
+      .select('*, mycroft_analyses!inner(id, verdict, plan_name, created_at)')
       .eq('status', 'live')
       .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
@@ -95,21 +95,25 @@ serve(async (req) => {
     const reAnalyzable = (matchesForReanalysis || []).filter((m: any) => {
       const min = m.minute ?? 0;
       const verdict = m.mycroft_analyses?.verdict || '';
+      const planName = m.mycroft_analyses?.plan_name || '';
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
       const elapsed = now - analysisTime;
 
-      // APROVADO and APROVADO_SITUACIONAL are NOT reanalyzed (signal already emitted)
-      if (verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') return false;
+      // EXCEÇÃO: PLANO UNDER 2.5 EARLY aprovado DEVE ser reanalisado (1 min) para detectar saída
+      const isUnder25Active = verdict === 'APROVADO' && planName === 'PLANO UNDER 2.5 EARLY';
+
+      // Demais APROVADOS não são reanalisados (signal already emitted)
+      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isUnder25Active) return false;
 
       // Determine effective status for interval calculation
-      const effectiveStatus = verdict || m.mycroft_status || 'aguardar';
+      const effectiveStatus = isUnder25Active ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
       const interval = getReanalysisInterval(effectiveStatus, min);
 
       // For early minutes, also check special context
       if (min < 10 && !hasSpecialEarlyContext(m)) return false;
 
       if (elapsed > interval) {
-        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isUnder25Active ? ' [UNDER25-MONITOR]' : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
         return true;
       }
       return false;
@@ -279,6 +283,36 @@ serve(async (req) => {
               }
             } catch (tgErr) {
               console.warn('[AnalyzeLive] Telegram notification error:', tgErr);
+            }
+          }
+
+          // === TELEGRAM NOTIFICATION for UNDER 2.5 EXIT (cancellation) ===
+          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY') {
+            try {
+              const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+              const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
+              if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
+                const msg = [
+                  `🚨 *SAIR DA OPERAÇÃO — UNDER 2.5 EARLY*`,
+                  ``,
+                  `⚽ *${match.home_team} vs ${match.away_team}*`,
+                  `🏟️ ${match.championship} | ${match.minute ?? 0}' | Placar: ${match.score_home ?? 0}x${match.score_away ?? 0}`,
+                  ``,
+                  `📝 _${analysis.thesis || 'Sinal Under 2.5 revogado.'}_`,
+                  ``,
+                  `⚠️ *AÇÃO RECOMENDADA:* Executar cashout ou hedge IMEDIATAMENTE para limitar perda.`,
+                  ``,
+                  `🔗 [Abrir Arena Trader](https://www.oraculo-mycroft.com/arena-trader-sports)`,
+                ].filter(Boolean).join('\n');
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
+                });
+                console.log(`[AnalyzeLive] 🚪📲 Telegram EXIT sent for ${match.home_team} vs ${match.away_team}`);
+              }
+            } catch (tgErr) {
+              console.warn('[AnalyzeLive] Telegram exit notification error:', tgErr);
             }
           }
         }

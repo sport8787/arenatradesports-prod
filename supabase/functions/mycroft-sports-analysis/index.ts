@@ -522,9 +522,8 @@ serve(async (req) => {
     }
 
     // === PLANO UNDER 2.5 EARLY (override server-side) ===
-    // Aprova Under 2.5 quando jogo está parado nos primeiros minutos, independente da IA.
-    // Só executa se a IA NÃO já tiver aprovado outro sinal (não sobrescrever APROVADO real).
-    if (analysis.verdict !== 'APROVADO' && analysis.verdict !== 'APROVADO_SITUACIONAL') {
+    // Aprova/cancela Under 2.5 quando jogo está parado nos primeiros minutos.
+    {
       const u_s = match.stats || {};
       const u_min = match.minute ?? 0;
       const u_scoreH = match.scoreHome ?? 0;
@@ -539,7 +538,65 @@ serve(async (req) => {
       const u_isScoreless = u_totalGoals === 0;
       const u_isDeadGame = u_dangerousTotal <= 4 && u_sotTotal <= 1 && u_xgTotal <= 0.3;
 
-      if (u_isEarly && u_isScoreless && u_isDeadGame && u_underOdd >= 1.85) {
+      // Verifica se já existe sinal Under 2.5 ativo (APROVADO) anterior para este jogo
+      let u_priorActiveSignal: any = null;
+      if (match.match_id) {
+        try {
+          const { data: priorRows } = await getSupabaseAdmin()
+            .from('mycroft_analyses')
+            .select('id, verdict, market, plan_name, created_at')
+            .eq('match_id', match.match_id)
+            .eq('plan_name', 'PLANO UNDER 2.5 EARLY')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (priorRows && priorRows[0] && priorRows[0].verdict === 'APROVADO') {
+            u_priorActiveSignal = priorRows[0];
+          }
+        } catch (e) { console.warn('[MycroftSports] Falha ao checar sinal prévio Under 2.5:', e); }
+      }
+
+      // CANCELAMENTO: já tinha sinal aprovado, mas condições mudaram → emitir aviso de SAÍDA
+      if (u_priorActiveSignal && analysis.verdict !== 'APROVADO' && analysis.verdict !== 'APROVADO_SITUACIONAL') {
+        const u_hasGoal = u_totalGoals > 0;
+        const u_increasedActivity = u_dangerousTotal > 6 || u_sotTotal > 2 || u_xgTotal > 0.6;
+        if (u_hasGoal || u_increasedActivity) {
+          const motivo = u_hasGoal
+            ? `gol marcado (${u_scoreH}x${u_scoreA})`
+            : `aumento de pressão ofensiva (${u_dangerousTotal} ataques perigosos, ${u_sotTotal} SOT, xG ${u_xgTotal.toFixed(2)})`;
+          console.log(`[MycroftSports] 🚪 CANCELAMENTO Under 2.5: ${match.home} vs ${match.away} (${u_min}') — ${motivo}`);
+          analysis.verdict = 'CUIDADO';
+          analysis.plan_name = 'CANCELAMENTO UNDER 2.5 EARLY';
+          analysis.market = 'Under 2.5 — SAIR';
+          analysis.confidence = 90;
+          analysis.thesis = `🚨 SAIR DA OPERAÇÃO — UNDER 2.5 EARLY. Condições do sinal mudaram: ${motivo}. Recomenda-se ENCERRAR a posição imediatamente (cashout ou contra-aposta) para proteger banca.`;
+          analysis.risk_management = {
+            ...(analysis.risk_management || {}),
+            entry: 'N/A — sinal cancelado',
+            stop: 'EXECUTAR SAÍDA AGORA (cashout/hedge)',
+            target: 'Proteger capital exposto',
+            rr: 'N/A',
+            ev: 'N/A',
+          };
+          analysis.alerts = [
+            `🚨 SAIR DA OPERAÇÃO IMEDIATAMENTE — sinal Under 2.5 Early revogado.`,
+            `Motivo: ${motivo}.`,
+            `Ação recomendada: cashout ou hedge para limitar perda.`,
+          ];
+          analysis.fundamentation = {
+            ...(analysis.fundamentation || {}),
+            override: 'server_side_under_25_cancellation',
+            prior_signal_id: u_priorActiveSignal.id,
+            stats_snapshot: { dangerousTotal: u_dangerousTotal, sotTotal: u_sotTotal, xgTotal: u_xgTotal, minute: u_min, score: `${u_scoreH}x${u_scoreA}` },
+          };
+        }
+      }
+      // APROVAÇÃO: só se ainda não há outro APROVADO da IA e condições batem
+      else if (
+        analysis.verdict !== 'APROVADO' &&
+        analysis.verdict !== 'APROVADO_SITUACIONAL' &&
+        !u_priorActiveSignal &&
+        u_isEarly && u_isScoreless && u_isDeadGame && u_underOdd >= 1.85
+      ) {
         console.log(`[MycroftSports] 📉 OVERRIDE APROVADO: Under 2.5 Early — ${match.home} vs ${match.away} (${u_min}') odd ${u_underOdd} | dang=${u_dangerousTotal} sot=${u_sotTotal} xg=${u_xgTotal.toFixed(2)}`);
         analysis.verdict = 'APROVADO';
         analysis.plan_name = 'PLANO UNDER 2.5 EARLY';
