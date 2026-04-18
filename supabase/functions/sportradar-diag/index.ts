@@ -54,7 +54,7 @@ serve(async (req) => {
   // Adiciona key length/preview pra confirmar que não tem espaços
   const keyInfo = { length: key.length, first4: key.slice(0, 4), last4: key.slice(-4), trimmed_equal: key === key.trim() };
 
-  return new Response(JSON.stringify({ results }, null, 2), {
+  return new Response(JSON.stringify({ keyInfo, results }, null, 2), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
