@@ -16,54 +16,119 @@ function relevanceFor(tournamentName: string, categoryName: string): number {
   if (t.includes('série a') || t.includes('serie a')) return 5;
   if (t.includes('série b') || t.includes('serie b') || t.includes('sul-americana') || t.includes('europa league') || t.includes('bundesliga') || t.includes('ligue 1')) return 4;
   if (t.includes('copa') || t.includes('cup')) return 4;
+  if (t.includes('mls') || t.includes('liga mx')) return 4;
   if (t.includes('carioca') || t.includes('paulist') || t.includes('gaúcho') || t.includes('mineiro') || t.includes('serie c')) return 3;
   if (c.includes('brazil') || c.includes('brasil')) return 3;
   return 2;
 }
 
-async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any | null> {
-  try {
-    const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['rawHtml'],
-        onlyMainContent: false,
-        waitFor: 0,
-      }),
+interface ParsedMatch {
+  league: string;
+  country: string;
+  home: string;
+  away: string;
+  time: string;       // HH:MM (UTC ou local conforme SofaScore — assumimos UTC)
+  matchId: string;
+}
+
+/**
+ * Parseia o markdown da página /football/{date} do SofaScore.
+ * Estrutura (simplificada):
+ *   [LIGA](.../tournament/{country}/{slug}/{id}) [PAÍS](.../football/{country})
+ *   N (count)
+ *   [HH:MM\n-\n![home img]\nHomeName\n![away img]\nAwayName](.../match/{slug}#id:{matchId})
+ */
+function parseSofaMarkdown(md: string): ParsedMatch[] {
+  const out: ParsedMatch[] = [];
+  if (!md) return out;
+
+  // Regex para blocos de liga: captura nome da liga e nome do país nos dois primeiros links da linha
+  // Ex: [MLS](https://...tournament/usa/mls/242) [USA](https://...football/usa)
+  const leagueRe = /\[([^\]]+)\]\(https:\/\/www\.sofascore\.com\/football\/tournament\/([^)\s]+)\)\s*\[([^\]]+)\]\(https:\/\/www\.sofascore\.com\/football\/[^)\s]+\)/g;
+
+  // Regex para partidas: o link contém HH:MM e termina com #id:NUMERO
+  // O texto interno tem padrão: HH:MM\\\n\\\n-\\\n\\\n![alt]...\\\nHomeName\\\n\\\n![alt]...\\\nAwayName
+  const matchRe = /\[(\d{1,2}:\d{2})[\s\S]*?#id:(\d+)\)/g;
+
+  // Pegamos as posições dos cabeçalhos de liga, e depois das partidas, e atribuímos cada partida
+  // à liga cujo cabeçalho está imediatamente antes dela.
+  const leagueMarkers: { pos: number; league: string; country: string }[] = [];
+  let lm: RegExpExecArray | null;
+  while ((lm = leagueRe.exec(md)) !== null) {
+    leagueMarkers.push({
+      pos: lm.index,
+      league: lm[1].trim(),
+      country: lm[3].trim(),
     });
-    if (!r.ok) {
-      const t = await r.text();
-      console.warn(`[Firecrawl] ${r.status}: ${t.substring(0, 200)}`);
-      return null;
+  }
+
+  let mm: RegExpExecArray | null;
+  while ((mm = matchRe.exec(md)) !== null) {
+    const matchPos = mm.index;
+    const time = mm[1];
+    const matchId = mm[2];
+
+    // Achar a liga mais próxima ANTES desta posição
+    let leagueInfo = { league: 'Unknown', country: '' };
+    for (let i = leagueMarkers.length - 1; i >= 0; i--) {
+      if (leagueMarkers[i].pos < matchPos) {
+        leagueInfo = leagueMarkers[i];
+        break;
+      }
     }
-    const j = await r.json();
-    // tenta extrair JSON: o endpoint /api/v1/... do SofaScore retorna JSON puro envolto em <pre> ou direto.
-    const raw = j.data?.rawHtml || j.rawHtml || '';
-    // Procurar primeira { ... } grande
-    const start = raw.indexOf('{"events"');
-    if (start === -1) {
-      // Talvez Firecrawl já tenha decodificado como JSON puro
-      try { return JSON.parse(raw); } catch { return null; }
-    }
-    // Extrair até o último '}' balanceado é complexo — pegar texto após start e tentar parse incremental
-    const candidate = raw.substring(start);
-    // Tenta parsing direto
-    try { return JSON.parse(candidate); } catch {}
-    // Tenta limpar até último '}'
-    const lastBrace = candidate.lastIndexOf('}');
-    if (lastBrace > 0) {
-      try { return JSON.parse(candidate.substring(0, lastBrace + 1)); } catch {}
-    }
-    return null;
-  } catch (e) {
-    console.error('[Firecrawl] error:', e);
+
+    // Extrair home/away do bloco interno do link
+    // Pegamos o conteúdo do link entre [ e ](
+    const linkStart = matchPos + 1; // após '['
+    const linkEnd = md.indexOf('](', linkStart);
+    if (linkEnd === -1) continue;
+    const inner = md.substring(linkStart, linkEnd);
+
+    // Linhas relevantes (sem imagens, sem '-', sem horário)
+    const lines = inner.split(/\\?\n+/)
+      .map(s => s.trim())
+      .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s) && !/^\\$/.test(s))
+      .map(s => s.replace(/^\\+/, '').replace(/\\+$/, '').trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) continue;
+    // Primeiros dois nomes "limpos" são home, away
+    const home = lines[0];
+    const away = lines[1];
+
+    out.push({
+      league: leagueInfo.league,
+      country: leagueInfo.country,
+      home,
+      away,
+      time,
+      matchId,
+    });
+  }
+
+  return out;
+}
+
+async function scrapePage(url: string, apiKey: string, maxAge = 0): Promise<string | null> {
+  const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url,
+      formats: ['markdown'],
+      onlyMainContent: true,
+      maxAge,
+    }),
+  });
+  if (!r.ok) {
+    console.warn(`[SofaScheduled] Firecrawl ${r.status} for ${url}`);
     return null;
   }
+  const j = await r.json();
+  return j.data?.markdown || null;
 }
 
 serve(async (req) => {
@@ -89,17 +154,16 @@ serve(async (req) => {
       tomorrow.toISOString().split('T')[0],
     ];
 
-    const allEvents: any[] = [];
+    const allParsed: ParsedMatch[] = [];
     for (const d of dates) {
-      const data = await scrapeWithFirecrawl(
-        `https://api.sofascore.com/api/v1/sport/football/scheduled-events/${d}`,
-        FIRECRAWL_API_KEY,
-      );
-      if (data?.events) {
-        allEvents.push(...data.events);
-        console.log(`[SofaScheduled] ${d}: ${data.events.length} events`);
+      const md = await scrapePage(`https://www.sofascore.com/football/${d}`, FIRECRAWL_API_KEY);
+      if (md) {
+        const parsed = parseSofaMarkdown(md);
+        console.log(`[SofaScheduled] ${d}: parsed ${parsed.length} matches (md ${md.length} chars)`);
+        // Anexar a data nos objetos
+        parsed.forEach(p => allParsed.push({ ...p, time: `${d}T${p.time}:00Z` as any }));
       } else {
-        console.warn(`[SofaScheduled] ${d}: no events parsed`);
+        console.warn(`[SofaScheduled] ${d}: no markdown`);
       }
     }
 
@@ -107,33 +171,28 @@ serve(async (req) => {
     const max = now + 26 * 3600 * 1000;
     let inserted = 0;
 
-    for (const ev of allEvents) {
+    for (const m of allParsed) {
       try {
-        const startMs = (ev.startTimestamp ?? 0) * 1000;
+        const matchDate = new Date(m.time);
+        const startMs = matchDate.getTime();
         if (!startMs || startMs < now - 30 * 60000 || startMs > max) continue;
 
-        const tournamentName = ev.tournament?.name || ev.tournament?.uniqueTournament?.name || 'Unknown';
-        const categoryName = ev.tournament?.category?.name || '';
-        const home = ev.homeTeam?.name || 'TBD';
-        const away = ev.awayTeam?.name || 'TBD';
-        const matchDate = new Date(startMs);
-        const status = ev.status?.type === 'inprogress' ? 'live' : 'scheduled';
-
         const dateStr = matchDate.toISOString().split('T')[0];
-        const timeStr = matchDate.toTimeString().slice(0, 5);
+        const timeStr = matchDate.toISOString().slice(11, 16);
+        const status = startMs <= now ? 'live' : 'scheduled';
 
         const { error } = await supabase.from('scheduled_games').upsert({
           match_date: dateStr,
           match_time: timeStr,
           match_datetime: matchDate.toISOString(),
-          league_name: `${tournamentName}${categoryName ? ` (${categoryName})` : ''}`,
-          home_team: home,
-          away_team: away,
-          event_id: `sofa_${ev.id}`,
-          match_id: `sofa_${ev.id}`,
+          league_name: `${m.league}${m.country ? ` (${m.country})` : ''}`,
+          home_team: m.home,
+          away_team: m.away,
+          event_id: `sofa_${m.matchId}`,
+          match_id: `sofa_${m.matchId}`,
           status,
           check_time: new Date(startMs - 15 * 60000).toISOString(),
-          relevance_score: relevanceFor(tournamentName, categoryName),
+          relevance_score: relevanceFor(m.league, m.country),
           updated_at: new Date().toISOString(),
         }, { onConflict: 'match_date,match_time,home_team,away_team' });
 
@@ -142,7 +201,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, source: 'sofascore-via-firecrawl', total_events: allEvents.length, inserted }),
+      JSON.stringify({ ok: true, source: 'sofascore-via-firecrawl', total_events: allParsed.length, inserted }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
