@@ -1081,6 +1081,7 @@ ${fmtH2H(en.h2h)}
 ${fmtInj(game.home_team,en.injuries?.home||[])} ${fmtInj(game.away_team,en.injuries?.away||[])}
 ${fmtStand(en.standings||[],game.home_team,game.away_team)}
 ${fmtPred(en.predictions)}
+${fmtSofaForm(sofaForm)}
 ${en.predictions?'Validação cruzada: Concordam→+5% Divergem→-5%':''}
 ${fmtDetectors(det)}
 ${cornBlk}${cardBlk}
