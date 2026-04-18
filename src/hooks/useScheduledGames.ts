@@ -22,14 +22,14 @@ export function useScheduledGames() {
 
   const fetchGames = useCallback(async () => {
     const now = new Date();
-    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
-    const cutoff = twoDaysAgo.toISOString().split('T')[0];
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const { data, error } = await supabase
       .from('scheduled_games')
       .select('*')
-      .gte('match_date', cutoff)
+      .gte('match_datetime', now.toISOString())
+      .lte('match_datetime', in24h.toISOString())
       .order('match_datetime', { ascending: true })
-      .limit(50);
+      .limit(80);
 
     if (error) {
       console.error('Error fetching scheduled games:', error);
@@ -41,6 +41,9 @@ export function useScheduledGames() {
 
   useEffect(() => {
     fetchGames();
+    // Auto-refresh every 60s so countdown + pré-live filtering stay accurate
+    const id = setInterval(() => fetchGames(), 60_000);
+    return () => clearInterval(id);
   }, [fetchGames]);
 
   return { games, loading, refetch: fetchGames };

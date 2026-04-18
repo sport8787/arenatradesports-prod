@@ -300,7 +300,7 @@ export default function ArenaTraderSports() {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, APROVADO_SITUACIONAL: 0, LABAREDA: 1, CUIDADO: 2, AGUARDAR: 3, analyzing: 3, JOGO_MORTO: 4, VETADO: 4, no_value: 4 };
     return allMatches
       .filter(m => {
-        if (statusFilter === 'proximos') return false;
+        if (statusFilter === 'proximos' || statusFilter === 'scheduled') return false;
         // In "simulado" mode, show only sim_ matches
         if (statusFilter === 'simulado') {
           if (!m.matchId?.startsWith('sim_')) return false;
@@ -430,9 +430,29 @@ export default function ArenaTraderSports() {
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="proximos">Próximos Jogos</TabsTrigger>
+              <TabsTrigger value="proximos" className="gap-1.5">
+                Próximos Jogos
+                {scheduledGames.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                    {scheduledGames.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="live">Ao Vivo</TabsTrigger>
-              <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
+              <TabsTrigger value="scheduled" className="gap-1.5">
+                Pré-Live
+                {(() => {
+                  const preliveCount = scheduledGames.filter(g => {
+                    const m = (new Date(g.match_datetime).getTime() - Date.now()) / 60000;
+                    return m > 0 && m <= 10;
+                  }).length;
+                  return preliveCount > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive text-[10px] font-bold animate-pulse">
+                      {preliveCount}
+                    </span>
+                  ) : null;
+                })()}
+              </TabsTrigger>
               <TabsTrigger value="finished">Finalizados</TabsTrigger>
               <TabsTrigger value="simulado" className="gap-1">
                 <FlaskConical className="w-3 h-3" />
@@ -467,7 +487,19 @@ export default function ArenaTraderSports() {
 
         {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
         {statusFilter === 'proximos' && (
-          <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} />
+          <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} mode="upcoming" />
+        )}
+
+        {/* Pre-Live Section - jogos que começam em ≤10 minutos */}
+        {statusFilter === 'scheduled' && (
+          <ScheduledGamesSection
+            games={scheduledGames.filter(g => {
+              const diffMin = (new Date(g.match_datetime).getTime() - Date.now()) / 60000;
+              return diffMin > 0 && diffMin <= 10;
+            })}
+            loading={scheduledLoading}
+            mode="prelive"
+          />
         )}
       </div>
       </div>

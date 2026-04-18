@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { Clock, Calendar, Trophy } from 'lucide-react';
+import { Clock, Calendar, Trophy, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScheduledGame } from '@/hooks/useScheduledGames';
 
 interface ScheduledGamesSectionProps {
   games: ScheduledGame[];
   loading: boolean;
+  mode?: 'upcoming' | 'prelive';
 }
 
 const statusLabels: Record<string, { label: string; className: string }> = {
@@ -30,13 +31,17 @@ function timeUntil(matchDatetime: string) {
   return `em ${mins}min`;
 }
 
-export default function ScheduledGamesSection({ games, loading }: ScheduledGamesSectionProps) {
+export default function ScheduledGamesSection({ games, loading, mode = 'upcoming' }: ScheduledGamesSectionProps) {
+  const isPrelive = mode === 'prelive';
+  const title = isPrelive ? 'Pré-Live (começa em ≤10min)' : 'Próximos Jogos (24h)';
+  const Icon = isPrelive ? Flame : Calendar;
+
   if (loading) {
     return (
       <div className="space-y-3">
         <h2 className="font-orbitron text-sm font-bold text-foreground flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          Próximos Jogos do Dia
+          <Icon className={cn('w-4 h-4', isPrelive ? 'text-destructive animate-pulse' : 'text-primary')} />
+          {title}
         </h2>
         <div className="flex items-center justify-center py-8">
           <span className="text-sm text-muted-foreground">Carregando agenda...</span>
@@ -49,12 +54,14 @@ export default function ScheduledGamesSection({ games, loading }: ScheduledGames
     return (
       <div className="space-y-3">
         <h2 className="font-orbitron text-sm font-bold text-foreground flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          Próximos Jogos do Dia
+          <Icon className={cn('w-4 h-4', isPrelive ? 'text-destructive animate-pulse' : 'text-primary')} />
+          {title}
         </h2>
         <div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
-          <span className="text-4xl">📅</span>
-          <p className="text-sm text-muted-foreground">Nenhum jogo programado para hoje</p>
+          <span className="text-4xl">{isPrelive ? '⏱️' : '📅'}</span>
+          <p className="text-sm text-muted-foreground">
+            {isPrelive ? 'Nenhum jogo entrando ao vivo nos próximos 10 minutos' : 'Nenhum jogo programado para as próximas 24h'}
+          </p>
         </div>
       </div>
     );
@@ -63,8 +70,8 @@ export default function ScheduledGamesSection({ games, loading }: ScheduledGames
   return (
     <div className="space-y-3">
       <h2 className="font-orbitron text-sm font-bold text-foreground flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-primary" />
-        Próximos Jogos do Dia
+        <Icon className={cn('w-4 h-4', isPrelive ? 'text-destructive animate-pulse' : 'text-primary')} />
+        {title}
         <span className="text-xs text-muted-foreground font-normal ml-auto">{games.length} jogos</span>
       </h2>
 
@@ -77,7 +84,10 @@ export default function ScheduledGamesSection({ games, loading }: ScheduledGames
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
-              className="luxury-card p-4 space-y-3"
+              className={cn(
+                'luxury-card p-4 space-y-3',
+                isPrelive && 'border-destructive/50 shadow-[0_0_20px_hsl(var(--destructive)/0.25)] animate-pulse'
+              )}
             >
               {/* League + Status */}
               <div className="flex items-center justify-between gap-2">
