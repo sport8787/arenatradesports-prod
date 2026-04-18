@@ -86,12 +86,11 @@ function parseNumber(v: any): number | null {
 async function searchTeamId(name: string): Promise<number | null> {
   try {
     const q = encodeURIComponent(name);
-    const res = await fetch(`${SOFA_BASE}/search/teams/${q}`, { headers: HEADERS });
-    if (!res.ok) {
-      console.warn(`[SofaForm] searchTeamId HTTP ${res.status} for "${name}"`);
+    const data = await sofaFetchJson(`/search/teams/${q}`);
+    if (!data) {
+      console.warn(`[SofaForm] searchTeamId no data for "${name}"`);
       return null;
     }
-    const data = await res.json();
     const teams = data.teams || [];
     console.log(`[SofaForm] searchTeamId "${name}" → ${teams.length} results`);
     const target = normalize(name);
