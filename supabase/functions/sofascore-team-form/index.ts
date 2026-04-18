@@ -38,9 +38,13 @@ async function searchTeamId(name: string): Promise<number | null> {
   try {
     const q = encodeURIComponent(name);
     const res = await fetch(`${SOFA_BASE}/search/teams/${q}`, { headers: HEADERS });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[SofaForm] searchTeamId HTTP ${res.status} for "${name}"`);
+      return null;
+    }
     const data = await res.json();
     const teams = data.teams || [];
+    console.log(`[SofaForm] searchTeamId "${name}" → ${teams.length} results`);
     const target = normalize(name);
     for (const t of teams) {
       if (t.sport?.slug !== 'football') continue;
@@ -52,6 +56,7 @@ async function searchTeamId(name: string): Promise<number | null> {
     }
     // Fallback: first football team
     const firstFootball = teams.find((t: any) => t.sport?.slug === 'football');
+    if (firstFootball) console.log(`[SofaForm] fallback team "${firstFootball.name}" (id=${firstFootball.id}) for "${name}"`);
     return firstFootball?.id || null;
   } catch (e) {
     console.error('[SofaForm] searchTeamId error:', e);
