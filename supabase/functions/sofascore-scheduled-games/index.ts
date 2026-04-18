@@ -84,15 +84,25 @@ function parseSofaMarkdown(md: string): ParsedMatch[] {
     if (linkEnd === -1) continue;
     const inner = md.substring(linkStart, linkEnd);
 
-    // Linhas relevantes (sem imagens, sem '-', sem horário)
-    const lines = inner.split(/\\?\n+/)
+    // O bloco interno tem o formato (separadores: \\ + newline, repetidos):
+    //   13:00\\
+    //   \\
+    //   -\\
+    //   \\
+    //   ![Home Logo](...)\\
+    //   \\
+    //   HomeName\\
+    //   \\
+    //   ![Away Logo](...)\\
+    //   \\
+    //   AwayName
+    // Estratégia: remover todos os '\' e quebrar por \n, depois filtrar.
+    const cleaned = inner.replace(/\\+/g, '');
+    const lines = cleaned.split(/\n+/)
       .map(s => s.trim())
-      .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s) && !/^\\$/.test(s))
-      .map(s => s.replace(/^\\+/, '').replace(/\\+$/, '').trim())
-      .filter(Boolean);
+      .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s));
 
     if (lines.length < 2) continue;
-    // Primeiros dois nomes "limpos" são home, away
     const home = lines[0];
     const away = lines[1];
 
