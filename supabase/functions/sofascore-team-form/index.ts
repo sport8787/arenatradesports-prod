@@ -27,7 +27,7 @@ function parseNum(v: string | undefined | null): number | null {
   return isNaN(n) ? null : n;
 }
 
-async function fcScrape(url: string, waitFor = 1500): Promise<string | null> {
+async function fcScrape(url: string, format: 'markdown' | 'rawHtml' = 'markdown', waitFor = 1500): Promise<string | null> {
   const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
   if (!fcKey) {
     console.warn('[FBref] FIRECRAWL_API_KEY missing');
@@ -37,14 +37,14 @@ async function fcScrape(url: string, waitFor = 1500): Promise<string | null> {
     const r = await fetch(`${FIRECRAWL_API}/scrape`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${fcKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true, waitFor }),
+      body: JSON.stringify({ url, formats: [format], onlyMainContent: false, waitFor }),
     });
     if (!r.ok) {
       console.warn(`[FBref] Firecrawl HTTP ${r.status} for ${url}`);
       return null;
     }
     const d = await r.json();
-    return d?.data?.markdown || null;
+    return (format === 'rawHtml' ? d?.data?.rawHtml : d?.data?.markdown) || null;
   } catch (e) {
     console.warn(`[FBref] Firecrawl error for ${url}:`, e);
     return null;
