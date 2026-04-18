@@ -53,7 +53,7 @@ async function fcScrape(url: string, format: 'markdown' | 'rawHtml' = 'markdown'
 
 // Extrai squad id do FBref a partir do nome do time
 async function findSquad(name: string): Promise<{ id: string; slug: string; name: string } | null> {
-  const md = await fcScrape(`https://fbref.com/en/search/search.fcgi?search=${encodeURIComponent(name)}`, 1200);
+  const md = await fcScrape(`https://fbref.com/en/search/search.fcgi?search=${encodeURIComponent(name)}`, 'markdown', 1200);
   if (!md) return null;
 
   // Pega blocos: **[Name](https://fbref.com/en/squads/{id}/...)** seguido de "Male" (ignora Female por padrão)
