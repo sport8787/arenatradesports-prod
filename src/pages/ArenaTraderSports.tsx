@@ -300,7 +300,7 @@ export default function ArenaTraderSports() {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, APROVADO_SITUACIONAL: 0, LABAREDA: 1, CUIDADO: 2, AGUARDAR: 3, analyzing: 3, JOGO_MORTO: 4, VETADO: 4, no_value: 4 };
     return allMatches
       .filter(m => {
-        if (statusFilter === 'proximos') return false;
+        if (statusFilter === 'proximos' || statusFilter === 'scheduled') return false;
         // In "simulado" mode, show only sim_ matches
         if (statusFilter === 'simulado') {
           if (!m.matchId?.startsWith('sim_')) return false;
