@@ -6,48 +6,82 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+const FIRECRAWL_V2 = 'https://api.firecrawl.dev/v2';
 
-// Whitelist de torneios (priority dado ao SofaScore via uniqueTournament.id ou nome)
-// Quanto maior priority, mais relevante. Mantemos amplo para garantir oferta.
 function relevanceFor(tournamentName: string, categoryName: string): number {
   const t = (tournamentName || '').toLowerCase();
   const c = (categoryName || '').toLowerCase();
   if (t.includes('libertadores') || t.includes('champions league') || t.includes('copa do brasil')) return 5;
-  if (t.includes('brasileir') || t.includes('serie a') || t.includes('série a') || t.includes('premier league') || t.includes('laliga') || t.includes('la liga')) return 5;
-  if (t.includes('serie b') || t.includes('série b') || t.includes('sul-americana') || t.includes('europa league') || t.includes('bundesliga') || t.includes('serie a') || t.includes('ligue 1')) return 4;
+  if (t.includes('brasileir') || t.includes('premier league') || t.includes('laliga') || t.includes('la liga')) return 5;
+  if (t.includes('série a') || t.includes('serie a')) return 5;
+  if (t.includes('série b') || t.includes('serie b') || t.includes('sul-americana') || t.includes('europa league') || t.includes('bundesliga') || t.includes('ligue 1')) return 4;
   if (t.includes('copa') || t.includes('cup')) return 4;
   if (t.includes('carioca') || t.includes('paulist') || t.includes('gaúcho') || t.includes('mineiro') || t.includes('serie c')) return 3;
   if (c.includes('brazil') || c.includes('brasil')) return 3;
   return 2;
 }
 
-async function fetchSofaScoreDay(dateStr: string) {
-  const res = await fetch(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${dateStr}`, {
-    headers: {
-      'User-Agent': UA,
-      'Accept': 'application/json',
-      'Referer': 'https://www.sofascore.com/',
-    },
-  });
-  if (!res.ok) {
-    console.warn(`[SofaScheduled] ${dateStr} failed: ${res.status}`);
-    return [];
+async function scrapeWithFirecrawl(url: string, apiKey: string): Promise<any | null> {
+  try {
+    const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['rawHtml'],
+        onlyMainContent: false,
+        waitFor: 0,
+      }),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      console.warn(`[Firecrawl] ${r.status}: ${t.substring(0, 200)}`);
+      return null;
+    }
+    const j = await r.json();
+    // tenta extrair JSON: o endpoint /api/v1/... do SofaScore retorna JSON puro envolto em <pre> ou direto.
+    const raw = j.data?.rawHtml || j.rawHtml || '';
+    // Procurar primeira { ... } grande
+    const start = raw.indexOf('{"events"');
+    if (start === -1) {
+      // Talvez Firecrawl já tenha decodificado como JSON puro
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    // Extrair até o último '}' balanceado é complexo — pegar texto após start e tentar parse incremental
+    const candidate = raw.substring(start);
+    // Tenta parsing direto
+    try { return JSON.parse(candidate); } catch {}
+    // Tenta limpar até último '}'
+    const lastBrace = candidate.lastIndexOf('}');
+    if (lastBrace > 0) {
+      try { return JSON.parse(candidate.substring(0, lastBrace + 1)); } catch {}
+    }
+    return null;
+  } catch (e) {
+    console.error('[Firecrawl] error:', e);
+    return null;
   }
-  const data = await res.json();
-  return data.events || [];
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+    if (!FIRECRAWL_API_KEY) {
+      return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Buscar hoje + amanhã (UTC)
     const today = new Date();
     const tomorrow = new Date(today.getTime() + 24 * 3600 * 1000);
     const dates = [
@@ -57,14 +91,20 @@ serve(async (req) => {
 
     const allEvents: any[] = [];
     for (const d of dates) {
-      const events = await fetchSofaScoreDay(d);
-      allEvents.push(...events);
+      const data = await scrapeWithFirecrawl(
+        `https://api.sofascore.com/api/v1/sport/football/scheduled-events/${d}`,
+        FIRECRAWL_API_KEY,
+      );
+      if (data?.events) {
+        allEvents.push(...data.events);
+        console.log(`[SofaScheduled] ${d}: ${data.events.length} events`);
+      } else {
+        console.warn(`[SofaScheduled] ${d}: no events parsed`);
+      }
     }
 
-    console.log(`[SofaScheduled] Total events: ${allEvents.length}`);
-
     const now = Date.now();
-    const max = now + 26 * 3600 * 1000; // janela de 26h
+    const max = now + 26 * 3600 * 1000;
     let inserted = 0;
 
     for (const ev of allEvents) {
@@ -98,13 +138,11 @@ serve(async (req) => {
         }, { onConflict: 'match_date,match_time,home_team,away_team' });
 
         if (!error) inserted++;
-      } catch (e) {
-        // skip event
-      }
+      } catch (_) {}
     }
 
     return new Response(
-      JSON.stringify({ ok: true, source: 'sofascore', total_events: allEvents.length, inserted }),
+      JSON.stringify({ ok: true, source: 'sofascore-via-firecrawl', total_events: allEvents.length, inserted }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
