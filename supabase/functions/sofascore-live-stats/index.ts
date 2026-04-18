@@ -62,7 +62,8 @@ async function findEvent(homeTeam: string, awayTeam: string): Promise<number | n
   try {
     // Search by home team name
     const q = encodeURIComponent(homeTeam);
-    const res = await fetch(`${SOFA_BASE}/search/events/${q}`, { headers: HEADERS });
+    const data = await sofaFetch(`/search/events/${q}`);
+    if (!data) return null;
     if (!res.ok) return null;
     const data = await res.json();
     const events = data.events || [];
@@ -93,7 +94,8 @@ async function findEvent(homeTeam: string, awayTeam: string): Promise<number | n
 // Fetch full statistics for an event
 async function fetchEventStats(eventId: number): Promise<any> {
   try {
-    const res = await fetch(`${SOFA_BASE}/event/${eventId}/statistics`, { headers: HEADERS });
+    const data = await sofaFetch(`/event/${eventId}/statistics`);
+    if (!data) return null;
     if (!res.ok) return null;
     const data = await res.json();
     const allPeriod = (data.statistics || []).find((p: any) => p.period === 'ALL');
@@ -120,7 +122,8 @@ async function fetchEventStats(eventId: number): Promise<any> {
 // Fetch graph (momentum) for an event
 async function fetchMomentum(eventId: number): Promise<any> {
   try {
-    const res = await fetch(`${SOFA_BASE}/event/${eventId}/graph`, { headers: HEADERS });
+    const data = await sofaFetch(`/event/${eventId}/graph`);
+    if (!data) return null;
     if (!res.ok) return null;
     const data = await res.json();
     const points = data.graphPoints || [];
