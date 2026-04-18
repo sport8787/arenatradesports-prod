@@ -3,6 +3,10 @@
 // Endpoint público (não documentado): https://api.sofascore.com/api/v1/
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+const FN_NAME = 'sofascore-live-stats';
+const CACHE_TTL_SECONDS = 60; // dados ao vivo: 60s
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,6 +138,26 @@ serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // ─── Cache lookup ───
+    const cacheKey = `${FN_NAME}:${normalize(home)}_vs_${normalize(away)}`;
+    const sbAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    try {
+      const { data: cached } = await sbAdmin
+        .from('ai_response_cache')
+        .select('response_json, expires_at, hit_count')
+        .eq('cache_key', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+      if (cached?.response_json) {
+        sbAdmin.from('ai_response_cache').update({ hit_count: (cached.hit_count || 0) + 1 })
+          .eq('cache_key', cacheKey).then(() => {}, () => {});
+        console.log(`[SofaScore] 🎯 Cache HIT: ${cacheKey}`);
+        return new Response(JSON.stringify({ ...cached.response_json, cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (e) { console.warn('[SofaScore] cache lookup error:', e); }
 
     let eventId = providedId as number | null;
     if (!eventId) {
