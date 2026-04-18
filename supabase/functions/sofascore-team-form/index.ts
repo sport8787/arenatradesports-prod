@@ -152,7 +152,8 @@ async function fetchShootingLog(squadId: string, slugName: string, season = 2026
 
 // Schedule log: traz posse (data-stat="possession")
 async function fetchScheduleLog(squadId: string, slugName: string, season = 2026): Promise<Map<string, number | null>> {
-  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/schedule/${slugName}-Scores-and-Fixtures-All-Competitions`;
+  const safeSlug = (slugName || 'Squad').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'Squad';
+  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/schedule/${safeSlug}-Scores-and-Fixtures-All-Competitions`;
   const html = await fcScrape(url, 'rawHtml', 1800);
   const map = new Map<string, number | null>();
   if (!html) return map;
