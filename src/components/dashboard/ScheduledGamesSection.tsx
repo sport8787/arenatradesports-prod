@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { Clock, Calendar, Trophy } from 'lucide-react';
+import { Clock, Calendar, Trophy, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ScheduledGame } from '@/hooks/useScheduledGames';
 
 interface ScheduledGamesSectionProps {
   games: ScheduledGame[];
   loading: boolean;
+  mode?: 'upcoming' | 'prelive';
 }
 
 const statusLabels: Record<string, { label: string; className: string }> = {
