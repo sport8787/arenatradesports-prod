@@ -235,10 +235,9 @@ serve(async (req) => {
     }
 
     console.log(`[Sportradar] 🔍 Fetching ${home} vs ${away}`);
-    const [homeForm, awayForm] = await Promise.all([
-      buildTeamForm(home, apiKey),
-      buildTeamForm(away, apiKey),
-    ]);
+    // Serializado: trial = 1 req/seg
+    const homeForm = await buildTeamForm(home, apiKey);
+    const awayForm = await buildTeamForm(away, apiKey);
 
     if (!homeForm && !awayForm) {
       return new Response(JSON.stringify({ found: false, message: 'Teams not found on Sportradar' }), {
