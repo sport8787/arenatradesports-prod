@@ -1,0 +1,1 @@
+UPDATE public.mycroft_memory SET is_active = false, updated_at = now() WHERE id = 'b608b7cc-be0c-4c31-b9d3-5d4a7f7c83c1';
