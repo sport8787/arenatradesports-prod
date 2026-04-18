@@ -10,8 +10,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Trial usa /trial/v4. Após contratar produção, trocar para /production/v4.
-const SR_BASE = 'https://api.sportradar.com/soccer-extended/trial/v4/en';
+// Trial inclui Soccer Base + Soccer Extended Base → rota oficial é /soccer/trial/v4.
+// Após contratar produção, trocar para /soccer/production/v4.
+const SR_BASE = 'https://api.sportradar.com/soccer/trial/v4/en';
+// Trial = 1 req/seg. Helper de throttle abaixo.
+const SR_MIN_INTERVAL_MS = 1100;
+let lastSrCallAt = 0;
+async function srThrottle() {
+  const wait = lastSrCallAt + SR_MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastSrCallAt = Date.now();
+}
 const CACHE_TTL_HOURS = 6;
 const FN_NAME = 'sportradar-team-form';
 
@@ -21,6 +30,7 @@ function normalize(s: string): string {
 
 async function srFetch(path: string, apiKey: string): Promise<any | null> {
   try {
+    await srThrottle();
     const url = `${SR_BASE}${path}${path.includes('?') ? '&' : '?'}api_key=${apiKey}`;
     const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!r.ok) {
@@ -225,10 +235,9 @@ serve(async (req) => {
     }
 
     console.log(`[Sportradar] 🔍 Fetching ${home} vs ${away}`);
-    const [homeForm, awayForm] = await Promise.all([
-      buildTeamForm(home, apiKey),
-      buildTeamForm(away, apiKey),
-    ]);
+    // Serializado: trial = 1 req/seg
+    const homeForm = await buildTeamForm(home, apiKey);
+    const awayForm = await buildTeamForm(away, apiKey);
 
     if (!homeForm && !awayForm) {
       return new Response(JSON.stringify({ found: false, message: 'Teams not found on Sportradar' }), {
