@@ -99,21 +99,23 @@ serve(async (req) => {
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
       const elapsed = now - analysisTime;
 
-      // EXCEÇÃO: PLANO UNDER 2.5 EARLY aprovado DEVE ser reanalisado (1 min) para detectar saída
+      // EXCEÇÃO: Planos com monitoramento ativo de saída devem ser reanalisados (1 min)
       const isUnder25Active = verdict === 'APROVADO' && planName === 'PLANO UNDER 2.5 EARLY';
+      const isDominanteActive = verdict === 'APROVADO' && planName === 'PLANO BACK AO DOMINANTE';
+      const isMonitoredActive = isUnder25Active || isDominanteActive;
 
       // Demais APROVADOS não são reanalisados (signal already emitted)
-      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isUnder25Active) return false;
+      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isMonitoredActive) return false;
 
       // Determine effective status for interval calculation
-      const effectiveStatus = isUnder25Active ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
+      const effectiveStatus = isMonitoredActive ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
       const interval = getReanalysisInterval(effectiveStatus, min);
 
       // For early minutes, also check special context
       if (min < 10 && !hasSpecialEarlyContext(m)) return false;
 
       if (elapsed > interval) {
-        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isUnder25Active ? ' [UNDER25-MONITOR]' : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isMonitoredActive ? ` [${planName}-MONITOR]` : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
         return true;
       }
       return false;
@@ -287,18 +289,19 @@ serve(async (req) => {
           }
 
           // === TELEGRAM NOTIFICATION for UNDER 2.5 EXIT (cancellation) ===
-          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY') {
+          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' || analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE') {
+            const planoLabel = analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ? 'UNDER 2.5 EARLY' : 'BACK AO DOMINANTE';
             try {
               const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
               const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
               if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
                 const msg = [
-                  `🚨 *SAIR DA OPERAÇÃO — UNDER 2.5 EARLY*`,
+                  `🚨 *SAIR DA OPERAÇÃO — ${planoLabel}*`,
                   ``,
                   `⚽ *${match.home_team} vs ${match.away_team}*`,
                   `🏟️ ${match.championship} | ${match.minute ?? 0}' | Placar: ${match.score_home ?? 0}x${match.score_away ?? 0}`,
                   ``,
-                  `📝 _${analysis.thesis || 'Sinal Under 2.5 revogado.'}_`,
+                  `📝 _${analysis.thesis || 'Sinal revogado.'}_`,
                   ``,
                   `⚠️ *AÇÃO RECOMENDADA:* Executar cashout ou hedge IMEDIATAMENTE para limitar perda.`,
                   ``,

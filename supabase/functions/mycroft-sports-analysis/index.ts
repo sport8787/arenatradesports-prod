@@ -19,6 +19,8 @@ interface MatchData {
     shots_on_target_home?: number; shots_on_target_away?: number;
   };
   bankroll?: number;
+  under_odd?: number;
+  odds?: { home?: number; draw?: number; away?: number };
 }
 
 function getSupabaseAdmin() {
@@ -622,6 +624,168 @@ serve(async (req) => {
           override: 'server_side_under_25_early',
           stats_snapshot: { dangerousTotal: u_dangerousTotal, sotTotal: u_sotTotal, xgTotal: u_xgTotal, minute: u_min },
         };
+      }
+    }
+
+    // === PLANO BACK AO TIME DOMINANTE (override server-side) ===
+    // Aprova Back no time com domínio estatístico claro (≥4 de 5 critérios) e odd 1.40-2.20.
+    // Cancela se sofrer gol ou perder dominância.
+    {
+      const ds = match.stats || {};
+      const d_min = match.minute ?? 0;
+      const d_scoreH = match.scoreHome ?? 0;
+      const d_scoreA = match.scoreAway ?? 0;
+
+      const possH = ds.possession_home ?? 0;
+      const possA = ds.possession_away ?? 0;
+      const shotsTotalH = ds.shots_total_home ?? ds.shots_home ?? 0;
+      const shotsTotalA = ds.shots_total_away ?? ds.shots_away ?? 0;
+      const shotsOnH = ds.shots_on_target_home ?? 0;
+      const shotsOnA = ds.shots_on_target_away ?? 0;
+      const shotsInsideH = ds.dangerous_attacks_home ?? 0;
+      const shotsInsideA = ds.dangerous_attacks_away ?? 0;
+      const xgHd = ds.xG_home ?? 0;
+      const xgAd = ds.xG_away ?? 0;
+
+      function isDominant(team: 'home' | 'away'): { ok: boolean; criteriaMet: number } {
+        const poss = team === 'home' ? possH : possA;
+        const oppPoss = team === 'home' ? possA : possH;
+        const shotsTotal = team === 'home' ? shotsTotalH : shotsTotalA;
+        const shotsOn = team === 'home' ? shotsOnH : shotsOnA;
+        const shotsInside = team === 'home' ? shotsInsideH : shotsInsideA;
+        const xg = team === 'home' ? xgHd : xgAd;
+        const oppShotsTotal = team === 'home' ? shotsTotalA : shotsTotalH;
+        const oppShotsOn = team === 'home' ? shotsOnA : shotsOnH;
+        const oppXg = team === 'home' ? xgAd : xgHd;
+        const score = team === 'home' ? d_scoreH : d_scoreA;
+        const oppScore = team === 'home' ? d_scoreA : d_scoreH;
+
+        const possOk = poss >= 58 && poss > oppPoss + 10;
+        const volumeOk = shotsTotal >= 8 && shotsOn >= 3;
+        const insideBoxOk = shotsInside >= 4;
+        const defenseOk = oppShotsTotal <= 2 && oppShotsOn <= 1 && oppXg <= 0.2;
+        const xgOk = xg >= 0.8 && xg > oppXg + 0.5;
+        const scoreOk = score >= oppScore;
+
+        let criteriaMet = 0;
+        if (possOk) criteriaMet++;
+        if (volumeOk) criteriaMet++;
+        if (insideBoxOk) criteriaMet++;
+        if (defenseOk) criteriaMet++;
+        if (xgOk) criteriaMet++;
+
+        return { ok: criteriaMet >= 4 && scoreOk && d_min >= 15, criteriaMet };
+      }
+
+      const homeDom = isDominant('home');
+      const awayDom = isDominant('away');
+      const dominantTeam: 'home' | 'away' | null = homeDom.ok ? 'home' : (awayDom.ok ? 'away' : null);
+
+      // Verifica sinal Dominante prévio
+      let d_priorActiveSignal: any = null;
+      if (match.match_id) {
+        try {
+          const { data: priorRows } = await supabase
+            .from('mycroft_analyses')
+            .select('id, verdict, market, plan_name, created_at')
+            .eq('match_id', match.match_id)
+            .eq('plan_name', 'PLANO BACK AO DOMINANTE')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          if (priorRows && priorRows[0] && priorRows[0].verdict === 'APROVADO') {
+            d_priorActiveSignal = priorRows[0];
+          }
+        } catch (e) { console.warn('[MycroftSports] Falha ao checar sinal prévio Dominante:', e); }
+      }
+
+      // CANCELAMENTO: já tinha aprovado mas perdeu dominância OU sofreu gol contra
+      if (d_priorActiveSignal && analysis.verdict !== 'APROVADO' && analysis.verdict !== 'APROVADO_SITUACIONAL') {
+        // Detecta time previamente aprovado pelo market
+        const priorMarket = (d_priorActiveSignal.market || '');
+        const wasHome = priorMarket.includes(match.home);
+        const wasAway = priorMarket.includes(match.away);
+        const lostDominance = wasHome ? !homeDom.ok : (wasAway ? !awayDom.ok : (dominantTeam === null));
+        const concededGoal = wasHome ? d_scoreA > d_scoreH : (wasAway ? d_scoreH > d_scoreA : false);
+
+        if (lostDominance || concededGoal) {
+          const motivo = concededGoal ? 'sofreu gol contra' : 'perdeu supremacia estatística';
+          console.log(`[MycroftSports] 🚪 CANCELAMENTO Back Dominante: ${match.home} vs ${match.away} (${d_min}') — ${motivo}`);
+          analysis.verdict = 'CUIDADO';
+          analysis.plan_name = 'CANCELAMENTO BACK AO DOMINANTE';
+          analysis.market = `${priorMarket} — SAIR`;
+          analysis.confidence = 88;
+          analysis.thesis = `🚨 SAIR DA OPERAÇÃO — BACK AO DOMINANTE. ${motivo}. Recomenda-se ENCERRAR a posição imediatamente (cashout ou hedge) para proteger banca.`;
+          analysis.risk_management = {
+            ...(analysis.risk_management || {}),
+            stake_percent: 0,
+            entry: 'SAIR DA OPERAÇÃO',
+            stop: 'Encerrar agora',
+            target: 'Limitar perda',
+          };
+          analysis.alerts = [
+            `🚨 SAIR DA OPERAÇÃO IMEDIATAMENTE — sinal Back ao Dominante revogado.`,
+            `Motivo: ${motivo}.`,
+            `Ação recomendada: cashout ou hedge.`,
+          ];
+          analysis.fundamentation = {
+            ...(analysis.fundamentation || {}),
+            override: 'server_side_dominante_cancellation',
+            prior_signal_id: d_priorActiveSignal.id,
+            stats_snapshot: { possH, possA, shotsTotalH, shotsTotalA, xgH: xgHd, xgA: xgAd, score: `${d_scoreH}x${d_scoreA}`, minute: d_min },
+          };
+        }
+      }
+
+      // APROVAÇÃO server-side
+      if (
+        dominantTeam &&
+        !d_priorActiveSignal &&
+        analysis.verdict !== 'APROVADO' &&
+        analysis.verdict !== 'APROVADO_SITUACIONAL' &&
+        analysis.plan_name !== 'CANCELAMENTO BACK AO DOMINANTE'
+      ) {
+        const odd = dominantTeam === 'home' ? (match.odds?.home ?? 0) : (match.odds?.away ?? 0);
+        const teamName = dominantTeam === 'home' ? match.home : match.away;
+        const dPoss = dominantTeam === 'home' ? possH : possA;
+        const dShotsTotal = dominantTeam === 'home' ? shotsTotalH : shotsTotalA;
+        const dShotsOn = dominantTeam === 'home' ? shotsOnH : shotsOnA;
+        const dShotsInside = dominantTeam === 'home' ? shotsInsideH : shotsInsideA;
+        const dXg = dominantTeam === 'home' ? xgHd : xgAd;
+
+        if (odd >= 1.40 && odd <= 2.20) {
+          console.log(`[MycroftSports] 👑 OVERRIDE APROVADO: Back Dominante ${teamName} (odd ${odd}) — ${match.home} vs ${match.away} (${d_min}')`);
+          analysis.verdict = 'APROVADO';
+          analysis.plan_name = 'PLANO BACK AO DOMINANTE';
+          analysis.market = `Back ${teamName}`;
+          analysis.odd = odd;
+          analysis.confidence = 78;
+          analysis.thesis = `🔱 MYCROFT ATIVOU — PLANO BACK AO DOMINANTE. ${teamName} dominando: posse ${dPoss}%, ${dShotsTotal} finalizações (${dShotsOn} no alvo), ${dShotsInside} ataques perigosos, xG ${dXg.toFixed(2)}. Adversário sem reação. Odd ${odd} com valor.`;
+          analysis.risk_management = {
+            stake_percent: 4,
+            stake_value: (match.bankroll ?? 500) * 0.04,
+            entry: `${teamName} @ ${odd}`,
+            stop: 'Gol sofrido ou perda de dominância por 5 minutos',
+            target: `Vitória de ${teamName}`,
+            rr: `1:${(odd - 1).toFixed(1)}`,
+            ev: `+${Math.round((0.78 * odd - 1) * 100)}%`,
+          };
+          analysis.alerts = [
+            `✅ Time dominante: ${teamName}. Monitorar se mantém supremacia.`,
+            `⚠️ Se sofrer gol ou estatísticas se igualarem por 5 min, cancelar sinal.`,
+          ];
+          analysis.fundamentation = {
+            ...(analysis.fundamentation || {}),
+            override: 'server_side_back_dominante',
+            criteria_met: dominantTeam === 'home' ? homeDom.criteriaMet : awayDom.criteriaMet,
+            stats_snapshot: { possH, possA, shotsTotalH, shotsTotalA, shotsOnH, shotsOnA, shotsInsideH, shotsInsideA, xgH: xgHd, xgA: xgAd, minute: d_min },
+          };
+        } else if (odd > 0 && odd < 1.40) {
+          analysis.alerts = [...(analysis.alerts || []), `⚠️ Time dominante ${teamName} com odd ${odd} muito baixa (<1.40). Sem valor.`];
+        } else if (odd > 2.20) {
+          analysis.alerts = [...(analysis.alerts || []), `⚠️ Time dominante ${teamName} com odd ${odd} acima de 2.20. Aguardar.`];
+        } else if (odd === 0) {
+          analysis.alerts = [...(analysis.alerts || []), `ℹ️ Dominância detectada (${teamName}) mas odd Match Odds não disponível para validação.`];
+        }
       }
     }
 
