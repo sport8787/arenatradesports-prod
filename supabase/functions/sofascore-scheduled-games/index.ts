@@ -62,55 +62,45 @@ function parseSofaMarkdown(md: string): ParsedMatch[] {
     });
   }
 
-  let mm: RegExpExecArray | null;
-  while ((mm = matchRe.exec(md)) !== null) {
-    const matchPos = mm.index;
-    const time = mm[1];
-    const matchId = mm[2];
+  // Para cada `#id:NUMERO)` encontramos o `](https://www.sofascore.com/football/match/...`
+  // imediatamente antes (esse é o REAL fechamento do link da partida) e em seguida o `[` que
+  // o abre — identificado pelo padrão `[HH:MM\` retroativamente.
+  const idRe = /#id:(\d+)\)/g;
+  let im: RegExpExecArray | null;
+  while ((im = idRe.exec(md)) !== null) {
+    const idEnd = im.index;
+    const matchId = im[1];
 
-    // Achar a liga mais próxima ANTES desta posição
+    const matchUrlIdx = md.lastIndexOf('](https://www.sofascore.com/football/match/', idEnd);
+    if (matchUrlIdx === -1) continue;
+
+    // Buscar `[HH:MM` na janela imediatamente anterior ao matchUrlIdx
+    const window = md.substring(Math.max(0, matchUrlIdx - 1500), matchUrlIdx);
+    const openMatch = window.match(/\[(\d{1,2}:\d{2})[\s\S]*$/);
+    if (!openMatch) continue;
+    const time = openMatch[1];
+    const innerStart = matchUrlIdx - openMatch[0].length + 1; // pula '['
+    const inner = md.substring(innerStart, matchUrlIdx);
+
     let leagueInfo = { league: 'Unknown', country: '' };
     for (let i = leagueMarkers.length - 1; i >= 0; i--) {
-      if (leagueMarkers[i].pos < matchPos) {
+      if (leagueMarkers[i].pos < innerStart) {
         leagueInfo = leagueMarkers[i];
         break;
       }
     }
 
-    // Extrair home/away do bloco interno do link
-    // Pegamos o conteúdo do link entre [ e ](
-    const linkStart = matchPos + 1; // após '['
-    const linkEnd = md.indexOf('](', linkStart);
-    if (linkEnd === -1) continue;
-    const inner = md.substring(linkStart, linkEnd);
-
-    // O bloco interno tem o formato (separadores: \\ + newline, repetidos):
-    //   13:00\\
-    //   \\
-    //   -\\
-    //   \\
-    //   ![Home Logo](...)\\
-    //   \\
-    //   HomeName\\
-    //   \\
-    //   ![Away Logo](...)\\
-    //   \\
-    //   AwayName
-    // Estratégia: remover todos os '\' e quebrar por \n, depois filtrar.
     const cleaned = inner.replace(/\\+/g, '');
     const lines = cleaned.split(/\n+/)
       .map(s => s.trim())
       .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s));
-
     if (lines.length < 2) continue;
-    const home = lines[0];
-    const away = lines[1];
 
     out.push({
       league: leagueInfo.league,
       country: leagueInfo.country,
-      home,
-      away,
+      home: lines[0],
+      away: lines[1],
       time,
       matchId,
     });
