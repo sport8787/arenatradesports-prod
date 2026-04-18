@@ -1,6 +1,6 @@
-// SofaScore Team Form (Pré-jogo)
-// Busca os últimos 5 jogos de cada time no SofaScore com xG, posse, finalizações.
-// Usado pelo Mycroft Punter para enriquecer análise pré-jogo.
+// Team Form (Pré-jogo) — Fonte: FBref via Firecrawl
+// SofaScore api.sofascore.com é hard-blocked pelo Cloudflare; FBref serve HTML público
+// com xG, finalizações, posse e resultado por jogo. Mantém o endpoint name p/ compat.
 // Cache em ai_response_cache (TTL 6h).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -11,205 +11,227 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SOFA_BASE = 'https://api.sofascore.com/api/v1';
 const FIRECRAWL_API = 'https://api.firecrawl.dev/v2';
-
-// Tenta fetch direto primeiro; se Cloudflare bloquear (403), cai pra Firecrawl
-async function sofaFetchJson(path: string): Promise<any | null> {
-  const url = `${SOFA_BASE}${path}`;
-  const directHeaders = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-    'Referer': 'https://www.sofascore.com/',
-    'Origin': 'https://www.sofascore.com',
-  };
-  try {
-    const r = await fetch(url, { headers: directHeaders });
-    if (r.ok) return await r.json();
-    if (r.status !== 403 && r.status !== 429) {
-      console.warn(`[SofaForm] direct fetch HTTP ${r.status} for ${path}`);
-      return null;
-    }
-    console.log(`[SofaForm] direct blocked (${r.status}), falling back to Firecrawl for ${path}`);
-  } catch (e) {
-    console.warn(`[SofaForm] direct fetch error for ${path}:`, e);
-  }
-  // Firecrawl fallback
-  const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
-  if (!fcKey) {
-    console.warn('[SofaForm] FIRECRAWL_API_KEY missing — cannot fallback');
-    return null;
-  }
-  try {
-    const fr = await fetch(`${FIRECRAWL_API}/scrape`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${fcKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false, waitFor: 800 }),
-    });
-    if (!fr.ok) {
-      console.warn(`[SofaForm] Firecrawl HTTP ${fr.status}`);
-      return null;
-    }
-    const fd = await fr.json();
-    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || '';
-    // SofaScore JSON endpoints return raw JSON wrapped in <pre>...</pre> by browser; Firecrawl may return as text
-    const jsonStr = raw.replace(/<[^>]+>/g, '').trim();
-    if (!jsonStr.startsWith('{')) {
-      console.warn(`[SofaForm] Firecrawl: response is not JSON for ${path} (got: ${jsonStr.slice(0, 80)})`);
-      return null;
-    }
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.warn(`[SofaForm] Firecrawl fallback error for ${path}:`, e);
-    return null;
-  }
-}
-
 const CACHE_TTL_HOURS = 6;
-const FN_NAME = 'sofascore-team-form';
+const FN_NAME = 'sofascore-team-form'; // mantém p/ compat
 
 function normalize(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
-function parseNumber(v: any): number | null {
+function parseNum(v: string | undefined | null): number | null {
   if (v == null) return null;
-  if (typeof v === 'number') return v;
-  const n = parseFloat(String(v).replace('%', '').trim());
+  const cleaned = String(v).replace(/[,%]/g, '').trim();
+  if (cleaned === '' || cleaned === '—' || cleaned === '-') return null;
+  const n = parseFloat(cleaned);
   return isNaN(n) ? null : n;
 }
 
-async function searchTeamId(name: string): Promise<number | null> {
+async function fcScrape(url: string, format: 'markdown' | 'rawHtml' = 'markdown', waitFor = 1500): Promise<string | null> {
+  const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!fcKey) {
+    console.warn('[FBref] FIRECRAWL_API_KEY missing');
+    return null;
+  }
   try {
-    const q = encodeURIComponent(name);
-    const data = await sofaFetchJson(`/search/teams/${q}`);
-    if (!data) {
-      console.warn(`[SofaForm] searchTeamId no data for "${name}"`);
+    const r = await fetch(`${FIRECRAWL_API}/scrape`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${fcKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, formats: [format], onlyMainContent: false, waitFor }),
+    });
+    if (!r.ok) {
+      console.warn(`[FBref] Firecrawl HTTP ${r.status} for ${url}`);
       return null;
     }
-    const teams = data.teams || [];
-    console.log(`[SofaForm] searchTeamId "${name}" → ${teams.length} results`);
-    const target = normalize(name);
-    for (const t of teams) {
-      if (t.sport?.slug !== 'football') continue;
-      const tn = normalize(t.name || '');
-      const ts = normalize(t.shortName || '');
-      if (tn === target || ts === target || tn.includes(target) || target.includes(tn)) {
-        return t.id;
-      }
-    }
-    // Fallback: first football team
-    const firstFootball = teams.find((t: any) => t.sport?.slug === 'football');
-    if (firstFootball) console.log(`[SofaForm] fallback team "${firstFootball.name}" (id=${firstFootball.id}) for "${name}"`);
-    return firstFootball?.id || null;
+    const d = await r.json();
+    return (format === 'rawHtml' ? d?.data?.rawHtml : d?.data?.markdown) || null;
   } catch (e) {
-    console.error('[SofaForm] searchTeamId error:', e);
+    console.warn(`[FBref] Firecrawl error for ${url}:`, e);
     return null;
   }
 }
 
-async function fetchLastEvents(teamId: number, limit = 5): Promise<any[]> {
-  try {
-    const data = await sofaFetchJson(`/team/${teamId}/events/last/0`);
-    if (!data) return [];
-    const events = (data.events || []).filter((e: any) => e.status?.code === 100);
-    return events.slice(-limit).reverse();
-  } catch (e) {
-    console.error('[SofaForm] fetchLastEvents error:', e);
-    return [];
-  }
-}
+// Extrai squad id do FBref a partir do nome do time
+async function findSquad(name: string): Promise<{ id: string; slug: string; name: string } | null> {
+  const md = await fcScrape(`https://fbref.com/en/search/search.fcgi?search=${encodeURIComponent(name)}`, 'markdown', 1200);
+  if (!md) return null;
 
-async function fetchEventStats(eventId: number): Promise<Record<string, any> | null> {
-  try {
-    const data = await sofaFetchJson(`/event/${eventId}/statistics`);
-    if (!data) return null;
-    const allPeriod = (data.statistics || []).find((p: any) => p.period === 'ALL');
-    if (!allPeriod) return null;
-    const result: Record<string, any> = {};
-    for (const group of allPeriod.groups || []) {
-      for (const item of group.statisticsItems || []) {
-        const key = normalize(item.name);
-        result[key] = { home: item.home, away: item.away };
-      }
-    }
-    return result;
-  } catch {
+  // Pega blocos: **[Name](https://fbref.com/en/squads/{id}/...)** seguido de "Male" (ignora Female por padrão)
+  const re = /\*\*\[([^\]]+)\]\(https:\/\/fbref\.com\/en\/squads\/([a-f0-9]+)\/?[^)]*\)\*\*[\s\S]{0,400}?Gender:\s*([A-Za-z]+)/g;
+  const matches: Array<{ name: string; id: string; gender: string }> = [];
+  let m;
+  while ((m = re.exec(md)) !== null) {
+    matches.push({ name: m[1], id: m[2], gender: m[3] });
+  }
+  if (matches.length === 0) {
+    // Fallback simples: primeiro link de squads
+    const simple = md.match(/\(https:\/\/fbref\.com\/en\/squads\/([a-f0-9]+)\/?\)/);
+    if (simple) return { id: simple[1], slug: name, name };
     return null;
   }
+  // Prefere Male, depois primeiro
+  const male = matches.find(x => x.gender.toLowerCase() === 'male');
+  const pick = male || matches[0];
+  return { id: pick.id, slug: pick.name.replace(/\s+/g, '-'), name: pick.name };
 }
 
-async function buildTeamForm(teamId: number, teamName: string) {
-  const events = await fetchLastEvents(teamId, 5);
-  if (events.length === 0) return null;
+interface MatchRow {
+  date: string;
+  comp?: string;
+  venue?: 'Home' | 'Away';
+  result?: 'W' | 'L' | 'D';
+  gf?: number | null;
+  ga?: number | null;
+  opponent?: string;
+  poss?: number | null;
+  shots?: number | null;
+  sot?: number | null;
+  xg?: number | null;
+  npxg?: number | null;
+}
 
-  const matches: any[] = [];
-  let totalXg = 0, totalXgA = 0, totalPoss = 0, totalShots = 0, totalShotsA = 0;
-  let totalSot = 0, totalGoals = 0, totalGoalsA = 0;
-  let xgCount = 0, possCount = 0;
+// Parseia <tr> do HTML cru extraindo data-stat="x" → valor (robusto, inclui xG quando liga tiver)
+function parseRows(html: string): Array<Record<string, string>> {
+  const rows = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || [];
+  const out: Array<Record<string, string>> = [];
+  for (const r of rows) {
+    if (!/data-stat="date"/.test(r)) continue;
+    const cells: Record<string, string> = {};
+    const cellRe = /data-stat="([^"]+)"[^>]*>([\s\S]*?)<\/(?:td|th)>/g;
+    let m;
+    while ((m = cellRe.exec(r)) !== null) {
+      const clean = m[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+      cells[m[1]] = clean;
+    }
+    // Date is often in a link inside <th>; extract from raw if needed
+    if (!cells['date']) {
+      const d = r.match(/data-stat="date"[^>]*>[\s\S]*?(\d{4}-\d{2}-\d{2})/);
+      if (d) cells['date'] = d[1];
+    }
+    if (!cells['opponent']) {
+      const o = r.match(/data-stat="opponent"[^>]*>[\s\S]*?<a[^>]*>([^<]+)</);
+      if (o) cells['opponent'] = o[1].trim();
+    }
+    if (!cells['comp']) {
+      const c = r.match(/data-stat="comp"[^>]*>[\s\S]*?<a[^>]*>([^<]+)</);
+      if (c) cells['comp'] = c[1].trim();
+    }
+    out.push(cells);
+  }
+  return out;
+}
+
+// Shooting log: traz Sh, SoT e xG (xG só em ligas suportadas pelo FBref)
+async function fetchShootingLog(squadId: string, slugName: string, season = 2026): Promise<MatchRow[]> {
+  const safeSlug = (slugName || 'Squad').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'Squad';
+  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${safeSlug}-Match-Logs-All-Competitions`;
+  const html = await fcScrape(url, 'rawHtml', 1800);
+  if (!html) return [];
+  const rows = parseRows(html);
+  const out: MatchRow[] = [];
+  for (const r of rows) {
+    const date = r['date'];
+    const result = r['result'];
+    if (!date || !['W', 'L', 'D'].includes(result)) continue;
+    out.push({
+      date,
+      comp: r['comp'],
+      venue: (r['venue'] === 'Home' || r['venue'] === 'Away') ? r['venue'] : undefined,
+      result: result as 'W' | 'L' | 'D',
+      gf: parseNum(r['goals_for']),
+      ga: parseNum(r['goals_against']),
+      opponent: r['opponent'],
+      shots: parseNum(r['shots']),
+      sot: parseNum(r['shots_on_target']),
+      xg: parseNum(r['xg']),
+      npxg: parseNum(r['npxg']),
+    });
+  }
+  return out;
+}
+
+// Schedule log: traz posse (data-stat="possession")
+async function fetchScheduleLog(squadId: string, slugName: string, season = 2026): Promise<Map<string, number | null>> {
+  const safeSlug = (slugName || 'Squad').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'Squad';
+  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/schedule/${safeSlug}-Scores-and-Fixtures-All-Competitions`;
+  const html = await fcScrape(url, 'rawHtml', 1800);
+  const map = new Map<string, number | null>();
+  if (!html) return map;
+  const rows = parseRows(html);
+  for (const r of rows) {
+    if (!r['date'] || !['W', 'L', 'D'].includes(r['result'])) continue;
+    map.set(r['date'], parseNum(r['possession']));
+  }
+  return map;
+}
+
+function buildAggregate(rows: MatchRow[], possMap: Map<string, number | null>, teamName: string) {
+  if (rows.length === 0) return null;
+  const last5 = rows.slice(-5);
+
   let wins = 0, draws = 0, losses = 0;
+  let totalGf = 0, totalGa = 0;
+  let totalXg = 0, totalNpxg = 0, xgCount = 0;
+  let totalShots = 0, totalSot = 0, shotsCount = 0;
+  let totalPoss = 0, possCount = 0;
 
-  // Process up to 5 in parallel
-  const statsArr = await Promise.all(events.map(ev => fetchEventStats(ev.id)));
-
-  for (let i = 0; i < events.length; i++) {
-    const ev = events[i];
-    const stats = statsArr[i];
-    const isHome = ev.homeTeam?.id === teamId;
-    const opp = isHome ? ev.awayTeam?.name : ev.homeTeam?.name;
-    const myScore = isHome ? ev.homeScore?.current ?? 0 : ev.awayScore?.current ?? 0;
-    const oppScore = isHome ? ev.awayScore?.current ?? 0 : ev.homeScore?.current ?? 0;
-
-    if (myScore > oppScore) wins++;
-    else if (myScore === oppScore) draws++;
-    else losses++;
-    totalGoals += myScore;
-    totalGoalsA += oppScore;
-
-    const m: any = {
-      opponent: opp,
-      venue: isHome ? 'home' : 'away',
-      score: `${myScore}-${oppScore}`,
-      result: myScore > oppScore ? 'W' : myScore === oppScore ? 'D' : 'L',
+  const matches = last5.map(r => {
+    if (r.result === 'W') wins++; else if (r.result === 'D') draws++; else losses++;
+    if (r.gf != null) totalGf += r.gf;
+    if (r.ga != null) totalGa += r.ga;
+    if (r.xg != null) { totalXg += r.xg; xgCount++; }
+    if (r.npxg != null) totalNpxg += r.npxg;
+    if (r.shots != null) { totalShots += r.shots; shotsCount++; }
+    if (r.sot != null) totalSot += r.sot;
+    const poss = possMap.get(r.date) ?? null;
+    if (poss != null) { totalPoss += poss; possCount++; }
+    return {
+      date: r.date,
+      opponent: r.opponent,
+      venue: r.venue?.toLowerCase(),
+      comp: r.comp,
+      score: `${r.gf ?? '?'}-${r.ga ?? '?'}`,
+      result: r.result,
+      xg: r.xg,
+      shots: r.shots,
+      shots_on_target: r.sot,
+      possession: poss,
     };
+  });
 
-    if (stats) {
-      const xg = parseNumber(isHome ? stats['expectedgoals']?.home : stats['expectedgoals']?.away);
-      const xgA = parseNumber(isHome ? stats['expectedgoals']?.away : stats['expectedgoals']?.home);
-      const poss = parseNumber(isHome ? stats['ballpossession']?.home : stats['ballpossession']?.away);
-      const shots = parseNumber(isHome ? stats['totalshots']?.home : stats['totalshots']?.away);
-      const shotsA = parseNumber(isHome ? stats['totalshots']?.away : stats['totalshots']?.home);
-      const sot = parseNumber(isHome ? stats['shotsongoal']?.home : stats['shotsongoal']?.away);
-
-      if (xg != null) { totalXg += xg; xgCount++; m.xg = xg; }
-      if (xgA != null) { totalXgA += xgA; m.xg_against = xgA; }
-      if (poss != null) { totalPoss += poss; possCount++; m.possession = poss; }
-      if (shots != null) { totalShots += shots; m.shots = shots; }
-      if (shotsA != null) { totalShotsA += shotsA; m.shots_against = shotsA; }
-      if (sot != null) { totalSot += sot; m.shots_on_target = sot; }
-    }
-    matches.push(m);
-  }
-
-  const n = events.length;
+  const n = last5.length;
   return {
     team: teamName,
     sample_size: n,
     record: { wins, draws, losses },
-    avg_goals_for: +(totalGoals / n).toFixed(2),
-    avg_goals_against: +(totalGoalsA / n).toFixed(2),
+    avg_goals_for: +(totalGf / n).toFixed(2),
+    avg_goals_against: +(totalGa / n).toFixed(2),
     avg_xg: xgCount > 0 ? +(totalXg / xgCount).toFixed(2) : null,
-    avg_xg_against: xgCount > 0 ? +(totalXgA / xgCount).toFixed(2) : null,
+    avg_npxg: xgCount > 0 ? +(totalNpxg / xgCount).toFixed(2) : null,
+    avg_shots: shotsCount > 0 ? +(totalShots / shotsCount).toFixed(1) : null,
+    avg_shots_on_target: shotsCount > 0 ? +(totalSot / shotsCount).toFixed(1) : null,
     avg_possession: possCount > 0 ? +(totalPoss / possCount).toFixed(1) : null,
-    avg_shots: +(totalShots / n).toFixed(1),
-    avg_shots_against: +(totalShotsA / n).toFixed(1),
-    avg_shots_on_target: +(totalSot / n).toFixed(1),
     matches,
   };
+}
+
+async function buildTeamForm(teamName: string) {
+  const squad = await findSquad(teamName);
+  if (!squad) {
+    console.warn(`[FBref] squad not found for "${teamName}"`);
+    return null;
+  }
+  console.log(`[FBref] ${teamName} → squad ${squad.name} (${squad.id})`);
+  // Paraleliza shooting + schedule
+  const [shooting, possMap] = await Promise.all([
+    fetchShootingLog(squad.id, squad.slug),
+    fetchScheduleLog(squad.id, squad.slug),
+  ]);
+  if (shooting.length === 0) {
+    console.warn(`[FBref] no played matches found for ${teamName}`);
+    return null;
+  }
+  return buildAggregate(shooting, possMap, squad.name);
 }
 
 serve(async (req) => {
@@ -226,7 +248,7 @@ serve(async (req) => {
     const cacheKey = `${FN_NAME}:${normalize(home)}_vs_${normalize(away)}`;
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    // Try cache
+    // Cache lookup
     const { data: cached } = await sb
       .from('ai_response_cache')
       .select('response_json, expires_at, hit_count')
@@ -237,49 +259,46 @@ serve(async (req) => {
     if (cached?.response_json) {
       sb.from('ai_response_cache').update({ hit_count: (cached.hit_count || 0) + 1 })
         .eq('cache_key', cacheKey).then(() => {}, () => {});
-      console.log(`[SofaForm] 🎯 Cache HIT: ${cacheKey}`);
+      console.log(`[FBref] 🎯 Cache HIT: ${cacheKey}`);
       return new Response(JSON.stringify({ ...cached.response_json, cached: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[SofaForm] 🔍 Fetching form for ${home} vs ${away}`);
-    const [hId, aId] = await Promise.all([searchTeamId(home), searchTeamId(away)]);
-    if (!hId && !aId) {
-      return new Response(JSON.stringify({ found: false, message: 'Teams not found on SofaScore' }), {
+    console.log(`[FBref] 🔍 Fetching form for ${home} vs ${away}`);
+    const [homeForm, awayForm] = await Promise.all([
+      buildTeamForm(home),
+      buildTeamForm(away),
+    ]);
+
+    if (!homeForm && !awayForm) {
+      return new Response(JSON.stringify({ found: false, message: 'Teams not found on FBref' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const [homeForm, awayForm] = await Promise.all([
-      hId ? buildTeamForm(hId, home) : Promise.resolve(null),
-      aId ? buildTeamForm(aId, away) : Promise.resolve(null),
-    ]);
-
     const payload = {
       found: true,
-      source: 'sofascore',
-      home_team_id: hId,
-      away_team_id: aId,
+      source: 'fbref',
       home: homeForm,
       away: awayForm,
     };
 
-    // Save cache
+    // Save cache (fire-and-forget)
     sb.from('ai_response_cache').upsert({
       function_name: FN_NAME,
       cache_key: cacheKey,
       response_json: payload,
       expires_at: new Date(Date.now() + CACHE_TTL_HOURS * 3600 * 1000).toISOString(),
       hit_count: 0,
-    }, { onConflict: 'cache_key' }).then(() => {}, (e) => console.warn('[SofaForm] cache save:', e));
+    }, { onConflict: 'cache_key' }).then(() => {}, (e) => console.warn('[FBref] cache save:', e));
 
-    console.log(`[SofaForm] ✅ ${home}: xG ${homeForm?.avg_xg ?? '?'} | ${away}: xG ${awayForm?.avg_xg ?? '?'}`);
+    console.log(`[FBref] ✅ ${home}: xG ${homeForm?.avg_xg ?? '?'} | ${away}: xG ${awayForm?.avg_xg ?? '?'}`);
     return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.error('[SofaForm] Error:', e);
+    console.error('[FBref] Error:', e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
