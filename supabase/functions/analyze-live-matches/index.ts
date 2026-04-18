@@ -95,21 +95,25 @@ serve(async (req) => {
     const reAnalyzable = (matchesForReanalysis || []).filter((m: any) => {
       const min = m.minute ?? 0;
       const verdict = m.mycroft_analyses?.verdict || '';
+      const planName = m.mycroft_analyses?.plan_name || '';
       const analysisTime = new Date(m.mycroft_analyses?.created_at || 0).getTime();
       const elapsed = now - analysisTime;
 
-      // APROVADO and APROVADO_SITUACIONAL are NOT reanalyzed (signal already emitted)
-      if (verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') return false;
+      // EXCEÇÃO: PLANO UNDER 2.5 EARLY aprovado DEVE ser reanalisado (1 min) para detectar saída
+      const isUnder25Active = verdict === 'APROVADO' && planName === 'PLANO UNDER 2.5 EARLY';
+
+      // Demais APROVADOS não são reanalisados (signal already emitted)
+      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isUnder25Active) return false;
 
       // Determine effective status for interval calculation
-      const effectiveStatus = verdict || m.mycroft_status || 'aguardar';
+      const effectiveStatus = isUnder25Active ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
       const interval = getReanalysisInterval(effectiveStatus, min);
 
       // For early minutes, also check special context
       if (min < 10 && !hasSpecialEarlyContext(m)) return false;
 
       if (elapsed > interval) {
-        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isUnder25Active ? ' [UNDER25-MONITOR]' : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
         return true;
       }
       return false;
