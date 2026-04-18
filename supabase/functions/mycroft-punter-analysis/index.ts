@@ -412,10 +412,10 @@ async function fetchEnrichedData(home:string, away:string, key:string, sportKey?
   return {home:hStats,away:aStats,h2h:processH2H(h2hD,hId,aId),injuries:{home:hInj,away:aInj},standings:stand,homeSeasonStats:hSS,awaySeasonStats:aSS,predictions:pred,model_level:ml,corners:{home:cornHome,away:cornAway},cards:{home:cardHome,away:cardAway},referee}
 }
 
-// ─── SofaScore Form Enrichment (pré-jogo) ───
+// ─── Sportradar Form Enrichment (pré-jogo, xG real) ───
 async function fetchSofaForm(home: string, away: string): Promise<any | null> {
   try {
-    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/sofascore-team-form`;
+    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/sportradar-team-form`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -425,29 +425,29 @@ async function fetchSofaForm(home: string, away: string): Promise<any | null> {
       body: JSON.stringify({ home, away }),
     });
     if (!res.ok) {
-      console.warn(`[SofaForm] HTTP ${res.status} for ${home} vs ${away}`);
+      console.warn(`[Sportradar] HTTP ${res.status} for ${home} vs ${away}`);
       return null;
     }
     const data = await res.json();
     if (!data?.found) return null;
-    console.log(`[SofaForm] ${data.cached ? '🎯 CACHE' : '✅ FRESH'} ${home}: xG ${data.home?.avg_xg ?? '?'} | ${away}: xG ${data.away?.avg_xg ?? '?'}`);
+    console.log(`[Sportradar] ${data.cached ? '🎯 CACHE' : '✅ FRESH'} ${home}: xG ${data.home?.avg_xg ?? '?'} | ${away}: xG ${data.away?.avg_xg ?? '?'}`);
     return data;
   } catch (e) {
-    console.warn('[SofaForm] fetch error:', e);
+    console.warn('[Sportradar] fetch error:', e);
     return null;
   }
 }
 
 function fmtSofaForm(sofa: any | null): string {
   if (!sofa || (!sofa.home && !sofa.away)) return '';
-  const lines: string[] = ['', '🔴 SOFASCORE — FORMA RECENTE (últimos 5 jogos):'];
+  const lines: string[] = ['', '🔴 SPORTRADAR — FORMA RECENTE (últimos 5 jogos, dados oficiais):'];
   for (const side of ['home', 'away'] as const) {
     const f = sofa[side];
     if (!f) continue;
     const r = f.record;
-    lines.push(`• ${f.team} (${r.wins}V-${r.draws}E-${r.losses}D, n=${f.sample_size}): GM=${f.avg_goals_for} GS=${f.avg_goals_against} | xG=${f.avg_xg ?? '?'} xGA=${f.avg_xg_against ?? '?'} | Posse=${f.avg_possession ?? '?'}% | Chutes=${f.avg_shots} (${f.avg_shots_on_target} no alvo) | Sofridos=${f.avg_shots_against}`);
+    lines.push(`• ${f.team} (${r.wins}V-${r.draws}E-${r.losses}D, n=${f.sample_size}): GM=${f.avg_goals_for} GS=${f.avg_goals_against} | xG=${f.avg_xg ?? '?'} | Posse=${f.avg_possession ?? '?'}% | Chutes=${f.avg_shots ?? '?'} (${f.avg_shots_on_target ?? '?'} no alvo) | Escanteios=${f.avg_corners ?? '?'}`);
   }
-  lines.push('⚠️ xG do SofaScore é a métrica mais confiável para projeção de gols. Use como reforço/contraste do Poisson.');
+  lines.push('⚠️ xG do Sportradar é dado oficial usado por casas de aposta. Use como reforço/contraste do Poisson.');
   return lines.join('\n');
 }
 
