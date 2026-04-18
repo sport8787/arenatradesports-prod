@@ -285,6 +285,36 @@ serve(async (req) => {
               console.warn('[AnalyzeLive] Telegram notification error:', tgErr);
             }
           }
+
+          // === TELEGRAM NOTIFICATION for UNDER 2.5 EXIT (cancellation) ===
+          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY') {
+            try {
+              const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+              const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
+              if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
+                const msg = [
+                  `🚨 *SAIR DA OPERAÇÃO — UNDER 2.5 EARLY*`,
+                  ``,
+                  `⚽ *${match.home_team} vs ${match.away_team}*`,
+                  `🏟️ ${match.championship} | ${match.minute ?? 0}' | Placar: ${match.score_home ?? 0}x${match.score_away ?? 0}`,
+                  ``,
+                  `📝 _${analysis.thesis || 'Sinal Under 2.5 revogado.'}_`,
+                  ``,
+                  `⚠️ *AÇÃO RECOMENDADA:* Executar cashout ou hedge IMEDIATAMENTE para limitar perda.`,
+                  ``,
+                  `🔗 [Abrir Arena Trader](https://www.oraculo-mycroft.com/arena-trader-sports)`,
+                ].filter(Boolean).join('\n');
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
+                });
+                console.log(`[AnalyzeLive] 🚪📲 Telegram EXIT sent for ${match.home_team} vs ${match.away_team}`);
+              }
+            } catch (tgErr) {
+              console.warn('[AnalyzeLive] Telegram exit notification error:', tgErr);
+            }
+          }
         }
       } catch (e) {
         console.error(`[AnalyzeLive] Error for ${match.match_id}:`, e);
