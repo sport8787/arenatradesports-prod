@@ -42,6 +42,7 @@ serve(async (req) => {
     } catch (e) {
       results.push({ url, error: String(e) });
     }
+    await new Promise(r => setTimeout(r, 1100)); // trial = 1 req/seg
   }
 
   return new Response(JSON.stringify({ results }, null, 2), {
