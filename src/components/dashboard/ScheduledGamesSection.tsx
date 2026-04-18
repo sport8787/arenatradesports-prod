@@ -84,7 +84,10 @@ export default function ScheduledGamesSection({ games, loading, mode = 'upcoming
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
-              className="luxury-card p-4 space-y-3"
+              className={cn(
+                'luxury-card p-4 space-y-3',
+                isPrelive && 'border-destructive/50 shadow-[0_0_20px_hsl(var(--destructive)/0.25)] animate-pulse'
+              )}
             >
               {/* League + Status */}
               <div className="flex items-center justify-between gap-2">
