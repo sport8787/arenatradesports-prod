@@ -1,0 +1,213 @@
+// SofaScore Live Stats Scraper
+// Busca xG ao vivo, momentum e estatísticas avançadas via API interna do SofaScore.
+// Endpoint público (não documentado): https://api.sofascore.com/api/v1/
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const SOFA_BASE = 'https://api.sofascore.com/api/v1';
+
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+  'Referer': 'https://www.sofascore.com/',
+  'Origin': 'https://www.sofascore.com',
+};
+
+// Normalize string for fuzzy matching
+function normalize(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+// Search for fixture by team names
+async function findEvent(homeTeam: string, awayTeam: string): Promise<number | null> {
+  try {
+    // Search by home team name
+    const q = encodeURIComponent(homeTeam);
+    const res = await fetch(`${SOFA_BASE}/search/events/${q}`, { headers: HEADERS });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const events = data.events || [];
+
+    const homeNorm = normalize(homeTeam);
+    const awayNorm = normalize(awayTeam);
+
+    for (const ev of events) {
+      const eHome = normalize(ev.homeTeam?.name || '');
+      const eAway = normalize(ev.awayTeam?.name || '');
+      const eHomeShort = normalize(ev.homeTeam?.shortName || '');
+      const eAwayShort = normalize(ev.awayTeam?.shortName || '');
+
+      const homeMatch = eHome.includes(homeNorm) || homeNorm.includes(eHome) || eHomeShort.includes(homeNorm) || homeNorm.includes(eHomeShort);
+      const awayMatch = eAway.includes(awayNorm) || awayNorm.includes(eAway) || eAwayShort.includes(awayNorm) || awayNorm.includes(eAwayShort);
+
+      if (homeMatch && awayMatch) {
+        return ev.id;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('[SofaScore] findEvent error:', e);
+    return null;
+  }
+}
+
+// Fetch full statistics for an event
+async function fetchEventStats(eventId: number): Promise<any> {
+  try {
+    const res = await fetch(`${SOFA_BASE}/event/${eventId}/statistics`, { headers: HEADERS });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const allPeriod = (data.statistics || []).find((p: any) => p.period === 'ALL');
+    if (!allPeriod) return null;
+
+    const result: any = {};
+    for (const group of allPeriod.groups || []) {
+      for (const item of group.statisticsItems || []) {
+        const key = normalize(item.name);
+        result[key] = {
+          home: item.home,
+          away: item.away,
+          name: item.name,
+        };
+      }
+    }
+    return result;
+  } catch (e) {
+    console.error('[SofaScore] fetchEventStats error:', e);
+    return null;
+  }
+}
+
+// Fetch graph (momentum) for an event
+async function fetchMomentum(eventId: number): Promise<any> {
+  try {
+    const res = await fetch(`${SOFA_BASE}/event/${eventId}/graph`, { headers: HEADERS });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const points = data.graphPoints || [];
+    if (points.length === 0) return null;
+
+    // Last 10 minutes momentum (positive = home pressure, negative = away pressure)
+    const recent = points.slice(-10);
+    const avgMomentum = recent.reduce((s: number, p: any) => s + (p.value || 0), 0) / recent.length;
+    const lastValue = points[points.length - 1]?.value ?? 0;
+
+    return {
+      avg_last_10min: avgMomentum,
+      current: lastValue,
+      trend: lastValue > avgMomentum ? 'rising' : 'falling',
+      points: points.length,
+    };
+  } catch (e) {
+    console.error('[SofaScore] fetchMomentum error:', e);
+    return null;
+  }
+}
+
+function parseNumber(v: any): number | null {
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace('%', '').trim();
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { home, away, eventId: providedId } = await req.json();
+    if (!home || !away) {
+      return new Response(JSON.stringify({ error: 'home and away required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    let eventId = providedId as number | null;
+    if (!eventId) {
+      eventId = await findEvent(home, away);
+    }
+
+    if (!eventId) {
+      console.log(`[SofaScore] ⚠️ No event found for ${home} vs ${away}`);
+      return new Response(JSON.stringify({ found: false, message: 'Event not found on SofaScore' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[SofaScore] ✅ Found event ${eventId} for ${home} vs ${away}`);
+
+    const [stats, momentum] = await Promise.all([
+      fetchEventStats(eventId),
+      fetchMomentum(eventId),
+    ]);
+
+    if (!stats) {
+      return new Response(JSON.stringify({ found: true, eventId, error: 'Stats unavailable yet' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Map to standard schema
+    const enrichment = {
+      source: 'sofascore',
+      event_id: eventId,
+      xg_home: parseNumber(stats['expectedgoals']?.home),
+      xg_away: parseNumber(stats['expectedgoals']?.away),
+      possession_home: parseNumber(stats['ballpossession']?.home),
+      possession_away: parseNumber(stats['ballpossession']?.away),
+      shots_total_home: parseNumber(stats['totalshots']?.home),
+      shots_total_away: parseNumber(stats['totalshots']?.away),
+      shots_on_target_home: parseNumber(stats['shotsongoal']?.home),
+      shots_on_target_away: parseNumber(stats['shotsongoal']?.away),
+      shots_off_target_home: parseNumber(stats['shotsofftarget']?.home),
+      shots_off_target_away: parseNumber(stats['shotsofftarget']?.away),
+      blocked_shots_home: parseNumber(stats['blockedshots']?.home),
+      blocked_shots_away: parseNumber(stats['blockedshots']?.away),
+      shots_inside_box_home: parseNumber(stats['shotsinsidebox']?.home),
+      shots_inside_box_away: parseNumber(stats['shotsinsidebox']?.away),
+      big_chances_home: parseNumber(stats['bigchances']?.home),
+      big_chances_away: parseNumber(stats['bigchances']?.away),
+      big_chances_missed_home: parseNumber(stats['bigchancesmissed']?.home),
+      big_chances_missed_away: parseNumber(stats['bigchancesmissed']?.away),
+      corners_home: parseNumber(stats['cornerkicks']?.home),
+      corners_away: parseNumber(stats['cornerkicks']?.away),
+      fouls_home: parseNumber(stats['fouls']?.home),
+      fouls_away: parseNumber(stats['fouls']?.away),
+      yellow_cards_home: parseNumber(stats['yellowcards']?.home),
+      yellow_cards_away: parseNumber(stats['yellowcards']?.away),
+      red_cards_home: parseNumber(stats['redcards']?.home),
+      red_cards_away: parseNumber(stats['redcards']?.away),
+      passes_home: parseNumber(stats['passes']?.home),
+      passes_away: parseNumber(stats['passes']?.away),
+      pass_accuracy_home: parseNumber(stats['accuratepasses']?.home),
+      pass_accuracy_away: parseNumber(stats['accuratepasses']?.away),
+      tackles_home: parseNumber(stats['tackles']?.home),
+      tackles_away: parseNumber(stats['tackles']?.away),
+      momentum,
+    };
+
+    console.log(`[SofaScore] 📊 ${home} vs ${away}: xG ${enrichment.xg_home}-${enrichment.xg_away}, BigChances ${enrichment.big_chances_home}-${enrichment.big_chances_away}`);
+
+    return new Response(JSON.stringify({ found: true, ...enrichment }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    console.error('[SofaScore] Error:', e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});

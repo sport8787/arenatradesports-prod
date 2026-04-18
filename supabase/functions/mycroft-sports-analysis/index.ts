@@ -283,6 +283,10 @@ Ataques Perigosos: ${s.dangerous_attacks_home ?? s.attacks_home ?? '?'} vs ${s.d
 Chutes (Total): ${s.shots_total_home ?? s.shots_home ?? '?'} vs ${s.shots_total_away ?? s.shots_away ?? '?'}
 Chutes no Gol: ${s.shots_on_target_home ?? s.shots_home ?? '?'} vs ${s.shots_on_target_away ?? s.shots_away ?? '?'}
 xG: ${s.xG_home ?? '?'} vs ${s.xG_away ?? '?'}
+Big Chances (SofaScore): ${s.big_chances_home ?? '?'} vs ${s.big_chances_away ?? '?'}
+Chutes na Área: ${s.shots_inside_box_home ?? '?'} vs ${s.shots_inside_box_away ?? '?'}
+Momentum (últimos 10min, +home/-away): ${s.momentum?.avg_last_10min != null ? `${s.momentum.avg_last_10min.toFixed(1)} (tendência: ${s.momentum.trend})` : '?'}
+${s.sofascore_event_id ? '✅ Dados enriquecidos via SofaScore (xG e Big Chances confiáveis — use-os com peso máximo)' : '⚠️ Apenas API-Football (sem xG SofaScore — seja mais conservador)'}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
 `.trim();
