@@ -12,13 +12,62 @@ const corsHeaders = {
 };
 
 const SOFA_BASE = 'https://api.sofascore.com/api/v1';
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-  'Referer': 'https://www.sofascore.com/',
-  'Origin': 'https://www.sofascore.com',
-};
+const FIRECRAWL_API = 'https://api.firecrawl.dev/v2';
+
+// Tenta fetch direto primeiro; se Cloudflare bloquear (403), cai pra Firecrawl
+async function sofaFetchJson(path: string): Promise<any | null> {
+  const url = `${SOFA_BASE}${path}`;
+  const directHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Referer': 'https://www.sofascore.com/',
+    'Origin': 'https://www.sofascore.com',
+  };
+  try {
+    const r = await fetch(url, { headers: directHeaders });
+    if (r.ok) return await r.json();
+    if (r.status !== 403 && r.status !== 429) {
+      console.warn(`[SofaForm] direct fetch HTTP ${r.status} for ${path}`);
+      return null;
+    }
+    console.log(`[SofaForm] direct blocked (${r.status}), falling back to Firecrawl for ${path}`);
+  } catch (e) {
+    console.warn(`[SofaForm] direct fetch error for ${path}:`, e);
+  }
+  // Firecrawl fallback
+  const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!fcKey) {
+    console.warn('[SofaForm] FIRECRAWL_API_KEY missing — cannot fallback');
+    return null;
+  }
+  try {
+    const fr = await fetch(`${FIRECRAWL_API}/scrape`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${fcKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false, waitFor: 800 }),
+    });
+    if (!fr.ok) {
+      console.warn(`[SofaForm] Firecrawl HTTP ${fr.status}`);
+      return null;
+    }
+    const fd = await fr.json();
+    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || '';
+    // SofaScore JSON endpoints return raw JSON wrapped in <pre>...</pre> by browser; Firecrawl may return as text
+    const jsonStr = raw.replace(/<[^>]+>/g, '').trim();
+    if (!jsonStr.startsWith('{')) {
+      console.warn(`[SofaForm] Firecrawl: response is not JSON for ${path} (got: ${jsonStr.slice(0, 80)})`);
+      return null;
+    }
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.warn(`[SofaForm] Firecrawl fallback error for ${path}:`, e);
+    return null;
+  }
+}
 
 const CACHE_TTL_HOURS = 6;
 const FN_NAME = 'sofascore-team-form';
