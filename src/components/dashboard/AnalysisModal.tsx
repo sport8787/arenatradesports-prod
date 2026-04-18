@@ -236,8 +236,8 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
       {/* Analysis Content */}
       {analysis && vc && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-          {/* 🚨 EXIT WARNING BANNER — Cancelamento Under 2.5 */}
-          {analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' && (
+          {/* 🚨 EXIT WARNING BANNER — Cancelamento de planos monitorados */}
+          {(analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' || analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE') && (
             <motion.div
               variants={fadeUp}
               className="rounded-xl border-2 border-destructive bg-destructive/15 p-4 shadow-[0_0_30px_hsl(var(--destructive)/0.4)] animate-pulse"
@@ -249,7 +249,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
                     SAIR DA OPERAÇÃO AGORA
                   </div>
                   <div className="text-xs text-destructive/80 uppercase tracking-widest">
-                    Sinal Under 2.5 Early revogado
+                    {analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ? 'Sinal Under 2.5 Early revogado' : 'Sinal Back ao Dominante revogado'}
                   </div>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
           )}
 
           {/* Plan Name */}
-          {analysis.plan_name && analysis.plan_name !== 'CANCELAMENTO UNDER 2.5 EARLY' && (
+          {analysis.plan_name && analysis.plan_name !== 'CANCELAMENTO UNDER 2.5 EARLY' && analysis.plan_name !== 'CANCELAMENTO BACK AO DOMINANTE' && (
             <motion.div variants={fadeUp} className="flex justify-center">
               <div className="px-4 py-1.5 rounded-lg bg-primary/10 border border-primary/30 font-orbitron text-xs font-bold text-primary uppercase tracking-widest">
                 🔱 {analysis.plan_name}
