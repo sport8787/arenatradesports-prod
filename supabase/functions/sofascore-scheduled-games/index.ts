@@ -90,10 +90,13 @@ function parseSofaMarkdown(md: string): ParsedMatch[] {
       }
     }
 
-    const cleaned = inner.replace(/\\+/g, '');
+    // Remove backslashes e qualquer link markdown residual ](http...)
+    const cleaned = inner
+      .replace(/\\+/g, '')
+      .replace(/\]\(https?:[^)]*\)?/g, '');
     const lines = cleaned.split(/\n+/)
       .map(s => s.trim())
-      .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s));
+      .filter(s => s && s !== '-' && !s.startsWith('!') && !/^\d{1,2}:\d{2}$/.test(s) && !s.startsWith('](') && !/^https?:/.test(s));
     if (lines.length < 2) continue;
 
     out.push({
