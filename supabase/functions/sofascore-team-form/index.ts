@@ -114,11 +114,10 @@ async function searchTeamId(name: string): Promise<number | null> {
 
 async function fetchLastEvents(teamId: number, limit = 5): Promise<any[]> {
   try {
-    const res = await fetch(`${SOFA_BASE}/team/${teamId}/events/last/0`, { headers: HEADERS });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const events = (data.events || []).filter((e: any) => e.status?.code === 100); // finished
-    return events.slice(-limit).reverse(); // most recent first
+    const data = await sofaFetchJson(`/team/${teamId}/events/last/0`);
+    if (!data) return [];
+    const events = (data.events || []).filter((e: any) => e.status?.code === 100);
+    return events.slice(-limit).reverse();
   } catch (e) {
     console.error('[SofaForm] fetchLastEvents error:', e);
     return [];
@@ -127,9 +126,8 @@ async function fetchLastEvents(teamId: number, limit = 5): Promise<any[]> {
 
 async function fetchEventStats(eventId: number): Promise<Record<string, any> | null> {
   try {
-    const res = await fetch(`${SOFA_BASE}/event/${eventId}/statistics`, { headers: HEADERS });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await sofaFetchJson(`/event/${eventId}/statistics`);
+    if (!data) return null;
     const allPeriod = (data.statistics || []).find((p: any) => p.period === 'ALL');
     if (!allPeriod) return null;
     const result: Record<string, any> = {};
