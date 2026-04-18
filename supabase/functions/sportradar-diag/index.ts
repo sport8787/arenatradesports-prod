@@ -11,19 +11,20 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'no key' }), { status: 500, headers: corsHeaders });
   }
 
+  // Trial confirmado: Soccer Base + Soccer Extended Base.
+  // Testa rotas e variantes de path para descobrir o endpoint correto de search/competitor.
   const tests = [
-    // Soccer Extended trial/prod
-    'https://api.sportradar.com/soccer-extended/trial/v4/en/competitors/search.json?name=Palmeiras',
-    'https://api.sportradar.com/soccer-extended/production/v4/en/competitors/search.json?name=Palmeiras',
-    // Soccer base trial/prod
-    'https://api.sportradar.com/soccer/trial/v4/en/competitors/search.json?name=Palmeiras',
-    'https://api.sportradar.com/soccer/production/v4/en/competitors/search.json?name=Palmeiras',
-    // Endpoint alternativo "competitor_profile" via id estático Brasileirão (Palmeiras = sr:competitor:6293)
-    'https://api.sportradar.com/soccer-extended/trial/v4/en/competitors/sr:competitor:6293/profile.json',
-    'https://api.sportradar.com/soccer-extended/production/v4/en/competitors/sr:competitor:6293/profile.json',
-    // Schedule do dia (rota leve, valida acesso ao produto)
+    // Schedules (rota leve, valida acesso ao produto)
+    'https://api.sportradar.com/soccer/trial/v4/en/schedules/live/summaries.json',
     'https://api.sportradar.com/soccer-extended/trial/v4/en/schedules/live/summaries.json',
-    'https://api.sportradar.com/soccer-extended/production/v4/en/schedules/live/summaries.json',
+    // Competitor profile direto (Palmeiras = sr:competitor:6293) — não precisa de search
+    'https://api.sportradar.com/soccer/trial/v4/en/competitors/sr:competitor:6293/profile.json',
+    'https://api.sportradar.com/soccer-extended/trial/v4/en/competitors/sr:competitor:6293/profile.json',
+    // Summaries de competitor (forma recente)
+    'https://api.sportradar.com/soccer/trial/v4/en/competitors/sr:competitor:6293/summaries.json',
+    'https://api.sportradar.com/soccer-extended/trial/v4/en/competitors/sr:competitor:6293/summaries.json',
+    // Lista de competições (descoberta)
+    'https://api.sportradar.com/soccer/trial/v4/en/competitions.json',
   ];
 
   const results: any[] = [];
