@@ -236,8 +236,31 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
       {/* Analysis Content */}
       {analysis && vc && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+          {/* 🚨 EXIT WARNING BANNER — Cancelamento Under 2.5 */}
+          {analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' && (
+            <motion.div
+              variants={fadeUp}
+              className="rounded-xl border-2 border-destructive bg-destructive/15 p-4 shadow-[0_0_30px_hsl(var(--destructive)/0.4)] animate-pulse"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-3xl">🚨</span>
+                <div>
+                  <div className="font-orbitron text-lg font-black uppercase text-destructive tracking-wider">
+                    SAIR DA OPERAÇÃO AGORA
+                  </div>
+                  <div className="text-xs text-destructive/80 uppercase tracking-widest">
+                    Sinal Under 2.5 Early revogado
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-foreground/90 mt-2">
+                Execute <strong>cashout</strong> ou <strong>hedge</strong> imediatamente para limitar perda. As condições do sinal mudaram.
+              </p>
+            </motion.div>
+          )}
+
           {/* Plan Name */}
-          {analysis.plan_name && (
+          {analysis.plan_name && analysis.plan_name !== 'CANCELAMENTO UNDER 2.5 EARLY' && (
             <motion.div variants={fadeUp} className="flex justify-center">
               <div className="px-4 py-1.5 rounded-lg bg-primary/10 border border-primary/30 font-orbitron text-xs font-bold text-primary uppercase tracking-widest">
                 🔱 {analysis.plan_name}
