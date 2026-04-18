@@ -41,6 +41,9 @@ export function useScheduledGames() {
 
   useEffect(() => {
     fetchGames();
+    // Auto-refresh every 60s so countdown + pré-live filtering stay accurate
+    const id = setInterval(() => fetchGames(), 60_000);
+    return () => clearInterval(id);
   }, [fetchGames]);
 
   return { games, loading, refetch: fetchGames };
