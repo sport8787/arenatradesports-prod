@@ -172,21 +172,20 @@ serve(async (req) => {
       });
     }
 
-    const cacheKey = `${normalize(home)}_vs_${normalize(away)}`;
+    const cacheKey = `${FN_NAME}:${normalize(home)}_vs_${normalize(away)}`;
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     // Try cache
     const { data: cached } = await sb
       .from('ai_response_cache')
       .select('response_json, expires_at, hit_count')
-      .eq('function_name', FN_NAME)
       .eq('cache_key', cacheKey)
       .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
     if (cached?.response_json) {
       sb.from('ai_response_cache').update({ hit_count: (cached.hit_count || 0) + 1 })
-        .eq('function_name', FN_NAME).eq('cache_key', cacheKey).then(() => {}, () => {});
+        .eq('cache_key', cacheKey).then(() => {}, () => {});
       console.log(`[SofaForm] 🎯 Cache HIT: ${cacheKey}`);
       return new Response(JSON.stringify({ ...cached.response_json, cached: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -222,7 +221,7 @@ serve(async (req) => {
       response_json: payload,
       expires_at: new Date(Date.now() + CACHE_TTL_HOURS * 3600 * 1000).toISOString(),
       hit_count: 0,
-    }, { onConflict: 'function_name,cache_key' }).then(() => {}, (e) => console.warn('[SofaForm] cache save:', e));
+    }, { onConflict: 'cache_key' }).then(() => {}, (e) => console.warn('[SofaForm] cache save:', e));
 
     console.log(`[SofaForm] ✅ ${home}: xG ${homeForm?.avg_xg ?? '?'} | ${away}: xG ${awayForm?.avg_xg ?? '?'}`);
     return new Response(JSON.stringify(payload), {
