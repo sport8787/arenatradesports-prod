@@ -85,7 +85,7 @@ serve(async (req) => {
     
     const { data: matchesForReanalysis, error: matchError2 } = await supabase
       .from('live_matches')
-      .select('*, mycroft_analyses!inner(id, verdict, created_at)')
+      .select('*, mycroft_analyses!inner(id, verdict, plan_name, created_at)')
       .eq('status', 'live')
       .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
