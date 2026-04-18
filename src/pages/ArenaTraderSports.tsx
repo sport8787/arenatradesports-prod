@@ -467,7 +467,19 @@ export default function ArenaTraderSports() {
 
         {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
         {statusFilter === 'proximos' && (
-          <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} />
+          <ScheduledGamesSection games={scheduledGames} loading={scheduledLoading} mode="upcoming" />
+        )}
+
+        {/* Pre-Live Section - jogos que começam em ≤10 minutos */}
+        {statusFilter === 'scheduled' && (
+          <ScheduledGamesSection
+            games={scheduledGames.filter(g => {
+              const diffMin = (new Date(g.match_datetime).getTime() - Date.now()) / 60000;
+              return diffMin > 0 && diffMin <= 10;
+            })}
+            loading={scheduledLoading}
+            mode="prelive"
+          />
         )}
       </div>
       </div>
