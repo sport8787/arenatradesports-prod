@@ -123,7 +123,8 @@ function parseRows(html: string): Array<Record<string, string>> {
 
 // Shooting log: traz Sh, SoT e xG (xG só em ligas suportadas pelo FBref)
 async function fetchShootingLog(squadId: string, slugName: string, season = 2026): Promise<MatchRow[]> {
-  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${slugName}-Match-Logs-All-Competitions`;
+  const safeSlug = (slugName || 'Squad').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'Squad';
+  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${safeSlug}-Match-Logs-All-Competitions`;
   const html = await fcScrape(url, 'rawHtml', 1800);
   if (!html) return [];
   const rows = parseRows(html);
