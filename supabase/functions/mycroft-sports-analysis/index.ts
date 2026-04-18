@@ -19,6 +19,8 @@ interface MatchData {
     shots_on_target_home?: number; shots_on_target_away?: number;
   };
   bankroll?: number;
+  under_odd?: number;
+  odds?: { home?: number; draw?: number; away?: number };
 }
 
 function getSupabaseAdmin() {
