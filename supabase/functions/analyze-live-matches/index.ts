@@ -289,7 +289,8 @@ serve(async (req) => {
           }
 
           // === TELEGRAM NOTIFICATION for UNDER 2.5 EXIT (cancellation) ===
-          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY') {
+          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' || analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE') {
+            const planoLabel = analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ? 'UNDER 2.5 EARLY' : 'BACK AO DOMINANTE';
             try {
               const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
               const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
