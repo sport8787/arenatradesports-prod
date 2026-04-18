@@ -272,8 +272,53 @@ serve(async (req) => {
       console.warn(`[FetchV2] Live matches error: ${liveRes.status} - ${errText.substring(0, 300)}`);
     }
 
-    // 5. Fetch scheduled games from championships
+    // 5a. FALLBACK: salvar os próprios jogos ao vivo como "scheduled" (kickoff = agora) para
+    // garantir visibilidade imediata na aba "Próximos Jogos".
     let scheduledCount = 0;
+    try {
+      if (liveRes.ok) {
+        // Re-fetch para pegar o objeto bruto novamente sem reconsumir o stream
+        const liveSnapRes = await fetch(`${API_FUTEBOL_URL}/ao-vivo`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+        });
+        if (liveSnapRes.ok) {
+          const liveSnap = await liveSnapRes.json();
+          for (const m of liveSnap) {
+            const partidaId = m.partida_id;
+            const home = m.time_mandante?.nome_popular || 'TBD';
+            const away = m.time_visitante?.nome_popular || 'TBD';
+            const camp = m.campeonato?.nome_popular || m.campeonato?.nome || 'Unknown';
+            // Estima kickoff: se houver data_realizacao_iso usa; senão usa now() - minuto*60s
+            const minute = m.minuto ?? 0;
+            const kickoffIso = m.data_realizacao_iso ||
+              new Date(Date.now() - minute * 60000).toISOString();
+            const kickoff = new Date(kickoffIso);
+            const dateStr = kickoff.toISOString().split('T')[0];
+            const timeStr = kickoff.toTimeString().slice(0, 5);
+
+            await supabase.from('scheduled_games').upsert({
+              match_date: dateStr,
+              match_time: timeStr,
+              match_datetime: kickoff.toISOString(),
+              league_name: camp,
+              home_team: home,
+              away_team: away,
+              event_id: `apifut_${partidaId}`,
+              match_id: `apifut_${partidaId}`,
+              status: 'live',
+              check_time: kickoff.toISOString(),
+              relevance_score: 5,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'match_date,match_time,home_team,away_team' });
+            scheduledCount++;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[FetchV2] Live->scheduled mirror error:', e);
+    }
+
+    // 5b. Fetch scheduled games from championships (próximas rodadas)
     try {
       const campRes = await fetch(`${API_FUTEBOL_URL}/campeonatos`, {
         headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -290,31 +335,38 @@ serve(async (req) => {
             const campId = camp.campeonato_id;
             const campNome = camp.nome_popular || camp.nome;
 
-            const partidasRes = await fetch(`${API_FUTEBOL_URL}/campeonatos/${campId}/partidas`, {
-              headers: { 'Authorization': `Bearer ${apiKey}` },
-            });
-
-            if (partidasRes.status === 401 || partidasRes.status === 403) {
-              console.log(`[FetchV2] Partidas endpoint requires PROD key, skipping`);
-              break;
-            }
-
-            if (!partidasRes.ok) continue;
-
-            const partidasData = await partidasRes.json();
-            const partidas = partidasData.partidas || {};
+            // Tenta vários endpoints (alguns disponíveis em planos menores)
+            const endpoints = [
+              `${API_FUTEBOL_URL}/campeonatos/${campId}/rodadas/atual`,
+              `${API_FUTEBOL_URL}/campeonatos/${campId}/rodadas/proxima`,
+              `${API_FUTEBOL_URL}/campeonatos/${campId}/partidas`,
+            ];
 
             const allMatches: any[] = [];
-            for (const faseName in partidas) {
-              const fase = partidas[faseName];
-              if (typeof fase === 'object') {
-                for (const chaveKey in fase) {
-                  const chave = fase[chaveKey];
-                  if (chave?.ida) allMatches.push(chave.ida);
-                  if (chave?.volta) allMatches.push(chave.volta);
-                  if (chave?.partida_id) allMatches.push(chave);
+            for (const url of endpoints) {
+              try {
+                const r = await fetch(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+                if (!r.ok) continue;
+                const j = await r.json();
+                // /rodadas/atual e /proxima retornam { partidas: [...] }
+                if (Array.isArray(j.partidas)) {
+                  allMatches.push(...j.partidas);
+                  continue;
                 }
-              }
+                // /partidas retorna { partidas: { fase: { chave: { ida, volta } } } }
+                const partidas = j.partidas || {};
+                for (const faseName in partidas) {
+                  const fase = partidas[faseName];
+                  if (typeof fase === 'object') {
+                    for (const chaveKey in fase) {
+                      const chave = fase[chaveKey];
+                      if (chave?.ida) allMatches.push(chave.ida);
+                      if (chave?.volta) allMatches.push(chave.volta);
+                      if (chave?.partida_id) allMatches.push(chave);
+                    }
+                  }
+                }
+              } catch (_) { /* try next */ }
             }
 
             const today = new Date();
