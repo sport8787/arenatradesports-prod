@@ -28,24 +28,33 @@ serve(async (req) => {
   ];
 
   const results: any[] = [];
+  // Testa cada URL com 2 métodos de auth: query param e header x-api-key
   for (const url of tests) {
-    try {
-      const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}api_key=${key}`, {
-        headers: { 'Accept': 'application/json' },
-      });
-      const text = await r.text();
-      results.push({
-        url: url.replace(/api_key=[^&]+/, 'api_key=***'),
-        status: r.status,
-        body_preview: text.slice(0, 200),
-      });
-    } catch (e) {
-      results.push({ url, error: String(e) });
+    for (const mode of ['query', 'header'] as const) {
+      try {
+        const fetchUrl = mode === 'query'
+          ? `${url}${url.includes('?') ? '&' : '?'}api_key=${key}`
+          : url;
+        const headers: Record<string, string> = { 'Accept': 'application/json' };
+        if (mode === 'header') headers['x-api-key'] = key;
+        const r = await fetch(fetchUrl, { headers });
+        const text = await r.text();
+        results.push({
+          url: url.replace(/api_key=[^&]+/, 'api_key=***'),
+          auth_mode: mode,
+          status: r.status,
+          body_preview: text.slice(0, 150),
+        });
+      } catch (e) {
+        results.push({ url, auth_mode: mode, error: String(e) });
+      }
+      await new Promise(r => setTimeout(r, 1100));
     }
-    await new Promise(r => setTimeout(r, 1100)); // trial = 1 req/seg
   }
+  // Adiciona key length/preview pra confirmar que não tem espaços
+  const keyInfo = { length: key.length, first4: key.slice(0, 4), last4: key.slice(-4), trimmed_equal: key === key.trim() };
 
-  return new Response(JSON.stringify({ results }, null, 2), {
+  return new Response(JSON.stringify({ keyInfo, results }, null, 2), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
