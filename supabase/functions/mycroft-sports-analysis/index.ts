@@ -521,6 +521,53 @@ serve(async (req) => {
       }
     }
 
+    // === PLANO UNDER 2.5 EARLY (override server-side) ===
+    // Aprova Under 2.5 quando jogo está parado nos primeiros minutos, independente da IA.
+    // Só executa se a IA NÃO já tiver aprovado outro sinal (não sobrescrever APROVADO real).
+    if (analysis.verdict !== 'APROVADO' && analysis.verdict !== 'APROVADO_SITUACIONAL') {
+      const u_s = match.stats || {};
+      const u_min = match.minute ?? 0;
+      const u_scoreH = match.scoreHome ?? 0;
+      const u_scoreA = match.scoreAway ?? 0;
+      const u_totalGoals = u_scoreH + u_scoreA;
+      const u_dangerousTotal = (u_s.dangerous_attacks_home ?? u_s.attacks_home ?? 0) + (u_s.dangerous_attacks_away ?? u_s.attacks_away ?? 0);
+      const u_sotTotal = (u_s.shots_on_target_home ?? 0) + (u_s.shots_on_target_away ?? 0);
+      const u_xgTotal = (u_s.xG_home ?? u_s.xg_home ?? 0) + (u_s.xG_away ?? u_s.xg_away ?? 0);
+      const u_underOdd = match.under_odd ?? 1.85;
+
+      const u_isEarly = u_min >= 10 && u_min <= 30;
+      const u_isScoreless = u_totalGoals === 0;
+      const u_isDeadGame = u_dangerousTotal <= 4 && u_sotTotal <= 1 && u_xgTotal <= 0.3;
+
+      if (u_isEarly && u_isScoreless && u_isDeadGame && u_underOdd >= 1.85) {
+        console.log(`[MycroftSports] 📉 OVERRIDE APROVADO: Under 2.5 Early — ${match.home} vs ${match.away} (${u_min}') odd ${u_underOdd} | dang=${u_dangerousTotal} sot=${u_sotTotal} xg=${u_xgTotal.toFixed(2)}`);
+        analysis.verdict = 'APROVADO';
+        analysis.plan_name = 'PLANO UNDER 2.5 EARLY';
+        analysis.market = 'Under 2.5';
+        analysis.odd = u_underOdd;
+        analysis.confidence = 75;
+        analysis.thesis = `🔱 MYCROFT ATIVOU — PLANO UNDER 2.5 EARLY. Jogo sem ações ofensivas (${u_dangerousTotal} ataques perigosos, ${u_sotTotal} finalizações no alvo, xG ${u_xgTotal.toFixed(2)}) nos primeiros ${u_min} minutos. Odd Under 2.5 em ${u_underOdd} com valor.`;
+        analysis.risk_management = {
+          stake_percent: 4,
+          stake_value: Number(((match.bankroll ?? 500) * 0.04).toFixed(2)),
+          entry: `Under 2.5 @ ${u_underOdd}`,
+          stop: 'Cancelar se ocorrer gol antes dos 35 min ou ≥ 3 ataques perigosos em 5 min',
+          target: 'Manter placar ≤ 2 gols ao fim do jogo',
+          rr: `1:${(u_underOdd - 1).toFixed(2)}`,
+          ev: `+${Math.round((0.75 * u_underOdd - 1) * 100)}%`,
+        };
+        analysis.alerts = [
+          `✅ Sinal ativo enquanto: 0x0, dangerous ≤ 6, SOT ≤ 2, xG ≤ 0.6.`,
+          `⚠️ Reavaliar imediatamente se gol ou pressão ofensiva aumentar.`,
+        ];
+        analysis.fundamentation = {
+          ...(analysis.fundamentation || {}),
+          override: 'server_side_under_25_early',
+          stats_snapshot: { dangerousTotal: u_dangerousTotal, sotTotal: u_sotTotal, xgTotal: u_xgTotal, minute: u_min },
+        };
+      }
+    }
+
     // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
     // Se JOGO_MORTO por dados insuficientes, tentar regras S1-S4
     if (analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
