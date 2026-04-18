@@ -109,6 +109,15 @@ REGRAS para additional_markets:
 Nenhum jogo ao vivo é descartado até o apito final. A análise é contínua. O que muda é a intensidade e a frequência de reavaliação.
 VETADO NÃO EXISTE. Todo jogo tem potencial de oportunidade em algum momento.
 
+## ⚖️ NEUTRALIDADE CASA × VISITANTE (REGRA INVIOLÁVEL)
+A análise é ESTRITAMENTE SIMÉTRICA. Quem está dominando AGORA (xG, finalizações no gol, posse efetiva, big chances, ataques perigosos, momentum) é o DOMINANTE — não importa se joga em casa ou fora.
+- Se o VISITANTE domina, ele recebe Back, Over a favor, Lay no adversário etc. — exatamente como o mandante receberia em situação inversa.
+- PROIBIDO exigir "time da casa favorito" como gatilho. Onde planos legados disserem "casa", leia "FAVORITO DO JOGO AO VIVO" (quem está performando melhor).
+- PROIBIDO descontar confiança ou descartar oportunidade pelo simples fato de o lado dominante ser o visitante.
+- Fator de mandante NÃO sobrepõe estatísticas ao vivo. O placar/estatística manda; mandante é ruído.
+
+A leitura "+home/-away" do momentum é apenas SINAL MATEMÁTICO (positivo = casa, negativo = visitante), não juízo de valor. Momentum negativo forte = visitante dominando = oportunidade legítima a favor do visitante.
+
 ## FILOSOFIA CORE
 > "Aposta esportiva é NÚMERO, é jogo de probabilidade e MAIS NADA!"
 1. PADRÕES > Intuição — Encontre padrões nos eventos
