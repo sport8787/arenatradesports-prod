@@ -296,12 +296,12 @@ serve(async (req) => {
               const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
               if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
                 const msg = [
-                  `🚨 *SAIR DA OPERAÇÃO — UNDER 2.5 EARLY*`,
+                  `🚨 *SAIR DA OPERAÇÃO — ${planoLabel}*`,
                   ``,
                   `⚽ *${match.home_team} vs ${match.away_team}*`,
                   `🏟️ ${match.championship} | ${match.minute ?? 0}' | Placar: ${match.score_home ?? 0}x${match.score_away ?? 0}`,
                   ``,
-                  `📝 _${analysis.thesis || 'Sinal Under 2.5 revogado.'}_`,
+                  `📝 _${analysis.thesis || 'Sinal revogado.'}_`,
                   ``,
                   `⚠️ *AÇÃO RECOMENDADA:* Executar cashout ou hedge IMEDIATAMENTE para limitar perda.`,
                   ``,
