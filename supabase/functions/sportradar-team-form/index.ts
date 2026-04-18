@@ -44,21 +44,55 @@ async function srFetch(path: string, apiKey: string): Promise<any | null> {
   }
 }
 
-// Busca o competitor (time) por nome
-async function findCompetitor(name: string, apiKey: string): Promise<{ id: string; name: string } | null> {
-  const data = await srFetch(`/competitors/search.json?name=${encodeURIComponent(name)}`, apiKey);
-  const results = data?.results || data?.competitors || [];
-  if (!Array.isArray(results) || results.length === 0) return null;
+// Cache em memória de schedules para evitar refetch dentro do mesmo request
+let scheduleCache: { fetchedAt: number; competitors: Map<string, { id: string; name: string }> } | null = null;
+const SCHEDULE_CACHE_TTL_MS = 5 * 60 * 1000;
 
+// Coleta competitors de schedules (live + próximos dias). Endpoint validado em diag (200).
+async function loadSchedulesCompetitors(apiKey: string): Promise<Map<string, { id: string; name: string }>> {
+  if (scheduleCache && Date.now() - scheduleCache.fetchedAt < SCHEDULE_CACHE_TTL_MS) {
+    return scheduleCache.competitors;
+  }
+  const map = new Map<string, { id: string; name: string }>();
+  const paths = [
+    '/schedules/live/summaries.json',
+  ];
+  // Próximos 3 dias
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(Date.now() + i * 86400000).toISOString().slice(0, 10);
+    paths.push(`/schedules/${d}/summaries.json`);
+  }
+  // Últimos 2 dias (para times que jogaram recente)
+  for (let i = 1; i <= 2; i++) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    paths.push(`/schedules/${d}/summaries.json`);
+  }
+  for (const p of paths) {
+    const data = await srFetch(p, apiKey);
+    const summaries = data?.summaries || [];
+    for (const s of summaries) {
+      const competitors = s?.sport_event?.competitors || [];
+      for (const c of competitors) {
+        if (c?.id && c?.name) {
+          map.set(normalize(c.name), { id: c.id, name: c.name });
+        }
+      }
+    }
+  }
+  scheduleCache = { fetchedAt: Date.now(), competitors: map };
+  console.log(`[Sportradar] schedule competitors loaded: ${map.size}`);
+  return map;
+}
+
+async function findCompetitor(name: string, apiKey: string): Promise<{ id: string; name: string } | null> {
+  const map = await loadSchedulesCompetitors(apiKey);
   const target = normalize(name);
-  // Busca match exato normalizado, depois fallback p/ primeiro
-  const exact = results.find((r: any) => {
-    const c = r.competitor || r;
-    return normalize(c.name || '') === target;
-  });
-  const pick = exact || results[0];
-  const c = pick.competitor || pick;
-  return c?.id ? { id: c.id, name: c.name } : null;
+  if (map.has(target)) return map.get(target)!;
+  // fuzzy: contains
+  for (const [k, v] of map.entries()) {
+    if (k.includes(target) || target.includes(k)) return v;
+  }
+  return null;
 }
 
 // Extrai stat de um time específico no payload de summary
