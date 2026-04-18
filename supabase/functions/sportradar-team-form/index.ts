@@ -10,8 +10,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Trial usa /trial/v4. Após contratar produção, trocar para /production/v4.
-const SR_BASE = 'https://api.sportradar.com/soccer-extended/trial/v4/en';
+// Trial inclui Soccer Base + Soccer Extended Base → rota oficial é /soccer/trial/v4.
+// Após contratar produção, trocar para /soccer/production/v4.
+const SR_BASE = 'https://api.sportradar.com/soccer/trial/v4/en';
+// Trial = 1 req/seg. Helper de throttle abaixo.
+const SR_MIN_INTERVAL_MS = 1100;
+let lastSrCallAt = 0;
+async function srThrottle() {
+  const wait = lastSrCallAt + SR_MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastSrCallAt = Date.now();
+}
 const CACHE_TTL_HOURS = 6;
 const FN_NAME = 'sportradar-team-form';
 
