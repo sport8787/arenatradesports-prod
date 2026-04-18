@@ -412,6 +412,46 @@ async function fetchEnrichedData(home:string, away:string, key:string, sportKey?
   return {home:hStats,away:aStats,h2h:processH2H(h2hD,hId,aId),injuries:{home:hInj,away:aInj},standings:stand,homeSeasonStats:hSS,awaySeasonStats:aSS,predictions:pred,model_level:ml,corners:{home:cornHome,away:cornAway},cards:{home:cardHome,away:cardAway},referee}
 }
 
+// ─── SofaScore Form Enrichment (pré-jogo) ───
+async function fetchSofaForm(home: string, away: string): Promise<any | null> {
+  try {
+    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/sofascore-team-form`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({ home, away }),
+    });
+    if (!res.ok) {
+      console.warn(`[SofaForm] HTTP ${res.status} for ${home} vs ${away}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!data?.found) return null;
+    console.log(`[SofaForm] ${data.cached ? '🎯 CACHE' : '✅ FRESH'} ${home}: xG ${data.home?.avg_xg ?? '?'} | ${away}: xG ${data.away?.avg_xg ?? '?'}`);
+    return data;
+  } catch (e) {
+    console.warn('[SofaForm] fetch error:', e);
+    return null;
+  }
+}
+
+function fmtSofaForm(sofa: any | null): string {
+  if (!sofa || (!sofa.home && !sofa.away)) return '';
+  const lines: string[] = ['', '🔴 SOFASCORE — FORMA RECENTE (últimos 5 jogos):'];
+  for (const side of ['home', 'away'] as const) {
+    const f = sofa[side];
+    if (!f) continue;
+    const r = f.record;
+    lines.push(`• ${f.team} (${r.wins}V-${r.draws}E-${r.losses}D, n=${f.sample_size}): GM=${f.avg_goals_for} GS=${f.avg_goals_against} | xG=${f.avg_xg ?? '?'} xGA=${f.avg_xg_against ?? '?'} | Posse=${f.avg_possession ?? '?'}% | Chutes=${f.avg_shots} (${f.avg_shots_on_target} no alvo) | Sofridos=${f.avg_shots_against}`);
+  }
+  lines.push('⚠️ xG do SofaScore é a métrica mais confiável para projeção de gols. Use como reforço/contraste do Poisson.');
+  return lines.join('\n');
+}
+
+
 function processTeamStats(tid:number|null, fixes:any[], ss:any) {
   if (!tid||!fixes.length) return null
   let gs=0,gc=0,w=0,d=0,l=0
@@ -910,7 +950,10 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   // Instead, rely on Poisson model estimates for corners/cards markets
   const cornOdds:any[]=[], cardOdds:any[]=[]
 
-  const en = await fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards)
+  const [en, sofaForm] = await Promise.all([
+    fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards),
+    fetchSofaForm(game.home_team, game.away_team),
+  ])
   const det=computeDetectors(odds,totals,null,null)
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
 
@@ -1038,6 +1081,7 @@ ${fmtH2H(en.h2h)}
 ${fmtInj(game.home_team,en.injuries?.home||[])} ${fmtInj(game.away_team,en.injuries?.away||[])}
 ${fmtStand(en.standings||[],game.home_team,game.away_team)}
 ${fmtPred(en.predictions)}
+${fmtSofaForm(sofaForm)}
 ${en.predictions?'Validação cruzada: Concordam→+5% Divergem→-5%':''}
 ${fmtDetectors(det)}
 ${cornBlk}${cardBlk}

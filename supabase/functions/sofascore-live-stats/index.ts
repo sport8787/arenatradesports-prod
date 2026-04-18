@@ -3,6 +3,10 @@
 // Endpoint público (não documentado): https://api.sofascore.com/api/v1/
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+const FN_NAME = 'sofascore-live-stats';
+const CACHE_TTL_SECONDS = 60; // dados ao vivo: 60s
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +14,7 @@ const corsHeaders = {
 };
 
 const SOFA_BASE = 'https://api.sofascore.com/api/v1';
+const FIRECRAWL_API = 'https://api.firecrawl.dev/v2';
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -18,6 +23,30 @@ const HEADERS = {
   'Referer': 'https://www.sofascore.com/',
   'Origin': 'https://www.sofascore.com',
 };
+
+async function sofaFetch(path: string): Promise<any | null> {
+  const url = `${SOFA_BASE}${path}`;
+  try {
+    const r = await fetch(url, { headers: HEADERS });
+    if (r.ok) return await r.json();
+    if (r.status !== 403 && r.status !== 429) return null;
+  } catch {}
+  const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!fcKey) return null;
+  try {
+    const fr = await fetch(`${FIRECRAWL_API}/scrape`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${fcKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false, waitFor: 800 }),
+    });
+    if (!fr.ok) return null;
+    const fd = await fr.json();
+    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || '';
+    const jsonStr = raw.replace(/<[^>]+>/g, '').trim();
+    if (!jsonStr.startsWith('{')) return null;
+    return JSON.parse(jsonStr);
+  } catch { return null; }
+}
 
 // Normalize string for fuzzy matching
 function normalize(s: string): string {
@@ -33,9 +62,8 @@ async function findEvent(homeTeam: string, awayTeam: string): Promise<number | n
   try {
     // Search by home team name
     const q = encodeURIComponent(homeTeam);
-    const res = await fetch(`${SOFA_BASE}/search/events/${q}`, { headers: HEADERS });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await sofaFetch(`/search/events/${q}`);
+    if (!data) return null;
     const events = data.events || [];
 
     const homeNorm = normalize(homeTeam);
@@ -64,9 +92,8 @@ async function findEvent(homeTeam: string, awayTeam: string): Promise<number | n
 // Fetch full statistics for an event
 async function fetchEventStats(eventId: number): Promise<any> {
   try {
-    const res = await fetch(`${SOFA_BASE}/event/${eventId}/statistics`, { headers: HEADERS });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await sofaFetch(`/event/${eventId}/statistics`);
+    if (!data) return null;
     const allPeriod = (data.statistics || []).find((p: any) => p.period === 'ALL');
     if (!allPeriod) return null;
 
@@ -91,9 +118,8 @@ async function fetchEventStats(eventId: number): Promise<any> {
 // Fetch graph (momentum) for an event
 async function fetchMomentum(eventId: number): Promise<any> {
   try {
-    const res = await fetch(`${SOFA_BASE}/event/${eventId}/graph`, { headers: HEADERS });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await sofaFetch(`/event/${eventId}/graph`);
+    if (!data) return null;
     const points = data.graphPoints || [];
     if (points.length === 0) return null;
 
@@ -134,6 +160,26 @@ serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // ─── Cache lookup ───
+    const cacheKey = `${FN_NAME}:${normalize(home)}_vs_${normalize(away)}`;
+    const sbAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    try {
+      const { data: cached } = await sbAdmin
+        .from('ai_response_cache')
+        .select('response_json, expires_at, hit_count')
+        .eq('cache_key', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+      if (cached?.response_json) {
+        sbAdmin.from('ai_response_cache').update({ hit_count: (cached.hit_count || 0) + 1 })
+          .eq('cache_key', cacheKey).then(() => {}, () => {});
+        console.log(`[SofaScore] 🎯 Cache HIT: ${cacheKey}`);
+        return new Response(JSON.stringify({ ...cached.response_json, cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (e) { console.warn('[SofaScore] cache lookup error:', e); }
 
     let eventId = providedId as number | null;
     if (!eventId) {
@@ -201,7 +247,17 @@ serve(async (req) => {
 
     console.log(`[SofaScore] 📊 ${home} vs ${away}: xG ${enrichment.xg_home}-${enrichment.xg_away}, BigChances ${enrichment.big_chances_home}-${enrichment.big_chances_away}`);
 
-    return new Response(JSON.stringify({ found: true, ...enrichment }), {
+    const responsePayload = { found: true, ...enrichment };
+    // ─── Save to cache ───
+    sbAdmin.from('ai_response_cache').upsert({
+      function_name: FN_NAME,
+      cache_key: cacheKey,
+      response_json: responsePayload,
+      expires_at: new Date(Date.now() + CACHE_TTL_SECONDS * 1000).toISOString(),
+      hit_count: 0,
+    }, { onConflict: 'cache_key' }).then(() => {}, (e) => console.warn('[SofaScore] cache save:', e));
+
+    return new Response(JSON.stringify(responsePayload), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
