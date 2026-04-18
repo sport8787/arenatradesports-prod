@@ -30,6 +30,7 @@ function normalize(s: string): string {
 
 async function srFetch(path: string, apiKey: string): Promise<any | null> {
   try {
+    await srThrottle();
     const url = `${SR_BASE}${path}${path.includes('?') ? '&' : '?'}api_key=${apiKey}`;
     const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!r.ok) {
