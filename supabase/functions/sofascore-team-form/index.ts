@@ -90,61 +90,75 @@ interface MatchRow {
   npxg?: number | null;
 }
 
-// Parseia matchlogs/all_comps/shooting — uma linha por jogo, com xG, Sh, SoT
-async function fetchShootingLog(squadId: string, slugName: string, season = 2026): Promise<MatchRow[]> {
-  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${slugName}-Match-Logs-All-Competitions`;
-  const md = await fcScrape(url, 1500);
-  if (!md) return [];
-
-  // Linhas: | [date](url) | time | [Comp](..) | Round | Day | Venue | Result | GF | GA | Opp | Gls | Sh | SoT | SoT% | xG | npxG | ...
-  const lines = md.split('\n').filter(l => l.trim().startsWith('|') && /\d{4}-\d{2}-\d{2}/.test(l));
-  const rows: MatchRow[] = [];
-  for (const line of lines) {
-    const cells = line.split('|').map(c => c.trim());
-    // cells[0] is empty (leading |), data starts at 1
-    // Ex: cells[1]='[2026-04-12](url)', [2]='18:30(17:30)', [3]='[Série A](..)', [4]='[Matchweek 11](..)',
-    //     [5]='Sun', [6]='Home', [7]='D', [8]='0', [9]='0', [10]='[Corinthians](..)', 
-    //     [11]='0', [12]='6', [13]='4', [14]='66.7', [15]='0.00', [16]='0.00', ...
-    if (cells.length < 17) continue;
-    const dateMatch = cells[1].match(/(\d{4}-\d{2}-\d{2})/);
-    if (!dateMatch) continue;
-    const result = cells[7];
-    if (!['W', 'L', 'D'].includes(result)) continue; // só jogos disputados
-
-    const oppMatch = cells[10].match(/\[([^\]]+)\]/);
-    rows.push({
-      date: dateMatch[1],
-      comp: cells[3].replace(/\[([^\]]+)\].*/, '$1'),
-      venue: cells[6] as 'Home' | 'Away',
-      result: result as 'W' | 'L' | 'D',
-      gf: parseNum(cells[8]),
-      ga: parseNum(cells[9]),
-      opponent: oppMatch ? oppMatch[1] : cells[10],
-      shots: parseNum(cells[12]),
-      sot: parseNum(cells[13]),
-      xg: parseNum(cells[15]),
-      npxg: parseNum(cells[16]),
-    });
+// Parseia <tr> do HTML cru extraindo data-stat="x" → valor (robusto, inclui xG quando liga tiver)
+function parseRows(html: string): Array<Record<string, string>> {
+  const rows = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || [];
+  const out: Array<Record<string, string>> = [];
+  for (const r of rows) {
+    if (!/data-stat="date"/.test(r)) continue;
+    const cells: Record<string, string> = {};
+    const cellRe = /data-stat="([^"]+)"[^>]*>([\s\S]*?)<\/(?:td|th)>/g;
+    let m;
+    while ((m = cellRe.exec(r)) !== null) {
+      const clean = m[2].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+      cells[m[1]] = clean;
+    }
+    // Date is often in a link inside <th>; extract from raw if needed
+    if (!cells['date']) {
+      const d = r.match(/data-stat="date"[^>]*>[\s\S]*?(\d{4}-\d{2}-\d{2})/);
+      if (d) cells['date'] = d[1];
+    }
+    if (!cells['opponent']) {
+      const o = r.match(/data-stat="opponent"[^>]*>[\s\S]*?<a[^>]*>([^<]+)</);
+      if (o) cells['opponent'] = o[1].trim();
+    }
+    if (!cells['comp']) {
+      const c = r.match(/data-stat="comp"[^>]*>[\s\S]*?<a[^>]*>([^<]+)</);
+      if (c) cells['comp'] = c[1].trim();
+    }
+    out.push(cells);
   }
-  return rows;
+  return out;
 }
 
-// Posse é só no schedule "all_comps" — opcional, pode ser pulado se for muito lento
+// Shooting log: traz Sh, SoT e xG (xG só em ligas suportadas pelo FBref)
+async function fetchShootingLog(squadId: string, slugName: string, season = 2026): Promise<MatchRow[]> {
+  const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${slugName}-Match-Logs-All-Competitions`;
+  const html = await fcScrape(url, 'rawHtml', 1800);
+  if (!html) return [];
+  const rows = parseRows(html);
+  const out: MatchRow[] = [];
+  for (const r of rows) {
+    const date = r['date'];
+    const result = r['result'];
+    if (!date || !['W', 'L', 'D'].includes(result)) continue;
+    out.push({
+      date,
+      comp: r['comp'],
+      venue: (r['venue'] === 'Home' || r['venue'] === 'Away') ? r['venue'] : undefined,
+      result: result as 'W' | 'L' | 'D',
+      gf: parseNum(r['goals_for']),
+      ga: parseNum(r['goals_against']),
+      opponent: r['opponent'],
+      shots: parseNum(r['shots']),
+      sot: parseNum(r['shots_on_target']),
+      xg: parseNum(r['xg']),
+      npxg: parseNum(r['npxg']),
+    });
+  }
+  return out;
+}
+
+// Schedule log: traz posse (data-stat="possession")
 async function fetchScheduleLog(squadId: string, slugName: string, season = 2026): Promise<Map<string, number | null>> {
   const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/schedule/${slugName}-Scores-and-Fixtures-All-Competitions`;
-  const md = await fcScrape(url, 1500);
+  const html = await fcScrape(url, 'rawHtml', 1800);
   const map = new Map<string, number | null>();
-  if (!md) return map;
-
-  const lines = md.split('\n').filter(l => l.trim().startsWith('|') && /\d{4}-\d{2}-\d{2}/.test(l));
-  for (const line of lines) {
-    const cells = line.split('|').map(c => c.trim());
-    if (cells.length < 12) continue;
-    const dateMatch = cells[1].match(/(\d{4}-\d{2}-\d{2})/);
-    if (!dateMatch) continue;
-    if (!['W', 'L', 'D'].includes(cells[7])) continue;
-    // Possession is at cells[11] in schedule
-    map.set(dateMatch[1], parseNum(cells[11]));
+  if (!html) return map;
+  const rows = parseRows(html);
+  for (const r of rows) {
+    if (!r['date'] || !['W', 'L', 'D'].includes(r['result'])) continue;
+    map.set(r['date'], parseNum(r['possession']));
   }
   return map;
 }
