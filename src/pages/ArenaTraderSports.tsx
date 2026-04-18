@@ -430,9 +430,29 @@ export default function ArenaTraderSports() {
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="proximos">Próximos Jogos</TabsTrigger>
+              <TabsTrigger value="proximos" className="gap-1.5">
+                Próximos Jogos
+                {scheduledGames.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                    {scheduledGames.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="live">Ao Vivo</TabsTrigger>
-              <TabsTrigger value="scheduled">Pré-Live</TabsTrigger>
+              <TabsTrigger value="scheduled" className="gap-1.5">
+                Pré-Live
+                {(() => {
+                  const preliveCount = scheduledGames.filter(g => {
+                    const m = (new Date(g.match_datetime).getTime() - Date.now()) / 60000;
+                    return m > 0 && m <= 10;
+                  }).length;
+                  return preliveCount > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive text-[10px] font-bold animate-pulse">
+                      {preliveCount}
+                    </span>
+                  ) : null;
+                })()}
+              </TabsTrigger>
               <TabsTrigger value="finished">Finalizados</TabsTrigger>
               <TabsTrigger value="simulado" className="gap-1">
                 <FlaskConical className="w-3 h-3" />
