@@ -14,6 +14,7 @@ const corsHeaders = {
 };
 
 const SOFA_BASE = 'https://api.sofascore.com/api/v1';
+const FIRECRAWL_API = 'https://api.firecrawl.dev/v2';
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -22,6 +23,30 @@ const HEADERS = {
   'Referer': 'https://www.sofascore.com/',
   'Origin': 'https://www.sofascore.com',
 };
+
+async function sofaFetch(path: string): Promise<any | null> {
+  const url = `${SOFA_BASE}${path}`;
+  try {
+    const r = await fetch(url, { headers: HEADERS });
+    if (r.ok) return await r.json();
+    if (r.status !== 403 && r.status !== 429) return null;
+  } catch {}
+  const fcKey = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!fcKey) return null;
+  try {
+    const fr = await fetch(`${FIRECRAWL_API}/scrape`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${fcKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false, waitFor: 800 }),
+    });
+    if (!fr.ok) return null;
+    const fd = await fr.json();
+    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || '';
+    const jsonStr = raw.replace(/<[^>]+>/g, '').trim();
+    if (!jsonStr.startsWith('{')) return null;
+    return JSON.parse(jsonStr);
+  } catch { return null; }
+}
 
 // Normalize string for fuzzy matching
 function normalize(s: string): string {
