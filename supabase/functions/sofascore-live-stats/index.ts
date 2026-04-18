@@ -225,7 +225,17 @@ serve(async (req) => {
 
     console.log(`[SofaScore] 📊 ${home} vs ${away}: xG ${enrichment.xg_home}-${enrichment.xg_away}, BigChances ${enrichment.big_chances_home}-${enrichment.big_chances_away}`);
 
-    return new Response(JSON.stringify({ found: true, ...enrichment }), {
+    const responsePayload = { found: true, ...enrichment };
+    // ─── Save to cache ───
+    sbAdmin.from('ai_response_cache').upsert({
+      function_name: FN_NAME,
+      cache_key: cacheKey,
+      response_json: responsePayload,
+      expires_at: new Date(Date.now() + CACHE_TTL_SECONDS * 1000).toISOString(),
+      hit_count: 0,
+    }, { onConflict: 'cache_key' }).then(() => {}, (e) => console.warn('[SofaScore] cache save:', e));
+
+    return new Response(JSON.stringify(responsePayload), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
