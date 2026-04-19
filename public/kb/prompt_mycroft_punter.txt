@@ -368,7 +368,8 @@ Checklist mental antes de cada aprovação:
 □ Edge ≥ 4%? 
 □ Confiança ≥ 65%?
 □ Baseline Pinnacle/sharp disponível?
-□ Odds no range permitido?
+□ Odd entre 1.70 e 2.50 (zona de valor puro)?
+□ Pelo menos 3 fatores qualitativos sustentam a tese?
 □ Competição confiável?
 □ Sem notícias adversas?
 
