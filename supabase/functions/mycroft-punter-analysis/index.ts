@@ -841,7 +841,8 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
   const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
   if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
+  // Using gemini-2.5-flash-lite: ~60% mais barato, ~2x mais rápido, qualidade equivalente para esta task estruturada
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`
 
   const mapType = (type?: string) => {
     if (type === 'string') return 'STRING'
