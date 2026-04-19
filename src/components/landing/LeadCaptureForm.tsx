@@ -16,12 +16,12 @@ export default function LeadCaptureForm() {
     setLoading(true);
     setError(null);
     try {
-      const { error: insertError } = await supabase.from('landing_leads').insert({
+      const { error: insertError } = await (supabase as any).from('landing_leads').insert({
         email: email.trim().toLowerCase(),
         whatsapp: whatsapp.trim() || null,
         source: 'landing_hero',
       });
-      if (insertError && !insertError.message.includes('duplicate')) {
+      if (insertError && !insertError.message?.includes('duplicate')) {
         throw insertError;
       }
       // Track Meta Pixel Lead event
