@@ -31,6 +31,123 @@ const verdictColors: Record<string, string> = {
   no_value: 'bg-destructive/20 text-destructive border-destructive/40',
 };
 
+// Traduz chaves técnicas para rótulos amigáveis em PT-BR
+const FRIENDLY_LABELS: Record<string, string> = {
+  xG_home: 'Gols Esperados (Mandante)',
+  xG_away: 'Gols Esperados (Visitante)',
+  xg_home: 'Gols Esperados (Mandante)',
+  xg_away: 'Gols Esperados (Visitante)',
+  shots_home: 'Chutes (Mandante)',
+  shots_away: 'Chutes (Visitante)',
+  shots_total_home: 'Total de Chutes (Mandante)',
+  shots_total_away: 'Total de Chutes (Visitante)',
+  shots_on_target_home: 'Chutes no Gol (Mandante)',
+  shots_on_target_away: 'Chutes no Gol (Visitante)',
+  attacks_home: 'Ataques (Mandante)',
+  attacks_away: 'Ataques (Visitante)',
+  dangerous_attacks_home: 'Ataques Perigosos (Mandante)',
+  dangerous_attacks_away: 'Ataques Perigosos (Visitante)',
+  possession_home: 'Posse de Bola (Mandante)',
+  possession_away: 'Posse de Bola (Visitante)',
+  corners_home: 'Escanteios (Mandante)',
+  corners_away: 'Escanteios (Visitante)',
+  cards_home: 'Cartões (Mandante)',
+  cards_away: 'Cartões (Visitante)',
+  fouls_home: 'Faltas (Mandante)',
+  fouls_away: 'Faltas (Visitante)',
+};
+
+function friendlyLabel(key: string): string {
+  if (FRIENDLY_LABELS[key]) return FRIENDLY_LABELS[key];
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\bhome\b/gi, 'Mandante')
+    .replace(/\baway\b/gi, 'Visitante')
+    .replace(/\bxg\b/gi, 'Gols Esperados')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isPercentKey(key: string): boolean {
+  return /possession|percent|pct|rate/i.test(key);
+}
+
+function formatValue(key: string, value: any): string {
+  if (value == null) return '-';
+  if (typeof value === 'number') {
+    const suffix = isPercentKey(key) ? '%' : '';
+    return `${Number.isInteger(value) ? value : value.toFixed(2)}${suffix}`;
+  }
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// Renderiza um objeto de estatísticas como pares amigáveis Mandante x Visitante
+function renderStatsObject(obj: Record<string, any>) {
+  // Agrupa pares home/away
+  const pairs: Array<{ label: string; home?: any; away?: any; key: string }> = [];
+  const used = new Set<string>();
+  const keys = Object.keys(obj);
+
+  for (const k of keys) {
+    if (used.has(k)) continue;
+    const lower = k.toLowerCase();
+    let baseKey: string | null = null;
+    let isHome = false;
+    if (lower.endsWith('_home')) { baseKey = k.slice(0, -5); isHome = true; }
+    else if (lower.endsWith('_away')) { baseKey = k.slice(0, -5); isHome = false; }
+
+    if (baseKey) {
+      const counterpart = isHome ? `${baseKey}_away` : `${baseKey}_home`;
+      const matched = keys.find(kk => kk.toLowerCase() === counterpart.toLowerCase());
+      if (matched) {
+        used.add(k);
+        used.add(matched);
+        pairs.push({
+          key: baseKey,
+          label: friendlyLabel(baseKey),
+          home: isHome ? obj[k] : obj[matched],
+          away: isHome ? obj[matched] : obj[k],
+        });
+        continue;
+      }
+    }
+    used.add(k);
+    pairs.push({ key: k, label: friendlyLabel(k), home: obj[k], away: undefined });
+  }
+
+  return (
+    <div className="space-y-2">
+      {pairs.map((p, idx) => (
+        <div key={p.key + idx} className="bg-muted/20 rounded-lg p-3 border border-border/40">
+          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-1.5">
+            {p.label.replace(/\s*\((Mandante|Visitante)\)/, '')}
+          </p>
+          {p.away !== undefined ? (
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex-1 text-left">
+                <span className="text-[9px] text-muted-foreground block">Mandante</span>
+                <span className="text-foreground font-bold tabular-nums">{formatValue(p.key + '_home', p.home)}</span>
+              </div>
+              <div className="text-muted-foreground">×</div>
+              <div className="flex-1 text-right">
+                <span className="text-[9px] text-muted-foreground block">Visitante</span>
+                <span className="text-foreground font-bold tabular-nums">{formatValue(p.key + '_away', p.away)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-foreground break-words">
+              {typeof p.home === 'object' && p.home !== null
+                ? renderStatsObject(p.home)
+                : formatValue(p.key, p.home)}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatRow({ label, home, away, suffix = '' }: { label: string; home?: number | null; away?: number | null; suffix?: string }) {
   const h = home ?? 0;
   const a = away ?? 0;
