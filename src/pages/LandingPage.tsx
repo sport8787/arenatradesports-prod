@@ -10,6 +10,12 @@ import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
+import VSLSection from '@/components/landing/VSLSection';
+import LeadCaptureForm from '@/components/landing/LeadCaptureForm';
+import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
+import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
+import ObjectionsSection from '@/components/landing/ObjectionsSection';
+import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function LandingPage() {
@@ -113,7 +119,7 @@ export default function LandingPage() {
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
+            <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative space-y-6">
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-3xl opacity-30" />
                 <div className="relative bg-[#0f1729] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl">
@@ -135,16 +141,8 @@ export default function LandingPage() {
                     className="w-full aspect-video bg-black"
                   />
                 </div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.5 }} className="absolute -bottom-6 -left-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <Bot className="w-8 h-8 text-white" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">Hórus IA</p>
-                      <p className="text-xs text-blue-100">Seu gestor de portfólio</p>
-                    </div>
-                  </div>
-                </motion.div>
               </div>
+              <LeadCaptureForm />
             </motion.div>
           </div>
         </div>
@@ -155,6 +153,9 @@ export default function LandingPage() {
           </div>
         </motion.div>
       </section>
+
+      {/* VSL — Vídeo de apresentação (espaço reservado para gravação) */}
+      <VSLSection onCTA={goToAuth} />
 
       {/* Contadores ao vivo */}
       <LiveStatsCounter />
@@ -308,6 +309,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Antes vs Depois */}
+      <BeforeAfterSection />
+
+      {/* Objeções */}
+      <ObjectionsSection />
+
       {/* FAQ */}
       <section className="py-20 bg-[#0f1729]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -438,6 +445,12 @@ export default function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* Notificação de prova social ao vivo */}
+      <LiveSocialProofTicker />
+
+      {/* CTA fixo no rodapé (mobile) */}
+      <StickyMobileCTA onCTA={goToAuth} />
     </>
   );
 }
