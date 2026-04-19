@@ -265,6 +265,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.08, duration: 0.4 }}
         whileHover={{ scale: 1.02 }}
+        onClick={() => onAnalysisClick?.(match.id)}
         className={cn(
           'relative rounded-xl overflow-hidden border-2 transition-all duration-300 cursor-pointer',
           'bg-gradient-to-b from-[hsl(0,0%,10%)] to-[hsl(0,0%,6%)]',
