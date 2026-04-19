@@ -552,22 +552,22 @@ serve(async (req) => {
           analysis.alerts = [...(analysis.alerts || []), `Plano ${planCode}: dados históricos insuficientes — ${structuralMissing.join(', ')}`];
         } else if (dataGapMissing.length > 0) {
           // Caso 1: Falta de dados históricos (API não forneceu) → Penalizar confiança, não vetar automaticamente
+          // Penalidade calibrada: 8pp por critério ausente, máximo 24pp. Evita derrubar sinais sólidos por gaps menores da API.
           const originalConfidence = analysis.confidence;
-          const penalty = 15 * dataGapMissing.length;
+          const penalty = Math.min(24, 8 * dataGapMissing.length);
           analysis.confidence = Math.max(0, analysis.confidence - penalty);
 
           console.log(`[MycroftSports] ⚠️ ${analysis.plan_name}: ${dataGapMissing.length} critério(s) com dados não fornecidos. Confiança ${originalConfidence}% → ${analysis.confidence}% (-${penalty}pp)`);
 
-          if (analysis.confidence >= 65) {
-            // Aprovado com penalidade — dados ausentes não invalidam se a confiança se mantém
+          // Limiar pós-penalidade: 60% (antes 65%). Plano com fundamento mantém validade mesmo com leve incerteza histórica.
+          if (analysis.confidence >= 60) {
             analysis.alerts = [...(analysis.alerts || []),
               `Plano ${planCode}: ${dataGapMissing.length} critério(s) sem dados da API — confiança reduzida de ${originalConfidence}% para ${analysis.confidence}%`,
               ...dataGapMissing.map(c => `⚠️ Critério sem dado: ${c}`),
             ];
-            console.log(`[MycroftSports] ✅ ${analysis.plan_name} APROVADO com penalidade (conf ${analysis.confidence}% ≥ 65%)`);
+            console.log(`[MycroftSports] ✅ ${analysis.plan_name} APROVADO com penalidade (conf ${analysis.confidence}% ≥ 60%)`);
           } else {
-            // Confiança caiu abaixo de 65% → VETO
-            console.warn(`[MycroftSports] VETO: ${analysis.plan_name} — confiança pós-penalidade ${analysis.confidence}% < 65%`);
+            console.warn(`[MycroftSports] VETO: ${analysis.plan_name} — confiança pós-penalidade ${analysis.confidence}% < 60%`);
             await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
               jogo: `${match.home} vs ${match.away}`,
               liga: match.championship,
@@ -576,16 +576,37 @@ serve(async (req) => {
               confianca_recebida: originalConfidence,
               edge_recebido: analysis.confidence,
               verdict_gemini: 'APROVADO_PENALIZADO',
-              motivo_veto: `Confiança pós-penalidade ${analysis.confidence}% < 65% (original: ${originalConfidence}%, -${penalty}pp por dados ausentes)`,
+              motivo_veto: `Confiança pós-penalidade ${analysis.confidence}% < 60% (original: ${originalConfidence}%, -${penalty}pp por dados ausentes)`,
               raw_response: analysis,
             });
             analysis.verdict = 'JOGO_MORTO';
             analysis.alerts = [...(analysis.alerts || []),
-              `Plano ${planCode}: confiança ${originalConfidence}% → ${analysis.confidence}% após penalidade por dados ausentes (limiar 65%)`,
+              `Plano ${planCode}: confiança ${originalConfidence}% → ${analysis.confidence}% após penalidade por dados ausentes (limiar 60%)`,
             ];
           }
         }
       }
+    }
+
+    // === PROMOÇÃO CUIDADO → APROVADO_SITUACIONAL ===
+    // CUIDADO com fundamento sólido (confiança ≥ 65% e mercado definido) vira sinal ativo
+    // com stake conservador (2%). Evita acumular jogos com tese clara sem nunca emitir sinal.
+    if (
+      analysis.verdict === 'CUIDADO' &&
+      typeof analysis.confidence === 'number' &&
+      analysis.confidence >= 65 &&
+      typeof analysis.market === 'string' &&
+      analysis.market.length > 0 &&
+      analysis.market !== 'N/A'
+    ) {
+      console.log(`[MycroftSports] 🔼 Promovendo CUIDADO → APROVADO_SITUACIONAL: ${match.home} vs ${match.away} (${analysis.market} @ ${analysis.odd}, conf ${analysis.confidence}%)`);
+      analysis.verdict = 'APROVADO_SITUACIONAL';
+      if (analysis.risk_management) {
+        analysis.risk_management.stake_percent = Math.min(2, analysis.risk_management.stake_percent ?? 2);
+      }
+      analysis.alerts = [...(analysis.alerts || []),
+        `🔼 Promovido de CUIDADO para APROVADO_SITUACIONAL — stake reduzido a 2% por fatores de risco residuais.`,
+      ];
     }
 
     // === PLANO UNDER 2.5 EARLY (override server-side) ===
