@@ -467,6 +467,34 @@ serve(async (req) => {
       };
     }
 
+    // === GUARD TEMPORAL UNDER 2.5 ===
+    // Veta qualquer aprovação de Under 2.5 antes do minuto 10 — jogos só "esquentam" depois disso.
+    // Antes do min 10, ausência de ações ofensivas é o estado padrão (não viés confirmatório).
+    if (
+      analysis.verdict === 'APROVADO' &&
+      typeof analysis.market === 'string' &&
+      /under\s*2\.?5/i.test(analysis.market) &&
+      (match.minute ?? 0) < 10
+    ) {
+      const motivoVeto = `Under 2.5 aprovado prematuramente (min ${match.minute ?? 0} < 10). Jogo precisa de janela de confirmação até o min 10 antes de validar baixa atividade.`;
+      console.warn(`[MycroftSports] 🛑 VETO TEMPORAL: ${motivoVeto}`);
+      try {
+        await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
+          jogo: `${match.home} vs ${match.away}`,
+          liga: match.championship,
+          mercado: analysis.market,
+          odd: analysis.odd,
+          confianca_recebida: analysis.confidence,
+          verdict_gemini: 'APROVADO_PREMATURO',
+          motivo_veto: motivoVeto,
+          raw_response: analysis,
+        });
+      } catch (e) { console.warn('[MycroftSports] Falha log veto temporal:', e); }
+      analysis.verdict = 'AGUARDAR';
+      analysis.plan_name = null;
+      analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado a partir do minuto 10 — aguardar janela de confirmação.`];
+    }
+
     // === VALIDADOR PÓS-IA ===
     // Se aprovou com plano, verificar consistência com a tabela
     if (analysis.verdict === 'APROVADO' && analysis.plan_name) {
