@@ -122,7 +122,16 @@ function parseRows(html: string): Array<Record<string, string>> {
 }
 
 // Shooting log: traz Sh, SoT e xG (xG só em ligas suportadas pelo FBref)
-async function fetchShootingLog(squadId: string, slugName: string, season = 2026): Promise<MatchRow[]> {
+// FBref usa formato "YYYY-YYYY" para temporadas europeias (ex: "2025-2026")
+function currentSeasonSlug(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  // Temporadas europeias começam em ago. Antes de julho ainda é a temp anterior.
+  const start = now.getMonth() >= 6 ? y : y - 1;
+  return `${start}-${start + 1}`;
+}
+
+async function fetchShootingLog(squadId: string, slugName: string, season = currentSeasonSlug()): Promise<MatchRow[]> {
   const safeSlug = (slugName || 'Squad').replace(/[^A-Za-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'Squad';
   const url = `https://fbref.com/en/squads/${squadId}/${season}/matchlogs/all_comps/shooting/${safeSlug}-Match-Logs-All-Competitions`;
   const html = await fcScrape(url, 'rawHtml', 1800);
