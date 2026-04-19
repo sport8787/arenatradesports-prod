@@ -974,7 +974,9 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
   try {
     r = await fetch(geminiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: useLovable
+        ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_KEY}` }
+        : { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
