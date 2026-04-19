@@ -367,12 +367,14 @@ export default function PunterPage() {
   const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
     const nowIso = new Date().toISOString();
     const nowTs = Date.now();
+    // Janela: jogos futuros + jogos que começaram há menos de 3h (ainda em andamento, não liquidados)
+    const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
     const { data: savedAnalyses } = await supabase
       .from('punter_analyses')
       .select('*')
       .eq('verdict', 'APROVADO')
-      .gt('commence_time', nowIso)
+      .gt('commence_time', inPlayCutoffIso)
       .order('created_at', { ascending: false })
       .limit(100);
 
