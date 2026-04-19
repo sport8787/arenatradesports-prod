@@ -920,14 +920,12 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  // Migrado para Lovable AI Gateway (sem rate limit free tier do Google direto)
-  const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY')
   const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
-  const useLovable = !!LOVABLE_KEY
-  const geminiUrl = useLovable
-    ? `https://ai.gateway.lovable.dev/v1beta/models/gemini-2.5-flash:generateContent`
-    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`
-  if (!useLovable && !GEMINI_KEY) throw new Error('No AI key configured')
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
+  // gemini-2.5-flash tem quota free muito maior que flash-lite (que está esgotada)
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
+  const useLovable = false
+  const LOVABLE_KEY = ''
 
   const mapType = (type?: string) => {
     if (type === 'string') return 'STRING'
