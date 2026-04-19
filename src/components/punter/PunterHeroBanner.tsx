@@ -234,7 +234,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
           </button>
 
           <a
-            href="https://t.me/+SEU_LINK_AQUI"
+            href="https://t.me/oraculo_mycroft"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full border border-[#229ED9]/40 bg-[#229ED9]/10 hover:bg-[#229ED9]/20 transition-colors p-3 group text-left flex items-center gap-3"
