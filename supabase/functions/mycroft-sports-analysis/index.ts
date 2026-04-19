@@ -319,7 +319,7 @@ serve(async (req) => {
     // Chave determinística: match_id + minuto + placar + stats principais
     // TTL padrão da tabela. Em jogos parados (mesmas stats), retorna análise cacheada.
     const s0: any = match.stats || {};
-    const cacheKey = [
+    const cacheKey = 'mycroft-sports:' + [
       match.match_id || `${match.home}-${match.away}`,
       `m${match.minute ?? 0}`,
       `s${match.scoreHome ?? 0}-${match.scoreAway ?? 0}`,
@@ -1103,7 +1103,7 @@ serve(async (req) => {
           response_json: analysis,
           expires_at: expiresAt,
           hit_count: 0,
-        }, { onConflict: 'function_name,cache_key' });
+        }, { onConflict: 'cache_key' });
       console.log(`[MycroftSports] 💾 Cache SAVED (TTL 90s)`);
     } catch (e) {
       console.warn('[MycroftSports] Cache write failed:', (e as Error).message);
