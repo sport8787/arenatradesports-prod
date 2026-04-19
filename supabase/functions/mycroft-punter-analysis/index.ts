@@ -6,13 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-const MAX_GAMES = 30, BATCH = 5, API_FB = 'https://v3.football.api-sports.io'
+const MAX_GAMES = 15, BATCH = 3, BATCH_COOLDOWN_MS = 12_000, API_FB = 'https://v3.football.api-sports.io'
 const MAX_EXEC_MS = 110_000 // 110s guard — must return BEFORE gateway kills the connection (~120s)
 let execStart = 0
+let geminiRateLimitUntil = 0
 const isTimedOut = () => Date.now() - execStart > MAX_EXEC_MS
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const teamCache = new Map<string, number>()
 const hdr = (k: string) => ({ 'x-apisports-key': k })
 const yr = () => { const d = new Date(); return (d.getMonth()+1) < 8 ? d.getFullYear()-1 : d.getFullYear() }
+
+async function respectGeminiRateLimitWindow() {
+  while (Date.now() < geminiRateLimitUntil && !isTimedOut()) {
+    const remaining = geminiRateLimitUntil - Date.now()
+    console.warn(`[Mycroft Punter] ⏳ Aguardando janela do Gemini liberar (${Math.ceil(remaining / 1000)}s)`) 
+    await wait(Math.min(remaining, 5_000))
+  }
+}
 
 // ═══ PROMPT ÚNICO — fonte única de verdade ═══
 const MYCROFT_PUNTER_PROMPT = `Você é Mycroft Arena Punter, analista probabilístico de elite especializado em value betting.
