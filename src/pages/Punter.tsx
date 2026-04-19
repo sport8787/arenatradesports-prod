@@ -24,6 +24,7 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
+import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import OnboardingTour from '@/components/punter/OnboardingTour';
@@ -1183,6 +1184,45 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
+        {(() => {
+          const sortedByConfidence = [...signals].sort(
+            (a, b) => (b.recommendation?.confidence ?? 0) - (a.recommendation?.confidence ?? 0)
+          );
+          const topSignal = sortedByConfidence[0];
+          const featured = topSignal
+            ? {
+                match_label: `${topSignal.match.home_team} vs ${topSignal.match.away_team}`,
+                league: topSignal.match.league || '—',
+                market: topSignal.recommendation.market,
+                odd: Number(topSignal.recommendation.odd) || 0,
+                confidence: Math.round(topSignal.recommendation.confidence || 0),
+              }
+            : null;
+          const nowTs = Date.now();
+          const upcoming = [...signals]
+            .filter((s) => s.match.commence_time && Date.parse(s.match.commence_time) > nowTs)
+            .sort((a, b) => Date.parse(a.match.commence_time) - Date.parse(b.match.commence_time))[0];
+          const next = upcoming
+            ? {
+                label: `${upcoming.match.home_team} vs ${upcoming.match.away_team}`,
+                league: upcoming.match.league || '',
+                kickoff: upcoming.match.commence_time,
+              }
+            : null;
+          return (
+            <PunterHeroBanner
+              userId={user?.id}
+              featuredSignal={featured}
+              nextMatch={next}
+              onCtaClick={() => {
+                const el = document.getElementById('signals-section');
+                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          );
+        })()}
+
         {/* Dual Bankroll Widget */}
         {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
           <DualBankrollDashboard
