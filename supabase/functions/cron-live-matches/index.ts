@@ -17,14 +17,18 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if the cron is enabled
-    const { data: setting } = await supabaseAdmin
+    // Check granular cron settings
+    const { data: settings } = await supabaseAdmin
       .from('cron_settings')
-      .select('is_enabled')
-      .eq('setting_key', 'live_matches_cron')
-      .maybeSingle();
+      .select('setting_key, is_enabled')
+      .in('setting_key', ['live_matches_cron', 'analyze_live_matches_cron', 'evaluate_cashout_cron']);
 
-    if (!setting?.is_enabled) {
+    const settingsMap = new Map((settings || []).map((s: any) => [s.setting_key, s.is_enabled]));
+    const masterEnabled = settingsMap.get('live_matches_cron') ?? false;
+    const analyzeEnabled = settingsMap.get('analyze_live_matches_cron') ?? true;
+    const cashoutEnabled = settingsMap.get('evaluate_cashout_cron') ?? false;
+
+    if (!masterEnabled) {
       console.log('[CronLive] ⏸️ Cron desativado, pulando execução');
       return new Response(JSON.stringify({ skipped: true, reason: 'cron_disabled' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -69,14 +73,29 @@ serve(async (req) => {
       round2_scores: round2.scores.status === 'fulfilled' ? round2.scores.value : { error: (round2.scores as any).reason?.message },
     };
 
-    // Análise a cada minuto, após as duas rodadas de atualização
-    const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ bankroll: 500 }),
-    }).then(r => r.json()).catch(e => ({ error: e.message }));
+    // Análise a cada minuto, após as duas rodadas de atualização (controlada por toggle)
+    if (analyzeEnabled) {
+      const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ bankroll: 500 }),
+      }).then(r => r.json()).catch(e => ({ error: e.message }));
+      result.analysis = analyzeRes;
+      console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
+    } else {
+      console.log('[CronLive] ⏸️ Análise IA desativada via cron_settings');
+      result.analysis = { skipped: true, reason: 'analyze_disabled' };
+    }
 
-    result.analysis = analyzeRes;
-    console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
+    // Cashout (controlado por toggle, desativado por padrão)
+    if (cashoutEnabled) {
+      const cashoutRes = await fetch(`${baseUrl}/functions/v1/evaluate-cashout`, {
+        method: 'POST', headers,
+      }).then(r => r.json()).catch(e => ({ error: e.message }));
+      result.cashout = cashoutRes;
+      console.log(`[CronLive] 💰 Cashout avaliado`);
+    } else {
+      result.cashout = { skipped: true, reason: 'cashout_disabled' };
+    }
 
     console.log('[CronLive] ✅ Resultados:', JSON.stringify({
       minute: currentMinute,
