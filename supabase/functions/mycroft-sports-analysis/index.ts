@@ -604,6 +604,9 @@ serve(async (req) => {
       const u_isEarly = u_min >= 10 && u_min <= 30;
       const u_isScoreless = u_totalGoals === 0;
       const u_isDeadGame = u_dangerousTotal <= 4 && u_sotTotal <= 1 && u_xgTotal <= 0.3;
+      // Evidência mínima: garante que stats não estão simplesmente zeradas por falha da API.
+      // Em jogos reais com 10+ minutos, espera-se pelo menos algum movimento (≥3 ataques perigosos somados).
+      const u_hasMinimumEvidence = u_dangerousTotal >= 3 || u_sotTotal >= 1 || u_xgTotal >= 0.1;
 
       // Verifica se já existe sinal Under 2.5 ativo (APROVADO) anterior para este jogo
       let u_priorActiveSignal: any = null;
