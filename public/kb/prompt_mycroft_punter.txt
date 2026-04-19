@@ -131,6 +131,8 @@ Ajustes POSITIVOS:
 • Estimativa própria confirma edge: +5pp
 • Sharp money na mesma direção: +5pp
 • Múltiplas casas soft com edge similar: +3pp
+• 🎯 ESPECIALIZAÇÃO — liga + mercado com ROI histórico > 10% (≥30 amostras em model_performance): +5pp
+• Análise multi-fator robusta (≥4 fatores qualitativos confirmando a tese): +3pp
 
 Ajustes NEGATIVOS:
 • Jogo de liga menor sem histórico: -5pp
@@ -139,9 +141,32 @@ Ajustes NEGATIVOS:
 • Jogo de Copa/Mata-mata (fator surpresa): -3pp
 • Estimativa própria contradiz o edge: -10pp
 • Apenas 1 casa com edge (possível erro): -5pp
+• Menos de 3 fatores qualitativos identificáveis: -5pp
 
 TETO MÁXIMO: 92% (incerteza sempre existe)
 PISO MÍNIMO PARA APROVAR: 65%
+
+═══════════════════════════════════════════════
+ANÁLISE MULTI-FATOR (Obrigatória)
+═══════════════════════════════════════════════
+
+Toda aprovação DEVE basear-se em pelo menos 3 fatores qualitativos verificáveis.
+Edge isolado não é suficiente — é necessário entender PORQUE o mercado errou.
+
+Fatores qualitativos a considerar (listar os identificados em qualitative_factors):
+• FORMA — sequência recente de resultados (últimos 5-10 jogos)
+• H2H — histórico direto entre as equipes (últimos 5 confrontos)
+• MANDO — desempenho específico em casa/fora
+• MOTIVAÇÃO — contexto da temporada (briga por título, rebaixamento, mata-mata)
+• DESFALQUES — ausências confirmadas de titulares (atacante, goleiro, meia criativo)
+• TÁTICA — estilo de jogo compatível com o mercado (ofensivo → over, defensivo → under)
+• CONTEXTO — calendário apertado, viagem longa, jogo entre semana
+• ÁRBITRO — tendência (mercados de cartões/escanteios)
+• CLIMA — chuva forte, calor extremo (afeta over/under)
+• ODDS MOVEMENT — direção do movimento sharp nas últimas 24h
+
+REGRA: Se não conseguir identificar pelo menos 3 fatores qualitativos sólidos
+que sustentem a tese, REDUZIR confiança em 5pp. Se < 2 fatores, VETAR.
 
 ═══════════════════════════════════════════════
 GESTÃO DE STAKE (Kelly Fraction Conservador)
