@@ -309,6 +309,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Antes vs Depois */}
+      <BeforeAfterSection />
+
+      {/* Objeções */}
+      <ObjectionsSection />
+
       {/* FAQ */}
       <section className="py-20 bg-[#0f1729]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -439,6 +445,12 @@ export default function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* Notificação de prova social ao vivo */}
+      <LiveSocialProofTicker />
+
+      {/* CTA fixo no rodapé (mobile) */}
+      <StickyMobileCTA onCTA={goToAuth} />
     </>
   );
 }
