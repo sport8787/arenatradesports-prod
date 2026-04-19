@@ -1079,9 +1079,10 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   // Instead, rely on Poisson model estimates for corners/cards markets
   const cornOdds:any[]=[], cardOdds:any[]=[]
 
-  const [en, sofaForm] = await Promise.all([
+  const [en, sofaForm, fbrefForm] = await Promise.all([
     fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards),
     fetchSofaForm(game.home_team, game.away_team),
+    fetchFBrefForm(game.home_team, game.away_team),
   ])
   const det=computeDetectors(odds,totals,null,null)
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
