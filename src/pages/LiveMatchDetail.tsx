@@ -421,12 +421,14 @@ export default function LiveMatchDetail() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {Object.entries(analysis.fundamentation).map(([k, v]) => (
                         <div key={k} className="bg-muted/20 rounded-lg p-3 border border-border/40">
-                          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-1">
-                            {k.replace(/_/g, ' ')}
+                          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-2">
+                            {friendlyLabel(k)}
                           </p>
-                          <p className="text-sm text-foreground break-words">
-                            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                          </p>
+                          {typeof v === 'object' && v !== null ? (
+                            renderStatsObject(v as Record<string, any>)
+                          ) : (
+                            <p className="text-sm text-foreground break-words">{formatValue(k, v)}</p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -442,12 +444,14 @@ export default function LiveMatchDetail() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {Object.entries(analysis.risk_management).map(([k, v]) => (
                         <div key={k} className="bg-muted/20 rounded-lg p-3 border border-border/40">
-                          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-1">
-                            {k.replace(/_/g, ' ')}
+                          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-2">
+                            {friendlyLabel(k)}
                           </p>
-                          <p className="text-sm text-foreground break-words">
-                            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                          </p>
+                          {typeof v === 'object' && v !== null ? (
+                            renderStatsObject(v as Record<string, any>)
+                          ) : (
+                            <p className="text-sm text-foreground break-words">{formatValue(k, v)}</p>
+                          )}
                         </div>
                       ))}
                     </div>
