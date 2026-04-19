@@ -282,15 +282,14 @@ async function getJurorVote(
     
     console.log(`[ClaudeJury] Calling ${jurorProfile} juror...`);
     
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: ANTHROPIC_CONFIG.model,
+        model: 'google/gemini-2.5-flash',
         max_tokens: ANTHROPIC_CONFIG.maxTokens,
         temperature: ANTHROPIC_CONFIG.temperature,
         messages: [{
@@ -302,17 +301,16 @@ async function getJurorVote(
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[ClaudeJury] API error ${response.status}:`, errorText);
-      throw new Error(`Claude API error: ${response.status}`);
+      console.error(`[ClaudeJury] Lovable AI error ${response.status}:`, errorText);
+      if (response.status === 429) throw new Error('Rate limit excedido');
+      if (response.status === 402) throw new Error('Créditos insuficientes');
+      throw new Error(`Lovable AI error: ${response.status}`);
     }
     
     const data = await response.json();
     const processingTime = Date.now() - startTime;
     
-    const responseText = data.content
-      ?.filter((block: any) => block.type === 'text')
-      ?.map((block: any) => block.text)
-      ?.join('\n') || '';
+    const responseText = data.choices?.[0]?.message?.content || '';
     
     console.log(`[ClaudeJury] ${jurorProfile} responded in ${processingTime}ms`);
     
@@ -339,10 +337,10 @@ serve(async (req) => {
   }
   
   try {
-    const apiKey = Deno.env.get('VITE_ANTHROPIC_API_KEY');
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     
     if (!apiKey) {
-      console.error('[ClaudeJury] ANTHROPIC_API_KEY not configured');
+      console.error('[ClaudeJury] LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -353,8 +351,7 @@ serve(async (req) => {
     const { type, request } = body;
     
     if (type === 'validate') {
-      // Simple validation - just check if key starts with sk-ant-
-      const isValid = apiKey.startsWith('sk-ant-') && apiKey.length > 20;
+      const isValid = apiKey.length > 20;
       return new Response(
         JSON.stringify({ valid: isValid }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
