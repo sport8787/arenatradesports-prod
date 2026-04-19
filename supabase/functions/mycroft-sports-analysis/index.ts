@@ -20,6 +20,7 @@ interface MatchData {
   };
   bankroll?: number;
   under_odd?: number;
+  over_odd?: number;
   odds?: { home?: number; draw?: number; away?: number };
 }
 
