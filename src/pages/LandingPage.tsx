@@ -33,28 +33,28 @@ export default function LandingPage() {
     <>
     <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
-      <header className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+      <header className="fixed top-0 w-full bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img src={logoOraculo} alt="Oráculo Mycroft" className="h-10 w-auto" />
               <div>
-                <h1 className="text-xl font-bold text-[#0a1628]">ORÁCULO MYCROFT</h1>
-                <p className="text-[10px] text-gray-500 -mt-1">PUNTER</p>
+                <h1 className="text-xl font-bold text-white">ORÁCULO MYCROFT</h1>
+                <p className="text-[10px] text-yellow-500 -mt-1 tracking-widest">PUNTER</p>
               </div>
             </div>
             
             <nav className="hidden md:flex items-center gap-8">
-              <a href="#funcionalidades" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Funcionalidades</a>
-              <a href="#diferenciais" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Diferenciais</a>
-              <a href="#resultados" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Resultados</a>
-              <a href="#planos" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Planos</a>
+              <a href="#funcionalidades" className="text-sm text-gray-300 hover:text-white transition">Funcionalidades</a>
+              <a href="#diferenciais" className="text-sm text-gray-300 hover:text-white transition">Diferenciais</a>
+              <a href="#resultados" className="text-sm text-gray-300 hover:text-white transition">Resultados</a>
+              <a href="#planos" className="text-sm text-gray-300 hover:text-white transition">Planos</a>
             </nav>
             
             <div className="flex items-center gap-3">
-              <button onClick={goToAuth} className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Login</button>
+              <button onClick={goToAuth} className="text-sm text-gray-300 hover:text-white transition">Login</button>
               <button onClick={goToAuth} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
-                COMEÇAR AGORA
+                TESTAR 7 DIAS GRÁTIS
               </button>
             </div>
           </div>
@@ -76,38 +76,40 @@ export default function LandingPage() {
             <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full text-sm text-blue-400 mb-6">
                 <Zap className="w-4 h-4" />
-                <span>Aprovado por 1.200+ apostadores profissionais</span>
+                <span>1.200+ apostadores profissionais usando agora</span>
               </div>
 
-              <h2 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-                INVISTA EM ESPORTES
+              <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
+                IA QUE ENCONTRA APOSTAS COM
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
-                  COMO WALL STREET
+                  +15% DE EDGE MATEMÁTICO
                 </span>
-                INVESTE EM AÇÕES
+                ANTES DAS CASAS AJUSTAREM
               </h2>
 
               <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-                Plataforma de investimento esportivo com IA que transforma apostas em decisões quantitativas. 
-                <span className="text-blue-400 font-semibold"> ROI médio +45%</span> com 
-                <span className="text-green-400 font-semibold"> 1.658 apostas auditadas</span>.
+                Mycroft analisa 1.000+ jogos por dia, calcula o valor real de cada odd e te avisa em segundos.
+                <span className="text-green-400 font-semibold"> ROI auditado +73%</span> em
+                <span className="text-blue-400 font-semibold"> 1.658 posições</span>.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <button onClick={goToAuth} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
-                  COMEÇAR AGORA
+                  TESTAR GRÁTIS POR 7 DIAS
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </button>
-                <button onClick={() => setShowDemo(true)} className="px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-lg hover:bg-white/10 transition backdrop-blur-sm flex items-center justify-center gap-2">
-                  <Play className="w-5 h-5" />
-                  Ver Demo
-                </button>
+                <a href="https://t.me/oraculo_mycroft" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-[#229ED9]/10 border border-[#229ED9]/40 text-[#229ED9] font-semibold rounded-lg hover:bg-[#229ED9]/20 transition backdrop-blur-sm flex items-center justify-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Grupo VIP Telegram
+                </a>
               </div>
 
-              <div className="flex items-center gap-8">
-                <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Médio</p></div>
+              <p className="text-sm text-gray-400 mb-8">✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques • ⚡ Acesso imediato</p>
+
+              <div className="flex items-center gap-8 flex-wrap">
+                <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
                 <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
-                <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições Auditadas</p></div>
+                <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições</p></div>
               </div>
             </motion.div>
 
@@ -121,40 +123,17 @@ export default function LandingPage() {
                       <div className="w-3 h-3 rounded-full bg-yellow-500" />
                       <div className="w-3 h-3 rounded-full bg-green-500" />
                     </div>
-                    <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">oraculo.mycroft.com</div>
+                    <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <div className="p-6">
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/30 rounded-lg p-4">
-                        <p className="text-xs text-gray-400 mb-1">Patrimônio Hórus</p>
-                        <p className="text-2xl font-bold text-white">R$ 19.146,28</p>
-                        <p className="text-xs text-green-400">+91.46% retorno</p>
-                      </div>
-                      <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/30 rounded-lg p-4">
-                        <p className="text-xs text-gray-400 mb-1">Win Rate</p>
-                        <p className="text-2xl font-bold text-white">59.5%</p>
-                        <p className="text-xs text-blue-400">66G / 43R</p>
-                      </div>
-                    </div>
-                    <div className="bg-[#1a1f36] rounded-lg p-4 mb-4">
-                      <div className="flex items-end gap-1 h-32">
-                        {[40,65,30,80,55,70,45,90,35,60,75,50,85,40,70,55,80,45,65,90].map((h, i) => (
-                          <div key={i} className="flex-1 bg-gradient-to-t from-blue-600 to-purple-600 rounded-t" style={{ height: `${h}%` }} />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="bg-[#1a1f36] border border-yellow-500/30 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-white">Liverpool vs Brighton</span>
-                        <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded">PREMIUM ASSET</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div><p className="text-gray-400">Score</p><p className="text-white font-bold">87</p></div>
-                        <div><p className="text-gray-400">Edge</p><p className="text-green-400 font-bold">+11%</p></div>
-                        <div><p className="text-gray-400">Odd</p><p className="text-white font-bold">2.08</p></div>
-                      </div>
-                    </div>
-                  </div>
+                  <video
+                    src={DEMO_VIDEO_URL}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    controls
+                    className="w-full aspect-video bg-black"
+                  />
                 </div>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.5 }} className="absolute -bottom-6 -left-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-4 shadow-xl">
                   <div className="flex items-center gap-3">
