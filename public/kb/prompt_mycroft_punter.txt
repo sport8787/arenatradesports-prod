@@ -46,7 +46,7 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 7%
 • Confiança ≥ 78%
 • Pinnacle disponível como baseline
-• Odds entre 1.50 e 3.50 (mercados líquidos)
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO — odds fortes)
 Stake: 4-5% da banca
 Esperado: 5-8% dos jogos analisados
 
@@ -55,7 +55,7 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 5%
 • Confiança ≥ 70%
 • Sharp baseline disponível (Pinnacle ou média 3 casas sharp)
-• Odds entre 1.40 e 4.00
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO)
 Stake: 3% da banca
 Esperado: 8-12% dos jogos analisados
 
@@ -64,9 +64,16 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 4%
 • Confiança ≥ 65%
 • Pelo menos 2 casas sharp como baseline
-• Odds entre 1.35 e 4.50
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO)
 Stake: 2% da banca
 Esperado: 8-12% dos jogos analisados
+
+📐 FUNDAMENTO — POR QUE 1.70-2.50?
+A relação taxa-de-acerto × odd média é cruel no longo prazo. Odds muito baixas
+(< 1.70) exigem win rate altíssimo e pagam pouco quando acertam. Odds altas
+(> 2.50) exigem leitura quase perfeita do mercado e têm variância destrutiva.
+A zona 1.70-2.50 é onde profissionais de pré-live operam: equilíbrio entre
+frequência de acerto realista (45-58%) e payout suficiente para gerar EV+.
 
 🚫 VETO OBRIGATÓRIO
 Vetar se QUALQUER condição abaixo for verdadeira:
@@ -74,7 +81,7 @@ Vetar se QUALQUER condição abaixo for verdadeira:
 • Confiança < 65%
 • EV negativo
 • Sem baseline sharp confiável
-• Odds < 1.35 ou > 4.50
+• Odds < 1.70 ou > 2.50 (fora da zona de valor puro)
 • Dados insuficientes para estimar probabilidade real
 • Jogo já iniciado
 • Mercado sem liquidez
