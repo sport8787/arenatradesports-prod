@@ -462,7 +462,7 @@ serve(async (req) => {
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
-        analyzed: 0,
+        analyzed: analyzedCount,
         finished: staleIds.length,
         scheduled: scheduledCount,
         matches: results,
