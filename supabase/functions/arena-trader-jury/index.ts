@@ -74,15 +74,14 @@ Responda APENAS com JSON válido:
 {"voto": "CLARO" ou "BLEFE", "confianca": 0-100, "razao": "Uma frase curta (max 120 chars)"}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'google/gemini-2.5-flash',
         max_tokens: 200,
         temperature: 0.7,
         messages: [{ role: 'user', content: prompt }],
@@ -91,12 +90,12 @@ Responda APENAS com JSON válido:
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`[TraderJury] ${profile} API error:`, errText);
+      console.error(`[TraderJury] ${profile} Lovable AI error:`, errText);
       throw new Error(`API error ${response.status}`);
     }
 
     const data = await response.json();
-    const text = data.content?.find((b: any) => b.type === 'text')?.text || '';
+    const text = data.choices?.[0]?.message?.content || '';
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
@@ -127,9 +126,9 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('VITE_ANTHROPIC_API_KEY');
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), 
+      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
