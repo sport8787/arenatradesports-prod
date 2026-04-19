@@ -240,8 +240,10 @@ serve(async (req) => {
         liveCount++;
 
         // 4. Auto-trigger Mycroft if match >= 20 min, has stats, and not yet analyzed
+        // Re-analisar também jogo_morto e cuidado (estados temporários que podem mudar)
+        const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
         const shouldAnalyze = minute >= 20 && stats &&
-          (!existing?.mycroft_analysis_id || existing?.mycroft_status === 'aguardar');
+          (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status));
 
         if (shouldAnalyze) {
           const result = await triggerMycroftAnalysis(matchData, stats!, supabase);

@@ -243,7 +243,9 @@ serve(async (req) => {
     }
 
     const results: any[] = [];
-    // analyzedCount removed - analysis is now manual only
+    let analyzedCount = 0;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     // 2. Process each fixture - fetch stats from kickoff
     for (const fixture of fixtures) {
@@ -292,15 +294,81 @@ serve(async (req) => {
         .from('live_matches')
         .upsert(upsertData, { onConflict: 'match_id' });
 
-      // Analysis is now MANUAL ONLY - no auto-trigger to save API credits
-      // Stats are collected and saved; user triggers analysis separately
+      // Auto-trigger Mycroft (minute >= 20, has stats, sem análise OU status reanalisável)
+      const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
+      const shouldAnalyze = minute >= 20 && stats &&
+        (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
+
+      let analyzed = false;
+      let verdict: string | undefined;
+      if (shouldAnalyze) {
+        try {
+          const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+            body: JSON.stringify({
+              match: {
+                home: matchData.home_team,
+                away: matchData.away_team,
+                scoreHome: matchData.score_home,
+                scoreAway: matchData.score_away,
+                minute,
+                period,
+                championship,
+                match_id: fixtureId,
+                stats,
+                bankroll: 500,
+              },
+            }),
+          });
+          if (analysisRes.ok) {
+            const analysis = await analysisRes.json();
+            verdict = analysis.verdict;
+            const { data: analysisRow } = await supabase.from('mycroft_analyses').insert({
+              match_id: fixtureId,
+              verdict: analysis.verdict || 'AGUARDAR',
+              market: analysis.market || 'N/A',
+              thesis: analysis.thesis || '',
+              odd: analysis.odd ?? null,
+              confidence: analysis.confidence ?? 0,
+              risk_management: analysis.risk_management ?? null,
+              alerts: analysis.alerts ?? [],
+              fundamentation: analysis.fundamentation ?? { stats },
+            }).select('id').single();
+            if (analysisRow) {
+              const statusToSet =
+                analysis.verdict === 'AGUARDAR' ? 'aguardar' :
+                analysis.verdict === 'JOGO_MORTO' ? 'jogo_morto' :
+                analysis.verdict === 'CUIDADO' ? 'cuidado' : 'done';
+              await supabase.from('live_matches').update({
+                mycroft_analysis_id: analysisRow.id,
+                mycroft_status: statusToSet,
+                updated_at: new Date().toISOString(),
+              }).eq('match_id', fixtureId);
+              if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+                await supabase.from('signals_sent').insert({
+                  match_id: fixtureId,
+                  analysis_id: analysisRow.id,
+                });
+              }
+            }
+            analyzed = true;
+            analyzedCount++;
+          } else {
+            console.warn(`[FetchLive] Mycroft fail ${fixtureId}: ${analysisRes.status}`);
+          }
+        } catch (e) {
+          console.error(`[FetchLive] Mycroft error ${fixtureId}:`, e);
+        }
+      }
 
       results.push({
         match_id: fixtureId,
         teams: `${matchData.home_team} vs ${matchData.away_team}`,
         minute,
         has_stats: !!stats,
-        analyzed: false,
+        analyzed,
+        verdict,
       });
     }
 
@@ -394,7 +462,7 @@ serve(async (req) => {
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
-        analyzed: 0,
+        analyzed: analyzedCount,
         finished: staleIds.length,
         scheduled: scheduledCount,
         matches: results,
