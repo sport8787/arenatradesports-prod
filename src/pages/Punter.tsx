@@ -414,12 +414,14 @@ export default function PunterPage() {
     const localCorners = loadLocalCornersSignals();
 
     const mergedMap = new Map<string, PunterSignal>();
+    const inPlayCutoffTs = nowTs - 3 * 60 * 60 * 1000;
     for (const signal of [...localCorners, ...dbSignals]) {
       const key = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`
         .toLowerCase()
         .replace(/\s+/g, '_');
       const kickoffTs = signal.match.commence_time ? Date.parse(signal.match.commence_time) : NaN;
-      if (Number.isNaN(kickoffTs) || kickoffTs > nowTs) {
+      // Mantém se: kickoff desconhecido, futuro, OU começou há menos de 3h (jogo em andamento)
+      if (Number.isNaN(kickoffTs) || kickoffTs > inPlayCutoffTs) {
         mergedMap.set(key, signal);
       }
     }
