@@ -27,6 +27,84 @@ function getSupabaseAdmin() {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 }
 
+// === Real odds fetcher (busca odds reais no cache populado pela The Odds API) ===
+function normalizeTeam(s: string): string {
+  return (s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(fc|cf|sc|ec|ac|club|cd|afc|sport club|futebol clube|de|do|da|cidade)\b/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function teamsMatch(a1: string, a2: string, b1: string, b2: string): boolean {
+  const n = (s: string) => normalizeTeam(s);
+  const [na1, na2, nb1, nb2] = [n(a1), n(a2), n(b1), n(b2)];
+  const partial = (x: string, y: string) => {
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const xt = x.split(' ').filter(t => t.length >= 4);
+    const yt = y.split(' ').filter(t => t.length >= 4);
+    return xt.some(t => y.includes(t)) || yt.some(t => x.includes(t));
+  };
+  return (partial(na1, nb1) && partial(na2, nb2)) || (partial(na1, nb2) && partial(na2, nb1));
+}
+
+function median(arr: number[]): number {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+async function enrichMatchWithRealOdds(match: MatchData): Promise<void> {
+  try {
+    const supa = getSupabaseAdmin();
+    const { data } = await supa
+      .from('cached_odds_games')
+      .select('home_team, away_team, bookmakers, simulated_odds')
+      .eq('simulated_odds', false)
+      .gt('expires_at', new Date().toISOString())
+      .limit(500);
+    if (!data?.length) return;
+
+    const game = data.find((g: any) => teamsMatch(match.home, match.away, g.home_team, g.away_team));
+    if (!game) return;
+
+    const flipped = !teamsMatch(match.home, match.home, game.home_team, game.home_team);
+    const homeOdds: number[] = [], drawOdds: number[] = [], awayOdds: number[] = [];
+    const overOdds: number[] = [], underOdds: number[] = [];
+
+    for (const bk of (game.bookmakers || [])) {
+      for (const mk of (bk.markets || [])) {
+        if (mk.key === 'h2h') {
+          for (const o of (mk.outcomes || [])) {
+            if (o.name === 'Draw') drawOdds.push(o.price);
+            else if (normalizeTeam(o.name) === normalizeTeam(flipped ? game.away_team : game.home_team)) homeOdds.push(o.price);
+            else awayOdds.push(o.price);
+          }
+        } else if (mk.key === 'totals') {
+          for (const o of (mk.outcomes || [])) {
+            if (o.point === 2.5 && o.name === 'Over') overOdds.push(o.price);
+            if (o.point === 2.5 && o.name === 'Under') underOdds.push(o.price);
+          }
+        }
+      }
+    }
+
+    const realOdds: any = {};
+    if (homeOdds.length) realOdds.home = +median(homeOdds).toFixed(2);
+    if (drawOdds.length) realOdds.draw = +median(drawOdds).toFixed(2);
+    if (awayOdds.length) realOdds.away = +median(awayOdds).toFixed(2);
+    if (Object.keys(realOdds).length) match.odds = realOdds;
+    if (overOdds.length) (match as any).over_odd = +median(overOdds).toFixed(2);
+    if (underOdds.length) match.under_odd = +median(underOdds).toFixed(2);
+
+    console.log(`[MycroftSports] 💰 Real odds injected for ${match.home} vs ${match.away}: H${realOdds.home || '-'} D${realOdds.draw || '-'} A${realOdds.away || '-'} | Over${(match as any).over_odd || '-'} Under${match.under_odd || '-'}`);
+  } catch (e) {
+    console.warn('[MycroftSports] enrichMatchWithRealOdds error:', (e as Error).message);
+  }
+}
+
 function statsAreEmpty(stats: MatchData['stats']): boolean {
   if (!stats) return true;
   return [stats.attacks_home, stats.attacks_away, stats.dangerous_attacks_home, stats.dangerous_attacks_away,
