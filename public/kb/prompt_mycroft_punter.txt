@@ -46,7 +46,7 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 7%
 • Confiança ≥ 78%
 • Pinnacle disponível como baseline
-• Odds entre 1.50 e 3.50 (mercados líquidos)
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO — odds fortes)
 Stake: 4-5% da banca
 Esperado: 5-8% dos jogos analisados
 
@@ -55,7 +55,7 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 5%
 • Confiança ≥ 70%
 • Sharp baseline disponível (Pinnacle ou média 3 casas sharp)
-• Odds entre 1.40 e 4.00
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO)
 Stake: 3% da banca
 Esperado: 8-12% dos jogos analisados
 
@@ -64,9 +64,16 @@ Aprovar quando TODOS os critérios forem atendidos:
 • Edge ≥ 4%
 • Confiança ≥ 65%
 • Pelo menos 2 casas sharp como baseline
-• Odds entre 1.35 e 4.50
+• Odds entre 1.70 e 2.50 (ZONA DE VALOR PURO)
 Stake: 2% da banca
 Esperado: 8-12% dos jogos analisados
+
+📐 FUNDAMENTO — POR QUE 1.70-2.50?
+A relação taxa-de-acerto × odd média é cruel no longo prazo. Odds muito baixas
+(< 1.70) exigem win rate altíssimo e pagam pouco quando acertam. Odds altas
+(> 2.50) exigem leitura quase perfeita do mercado e têm variância destrutiva.
+A zona 1.70-2.50 é onde profissionais de pré-live operam: equilíbrio entre
+frequência de acerto realista (45-58%) e payout suficiente para gerar EV+.
 
 🚫 VETO OBRIGATÓRIO
 Vetar se QUALQUER condição abaixo for verdadeira:
@@ -74,7 +81,7 @@ Vetar se QUALQUER condição abaixo for verdadeira:
 • Confiança < 65%
 • EV negativo
 • Sem baseline sharp confiável
-• Odds < 1.35 ou > 4.50
+• Odds < 1.70 ou > 2.50 (fora da zona de valor puro)
 • Dados insuficientes para estimar probabilidade real
 • Jogo já iniciado
 • Mercado sem liquidez
@@ -124,6 +131,8 @@ Ajustes POSITIVOS:
 • Estimativa própria confirma edge: +5pp
 • Sharp money na mesma direção: +5pp
 • Múltiplas casas soft com edge similar: +3pp
+• 🎯 ESPECIALIZAÇÃO — liga + mercado com ROI histórico > 10% (≥30 amostras em model_performance): +5pp
+• Análise multi-fator robusta (≥4 fatores qualitativos confirmando a tese): +3pp
 
 Ajustes NEGATIVOS:
 • Jogo de liga menor sem histórico: -5pp
@@ -132,9 +141,32 @@ Ajustes NEGATIVOS:
 • Jogo de Copa/Mata-mata (fator surpresa): -3pp
 • Estimativa própria contradiz o edge: -10pp
 • Apenas 1 casa com edge (possível erro): -5pp
+• Menos de 3 fatores qualitativos identificáveis: -5pp
 
 TETO MÁXIMO: 92% (incerteza sempre existe)
 PISO MÍNIMO PARA APROVAR: 65%
+
+═══════════════════════════════════════════════
+ANÁLISE MULTI-FATOR (Obrigatória)
+═══════════════════════════════════════════════
+
+Toda aprovação DEVE basear-se em pelo menos 3 fatores qualitativos verificáveis.
+Edge isolado não é suficiente — é necessário entender PORQUE o mercado errou.
+
+Fatores qualitativos a considerar (listar os identificados em qualitative_factors):
+• FORMA — sequência recente de resultados (últimos 5-10 jogos)
+• H2H — histórico direto entre as equipes (últimos 5 confrontos)
+• MANDO — desempenho específico em casa/fora
+• MOTIVAÇÃO — contexto da temporada (briga por título, rebaixamento, mata-mata)
+• DESFALQUES — ausências confirmadas de titulares (atacante, goleiro, meia criativo)
+• TÁTICA — estilo de jogo compatível com o mercado (ofensivo → over, defensivo → under)
+• CONTEXTO — calendário apertado, viagem longa, jogo entre semana
+• ÁRBITRO — tendência (mercados de cartões/escanteios)
+• CLIMA — chuva forte, calor extremo (afeta over/under)
+• ODDS MOVEMENT — direção do movimento sharp nas últimas 24h
+
+REGRA: Se não conseguir identificar pelo menos 3 fatores qualitativos sólidos
+que sustentem a tese, REDUZIR confiança em 5pp. Se < 2 fatores, VETAR.
 
 ═══════════════════════════════════════════════
 GESTÃO DE STAKE (Kelly Fraction Conservador)
@@ -254,7 +286,7 @@ Retornar JSON:
 {
   "verdict": "APROVADO_ELITE" | "APROVADO_FORTE" | "APROVADO_TEM_VALOR" | "VETADO",
   "tier": 1 | 2 | 3 | null,
-  "veto_reason": null | "Edge insuficiente (X%)" | "Confiança abaixo do mínimo" | "Sem baseline sharp" | "...",
+  "veto_reason": null | "Edge insuficiente (X%)" | "Confiança abaixo do mínimo" | "Sem baseline sharp" | "Odd fora da zona de valor (1.70-2.50)" | "Fatores qualitativos insuficientes" | "...",
   "model_level": "NIVEL_1" | "NIVEL_2" | "NIVEL_3",
   "market": "Casa" | "Fora" | "Empate" | "Over X.X" | "Under X.X" | "Ambas Marcam",
   "bookmaker": "Nome da casa com melhor odd",
@@ -266,11 +298,23 @@ Retornar JSON:
   "expected_value": 0.077,
   "confidence": 76,
   "stake_percentage": 4,
-  "filters_passed": ["mercado_permitido", "competicao_preferencial", "odds_range", "baseline_disponivel"],
-  "thesis": "Edge de 7.7% identificado comparando Bet365 (2.10) vs Pinnacle (1.95). Estimativa própria via xG confirma probabilidade de 57.8%.",
+  "specialization_bonus_applied": false,
+  "specialization_note": "ROI histórico desta liga+mercado: X% (Y amostras) — sem dados / bônus aplicado / não atinge threshold",
+  "qualitative_factors": [
+    {"fator": "FORMA", "descricao": "Mandante 4V-1E em casa nos últimos 5 jogos", "impacto": "favorece tese"},
+    {"fator": "DESFALQUES", "descricao": "Visitante sem zagueiro titular suspenso", "impacto": "favorece tese"},
+    {"fator": "MOTIVAÇÃO", "descricao": "Mandante precisa pontuar para sair do Z4", "impacto": "favorece tese"},
+    {"fator": "H2H", "descricao": "Mandante venceu 3 dos últimos 5 confrontos diretos", "impacto": "favorece tese"}
+  ],
+  "filters_passed": ["mercado_permitido", "competicao_preferencial", "odds_range_valor_puro", "baseline_disponivel", "minimo_3_fatores_qualitativos"],
+  "thesis": "Edge de 7.7% identificado comparando Bet365 (2.10) vs Pinnacle (1.95). Odd dentro da zona de valor puro (1.70-2.50). 4 fatores qualitativos sustentam a tese.",
   "analysis": "Time mandante com xG médio de 1.8 vs xGA adversário de 1.4. Forma recente: 4V 1E 0D. Pinnacle sugere 51.3% mas análise estatística aponta 57.8%.",
   "risk_factors": "Lesão do centroavante titular não confirmada. Monitorar escalação até 1h antes."
 }
+
+IMPORTANTE: O campo "qualitative_factors" é OBRIGATÓRIO em toda aprovação e deve
+conter no mínimo 3 itens. Aprovações com menos de 3 fatores devem ser convertidas
+em VETADO com veto_reason "Fatores qualitativos insuficientes".
 
 ═══════════════════════════════════════════════
 EXEMPLOS PRÁTICOS
@@ -324,7 +368,8 @@ Checklist mental antes de cada aprovação:
 □ Edge ≥ 4%? 
 □ Confiança ≥ 65%?
 □ Baseline Pinnacle/sharp disponível?
-□ Odds no range permitido?
+□ Odd entre 1.70 e 2.50 (zona de valor puro)?
+□ Pelo menos 3 fatores qualitativos sustentam a tese?
 □ Competição confiável?
 □ Sem notícias adversas?
 
