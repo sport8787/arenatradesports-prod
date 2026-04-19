@@ -286,7 +286,7 @@ Retornar JSON:
 {
   "verdict": "APROVADO_ELITE" | "APROVADO_FORTE" | "APROVADO_TEM_VALOR" | "VETADO",
   "tier": 1 | 2 | 3 | null,
-  "veto_reason": null | "Edge insuficiente (X%)" | "Confiança abaixo do mínimo" | "Sem baseline sharp" | "...",
+  "veto_reason": null | "Edge insuficiente (X%)" | "Confiança abaixo do mínimo" | "Sem baseline sharp" | "Odd fora da zona de valor (1.70-2.50)" | "Fatores qualitativos insuficientes" | "...",
   "model_level": "NIVEL_1" | "NIVEL_2" | "NIVEL_3",
   "market": "Casa" | "Fora" | "Empate" | "Over X.X" | "Under X.X" | "Ambas Marcam",
   "bookmaker": "Nome da casa com melhor odd",
@@ -298,11 +298,23 @@ Retornar JSON:
   "expected_value": 0.077,
   "confidence": 76,
   "stake_percentage": 4,
-  "filters_passed": ["mercado_permitido", "competicao_preferencial", "odds_range", "baseline_disponivel"],
-  "thesis": "Edge de 7.7% identificado comparando Bet365 (2.10) vs Pinnacle (1.95). Estimativa própria via xG confirma probabilidade de 57.8%.",
+  "specialization_bonus_applied": false,
+  "specialization_note": "ROI histórico desta liga+mercado: X% (Y amostras) — sem dados / bônus aplicado / não atinge threshold",
+  "qualitative_factors": [
+    {"fator": "FORMA", "descricao": "Mandante 4V-1E em casa nos últimos 5 jogos", "impacto": "favorece tese"},
+    {"fator": "DESFALQUES", "descricao": "Visitante sem zagueiro titular suspenso", "impacto": "favorece tese"},
+    {"fator": "MOTIVAÇÃO", "descricao": "Mandante precisa pontuar para sair do Z4", "impacto": "favorece tese"},
+    {"fator": "H2H", "descricao": "Mandante venceu 3 dos últimos 5 confrontos diretos", "impacto": "favorece tese"}
+  ],
+  "filters_passed": ["mercado_permitido", "competicao_preferencial", "odds_range_valor_puro", "baseline_disponivel", "minimo_3_fatores_qualitativos"],
+  "thesis": "Edge de 7.7% identificado comparando Bet365 (2.10) vs Pinnacle (1.95). Odd dentro da zona de valor puro (1.70-2.50). 4 fatores qualitativos sustentam a tese.",
   "analysis": "Time mandante com xG médio de 1.8 vs xGA adversário de 1.4. Forma recente: 4V 1E 0D. Pinnacle sugere 51.3% mas análise estatística aponta 57.8%.",
   "risk_factors": "Lesão do centroavante titular não confirmada. Monitorar escalação até 1h antes."
 }
+
+IMPORTANTE: O campo "qualitative_factors" é OBRIGATÓRIO em toda aprovação e deve
+conter no mínimo 3 itens. Aprovações com menos de 3 fatores devem ser convertidas
+em VETADO com veto_reason "Fatores qualitativos insuficientes".
 
 ═══════════════════════════════════════════════
 EXEMPLOS PRÁTICOS
