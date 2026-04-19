@@ -33,28 +33,28 @@ export default function LandingPage() {
     <>
     <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
-      <header className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+      <header className="fixed top-0 w-full bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img src={logoOraculo} alt="Oráculo Mycroft" className="h-10 w-auto" />
               <div>
-                <h1 className="text-xl font-bold text-[#0a1628]">ORÁCULO MYCROFT</h1>
-                <p className="text-[10px] text-gray-500 -mt-1">PUNTER</p>
+                <h1 className="text-xl font-bold text-white">ORÁCULO MYCROFT</h1>
+                <p className="text-[10px] text-yellow-500 -mt-1 tracking-widest">PUNTER</p>
               </div>
             </div>
             
             <nav className="hidden md:flex items-center gap-8">
-              <a href="#funcionalidades" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Funcionalidades</a>
-              <a href="#diferenciais" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Diferenciais</a>
-              <a href="#resultados" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Resultados</a>
-              <a href="#planos" className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Planos</a>
+              <a href="#funcionalidades" className="text-sm text-gray-300 hover:text-white transition">Funcionalidades</a>
+              <a href="#diferenciais" className="text-sm text-gray-300 hover:text-white transition">Diferenciais</a>
+              <a href="#resultados" className="text-sm text-gray-300 hover:text-white transition">Resultados</a>
+              <a href="#planos" className="text-sm text-gray-300 hover:text-white transition">Planos</a>
             </nav>
             
             <div className="flex items-center gap-3">
-              <button onClick={goToAuth} className="text-sm text-[#0a1628]/70 hover:text-[#0a1628] transition">Login</button>
+              <button onClick={goToAuth} className="text-sm text-gray-300 hover:text-white transition">Login</button>
               <button onClick={goToAuth} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
-                COMEÇAR AGORA
+                TESTAR 7 DIAS GRÁTIS
               </button>
             </div>
           </div>
