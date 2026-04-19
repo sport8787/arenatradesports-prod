@@ -315,6 +315,43 @@ serve(async (req) => {
 
     console.log(`[MycroftSports] Analyzing: ${match.home} vs ${match.away} (${match.minute}')`);
 
+    // === CACHE LOOKUP (reduz consumo do Lovable AI Gateway) ===
+    // Chave determinística: match_id + minuto + placar + stats principais
+    // TTL padrão da tabela. Em jogos parados (mesmas stats), retorna análise cacheada.
+    const s0: any = match.stats || {};
+    const cacheKey = [
+      match.match_id || `${match.home}-${match.away}`,
+      `m${match.minute ?? 0}`,
+      `s${match.scoreHome ?? 0}-${match.scoreAway ?? 0}`,
+      `p${s0.possession_home ?? 0}-${s0.possession_away ?? 0}`,
+      `sh${s0.shots_total_home ?? s0.shots_home ?? 0}-${s0.shots_total_away ?? s0.shots_away ?? 0}`,
+      `sg${s0.shots_on_target_home ?? 0}-${s0.shots_on_target_away ?? 0}`,
+      `da${s0.dangerous_attacks_home ?? 0}-${s0.dangerous_attacks_away ?? 0}`,
+    ].join('|');
+
+    const supabaseAdminCache = getSupabaseAdmin();
+    try {
+      const { data: cached } = await supabaseAdminCache
+        .from('ai_response_cache')
+        .select('response_json, hit_count')
+        .eq('function_name', 'mycroft-sports-analysis')
+        .eq('cache_key', cacheKey)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (cached?.response_json) {
+        await supabaseAdminCache
+          .from('ai_response_cache')
+          .update({ hit_count: (cached.hit_count || 0) + 1 })
+          .eq('function_name', 'mycroft-sports-analysis')
+          .eq('cache_key', cacheKey);
+        console.log(`[MycroftSports] 💾 Cache HIT (key=${cacheKey.substring(0, 60)}...)`);
+        return new Response(JSON.stringify(cached.response_json), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    } catch (e) {
+      console.warn('[MycroftSports] Cache lookup failed:', (e as Error).message);
+    }
+
     // If stats empty, try API-Football
     if (statsAreEmpty(match.stats) && match.match_id) {
       const liveStats = await fetchStatsFromApiFootball(match.match_id);
