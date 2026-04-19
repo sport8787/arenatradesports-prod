@@ -254,7 +254,7 @@ serve(async (req) => {
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
-            fundamentation: analysis.fundamentation ?? { stats: match.stats },
+            fundamentation: analysis.fundamentation ?? { stats: enrichedStats },
           })
           .select('id')
           .single();
