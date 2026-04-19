@@ -922,9 +922,10 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
   const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
   if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
-
-  // Using gemini-2.5-flash-lite: ~60% mais barato, ~2x mais rápido, qualidade equivalente para esta task estruturada
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_KEY}`
+  // gemini-2.5-flash tem quota free muito maior que flash-lite (que está esgotada)
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
+  const useLovable = false
+  const LOVABLE_KEY = ''
 
   const mapType = (type?: string) => {
     if (type === 'string') return 'STRING'
@@ -971,7 +972,9 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
   try {
     r = await fetch(geminiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: useLovable
+        ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_KEY}` }
+        : { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
