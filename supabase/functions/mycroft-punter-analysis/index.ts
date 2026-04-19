@@ -995,7 +995,11 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
   if (!r.ok) {
     const errBody = await r.text()
     console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0, 500)}`)
-    if (r.status === 429) throw new Error('RATE_LIMITED')
+    if (r.status === 429) {
+      const retryMatch = errBody.match(/Please retry in\s+([\d.]+)s/i)
+      const retryAfterSec = retryMatch ? Math.ceil(Number(retryMatch[1])) : 15
+      throw new Error(`RATE_LIMITED:${retryAfterSec}`)
+    }
     throw new Error(`Gemini API error ${r.status}`)
   }
 
@@ -1178,6 +1182,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
   for (let att=0;att<3;att++) {
     try {
+      await respectGeminiRateLimitWindow()
       const parsed = await callGeminiCached(sb, sysPr, usrPr, incCorners, incCards)
       const a = parsed
       // Map new field names to existing DB columns
@@ -1350,6 +1355,9 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
       const msg = String(e?.message || e || 'unknown_error')
       const isRateLimited = msg.includes('RATE_LIMITED') || msg.includes('429')
       const isTimeout = msg.includes('GEMINI_TIMEOUT')
+      const retryAfterSec = isRateLimited
+        ? Math.max(12, Math.ceil(Number((msg.match(/RATE_LIMITED:(\d+)/)?.[1]) || '15')))
+        : 0
 
       // Não bloquear o batch inteiro por timeout individual de IA
       if (isTimeout) {
@@ -1359,7 +1367,12 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
       // Retry curto: 1 tentativa normal, até 3 apenas para rate limit
       if ((isRateLimited && att < 2) || (!isRateLimited && att < 1)) {
-        await new Promise(r => setTimeout(r, isRateLimited ? (att + 1) * 4000 : 800))
+        if (isRateLimited) {
+          geminiRateLimitUntil = Math.max(geminiRateLimitUntil, Date.now() + retryAfterSec * 1000)
+          await respectGeminiRateLimitWindow()
+        } else {
+          await wait(800)
+        }
         continue
       }
 
@@ -1460,7 +1473,18 @@ serve(async (req) => {
     // Prompt embarcado — fonte única, sem KB
     const approved:any[]=[]
     let total=0, timedOut=false
-    const toAnalyze=filteredGames.slice(0,MAX_GAMES)
+    const prioritizedGames = [...filteredGames].sort((a: any, b: any) => {
+      const oddsScore = (g: any) => {
+        const bookmakers = g.bookmakers || []
+        const hasPinnacle = bookmakers.some((bk: any) => (bk.title || '').toLowerCase().includes('pinnacle')) ? 4 : 0
+        const totalBooks = bookmakers.length
+        const totalMarkets = bookmakers.reduce((sum: number, bk: any) => sum + (bk.markets?.length || 0), 0)
+        return hasPinnacle + totalBooks * 2 + totalMarkets
+      }
+      const timeScore = (g: any) => Math.abs(new Date(g.commence_time).getTime() - Date.now())
+      return oddsScore(b) - oddsScore(a) || timeScore(a) - timeScore(b)
+    })
+    const toAnalyze=prioritizedGames.slice(0,MAX_GAMES)
     for(let i=0;i<toAnalyze.length;i+=BATCH) {
       // ⏱️ Time guard — return partial results before Supabase kills us
       if(isTimedOut()) {
@@ -1478,7 +1502,7 @@ serve(async (req) => {
           approved.push({analysis_id:rec.analysis_id, match:{home_team:g.home_team,away_team:g.away_team,commence_time:g.commence_time,league:g.sport_title||'Unknown'},recommendation:rec})
         } else if(r.status==='rejected') console.error(`[Mycroft Punter] Erro: ${g.home_team} vs ${g.away_team}:`,r.reason)
       }
-      if(i+BATCH<toAnalyze.length&&!isTimedOut()) await new Promise(r=>setTimeout(r,200))
+      if(i+BATCH<toAnalyze.length&&!isTimedOut()) await wait(BATCH_COOLDOWN_MS)
     }
 
     // DEDUPLICATION: Keep only the highest-score entry per match (composite: prob × edge × confidence)
