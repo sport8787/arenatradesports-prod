@@ -148,12 +148,12 @@ serve(async (req) => {
       throw new Error('Missing questionText');
     }
 
-    const anthropicApiKey = Deno.env.get('VITE_ANTHROPIC_API_KEY');
-    if (!anthropicApiKey) {
-      throw new Error('ANTHROPIC API KEY is not configured');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    console.log(`Generating Mycroft ${type || 'bluff'} via Claude Sonnet for:`, questionText);
+    console.log(`Generating Mycroft ${type || 'bluff'} via Lovable AI for:`, questionText);
     console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
 
     if (voiceMetrics) {
@@ -165,19 +165,18 @@ serve(async (req) => {
 
     const maxTokens = type === 'verdict' ? 60 : 300;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'google/gemini-2.5-flash',
         max_tokens: maxTokens,
-        system: systemPrompt,
         messages: [
-          { role: 'user', content: userMessage }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
         ],
         temperature: type === 'analytics' ? 0.7 : 0.8,
       }),
@@ -185,14 +184,20 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Anthropic API error:', response.status, errorText);
-      throw new Error(`Anthropic API error: ${response.status}`);
+      console.error('Lovable AI error:', response.status, errorText);
+      if (response.status === 429) {
+        throw new Error('Rate limit excedido, tente novamente em alguns segundos.');
+      }
+      if (response.status === 402) {
+        throw new Error('Créditos insuficientes no workspace Lovable AI.');
+      }
+      throw new Error(`Lovable AI error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.content?.[0]?.text?.trim();
+    const content = data.choices?.[0]?.message?.content?.trim();
 
-    console.log('Mycroft (Claude Sonnet) response:', content);
+    console.log('Mycroft (Lovable AI) response:', content);
 
     if (type === 'verdict') {
       let finalContent = content || '';
