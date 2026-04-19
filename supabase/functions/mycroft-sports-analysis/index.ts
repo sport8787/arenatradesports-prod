@@ -1158,6 +1158,29 @@ serve(async (req) => {
       }
     }
 
+    // === Override odd chutada pela odd real do mercado quando disponível ===
+    if (analysis.market && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA' || analysis.verdict === 'CUIDADO')) {
+      const m = String(analysis.market).toLowerCase();
+      let realOdd: number | undefined;
+      if (m.includes('over 2.5') || m.includes('mais 2.5')) realOdd = (match as any).over_odd;
+      else if (m.includes('under 2.5') || m.includes('menos 2.5')) realOdd = match.under_odd;
+      else if (m.includes(match.home.toLowerCase()) || m.includes('vitória mandante') || m.includes('back mandante') || m.includes('back home')) realOdd = match.odds?.home;
+      else if (m.includes(match.away.toLowerCase()) || m.includes('vitória visitante') || m.includes('back visitante') || m.includes('back away')) realOdd = match.odds?.away;
+      else if (m.includes('empate') || m === 'draw') realOdd = match.odds?.draw;
+
+      if (realOdd && realOdd > 1.01) {
+        if (!analysis.odd || Math.abs(analysis.odd - realOdd) > 0.05) {
+          console.log(`[MycroftSports] 🎯 Odd substituída: chutada ${analysis.odd} → real ${realOdd} (${analysis.market})`);
+          analysis.odd = realOdd;
+          if (analysis.risk_management) {
+            analysis.risk_management.entry = `${analysis.market} @ ${realOdd}`;
+            analysis.risk_management.rr = `1:${(realOdd - 1).toFixed(2)}`;
+            analysis.risk_management.ev = `${Math.round(((analysis.confidence / 100) * realOdd - 1) * 100)}%`;
+          }
+        }
+      }
+    }
+
     // Ensure odd/risk_management defaults for APROVADO
     if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
       if (!analysis.odd || analysis.odd <= 0) {
