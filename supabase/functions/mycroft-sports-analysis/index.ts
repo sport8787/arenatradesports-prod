@@ -665,7 +665,7 @@ serve(async (req) => {
         analysis.verdict !== 'APROVADO' &&
         analysis.verdict !== 'APROVADO_SITUACIONAL' &&
         !u_priorActiveSignal &&
-        u_isEarly && u_isScoreless && u_isDeadGame && u_underOdd >= 1.85
+        u_isEarly && u_isScoreless && u_isDeadGame && u_hasMinimumEvidence && u_underOdd >= 1.85
       ) {
         console.log(`[MycroftSports] 📉 OVERRIDE APROVADO: Under 2.5 Early — ${match.home} vs ${match.away} (${u_min}') odd ${u_underOdd} | dang=${u_dangerousTotal} sot=${u_sotTotal} xg=${u_xgTotal.toFixed(2)}`);
         analysis.verdict = 'APROVADO';
