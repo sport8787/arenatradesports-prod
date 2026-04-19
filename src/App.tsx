@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
+import LiveMatchDetail from "./pages/LiveMatchDetail";
 import TradingHistory from "./pages/TradingHistory";
 import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
@@ -69,6 +70,7 @@ const App = () => {
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/paywall" element={<Paywall />} />
               <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
               <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
               <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />

@@ -275,25 +275,8 @@ export default function ArenaTraderSports() {
   };
 
   const handleViewAnalysis = (matchId: string) => {
-    const match = allMatches.find(m => m.id === matchId);
-    if (!match) return;
-
-    const liveMatch = liveMatches.find(lm => lm.id === matchId);
-    const analysis = liveMatch?.mycroft_analysis ? {
-      id: liveMatch.mycroft_analysis.id,
-      verdict: liveMatch.mycroft_analysis.verdict,
-      market: liveMatch.mycroft_analysis.market,
-      odd: liveMatch.mycroft_analysis.odd,
-      confidence: liveMatch.mycroft_analysis.confidence,
-      thesis: liveMatch.mycroft_analysis.thesis,
-      fundamentation: liveMatch.mycroft_analysis.fundamentation,
-      risk_management: liveMatch.mycroft_analysis.risk_management,
-      alerts: liveMatch.mycroft_analysis.alerts || [],
-    } as MycroftAnalysisData : null;
-
-    setSelectedMatch(match);
-    setSelectedAnalysis(analysis);
-    setIsModalOpen(true);
+    // Navega para a página de detalhes ao vivo (análise + estatísticas + histórico em tempo real)
+    navigate(`/arena-trader-sports/jogo/${matchId}`);
   };
 
   const filtered = useMemo(() => {
