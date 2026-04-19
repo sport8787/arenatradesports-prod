@@ -498,6 +498,45 @@ function fmtSofaForm(sofa: any | null): string {
   return lines.join('\n');
 }
 
+// ─── SofaScore/FBref Form Enrichment (xG histórico independente, fonte cruzada) ───
+async function fetchFBrefForm(home: string, away: string): Promise<any | null> {
+  try {
+    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/sofascore-team-form`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({ home, away }),
+    });
+    if (!res.ok) {
+      console.warn(`[SofaScore/FBref] HTTP ${res.status} for ${home} vs ${away}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!data?.found) return null;
+    console.log(`[SofaScore/FBref] ${data.cached ? '🎯 CACHE' : '✅ FRESH'} ${home}: xG ${data.home?.avg_xg ?? '?'} | ${away}: xG ${data.away?.avg_xg ?? '?'}`);
+    return data;
+  } catch (e) {
+    console.warn('[SofaScore/FBref] fetch error:', e);
+    return null;
+  }
+}
+
+function fmtFBrefForm(fb: any | null): string {
+  if (!fb || (!fb.home && !fb.away)) return '';
+  const lines: string[] = ['', '🟢 SOFASCORE/FBREF — FORMA RECENTE (últimos 5 jogos, fonte independente):'];
+  for (const side of ['home', 'away'] as const) {
+    const f = fb[side];
+    if (!f) continue;
+    const r = f.record;
+    lines.push(`• ${f.team} (${r.wins}V-${r.draws}E-${r.losses}D, n=${f.sample_size}): GM=${f.avg_goals_for} GS=${f.avg_goals_against} | xG=${f.avg_xg ?? '?'} | npxG=${f.avg_npxg ?? '?'} | Posse=${f.avg_possession ?? '?'}% | Chutes=${f.avg_shots ?? '?'} (${f.avg_shots_on_target ?? '?'} no alvo)`);
+  }
+  lines.push('⚠️ Use para CRUZAR com Sportradar: se ambas as fontes concordarem em xG → +confiança. Se divergirem >0.4 → reduzir confiança.');
+  return lines.join('\n');
+}
+
 
 function processTeamStats(tid:number|null, fixes:any[], ss:any) {
   if (!tid||!fixes.length) return null
@@ -1040,9 +1079,10 @@ async function analyzeGame(game:any, sb:any, apiKey:string, incCorners:boolean, 
   // Instead, rely on Poisson model estimates for corners/cards markets
   const cornOdds:any[]=[], cardOdds:any[]=[]
 
-  const [en, sofaForm] = await Promise.all([
+  const [en, sofaForm, fbrefForm] = await Promise.all([
     fetchEnrichedData(game.home_team,game.away_team,apiKey,game.sport_key,incCorners,incCards),
     fetchSofaForm(game.home_team, game.away_team),
+    fetchFBrefForm(game.home_team, game.away_team),
   ])
   const det=computeDetectors(odds,totals,null,null)
   console.log(`[Detectors] ${game.home_team} vs ${game.away_team}: MIS=${(det.mis*100).toFixed(1)}% (${det.mis_level}), ODI=${(det.odi*100).toFixed(1)}%, Sharp=${det.sharp.activity_score}/100 (${det.sharp.activity_level})`)
@@ -1172,6 +1212,7 @@ ${fmtInj(game.home_team,en.injuries?.home||[])} ${fmtInj(game.away_team,en.injur
 ${fmtStand(en.standings||[],game.home_team,game.away_team)}
 ${fmtPred(en.predictions)}
 ${fmtSofaForm(sofaForm)}
+${fmtFBrefForm(fbrefForm)}
 ${en.predictions?'Validação cruzada: Concordam→+5% Divergem→-5%':''}
 ${fmtDetectors(det)}
 ${cornBlk}${cardBlk}
