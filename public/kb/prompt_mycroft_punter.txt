@@ -130,7 +130,9 @@ Ajustes POSITIVOS:
 • Pinnacle como baseline: +5pp
 • Estimativa própria confirma edge: +5pp
 • Sharp money na mesma direção: +5pp
-• Múltiplas casas soft com edge similar: +3pp
+• 🔥 STEAM MOVE confirmado (Konik): +5pp
+• 🔥 RLM — Reverse Line Movement (Konik): +5pp
+• Múltiplas casas soft com edge similar (line shopping ✓ — Konik): +3pp
 • 🎯 ESPECIALIZAÇÃO — liga + mercado com ROI histórico > 10% (≥30 amostras em model_performance): +5pp
 • Análise multi-fator robusta (≥4 fatores qualitativos confirmando a tese): +3pp
 
@@ -139,8 +141,10 @@ Ajustes NEGATIVOS:
 • Time em crise (3+ derrotas seguidas): -3pp
 • Mudança recente de treinador (< 3 jogos): -5pp
 • Jogo de Copa/Mata-mata (fator surpresa): -3pp
+• 🚫 ESPECIALIZAÇÃO NEGATIVA — liga + mercado com ROI histórico < -5% (≥30 amostras): -5pp
 • Estimativa própria contradiz o edge: -10pp
-• Apenas 1 casa com edge (possível erro): -5pp
+• Apenas 1 casa com edge (sem line shopping — Konik): -5pp
+• Tese vai CONTRA steam confirmado (Konik — nunca apostar contra sharp): VETAR
 • Menos de 3 fatores qualitativos identificáveis: -5pp
 
 TETO MÁXIMO: 92% (incerteza sempre existe)
