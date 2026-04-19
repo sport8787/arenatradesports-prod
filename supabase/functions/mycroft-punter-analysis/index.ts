@@ -161,27 +161,64 @@ VETO ESCANTEIOS: total_estimado entre 9.0 e 10.5 sem margem clara | alta variân
 
 // ═══ VALIDADOR PÓS-GEMINI ═══
 interface ValidationResult { valid: boolean; reason: string | null }
+function inferTier(a: any): number {
+  // Auto-infer tier when AI omits or sends invalid
+  const edge = a.edge_percentage ?? 0
+  const conf = a.confidence ?? 0
+  const prob = a.estimated_probability ?? 0
+  if (edge >= 7 && conf >= 77 && prob >= 50) return 1
+  if (edge >= 5 && conf >= 70 && prob >= 40) return 2
+  return 3
+}
+
 function validateAnalysis(a: any): ValidationResult {
   if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
-  // FILTRO 1 — Probabilidade mínima absoluta (40%)
-  if (!a.estimated_probability || a.estimated_probability < 40) {
-    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo 40%)` }
+  // FILTRO 1 — Probabilidade mínima absoluta (30%) — permite mercados de visitante com edge alto
+  if (!a.estimated_probability || a.estimated_probability < 30) {
+    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo 30%)` }
   }
   if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
   if (!a.confidence || a.confidence < 65) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
   if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
-  if (!a.tier || ![1, 2, 3].includes(a.tier)) return { valid: false, reason: 'Tier inválido ou ausente' }
-  const rules: Record<number, { minEdge: number; minConf: number; maxStake: number; minProb: number }> = {
-    1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 55 },
-    2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 48 },
-    3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 40 },
+
+  // Auto-inferir tier quando ausente/inválido (a IA frequentemente omite o campo)
+  if (!a.tier || ![1, 2, 3].includes(a.tier)) {
+    a.tier = inferTier(a)
+    a._tier_inferred = true
   }
-  const r = rules[a.tier]
-  if (a.estimated_probability < r.minProb) return { valid: false, reason: `Tier ${a.tier} exige prob >= ${r.minProb}%, recebido ${a.estimated_probability}%` }
-  if (a.edge_percentage < r.minEdge) return { valid: false, reason: `Tier ${a.tier} exige edge >= ${r.minEdge}%, recebido ${a.edge_percentage}%` }
-  if (a.confidence < r.minConf) return { valid: false, reason: `Tier ${a.tier} exige confianca >= ${r.minConf}%, recebido ${a.confidence}%` }
-  if (a.stake_percentage > r.maxStake) return { valid: false, reason: `Stake ${a.stake_percentage}% acima do maximo Tier ${a.tier} (${r.maxStake}%)` }
-  return { valid: true, reason: null }
+
+  const rules: Record<number, { minEdge: number; minConf: number; maxStake: number; minProb: number }> = {
+    1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
+    2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
+    3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+  }
+
+  // TOLERÂNCIA: se ficar até 2pp abaixo dos mínimos do tier, faz downgrade ao invés de vetar
+  const TOL = 2
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = rules[a.tier]
+    const probOk = a.estimated_probability >= r.minProb - TOL
+    const edgeOk = a.edge_percentage >= r.minEdge - TOL
+    const confOk = a.confidence >= r.minConf - TOL
+    if (probOk && edgeOk && confOk) {
+      // Cap stake ao máximo do tier (não veta — apenas limita)
+      if (a.stake_percentage > r.maxStake) a.stake_percentage = r.maxStake
+      return { valid: true, reason: null }
+    }
+    // Tenta downgrade
+    if (a.tier < 3) {
+      a.tier += 1
+      a._tier_downgraded = true
+    } else {
+      // Tier 3 não passa nem com tolerância — vetar com motivo claro
+      const r3 = rules[3]
+      if (a.estimated_probability < r3.minProb - TOL) return { valid: false, reason: `Prob ${a.estimated_probability}% < ${r3.minProb - TOL}% (Tier 3 + tol)` }
+      if (a.edge_percentage < r3.minEdge - TOL) return { valid: false, reason: `Edge ${a.edge_percentage}% < ${r3.minEdge - TOL}% (Tier 3 + tol)` }
+      if (a.confidence < r3.minConf - TOL) return { valid: false, reason: `Conf ${a.confidence}% < ${r3.minConf - TOL}% (Tier 3 + tol)` }
+      return { valid: false, reason: 'Não atinge Tier 3 mesmo com tolerância' }
+    }
+  }
+  return { valid: false, reason: 'Falha de validação após downgrades' }
 }
 
 const leagueMap: Record<string, number> = {
