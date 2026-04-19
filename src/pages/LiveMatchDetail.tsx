@@ -151,20 +151,39 @@ export default function LiveMatchDetail() {
 
           <div className="grid grid-cols-3 items-center gap-4">
             {/* Home */}
-            <div className="text-center space-y-2">
-              {match.home_logo && /^https?:\/\//.test(match.home_logo) ? (
-                <img src={match.home_logo} alt={match.home_team} className="w-16 h-16 sm:w-20 sm:h-20 mx-auto object-contain" loading="lazy" />
-              ) : (
-                <div className="text-4xl sm:text-6xl">{match.home_logo || '⚽'}</div>
-              )}
-              <p className="font-orbitron text-sm sm:text-base font-bold text-foreground truncate">
+            <div className="flex flex-col items-center gap-2 min-w-0">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                {match.home_logo && /^https?:\/\//.test(match.home_logo) ? (
+                  <img
+                    src={match.home_logo}
+                    alt={match.home_team}
+                    width={80}
+                    height={80}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      t.style.display = 'none';
+                      const fb = t.nextElementSibling as HTMLElement | null;
+                      if (fb) fb.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <span
+                  className="text-4xl sm:text-6xl"
+                  style={{ display: match.home_logo && /^https?:\/\//.test(match.home_logo) ? 'none' : 'block' }}
+                >
+                  ⚽
+                </span>
+              </div>
+              <p className="font-orbitron text-xs sm:text-base font-bold text-foreground truncate max-w-full text-center">
                 {match.home_team}
               </p>
             </div>
 
             {/* Score */}
-            <div className="text-center space-y-2">
-              <div className="font-orbitron text-5xl sm:text-7xl font-black text-foreground tabular-nums">
+            <div className="flex flex-col items-center gap-2 min-w-0">
+              <div className="font-orbitron text-4xl sm:text-7xl font-black text-foreground tabular-nums whitespace-nowrap">
                 {match.score_home ?? 0}
                 <span className="text-muted-foreground mx-2">:</span>
                 {match.score_away ?? 0}
@@ -172,18 +191,37 @@ export default function LiveMatchDetail() {
               <div className="flex items-center justify-center gap-2 text-xs font-orbitron uppercase tracking-wider text-muted-foreground">
                 <Clock className="w-3 h-3" />
                 <span>{match.minute ?? 0}'</span>
-                {match.period && <span>• {match.period}</span>}
+                {match.period && <span className="truncate">• {match.period}</span>}
               </div>
             </div>
 
             {/* Away */}
-            <div className="text-center space-y-2">
-              {match.away_logo && /^https?:\/\//.test(match.away_logo) ? (
-                <img src={match.away_logo} alt={match.away_team} className="w-16 h-16 sm:w-20 sm:h-20 mx-auto object-contain" loading="lazy" />
-              ) : (
-                <div className="text-4xl sm:text-6xl">{match.away_logo || '⚽'}</div>
-              )}
-              <p className="font-orbitron text-sm sm:text-base font-bold text-foreground truncate">
+            <div className="flex flex-col items-center gap-2 min-w-0">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0">
+                {match.away_logo && /^https?:\/\//.test(match.away_logo) ? (
+                  <img
+                    src={match.away_logo}
+                    alt={match.away_team}
+                    width={80}
+                    height={80}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      t.style.display = 'none';
+                      const fb = t.nextElementSibling as HTMLElement | null;
+                      if (fb) fb.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <span
+                  className="text-4xl sm:text-6xl"
+                  style={{ display: match.away_logo && /^https?:\/\//.test(match.away_logo) ? 'none' : 'block' }}
+                >
+                  ⚽
+                </span>
+              </div>
+              <p className="font-orbitron text-xs sm:text-base font-bold text-foreground truncate max-w-full text-center">
                 {match.away_team}
               </p>
             </div>
