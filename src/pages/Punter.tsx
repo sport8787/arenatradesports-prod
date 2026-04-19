@@ -367,12 +367,14 @@ export default function PunterPage() {
   const fetchSavedSignals = async (): Promise<PunterSignal[]> => {
     const nowIso = new Date().toISOString();
     const nowTs = Date.now();
+    // Janela: jogos futuros + jogos que começaram há menos de 3h (ainda em andamento, não liquidados)
+    const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
     const { data: savedAnalyses } = await supabase
       .from('punter_analyses')
       .select('*')
       .eq('verdict', 'APROVADO')
-      .gt('commence_time', nowIso)
+      .gt('commence_time', inPlayCutoffIso)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -412,12 +414,14 @@ export default function PunterPage() {
     const localCorners = loadLocalCornersSignals();
 
     const mergedMap = new Map<string, PunterSignal>();
+    const inPlayCutoffTs = nowTs - 3 * 60 * 60 * 1000;
     for (const signal of [...localCorners, ...dbSignals]) {
       const key = `${signal.match.home_team}_${signal.match.away_team}_${signal.recommendation.market}`
         .toLowerCase()
         .replace(/\s+/g, '_');
       const kickoffTs = signal.match.commence_time ? Date.parse(signal.match.commence_time) : NaN;
-      if (Number.isNaN(kickoffTs) || kickoffTs > nowTs) {
+      // Mantém se: kickoff desconhecido, futuro, OU começou há menos de 3h (jogo em andamento)
+      if (Number.isNaN(kickoffTs) || kickoffTs > inPlayCutoffTs) {
         mergedMap.set(key, signal);
       }
     }
