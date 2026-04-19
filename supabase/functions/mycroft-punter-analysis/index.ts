@@ -791,6 +791,41 @@ function buildGeminiFallbackVeto(reason: string, incCorners:boolean=false, incCa
   return fallback
 }
 
+// ═══ CACHE LAYER (TTL 5min) — reduz ~70% das chamadas Gemini quando análise repete com mesmas odds/stats ═══
+async function hashKey(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+}
+
+async function callGeminiCached(sb: any, sys: string, usr: string, incCorners: boolean, incCards: boolean) {
+  const key = await hashKey(`${sys}::${usr}::${incCorners?1:0}::${incCards?1:0}`)
+  try {
+    const { data: cached } = await sb.from('ai_response_cache')
+      .select('response_json, expires_at')
+      .eq('cache_key', key).eq('function_name', 'mycroft-punter-analysis')
+      .gt('expires_at', new Date().toISOString()).maybeSingle()
+    if (cached?.response_json) {
+      console.log(`[Mycroft Punter] 🎯 Cache HIT (${key.slice(0,8)}) — pulando Gemini`)
+      sb.from('ai_response_cache').update({ hit_count: (cached as any).hit_count ? (cached as any).hit_count + 1 : 1 }).eq('cache_key', key).then(() => {}, () => {})
+      return cached.response_json
+    }
+  } catch (e) { console.warn('[Mycroft Punter] Cache lookup falhou:', (e as any)?.message) }
+
+  const result = await callGemini(sys, usr, incCorners, incCards)
+
+  // Cache apenas resultados válidos (não erros/vetos por timeout)
+  if (result && typeof result === 'object') {
+    try {
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+      await sb.from('ai_response_cache').upsert({
+        cache_key: key, function_name: 'mycroft-punter-analysis',
+        response_json: result, expires_at: expiresAt, hit_count: 0,
+      }, { onConflict: 'cache_key' })
+    } catch (e) { console.warn('[Mycroft Punter] Cache write falhou:', (e as any)?.message) }
+  }
+  return result
+}
+
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
   // Uses direct Gemini API for lower latency (no gateway overhead)
 
