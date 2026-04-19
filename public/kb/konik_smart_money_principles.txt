@@ -1,0 +1,222 @@
+═══════════════════════════════════════════════
+PRINCÍPIOS DE MICHAEL KONIK — "THE SMART MONEY"
+Lições do Brain Trust (1997-2001) aplicadas ao Mycroft Punter
+═══════════════════════════════════════════════
+
+CONTEXTO:
+Michael Konik foi "ghost bettor" (apostador-fantasma) para o "Brain Trust",
+sindicato profissional liderado por Rick "Big Daddy" Matthews que dominou
+o mercado esportivo americano entre 1997 e 2001. Os sportsbooks de Vegas
+e offshore eventualmente os baniram porque ganhavam de forma sistemática.
+
+═══════════════════════════════════════════════
+1. CLOSING LINE VALUE (CLV) É O ÚNICO JUIZ
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Não importa se a aposta GANHOU. Importa se você pegou uma odd
+MELHOR do que a linha de fechamento (closing line). O Brain Trust media
+performance pelo CLV, não pelo resultado.
+
+LÓGICA:
+• Closing line = consenso final do mercado, incluindo todo dinheiro sharp
+• Bater a closing line consistentemente = você está à frente do mercado
+• Quem bate CLV em 60%+ das apostas LUCRA no longo prazo, mesmo com variância
+
+APLICAÇÃO MYCROFT:
+• Toda aposta aprovada deve registrar odd_open vs odd_close
+• Edge calculado contra Pinnacle JÁ é uma proxy de CLV (Pinnacle é referência)
+• Se odd capturada > closing line após o jogo iniciar → confirmação de valor real
+• Se odd encolheu fortemente após nossa entrada → sinal sharp confirmou nossa tese
+
+═══════════════════════════════════════════════
+2. LINE SHOPPING É OBRIGATÓRIO
+═══════════════════════════════════════════════
+
+PRINCÍPIO: O Brain Trust mantinha contas em DEZENAS de sportsbooks
+simultaneamente. Nunca aceitavam a primeira odd vista.
+
+CITAÇÃO-CHAVE: "Meio ponto pode significar tudo." Konik relata casos onde
++3 vs +3.5 representava a diferença entre lucrar e quebrar no ano.
+
+LÓGICA:
+• Pegar -110 vs -105 muda ROI anual de 0% para 3-4%
+• A casa com a "odd errada" é o nosso EV+
+• Operar em 1 casa só = aceitar a margem da casa como fato
+
+APLICAÇÃO MYCROFT:
+• Aprovar apenas quando a melhor odd disponível supera a baseline sharp
+• Identificar EXPLICITAMENTE qual bookmaker oferece o valor (campo 'bookmaker')
+• Vetar quando a única odd disponível é da casa-baseline (sem dispersão)
+
+═══════════════════════════════════════════════
+3. STEAM MOVES E REVERSE LINE MOVEMENT (RLM)
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Quando dinheiro inteligente entra em peso, a linha se move
+mesmo CONTRA o volume público. Konik descreve como o Brain Trust
+disparava ordens em segundos para "pegar" antes do mercado se ajustar.
+
+DOIS SINAIS-CHAVE:
+• STEAM MOVE: linha se move >0.5pt/3% em 2-5 casas em <10min → sharp pesado
+• RLM (Reverse Line Movement): 80% do dinheiro público de um lado, mas
+  a linha se move para o OUTRO → sharp money está do lado oposto do público
+
+APLICAÇÃO MYCROFT:
+• A função `sharp-money-detector` JÁ detecta steam e RLM
+• Sinais com `has_steam` ou `has_rlm` devem ganhar +5pp confiança
+• Sinais com sharp_activity_score >= 25 são confirmação direta de tese
+• NUNCA apostar contra steam confirmado (vetar se nossa tese vai contra steam)
+
+═══════════════════════════════════════════════
+4. SELETIVIDADE EXTREMA — "POUCAS BALAS, ALVOS CERTOS"
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Konik relata que o Brain Trust apostava em ~5-10 jogos por dia
+do calendário de NFL/NBA/MLB que tinha CENTENAS de jogos disponíveis.
+Filtravam ferozmente — mais de 95% dos jogos eram descartados.
+
+CITAÇÃO-CHAVE: "A maior habilidade do apostador profissional é dizer NÃO."
+
+LÓGICA:
+• Volume sem edge = ruína matemática garantida (variância destrói banca)
+• Cada aposta é um ato de violação à precificação do mercado
+• Se você não tem CERTEZA do erro do mercado, está apostando às cegas
+
+APLICAÇÃO MYCROFT:
+• Meta de aprovação 20-40% já alinhada com este princípio
+• Manter VETO como decisão padrão — aprovar é exceção
+• Reforçar: "Em caso de dúvida, vetar"
+
+═══════════════════════════════════════════════
+5. GESTÃO DE BANCA — KELLY FRACIONÁRIO
+═══════════════════════════════════════════════
+
+PRINCÍPIO: O Brain Trust nunca arriscava mais que 1-3% da banca por
+aposta, mesmo nas convicções mais altas. Konik descreve dias com
+"oscilações de US$250.000" — possíveis APENAS porque a banca era enorme
+e o staking era percentual.
+
+LÓGICA KELLY:
+• Stake ótimo = (edge × prob) / odds
+• Kelly puro é AGRESSIVO demais (variance ruim)
+• Profissionais usam 1/4 a 1/2 Kelly = stake conservador
+
+APLICAÇÃO MYCROFT:
+• Tiers atuais (2%, 3%, 4-5%) já estão em Kelly fracionário conservador
+• CAP absoluto de 5% — JAMAIS ultrapassar, mesmo em "trinca certa"
+• Exposição total simultânea ≤ 20% da banca
+
+═══════════════════════════════════════════════
+6. ESPECIALIZAÇÃO POR NICHO
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Cada membro do Brain Trust tinha um NICHO. Um especialista em
+totals da NBA. Outro em college football underdogs. Outro em NHL puck
+lines. Não tentavam ser bons em tudo.
+
+CITAÇÃO-CHAVE: "O dinheiro está nos cantos do mercado onde você sabe mais
+que o sportsbook."
+
+APLICAÇÃO MYCROFT:
+• Bônus +5pp já implementado para ligas/mercados com ROI >10%
+• Considerar penalizar (-5pp) ligas onde ROI histórico é negativo
+• Tabela `model_performance` já rastreia isso por liga × mercado
+
+═══════════════════════════════════════════════
+7. EVITAR JOGOS DE ALTA VARIÂNCIA E "COIN FLIPS"
+═══════════════════════════════════════════════
+
+PRINCÍPIO: O Brain Trust evitava jogos onde o resultado era "loteria":
+mata-mata equilibrado, jogos de chuva forte, derbis emocionais.
+Buscavam jogos onde o MODELO matemático tinha alta certeza.
+
+LÓGICA:
+• Edge baseado em estatística pressupõe regressão à média
+• Jogos com fator surpresa quebram a premissa do modelo
+• Variância alta = mesmo apostas EV+ podem render -20% no curto prazo
+
+APLICAÇÃO MYCROFT:
+• Penalidade -3pp em mata-matas já implementada
+• Penalidade -5pp em times em crise/troca de treinador já existe
+• Considerar adicionar: clima extremo, jogos de "última rodada irrelevante"
+
+═══════════════════════════════════════════════
+8. DISCIPLINA EMOCIONAL E "FAITH IN MATH"
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Big Daddy repetia para Konik durante red streaks: "Essas coisas
+acontecem. Tenha fé. É um jogo longo, com centenas de pequenos resultados
+somando uma grande vitória."
+
+LÓGICA:
+• Drawdown de 15-20% é NORMAL mesmo para apostadores +EV
+• Tilt (apostar mais para recuperar) destrói mais bancas que red streaks
+• Confiar no processo > confiar em resultados pontuais
+
+APLICAÇÃO MYCROFT:
+• Sistema NÃO deve aumentar agressividade após reds (anti-Martingale)
+• Sistema NÃO deve reduzir agressividade após greens (não "proteger lucro")
+• Stake é função APENAS da convicção atual, não do resultado anterior
+
+═══════════════════════════════════════════════
+9. "GHOSTING" E PROTEÇÃO DE EDGE
+═══════════════════════════════════════════════
+
+PRINCÍPIO: O Brain Trust usava múltiplas identidades para apostar porque
+sportsbooks LIMITAM ou BANEM ganhadores consistentes. Konik passou anos
+sendo "ghost" — apostando o dinheiro de outros para esconder padrões.
+
+LÓGICA APLICADA AO USUÁRIO:
+• Ganhar consistentemente em soft books = ser limitado em poucos meses
+• Pinnacle, Betfair Exchange, SBOBet aceitam ganhadores (sharp books)
+• Bet365, Betano, Sportingbet limitam ganhadores em ~3-12 meses
+
+APLICAÇÃO MYCROFT:
+• Em alertas de aposta, sugerir uso de exchanges para stakes maiores
+• Considerar campo "bookmaker_risk" indicando se o book é sharp ou soft
+
+═══════════════════════════════════════════════
+10. NÃO EXISTE "SISTEMA SECRETO" — EXISTE EXECUÇÃO
+═══════════════════════════════════════════════
+
+PRINCÍPIO: Konik desmistifica a ideia de um "algoritmo mágico" do Brain
+Trust. O edge vinha de:
+1. Análise estatística superior aos modelos das casas (anos antes do mainstream)
+2. Velocidade de execução (pegar a odd antes do mercado se ajustar)
+3. Distribuição em dezenas de casas para conseguir liquidez
+4. Disciplina inabalável de só apostar quando tinha edge
+
+CITAÇÃO-CHAVE: "Não somos mais inteligentes que o sportsbook. Somos mais
+PACIENTES. Esperamos o erro deles, atacamos, e desaparecemos."
+
+APLICAÇÃO MYCROFT:
+• Nossa "vantagem" é cruzar Pinnacle vs soft books em escala
+• Velocidade = automação (cron 6h captura odds antes do ajuste)
+• Paciência = veto agressivo de ~70% dos jogos
+
+═══════════════════════════════════════════════
+RESUMO PRESCRITIVO PARA O MYCROFT PUNTER
+═══════════════════════════════════════════════
+
+Baseado nos princípios de Konik, o Mycroft Punter DEVE:
+
+✓ Tratar Pinnacle como proxy de closing line (CLV)
+✓ Exigir line shopping — vetar se há apenas 1 casa com a odd
+✓ Bonificar sinais com steam/RLM confirmado pelo sharp-money-detector
+✓ Manter seletividade brutal (20-40% aprovação máxima)
+✓ Stake percentual da banca atual, sem aumentar em red streak
+✓ Especializar por liga × mercado via model_performance
+✓ Evitar jogos de loteria (mata-mata equilibrado, clima ruim)
+✓ Ter fé no processo: stake é função do edge, não do passado recente
+
+✗ NUNCA apostar contra steam confirmado
+✗ NUNCA aceitar única odd disponível sem comparação
+✗ NUNCA aumentar stake para "recuperar" perdas
+✗ NUNCA aprovar sem 3+ fatores qualitativos
+✗ NUNCA ultrapassar 5% da banca em uma única aposta
+
+═══════════════════════════════════════════════
+"Não somos mais inteligentes que o sportsbook.
+ Somos mais PACIENTES."
+                        — Big Daddy Matthews (via Konik)
+═══════════════════════════════════════════════
