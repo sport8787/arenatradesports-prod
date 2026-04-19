@@ -1131,7 +1131,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
   for (let att=0;att<3;att++) {
     try {
-      const parsed = await callGemini(sysPr, usrPr, incCorners, incCards)
+      const parsed = await callGeminiCached(sb, sysPr, usrPr, incCorners, incCards)
       const a = parsed
       // Map new field names to existing DB columns
       if(a.edge_percentage!=null&&a.value_percentage==null) a.value_percentage=a.edge_percentage
