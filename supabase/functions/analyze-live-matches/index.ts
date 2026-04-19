@@ -151,6 +151,62 @@ serve(async (req) => {
       try {
         console.log(`[AnalyzeLive] Analyzing ${match.home_team} vs ${match.away_team} (${match.minute}')`);
 
+        // 🔬 ENRIQUECIMENTO COM SOFASCORE: API-Football retorna xG/shots zerados em muitos jogos.
+        // SofaScore tem xG real, big chances, tackles, momentum. Fazemos merge.
+        let enrichedStats = { ...(match.stats || {}) };
+        try {
+          const sofaRes = await fetch(`${supabaseUrl}/functions/v1/sofascore-live-stats`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+            body: JSON.stringify({ home: match.home_team, away: match.away_team }),
+          });
+          if (sofaRes.ok) {
+            const sofa = await sofaRes.json();
+            if (sofa?.found) {
+              const num = (v: any) => (v == null || isNaN(Number(v))) ? null : Number(v);
+              // Merge: SofaScore tem prioridade quando o valor da API-Football é 0/null (típico de xG zerado).
+              const prefer = (sofaVal: any, apiVal: any) => {
+                const s = num(sofaVal); const a = num(apiVal);
+                if (s == null) return apiVal ?? null;
+                if (a == null || a === 0) return s;
+                return Math.max(s, a);
+              };
+              enrichedStats = {
+                ...enrichedStats,
+                xG_home: prefer(sofa.xg_home, enrichedStats.xG_home ?? enrichedStats.xg_home),
+                xG_away: prefer(sofa.xg_away, enrichedStats.xG_away ?? enrichedStats.xg_away),
+                xg_home: prefer(sofa.xg_home, enrichedStats.xg_home ?? enrichedStats.xG_home),
+                xg_away: prefer(sofa.xg_away, enrichedStats.xg_away ?? enrichedStats.xG_away),
+                possession_home: prefer(sofa.possession_home, enrichedStats.possession_home),
+                possession_away: prefer(sofa.possession_away, enrichedStats.possession_away),
+                shots_total_home: prefer(sofa.shots_total_home, enrichedStats.shots_total_home),
+                shots_total_away: prefer(sofa.shots_total_away, enrichedStats.shots_total_away),
+                shots_on_target_home: prefer(sofa.shots_on_target_home, enrichedStats.shots_on_target_home),
+                shots_on_target_away: prefer(sofa.shots_on_target_away, enrichedStats.shots_on_target_away),
+                shots_home: prefer(sofa.shots_on_target_home, enrichedStats.shots_home),
+                shots_away: prefer(sofa.shots_on_target_away, enrichedStats.shots_away),
+                big_chances_home: num(sofa.big_chances_home),
+                big_chances_away: num(sofa.big_chances_away),
+                corners_home: prefer(sofa.corners_home, enrichedStats.corners_home),
+                corners_away: prefer(sofa.corners_away, enrichedStats.corners_away),
+                tackles_home: num(sofa.tackles_home),
+                tackles_away: num(sofa.tackles_away),
+                fouls_home: prefer(sofa.fouls_home, enrichedStats.fouls_home),
+                fouls_away: prefer(sofa.fouls_away, enrichedStats.fouls_away),
+                passes_home: prefer(sofa.passes_home, enrichedStats.passes_home),
+                passes_away: prefer(sofa.passes_away, enrichedStats.passes_away),
+                momentum: sofa.momentum ?? null,
+                source_enriched: 'sofascore',
+              };
+              console.log(`[AnalyzeLive] 🔬 SofaScore enriched ${match.home_team} vs ${match.away_team}: xG ${enrichedStats.xG_home}-${enrichedStats.xG_away}, shots ${enrichedStats.shots_total_home}-${enrichedStats.shots_total_away}, BigChances ${enrichedStats.big_chances_home}-${enrichedStats.big_chances_away}`);
+            } else {
+              console.log(`[AnalyzeLive] ℹ️ SofaScore no match found for ${match.home_team} vs ${match.away_team}`);
+            }
+          }
+        } catch (sofaErr) {
+          console.warn(`[AnalyzeLive] SofaScore enrichment failed:`, sofaErr instanceof Error ? sofaErr.message : sofaErr);
+        }
+
         const analysisRes = await fetch(
           `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
           {
@@ -169,7 +225,7 @@ serve(async (req) => {
                 period: match.period ?? '',
                 championship: match.championship,
                 match_id: match.match_id,
-                stats: match.stats,
+                stats: enrichedStats,
                 bankroll: bankroll ?? 500,
               },
             }),
@@ -198,7 +254,7 @@ serve(async (req) => {
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
-            fundamentation: analysis.fundamentation ?? { stats: match.stats },
+            fundamentation: analysis.fundamentation ?? { stats: enrichedStats },
           })
           .select('id')
           .single();
