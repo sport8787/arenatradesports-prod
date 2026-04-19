@@ -1092,6 +1092,23 @@ serve(async (req) => {
 
     console.log(`[MycroftSports] Final: ${analysis.verdict} | Plan: ${analysis.plan_name || analysis.situational_rule || 'DIRETO'} | Conf: ${analysis.confidence}% | BAS: ${analysis.asset_score} (${analysis.asset_classification})`);
 
+    // === CACHE WRITE === Salva análise para reaproveitar enquanto stats não mudarem
+    try {
+      const expiresAt = new Date(Date.now() + 90 * 1000).toISOString(); // 90s TTL
+      await supabaseAdminCache
+        .from('ai_response_cache')
+        .upsert({
+          function_name: 'mycroft-sports-analysis',
+          cache_key: cacheKey,
+          response_json: analysis,
+          expires_at: expiresAt,
+          hit_count: 0,
+        }, { onConflict: 'function_name,cache_key' });
+      console.log(`[MycroftSports] 💾 Cache SAVED (TTL 90s)`);
+    } catch (e) {
+      console.warn('[MycroftSports] Cache write failed:', (e as Error).message);
+    }
+
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[MycroftSports] Error:', error);
