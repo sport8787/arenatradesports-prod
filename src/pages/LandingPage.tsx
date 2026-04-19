@@ -10,6 +10,12 @@ import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
+import VSLSection from '@/components/landing/VSLSection';
+import LeadCaptureForm from '@/components/landing/LeadCaptureForm';
+import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
+import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
+import ObjectionsSection from '@/components/landing/ObjectionsSection';
+import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function LandingPage() {
