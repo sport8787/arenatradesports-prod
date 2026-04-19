@@ -1146,7 +1146,10 @@ serve(async (req) => {
 
     // === CACHE WRITE === Salva análise para reaproveitar enquanto stats não mudarem
     try {
-      const expiresAt = new Date(Date.now() + 90 * 1000).toISOString(); // 90s TTL
+      // JOGO_MORTO/CUIDADO podem virar a qualquer momento → cache curto (30s)
+      // Outros verdicts podem cachear normalmente (90s)
+      const isVolatile = analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'CUIDADO';
+      const expiresAt = new Date(Date.now() + (isVolatile ? 30 : 90) * 1000).toISOString();
       await supabaseAdminCache
         .from('ai_response_cache')
         .upsert({
@@ -1156,7 +1159,7 @@ serve(async (req) => {
           expires_at: expiresAt,
           hit_count: 0,
         }, { onConflict: 'cache_key' });
-      console.log(`[MycroftSports] 💾 Cache SAVED (TTL 90s)`);
+      console.log(`[MycroftSports] 💾 Cache SAVED (TTL ${isVolatile ? 30 : 90}s, verdict=${analysis.verdict})`);
     } catch (e) {
       console.warn('[MycroftSports] Cache write failed:', (e as Error).message);
     }
