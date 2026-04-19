@@ -440,6 +440,11 @@ serve(async (req) => {
       }
     }
 
+    // Inject real market odds (h2h + over/under 2.5) from cached_odds_games
+    if (!match.odds || !match.odds.home) {
+      await enrichMatchWithRealOdds(match);
+    }
+
     // Load planos from table + memory rules in parallel (NO MORE KB)
     const [planos, memoryRules] = await Promise.all([loadPlanos(), loadMemoryRules()]);
 
