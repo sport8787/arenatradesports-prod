@@ -152,7 +152,11 @@ export default function LiveMatchDetail() {
           <div className="grid grid-cols-3 items-center gap-4">
             {/* Home */}
             <div className="text-center space-y-2">
-              <div className="text-4xl sm:text-6xl">{match.home_logo || '⚽'}</div>
+              {match.home_logo && /^https?:\/\//.test(match.home_logo) ? (
+                <img src={match.home_logo} alt={match.home_team} className="w-16 h-16 sm:w-20 sm:h-20 mx-auto object-contain" loading="lazy" />
+              ) : (
+                <div className="text-4xl sm:text-6xl">{match.home_logo || '⚽'}</div>
+              )}
               <p className="font-orbitron text-sm sm:text-base font-bold text-foreground truncate">
                 {match.home_team}
               </p>
@@ -174,7 +178,11 @@ export default function LiveMatchDetail() {
 
             {/* Away */}
             <div className="text-center space-y-2">
-              <div className="text-4xl sm:text-6xl">{match.away_logo || '⚽'}</div>
+              {match.away_logo && /^https?:\/\//.test(match.away_logo) ? (
+                <img src={match.away_logo} alt={match.away_team} className="w-16 h-16 sm:w-20 sm:h-20 mx-auto object-contain" loading="lazy" />
+              ) : (
+                <div className="text-4xl sm:text-6xl">{match.away_logo || '⚽'}</div>
+              )}
               <p className="font-orbitron text-sm sm:text-base font-bold text-foreground truncate">
                 {match.away_team}
               </p>
