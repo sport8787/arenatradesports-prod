@@ -278,6 +278,8 @@ export default function LiveMatchDetail() {
         minute: match.minute ?? 0,
         verdict: analysis?.verdict,
         confidence: analysis?.confidence,
+        market: analysis?.market,
+        odd: analysis?.odd != null ? Number(analysis.odd) : undefined,
         stats,
       };
       // Only add if something meaningful changed
@@ -287,14 +289,16 @@ export default function LiveMatchDetail() {
         last.scoreAway !== next.scoreAway ||
         last.minute !== next.minute ||
         last.verdict !== next.verdict ||
-        last.confidence !== next.confidence
+        last.confidence !== next.confidence ||
+        last.market !== next.market ||
+        last.odd !== next.odd
       ) {
         return [...prev.slice(-49), next];
       }
       return prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match?.updated_at, analysis?.verdict, analysis?.confidence]);
+  }, [match?.updated_at, analysis?.verdict, analysis?.confidence, analysis?.market, analysis?.odd]);
 
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
