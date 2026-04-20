@@ -8,7 +8,7 @@ const corsHeaders = {
 interface Payload {
   match_id: string;
   market: string;
-  event_type: 'APROVADO' | 'CANCELADO';
+  event_type: 'APROVADO' | 'CANCELADO' | 'GREEN' | 'RED' | 'CASHOUT';
   home_team: string;
   away_team: string;
   league?: string;
@@ -20,6 +20,16 @@ interface Payload {
   previous_market?: string; // para CANCELADO
   previous_odd?: number;
   previous_confidence?: number;
+  // para GREEN / RED / CASHOUT
+  pnl?: number;          // R$ ganho ou perdido (negativo se RED)
+  stake_value?: number;  // R$ apostados
+  new_balance?: number;  // saldo virtual após liquidação (opcional)
+}
+
+function fmtBRL(n?: number): string {
+  if (n === undefined || n === null) return '—';
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}R$ ${Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.replace('+R$', '+ R$').replace('R$', n >= 0 ? 'R$' : '- R$');
 }
 
 function buildTelegramMessage(p: Payload): string {
@@ -41,13 +51,59 @@ function buildTelegramMessage(p: Payload): string {
     );
   }
 
+  if (p.event_type === 'CANCELADO') {
+    return (
+      `⚠️ <b>ENTRADA CANCELADA — Arena Trader Sports</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar: <b>${score}</b> • ${minute}\n` +
+      `❌ Era: <b>${p.previous_market ?? p.market}</b> @ ${p.previous_odd?.toFixed(2) ?? '—'} (${p.previous_confidence ?? '—'}%)\n\n` +
+      `<i>Mycroft detectou condição adversa. Não entre.</i>`
+    );
+  }
+
+  // Liquidação (GREEN/RED/CASHOUT) — sinal virtual do usuário
+  const pnl = p.pnl ?? 0;
+  const pnlLine = `${pnl >= 0 ? '+' : '−'} R$ ${Math.abs(pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  const balanceLine = p.new_balance !== undefined
+    ? `💼 Banca virtual: <b>R$ ${p.new_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b>\n`
+    : '';
+
+  if (p.event_type === 'GREEN') {
+    return (
+      `🟢 <b>SEU SINAL DEU GREEN!</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar final: <b>${score}</b>\n` +
+      `🎯 Mercado: <b>${p.market}</b> @ ${p.odd?.toFixed(2) ?? '—'}\n` +
+      `💰 Lucro: <b>${pnlLine}</b>\n` +
+      balanceLine +
+      `\n<i>Boa! Sua banca virtual foi creditada.</i>`
+    );
+  }
+
+  if (p.event_type === 'RED') {
+    return (
+      `🔴 <b>Sinal vermelho — Arena Trader Sports</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar final: <b>${score}</b>\n` +
+      `🎯 Mercado: <b>${p.market}</b> @ ${p.odd?.toFixed(2) ?? '—'}\n` +
+      `📉 Resultado: <b>${pnlLine}</b>\n` +
+      balanceLine +
+      `\n<i>Faz parte. Próximo sinal está vindo.</i>`
+    );
+  }
+
+  // CASHOUT
   return (
-    `⚠️ <b>ENTRADA CANCELADA — Arena Trader Sports</b>\n\n` +
+    `💵 <b>CASHOUT executado — Arena Trader Sports</b>\n\n` +
     `${matchLine}\n` +
     `${leagueLine}` +
     `📊 Placar: <b>${score}</b> • ${minute}\n` +
-    `❌ Era: <b>${p.previous_market ?? p.market}</b> @ ${p.previous_odd?.toFixed(2) ?? '—'} (${p.previous_confidence ?? '—'}%)\n\n` +
-    `<i>Mycroft detectou condição adversa. Não entre.</i>`
+    `🎯 Mercado: <b>${p.market}</b> @ ${p.odd?.toFixed(2) ?? '—'}\n` +
+    `💰 Resultado: <b>${pnlLine}</b>\n` +
+    balanceLine
   );
 }
 
