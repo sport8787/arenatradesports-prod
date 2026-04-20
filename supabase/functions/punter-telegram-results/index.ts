@@ -49,7 +49,7 @@ ${isGreen ? "🎯 Sinal aprovado e confirmado ✅" : isVoid ? "↩️ Stake devo
 🔗 oraculo-mycroft.com`;
 }
 
-async function sendTelegram(token: string, chatId: string, text: string): Promise<boolean> {
+async function sendTelegram(token: string, chatId: string, text: string, attempt = 1): Promise<boolean> {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const res = await fetch(url, {
     method: "POST",
@@ -61,12 +61,24 @@ async function sendTelegram(token: string, chatId: string, text: string): Promis
       disable_web_page_preview: true,
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Telegram erro:", res.status, err);
-    return false;
+  if (res.ok) return true;
+
+  // Trata rate limit do Telegram: aguarda retry_after e tenta de novo (até 2 retries)
+  if (res.status === 429 && attempt <= 2) {
+    try {
+      const data = await res.json();
+      const retryAfter = (data?.parameters?.retry_after ?? 5) + 1;
+      console.warn(`Telegram 429 — aguardando ${retryAfter}s (tentativa ${attempt})`);
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      return sendTelegram(token, chatId, text, attempt + 1);
+    } catch {
+      return false;
+    }
   }
-  return true;
+
+  const err = await res.text();
+  console.error("Telegram erro:", res.status, err);
+  return false;
 }
 
 serve(async (req) => {
