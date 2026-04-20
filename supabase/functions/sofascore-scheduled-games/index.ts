@@ -123,25 +123,38 @@ function parseSofaMarkdown(md: string): ParsedMatch[] {
 }
 
 async function scrapePage(url: string, apiKey: string, maxAge = 0): Promise<string | null> {
-  const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url,
-      formats: ['markdown'],
-      onlyMainContent: true,
-      maxAge,
-    }),
-  });
-  if (!r.ok) {
-    console.warn(`[SofaScheduled] Firecrawl ${r.status} for ${url}`);
-    return null;
+  // Retry até 3x com backoff em caso de 5xx ou timeout (Firecrawl falha frequente em /football/{date})
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          formats: ['markdown'],
+          onlyMainContent: true,
+          maxAge,
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const md = j.data?.markdown || null;
+        if (md && md.length > 1000) return md;
+        console.warn(`[SofaScheduled] Empty/short markdown for ${url} (attempt ${attempt})`);
+      } else {
+        console.warn(`[SofaScheduled] Firecrawl ${r.status} for ${url} (attempt ${attempt}/3)`);
+        // 4xx não-recuperável (exceto 429): não retry
+        if (r.status >= 400 && r.status < 500 && r.status !== 429) return null;
+      }
+    } catch (e) {
+      console.warn(`[SofaScheduled] Fetch exception for ${url} (attempt ${attempt}/3):`, e);
+    }
+    if (attempt < 3) await new Promise(res => setTimeout(res, 1500 * attempt));
   }
-  const j = await r.json();
-  return j.data?.markdown || null;
+  return null;
 }
 
 serve(async (req) => {
@@ -160,12 +173,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Janela de 72h: hoje + amanhã + depois — garante que cron Punter sempre tem jogos pra analisar
     const today = new Date();
-    const tomorrow = new Date(today.getTime() + 24 * 3600 * 1000);
-    const dates = [
-      today.toISOString().split('T')[0],
-      tomorrow.toISOString().split('T')[0],
-    ];
+    const dates = [0, 1, 2, 3].map(offset => {
+      const d = new Date(today.getTime() + offset * 24 * 3600 * 1000);
+      return d.toISOString().split('T')[0];
+    });
 
     const allParsed: ParsedMatch[] = [];
     for (const d of dates) {
@@ -181,14 +194,18 @@ serve(async (req) => {
     }
 
     const now = Date.now();
-    const max = now + 26 * 3600 * 1000;
+    const max = now + 72 * 3600 * 1000; // 72h à frente — não descartar jogos do dia seguinte/depois
     let inserted = 0;
+    let skippedFuture = 0;
+    let skippedPast = 0;
 
     for (const m of allParsed) {
       try {
         const matchDate = new Date(m.time);
         const startMs = matchDate.getTime();
-        if (!startMs || startMs < now - 30 * 60000 || startMs > max) continue;
+        if (!startMs) continue;
+        if (startMs < now - 30 * 60000) { skippedPast++; continue; }
+        if (startMs > max) { skippedFuture++; continue; }
 
         const dateStr = matchDate.toISOString().split('T')[0];
         const timeStr = matchDate.toISOString().slice(11, 16);
@@ -213,8 +230,17 @@ serve(async (req) => {
       } catch (_) {}
     }
 
+    console.log(`[SofaScheduled] Done: ${allParsed.length} parsed, ${inserted} inserted, ${skippedPast} past, ${skippedFuture} too far`);
     return new Response(
-      JSON.stringify({ ok: true, source: 'sofascore-via-firecrawl', total_events: allParsed.length, inserted }),
+      JSON.stringify({
+        ok: true,
+        source: 'sofascore-via-firecrawl',
+        dates_scanned: dates,
+        total_events: allParsed.length,
+        inserted,
+        skipped_past: skippedPast,
+        skipped_too_far: skippedFuture,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
