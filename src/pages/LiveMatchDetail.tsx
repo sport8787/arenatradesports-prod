@@ -20,7 +20,86 @@ interface SnapshotEvent {
   minute: number;
   verdict?: string;
   confidence?: number;
+  market?: string;
+  odd?: number;
   stats?: any;
+}
+
+interface VerdictSession {
+  verdict: string;
+  market?: string;
+  odd?: number;
+  confidence?: number;
+  firstAt: string;
+  lastAt: string;
+  firstMinute: number;
+  lastMinute: number;
+  count: number;
+  scoreChanged: boolean;
+  scoreFinal: { home: number; away: number };
+}
+
+// Agrupa snapshots consecutivos com o mesmo verdict+market+odd em "sessões"
+function groupHistory(history: SnapshotEvent[]): VerdictSession[] {
+  const sessions: VerdictSession[] = [];
+  for (const ev of history) {
+    if (!ev.verdict) continue;
+    const last = sessions[sessions.length - 1];
+    const sameSession =
+      last &&
+      last.verdict === ev.verdict &&
+      last.market === ev.market &&
+      Number(last.odd ?? 0).toFixed(2) === Number(ev.odd ?? 0).toFixed(2);
+
+    if (sameSession) {
+      last.lastAt = ev.at;
+      last.lastMinute = ev.minute;
+      last.count += 1;
+      last.confidence = ev.confidence ?? last.confidence;
+      if (
+        last.scoreFinal.home !== ev.scoreHome ||
+        last.scoreFinal.away !== ev.scoreAway
+      ) {
+        last.scoreChanged = true;
+        last.scoreFinal = { home: ev.scoreHome, away: ev.scoreAway };
+      }
+    } else {
+      sessions.push({
+        verdict: ev.verdict,
+        market: ev.market,
+        odd: ev.odd,
+        confidence: ev.confidence,
+        firstAt: ev.at,
+        lastAt: ev.at,
+        firstMinute: ev.minute,
+        lastMinute: ev.minute,
+        count: 1,
+        scoreChanged: false,
+        scoreFinal: { home: ev.scoreHome, away: ev.scoreAway },
+      });
+    }
+  }
+  return sessions;
+}
+
+const VERDICT_META: Record<string, { icon: string; label: string; tone: string; isActive?: boolean; isCancel?: boolean }> = {
+  APROVADO: { icon: '✅', label: 'ENTRADA ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  APROVADO_SITUACIONAL: { icon: '✅', label: 'ENTRADA ATIVA (SITUACIONAL)', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  opportunity: { icon: '✅', label: 'OPORTUNIDADE ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  LABAREDA: { icon: '🔥', label: 'LABAREDA — ALTO RISCO', tone: 'border-orange-500/40 bg-orange-500/10 text-orange-400', isActive: true },
+  CUIDADO: { icon: '⚠️', label: 'AGUARDAR — CUIDADO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
+  AGUARDAR: { icon: '⏳', label: 'AGUARDANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  analyzing: { icon: '🧠', label: 'ANALISANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  JOGO_MORTO: { icon: '🛑', label: 'JOGO MORTO', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+  VETADO: { icon: '⛔', label: 'ENTRADA CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+  no_value: { icon: '⛔', label: 'SEM VALOR — CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+};
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function fmtTimeSec(iso: string) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 const verdictColors: Record<string, string> = {
