@@ -612,6 +612,23 @@ export default function LiveMatchDetail() {
               <ExternalLink className="w-4 h-4 mr-2" />
               Abrir na Betfair
             </Button>
+            <Button
+              onClick={handleEnablePush}
+              disabled={pushPerm === 'granted' || pushPerm === 'unsupported'}
+              className={cn(
+                'w-full font-orbitron uppercase tracking-wider border',
+                pushPerm === 'granted'
+                  ? 'bg-success/10 text-success border-success/40 cursor-default'
+                  : 'bg-warning/20 hover:bg-warning/30 text-warning border-warning/40',
+              )}
+              variant="outline"
+            >
+              {pushPerm === 'granted' ? (
+                <><Bell className="w-4 h-4 mr-2" />Notificações Ativas</>
+              ) : (
+                <><BellOff className="w-4 h-4 mr-2" />Ativar Push + Telegram</>
+              )}
+            </Button>
           </div>
           {analysis && !analysis.odd && (
             <p className="mt-2 text-[10px] text-center text-muted-foreground">
