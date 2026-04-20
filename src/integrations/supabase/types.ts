@@ -2349,16 +2349,25 @@ export type Database = {
           email_sent_at: string | null
           estimated_probability: number | null
           fair_odd: number | null
+          final_score_away: number | null
+          final_score_home: number | null
+          green_telegram_sent_at: string | null
           home_team: string
           id: string
           implied_probability: number | null
+          last_settle_attempt_at: string | null
           league: string
           market: string
           match_id: string
           odd: number
+          profit_loss: number | null
+          result: string | null
           risk_factors: string | null
+          sent_green_to_telegram: boolean
           sent_to_email: boolean | null
           sent_to_telegram: boolean | null
+          settle_attempts: number
+          settled_at: string | null
           stake_percentage: number | null
           telegram_sent_at: string | null
           thesis: string | null
@@ -2376,16 +2385,25 @@ export type Database = {
           email_sent_at?: string | null
           estimated_probability?: number | null
           fair_odd?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          green_telegram_sent_at?: string | null
           home_team: string
           id?: string
           implied_probability?: number | null
+          last_settle_attempt_at?: string | null
           league: string
           market: string
           match_id: string
           odd: number
+          profit_loss?: number | null
+          result?: string | null
           risk_factors?: string | null
+          sent_green_to_telegram?: boolean
           sent_to_email?: boolean | null
           sent_to_telegram?: boolean | null
+          settle_attempts?: number
+          settled_at?: string | null
           stake_percentage?: number | null
           telegram_sent_at?: string | null
           thesis?: string | null
@@ -2403,16 +2421,25 @@ export type Database = {
           email_sent_at?: string | null
           estimated_probability?: number | null
           fair_odd?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          green_telegram_sent_at?: string | null
           home_team?: string
           id?: string
           implied_probability?: number | null
+          last_settle_attempt_at?: string | null
           league?: string
           market?: string
           match_id?: string
           odd?: number
+          profit_loss?: number | null
+          result?: string | null
           risk_factors?: string | null
+          sent_green_to_telegram?: boolean
           sent_to_email?: boolean | null
           sent_to_telegram?: boolean | null
+          settle_attempts?: number
+          settled_at?: string | null
           stake_percentage?: number | null
           telegram_sent_at?: string | null
           thesis?: string | null
