@@ -177,7 +177,11 @@ export default function LiveMatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { matches, loading } = useLiveMatches();
+  const { bankroll, placeBet } = useSportsBankroll();
   const [history, setHistory] = useState<SnapshotEvent[]>([]);
+  const [betDialogOpen, setBetDialogOpen] = useState(false);
+  const [customStake, setCustomStake] = useState('');
+  const [betLoading, setBetLoading] = useState(false);
 
   const match = useMemo(() => matches.find(m => m.id === id), [matches, id]);
   const stats = (match?.stats as any) || {};
