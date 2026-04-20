@@ -2943,6 +2943,51 @@ export type Database = {
         }
         Relationships: []
       }
+      trader_notifications_sent: {
+        Row: {
+          away_team: string | null
+          confidence: number | null
+          event_type: string
+          home_team: string | null
+          id: string
+          market: string
+          match_id: string
+          odd: number | null
+          push_sent: boolean
+          sent_at: string
+          sent_date: string
+          telegram_sent: boolean
+        }
+        Insert: {
+          away_team?: string | null
+          confidence?: number | null
+          event_type: string
+          home_team?: string | null
+          id?: string
+          market: string
+          match_id: string
+          odd?: number | null
+          push_sent?: boolean
+          sent_at?: string
+          sent_date?: string
+          telegram_sent?: boolean
+        }
+        Update: {
+          away_team?: string | null
+          confidence?: number | null
+          event_type?: string
+          home_team?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          odd?: number | null
+          push_sent?: boolean
+          sent_at?: string
+          sent_date?: string
+          telegram_sent?: boolean
+        }
+        Relationships: []
+      }
       trader_session_snapshots: {
         Row: {
           amount: number
