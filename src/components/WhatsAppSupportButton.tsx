@@ -1,6 +1,6 @@
 import { MessageCircle } from 'lucide-react';
 
-const WHATSAPP_URL = 'https://wa.me/5581997950345?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft';
+const WHATSAPP_URL = 'https://wa.me/5581982221714?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft';
 
 interface WhatsAppSupportButtonProps {
   variant?: 'icon' | 'full';
