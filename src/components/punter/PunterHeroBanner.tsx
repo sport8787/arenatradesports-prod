@@ -23,6 +23,8 @@ interface Stats {
   weeklyRoi: number;
   greensToday: number;
   betsToday: number;
+  settledCount: number;
+  weeklyStaked: number;
 }
 
 interface Props {
@@ -49,7 +51,7 @@ function useCountdown(targetIso?: string) {
 
 const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Props) => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0 });
+  const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0 });
   const countdown = useCountdown(nextMatch?.kickoff);
 
   // Synthetic but believable "punters online" counter (847 ± drift) for social proof
@@ -80,7 +82,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
       const todayStr = new Date().toISOString().slice(0, 10);
       const today = data.filter((b: any) => (b.created_at || '').slice(0, 10) === todayStr);
       const greensToday = today.filter((b: any) => b.result === 'green').length;
-      setStats({ winRate, weeklyRoi, greensToday, betsToday: today.length });
+      setStats({ winRate, weeklyRoi, greensToday, betsToday: today.length, settledCount: settled.length, weeklyStaked });
     })();
     return () => { cancelled = true; };
   }, [userId]);
@@ -117,21 +119,24 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
         <StatCard
-          label="Strike Rate"
-          value={`${stats.winRate.toFixed(1)}%`}
+          label="Strike Rate 30d"
+          value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
           color="primary"
-          progress={stats.winRate}
+          progress={stats.settledCount > 0 ? stats.winRate : undefined}
+          hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
         />
         <StatCard
-          label="ROI Semanal"
-          value={`${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%`}
+          label="ROI 7d"
+          value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
           color="warning"
+          hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
         />
         <StatCard
           label="Greens Hoje"
           value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
           color="foreground"
           highlight={stats.greensToday > 0}
+          hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
         />
       </div>
 
@@ -266,9 +271,10 @@ interface StatCardProps {
   color: 'primary' | 'warning' | 'foreground';
   progress?: number;
   highlight?: boolean;
+  hint?: string;
 }
 
-const StatCard = ({ label, value, color, progress, highlight }: StatCardProps) => {
+const StatCard = ({ label, value, color, progress, highlight, hint }: StatCardProps) => {
   const colorMap = {
     primary: 'text-primary',
     warning: 'text-warning',
@@ -297,6 +303,9 @@ const StatCard = ({ label, value, color, progress, highlight }: StatCardProps) =
             style={{ width: `${Math.min(100, Math.max(0, progress))}%`, boxShadow: '0 0 8px hsl(var(--primary))' }}
           />
         </div>
+      )}
+      {hint && (
+        <p className="font-mono text-[9px] text-muted-foreground/70 mt-1.5 truncate">{hint}</p>
       )}
     </div>
   );
