@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { identifyUser, track } from "@/lib/analytics";
+import { captureUTMs } from "@/lib/utm";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -54,6 +55,9 @@ if (typeof window !== 'undefined') {
 
 const App = () => {
   useEffect(() => {
+    // Captura UTMs (fbclid, utm_source, utm_campaign etc) no primeiro hit
+    // e registra como super-properties no PostHog (vão em TODOS os eventos).
+    captureUTMs();
     console.log('[App] 🎭 Pre-cache DISABLED on startup - will run only when entering a game room');
   }, []);
 

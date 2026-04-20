@@ -1,10 +1,23 @@
 import posthog from 'posthog-js';
+import { getAttributionProps } from './utm';
 
 // PostHog is now initialized via PostHogProvider in main.tsx
 // These helpers use the singleton instance from posthog-js
 
 export const identifyUser = (userId: string, properties?: Record<string, any>) => {
-  posthog.identify(userId, properties);
+  // Anexa first/last touch como user properties (set once = imutável depois)
+  const attribution = getAttributionProps();
+  const firstAttr: Record<string, string> = {};
+  const allAttr: Record<string, string> = {};
+  Object.entries(attribution).forEach(([k, v]) => {
+    if (k.startsWith('first_')) firstAttr[k] = v;
+    allAttr[k] = v;
+  });
+  posthog.identify(userId, {
+    ...properties,
+    ...allAttr,
+    $set_once: firstAttr,
+  });
 };
 
 export const resetAnalytics = () => {
@@ -13,8 +26,34 @@ export const resetAnalytics = () => {
 
 export const track = {
   // ── ATIVAÇÃO ──
-  signUp: (plan: string, source: string) => {
-    posthog.capture('user_signed_up', { plan, source });
+  signUp: (plan: string, source: string, method: 'email' | 'google' | 'apple' = 'email') => {
+    posthog.capture('user_signed_up', {
+      plan,
+      source,
+      signup_method: method,
+      ...getAttributionProps(),
+    });
+  },
+
+  landingViewed: (page: string) => {
+    posthog.capture('landing_viewed', { page, ...getAttributionProps() });
+  },
+
+  ctaClicked: (location: string, label: string) => {
+    posthog.capture('cta_clicked', { location, label, ...getAttributionProps() });
+  },
+
+  paywallViewed: (origin: string) => {
+    posthog.capture('paywall_viewed', { origin, ...getAttributionProps() });
+  },
+
+  checkoutInitiated: (plan: string, price: number, origin: 'paywall' | 'oferta_especial') => {
+    posthog.capture('checkout_initiated', {
+      plan,
+      price,
+      origin,
+      ...getAttributionProps(),
+    });
   },
 
   firstBetViewed: (assetScore: number, edge: number) => {

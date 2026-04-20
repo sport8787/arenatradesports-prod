@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { track } from '@/lib/analytics';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('E-mail inválido');
@@ -149,6 +150,9 @@ const Auth = () => {
             sessionStorage.removeItem('referral_source');
           }
           
+          // PostHog: signup completo (com UTMs anexadas via super-properties)
+          track.signUp('trial', storedRef || 'organic', 'email');
+
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
           navigate('/punter');

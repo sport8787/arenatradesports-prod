@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Check, Sparkles, TrendingUp, Trophy, Lock, Rocket } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
+import { track } from '@/lib/analytics';
 
 const PLANS = [
   {
@@ -41,13 +43,20 @@ declare global {
 }
 
 export default function Paywall() {
+  useEffect(() => {
+    track.paywallViewed('paywall');
+  }, []);
+
   const handlePlanClick = (plan: typeof PLANS[0]) => {
+    const price = parseFloat(plan.price.replace(',', '.'));
+    // PostHog (com UTMs anexadas via super-properties)
+    track.checkoutInitiated(plan.name, price, 'paywall');
     // Meta Pixel - InitiateCheckout
     if (window.fbq) {
       window.fbq('track', 'InitiateCheckout', {
         content_name: plan.name,
         currency: 'BRL',
-        value: parseFloat(plan.price.replace(',', '.')),
+        value: price,
       });
     }
   };
