@@ -20,16 +20,16 @@ export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/30 rounded-full text-sm text-red-400 mb-4">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="font-semibold">ASSISTA ANTES DE DECIDIR</span>
+            <span className="font-semibold">ASSISTA ANTES QUE AS VAGAS ACABEM</span>
           </div>
           <h2 className="text-3xl lg:text-5xl font-bold mb-4">
-            COMO O MYCROFT TRANSFORMOU
+            NÃO FOI AZAR.
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
-              APOSTAS EM INVESTIMENTO
+              AS CASAS AJUSTARAM ANTES DE VOCÊ PERCEBER.
             </span>
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Em 3 minutos você entende exatamente como funciona — e por que 1.200+ apostadores já trocaram o "feeling" pela matemática.
+            +73% de ROI auditado em 1.658 posições. Veja o sistema rodando ao vivo dentro do vídeo — e o contador de vagas caindo enquanto você assiste.
           </p>
         </motion.div>
 
@@ -76,10 +76,10 @@ export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
             onClick={onCTA}
             className="px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/30 inline-flex items-center gap-2 group text-lg"
           >
-            QUERO TESTAR GRÁTIS POR 7 DIAS
+            GARANTIR MINHA VAGA — 7 DIAS GRÁTIS
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
           </button>
-          <p className="text-sm text-gray-400 mt-3">Sem cartão • Cancele em 2 cliques • Acesso imediato</p>
+          <p className="text-sm text-gray-400 mt-3">Sem cartão hoje • Cancele em 2 cliques • O risco é todo meu</p>
         </motion.div>
       </div>
     </section>
