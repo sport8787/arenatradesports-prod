@@ -169,8 +169,8 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL — Vídeo de apresentação (espaço reservado para gravação) */}
-      <VSLSection onCTA={goToAuth} />
+      {/* VSL — Removida temporariamente até o vídeo ficar pronto */}
+      {/* <VSLSection onCTA={goToAuth} /> */}
 
       {/* Prova Real — Depoimento + Demo do sistema */}
       <SocialProofSection />
