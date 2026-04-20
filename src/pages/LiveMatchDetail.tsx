@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
+import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
+import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import GoldButton from '@/components/game/GoldButton';
 
 interface SnapshotEvent {
@@ -172,7 +177,11 @@ export default function LiveMatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { matches, loading } = useLiveMatches();
+  const { bankroll, placeBet } = useSportsBankroll();
   const [history, setHistory] = useState<SnapshotEvent[]>([]);
+  const [betDialogOpen, setBetDialogOpen] = useState(false);
+  const [customStake, setCustomStake] = useState('');
+  const [betLoading, setBetLoading] = useState(false);
 
   const match = useMemo(() => matches.find(m => m.id === id), [matches, id]);
   const stats = (match?.stats as any) || {};
@@ -207,6 +216,44 @@ export default function LiveMatchDetail() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.updated_at, analysis?.verdict, analysis?.confidence]);
+
+  const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
+
+  const handleManualBet = async () => {
+    if (!match || !analysis || !bankroll) return;
+    const stake = Number(customStake);
+    if (!stake || stake <= 0) {
+      toast.error('Informe um valor válido para a stake.');
+      return;
+    }
+    if (stake > bankroll.balance) {
+      toast.error('Saldo insuficiente na banca virtual.');
+      return;
+    }
+    setBetLoading(true);
+    const result = await placeBet({
+      id: (analysis as any).id || match.id,
+      match_id: match.match_id || match.id,
+      market: analysis.market || 'N/A',
+      odd: Number(analysis.odd) || 1.01,
+      home_team: match.home_team,
+      away_team: match.away_team,
+    });
+    setBetLoading(false);
+    if (result.success) {
+      toast.success(`Aposta virtual registrada: R$ ${stake.toFixed(2)}`);
+      setBetDialogOpen(false);
+      setCustomStake('');
+    } else {
+      toast.error(result.error || 'Falha ao registrar aposta.');
+    }
+  };
+
+  const openBetfair = () => {
+    const query = encodeURIComponent(`${match?.home_team || ''} ${match?.away_team || ''}`.trim());
+    const url = `https://www.betfair.bet.br/exchange/plus/pt/futebol-aposta-1/search?q=${query}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   if (loading) {
     return (
@@ -365,6 +412,39 @@ export default function LiveMatchDetail() {
                 </Badge>
               )}
             </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto">
+            <Button
+              onClick={() => {
+                if (!bankroll) {
+                  toast.error('Banca virtual ainda carregando...');
+                  return;
+                }
+                setCustomStake(recommendedStake.toString());
+                setBetDialogOpen(true);
+              }}
+              disabled={!analysis || !analysis.odd}
+              className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/40 font-orbitron uppercase tracking-wider"
+              variant="outline"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
+              Entrada Manual (Virtual)
+            </Button>
+            <Button
+              onClick={openBetfair}
+              className="w-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 font-orbitron uppercase tracking-wider"
+              variant="outline"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Abrir na Betfair
+            </Button>
+          </div>
+          {analysis && !analysis.odd && (
+            <p className="mt-2 text-[10px] text-center text-muted-foreground">
+              Aguardando odd da análise para liberar entrada virtual.
+            </p>
           )}
         </motion.section>
 
@@ -561,6 +641,80 @@ export default function LiveMatchDetail() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Manual Bet Dialog */}
+      <Dialog open={betDialogOpen} onOpenChange={setBetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-orbitron uppercase tracking-wider flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-success" />
+              Entrada Manual — Banca Virtual
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {match?.home_team} vs {match?.away_team} • {analysis?.market} • Odd {analysis?.odd != null ? Number(analysis.odd).toFixed(2) : '-'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-muted/30 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo</p>
+                <p className="font-orbitron font-bold text-foreground">
+                  R$ {(bankroll?.balance ?? 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sugerido (5%)</p>
+                <p className="font-orbitron font-bold text-success">
+                  R$ {recommendedStake.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">
+                Stake (R$)
+              </label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0.01"
+                value={customStake}
+                onChange={(e) => setCustomStake(e.target.value)}
+                placeholder="0,00"
+                className="font-orbitron"
+              />
+              {Number(customStake) > 0 && analysis?.odd && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Retorno potencial: <span className="text-success font-bold">
+                    R$ {(Number(customStake) * Number(analysis.odd)).toFixed(2)}
+                  </span> (lucro R$ {(Number(customStake) * (Number(analysis.odd) - 1)).toFixed(2)})
+                </p>
+              )}
+            </div>
+
+            <p className="text-[10px] text-muted-foreground bg-muted/20 rounded p-2 leading-relaxed">
+              ⚠️ Esta é uma <strong>aposta virtual</strong> que debita apenas da sua banca de simulação. Use para testar o desempenho do Mycroft sem risco real.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setBetDialogOpen(false)} disabled={betLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleManualBet}
+              disabled={betLoading || !customStake || Number(customStake) <= 0}
+              className="bg-success/20 hover:bg-success/30 text-success border border-success/40"
+              variant="outline"
+            >
+              {betLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wallet className="w-4 h-4 mr-2" />}
+              Confirmar Entrada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
