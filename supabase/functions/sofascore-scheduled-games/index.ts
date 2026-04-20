@@ -123,25 +123,38 @@ function parseSofaMarkdown(md: string): ParsedMatch[] {
 }
 
 async function scrapePage(url: string, apiKey: string, maxAge = 0): Promise<string | null> {
-  const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url,
-      formats: ['markdown'],
-      onlyMainContent: true,
-      maxAge,
-    }),
-  });
-  if (!r.ok) {
-    console.warn(`[SofaScheduled] Firecrawl ${r.status} for ${url}`);
-    return null;
+  // Retry até 3x com backoff em caso de 5xx ou timeout (Firecrawl falha frequente em /football/{date})
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const r = await fetch(`${FIRECRAWL_V2}/scrape`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          formats: ['markdown'],
+          onlyMainContent: true,
+          maxAge,
+        }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const md = j.data?.markdown || null;
+        if (md && md.length > 1000) return md;
+        console.warn(`[SofaScheduled] Empty/short markdown for ${url} (attempt ${attempt})`);
+      } else {
+        console.warn(`[SofaScheduled] Firecrawl ${r.status} for ${url} (attempt ${attempt}/3)`);
+        // 4xx não-recuperável (exceto 429): não retry
+        if (r.status >= 400 && r.status < 500 && r.status !== 429) return null;
+      }
+    } catch (e) {
+      console.warn(`[SofaScheduled] Fetch exception for ${url} (attempt ${attempt}/3):`, e);
+    }
+    if (attempt < 3) await new Promise(res => setTimeout(res, 1500 * attempt));
   }
-  const j = await r.json();
-  return j.data?.markdown || null;
+  return null;
 }
 
 serve(async (req) => {
