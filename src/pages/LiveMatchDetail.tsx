@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
+import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
+import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import GoldButton from '@/components/game/GoldButton';
 
 interface SnapshotEvent {
