@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink, Bell, BellOff } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import GoldButton from '@/components/game/GoldButton';
+import { supabase } from '@/integrations/supabase/client';
+import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
 
 interface SnapshotEvent {
   at: string;
