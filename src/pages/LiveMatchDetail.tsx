@@ -413,6 +413,39 @@ export default function LiveMatchDetail() {
               )}
             </div>
           )}
+
+          {/* Action Buttons */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto">
+            <Button
+              onClick={() => {
+                if (!bankroll) {
+                  toast.error('Banca virtual ainda carregando...');
+                  return;
+                }
+                setCustomStake(recommendedStake.toString());
+                setBetDialogOpen(true);
+              }}
+              disabled={!analysis || !analysis.odd}
+              className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/40 font-orbitron uppercase tracking-wider"
+              variant="outline"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
+              Entrada Manual (Virtual)
+            </Button>
+            <Button
+              onClick={openBetfair}
+              className="w-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 font-orbitron uppercase tracking-wider"
+              variant="outline"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Abrir na Betfair
+            </Button>
+          </div>
+          {analysis && !analysis.odd && (
+            <p className="mt-2 text-[10px] text-center text-muted-foreground">
+              Aguardando odd da análise para liberar entrada virtual.
+            </p>
+          )}
         </motion.section>
 
         {/* Tabs */}
