@@ -16,11 +16,15 @@ import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
 import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
+import PromoSlotsCounter from '@/components/landing/PromoSlotsCounter';
+import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
+import { usePromoSlots } from '@/hooks/usePromoSlots';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
+  const { decrementSlot } = usePromoSlots();
 
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
@@ -29,7 +33,11 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, loading, navigate]);
 
-  const goToAuth = () => navigate('/auth');
+  const goToAuth = () => {
+    // Fire-and-forget: decrementa vaga ao clicar no CTA
+    void decrementSlot();
+    navigate('/auth');
+  };
   const [showDemo, setShowDemo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -99,6 +107,10 @@ export default function LandingPage() {
                 <span className="text-blue-400 font-semibold"> 1.658 posições</span>.
               </p>
 
+              <div className="mb-6">
+                <PromoSlotsCounter variant="inline" />
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <button onClick={goToAuth} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
                   TESTAR GRÁTIS POR 7 DIAS
@@ -156,6 +168,9 @@ export default function LandingPage() {
 
       {/* VSL — Vídeo de apresentação (espaço reservado para gravação) */}
       <VSLSection onCTA={goToAuth} />
+
+      {/* Prova Real — Depoimento + Demo do sistema */}
+      <SocialProofSection />
 
       {/* Contadores ao vivo */}
       <LiveStatsCounter />
