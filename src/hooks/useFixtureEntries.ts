@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { showBrowserPush } from '@/lib/browserPush';
 import type { TraderEntry } from '@/components/dashboard/EntryRow';
 
 const OPPOSITE_MARKETS: Record<string, string> = {
@@ -137,21 +138,72 @@ export function useFixtureEntries(fixtureId: string | undefined, userId: string 
     return true;
   };
 
+  const notifyResult = async (
+    entryId: string,
+    eventType: 'GREEN' | 'RED' | 'CASHOUT',
+    pnl: number,
+    stakeValue: number,
+  ) => {
+    const entry = entries.find((e) => e.id === entryId);
+    if (!entry) return;
+
+    const [home, away] = (entry.fixture_label || ' x ').split(/\s+x\s+/i);
+    const titleByEvent = {
+      GREEN: '🟢 GREEN! Sinal confirmado',
+      RED: '🔴 Sinal vermelho',
+      CASHOUT: '💵 Cashout executado',
+    } as const;
+    const bodyMsg =
+      eventType === 'GREEN'
+        ? `${entry.market} @ ${Number(entry.odd).toFixed(2)} • +R$ ${pnl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        : eventType === 'RED'
+          ? `${entry.market} @ ${Number(entry.odd).toFixed(2)} • −R$ ${Math.abs(pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : `${entry.market} • R$ ${pnl >= 0 ? '+' : '−'}${Math.abs(pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+    showBrowserPush(titleByEvent[eventType], bodyMsg, {
+      tag: `result-${entryId}`,
+      url: `/arena-trader-sports/match/${entry.fixture_id}`,
+    });
+
+    try {
+      await supabase.functions.invoke('notify-trader-event', {
+        body: {
+          match_id: entry.fixture_id,
+          market: entry.market,
+          event_type: eventType,
+          home_team: (home || '').trim() || 'Time A',
+          away_team: (away || '').trim() || 'Time B',
+          odd: Number(entry.odd),
+          pnl,
+          stake_value: stakeValue,
+        },
+      });
+    } catch (e) {
+      console.warn('notify-trader-event falhou:', e);
+    }
+  };
+
   const markGreen = async (entryId: string, odd: number, stakeValue: number) => {
     const pnl = parseFloat(((odd - 1) * stakeValue).toFixed(2));
     await supabase.from('arena_trader_entries').update({ status: 'green', pnl, result: 'green' } as any).eq('id', entryId);
     invalidate();
+    toast.success(`🟢 GREEN! +R$ ${pnl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} na sua banca virtual`);
+    await notifyResult(entryId, 'GREEN', pnl, stakeValue);
   };
 
   const markRed = async (entryId: string, stakeValue: number) => {
     await supabase.from('arena_trader_entries').update({ status: 'red', pnl: -stakeValue, result: 'red' } as any).eq('id', entryId);
     invalidate();
+    toast.error(`🔴 RED. −R$ ${stakeValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} no resultado`);
+    await notifyResult(entryId, 'RED', -stakeValue, stakeValue);
   };
 
   const markCashout = async (entryId: string, cashoutValue: number, stakeValue: number) => {
     const pnl = parseFloat((cashoutValue - stakeValue).toFixed(2));
     await supabase.from('arena_trader_entries').update({ status: 'cashout', pnl, result: 'cashout' } as any).eq('id', entryId);
     invalidate();
+    toast(`💵 Cashout: ${pnl >= 0 ? '+' : '−'}R$ ${Math.abs(pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+    await notifyResult(entryId, 'CASHOUT', pnl, stakeValue);
   };
 
   return { entries: entriesWithEstimates, totalStakePct, gamePnL, addEntry, markGreen, markRed, markCashout, canAddEntry, invalidate, ...rest };

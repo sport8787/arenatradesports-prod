@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Target } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy } from 'lucide-react';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -390,6 +390,10 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/historico')}>
               <Wallet className="w-4 h-4 mr-1" />
               Meus Trades
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/ranking-mensal')}>
+              <Trophy className="w-4 h-4 mr-1" />
+              Ranking
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
               <Dumbbell className="w-4 h-4 mr-1" />
