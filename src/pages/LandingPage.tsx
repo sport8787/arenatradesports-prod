@@ -7,6 +7,7 @@ import {
   Brain, Award, LineChart, Users, Star
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
+import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
@@ -66,6 +67,7 @@ export default function LandingPage() {
             </nav>
             
             <div className="flex items-center gap-3">
+              <WhatsAppSupportButton />
               <button onClick={goToAuth} className="text-sm text-gray-300 hover:text-white transition">Login</button>
               <button onClick={goToAuth} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
                 TESTAR 7 DIAS GRÁTIS
