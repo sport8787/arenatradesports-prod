@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
+import { track } from '@/lib/analytics';
 
 const PLANS = [
   {
@@ -70,12 +72,18 @@ declare global {
 export default function OfertaEspecial() {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    track.paywallViewed('oferta_especial');
+  }, []);
+
   const handlePlanClick = (plan: typeof PLANS[0]) => {
+    const price = parseFloat(plan.price.replace(',', '.'));
+    track.checkoutInitiated(`${plan.name} - 50% OFF`, price, 'oferta_especial');
     if (window.fbq) {
       window.fbq('track', 'InitiateCheckout', {
         content_name: `${plan.name} - 50% OFF`,
         currency: 'BRL',
-        value: parseFloat(plan.price.replace(',', '.')),
+        value: price,
       });
     }
   };
