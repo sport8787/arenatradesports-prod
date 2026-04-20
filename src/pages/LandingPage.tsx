@@ -16,11 +16,15 @@ import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
 import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
+import PromoSlotsCounter from '@/components/landing/PromoSlotsCounter';
+import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
+import { usePromoSlots } from '@/hooks/usePromoSlots';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
+  const { decrementSlot } = usePromoSlots();
 
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
@@ -29,7 +33,11 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, loading, navigate]);
 
-  const goToAuth = () => navigate('/auth');
+  const goToAuth = () => {
+    // Fire-and-forget: decrementa vaga ao clicar no CTA
+    void decrementSlot();
+    navigate('/auth');
+  };
   const [showDemo, setShowDemo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
