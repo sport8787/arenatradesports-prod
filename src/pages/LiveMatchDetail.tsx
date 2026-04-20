@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink, Bell, BellOff } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { useSportsBankroll } from '@/hooks/useSportsBankroll';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import GoldButton from '@/components/game/GoldButton';
+import { supabase } from '@/integrations/supabase/client';
+import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
 
 interface SnapshotEvent {
   at: string;
@@ -261,10 +263,16 @@ export default function LiveMatchDetail() {
   const [betDialogOpen, setBetDialogOpen] = useState(false);
   const [customStake, setCustomStake] = useState('');
   const [betLoading, setBetLoading] = useState(false);
+  const [pushPerm, setPushPerm] = useState<PushPermission>('default');
+  const lastNotifiedRef = useRef<{ approved?: string; cancelled?: string }>({});
 
   const match = useMemo(() => matches.find(m => m.id === id), [matches, id]);
   const stats = (match?.stats as any) || {};
   const analysis = match?.mycroft_analysis;
+
+  useEffect(() => {
+    setPushPerm(getPushPermission());
+  }, []);
 
   // Build session history of updates (in-memory)
   useEffect(() => {
@@ -282,7 +290,6 @@ export default function LiveMatchDetail() {
         odd: analysis?.odd != null ? Number(analysis.odd) : undefined,
         stats,
       };
-      // Only add if something meaningful changed
       if (
         !last ||
         last.scoreHome !== next.scoreHome ||
@@ -299,6 +306,88 @@ export default function LiveMatchDetail() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.updated_at, analysis?.verdict, analysis?.confidence, analysis?.market, analysis?.odd]);
+
+  // Detecta transições e dispara push + Telegram
+  useEffect(() => {
+    if (!match || !analysis?.verdict || !analysis?.market) return;
+
+    const currentVerdict = String(analysis.verdict).toUpperCase();
+    const isApproved = currentVerdict.includes('APROVAD');
+    const isRejected = ['VETADO', 'SEM VALOR', 'REJEITADO', 'CANCELADO'].some(v =>
+      currentVerdict.includes(v),
+    );
+
+    const prevDifferent = [...history]
+      .reverse()
+      .find(h => h.verdict && h.verdict !== analysis.verdict);
+    const prevWasApproved = prevDifferent
+      ? String(prevDifferent.verdict).toUpperCase().includes('APROVAD')
+      : false;
+
+    const marketKey = `${match.match_id}::${analysis.market}::${Number(analysis.odd ?? 0).toFixed(2)}`;
+
+    if (isApproved && lastNotifiedRef.current.approved !== marketKey) {
+      lastNotifiedRef.current.approved = marketKey;
+      showBrowserPush(
+        `✅ APROVADO: ${analysis.market}`,
+        `${match.home_team} x ${match.away_team} • ${match.score_home ?? 0}:${match.score_away ?? 0} ${match.minute ?? 0}' • Odd ${Number(analysis.odd ?? 0).toFixed(2)} (${analysis.confidence ?? '—'}%)`,
+        { tag: marketKey, url: window.location.href },
+      );
+      supabase.functions.invoke('notify-trader-event', {
+        body: {
+          match_id: match.match_id,
+          market: analysis.market,
+          event_type: 'APROVADO',
+          home_team: match.home_team,
+          away_team: match.away_team,
+          league: match.championship,
+          odd: Number(analysis.odd ?? 0),
+          confidence: analysis.confidence,
+          minute: match.minute,
+          score_home: match.score_home,
+          score_away: match.score_away,
+        },
+      }).catch(err => console.error('notify approved failed', err));
+    }
+
+    if (isRejected && prevWasApproved && lastNotifiedRef.current.cancelled !== marketKey) {
+      lastNotifiedRef.current.cancelled = marketKey;
+      showBrowserPush(
+        `⚠️ CANCELADO: ${prevDifferent?.market ?? analysis.market}`,
+        `${match.home_team} x ${match.away_team} • ${match.minute ?? 0}' • Mycroft detectou condição adversa`,
+        { tag: `cancel-${marketKey}`, url: window.location.href },
+      );
+      supabase.functions.invoke('notify-trader-event', {
+        body: {
+          match_id: match.match_id,
+          market: prevDifferent?.market ?? analysis.market,
+          event_type: 'CANCELADO',
+          home_team: match.home_team,
+          away_team: match.away_team,
+          league: match.championship,
+          minute: match.minute,
+          score_home: match.score_home,
+          score_away: match.score_away,
+          previous_market: prevDifferent?.market,
+          previous_odd: prevDifferent?.odd,
+          previous_confidence: prevDifferent?.confidence,
+        },
+      }).catch(err => console.error('notify cancelled failed', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis?.verdict, analysis?.market, analysis?.odd, match?.match_id]);
+
+  const handleEnablePush = async () => {
+    const result = await requestPushPermission();
+    setPushPerm(result);
+    if (result === 'granted') {
+      toast.success('Notificações ativadas! Você receberá alertas de entradas e cancelamentos.');
+    } else if (result === 'denied') {
+      toast.error('Permissão negada. Ative manualmente nas configurações do navegador.');
+    } else if (result === 'unsupported') {
+      toast.error('Seu navegador não suporta notificações push.');
+    }
+  };
 
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
@@ -522,6 +611,23 @@ export default function LiveMatchDetail() {
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               Abrir na Betfair
+            </Button>
+            <Button
+              onClick={handleEnablePush}
+              disabled={pushPerm === 'granted' || pushPerm === 'unsupported'}
+              className={cn(
+                'w-full font-orbitron uppercase tracking-wider border',
+                pushPerm === 'granted'
+                  ? 'bg-success/10 text-success border-success/40 cursor-default'
+                  : 'bg-warning/20 hover:bg-warning/30 text-warning border-warning/40',
+              )}
+              variant="outline"
+            >
+              {pushPerm === 'granted' ? (
+                <><Bell className="w-4 h-4 mr-2" />Notificações Ativas</>
+              ) : (
+                <><BellOff className="w-4 h-4 mr-2" />Ativar Push + Telegram</>
+              )}
             </Button>
           </div>
           {analysis && !analysis.odd && (
