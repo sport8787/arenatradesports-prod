@@ -1,0 +1,145 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface Payload {
+  match_id: string;
+  market: string;
+  event_type: 'APROVADO' | 'CANCELADO';
+  home_team: string;
+  away_team: string;
+  league?: string;
+  odd?: number;
+  confidence?: number;
+  minute?: number;
+  score_home?: number;
+  score_away?: number;
+  previous_market?: string; // para CANCELADO
+  previous_odd?: number;
+  previous_confidence?: number;
+}
+
+function buildTelegramMessage(p: Payload): string {
+  const score = `${p.score_home ?? 0}:${p.score_away ?? 0}`;
+  const minute = p.minute ? `${p.minute}'` : '—';
+  const matchLine = `<b>${p.home_team} x ${p.away_team}</b>`;
+  const leagueLine = p.league ? `🏆 ${p.league}\n` : '';
+
+  if (p.event_type === 'APROVADO') {
+    return (
+      `✅ <b>ENTRADA APROVADA — Arena Trader Sports</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar: <b>${score}</b> • ${minute}\n` +
+      `🎯 Mercado: <b>${p.market}</b>\n` +
+      `💰 Odd: <b>${p.odd?.toFixed(2) ?? '—'}</b>\n` +
+      `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n\n` +
+      `<i>Acesse o app para confirmar a entrada.</i>`
+    );
+  }
+
+  return (
+    `⚠️ <b>ENTRADA CANCELADA — Arena Trader Sports</b>\n\n` +
+    `${matchLine}\n` +
+    `${leagueLine}` +
+    `📊 Placar: <b>${score}</b> • ${minute}\n` +
+    `❌ Era: <b>${p.previous_market ?? p.market}</b> @ ${p.previous_odd?.toFixed(2) ?? '—'} (${p.previous_confidence ?? '—'}%)\n\n` +
+    `<i>Mycroft detectou condição adversa. Não entre.</i>`
+  );
+}
+
+async function sendTelegram(text: string): Promise<boolean> {
+  const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
+  const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
+  if (!token || !chatId) {
+    console.warn('Telegram não configurado');
+    return false;
+  }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      console.error('Telegram erro:', data);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Telegram exception:', e);
+    return false;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  try {
+    const payload = (await req.json()) as Payload;
+    if (!payload.match_id || !payload.market || !payload.event_type) {
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios ausentes' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // Dedupe: já notificado hoje?
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: existing } = await supabase
+      .from('trader_notifications_sent')
+      .select('id')
+      .eq('match_id', payload.match_id)
+      .eq('market', payload.market)
+      .eq('event_type', payload.event_type)
+      .eq('sent_date', today)
+      .maybeSingle();
+
+    if (existing) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'already_sent_today' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const message = buildTelegramMessage(payload);
+    const telegramOk = await sendTelegram(message);
+
+    await supabase.from('trader_notifications_sent').insert({
+      match_id: payload.match_id,
+      market: payload.market,
+      event_type: payload.event_type,
+      home_team: payload.home_team,
+      away_team: payload.away_team,
+      odd: payload.odd ?? null,
+      confidence: payload.confidence ?? null,
+      sent_date: today,
+      telegram_sent: telegramOk,
+      push_sent: true, // o cliente dispara o push localmente
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, telegram_sent: telegramOk, message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  } catch (e) {
+    console.error('notify-trader-event error:', e);
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
