@@ -2263,6 +2263,77 @@ export type Database = {
           },
         ]
       }
+      promo_slot_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip_hash: string | null
+          promo_id: string
+          slots_after: number
+          slots_before: number
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          promo_id: string
+          slots_after: number
+          slots_before: number
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          promo_id?: string
+          slots_after?: number
+          slots_before?: number
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_slot_events_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promo_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_slots: {
+        Row: {
+          campaign_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          slots_remaining: number
+          slots_total: number
+          updated_at: string
+        }
+        Insert: {
+          campaign_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          slots_remaining?: number
+          slots_total?: number
+          updated_at?: string
+        }
+        Update: {
+          campaign_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          slots_remaining?: number
+          slots_total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       punter_analyses: {
         Row: {
           analysis: string | null
@@ -4548,6 +4619,19 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
+      decrement_promo_slot: {
+        Args: {
+          p_event_type?: string
+          p_ip_hash?: string
+          p_promo_id?: string
+          p_user_agent?: string
+        }
+        Returns: {
+          is_active: boolean
+          slots_remaining: number
+          slots_total: number
+        }[]
+      }
       deduct_bankroll: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
