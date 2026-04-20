@@ -766,7 +766,6 @@ export default function LiveMatchDetail() {
                           odd: analysis.odd != null ? Number(analysis.odd) : undefined,
                           confidence: analysis.confidence,
                           thesis: analysis.thesis,
-                          plan_name: analysis.plan_name,
                           alerts: analysis.alerts,
                         }
                       : undefined,
