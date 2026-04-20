@@ -217,6 +217,44 @@ export default function LiveMatchDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.updated_at, analysis?.verdict, analysis?.confidence]);
 
+  const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
+
+  const handleManualBet = async () => {
+    if (!match || !analysis || !bankroll) return;
+    const stake = Number(customStake);
+    if (!stake || stake <= 0) {
+      toast.error('Informe um valor válido para a stake.');
+      return;
+    }
+    if (stake > bankroll.balance) {
+      toast.error('Saldo insuficiente na banca virtual.');
+      return;
+    }
+    setBetLoading(true);
+    const result = await placeBet({
+      id: (analysis as any).id || match.id,
+      match_id: match.match_id || match.id,
+      market: analysis.market || 'N/A',
+      odd: Number(analysis.odd) || 1.01,
+      home_team: match.home_team,
+      away_team: match.away_team,
+    });
+    setBetLoading(false);
+    if (result.success) {
+      toast.success(`Aposta virtual registrada: R$ ${stake.toFixed(2)}`);
+      setBetDialogOpen(false);
+      setCustomStake('');
+    } else {
+      toast.error(result.error || 'Falha ao registrar aposta.');
+    }
+  };
+
+  const openBetfair = () => {
+    const query = encodeURIComponent(`${match?.home_team || ''} ${match?.away_team || ''}`.trim());
+    const url = `https://www.betfair.bet.br/exchange/plus/pt/futebol-aposta-1/search?q=${query}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
