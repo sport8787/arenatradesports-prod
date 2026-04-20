@@ -17,6 +17,7 @@ import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
 import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
+import FloatingWhatsApp from '@/components/landing/FloatingWhatsApp';
 import PromoSlotsCounter from '@/components/landing/PromoSlotsCounter';
 import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
@@ -468,6 +469,7 @@ export default function LandingPage() {
 
       {/* CTA fixo no rodapé (mobile) */}
       <StickyMobileCTA onCTA={goToAuth} />
+      <FloatingWhatsApp />
     </>
   );
 }
