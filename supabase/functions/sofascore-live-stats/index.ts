@@ -57,29 +57,79 @@ function normalize(s: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
-// Search for fixture by team names
+// Strip noise commonly added by API-Football: "FC", "CF", "Club", "Atletico", suffixes "de Santiago"
+const NOISE_TOKENS = ['fc', 'cf', 'sc', 'ac', 'club', 'clube', 'sporting', 'cd', 'sd', 'ud', 'rcd', 'real', 'deportivo', 'atletico', 'athletic', 'cska', 'fk'];
+function simplify(s: string): string {
+  const tokens = (s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(t => !NOISE_TOKENS.includes(t));
+  return tokens.join('');
+}
+
+// Returns multiple search variants of a team name to try
+function teamVariants(name: string): string[] {
+  const variants = new Set<string>();
+  variants.add(name);
+  // Strip "de Santiago", "del Plata", multi-word suffixes
+  variants.add(name.replace(/\s+(de|del|do|da)\s+\w+$/i, '').trim());
+  // Strip dots: "Independ. Rivadavia" → "Independiente Rivadavia"
+  variants.add(name.replace(/\.\s*/g, 'iente '));
+  variants.add(name.replace(/\.\s*/g, ' '));
+  // First two tokens only
+  const tokens = name.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 2) variants.add(tokens.slice(0, 2).join(' '));
+  // First token only (last resort)
+  if (tokens.length >= 1) variants.add(tokens[0]);
+  return Array.from(variants).filter(v => v && v.length >= 3);
+}
+
+function teamMatches(eventName: string, eventShort: string, target: string): boolean {
+  const eN = normalize(eventName);
+  const eS = normalize(eventShort);
+  const tN = normalize(target);
+  const tS = simplify(target);
+  const eSimp = simplify(eventName);
+  if (!tN) return false;
+  // Direct fuzzy
+  if (eN.includes(tN) || tN.includes(eN)) return true;
+  if (eS && (eS.includes(tN) || tN.includes(eS))) return true;
+  // Simplified (strips FC, Club, etc): "crystalpalace" vs "crystalpalace"
+  if (tS && eSimp && (eSimp.includes(tS) || tS.includes(eSimp))) return true;
+  return false;
+}
+
+// Search for fixture by team names — tries multiple variants of home AND away
 async function findEvent(homeTeam: string, awayTeam: string): Promise<number | null> {
   try {
-    // Search by home team name
-    const q = encodeURIComponent(homeTeam);
-    const data = await sofaFetch(`/search/events/${q}`);
-    if (!data) return null;
-    const events = data.events || [];
+    const homeVariants = teamVariants(homeTeam);
+    const awayVariants = teamVariants(awayTeam);
+    // Try home variants first, then away variants (some matches index by away)
+    const searchTerms = [...homeVariants, ...awayVariants];
 
-    const homeNorm = normalize(homeTeam);
-    const awayNorm = normalize(awayTeam);
+    for (const term of searchTerms) {
+      const q = encodeURIComponent(term);
+      const data = await sofaFetch(`/search/events/${q}`);
+      const events = data?.events || [];
+      if (!events.length) continue;
 
-    for (const ev of events) {
-      const eHome = normalize(ev.homeTeam?.name || '');
-      const eAway = normalize(ev.awayTeam?.name || '');
-      const eHomeShort = normalize(ev.homeTeam?.shortName || '');
-      const eAwayShort = normalize(ev.awayTeam?.shortName || '');
+      for (const ev of events) {
+        const eHome = ev.homeTeam?.name || '';
+        const eAway = ev.awayTeam?.name || '';
+        const eHomeShort = ev.homeTeam?.shortName || '';
+        const eAwayShort = ev.awayTeam?.shortName || '';
 
-      const homeMatch = eHome.includes(homeNorm) || homeNorm.includes(eHome) || eHomeShort.includes(homeNorm) || homeNorm.includes(eHomeShort);
-      const awayMatch = eAway.includes(awayNorm) || awayNorm.includes(eAway) || eAwayShort.includes(awayNorm) || awayNorm.includes(eAwayShort);
+        const homeMatch = teamMatches(eHome, eHomeShort, homeTeam);
+        const awayMatch = teamMatches(eAway, eAwayShort, awayTeam);
 
-      if (homeMatch && awayMatch) {
-        return ev.id;
+        if (homeMatch && awayMatch) {
+          if (term !== homeTeam) {
+            console.log(`[SofaScore] 🎯 Matched via variant "${term}": ${eHome} vs ${eAway} (event ${ev.id})`);
+          }
+          return ev.id;
+        }
       }
     }
     return null;
