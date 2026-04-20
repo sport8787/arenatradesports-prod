@@ -11,6 +11,7 @@ import { TrialBanner } from "@/components/TrialBanner";
 import { RequireSubscription } from "@/components/RequireSubscription";
 import LandingPage from "./pages/LandingPage";
 import Paywall from "./pages/Paywall";
+import OfertaEspecial from "./pages/OfertaEspecial";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -70,6 +71,7 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/privacidade" element={<PrivacyPolicy />} />
               <Route path="/paywall" element={<Paywall />} />
+              <Route path="/oferta-especial" element={<OfertaEspecial />} />
               <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
               <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
               <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
