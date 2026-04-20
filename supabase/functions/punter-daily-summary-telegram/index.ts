@@ -75,6 +75,8 @@ ${pnlIcon} Resultado: *${pnlSign}${totalPnl.toFixed(2)}u*${bestLine}
 
 ━━━━━━━━━━━━━━━━━
 ⚡ Mycroft IA — Arena Punter
+
+📲 Grupo VIP gratuito: t.me/oraculo_mycroft
 🔗 oraculo-mycroft.com`;
 
     const tg = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {

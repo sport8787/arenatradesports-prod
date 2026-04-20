@@ -46,6 +46,8 @@ function formatBetMessage(b: SettledBet): string {
 💵 Resultado: *${pnlLine}*
 
 ${isGreen ? "🎯 Sinal aprovado e confirmado ✅" : isVoid ? "↩️ Stake devolvida" : "📉 Faz parte. Próximo sinal vindo."}
+
+📲 Entre no grupo VIP gratuito: t.me/oraculo_mycroft
 🔗 oraculo-mycroft.com`;
 }
 
