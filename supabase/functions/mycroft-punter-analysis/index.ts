@@ -913,7 +913,8 @@ async function callGeminiCached(sb: any, sys: string, usr: string, incCorners: b
 }
 
 async function callGemini(sys:string, usr:string, incCorners:boolean=false, incCards:boolean=false) {
-  // Uses direct Gemini API for lower latency (no gateway overhead)
+  // Migrado para Lovable AI Gateway (sem rate-limit do free tier do Gemini direto)
+  // Formato OpenAI-compatible com tool calling para structured output
 
   const schemaProperties: Record<string,any> = {
     verdict: { type: 'string', enum: ['APROVADO_ELITE','APROVADO_FORTE','APROVADO_TEM_VALOR','VETADO'] },
@@ -959,71 +960,42 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
-  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
-  // gemini-2.5-flash tem quota free muito maior que flash-lite (que está esgotada)
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`
-  const useLovable = false
-  const LOVABLE_KEY = ''
-
-  const mapType = (type?: string) => {
-    if (type === 'string') return 'STRING'
-    if (type === 'number') return 'NUMBER'
-    if (type === 'integer') return 'INTEGER'
-    if (type === 'boolean') return 'BOOLEAN'
-    if (type === 'array') return 'ARRAY'
-    if (type === 'object') return 'OBJECT'
-    return type
-  }
-
-  // Build function declaration for structured output
-  const functionDeclaration = {
-    name: 'punter_analysis',
-    description: 'Return the structured analysis result for this match.',
-    parameters: {
-      type: 'OBJECT',
-      properties: Object.fromEntries(
-        Object.entries(schemaProperties).map(([k, v]: [string, any]) => {
-          const mapped: any = { ...v, type: mapType(v.type) }
-          if (mapped.type === 'ARRAY' && mapped.items?.type) {
-            mapped.items = { ...mapped.items, type: mapType(mapped.items.type) }
-          }
-          if (mapped.type === 'OBJECT' && mapped.properties) {
-            mapped.properties = Object.fromEntries(
-              Object.entries(mapped.properties).map(([pk, pv]: [string, any]) => {
-                const pm: any = { ...pv, type: mapType(pv.type) }
-                return [pk, pm]
-              })
-            )
-          }
-          delete mapped.nullable
-          return [k, mapped]
-        })
-      ),
-      required: requiredFields,
-    },
-  }
+  const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY')
+  if (!LOVABLE_KEY) throw new Error('LOVABLE_API_KEY not configured')
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25_000)
 
   let r: Response
   try {
-    r = await fetch(geminiUrl, {
+    r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
-      headers: useLovable
-        ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_KEY}` }
-        : { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LOVABLE_KEY}`,
+      },
       body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: `${sys}\n\nIMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` }] },
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: `IMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` },
         ],
-        tools: [{ functionDeclarations: [functionDeclaration] }],
-        toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['punter_analysis'] } },
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 8192,
-        },
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'punter_analysis',
+            description: 'Return the structured analysis result for this match.',
+            parameters: {
+              type: 'object',
+              properties: schemaProperties,
+              required: requiredFields,
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: 'function', function: { name: 'punter_analysis' } },
+        temperature: 0.1,
+        max_completion_tokens: 8192,
       }),
       signal: controller.signal,
     })
@@ -1036,36 +1008,34 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
   if (!r.ok) {
     const errBody = await r.text()
-    console.error(`[Mycroft Punter] Gemini API error ${r.status}: ${errBody.substring(0, 500)}`)
+    console.error(`[Mycroft Punter] Lovable AI error ${r.status}: ${errBody.substring(0, 500)}`)
     if (r.status === 429) {
-      const retryMatch = errBody.match(/Please retry in\s+([\d.]+)s/i)
-      const retryAfterSec = retryMatch ? Math.ceil(Number(retryMatch[1])) : 15
-      throw new Error(`RATE_LIMITED:${retryAfterSec}`)
+      // Rate limit do Lovable AI Gateway — backoff curto e tentar novamente externamente
+      throw new Error(`RATE_LIMITED:15`)
     }
-    throw new Error(`Gemini API error ${r.status}`)
+    if (r.status === 402) {
+      throw new Error(`AI_CREDITS_EXHAUSTED`)
+    }
+    throw new Error(`Lovable AI error ${r.status}`)
   }
 
   const data = await r.json()
-  const candidate = data.candidates?.[0]
-  const parts = candidate?.content?.parts || []
+  const choice = data.choices?.[0]
+  const toolCall = choice?.message?.tool_calls?.[0]
 
-  const fnArgs =
-    parts.find((p: any) => p.functionCall?.args)?.functionCall?.args ??
-    candidate?.functionCalls?.[0]?.args ??
-    parts.find((p: any) => p.functionCall?.arguments)?.functionCall?.arguments
-
-  if (fnArgs) {
-    if (typeof fnArgs === 'string') return parseStructuredJson(fnArgs)
-    return fnArgs
+  if (toolCall?.function?.arguments) {
+    const args = toolCall.function.arguments
+    if (typeof args === 'string') return parseStructuredJson(args)
+    return args
   }
 
-  const textPart = parts.find((p: any) => p.text)?.text || candidate?.content?.text
-  if (textPart) return parseStructuredJson(textPart)
+  // Fallback: tentar parsear conteúdo de texto
+  const textContent = choice?.message?.content
+  if (textContent) return parseStructuredJson(textContent)
 
-  const finishReason = candidate?.finishReason || 'UNKNOWN'
-  const blockReason = data?.promptFeedback?.blockReason || null
-  console.error(`[Mycroft Punter] Empty Gemini response | finish=${finishReason} block=${blockReason ?? 'none'}`)
-  return buildGeminiFallbackVeto(`Resposta vazia da IA (finish=${finishReason}${blockReason ? `, block=${blockReason}` : ''})`, incCorners, incCards)
+  const finishReason = choice?.finish_reason || 'UNKNOWN'
+  console.error(`[Mycroft Punter] Empty Lovable AI response | finish=${finishReason}`)
+  return buildGeminiFallbackVeto(`Resposta vazia da IA (finish=${finishReason})`, incCorners, incCards)
 }
 
 // Main analysis
