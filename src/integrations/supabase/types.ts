@@ -1535,8 +1535,9 @@ export type Database = {
       landing_leads: {
         Row: {
           created_at: string
-          email: string
+          email: string | null
           id: string
+          name: string | null
           source: string
           utm_campaign: string | null
           utm_medium: string | null
@@ -1545,8 +1546,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          email: string
+          email?: string | null
           id?: string
+          name?: string | null
           source?: string
           utm_campaign?: string | null
           utm_medium?: string | null
@@ -1555,8 +1557,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          email?: string
+          email?: string | null
           id?: string
+          name?: string | null
           source?: string
           utm_campaign?: string | null
           utm_medium?: string | null
