@@ -680,43 +680,122 @@ export default function LiveMatchDetail() {
                   Histórico de Atualizações
                 </h3>
               </div>
-              {history.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Aguardando atualizações...
-                </p>
-              ) : (
-                <ol className="space-y-2 max-h-[480px] overflow-y-auto">
-                  {[...history].reverse().map((ev, i) => (
-                    <li
-                      key={ev.at + i}
-                      className="flex items-start gap-3 bg-muted/20 rounded-lg p-3 border border-border/40"
-                    >
-                      <div className="text-[10px] font-orbitron text-muted-foreground tabular-nums shrink-0 w-16">
-                        {new Date(ev.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-orbitron text-foreground tabular-nums">
-                            {ev.scoreHome} : {ev.scoreAway}
-                          </span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">{ev.minute}'</span>
-                          {ev.verdict && (
-                            <Badge variant="outline" className="text-[9px] font-orbitron uppercase">
-                              {ev.verdict}
-                            </Badge>
+              {(() => {
+                const sessions = groupHistory(history);
+                if (sessions.length === 0) {
+                  return (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      Aguardando análises do Mycroft...
+                    </p>
+                  );
+                }
+                const reversed = [...sessions].reverse();
+                return (
+                  <ol className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                    {reversed.map((s, i) => {
+                      const meta = VERDICT_META[s.verdict] || {
+                        icon: '•',
+                        label: s.verdict.toUpperCase(),
+                        tone: 'border-border bg-muted/20 text-foreground',
+                      };
+                      // A "sessão anterior cronologicamente" é a próxima no array reverso
+                      const previousChrono = reversed[i + 1];
+                      const isCurrent = i === 0;
+                      const showCancelDetail =
+                        meta.isCancel &&
+                        previousChrono &&
+                        (VERDICT_META[previousChrono.verdict]?.isActive);
+                      const confidencePct =
+                        s.confidence != null
+                          ? Math.round(Number(s.confidence) * (s.confidence > 1 ? 1 : 100))
+                          : null;
+
+                      return (
+                        <li
+                          key={s.firstAt + i}
+                          className={cn(
+                            'rounded-lg p-3 border space-y-1.5',
+                            meta.tone,
+                            isCurrent && meta.isActive && 'ring-1 ring-success/40'
                           )}
-                          {ev.confidence != null && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {Math.round(Number(ev.confidence) * (ev.confidence > 1 ? 1 : 100))}%
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base leading-none shrink-0">{meta.icon}</span>
+                              <span className="font-orbitron text-[11px] uppercase tracking-wider font-bold truncate">
+                                {meta.label}
+                              </span>
+                            </div>
+                            {isCurrent && meta.isActive && (
+                              <span className="shrink-0 text-[9px] font-orbitron uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/20 text-success border border-success/40">
+                                Atual
+                              </span>
+                            )}
+                          </div>
+
+                          {(s.market || s.odd) && (
+                            <p className="text-xs text-foreground/90 font-medium truncate">
+                              {s.market || 'Mercado'}{' '}
+                              {s.odd != null && (
+                                <span className="text-muted-foreground">
+                                  • Odd <span className="text-foreground font-bold tabular-nums">{Number(s.odd).toFixed(2)}</span>
+                                </span>
+                              )}
+                            </p>
+                          )}
+
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                            Confirmada às{' '}
+                            <span className="text-foreground tabular-nums">{fmtTime(s.firstAt)}</span>{' '}
+                            ({s.firstMinute}')
+                            {s.count > 1 && (
+                              <>
+                                {' '}→ Última confirmação:{' '}
+                                <span className="text-foreground tabular-nums">{fmtTimeSec(s.lastAt)}</span>{' '}
+                                ({s.lastMinute}')
+                              </>
+                            )}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                            {confidencePct != null && (
+                              <span>
+                                Confiança {s.count > 1 ? 'mantida' : ''}:{' '}
+                                <span className="text-foreground font-bold">{confidencePct}%</span>
+                              </span>
+                            )}
+                            {s.count > 1 && (
+                              <span>• {s.count} verificações consecutivas</span>
+                            )}
+                            <span>
+                              • Placar:{' '}
+                              <span className="text-foreground tabular-nums">
+                                {s.scoreFinal.home}:{s.scoreFinal.away}
+                              </span>
+                              {s.scoreChanged && <span className="text-yellow-400"> (alterou)</span>}
                             </span>
+                          </div>
+
+                          {showCancelDetail && previousChrono && (
+                            <div className="mt-1 pt-1.5 border-t border-current/20 text-[10px] text-muted-foreground">
+                              Era:{' '}
+                              <span className="text-foreground/80">
+                                {previousChrono.market || 'Mercado'}
+                                {previousChrono.odd != null && ` | Odd ${Number(previousChrono.odd).toFixed(2)}`}
+                                {previousChrono.confidence != null &&
+                                  ` | ${Math.round(
+                                    Number(previousChrono.confidence) *
+                                      (previousChrono.confidence > 1 ? 1 : 100)
+                                  )}%`}
+                              </span>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                );
+              })()}
               <p className="text-[10px] text-muted-foreground text-center pt-2">
                 O histórico cobre apenas a sessão atual (não persistido).
               </p>
