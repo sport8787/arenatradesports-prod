@@ -20,7 +20,86 @@ interface SnapshotEvent {
   minute: number;
   verdict?: string;
   confidence?: number;
+  market?: string;
+  odd?: number;
   stats?: any;
+}
+
+interface VerdictSession {
+  verdict: string;
+  market?: string;
+  odd?: number;
+  confidence?: number;
+  firstAt: string;
+  lastAt: string;
+  firstMinute: number;
+  lastMinute: number;
+  count: number;
+  scoreChanged: boolean;
+  scoreFinal: { home: number; away: number };
+}
+
+// Agrupa snapshots consecutivos com o mesmo verdict+market+odd em "sessões"
+function groupHistory(history: SnapshotEvent[]): VerdictSession[] {
+  const sessions: VerdictSession[] = [];
+  for (const ev of history) {
+    if (!ev.verdict) continue;
+    const last = sessions[sessions.length - 1];
+    const sameSession =
+      last &&
+      last.verdict === ev.verdict &&
+      last.market === ev.market &&
+      Number(last.odd ?? 0).toFixed(2) === Number(ev.odd ?? 0).toFixed(2);
+
+    if (sameSession) {
+      last.lastAt = ev.at;
+      last.lastMinute = ev.minute;
+      last.count += 1;
+      last.confidence = ev.confidence ?? last.confidence;
+      if (
+        last.scoreFinal.home !== ev.scoreHome ||
+        last.scoreFinal.away !== ev.scoreAway
+      ) {
+        last.scoreChanged = true;
+        last.scoreFinal = { home: ev.scoreHome, away: ev.scoreAway };
+      }
+    } else {
+      sessions.push({
+        verdict: ev.verdict,
+        market: ev.market,
+        odd: ev.odd,
+        confidence: ev.confidence,
+        firstAt: ev.at,
+        lastAt: ev.at,
+        firstMinute: ev.minute,
+        lastMinute: ev.minute,
+        count: 1,
+        scoreChanged: false,
+        scoreFinal: { home: ev.scoreHome, away: ev.scoreAway },
+      });
+    }
+  }
+  return sessions;
+}
+
+const VERDICT_META: Record<string, { icon: string; label: string; tone: string; isActive?: boolean; isCancel?: boolean }> = {
+  APROVADO: { icon: '✅', label: 'ENTRADA ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  APROVADO_SITUACIONAL: { icon: '✅', label: 'ENTRADA ATIVA (SITUACIONAL)', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  opportunity: { icon: '✅', label: 'OPORTUNIDADE ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  LABAREDA: { icon: '🔥', label: 'LABAREDA — ALTO RISCO', tone: 'border-orange-500/40 bg-orange-500/10 text-orange-400', isActive: true },
+  CUIDADO: { icon: '⚠️', label: 'AGUARDAR — CUIDADO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
+  AGUARDAR: { icon: '⏳', label: 'AGUARDANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  analyzing: { icon: '🧠', label: 'ANALISANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  JOGO_MORTO: { icon: '🛑', label: 'JOGO MORTO', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+  VETADO: { icon: '⛔', label: 'ENTRADA CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+  no_value: { icon: '⛔', label: 'SEM VALOR — CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
+};
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function fmtTimeSec(iso: string) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 const verdictColors: Record<string, string> = {
@@ -199,6 +278,8 @@ export default function LiveMatchDetail() {
         minute: match.minute ?? 0,
         verdict: analysis?.verdict,
         confidence: analysis?.confidence,
+        market: analysis?.market,
+        odd: analysis?.odd != null ? Number(analysis.odd) : undefined,
         stats,
       };
       // Only add if something meaningful changed
@@ -208,14 +289,16 @@ export default function LiveMatchDetail() {
         last.scoreAway !== next.scoreAway ||
         last.minute !== next.minute ||
         last.verdict !== next.verdict ||
-        last.confidence !== next.confidence
+        last.confidence !== next.confidence ||
+        last.market !== next.market ||
+        last.odd !== next.odd
       ) {
         return [...prev.slice(-49), next];
       }
       return prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match?.updated_at, analysis?.verdict, analysis?.confidence]);
+  }, [match?.updated_at, analysis?.verdict, analysis?.confidence, analysis?.market, analysis?.odd]);
 
   const recommendedStake = bankroll ? Math.round(bankroll.balance * 0.05 * 100) / 100 : 0;
 
@@ -597,43 +680,122 @@ export default function LiveMatchDetail() {
                   Histórico de Atualizações
                 </h3>
               </div>
-              {history.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Aguardando atualizações...
-                </p>
-              ) : (
-                <ol className="space-y-2 max-h-[480px] overflow-y-auto">
-                  {[...history].reverse().map((ev, i) => (
-                    <li
-                      key={ev.at + i}
-                      className="flex items-start gap-3 bg-muted/20 rounded-lg p-3 border border-border/40"
-                    >
-                      <div className="text-[10px] font-orbitron text-muted-foreground tabular-nums shrink-0 w-16">
-                        {new Date(ev.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-orbitron text-foreground tabular-nums">
-                            {ev.scoreHome} : {ev.scoreAway}
-                          </span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">{ev.minute}'</span>
-                          {ev.verdict && (
-                            <Badge variant="outline" className="text-[9px] font-orbitron uppercase">
-                              {ev.verdict}
-                            </Badge>
+              {(() => {
+                const sessions = groupHistory(history);
+                if (sessions.length === 0) {
+                  return (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      Aguardando análises do Mycroft...
+                    </p>
+                  );
+                }
+                const reversed = [...sessions].reverse();
+                return (
+                  <ol className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                    {reversed.map((s, i) => {
+                      const meta = VERDICT_META[s.verdict] || {
+                        icon: '•',
+                        label: s.verdict.toUpperCase(),
+                        tone: 'border-border bg-muted/20 text-foreground',
+                      };
+                      // A "sessão anterior cronologicamente" é a próxima no array reverso
+                      const previousChrono = reversed[i + 1];
+                      const isCurrent = i === 0;
+                      const showCancelDetail =
+                        meta.isCancel &&
+                        previousChrono &&
+                        (VERDICT_META[previousChrono.verdict]?.isActive);
+                      const confidencePct =
+                        s.confidence != null
+                          ? Math.round(Number(s.confidence) * (s.confidence > 1 ? 1 : 100))
+                          : null;
+
+                      return (
+                        <li
+                          key={s.firstAt + i}
+                          className={cn(
+                            'rounded-lg p-3 border space-y-1.5',
+                            meta.tone,
+                            isCurrent && meta.isActive && 'ring-1 ring-success/40'
                           )}
-                          {ev.confidence != null && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {Math.round(Number(ev.confidence) * (ev.confidence > 1 ? 1 : 100))}%
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base leading-none shrink-0">{meta.icon}</span>
+                              <span className="font-orbitron text-[11px] uppercase tracking-wider font-bold truncate">
+                                {meta.label}
+                              </span>
+                            </div>
+                            {isCurrent && meta.isActive && (
+                              <span className="shrink-0 text-[9px] font-orbitron uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/20 text-success border border-success/40">
+                                Atual
+                              </span>
+                            )}
+                          </div>
+
+                          {(s.market || s.odd) && (
+                            <p className="text-xs text-foreground/90 font-medium truncate">
+                              {s.market || 'Mercado'}{' '}
+                              {s.odd != null && (
+                                <span className="text-muted-foreground">
+                                  • Odd <span className="text-foreground font-bold tabular-nums">{Number(s.odd).toFixed(2)}</span>
+                                </span>
+                              )}
+                            </p>
+                          )}
+
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                            Confirmada às{' '}
+                            <span className="text-foreground tabular-nums">{fmtTime(s.firstAt)}</span>{' '}
+                            ({s.firstMinute}')
+                            {s.count > 1 && (
+                              <>
+                                {' '}→ Última confirmação:{' '}
+                                <span className="text-foreground tabular-nums">{fmtTimeSec(s.lastAt)}</span>{' '}
+                                ({s.lastMinute}')
+                              </>
+                            )}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                            {confidencePct != null && (
+                              <span>
+                                Confiança {s.count > 1 ? 'mantida' : ''}:{' '}
+                                <span className="text-foreground font-bold">{confidencePct}%</span>
+                              </span>
+                            )}
+                            {s.count > 1 && (
+                              <span>• {s.count} verificações consecutivas</span>
+                            )}
+                            <span>
+                              • Placar:{' '}
+                              <span className="text-foreground tabular-nums">
+                                {s.scoreFinal.home}:{s.scoreFinal.away}
+                              </span>
+                              {s.scoreChanged && <span className="text-yellow-400"> (alterou)</span>}
                             </span>
+                          </div>
+
+                          {showCancelDetail && previousChrono && (
+                            <div className="mt-1 pt-1.5 border-t border-current/20 text-[10px] text-muted-foreground">
+                              Era:{' '}
+                              <span className="text-foreground/80">
+                                {previousChrono.market || 'Mercado'}
+                                {previousChrono.odd != null && ` | Odd ${Number(previousChrono.odd).toFixed(2)}`}
+                                {previousChrono.confidence != null &&
+                                  ` | ${Math.round(
+                                    Number(previousChrono.confidence) *
+                                      (previousChrono.confidence > 1 ? 1 : 100)
+                                  )}%`}
+                              </span>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                );
+              })()}
               <p className="text-[10px] text-muted-foreground text-center pt-2">
                 O histórico cobre apenas a sessão atual (não persistido).
               </p>
