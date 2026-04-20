@@ -60,7 +60,7 @@ export function TrialBanner() {
         {urgencyText} — {message}
       </span>
 
-      <Link to="/paywall">
+      <Link to="/oferta-especial">
         <Button
           size="sm"
           variant={isUrgent || isTrialExpired ? 'default' : 'outline'}
@@ -70,7 +70,7 @@ export function TrialBanner() {
           )}
         >
           <Sparkles className="w-3 h-3" />
-          Assinar Agora
+          {isTrialExpired ? 'Ganhar 50% OFF' : 'Assinar com 50% OFF'}
         </Button>
       </Link>
     </motion.div>

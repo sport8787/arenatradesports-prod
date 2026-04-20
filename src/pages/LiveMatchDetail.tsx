@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import GoldButton from '@/components/game/GoldButton';
 import { supabase } from '@/integrations/supabase/client';
 import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
+import MatchMycroftChat from '@/components/arena-trader/MatchMycroftChat';
 
 interface SnapshotEvent {
   at: string;
@@ -746,6 +747,30 @@ export default function LiveMatchDetail() {
                     </ul>
                   </div>
                 )}
+
+                {/* Chat com Mycroft sobre essa partida */}
+                <MatchMycroftChat
+                  matchContext={{
+                    match_id: match.match_id || match.id,
+                    home_team: match.home_team,
+                    away_team: match.away_team,
+                    league: match.championship,
+                    minute: match.minute ?? 0,
+                    score_home: match.score_home ?? 0,
+                    score_away: match.score_away ?? 0,
+                    stats,
+                    analysis: analysis
+                      ? {
+                          verdict: analysis.verdict,
+                          market: analysis.market,
+                          odd: analysis.odd != null ? Number(analysis.odd) : undefined,
+                          confidence: analysis.confidence,
+                          thesis: analysis.thesis,
+                          alerts: analysis.alerts,
+                        }
+                      : undefined,
+                  }}
+                />
               </>
             )}
           </TabsContent>
