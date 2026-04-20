@@ -21,11 +21,17 @@ import PromoSlotsCounter from '@/components/landing/PromoSlotsCounter';
 import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
+import { track } from '@/lib/analytics';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const { decrementSlot } = usePromoSlots();
+
+  // Track landing view (com UTMs anexadas) — uma vez por sessão
+  useEffect(() => {
+    track.landingViewed('landing_home');
+  }, []);
 
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
@@ -35,6 +41,7 @@ export default function LandingPage() {
   }, [isAuthenticated, loading, navigate]);
 
   const goToAuth = () => {
+    track.ctaClicked('landing', 'testar_gratis_7_dias');
     // Fire-and-forget: decrementa vaga ao clicar no CTA
     void decrementSlot();
     navigate('/auth');
