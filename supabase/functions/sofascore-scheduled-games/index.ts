@@ -160,12 +160,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Janela de 72h: hoje + amanhã + depois — garante que cron Punter sempre tem jogos pra analisar
     const today = new Date();
-    const tomorrow = new Date(today.getTime() + 24 * 3600 * 1000);
-    const dates = [
-      today.toISOString().split('T')[0],
-      tomorrow.toISOString().split('T')[0],
-    ];
+    const dates = [0, 1, 2, 3].map(offset => {
+      const d = new Date(today.getTime() + offset * 24 * 3600 * 1000);
+      return d.toISOString().split('T')[0];
+    });
 
     const allParsed: ParsedMatch[] = [];
     for (const d of dates) {
@@ -181,14 +181,18 @@ serve(async (req) => {
     }
 
     const now = Date.now();
-    const max = now + 26 * 3600 * 1000;
+    const max = now + 72 * 3600 * 1000; // 72h à frente — não descartar jogos do dia seguinte/depois
     let inserted = 0;
+    let skippedFuture = 0;
+    let skippedPast = 0;
 
     for (const m of allParsed) {
       try {
         const matchDate = new Date(m.time);
         const startMs = matchDate.getTime();
-        if (!startMs || startMs < now - 30 * 60000 || startMs > max) continue;
+        if (!startMs) continue;
+        if (startMs < now - 30 * 60000) { skippedPast++; continue; }
+        if (startMs > max) { skippedFuture++; continue; }
 
         const dateStr = matchDate.toISOString().split('T')[0];
         const timeStr = matchDate.toISOString().slice(11, 16);
@@ -213,8 +217,17 @@ serve(async (req) => {
       } catch (_) {}
     }
 
+    console.log(`[SofaScheduled] Done: ${allParsed.length} parsed, ${inserted} inserted, ${skippedPast} past, ${skippedFuture} too far`);
     return new Response(
-      JSON.stringify({ ok: true, source: 'sofascore-via-firecrawl', total_events: allParsed.length, inserted }),
+      JSON.stringify({
+        ok: true,
+        source: 'sofascore-via-firecrawl',
+        dates_scanned: dates,
+        total_events: allParsed.length,
+        inserted,
+        skipped_past: skippedPast,
+        skipped_too_far: skippedFuture,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
