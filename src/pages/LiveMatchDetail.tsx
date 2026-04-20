@@ -641,6 +641,80 @@ export default function LiveMatchDetail() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Manual Bet Dialog */}
+      <Dialog open={betDialogOpen} onOpenChange={setBetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-orbitron uppercase tracking-wider flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-success" />
+              Entrada Manual — Banca Virtual
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {match?.home_team} vs {match?.away_team} • {analysis?.market} • Odd {analysis?.odd != null ? Number(analysis.odd).toFixed(2) : '-'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-muted/30 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo</p>
+                <p className="font-orbitron font-bold text-foreground">
+                  R$ {(bankroll?.balance ?? 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sugerido (5%)</p>
+                <p className="font-orbitron font-bold text-success">
+                  R$ {recommendedStake.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">
+                Stake (R$)
+              </label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0.01"
+                value={customStake}
+                onChange={(e) => setCustomStake(e.target.value)}
+                placeholder="0,00"
+                className="font-orbitron"
+              />
+              {Number(customStake) > 0 && analysis?.odd && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Retorno potencial: <span className="text-success font-bold">
+                    R$ {(Number(customStake) * Number(analysis.odd)).toFixed(2)}
+                  </span> (lucro R$ {(Number(customStake) * (Number(analysis.odd) - 1)).toFixed(2)})
+                </p>
+              )}
+            </div>
+
+            <p className="text-[10px] text-muted-foreground bg-muted/20 rounded p-2 leading-relaxed">
+              ⚠️ Esta é uma <strong>aposta virtual</strong> que debita apenas da sua banca de simulação. Use para testar o desempenho do Mycroft sem risco real.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setBetDialogOpen(false)} disabled={betLoading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleManualBet}
+              disabled={betLoading || !customStake || Number(customStake) <= 0}
+              className="bg-success/20 hover:bg-success/30 text-success border border-success/40"
+              variant="outline"
+            >
+              {betLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wallet className="w-4 h-4 mr-2" />}
+              Confirmar Entrada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
