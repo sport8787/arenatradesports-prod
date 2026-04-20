@@ -103,7 +103,7 @@ serve(async (req) => {
       .eq("sent_green_to_telegram", false)
       .gte("settled_at", since)
       .order("settled_at", { ascending: true })
-      .limit(20);
+      .limit(8); // Limita a 8 por execução pra evitar rate limit do Telegram em grupos
 
     if (error) throw error;
     const bets = (data || []) as SettledBet[];
@@ -125,8 +125,8 @@ serve(async (req) => {
         sent++;
         sentIds.push(b.id);
       }
-      // Pequeno delay entre msgs pra não spammar API do Telegram
-      await new Promise((r) => setTimeout(r, 800));
+      // 3s entre mensagens (limite do Telegram pra grupos é ~20 msg/min)
+      await new Promise((r) => setTimeout(r, 3000));
     }
 
     if (sentIds.length > 0) {
