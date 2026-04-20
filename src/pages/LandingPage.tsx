@@ -12,7 +12,6 @@ import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
 import VSLSection from '@/components/landing/VSLSection';
-import LeadCaptureForm from '@/components/landing/LeadCaptureForm';
 import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
@@ -157,7 +156,50 @@ export default function LandingPage() {
                   />
                 </div>
               </div>
-              <LeadCaptureForm />
+
+              {/* CTA Card de alta conversão (substitui o formulário) */}
+              <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-600/5 to-transparent border-2 border-yellow-500/40 rounded-2xl p-6 shadow-2xl shadow-yellow-500/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex -space-x-2">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border-2 border-[#0a0f1e]" />
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 border-2 border-[#0a0f1e]" />
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 border-2 border-[#0a0f1e]" />
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    <span className="text-yellow-400 font-bold">+1.200</span> apostadores ativos agora
+                  </p>
+                </div>
+
+                <p className="text-2xl font-black text-white leading-tight mb-2">
+                  Teste o Oráculo <span className="text-yellow-400">grátis por 7 dias</span>
+                </p>
+                <p className="text-sm text-gray-300 mb-4">
+                  Acesso imediato. Sem cartão. Cancele quando quiser.
+                </p>
+
+                <button
+                  onClick={goToAuth}
+                  className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
+                >
+                  COMEÇAR MEU TESTE GRÁTIS
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
+                </button>
+
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-yellow-500/20">
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-green-400">+73%</p>
+                    <p className="text-[10px] text-gray-400">ROI auditado</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-blue-400">59.5%</p>
+                    <p className="text-[10px] text-gray-400">Win rate</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-yellow-400">7 dias</p>
+                    <p className="text-[10px] text-gray-400">100% grátis</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
