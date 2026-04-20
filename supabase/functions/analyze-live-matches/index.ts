@@ -154,6 +154,7 @@ serve(async (req) => {
         // 🔬 ENRIQUECIMENTO COM SOFASCORE: API-Football retorna xG/shots zerados em muitos jogos.
         // SofaScore tem xG real, big chances, tackles, momentum. Fazemos merge.
         let enrichedStats = { ...(match.stats || {}) };
+        let sofascoreFound = false;
         try {
           const sofaRes = await fetch(`${supabaseUrl}/functions/v1/sofascore-live-stats`, {
             method: 'POST',
@@ -163,8 +164,8 @@ serve(async (req) => {
           if (sofaRes.ok) {
             const sofa = await sofaRes.json();
             if (sofa?.found) {
+              sofascoreFound = true;
               const num = (v: any) => (v == null || isNaN(Number(v))) ? null : Number(v);
-              // Merge: SofaScore tem prioridade quando o valor da API-Football é 0/null (típico de xG zerado).
               const prefer = (sofaVal: any, apiVal: any) => {
                 const s = num(sofaVal); const a = num(apiVal);
                 if (s == null) return apiVal ?? null;
@@ -205,6 +206,17 @@ serve(async (req) => {
           }
         } catch (sofaErr) {
           console.warn(`[AnalyzeLive] SofaScore enrichment failed:`, sofaErr instanceof Error ? sofaErr.message : sofaErr);
+        }
+
+        // 🚨 FLAG xG INDISPONÍVEL: SofaScore falhou + API-Football retornou 0/null
+        // Sinaliza ao Mycroft para NÃO usar critério de xG (evita "xG zerado" enganoso)
+        const _xgH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0);
+        const _xgA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
+        const _shotsTotal = Number((enrichedStats as any).shots_total_home ?? (enrichedStats as any).shots_home ?? 0)
+                          + Number((enrichedStats as any).shots_total_away ?? (enrichedStats as any).shots_away ?? 0);
+        if (!sofascoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
+          (enrichedStats as any).xg_unavailable = true;
+          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore_found=false) — Mycroft será avisado`);
         }
 
         const analysisRes = await fetch(
