@@ -144,14 +144,22 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
       />
 
       {/* Title bar */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            System.Uplink • Live Market Intel
+      <div className="flex items-center justify-between mb-3 px-1 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-success truncate">
+            Dados em tempo real
           </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground/70 hidden sm:inline">
+            • {stats.source === 'virtual' ? 'BANCA VIRTUAL' : stats.source === 'history' ? 'HISTÓRICO' : 'AGUARDANDO'}
+          </span>
+          {stats.lastUpdated && (
+            <span className="font-mono text-[10px] text-muted-foreground/50 hidden md:inline">
+              • atualizado {new Date(stats.lastUpdated).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
-        <span className="font-mono text-[10px] text-muted-foreground/60 hidden sm:inline">
+        <span className="font-mono text-[10px] text-muted-foreground/60 hidden sm:inline shrink-0">
           TERMINAL_ID: {userId ? userId.slice(0, 6).toUpperCase() : 'GUEST'}
         </span>
       </div>
