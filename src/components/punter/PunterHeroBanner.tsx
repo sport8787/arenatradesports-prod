@@ -62,15 +62,28 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
     let cancelled = false;
     (async () => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('bets_history')
-        .select('result, profit_loss, stake, resulted_at, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', since)
-        .limit(1000);
-      if (cancelled || !data) return;
-      const settled = data.filter((b: any) => b.result === 'green' || b.result === 'red');
-      const wins = settled.filter((b: any) => b.result === 'green').length;
+      // Lê das tabelas reais de banca virtual (Hórus + Manual). bets_history fica defasado.
+      const [punterRes, manualRes] = await Promise.all([
+        supabase
+          .from('virtual_bets_punter')
+          .select('status, result, profit_loss, stake, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', since)
+          .limit(1000),
+        supabase
+          .from('virtual_bets_manual')
+          .select('status, result, profit_loss, stake, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', since)
+          .limit(1000),
+      ]);
+      if (cancelled) return;
+      const data = [...(punterRes.data || []), ...(manualRes.data || [])];
+
+      const isGreen = (b: any) => b.status === 'green' || b.result === 'green';
+      const isRed = (b: any) => b.status === 'red' || b.result === 'red';
+      const settled = data.filter((b: any) => isGreen(b) || isRed(b));
+      const wins = settled.filter(isGreen).length;
       const winRate = settled.length ? (wins / settled.length) * 100 : 0;
 
       const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -81,7 +94,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
 
       const todayStr = new Date().toISOString().slice(0, 10);
       const today = data.filter((b: any) => (b.created_at || '').slice(0, 10) === todayStr);
-      const greensToday = today.filter((b: any) => b.result === 'green').length;
+      const greensToday = today.filter(isGreen).length;
       setStats({ winRate, weeklyRoi, greensToday, betsToday: today.length, settledCount: settled.length, weeklyStaked });
     })();
     return () => { cancelled = true; };
