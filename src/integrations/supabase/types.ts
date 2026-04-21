@@ -1853,13 +1853,18 @@ export type Database = {
           alerts: string[] | null
           confidence: number | null
           created_at: string | null
+          final_score_away: number | null
+          final_score_home: number | null
           fundamentation: Json | null
           id: string
           market: string
           match_id: string
           odd: number | null
           plan_name: string | null
+          result: string | null
           risk_management: Json | null
+          settle_reason: string | null
+          settled_at: string | null
           thesis: string
           verdict: string
         }
@@ -1867,13 +1872,18 @@ export type Database = {
           alerts?: string[] | null
           confidence?: number | null
           created_at?: string | null
+          final_score_away?: number | null
+          final_score_home?: number | null
           fundamentation?: Json | null
           id?: string
           market: string
           match_id: string
           odd?: number | null
           plan_name?: string | null
+          result?: string | null
           risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
           thesis: string
           verdict: string
         }
@@ -1881,13 +1891,18 @@ export type Database = {
           alerts?: string[] | null
           confidence?: number | null
           created_at?: string | null
+          final_score_away?: number | null
+          final_score_home?: number | null
           fundamentation?: Json | null
           id?: string
           market?: string
           match_id?: string
           odd?: number | null
           plan_name?: string | null
+          result?: string | null
           risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
           thesis?: string
           verdict?: string
         }
@@ -4792,6 +4807,15 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      settle_mycroft_analysis: {
+        Args: {
+          p_analysis_id: string
+          p_reason?: string
+          p_score_away: number
+          p_score_home: number
+        }
+        Returns: string
       }
       spend_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
