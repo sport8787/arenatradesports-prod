@@ -666,6 +666,30 @@ export default function LiveMatchDetail() {
               </div>
             ) : (
               <>
+                {/* Chat com Mycroft sobre essa partida — topo para acesso rápido */}
+                <MatchMycroftChat
+                  matchContext={{
+                    match_id: match.match_id || match.id,
+                    home_team: match.home_team,
+                    away_team: match.away_team,
+                    league: match.championship,
+                    minute: match.minute ?? 0,
+                    score_home: match.score_home ?? 0,
+                    score_away: match.score_away ?? 0,
+                    stats,
+                    analysis: analysis
+                      ? {
+                          verdict: analysis.verdict,
+                          market: analysis.market,
+                          odd: analysis.odd != null ? Number(analysis.odd) : undefined,
+                          confidence: analysis.confidence,
+                          thesis: analysis.thesis,
+                          alerts: analysis.alerts,
+                        }
+                      : undefined,
+                  }}
+                />
+
                 {/* Tese */}
                 <div className="luxury-card p-5 space-y-3">
                   <div className="flex items-center gap-2">
