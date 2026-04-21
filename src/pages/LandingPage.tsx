@@ -185,12 +185,15 @@ export default function LandingPage() {
                 </p>
 
                 <button
-                  onClick={goToAuth}
+                  onClick={() => { track.ctaClicked('hero_cta_card', 'comecar_teste_gratis'); goToAuth(); }}
                   className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
                 >
-                  COMEÇAR MEU TESTE GRÁTIS
+                  CRIAR CONTA GRÁTIS
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </button>
+                <p className="text-[11px] text-yellow-400/90 mt-2 text-center">
+                  🎁 E-book "Apostas de Valor" liberado dentro do app
+                </p>
 
                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-yellow-500/20">
                   <div className="text-center">
@@ -220,6 +223,36 @@ export default function LandingPage() {
 
       {/* VSL — Removida temporariamente até o vídeo ficar pronto */}
       {/* <VSLSection onCTA={goToAuth} /> */}
+
+      {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
+      <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
+        <div className="container mx-auto max-w-3xl">
+          <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-600/5 to-transparent border-2 border-yellow-500/40 rounded-2xl p-8 sm:p-10 text-center shadow-2xl shadow-yellow-500/10">
+            <p className="text-[11px] font-mono uppercase tracking-widest text-yellow-400/80 mb-3">
+              Acesso liberado em segundos
+            </p>
+            <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-3">
+              Comece grátis agora — <span className="text-yellow-400">7 dias de acesso completo</span>
+            </h2>
+            <p className="text-sm sm:text-base text-gray-300 mb-6 max-w-xl mx-auto">
+              Sem cartão. Sem WhatsApp. Crie sua conta em 30 segundos e veja sinais reais com edge matemático já na primeira sessão.
+            </p>
+            <button
+              onClick={() => { track.ctaClicked('post_vsl_cta', 'criar_conta_gratis'); goToAuth(); }}
+              className="px-8 sm:px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base sm:text-lg rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
+            >
+              CRIAR CONTA GRÁTIS
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
+            </button>
+            <p className="text-xs text-yellow-400/90 mt-4">
+              🎁 Bônus: e-book "Apostas de Valor" liberado dentro do app
+            </p>
+            <p className="text-[11px] text-gray-500 mt-2">
+              ✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Prova Real — Depoimento + Demo do sistema */}
       <SocialProofSection />
