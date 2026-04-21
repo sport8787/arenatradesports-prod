@@ -10,6 +10,7 @@ import { Check, CheckCheck, Bell, Trophy, XCircle, Target } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { translateMarket } from '@/utils/marketTranslator';
 
 const READ_KEY = 'punter_feed_read_v1';
 
@@ -241,7 +242,7 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
           </div>
           <p className="font-semibold text-sm truncate">⚽ {item.match}</p>
           <p className="text-xs text-muted-foreground">
-            📊 {item.market}
+            📊 {translateMarket(item.market)}
             {item.odd != null && ` @ ${Number(item.odd).toFixed(2)}`}
             {item.confidence != null && ` • Conf. ${item.confidence}%`}
             {item.profit_loss != null && (

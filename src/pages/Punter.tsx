@@ -41,6 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
+import { translateMarket } from '@/utils/marketTranslator';
 
 interface PunterSignal {
   analysis_id?: string; // ID from punter_analyses for reliable signal lookup
@@ -1862,7 +1863,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
           {/* Data Grid */}
           <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5">
-            <DataCell label="MERCADO" value={signal.recommendation.market} />
+            <DataCell label="MERCADO" value={translateMarket(signal.recommendation.market)} />
             <DataCell label="CASA" value={signal.recommendation.bookmaker} />
             <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
             <DataCell label="PROB." value={`${(signal.recommendation.estimated_probability ?? assetScore.model_probability).toFixed(1)}%`} />

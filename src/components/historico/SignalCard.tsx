@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { translateMarket } from '@/utils/marketTranslator';
 import type { Signal } from '@/pages/Historico';
 
 interface SignalCardProps {
@@ -40,7 +41,7 @@ export default function SignalCard({ signal, index }: SignalCardProps) {
       {/* Match Info */}
       <div>
         <p className="font-bold text-foreground">⚽ {signal.match}</p>
-        <p className="text-sm text-muted-foreground">📊 {signal.market} @ {signal.odd.toFixed(2)}</p>
+        <p className="text-sm text-muted-foreground">📊 {translateMarket(signal.market)} @ {signal.odd.toFixed(2)}</p>
         <p className="text-sm text-muted-foreground">💪 Confiança: {signal.confidence}%</p>
       </div>
 
