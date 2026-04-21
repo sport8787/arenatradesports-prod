@@ -1219,15 +1219,18 @@ export default function PunterPage() {
               }
             : null;
           return (
-            <PunterHeroBanner
-              userId={user?.id}
-              featuredSignal={featured}
-              nextMatch={next}
-              onCtaClick={() => {
-                const el = document.getElementById('signals-section');
-                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
+            <>
+              <EbookWelcomeCard />
+              <PunterHeroBanner
+                userId={user?.id}
+                featuredSignal={featured}
+                nextMatch={next}
+                onCtaClick={() => {
+                  const el = document.getElementById('signals-section');
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            </>
           );
         })()}
 
