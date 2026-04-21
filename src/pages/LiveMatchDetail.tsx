@@ -545,13 +545,25 @@ export default function LiveMatchDetail() {
           className="luxury-card p-6 sm:p-8"
         >
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
-            </span>
-            <span className="text-[10px] font-orbitron uppercase tracking-[0.2em] text-destructive">
-              AO VIVO
-            </span>
+            {(analysis as any)?.result === 'green' ? (
+              <span className="px-3 py-1 rounded-full bg-success/20 border border-success/40 text-success text-[10px] font-orbitron uppercase tracking-[0.2em]">
+                🟢 GREEN — Sinal vencedor
+              </span>
+            ) : (analysis as any)?.result === 'red' ? (
+              <span className="px-3 py-1 rounded-full bg-destructive/20 border border-destructive/40 text-destructive text-[10px] font-orbitron uppercase tracking-[0.2em]">
+                🔴 RED — Sinal perdedor
+              </span>
+            ) : (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                </span>
+                <span className="text-[10px] font-orbitron uppercase tracking-[0.2em] text-destructive">
+                  AO VIVO
+                </span>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-3 items-center gap-4">
