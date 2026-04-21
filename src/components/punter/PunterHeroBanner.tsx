@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Zap, Send, Flame, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { FOUNDERS_GROUP } from '@/config/foundersGroup';
 
 interface FeaturedSignal {
   match_label: string;
@@ -312,7 +313,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
           </a>
 
           <a
-            href="https://chat.whatsapp.com/D1f7kAjQb5C8nW195MMysY"
+            href={FOUNDERS_GROUP.url}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full border border-[#25D366]/40 bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors p-3 group text-left flex items-center gap-3"
@@ -322,14 +323,14 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[9px] font-mono uppercase tracking-widest text-[#25D366]/80">
-                Grupo dos Fundadores
+                {FOUNDERS_GROUP.eyebrow}
               </p>
               <p className="font-bold text-foreground text-sm leading-tight">
-                Fundadores no grupo ganham 30 dias grátis + 1 live com o fundador
+                {FOUNDERS_GROUP.title}
               </p>
             </div>
             <span className="bg-[#25D366] text-white px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
-              Entrar
+              {FOUNDERS_GROUP.cta}
             </span>
           </a>
         </div>
