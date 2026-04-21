@@ -178,15 +178,28 @@ serve(async (req) => {
 
     const liveFixtureIds = new Set(fixtures.map((f: any) => String(f.fixture.id)));
 
-    // 2. Get matches in DB that need stats (>=15 min, no analysis yet)
-    const { data: matchesNeedingStats } = await supabase
+    // 2. Get matches in DB that need stats refresh
+    //    - Sem análise ainda (>=15 min) → primeira coleta
+    //    - Com análise (>=15 min) → refresh para manter xG/momentum atualizados
+    //      (a SofaScore preenche xG quando a API-Football retorna null)
+    const { data: liveInDb } = await supabase
       .from('live_matches')
-      .select('match_id')
+      .select('match_id, mycroft_analysis_id, stats, updated_at')
       .eq('status', 'live')
-      .is('mycroft_analysis_id', null)
       .gte('minute', 15);
 
-    const needsStatsSet = new Set((matchesNeedingStats || []).map((m: any) => m.match_id));
+    const needsStatsSet = new Set<string>();
+    const needsEnrichSet = new Set<string>();
+    const now = Date.now();
+    for (const m of liveInDb || []) {
+      // Stats completas API-Football: só se ainda não tem análise (economia)
+      if (!m.mycroft_analysis_id) needsStatsSet.add(m.match_id);
+      // Enrichment SofaScore: sempre que xG ainda for null/0 OU faz mais de 90s desde último update
+      const xg = (m.stats as any)?.xG_home;
+      const lastUpdate = m.updated_at ? new Date(m.updated_at).getTime() : 0;
+      const stale = now - lastUpdate > 90_000;
+      if (xg == null || xg === 0 || stale) needsEnrichSet.add(m.match_id);
+    }
 
     // 3. Update scores + fetch stats in parallel batches
     let updated = 0;
@@ -221,46 +234,63 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats for matches that need analysis (>= 15 min, no analysis yet)
+        // Fetch full stats (API-Football) only for matches that still need analysis
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
           const stats = await fetchFixtureStats(fixtureId, apiKey);
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
             console.log(`[LiveScores] Stats fetched for ${fixtureId}: Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
+          }
+        }
 
-            // Enrich with SofaScore (xG, momentum, big chances) - never blocks
-            try {
-              const homeName = fixture.teams?.home?.name;
-              const awayName = fixture.teams?.away?.name;
-              if (homeName && awayName) {
-                const sofaRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sofascore-live-stats`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-                  },
-                  body: JSON.stringify({ home: homeName, away: awayName }),
-                });
-                if (sofaRes.ok) {
-                  const sofa = await sofaRes.json();
-                  if (sofa.found) {
-                    // Merge xG and advanced stats — SofaScore values overwrite when present
-                    if (sofa.xg_home != null) updatePayload.stats.xG_home = sofa.xg_home;
-                    if (sofa.xg_away != null) updatePayload.stats.xG_away = sofa.xg_away;
-                    if (sofa.big_chances_home != null) updatePayload.stats.big_chances_home = sofa.big_chances_home;
-                    if (sofa.big_chances_away != null) updatePayload.stats.big_chances_away = sofa.big_chances_away;
-                    if (sofa.shots_inside_box_home != null) updatePayload.stats.shots_inside_box_home = sofa.shots_inside_box_home;
-                    if (sofa.shots_inside_box_away != null) updatePayload.stats.shots_inside_box_away = sofa.shots_inside_box_away;
-                    if (sofa.momentum) updatePayload.stats.momentum = sofa.momentum;
-                    updatePayload.stats.sofascore_event_id = sofa.event_id;
-                    console.log(`[LiveScores] 🔥 SofaScore enriched ${fixtureId}: xG ${sofa.xg_home}-${sofa.xg_away}, BigChances ${sofa.big_chances_home}-${sofa.big_chances_away}`);
+        // SofaScore enrichment — runs INDEPENDENTLY of stats fetch.
+        // Critical for xG: API-Football returns null in ~95% of matches; SofaScore is the fallback.
+        if (needsEnrichSet.has(fixtureId) && minute >= 15) {
+          try {
+            const homeName = fixture.teams?.home?.name;
+            const awayName = fixture.teams?.away?.name;
+            if (homeName && awayName) {
+              const sofaRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sofascore-live-stats`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+                },
+                body: JSON.stringify({ home: homeName, away: awayName }),
+              });
+              if (sofaRes.ok) {
+                const sofa = await sofaRes.json();
+                if (sofa.found) {
+                  // Merge into existing stats (or fetch current row if no new stats this cycle)
+                  let baseStats = updatePayload.stats;
+                  if (!baseStats) {
+                    const { data: row } = await supabase
+                      .from('live_matches')
+                      .select('stats')
+                      .eq('match_id', fixtureId)
+                      .maybeSingle();
+                    baseStats = (row?.stats as any) || {};
                   }
+                  if (sofa.xg_home != null) baseStats.xG_home = sofa.xg_home;
+                  if (sofa.xg_away != null) baseStats.xG_away = sofa.xg_away;
+                  if (sofa.big_chances_home != null) baseStats.big_chances_home = sofa.big_chances_home;
+                  if (sofa.big_chances_away != null) baseStats.big_chances_away = sofa.big_chances_away;
+                  if (sofa.shots_inside_box_home != null) baseStats.shots_inside_box_home = sofa.shots_inside_box_home;
+                  if (sofa.shots_inside_box_away != null) baseStats.shots_inside_box_away = sofa.shots_inside_box_away;
+                  if (sofa.momentum) baseStats.momentum = sofa.momentum;
+                  baseStats.sofascore_event_id = sofa.event_id;
+                  updatePayload.stats = baseStats;
+                  console.log(`[LiveScores] 🔥 SofaScore enriched ${fixtureId}: xG ${sofa.xg_home}-${sofa.xg_away}, BigChances ${sofa.big_chances_home}-${sofa.big_chances_away}`);
+                } else {
+                  console.log(`[LiveScores] ⚠️ SofaScore não encontrou ${homeName} vs ${awayName}`);
                 }
+              } else {
+                console.warn(`[LiveScores] SofaScore HTTP ${sofaRes.status} para ${fixtureId}`);
               }
-            } catch (sofaErr) {
-              console.warn(`[LiveScores] SofaScore enrichment failed for ${fixtureId}:`, sofaErr);
             }
+          } catch (sofaErr) {
+            console.warn(`[LiveScores] SofaScore enrichment failed for ${fixtureId}:`, sofaErr);
           }
         }
 
