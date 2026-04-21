@@ -64,14 +64,26 @@ async function findTeam(name: string) {
 }
 
 // Top jogadores do time na temporada (busca squad + stats)
+// Tenta temporada atual; se vazia, tenta anterior
 async function buscarTopJogadores(teamId: number, season: number): Promise<PlayerStats[]> {
   try {
-    const r = await fetch(
-      `${BASE}/players?team=${teamId}&season=${season}`,
-      { headers: { "x-apisports-key": API_KEY } },
-    );
-    const d = await r.json();
-    const items = d.response || [];
+    let items: any[] = [];
+    for (const s of [season, season - 1]) {
+      const r = await fetch(
+        `${BASE}/players?team=${teamId}&season=${s}`,
+        { headers: { "x-apisports-key": API_KEY } },
+      );
+      const d = await r.json();
+      items = d.response || [];
+      if (items.length >= 3) {
+        console.log(`[players] team=${teamId} usando season=${s} (${items.length} jogadores)`);
+        break;
+      }
+    }
+    if (!items.length) {
+      console.warn(`[players] team=${teamId} SEM dados em ${season} ou ${season - 1}`);
+      return [];
+    }
     const players: PlayerStats[] = [];
 
     for (const it of items) {
@@ -87,7 +99,7 @@ async function buscarTopJogadores(teamId: number, season: number): Promise<Playe
       const shotsTotal = stat.shots?.total || 0;
       const shotsOn = stat.shots?.on || 0;
 
-      if (apps < 5 || mins < 200) continue; // amostra mínima
+      if (apps < 3 || mins < 120) continue; // amostra mínima reduzida
 
       const per90 = (n: number) => (mins > 0 ? (n * 90) / mins : 0);
 
@@ -367,13 +379,17 @@ serve(async (req) => {
           findTeam(g.home_team),
           findTeam(g.away_team),
         ]);
-        if (!th || !ta) continue;
+        if (!th || !ta) {
+          console.warn(`[players] times não encontrados: ${g.home_team} / ${g.away_team}`);
+          continue;
+        }
 
         const [topHome, topAway] = await Promise.all([
           buscarTopJogadores(th.id, season),
           buscarTopJogadores(ta.id, season),
         ]);
         const todos = [...topHome, ...topAway];
+        console.log(`[players] ${g.home_team} vs ${g.away_team}: ${topHome.length}+${topAway.length} jogadores`);
         if (!todos.length) continue;
 
         const oddsBlob = await buscarOddsJogadores(g.id, g.sport_key || "soccer_epl");
