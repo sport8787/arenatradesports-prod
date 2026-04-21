@@ -25,6 +25,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
+import SignalsFeed from '@/components/punter/SignalsFeed';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
@@ -1243,6 +1244,9 @@ export default function PunterPage() {
 
         {/* Daily Summary Widget */}
         {user && <DailySummaryWidget userId={user.id} username={profile?.username} />}
+
+        {/* Feed de Sinais (APROVADO + GREEN/RED) */}
+        <SignalsFeed />
 
         {/* Navigation Links */}
         <div className="space-y-2">
