@@ -39,6 +39,7 @@ import ArenaBlackjack from "./pages/ArenaBlackjack";
 import MycroftMemory from "./pages/MycroftMemory";
 import AdminChatAnalytics from "./pages/AdminChatAnalytics";
 import AdminPushTest from "./pages/AdminPushTest";
+import AdminSettlementLog from "./pages/AdminSettlementLog";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
               <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
               <Route path="/admin/push-test" element={<AdminPushTest />} />
+              <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
