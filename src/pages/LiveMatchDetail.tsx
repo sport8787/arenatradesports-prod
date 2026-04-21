@@ -772,29 +772,6 @@ export default function LiveMatchDetail() {
                   </div>
                 )}
 
-                {/* Chat com Mycroft sobre essa partida */}
-                <MatchMycroftChat
-                  matchContext={{
-                    match_id: match.match_id || match.id,
-                    home_team: match.home_team,
-                    away_team: match.away_team,
-                    league: match.championship,
-                    minute: match.minute ?? 0,
-                    score_home: match.score_home ?? 0,
-                    score_away: match.score_away ?? 0,
-                    stats,
-                    analysis: analysis
-                      ? {
-                          verdict: analysis.verdict,
-                          market: analysis.market,
-                          odd: analysis.odd != null ? Number(analysis.odd) : undefined,
-                          confidence: analysis.confidence,
-                          thesis: analysis.thesis,
-                          alerts: analysis.alerts,
-                        }
-                      : undefined,
-                  }}
-                />
               </>
             )}
           </TabsContent>
