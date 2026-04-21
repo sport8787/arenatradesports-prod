@@ -51,14 +51,24 @@ interface PlayerStats {
 // API-Football helpers
 // ═════════════════════════════════════════════════════
 async function findTeam(name: string) {
-  if (!API_KEY) return null;
+  if (!API_KEY) {
+    console.error("[players] API_FOOTBALL_KEY ausente!");
+    return null;
+  }
   try {
     const r = await fetch(`${BASE}/teams?search=${encodeURIComponent(name)}`, {
       headers: { "x-apisports-key": API_KEY },
     });
+    if (!r.ok) {
+      console.warn(`[players] findTeam ${name} → HTTP ${r.status}`);
+      return null;
+    }
     const d = await r.json();
-    return d.response?.[0]?.team || null;
-  } catch {
+    const team = d.response?.[0]?.team || null;
+    if (!team) console.warn(`[players] findTeam ${name} → 0 results, errors=${JSON.stringify(d.errors)}`);
+    return team;
+  } catch (e) {
+    console.error(`[players] findTeam ${name} EXC:`, e);
     return null;
   }
 }
