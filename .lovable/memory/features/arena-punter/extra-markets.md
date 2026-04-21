@@ -1,25 +1,30 @@
 ---
 name: Mercados Extras Punter
-description: Edge functions mycroft-extra-markets (Dupla Chance, Handicap Asiático ±0.5/±1.0) e mycroft-cards-punter (Cartões híbrido) salvam em punter_analyses. Crons 11:35/17:35 (extras) e 11:40/17:40 (cards). Índice único uniq_punter_analyses_match_market garante upsert.
+description: Edge functions mycroft-extra-markets (Dupla Chance, Handicap Asiático/Europeu), mycroft-cards-punter (Cartões híbrido) e mycroft-players-punter (Jogadores: gols, chutes, assistências) salvam em punter_analyses. Crons 11:35/17:35 (extras), 11:40/17:40 (cards), 11:50/17:50 (players). Índice único uniq_punter_analyses_match_market garante upsert.
 type: feature
 ---
 
 ## Mercados Extras (Punter)
 
 **Edge functions:**
-- `mycroft-extra-markets` — Dupla Chance (1X/X2/12) + Handicap Asiático ±0.5/±1.0 via Poisson + The Odds API (`double_chance`, `spreads`).
-- `mycroft-cards-punter` — Cartões híbrido: API-Football (média Yellow+Red últimos 8 jogos) + The Odds API (`cards_totals`). Sem odd → `verdict='APROVADO_SITUACIONAL'` informativo.
+- `mycroft-extra-markets` — Dupla Chance (1X/X2/12) + Handicap Asiático ±0.5/±1.0 via Poisson + The Odds API.
+- `mycroft-cards-punter` — Cartões híbrido: API-Football (média Yellow+Red últimos 8 jogos) + The Odds API (`cards_totals`). Sem odd → `APROVADO_SITUACIONAL`.
+- `mycroft-players-punter` — Jogadores: top 3 por time via API-Football `/players` (gols/90, chutes/90, SOG/90, ass/90). Mercados: Marcar a qualquer momento, Chutes 1.5/2.5, SOG 0.5/1.5, Assistência. Odds via The Odds API (`player_goal_scorer_anytime`, `player_shots`, `player_shots_on_target`, `player_assists`).
 
 **Persistência:**
-- Mesma tabela `punter_analyses` (mistura no feed normal).
+- Tabela `punter_analyses` (mistura no feed normal).
 - Índice único `(match_id, market)` permite upsert idempotente.
 
 **Critérios:**
-- Edge mínimo 4%, odds 1.45-3.0.
-- Cartões: margem mínima 1.0 cartão entre média e linha para publicar.
+- Edge mínimo: 4% (extras/cards), 5% (jogadores — mais ruidoso).
+- Jogadores: amostra mínima 5 jogos / 200min, margem prob estimada vs implícita ≥ 8pp.
+- Cartões: margem ≥ 1.0 cartão entre média e linha.
 
-**Crons (UTC):** 11:35/17:35 (extras) e 11:40/17:40 (cards), 5min após `mycroft-punter-analysis`.
+**Crons (UTC):**
+- 11:35/17:35 — extras
+- 11:40/17:40 — cards
+- 11:50/17:50 — players
 
-**Service:** `src/services/extraMarketsService.ts` expõe `runExtraMarkets()`, `runCards()`, `runAll()`.
+**Service:** `src/services/extraMarketsService.ts` expõe `runExtraMarkets()`, `runCards()`, `runPlayers()`, `runAll()`.
 
-**Próximo passo:** mercado de Jogadores (gols/chutes/assistências) via API-Football `/players`.
+**Limites:** Players analisa MAX_GAMES=15 (consome ~6 req/jogo só para listar squads + odds), versus 25 dos cards.
