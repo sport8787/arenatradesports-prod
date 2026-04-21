@@ -51,27 +51,49 @@ interface PlayerStats {
 // API-Football helpers
 // ═════════════════════════════════════════════════════
 async function findTeam(name: string) {
-  if (!API_KEY) return null;
+  if (!API_KEY) {
+    console.error("[players] API_FOOTBALL_KEY ausente!");
+    return null;
+  }
   try {
     const r = await fetch(`${BASE}/teams?search=${encodeURIComponent(name)}`, {
       headers: { "x-apisports-key": API_KEY },
     });
+    if (!r.ok) {
+      console.warn(`[players] findTeam ${name} → HTTP ${r.status}`);
+      return null;
+    }
     const d = await r.json();
-    return d.response?.[0]?.team || null;
-  } catch {
+    const team = d.response?.[0]?.team || null;
+    if (!team) console.warn(`[players] findTeam ${name} → 0 results, errors=${JSON.stringify(d.errors)}`);
+    return team;
+  } catch (e) {
+    console.error(`[players] findTeam ${name} EXC:`, e);
     return null;
   }
 }
 
 // Top jogadores do time na temporada (busca squad + stats)
+// Tenta temporada atual; se vazia, tenta anterior
 async function buscarTopJogadores(teamId: number, season: number): Promise<PlayerStats[]> {
   try {
-    const r = await fetch(
-      `${BASE}/players?team=${teamId}&season=${season}`,
-      { headers: { "x-apisports-key": API_KEY } },
-    );
-    const d = await r.json();
-    const items = d.response || [];
+    let items: any[] = [];
+    for (const s of [season, season - 1]) {
+      const r = await fetch(
+        `${BASE}/players?team=${teamId}&season=${s}`,
+        { headers: { "x-apisports-key": API_KEY } },
+      );
+      const d = await r.json();
+      items = d.response || [];
+      if (items.length >= 3) {
+        console.log(`[players] team=${teamId} usando season=${s} (${items.length} jogadores)`);
+        break;
+      }
+    }
+    if (!items.length) {
+      console.warn(`[players] team=${teamId} SEM dados em ${season} ou ${season - 1}`);
+      return [];
+    }
     const players: PlayerStats[] = [];
 
     for (const it of items) {
@@ -87,7 +109,7 @@ async function buscarTopJogadores(teamId: number, season: number): Promise<Playe
       const shotsTotal = stat.shots?.total || 0;
       const shotsOn = stat.shots?.on || 0;
 
-      if (apps < 5 || mins < 200) continue; // amostra mínima
+      if (apps < 3 || mins < 120) continue; // amostra mínima reduzida
 
       const per90 = (n: number) => (mins > 0 ? (n * 90) / mins : 0);
 
@@ -352,7 +374,7 @@ serve(async (req) => {
 
   try {
     const games = await buscarJogos();
-    console.log(`[players] ${games.length} jogos para analisar`);
+    console.log(`[players v2] ${games.length} jogos para analisar | API_KEY=${API_KEY ? 'OK' : 'MISSING'} | ODDS_KEY=${ODDS_KEY ? 'OK' : 'MISSING'}`);
     const season = new Date().getFullYear();
     let aprovados = 0, informativos = 0, jogadoresAnalisados = 0;
 
@@ -367,13 +389,17 @@ serve(async (req) => {
           findTeam(g.home_team),
           findTeam(g.away_team),
         ]);
-        if (!th || !ta) continue;
+        if (!th || !ta) {
+          console.warn(`[players] times não encontrados: ${g.home_team} / ${g.away_team}`);
+          continue;
+        }
 
         const [topHome, topAway] = await Promise.all([
           buscarTopJogadores(th.id, season),
           buscarTopJogadores(ta.id, season),
         ]);
         const todos = [...topHome, ...topAway];
+        console.log(`[players] ${g.home_team} vs ${g.away_team}: ${topHome.length}+${topAway.length} jogadores`);
         if (!todos.length) continue;
 
         const oddsBlob = await buscarOddsJogadores(g.id, g.sport_key || "soccer_epl");

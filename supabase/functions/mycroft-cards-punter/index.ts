@@ -53,12 +53,17 @@ async function findTeam(name: string) {
 // Buscar média de cartões dos últimos N jogos
 // ═════════════════════════════════════════════════════
 async function buscarMediaCartoes(teamId: number, season: number) {
-  const r = await fetch(
-    `${BASE}/fixtures?team=${teamId}&season=${season}&last=8&status=FT`,
-    { headers: { "x-apisports-key": API_KEY } },
-  );
-  const d = await r.json();
-  const fixtures = d.response || [];
+  // Tenta temporada atual; se vazia, tenta anterior (jogos de pré-temporada/internacionais)
+  let fixtures: any[] = [];
+  for (const s of [season, season - 1]) {
+    const r = await fetch(
+      `${BASE}/fixtures?team=${teamId}&season=${s}&last=10&status=FT`,
+      { headers: { "x-apisports-key": API_KEY } },
+    );
+    const d = await r.json();
+    fixtures = d.response || [];
+    if (fixtures.length >= 3) break;
+  }
   if (!fixtures.length) return null;
 
   let totalCartoes = 0;
@@ -92,7 +97,7 @@ async function buscarMediaCartoes(teamId: number, season: number) {
     }
   }
 
-  if (amostra < 4) return null;
+  if (amostra < 3) return null;
   return {
     avg_total_jogo: totalCartoes / amostra,
     avg_recebidos: totalRecebidos / amostra,
@@ -299,8 +304,8 @@ serve(async (req) => {
         const oddsBlob = await buscarOddsCartoes(g.id, g.sport_key || "soccer_epl");
         const sinal = avaliarCartoes(mediaCombinada, oddsBlob);
 
-        // Só publica se margem ≥ 1.0 (para não poluir feed)
-        if (sinal.margem < 1.0) continue;
+        // Publica se margem ≥ 0.5 cartões (mais permissivo)
+        if (sinal.margem < 0.5) continue;
 
         const ok = await salvar(sb, g, sinal);
         if (ok) {
