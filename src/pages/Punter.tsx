@@ -41,6 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
+import { translateMarket } from '@/utils/marketTranslator';
 
 interface PunterSignal {
   analysis_id?: string; // ID from punter_analyses for reliable signal lookup
