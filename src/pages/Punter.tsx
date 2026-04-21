@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { useManualBankroll } from '@/hooks/useManualBankroll';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
@@ -68,6 +69,7 @@ interface PunterSignal {
 export default function PunterPage() {
   const navigate = useNavigate();
   const { user, profile, refetchProfile } = useAuth();
+  usePushNotifications(); // Auto-registra Web Push para receber sinais APROVADO + GREEN/RED
   const { isAdmin } = useAdmin();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
