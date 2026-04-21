@@ -1,6 +1,7 @@
 // Mycroft Match Chat - debate com Mycroft sobre uma análise de jogo ao vivo específica
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,15 +41,37 @@ interface Body {
   history?: ChatMsg[];
 }
 
+// Estimativa simples de tokens (~4 chars/token)
+const estimateTokens = (text: string) => Math.ceil((text?.length || 0) / 4);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startedAt = Date.now();
+
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
+
+    // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
+    let userId: string | null = null;
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const sb = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data } = await sb.auth.getUser();
+        userId = data.user?.id ?? null;
+      }
+    } catch (e) {
+      console.warn("auth resolve failed", e);
+    }
 
     const sys = `Você é o **Mycroft Sports**, analista frio e dedutivo de trading esportivo ao vivo.
 Sua missão: debater com o usuário sobre a análise da partida abaixo, defender sua tese,
@@ -124,6 +147,45 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
     const data = await resp.json();
     const response =
       data?.choices?.[0]?.message?.content ?? "Sem resposta no momento.";
+
+    const elapsed = Date.now() - startedAt;
+
+    // Persistir log (best-effort, não bloqueia resposta em caso de falha)
+    if (userId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const admin = createClient(supabaseUrl, serviceKey);
+        const baseRow = {
+          user_id: userId,
+          match_id: matchContext.match_id,
+          home_team: matchContext.home_team,
+          away_team: matchContext.away_team,
+          league: matchContext.league,
+          minute: matchContext.minute,
+          score_home: matchContext.score_home,
+          score_away: matchContext.score_away,
+        };
+        await admin.from("mycroft_chat_logs").insert([
+          {
+            ...baseRow,
+            role: "user",
+            content: query,
+            tokens_estimated: estimateTokens(query),
+            response_time_ms: null,
+          },
+          {
+            ...baseRow,
+            role: "assistant",
+            content: response,
+            tokens_estimated: estimateTokens(response),
+            response_time_ms: elapsed,
+          },
+        ]);
+      } catch (logErr) {
+        console.warn("chat log insert failed", logErr);
+      }
+    }
 
     return new Response(JSON.stringify({ response }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
