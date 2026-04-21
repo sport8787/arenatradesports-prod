@@ -178,15 +178,28 @@ serve(async (req) => {
 
     const liveFixtureIds = new Set(fixtures.map((f: any) => String(f.fixture.id)));
 
-    // 2. Get matches in DB that need stats (>=15 min, no analysis yet)
-    const { data: matchesNeedingStats } = await supabase
+    // 2. Get matches in DB that need stats refresh
+    //    - Sem análise ainda (>=15 min) → primeira coleta
+    //    - Com análise (>=15 min) → refresh para manter xG/momentum atualizados
+    //      (a SofaScore preenche xG quando a API-Football retorna null)
+    const { data: liveInDb } = await supabase
       .from('live_matches')
-      .select('match_id')
+      .select('match_id, mycroft_analysis_id, stats, updated_at')
       .eq('status', 'live')
-      .is('mycroft_analysis_id', null)
       .gte('minute', 15);
 
-    const needsStatsSet = new Set((matchesNeedingStats || []).map((m: any) => m.match_id));
+    const needsStatsSet = new Set<string>();
+    const needsEnrichSet = new Set<string>();
+    const now = Date.now();
+    for (const m of liveInDb || []) {
+      // Stats completas API-Football: só se ainda não tem análise (economia)
+      if (!m.mycroft_analysis_id) needsStatsSet.add(m.match_id);
+      // Enrichment SofaScore: sempre que xG ainda for null/0 OU faz mais de 90s desde último update
+      const xg = (m.stats as any)?.xG_home;
+      const lastUpdate = m.updated_at ? new Date(m.updated_at).getTime() : 0;
+      const stale = now - lastUpdate > 90_000;
+      if (xg == null || xg === 0 || stale) needsEnrichSet.add(m.match_id);
+    }
 
     // 3. Update scores + fetch stats in parallel batches
     let updated = 0;
