@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Send, Flame, MessageCircle } from 'lucide-react';
+import { Zap, Send, Flame, MessageCircle, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { FOUNDERS_GROUP } from '@/config/foundersGroup';
 
