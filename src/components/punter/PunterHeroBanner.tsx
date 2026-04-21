@@ -178,12 +178,15 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
                   </p>
                 </div>
               </div>
-              <button
+              <a
+                href="https://www.betfair.bet.br/exchange/plus/"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={onCtaClick}
-                className="w-full bg-primary text-primary-foreground font-black py-3 uppercase text-sm tracking-widest hover:opacity-90 transition-opacity"
+                className="block w-full bg-primary text-primary-foreground font-black py-3 uppercase text-sm tracking-widest hover:opacity-90 transition-opacity text-center"
               >
                 Executar Posição
-              </button>
+              </a>
             </div>
           ) : (
             <div className="p-6 sm:p-8 text-center text-muted-foreground">
