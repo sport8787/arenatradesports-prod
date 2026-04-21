@@ -1232,6 +1232,7 @@ export default function PunterPage() {
                   el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
+              <SettledBetsDebugPanel userId={user?.id} />
             </>
           );
         })()}
