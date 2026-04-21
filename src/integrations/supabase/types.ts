@@ -2058,6 +2058,63 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_settlement_log: {
+        Row: {
+          analysis_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          market: string | null
+          match_id: string | null
+          outcome: string | null
+          reason: string | null
+          result: string | null
+          score_away: number | null
+          score_home: number | null
+          status_new: string | null
+          status_old: string | null
+          total_goals: number | null
+          trigger_source: string | null
+          verdict: string | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          outcome?: string | null
+          reason?: string | null
+          result?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          status_new?: string | null
+          status_old?: string | null
+          total_goals?: number | null
+          trigger_source?: string | null
+          verdict?: string | null
+        }
+        Update: {
+          analysis_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          outcome?: string | null
+          reason?: string | null
+          result?: string | null
+          score_away?: number | null
+          score_home?: number | null
+          status_new?: string | null
+          status_old?: string | null
+          total_goals?: number | null
+          trigger_source?: string | null
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       mycroft_vetoed_log: {
         Row: {
           confianca_recebida: number | null
