@@ -313,27 +313,49 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
             </span>
           </a>
 
-          <a
-            href={FOUNDERS_GROUP.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full border border-[#25D366]/40 bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors p-3 group text-left flex items-center gap-3"
-          >
-            <div className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#25D366]/50 bg-background">
-              <MessageCircle className="w-4 h-4 text-[#25D366]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-mono uppercase tracking-widest text-[#25D366]/80">
-                {FOUNDERS_GROUP.eyebrow}
-              </p>
-              <p className="font-bold text-foreground text-sm leading-tight">
-                {FOUNDERS_GROUP.title}
-              </p>
-            </div>
-            <span className="bg-[#25D366] text-white px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
-              {FOUNDERS_GROUP.cta}
-            </span>
-          </a>
+          <div className="border border-[#25D366]/40 bg-[#25D366]/10 transition-colors group text-left flex items-stretch">
+            <a
+              href={FOUNDERS_GROUP.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 min-w-0 flex items-center gap-3 p-3 hover:bg-[#25D366]/20 transition-colors"
+            >
+              <div className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#25D366]/50 bg-background">
+                <MessageCircle className="w-4 h-4 text-[#25D366]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-[#25D366]/80">
+                  {FOUNDERS_GROUP.eyebrow}
+                </p>
+                <p className="font-bold text-foreground text-sm leading-tight">
+                  {FOUNDERS_GROUP.title}
+                </p>
+              </div>
+              <span className="bg-[#25D366] text-white px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
+                {FOUNDERS_GROUP.cta}
+              </span>
+            </a>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  await navigator.clipboard.writeText(FOUNDERS_GROUP.url);
+                  toast.success('Link copiado!', {
+                    description: 'Compartilhe com outros fundadores.',
+                  });
+                } catch {
+                  toast.error('Não foi possível copiar o link.');
+                }
+              }}
+              aria-label="Copiar link do grupo dos Fundadores"
+              title="Copiar link"
+              className="shrink-0 px-3 flex items-center justify-center border-l border-[#25D366]/40 hover:bg-[#25D366]/20 transition-colors"
+            >
+              <Copy className="w-4 h-4 text-[#25D366]" />
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
