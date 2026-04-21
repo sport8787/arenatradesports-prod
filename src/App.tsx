@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useEffect } from "react";
 import { identifyUser, track } from "@/lib/analytics";
 import { captureUTMs } from "@/lib/utm";
