@@ -53,7 +53,7 @@ function useCountdown(targetIso?: string) {
 
 const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Props) => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0 });
+  const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0, source: 'empty', lastUpdated: null });
   const countdown = useCountdown(nextMatch?.kickoff);
 
   // Synthetic but believable "punters online" counter (847 ± drift) for social proof
@@ -62,26 +62,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    (async () => {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      // Lê das tabelas reais de banca virtual (Hórus + Manual). bets_history fica defasado.
-      const [punterRes, manualRes] = await Promise.all([
-        supabase
-          .from('virtual_bets_punter')
-          .select('status, result, profit_loss, stake, created_at')
-          .eq('user_id', userId)
-          .gte('created_at', since)
-          .limit(1000),
-        supabase
-          .from('virtual_bets_manual')
-          .select('status, result, profit_loss, stake, created_at')
-          .eq('user_id', userId)
-          .gte('created_at', since)
-          .limit(1000),
-      ]);
-      if (cancelled) return;
-      const data = [...(punterRes.data || []), ...(manualRes.data || [])];
-
+    const compute = (data: any[], source: 'virtual' | 'history' | 'empty') => {
       const isGreen = (b: any) => b.status === 'green' || b.result === 'green';
       const isRed = (b: any) => b.status === 'red' || b.result === 'red';
       const settled = data.filter((b: any) => isGreen(b) || isRed(b));
@@ -97,9 +78,53 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
       const todayStr = new Date().toISOString().slice(0, 10);
       const today = data.filter((b: any) => (b.created_at || '').slice(0, 10) === todayStr);
       const greensToday = today.filter(isGreen).length;
-      setStats({ winRate, weeklyRoi, greensToday, betsToday: today.length, settledCount: settled.length, weeklyStaked });
-    })();
-    return () => { cancelled = true; };
+      return { winRate, weeklyRoi, greensToday, betsToday: today.length, settledCount: settled.length, weeklyStaked, source, lastUpdated: Date.now() };
+    };
+
+    const load = async () => {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const [punterRes, manualRes] = await Promise.all([
+        supabase
+          .from('virtual_bets_punter')
+          .select('status, result, profit_loss, stake, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', since)
+          .limit(1000),
+        supabase
+          .from('virtual_bets_manual')
+          .select('status, result, profit_loss, stake, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', since)
+          .limit(1000),
+      ]);
+      if (cancelled) return;
+      const virtual = [...(punterRes.data || []), ...(manualRes.data || [])];
+      const settledVirtual = virtual.filter((b: any) =>
+        b.status === 'green' || b.status === 'red' || b.result === 'green' || b.result === 'red'
+      );
+
+      // Fallback: if no settled virtual bets, try bets_history
+      if (settledVirtual.length === 0) {
+        const { data: history } = await supabase
+          .from('bets_history')
+          .select('result, profit_loss, stake, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', since)
+          .in('result', ['green', 'red'])
+          .limit(1000);
+        if (cancelled) return;
+        const histData = history || [];
+        setStats(compute(histData, histData.length > 0 ? 'history' : 'empty'));
+        return;
+      }
+
+      setStats(compute(virtual, 'virtual'));
+    };
+
+    load();
+    // Refresh every 60s for "live data" indicator
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [userId]);
 
   return (
