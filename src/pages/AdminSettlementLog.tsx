@@ -62,8 +62,8 @@ const OUTCOME_OPTIONS = [
 
 function resultBadge(result: string | null) {
   if (!result) return <Badge variant="outline">—</Badge>;
-  if (result === "green") return <Badge className="bg-green-600 hover:bg-green-600">GREEN</Badge>;
-  if (result === "red") return <Badge className="bg-red-600 hover:bg-red-600">RED</Badge>;
+  if (result === "green") return <Badge className="bg-success text-success-foreground hover:bg-success">GREEN</Badge>;
+  if (result === "red") return <Badge variant="destructive">RED</Badge>;
   if (result === "error") return <Badge variant="destructive">ERROR</Badge>;
   return <Badge variant="secondary">{result.toUpperCase()}</Badge>;
 }
