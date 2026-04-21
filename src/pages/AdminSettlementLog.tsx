@@ -165,8 +165,8 @@ export default function AdminSettlementLog() {
       {/* Stats da página atual */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total (filtro)</div><div className="text-2xl font-bold">{count}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">GREEN (página)</div><div className="text-2xl font-bold text-green-600">{stats.green}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">RED (página)</div><div className="text-2xl font-bold text-red-600">{stats.red}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">GREEN (página)</div><div className="text-2xl font-bold text-success">{stats.green}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">RED (página)</div><div className="text-2xl font-bold text-destructive">{stats.red}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Skipped</div><div className="text-2xl font-bold">{stats.skipped}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Errors</div><div className="text-2xl font-bold text-destructive">{stats.errors}</div></CardContent></Card>
       </div>
