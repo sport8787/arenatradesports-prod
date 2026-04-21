@@ -1862,7 +1862,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
           {/* Data Grid */}
           <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5">
-            <DataCell label="MERCADO" value={signal.recommendation.market} />
+            <DataCell label="MERCADO" value={translateMarket(signal.recommendation.market)} />
             <DataCell label="CASA" value={signal.recommendation.bookmaker} />
             <DataCell label="ODD" value={signal.recommendation.odd?.toFixed(2)} highlight />
             <DataCell label="PROB." value={`${(signal.recommendation.estimated_probability ?? assetScore.model_probability).toFixed(1)}%`} />
