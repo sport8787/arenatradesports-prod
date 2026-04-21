@@ -119,6 +119,125 @@ export default function AdminSettlementLog() {
     }
   };
 
+  const fetchAllFiltered = async (): Promise<LogRow[]> => {
+    let q = supabase
+      .from("mycroft_settlement_log" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (matchFilter.trim()) q = q.ilike("match_id", `%${matchFilter.trim()}%`);
+    if (analysisFilter.trim()) q = q.eq("analysis_id", analysisFilter.trim());
+    if (marketFilter.trim()) q = q.ilike("market", `%${marketFilter.trim()}%`);
+    if (resultFilter !== "all") q = q.eq("result", resultFilter);
+    if (outcomeFilter !== "all") q = q.eq("outcome", outcomeFilter);
+    if (dateFrom) q = q.gte("created_at", dateFrom.toISOString());
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      q = q.lte("created_at", end.toISOString());
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data as any) || [];
+  };
+
+  const escapeCsv = (v: any) => {
+    if (v == null) return "";
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n;]/.test(s) ? `"${s}"` : s;
+  };
+
+  const exportCsv = async () => {
+    try {
+      const all = await fetchAllFiltered();
+      if (!all.length) { toast.info("Nenhum registro para exportar"); return; }
+      const headers = ["created_at","match_id","analysis_id","market","score_home","score_away","total_goals","verdict","result","outcome","reason","trigger_source","status_old","status_new","error_message"];
+      const lines = [headers.join(",")];
+      all.forEach(r => {
+        lines.push(headers.map(h => escapeCsv((r as any)[h])).join(","));
+      });
+      const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `settlement-log-${format(new Date(), "yyyyMMdd-HHmmss")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${all.length} registros exportados em CSV`);
+    } catch (e: any) {
+      toast.error("Erro ao exportar CSV", { description: e.message });
+    }
+  };
+
+  const exportPdf = async () => {
+    try {
+      const all = await fetchAllFiltered();
+      if (!all.length) { toast.info("Nenhum registro para exportar"); return; }
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const w = doc.internal.pageSize.getWidth();
+      doc.setFillColor(15, 15, 20);
+      doc.rect(0, 0, w, 22, "F");
+      doc.setTextColor(212, 175, 55);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("ORÁCULO MYCROFT — Auditoria de Liquidações", 14, 10);
+      doc.setFontSize(9);
+      doc.setTextColor(180, 180, 180);
+      doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} • ${all.length} registros`, 14, 17);
+
+      const body = all.map(r => [
+        format(new Date(r.created_at), "dd/MM HH:mm:ss"),
+        r.match_id || "—",
+        r.market || "—",
+        `${r.score_home ?? "?"}-${r.score_away ?? "?"}`,
+        (r.result || "—").toUpperCase(),
+        r.outcome || "—",
+        `${r.status_old || "—"} → ${r.status_new || "—"}`,
+        r.reason || (r.error_message ? `⚠ ${r.error_message}` : "—"),
+      ]);
+
+      autoTable(doc, {
+        startY: 26,
+        head: [["Quando","Match","Mercado","Placar","Result","Outcome","Status","Motivo"]],
+        body,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1.5, textColor: [40,40,40], lineColor: [200,200,200], lineWidth: 0.1 },
+        headStyles: { fillColor: [30,30,45], textColor: [212,175,55], fontStyle: "bold", fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [248,248,250] },
+        columnStyles: {
+          0: { cellWidth: 24 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 32 },
+          3: { cellWidth: 14, halign: "center" },
+          4: { cellWidth: 18, halign: "center" },
+          5: { cellWidth: 28 },
+          6: { cellWidth: 36 },
+        },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 4) {
+            const v = data.cell.text.join("");
+            if (v.includes("GREEN")) data.cell.styles.textColor = [34,197,94];
+            else if (v.includes("RED") || v.includes("ERROR")) data.cell.styles.textColor = [239,68,68];
+          }
+        },
+      });
+
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const h = doc.internal.pageSize.getHeight();
+        doc.setFontSize(7);
+        doc.setTextColor(120,120,120);
+        doc.text(`Oráculo Mycroft — Confidencial — Página ${i}/${pageCount}`, w/2, h-5, { align: "center" });
+      }
+
+      doc.save(`settlement-log-${format(new Date(), "yyyyMMdd-HHmmss")}.pdf`);
+      toast.success(`${all.length} registros exportados em PDF`);
+    } catch (e: any) {
+      toast.error("Erro ao exportar PDF", { description: e.message });
+    }
+  };
+
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
