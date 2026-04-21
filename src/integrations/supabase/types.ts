@@ -1893,6 +1893,57 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_chat_logs: {
+        Row: {
+          away_team: string | null
+          content: string
+          created_at: string
+          home_team: string | null
+          id: string
+          league: string | null
+          match_id: string | null
+          minute: number | null
+          response_time_ms: number | null
+          role: string
+          score_away: number | null
+          score_home: number | null
+          tokens_estimated: number | null
+          user_id: string
+        }
+        Insert: {
+          away_team?: string | null
+          content: string
+          created_at?: string
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          match_id?: string | null
+          minute?: number | null
+          response_time_ms?: number | null
+          role: string
+          score_away?: number | null
+          score_home?: number | null
+          tokens_estimated?: number | null
+          user_id: string
+        }
+        Update: {
+          away_team?: string | null
+          content?: string
+          created_at?: string
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          match_id?: string | null
+          minute?: number | null
+          response_time_ms?: number | null
+          role?: string
+          score_away?: number | null
+          score_home?: number | null
+          tokens_estimated?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       mycroft_memory: {
         Row: {
           category: string
