@@ -374,7 +374,7 @@ serve(async (req) => {
 
   try {
     const games = await buscarJogos();
-    console.log(`[players] ${games.length} jogos para analisar`);
+    console.log(`[players v2] ${games.length} jogos para analisar | API_KEY=${API_KEY ? 'OK' : 'MISSING'} | ODDS_KEY=${ODDS_KEY ? 'OK' : 'MISSING'}`);
     const season = new Date().getFullYear();
     let aprovados = 0, informativos = 0, jogadoresAnalisados = 0;
 
