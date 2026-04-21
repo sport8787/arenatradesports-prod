@@ -17,14 +17,24 @@ export const extraMarketsService = {
     return data;
   },
 
+  async runPlayers() {
+    const { data, error } = await supabase.functions.invoke("mycroft-players-punter", {
+      body: { source: "manual" },
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async runAll() {
-    const [extra, cards] = await Promise.allSettled([
+    const [extra, cards, players] = await Promise.allSettled([
       this.runExtraMarkets(),
       this.runCards(),
+      this.runPlayers(),
     ]);
     return {
       extra: extra.status === "fulfilled" ? extra.value : { error: (extra as any).reason?.message },
       cards: cards.status === "fulfilled" ? cards.value : { error: (cards as any).reason?.message },
+      players: players.status === "fulfilled" ? players.value : { error: (players as any).reason?.message },
     };
   },
 };
