@@ -70,11 +70,13 @@ export function useLiveMatches() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMatches = useCallback(async () => {
-    // Single query with join instead of N+1
+    // Buscar tudo que NÃO está explicitamente finalizado/cancelado.
+    // O backend já controla quais jogos entram em live_matches; aqui não derrubamos
+    // jogos por status secundário ('2nd_half', 'in_play', null etc).
+    const FINISHED_STATUSES = ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'postponed', 'abandoned'];
     const { data, error } = await supabase
       .from('live_matches')
       .select('*, mycroft_analyses(*)')
-      .in('status', ['live', 'halftime'])
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -83,13 +85,16 @@ export function useLiveMatches() {
       return;
     }
 
-    console.log(`[useLiveMatches] Raw from DB: ${(data || []).length} matches`, (data || []).map((m: any) => `${m.match_id}: ${m.championship} (${m.home_team} vs ${m.away_team})`));
-
-    // Map joined data and filter by allowed leagues
     const mapped = (data || [])
       .filter((match: any) => {
-        const allowed = isAllowedLeague(match.championship);
-        if (!allowed) console.warn(`[useLiveMatches] Filtered out: ${match.championship} (${match.home_team})`);
+        const status = String(match.status || '').toLowerCase();
+        // Remove jogos explicitamente finalizados
+        if (FINISHED_STATUSES.includes(status)) return false;
+        // Remove jogos antigos sem atualização há mais de 4h (evita lixo)
+        const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
+        if (updatedAgoMs > 4 * 60 * 60 * 1000) return false;
+        // Filtro de liga relaxado: aceita whitelist OU jogo em andamento (minute > 0)
+        const allowed = isAllowedLeague(match.championship) || (match.minute && match.minute > 0);
         return allowed;
       })
       .map((match: any) => {
@@ -98,7 +103,7 @@ export function useLiveMatches() {
         return { ...rest, mycroft_analysis: analysis } as LiveMatch;
       });
 
-    console.log(`[useLiveMatches] After filter: ${mapped.length} matches`);
+    console.log(`[useLiveMatches] ${(data || []).length} brutos → ${mapped.length} ativos`);
     setMatches(mapped);
     setLoading(false);
   }, []);
