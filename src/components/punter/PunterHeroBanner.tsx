@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Send, Flame, MessageCircle, Copy } from 'lucide-react';
+import { Zap, Send, Flame, MessageCircle, Copy, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -340,6 +340,24 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                const shareData = {
+                  title: FOUNDERS_GROUP.eyebrow,
+                  text: FOUNDERS_GROUP.title,
+                  url: FOUNDERS_GROUP.url,
+                };
+                const canShare =
+                  typeof navigator !== 'undefined' &&
+                  typeof navigator.share === 'function' &&
+                  (typeof navigator.canShare !== 'function' || navigator.canShare(shareData));
+                if (canShare) {
+                  try {
+                    await navigator.share(shareData);
+                    return;
+                  } catch (err: any) {
+                    // User cancelled — silent. Other errors fall through to clipboard.
+                    if (err?.name === 'AbortError') return;
+                  }
+                }
                 try {
                   await navigator.clipboard.writeText(FOUNDERS_GROUP.url);
                   toast.success('Link copiado!', {
@@ -349,11 +367,15 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
                   toast.error('Não foi possível copiar o link.');
                 }
               }}
-              aria-label="Copiar link do grupo dos Fundadores"
-              title="Copiar link"
+              aria-label="Compartilhar link do grupo dos Fundadores"
+              title="Compartilhar link"
               className="shrink-0 px-3 flex items-center justify-center border-l border-[#25D366]/40 hover:bg-[#25D366]/20 transition-colors"
             >
-              <Copy className="w-4 h-4 text-[#25D366]" />
+              {typeof navigator !== 'undefined' && typeof navigator.share === 'function' ? (
+                <Share2 className="w-4 h-4 text-[#25D366]" />
+              ) : (
+                <Copy className="w-4 h-4 text-[#25D366]" />
+              )}
             </button>
           </div>
         </div>
