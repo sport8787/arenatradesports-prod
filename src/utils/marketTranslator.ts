@@ -131,11 +131,7 @@ const REPLACERS: Replacer[] = [
   { pattern: /\b1X2\s*[-:]?\s*Home\b/i, build: () => 'Vitória Mandante (1)' },
   { pattern: /\b1X2\s*[-:]?\s*Away\b/i, build: () => 'Vitória Visitante (2)' },
   { pattern: /\b1X2\s*[-:]?\s*Draw\b/i, build: () => 'Empate (X)' },
-  // ── HT/FT ──
-  { pattern: /\bHT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no 1º tempo (HT Over ${m[1]})` },
-  { pattern: /\bHT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no 1º tempo (HT Under ${m[1]})` },
-  { pattern: /\bFT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no jogo (FT Over ${m[1]})` },
-  { pattern: /\bFT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no jogo (FT Under ${m[1]})` },
+  // (HT/FT já tratados antes do Over/Under genérico)
   // ── Player markets ──
   { pattern: /\bAnytime\s*Goalscorer\b/i, build: () => 'Marca a Qualquer Momento (Anytime Goalscorer)' },
   {
