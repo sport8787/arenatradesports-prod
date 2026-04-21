@@ -27,6 +27,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import SignalsFeed from '@/components/punter/SignalsFeed';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
+import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import OnboardingTour from '@/components/punter/OnboardingTour';
@@ -1218,15 +1219,18 @@ export default function PunterPage() {
               }
             : null;
           return (
-            <PunterHeroBanner
-              userId={user?.id}
-              featuredSignal={featured}
-              nextMatch={next}
-              onCtaClick={() => {
-                const el = document.getElementById('signals-section');
-                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
+            <>
+              <EbookWelcomeCard />
+              <PunterHeroBanner
+                userId={user?.id}
+                featuredSignal={featured}
+                nextMatch={next}
+                onCtaClick={() => {
+                  const el = document.getElementById('signals-section');
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            </>
           );
         })()}
 
