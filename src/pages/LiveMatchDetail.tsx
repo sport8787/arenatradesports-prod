@@ -267,9 +267,70 @@ export default function LiveMatchDetail() {
   const [pushPerm, setPushPerm] = useState<PushPermission>('default');
   const lastNotifiedRef = useRef<{ approved?: string; cancelled?: string }>({});
 
-  const match = useMemo(() => matches.find(m => m.id === id), [matches, id]);
+  // Fallback: se o jogo não estiver mais no feed ao vivo, busca direto no banco
+  const [fallbackMatch, setFallbackMatch] = useState<any | null>(null);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [fallbackTried, setFallbackTried] = useState(false);
+
+  const liveMatch = useMemo(() => matches.find(m => m.id === id), [matches, id]);
+
+  useEffect(() => {
+    if (loading || liveMatch || !id || fallbackTried) return;
+    setFallbackLoading(true);
+    (async () => {
+      try {
+        // 1) Tenta encontrar registro persistente em live_matches (por id ou match_id)
+        const { data: lm } = await supabase
+          .from('live_matches')
+          .select('*')
+          .or(`id.eq.${id},match_id.eq.${id}`)
+          .maybeSingle();
+
+        let analysisRow: any = null;
+        const matchKey = lm?.match_id || id;
+        if (matchKey) {
+          const { data: an } = await supabase
+            .from('mycroft_analyses')
+            .select('*')
+            .eq('match_id', matchKey)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          analysisRow = an;
+        }
+
+        if (lm) {
+          setFallbackMatch({ ...lm, mycroft_analysis: analysisRow });
+        } else if (analysisRow) {
+          // Mínimo para renderizar a tela mesmo sem registro em live_matches
+          setFallbackMatch({
+            id,
+            match_id: matchKey,
+            home_team: 'Mandante',
+            away_team: 'Visitante',
+            championship: '—',
+            score_home: 0,
+            score_away: 0,
+            minute: 0,
+            stats: {},
+            updated_at: analysisRow.created_at,
+            mycroft_analysis: analysisRow,
+            _finished: true,
+          });
+        }
+      } catch (e) {
+        console.error('LiveMatchDetail fallback error', e);
+      } finally {
+        setFallbackLoading(false);
+        setFallbackTried(true);
+      }
+    })();
+  }, [loading, liveMatch, id, fallbackTried]);
+
+  const match = liveMatch || fallbackMatch;
   const stats = (match?.stats as any) || {};
   const analysis = match?.mycroft_analysis;
+
 
   useEffect(() => {
     setPushPerm(getPushPermission());
@@ -428,7 +489,7 @@ export default function LiveMatchDetail() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  if (loading) {
+  if (loading || fallbackLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -438,11 +499,18 @@ export default function LiveMatchDetail() {
 
   if (!match) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6">
-        <p className="text-muted-foreground">Jogo não encontrado ou já finalizado.</p>
-        <GoldButton onClick={() => navigate('/arena-trader-sports')}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
-        </GoldButton>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-muted-foreground max-w-md">
+          Este jogo já foi finalizado e saiu do feed ao vivo. Veja o desfecho no seu histórico de sinais.
+        </p>
+        <div className="flex gap-2 flex-wrap justify-center">
+          <GoldButton onClick={() => navigate('/historico')}>
+            <History className="w-4 h-4 mr-2" /> Ver histórico
+          </GoldButton>
+          <Button variant="outline" onClick={() => navigate('/arena-trader-sports')}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+          </Button>
+        </div>
       </div>
     );
   }
