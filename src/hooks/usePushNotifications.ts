@@ -43,7 +43,7 @@ async function subscribeAndPersist(): Promise<boolean> {
     try {
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
       });
     } catch (e) {
       console.warn('[Push] Falha ao subscrever:', e);
@@ -92,7 +92,7 @@ export function usePushNotifications() {
     if (!isSupported) return false;
     if (Notification.permission === 'denied') return false;
 
-    let perm = Notification.permission;
+    let perm: NotificationPermission = Notification.permission;
     if (perm === 'default') perm = await Notification.requestPermission();
     setPermission(perm);
     if (perm !== 'granted') return false;
