@@ -25,6 +25,8 @@ interface Stats {
   betsToday: number;
   settledCount: number;
   weeklyStaked: number;
+  source: 'virtual' | 'history' | 'empty';
+  lastUpdated: number | null;
 }
 
 interface Props {
