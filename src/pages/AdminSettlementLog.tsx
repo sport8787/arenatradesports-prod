@@ -277,10 +277,18 @@ export default function AdminSettlementLog() {
             Registros do trigger <code>auto_settle_mycroft_on_finish</code>
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
-          <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={loading}>
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPdf} disabled={loading}>
+            <FileText className="h-4 w-4 mr-2" /> PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Stats da página atual */}
