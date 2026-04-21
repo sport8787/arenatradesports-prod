@@ -182,6 +182,14 @@ serve(async (req) => {
       bodyParams = await req.json();
     } catch { /* empty body is fine */ }
 
+    // Health check mode — does not send anything
+    if (bodyParams.test === true) {
+      return new Response(
+        JSON.stringify({ success: true, mode: "health_check", message: "Function reachable" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const telegramBatchSize = bodyParams.telegram_batch_size ?? 4;
     const skipEmail = bodyParams.skip_email ?? false;
 

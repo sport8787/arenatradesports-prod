@@ -18,7 +18,17 @@ serve(async (req) => {
       throw new Error("Telegram credentials not configured");
     }
 
-    const { ativo, preco, sinal, analise_mycroft, script_horus, confluencia, estresse, institucional, positionSizing } = await req.json();
+    const body = await req.json();
+
+    // Health check mode — does not send anything
+    if (body?.test === true) {
+      return new Response(
+        JSON.stringify({ success: true, mode: "health_check", message: "Function reachable" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { ativo, preco, sinal, analise_mycroft, script_horus, confluencia, estresse, institucional, positionSizing } = body;
 
     const sizingInfo = positionSizing
       ? `\n💼 *POSITION SIZING:*\nRisco Máx: ${positionSizing.risco_maximo_tc} TC | Size: ${positionSizing.size_sugerido_tc} TC\nSL: ${positionSizing.sl_preco} | TP: ${positionSizing.tp_preco} | RR: ${positionSizing.rr_ratio}x`
