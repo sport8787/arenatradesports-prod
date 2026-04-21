@@ -107,6 +107,11 @@ const REPLACERS: Replacer[] = [
     pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:cards|cartões|cartoes)\b/i,
     build: (m) => `Menos de ${m[1]} cartões (Under ${m[1]} Cards)`,
   },
+  // ── HT/FT (antes do Over/Under genérico) ──
+  { pattern: /\bHT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no 1º tempo (HT Over ${m[1]})` },
+  { pattern: /\bHT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no 1º tempo (HT Under ${m[1]})` },
+  { pattern: /\bFT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no jogo (FT Over ${m[1]})` },
+  { pattern: /\bFT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no jogo (FT Under ${m[1]})` },
   // ── Over/Under genérico (gols) ──
   {
     pattern: /\bOver\s*(\d+(?:\.\d+)?)\b(?!\s*(?:cards|cartões|cartoes|corners|escanteios))/i,
