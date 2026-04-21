@@ -4865,6 +4865,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      relink_mycroft_analyses: {
+        Args: never
+        Returns: {
+          linked: number
+          mismatched: number
+        }[]
+      }
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string
