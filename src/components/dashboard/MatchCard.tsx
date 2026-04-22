@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { isExpiredHtSignal } from '@/lib/signalValidity';
 
 export interface MatchStats {
   possession_home?: number;
@@ -30,11 +31,12 @@ export interface Match {
   minute: number;
   period: string;
   status: 'live' | 'scheduled' | 'finished';
-  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO' | 'LABAREDA' | 'CUIDADO' | 'JOGO_MORTO';
+  mycroftStatus: 'analyzing' | 'no_value' | 'opportunity' | 'APROVADO' | 'APROVADO_SITUACIONAL' | 'AGUARDAR' | 'VETADO' | 'LABAREDA' | 'CUIDADO' | 'JOGO_MORTO' | 'EXPIRADO';
   matchId?: string;
   hasBet?: boolean;
   stats?: MatchStats | null;
   planName?: string | null;
+  market?: string | null;
 }
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
@@ -215,6 +217,11 @@ function getStatusConfig(status: Match['mycroftStatus']) {
         bg: 'bg-[#1E3A5F]', border: 'border-[#3B82F6]', text: 'text-[#60A5FA]',
         label: '🔍 ANALISANDO...', animate: 'animate-shimmer', icon: <Loader2 className="w-4 h-4 animate-spin" />,
       };
+    case 'EXPIRADO':
+      return {
+        bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
+        label: '⌛ ENTRADA EXPIRADA', animate: '', icon: <Hourglass className="w-4 h-4" />,
+      };
     default:
       return {
         bg: 'bg-muted/50', border: 'border-border', text: 'text-muted-foreground',
@@ -240,6 +247,8 @@ function getCardBorderClass(status: Match['mycroftStatus'], criteriaCount: numbe
       return criteriaCount >= 4 ? 'border-[#F59E0B]/70 animate-pulse-border-yellow' : 'border-border';
     case 'analyzing':
       return 'border-[#3B82F6]/50 animate-shimmer-border';
+    case 'EXPIRADO':
+      return 'border-[#78716C]/40 opacity-80';
     default:
       return 'border-border';
   }
@@ -254,9 +263,22 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
   const criteria = useMemo(() => computeCriteria(match), [match]);
   const criteriaMet = criteria.filter(c => c.state === 'green').length;
   const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
-  const statusConfig = getStatusConfig(match.mycroftStatus);
-  const borderClass = getCardBorderClass(match.mycroftStatus, criteriaMet);
-  const isImminent = criteriaMet >= 4 && (match.mycroftStatus === 'AGUARDAR' || match.mycroftStatus === 'analyzing');
+
+  // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
+  const htExpired = useMemo(
+    () => isExpiredHtSignal({
+      market: match.market,
+      minute: match.minute,
+      period: match.period,
+      status: match.status,
+    }) && (match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'LABAREDA'),
+    [match.market, match.minute, match.period, match.status, match.mycroftStatus],
+  );
+  const effectiveStatus: Match['mycroftStatus'] = htExpired ? 'EXPIRADO' : match.mycroftStatus;
+
+  const statusConfig = getStatusConfig(effectiveStatus);
+  const borderClass = getCardBorderClass(effectiveStatus, criteriaMet);
+  const isImminent = criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -400,48 +422,53 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               <span className="font-orbitron">{match.minute}' | {match.period}</span>
             </div>
             <div className="truncate max-w-[60%] text-right">
-              {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'opportunity') && match.planName && (
+              {(effectiveStatus === 'APROVADO' || effectiveStatus === 'APROVADO_SITUACIONAL' || effectiveStatus === 'opportunity') && match.planName && (
                 <span className="font-orbitron font-bold text-primary">
                   PLANO {match.planName}
                 </span>
               )}
-              {match.mycroftStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
+              {effectiveStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
                 <span className="font-orbitron font-bold text-[#6EE7B7]">
                   📍 SITUACIONAL
                 </span>
               )}
-              {match.mycroftStatus === 'LABAREDA' && (
+              {effectiveStatus === 'LABAREDA' && (
                 <span className="font-orbitron font-bold text-[#FB923C]">
                   ⚡ Potencial de gol tardio
                 </span>
               )}
-              {match.mycroftStatus === 'CUIDADO' && (
+              {effectiveStatus === 'CUIDADO' && (
                 <span className="font-orbitron text-[#FBBF24]">
                   ⚠️ Fator de risco ativo
                 </span>
               )}
-              {(match.mycroftStatus === 'JOGO_MORTO' || match.mycroftStatus === 'VETADO' || match.mycroftStatus === 'no_value') && (
+              {(effectiveStatus === 'JOGO_MORTO' || effectiveStatus === 'VETADO' || effectiveStatus === 'no_value') && (
                 <span className="font-orbitron text-[#A8A29E]">
                   {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade (${criteriaMet}/5)`}
+                </span>
+              )}
+              {effectiveStatus === 'EXPIRADO' && (
+                <span className="font-orbitron text-[#A8A29E]" title={`Mercado "${match.market}" inválido após o 1º tempo`}>
+                  ⌛ Janela do 1º tempo encerrada
                 </span>
               )}
             </div>
           </div>
 
-          {/* CTA for approved */}
-          {(match.mycroftStatus === 'opportunity' || match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA') && (
+          {/* CTA for approved (oculto se sinal expirou) */}
+          {(effectiveStatus === 'opportunity' || effectiveStatus === 'APROVADO' || effectiveStatus === 'APROVADO_SITUACIONAL' || effectiveStatus === 'LABAREDA') && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onAnalysisClick?.(match.id)}
               className={cn(
                 "w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-orbitron font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all",
-                match.mycroftStatus === 'LABAREDA'
+                effectiveStatus === 'LABAREDA'
                   ? 'bg-[#F97316] text-black'
                   : 'bg-[#22C55E] text-black'
               )}
             >
-              {match.mycroftStatus === 'LABAREDA' ? 'Ver Oportunidade Labareda' : 'Ver Análise Completa'}
+              {effectiveStatus === 'LABAREDA' ? 'Ver Oportunidade Labareda' : 'Ver Análise Completa'}
               <ArrowRight className="w-4 h-4" />
             </motion.button>
           )}

@@ -70,6 +70,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
       xG_away: s.xG_away ?? undefined,
     } : null,
     planName: lm.mycroft_analysis?.fundamentation?.plan_name ?? null,
+    market: lm.mycroft_analysis?.market ?? null,
   };
 };
 
