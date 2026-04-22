@@ -121,6 +121,215 @@ function classificarSaude(bet: any, oddAtual: number, minuto: number): { saude: 
   return { saude: 'HEALTHY', sinal: false, motivo: 'Posição dentro do esperado.' };
 }
 
+const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
+
+type MatchState = {
+  matchId: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  minute: number;
+  status: 'live' | 'halftime' | 'finished' | 'unknown';
+  period?: string | null;
+  scoreHome: number;
+  scoreAway: number;
+  halftimeHome: number | null;
+  halftimeAway: number | null;
+  stats?: any;
+};
+
+function normalizeTeam(name?: string | null): string {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractLine(market: string, fallback = 2.5): number {
+  const matched = market.match(/(\d+(?:\.\d+)?)/);
+  return matched ? parseFloat(matched[1]) : fallback;
+}
+
+function isFirstHalfMarket(market: string): boolean {
+  return HT_MARKET_REGEX.test(market) || /gol\s*ht/i.test(market);
+}
+
+function inferSelectionSide(market: string, homeTeam?: string, awayTeam?: string): 'home' | 'away' | null {
+  const normalizedMarket = market.toLowerCase().trim();
+  if (normalizedMarket === 'casa' || normalizedMarket === 'home' || normalizedMarket === '1' || normalizedMarket.includes('back casa')) return 'home';
+  if (normalizedMarket === 'fora' || normalizedMarket === 'away' || normalizedMarket === '2' || normalizedMarket.includes('back fora') || normalizedMarket.includes('back visitante')) return 'away';
+
+  const namedSelection = normalizedMarket.replace(/^back\s+/i, '').trim();
+  if (!namedSelection) return null;
+
+  const homeNorm = normalizeTeam(homeTeam);
+  const awayNorm = normalizeTeam(awayTeam);
+  const selectionNorm = normalizeTeam(namedSelection);
+
+  const matchesTeam = (teamNorm: string) =>
+    !!teamNorm && (
+      teamNorm.includes(selectionNorm) ||
+      selectionNorm.includes(teamNorm) ||
+      teamNorm.split(' ').some((word) => word.length > 3 && selectionNorm.includes(word))
+    );
+
+  if (matchesTeam(homeNorm)) return 'home';
+  if (matchesTeam(awayNorm)) return 'away';
+  return null;
+}
+
+function normalizeMatchStatus(status?: string | null, period?: string | null): MatchState['status'] {
+  const normalizedStatus = String(status || '').toLowerCase();
+  const normalizedPeriod = String(period || '').toLowerCase();
+  if (['finished', 'ft', 'aet', 'pen', 'ended'].some((value) => normalizedStatus.includes(value) || normalizedPeriod.includes(value))) return 'finished';
+  if (['halftime', 'ht', 'intervalo'].some((value) => normalizedStatus.includes(value) || normalizedPeriod.includes(value))) return 'halftime';
+  if (normalizedStatus || normalizedPeriod) return 'live';
+  return 'unknown';
+}
+
+async function fetchApiFootballSnapshot(matchId: string): Promise<Partial<MatchState> | null> {
+  const apiKey = Deno.env.get('API_FOOTBALL_KEY');
+  if (!apiKey || !/^\d+$/.test(matchId)) return null;
+
+  try {
+    const response = await fetch(`https://v3.football.api-sports.io/fixtures?id=${matchId}`, {
+      headers: { 'x-apisports-key': apiKey },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const fixture = data.response?.[0];
+    if (!fixture) return null;
+
+    return {
+      homeTeam: fixture.teams?.home?.name || undefined,
+      awayTeam: fixture.teams?.away?.name || undefined,
+      minute: fixture.fixture?.status?.elapsed ?? 0,
+      period: fixture.fixture?.status?.long || null,
+      status: normalizeMatchStatus(fixture.fixture?.status?.short, fixture.fixture?.status?.long),
+      scoreHome: fixture.goals?.home ?? 0,
+      scoreAway: fixture.goals?.away ?? 0,
+      halftimeHome: fixture.score?.halftime?.home ?? null,
+      halftimeAway: fixture.score?.halftime?.away ?? null,
+    };
+  } catch (error) {
+    console.warn(`[evaluate-cashout] API-Football snapshot failed for ${matchId}:`, error);
+    return null;
+  }
+}
+
+async function resolveMatchState(matchId: string, supabase: any, cache: Map<string, MatchState | null>): Promise<MatchState | null> {
+  if (cache.has(matchId)) return cache.get(matchId) ?? null;
+
+  const { data: liveMatch } = await supabase.from('live_matches').select('*').eq('match_id', matchId).maybeSingle();
+  const apiSnapshot = await fetchApiFootballSnapshot(matchId);
+
+  const resolved: MatchState | null = liveMatch || apiSnapshot ? {
+    matchId,
+    homeTeam: liveMatch?.home_team || apiSnapshot?.homeTeam,
+    awayTeam: liveMatch?.away_team || apiSnapshot?.awayTeam,
+    minute: liveMatch?.minute ?? apiSnapshot?.minute ?? 0,
+    status: apiSnapshot?.status || normalizeMatchStatus(liveMatch?.status, liveMatch?.period),
+    period: liveMatch?.period || apiSnapshot?.period || null,
+    scoreHome: liveMatch?.score_home ?? apiSnapshot?.scoreHome ?? 0,
+    scoreAway: liveMatch?.score_away ?? apiSnapshot?.scoreAway ?? 0,
+    halftimeHome: apiSnapshot?.halftimeHome ?? null,
+    halftimeAway: apiSnapshot?.halftimeAway ?? null,
+    stats: liveMatch?.stats || null,
+  } : null;
+
+  cache.set(matchId, resolved);
+  return resolved;
+}
+
+function evaluateSettlement(marketRaw: string, matchState: MatchState): { shouldSettle: boolean; isGreen: boolean; reason: string } {
+  const market = String(marketRaw || '').toLowerCase().trim();
+  const normalizedMarket = /gol\s*ht/i.test(market) ? 'over 0.5 ht' : market;
+  const totalGoals = (matchState.scoreHome ?? 0) + (matchState.scoreAway ?? 0);
+  const secondHalfStarted = matchState.status === 'halftime' || matchState.status === 'finished' || matchState.minute >= 45 || /second|2nd|2t|intervalo|ht/i.test(String(matchState.period || ''));
+  const halftimeHome = matchState.halftimeHome ?? (matchState.status === 'halftime' ? matchState.scoreHome : null);
+  const halftimeAway = matchState.halftimeAway ?? (matchState.status === 'halftime' ? matchState.scoreAway : null);
+  const halftimeTotal = halftimeHome != null && halftimeAway != null ? halftimeHome + halftimeAway : null;
+
+  if (isFirstHalfMarket(normalizedMarket)) {
+    if (!secondHalfStarted && halftimeTotal == null) {
+      return { shouldSettle: false, isGreen: false, reason: 'Mercado HT ainda aberto.' };
+    }
+
+    const htTotal = halftimeTotal ?? 0;
+    if (normalizedMarket.includes('under')) {
+      const line = extractLine(normalizedMarket, 0.5);
+      return {
+        shouldSettle: true,
+        isGreen: htTotal < line,
+        reason: `HT ${halftimeHome ?? 0}x${halftimeAway ?? 0}`,
+      };
+    }
+
+    const line = extractLine(normalizedMarket, 0.5);
+    return {
+      shouldSettle: true,
+      isGreen: htTotal > line,
+      reason: `HT ${halftimeHome ?? 0}x${halftimeAway ?? 0}`,
+    };
+  }
+
+  if (normalizedMarket.includes('over')) {
+    const line = extractLine(normalizedMarket, 2.5);
+    if (totalGoals > line) return { shouldSettle: true, isGreen: true, reason: `Over confirmado com ${matchState.scoreHome}x${matchState.scoreAway}` };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: false, reason: `Over não bateu no placar final ${matchState.scoreHome}x${matchState.scoreAway}` };
+    return { shouldSettle: false, isGreen: false, reason: 'Over ainda aberto.' };
+  }
+
+  if (normalizedMarket.includes('under')) {
+    const line = extractLine(normalizedMarket, 2.5);
+    if (totalGoals > line) return { shouldSettle: true, isGreen: false, reason: `Under estourou com ${matchState.scoreHome}x${matchState.scoreAway}` };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: true, reason: `Under confirmado no placar final ${matchState.scoreHome}x${matchState.scoreAway}` };
+    return { shouldSettle: false, isGreen: false, reason: 'Under ainda aberto.' };
+  }
+
+  if (normalizedMarket.includes('btts') || normalizedMarket.includes('ambas')) {
+    if (matchState.scoreHome > 0 && matchState.scoreAway > 0) return { shouldSettle: true, isGreen: true, reason: 'Ambas marcaram.' };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: false, reason: 'Ambas não marcaram até o fim.' };
+    return { shouldSettle: false, isGreen: false, reason: 'BTTS ainda aberto.' };
+  }
+
+  if (matchState.status !== 'finished') {
+    return { shouldSettle: false, isGreen: false, reason: 'Mercado depende do placar final.' };
+  }
+
+  if (normalizedMarket === 'empate' || normalizedMarket === 'draw' || normalizedMarket === 'x' || normalizedMarket.includes('back empate')) {
+    return { shouldSettle: true, isGreen: matchState.scoreHome === matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+
+  const backSide = inferSelectionSide(normalizedMarket, matchState.homeTeam, matchState.awayTeam);
+  if (backSide === 'home') {
+    return { shouldSettle: true, isGreen: matchState.scoreHome > matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+  if (backSide === 'away') {
+    return { shouldSettle: true, isGreen: matchState.scoreAway > matchState.scoreHome, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+
+  if (normalizedMarket.includes('lay')) {
+    const laySide = normalizedMarket.includes('casa') || normalizedMarket.includes('home')
+      ? 'home'
+      : normalizedMarket.includes('fora') || normalizedMarket.includes('away') || normalizedMarket.includes('visitante')
+        ? 'away'
+        : inferSelectionSide(normalizedMarket.replace(/^lay\s+/i, 'back '), matchState.homeTeam, matchState.awayTeam);
+
+    if (laySide === 'home') {
+      return { shouldSettle: true, isGreen: matchState.scoreHome <= matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+    }
+    if (laySide === 'away') {
+      return { shouldSettle: true, isGreen: matchState.scoreAway <= matchState.scoreHome, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+    }
+  }
+
+  return { shouldSettle: false, isGreen: false, reason: 'Mercado não suportado para liquidação automática.' };
+}
+
 // ═══════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════
