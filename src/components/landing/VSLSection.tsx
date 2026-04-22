@@ -62,10 +62,10 @@ export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
           className="relative"
         >
           <div className="absolute -inset-4 bg-gradient-to-r from-yellow-500/20 via-blue-500/20 to-purple-500/20 rounded-2xl blur-2xl" />
-          <div className="relative rounded-2xl overflow-hidden border-2 border-yellow-500/30 shadow-2xl shadow-yellow-500/10 bg-[#0a0f1e]">
+          <div className="relative mx-auto w-full max-w-[400px] sm:max-w-[420px] md:max-w-[460px] aspect-[9/16] rounded-2xl overflow-hidden border-2 border-yellow-500/30 shadow-2xl shadow-yellow-500/10 bg-[#0a0f1e]">
             <vturb-smartplayer
               id={`vid-${VTURB_PLAYER_ID}`}
-              style={{ display: 'block', margin: '0 auto', width: '100%' }}
+              style={{ display: 'block', width: '100%', height: '100%' }}
             />
           </div>
         </motion.div>
