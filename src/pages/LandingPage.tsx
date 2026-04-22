@@ -418,7 +418,7 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="planos" className="py-20 bg-[#0a0f1e]">
+      <section ref={pricingRef} id="planos" className="py-20 bg-[#0a0f1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">PLANOS QUE CABEM NO SEU<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> BOLSO</span></h2>
