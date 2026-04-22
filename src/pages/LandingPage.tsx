@@ -530,15 +530,10 @@ export default function LandingPage() {
             >
               Fechar ✕
             </button>
-            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10">
-              <video
-                ref={videoRef}
-                src={DEMO_VIDEO_URL}
-                autoPlay
-                controls
-                playsInline
-                className="w-full"
-                onEnded={() => setShowDemo(false)}
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
+              <vturb-smartplayer
+                id="vid-69e8271c88365845bd00ae2e"
+                style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
               />
             </div>
             <div className="mt-4 text-center">
