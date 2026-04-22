@@ -489,7 +489,7 @@ export default function LandingPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
           <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
-          <button onClick={goToAuth} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
+          <button onClick={ctaHandler('cta_final', 'comecar_agora')} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
             COMEÇAR AGORA
             <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition" />
           </button>
