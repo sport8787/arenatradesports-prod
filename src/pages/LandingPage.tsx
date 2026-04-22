@@ -11,7 +11,7 @@ import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
-import VSLSection from '@/components/landing/VSLSection';
+
 import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
@@ -225,8 +225,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL — VTurb smartplayer */}
-      <VSLSection onCTA={goToAuth} />
+      {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
