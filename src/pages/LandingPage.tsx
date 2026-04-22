@@ -268,7 +268,7 @@ export default function LandingPage() {
       {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
-      <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
+      <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
         <div className="container mx-auto max-w-3xl">
           <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-600/5 to-transparent border-2 border-yellow-500/40 rounded-2xl p-8 sm:p-10 text-center shadow-2xl shadow-yellow-500/10">
             <p className="text-[11px] font-mono uppercase tracking-widest text-yellow-400/80 mb-3">
