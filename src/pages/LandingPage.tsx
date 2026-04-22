@@ -152,7 +152,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <button onClick={goToAuth} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
+                <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
                   TESTAR GRÁTIS POR 7 DIAS
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </button>
