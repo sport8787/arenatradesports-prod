@@ -281,7 +281,7 @@ export default function LandingPage() {
               Sem cartão. Sem WhatsApp. Crie sua conta em 30 segundos e veja sinais reais com edge matemático já na primeira sessão.
             </p>
             <button
-              onClick={() => { track.ctaClicked('post_vsl_cta', 'criar_conta_gratis'); goToAuth(); }}
+              onClick={ctaHandler('post_vsl_cta', 'criar_conta_gratis')}
               className="px-8 sm:px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base sm:text-lg rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
             >
               CRIAR CONTA GRÁTIS
