@@ -152,15 +152,9 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <video
-                    src={DEMO_VIDEO_URL}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    controls
-                    className="w-full aspect-video bg-black"
-                  />
+                  <div className="bg-black">
+                    <VSLSection onCTA={goToAuth} embedded />
+                  </div>
                 </div>
               </div>
 
