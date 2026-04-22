@@ -152,8 +152,11 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <div className="bg-black">
-                    <VSLSection onCTA={goToAuth} embedded />
+                  <div className="bg-black flex items-center justify-center">
+                    <vturb-smartplayer
+                      id="vid-69e8271c88365845bd00ae2e"
+                      style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
+                    />
                   </div>
                 </div>
               </div>
