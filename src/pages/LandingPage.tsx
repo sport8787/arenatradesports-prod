@@ -60,17 +60,28 @@ export default function LandingPage() {
   const pricingRef = useSectionTracking<HTMLElement>('pricing');
   const ctaFinalRef = useSectionTracking<HTMLElement>('cta_final');
 
+  const VTURB_PLAYER_ID = '69e8a5d96ef5029c0c541d5c';
+  const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/${VTURB_PLAYER_ID}/v4/player.js`;
+
   // Tracking do player VSL
-  useVturbTracking('vid-69e8271c88365845bd00ae2e');
+  useVturbTracking(`vid-${VTURB_PLAYER_ID}`);
   const [showDemo, setShowDemo] = useState(false);
 
   // Carrega o player VTurb (smartplayer) uma única vez
   useEffect(() => {
-    const VTURB_SRC = 'https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/69e8271c88365845bd00ae2e/v4/player.js';
-    if (document.querySelector(`script[src="${VTURB_SRC}"]`)) return;
+    document
+      .querySelectorAll('script[src*="scripts.converteai.net"]')
+      .forEach((el) => {
+        if (!el.getAttribute('src')?.includes(VTURB_PLAYER_ID)) {
+          el.remove();
+        }
+      });
+
+    if (document.querySelector(`script[data-vturb-player="${VTURB_PLAYER_ID}"]`)) return;
     const s = document.createElement('script');
-    s.src = VTURB_SRC;
+    s.src = VTURB_SCRIPT_SRC;
     s.async = true;
+    s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
     document.head.appendChild(s);
   }, []);
 
@@ -201,7 +212,7 @@ export default function LandingPage() {
                   </div>
                   <div ref={videoRef} className="bg-black flex items-center justify-center">
                     <vturb-smartplayer
-                      id="vid-69e8271c88365845bd00ae2e"
+                      id={`vid-${VTURB_PLAYER_ID}`}
                       style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
                     />
                   </div>
@@ -576,7 +587,7 @@ export default function LandingPage() {
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
               <vturb-smartplayer
-                id="vid-69e8271c88365845bd00ae2e"
+                id={`vid-${VTURB_PLAYER_ID}`}
                 style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
               />
             </div>
