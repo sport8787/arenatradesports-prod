@@ -229,7 +229,7 @@ export default function LandingPage() {
                 </p>
 
                 <button
-                  onClick={() => { track.ctaClicked('hero_cta_card', 'comecar_teste_gratis'); goToAuth(); }}
+                  onClick={ctaHandler('hero_cta_card', 'comecar_teste_gratis')}
                   className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
                 >
                   CRIAR CONTA GRÁTIS
