@@ -23,6 +23,8 @@ import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
+import { useSectionTracking } from '@/hooks/useSectionTracking';
+import { useVturbTracking } from '@/hooks/useVturbTracking';
 
 export default function LandingPage() {
   const navigate = useNavigate();
