@@ -338,6 +338,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const matchStateCache = new Map<string, MatchState | null>();
 
     // Support both cron (all pending) and on-demand (specific user/bet)
     let userId: string | null = null;
@@ -361,75 +362,27 @@ Deno.serve(async (req) => {
 
     for (const pos of positions) {
       try {
-        // Get live stats from live_matches (already fetched by cron)
-        const { data: liveMatch } = await supabase.from('live_matches').select('*').eq('match_id', pos.match_id).maybeSingle();
+        const liveMatch = await resolveMatchState(pos.match_id, supabase, matchStateCache);
         
         // ═══ IN-GAME SETTLEMENT: check if bet condition is already definitively met ═══
         if (liveMatch && (liveMatch.status === 'live' || liveMatch.status === 'halftime' || liveMatch.status === 'finished')) {
-          const scoreH = liveMatch.score_home ?? 0;
-          const scoreA = liveMatch.score_away ?? 0;
-          const totalGols = scoreH + scoreA;
-          const mercado = (pos.market || '').toLowerCase().trim();
+          const scoreH = liveMatch.scoreHome ?? 0;
+          const scoreA = liveMatch.scoreAway ?? 0;
           const minuto = liveMatch.minute || 0;
-          let settledInGame = false;
-          let isGreen = false;
+          const settlement = evaluateSettlement(pos.market || '', liveMatch);
 
-          // Over X.5 — settled when goals exceed line (irreversible)
-          if (mercado.includes('over')) {
-            const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-            if (totalGols > line) { settledInGame = true; isGreen = true; }
-          }
-          // BTTS / Ambas Marcam — settled when both scored (irreversible)
-          else if (mercado.includes('btts') || mercado.includes('ambas')) {
-            if (scoreH > 0 && scoreA > 0) { settledInGame = true; isGreen = true; }
-          }
-          // Under X.5 — LOST when goals exceed line (irreversible)
-          else if (mercado.includes('under')) {
-            const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-            if (totalGols > line) { settledInGame = true; isGreen = false; }
-          }
-
-          // Post-game settlement for all remaining markets when match is finished
-          if (!settledInGame && liveMatch.status === 'finished') {
-            settledInGame = true;
-            if (mercado === 'casa' || mercado === 'home' || mercado === '1' || mercado.includes('back casa')) {
-              isGreen = scoreH > scoreA;
-            } else if (mercado === 'fora' || mercado === 'away' || mercado === '2' || mercado.includes('back fora') || mercado.includes('back visitante')) {
-              isGreen = scoreA > scoreH;
-            } else if (mercado === 'empate' || mercado === 'draw' || mercado === 'x' || mercado.includes('back empate')) {
-              isGreen = scoreH === scoreA;
-            } else if (mercado.includes('over')) {
-              const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-              isGreen = totalGols > line;
-            } else if (mercado.includes('under')) {
-              const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-              isGreen = totalGols < line;
-            } else if (mercado.includes('btts') || mercado.includes('ambas')) {
-              isGreen = scoreH > 0 && scoreA > 0;
-            } else if (mercado.includes('lay')) {
-              // Lay casa = green if home doesn't win
-              if (mercado.includes('casa') || mercado.includes('home')) isGreen = scoreH <= scoreA;
-              else if (mercado.includes('fora') || mercado.includes('away')) isGreen = scoreA <= scoreH;
-              else settledInGame = false;
-            } else {
-              // Can't determine market — skip auto-settlement
-              settledInGame = false;
-            }
-          }
-
-          if (settledInGame) {
+          if (settlement.shouldSettle) {
+            const isGreen = settlement.isGreen;
             const profitLoss = isGreen ? +(pos.stake * (pos.odd - 1)).toFixed(2) : -pos.stake;
             const betResult = isGreen ? 'green' : 'red';
             
-            console.log(`[evaluate-cashout] ⚡ IN-GAME SETTLE: ${pos.match_name} | ${pos.market} | ${scoreH}-${scoreA} | ${betResult} | R$${profitLoss}`);
+            console.log(`[evaluate-cashout] ⚡ IN-GAME SETTLE: ${pos.match_name} | ${pos.market} | ${scoreH}-${scoreA} | ${betResult} | R$${profitLoss} | ${settlement.reason}`);
 
             await supabase.from('virtual_bets').update({
               status: betResult, profit_loss: profitLoss,
               score_home: scoreH, score_away: scoreA,
               settled_at: new Date().toISOString(),
-              mycroft_cashout_reason: liveMatch.status === 'finished' 
-                ? `[AUTO] Jogo encerrado ${scoreH}x${scoreA}` 
-                : `[AUTO] Condição ${pos.market} atingida no min ${minuto}' (${scoreH}x${scoreA})`,
+              mycroft_cashout_reason: `[AUTO] ${settlement.reason}`,
             }).eq('id', pos.id);
 
             // Update sports_bankroll
@@ -454,7 +407,7 @@ Deno.serve(async (req) => {
               entry_odd: pos.entry_odd || pos.odd, current_odd: pos.odd,
               cashout_value: isGreen ? pos.stake * pos.odd : 0, stake: pos.stake,
               signal_type: 'AUTO_SETTLE', position_health: betResult.toUpperCase(),
-              mycroft_reason: liveMatch.status === 'finished' ? 'Jogo encerrado' : `Condição atingida min ${minuto}'`,
+              mycroft_reason: settlement.reason,
               was_accepted: true, accepted_at: new Date().toISOString(),
               placar: `${scoreH}-${scoreA}`, minuto,
             });
@@ -479,7 +432,7 @@ Deno.serve(async (req) => {
 
         // Build stats object for estimation
         const statsCtx = {
-          minute: minuto, score_home: liveMatch.score_home ?? 0, score_away: liveMatch.score_away ?? 0,
+          minute: minuto, score_home: liveMatch.scoreHome ?? 0, score_away: liveMatch.scoreAway ?? 0,
           xg_home: stats.xG_home ?? stats.xg_home ?? 0, xg_away: stats.xG_away ?? stats.xg_away ?? 0,
           dangerous_attacks_home: stats.dangerous_attacks_home ?? 0, dangerous_attacks_away: stats.dangerous_attacks_away ?? 0,
           shots_on_target_home: stats.shots_on_target_home ?? 0, shots_on_target_away: stats.shots_on_target_away ?? 0,
