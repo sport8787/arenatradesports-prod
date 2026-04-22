@@ -288,6 +288,9 @@ export default function LandingPage() {
       {/* Contadores ao vivo */}
       <LiveStatsCounter />
 
+      {/* Por que é diferente + Prova Brutal */}
+      <WhyDifferentSection onCTA={goToAuth} />
+
       {/* O que é o Oráculo */}
       <WhatIsOracleSection onCTA={goToAuth} />
 
