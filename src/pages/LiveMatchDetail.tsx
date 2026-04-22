@@ -15,6 +15,7 @@ import GoldButton from '@/components/game/GoldButton';
 import { supabase } from '@/integrations/supabase/client';
 import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
 import MatchMycroftChat from '@/components/arena-trader/MatchMycroftChat';
+import { isExpiredHtSignal } from '@/lib/signalValidity';
 
 interface SnapshotEvent {
   at: string;
@@ -517,6 +518,14 @@ export default function LiveMatchDetail() {
 
   const verdictClass = verdictColors[analysis?.verdict || ''] || verdictColors.AGUARDAR;
 
+  // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo
+  const htSignalExpired = isExpiredHtSignal({
+    market: analysis?.market,
+    minute: match?.minute,
+    period: match?.period,
+    status: match?.status,
+  });
+
   return (
     <div className="min-h-screen bg-background pb-12">
       {/* Header */}
@@ -646,24 +655,35 @@ export default function LiveMatchDetail() {
 
           {analysis && (
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              <Badge className={cn('font-orbitron uppercase tracking-wider border', verdictClass)}>
+              <Badge className={cn('font-orbitron uppercase tracking-wider border', htSignalExpired ? 'bg-muted/40 text-muted-foreground border-border line-through' : verdictClass)}>
                 {analysis.verdict}
               </Badge>
               {analysis.market && (
-                <Badge variant="outline" className="font-orbitron text-xs">
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')}>
                   {analysis.market}
                 </Badge>
               )}
               {analysis.odd != null && (
-                <Badge variant="outline" className="font-orbitron text-xs">
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')}>
                   Odd {Number(analysis.odd).toFixed(2)}
                 </Badge>
               )}
               {analysis.confidence != null && (
-                <Badge variant="outline" className="font-orbitron text-xs">
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')}>
                   Confiança {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
                 </Badge>
               )}
+            </div>
+          )}
+
+          {htSignalExpired && analysis && (
+            <div className="mt-4 mx-auto max-w-2xl rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-center">
+              <p className="text-xs sm:text-sm font-orbitron uppercase tracking-wider text-destructive">
+                ⌛ Entrada expirada
+              </p>
+              <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
+                Este sinal era válido apenas durante o 1º tempo. O jogo está no minuto {match.minute ?? 0}' — não entre mais.
+              </p>
             </div>
           )}
 
@@ -678,12 +698,12 @@ export default function LiveMatchDetail() {
                 setCustomStake(recommendedStake.toString());
                 setBetDialogOpen(true);
               }}
-              disabled={!analysis || !analysis.odd}
+              disabled={!analysis || !analysis.odd || htSignalExpired}
               className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/40 font-orbitron uppercase tracking-wider"
               variant="outline"
             >
               <Wallet className="w-4 h-4 mr-2" />
-              Entrada Manual (Virtual)
+              {htSignalExpired ? 'Entrada Indisponível' : 'Entrada Manual (Virtual)'}
             </Button>
             <Button
               onClick={openBetfair}
