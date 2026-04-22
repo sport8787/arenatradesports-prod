@@ -107,10 +107,36 @@ function buildTelegramMessage(p: Payload): string {
   );
 }
 
-async function sendTelegram(text: string): Promise<boolean> {
-  console.log('Telegram desativado para notify-trader-event');
-  void text;
-  return false;
+async function sendTelegramDedup(
+  text: string,
+  meta: { match_id: string; market: string; verdict: string },
+): Promise<boolean> {
+  // All Telegram dispatches must go through telegram-send-dedupe so that the
+  // same (match_id+market+verdict) is never sent twice — even if this function
+  // is invoked multiple times for the same event.
+  try {
+    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-send-dedupe`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({
+        text,
+        match_id: meta.match_id,
+        market: meta.market,
+        verdict: meta.verdict,
+        channel: 'trader-events',
+        source: 'notify-trader-event',
+      }),
+    });
+    const j = await res.json().catch(() => ({}));
+    return !!j?.telegram_sent;
+  } catch (e) {
+    console.error('[notify-trader-event] dedupe dispatch failed:', e);
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
