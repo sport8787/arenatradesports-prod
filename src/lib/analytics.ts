@@ -101,6 +101,45 @@ export const track = {
     posthog.capture('$pageview', { page });
   },
 
+  // ── LANDING FUNNEL ──
+  /**
+   * Disparado quando uma seção da landing entra no viewport (>=50% visível).
+   * Use `stage` para agrupar etapas do funil: hero | video | prova_brutal | pricing | cta_final etc.
+   */
+  sectionViewed: (stage: string, sectionId?: string) => {
+    posthog.capture('landing_section_viewed', {
+      stage,
+      section_id: sectionId ?? stage,
+      ...getAttributionProps(),
+    });
+  },
+
+  /**
+   * Eventos do player de vídeo (VSL).
+   * event: play | progress_25 | progress_50 | progress_75 | complete | pause
+   */
+  videoEvent: (event: string, properties?: Record<string, any>) => {
+    posthog.capture('landing_video_event', {
+      video_event: event,
+      ...properties,
+      ...getAttributionProps(),
+    });
+  },
+
+  /**
+   * CTA da landing com etapa do funil para análise de conversão por seção.
+   */
+  funnelCtaClicked: (stage: string, label: string, location?: string) => {
+    posthog.capture('landing_cta_clicked', {
+      stage,
+      label,
+      location: location ?? stage,
+      ...getAttributionProps(),
+    });
+    // Mantém compatibilidade com cta_clicked existente
+    posthog.capture('cta_clicked', { location: location ?? stage, label, ...getAttributionProps() });
+  },
+
   // ── GENERIC ──
   custom: (event: string, properties?: Record<string, any>) => {
     posthog.capture(event, properties);

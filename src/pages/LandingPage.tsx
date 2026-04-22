@@ -23,6 +23,8 @@ import SocialProofSection from '@/components/landing/SocialProofSection';
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
+import { useSectionTracking } from '@/hooks/useSectionTracking';
+import { useVturbTracking } from '@/hooks/useVturbTracking';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -41,12 +43,25 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, loading, navigate]);
 
-  const goToAuth = () => {
-    track.ctaClicked('landing', 'testar_gratis_7_dias');
+  const goToAuth = (stage: string = 'unknown', label: string = 'cta_generic') => {
+    track.funnelCtaClicked(stage, label);
     // Fire-and-forget: decrementa vaga ao clicar no CTA
     void decrementSlot();
     navigate('/auth');
   };
+  // Wrapper para uso direto em onClick (sem MouseEvent vazando para o tracker)
+  const ctaHandler = (stage: string, label: string) => () => goToAuth(stage, label);
+
+  // Tracking de etapas do funil (IntersectionObserver)
+  const heroRef = useSectionTracking<HTMLElement>('hero');
+  const videoRef = useSectionTracking<HTMLDivElement>('video');
+  const postVslRef = useSectionTracking<HTMLElement>('post_vsl_cta');
+  const provaBrutalRef = useSectionTracking<HTMLDivElement>('prova_brutal');
+  const pricingRef = useSectionTracking<HTMLElement>('pricing');
+  const ctaFinalRef = useSectionTracking<HTMLElement>('cta_final');
+
+  // Tracking do player VSL
+  useVturbTracking('vid-69e8271c88365845bd00ae2e');
   const [showDemo, setShowDemo] = useState(false);
 
   // Carrega o player VTurb (smartplayer) uma única vez
@@ -83,8 +98,8 @@ export default function LandingPage() {
             
             <div className="flex items-center gap-3">
               <WhatsAppSupportButton />
-              <button onClick={goToAuth} className="text-sm text-gray-300 hover:text-white transition">Login</button>
-              <button onClick={goToAuth} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
+              <button onClick={ctaHandler('header', 'login')} className="text-sm text-gray-300 hover:text-white transition">Login</button>
+              <button onClick={ctaHandler('header', 'testar_7_dias')} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
                 TESTAR 7 DIAS GRÁTIS
               </button>
             </div>
@@ -93,7 +108,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-screen flex items-center pt-16 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-[#0a0f1e]" />
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -137,7 +152,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <button onClick={goToAuth} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
+                <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
                   TESTAR GRÁTIS POR 7 DIAS
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </button>
@@ -184,7 +199,7 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <div className="bg-black flex items-center justify-center">
+                  <div ref={videoRef} className="bg-black flex items-center justify-center">
                     <vturb-smartplayer
                       id="vid-69e8271c88365845bd00ae2e"
                       style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
@@ -214,7 +229,7 @@ export default function LandingPage() {
                 </p>
 
                 <button
-                  onClick={() => { track.ctaClicked('hero_cta_card', 'comecar_teste_gratis'); goToAuth(); }}
+                  onClick={ctaHandler('hero_cta_card', 'comecar_teste_gratis')}
                   className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
                 >
                   CRIAR CONTA GRÁTIS
@@ -253,7 +268,7 @@ export default function LandingPage() {
       {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
-      <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
+      <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
         <div className="container mx-auto max-w-3xl">
           <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-600/5 to-transparent border-2 border-yellow-500/40 rounded-2xl p-8 sm:p-10 text-center shadow-2xl shadow-yellow-500/10">
             <p className="text-[11px] font-mono uppercase tracking-widest text-yellow-400/80 mb-3">
@@ -266,7 +281,7 @@ export default function LandingPage() {
               Sem cartão. Sem WhatsApp. Crie sua conta em 30 segundos e veja sinais reais com edge matemático já na primeira sessão.
             </p>
             <button
-              onClick={() => { track.ctaClicked('post_vsl_cta', 'criar_conta_gratis'); goToAuth(); }}
+              onClick={ctaHandler('post_vsl_cta', 'criar_conta_gratis')}
               className="px-8 sm:px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base sm:text-lg rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
             >
               CRIAR CONTA GRÁTIS
@@ -289,13 +304,15 @@ export default function LandingPage() {
       <LiveStatsCounter />
 
       {/* Por que é diferente + Prova Brutal */}
-      <WhyDifferentSection onCTA={goToAuth} />
+      <div ref={provaBrutalRef}>
+        <WhyDifferentSection onCTA={ctaHandler('prova_brutal', 'testar_gratis_7_dias')} />
+      </div>
 
       {/* O que é o Oráculo */}
-      <WhatIsOracleSection onCTA={goToAuth} />
+      <WhatIsOracleSection onCTA={ctaHandler('what_is_oracle', 'cta_section')} />
 
       {/* Prova Social - Entradas Reais */}
-      <SocialProofBetsSection onCTA={goToAuth} />
+      <SocialProofBetsSection onCTA={ctaHandler('social_proof_bets', 'cta_section')} />
 
       {/* Features */}
       <section id="funcionalidades" className="py-20 bg-[#0f1729]">
@@ -394,14 +411,14 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-2">GARANTIA DOBRO OU SEU DINHEIRO DE VOLTA</h3>
                 <p className="text-gray-300 leading-relaxed">Se você seguir 95%+ das recomendações e não tiver ROI positivo em 3 meses, devolvemos em dobro sua assinatura. Sem letrinhas miúdas.</p>
               </div>
-              <button onClick={goToAuth} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg">QUERO TESTAR</button>
+              <button onClick={ctaHandler('resultados', 'garantia_dobro_quero_testar')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg">QUERO TESTAR</button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="planos" className="py-20 bg-[#0a0f1e]">
+      <section ref={pricingRef} id="planos" className="py-20 bg-[#0a0f1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">PLANOS QUE CABEM NO SEU<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> BOLSO</span></h2>
@@ -467,14 +484,14 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Final */}
-      <section className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
+      <section ref={ctaFinalRef} className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
             PRONTO PARA INVESTIR COMO
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
           <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
-          <button onClick={goToAuth} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
+          <button onClick={ctaHandler('cta_final', 'comecar_agora')} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
             COMEÇAR AGORA
             <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition" />
           </button>
@@ -564,7 +581,7 @@ export default function LandingPage() {
               />
             </div>
             <div className="mt-4 text-center">
-              <button onClick={goToAuth} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
+              <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
                 COMEÇAR AGORA — 7 DIAS GRÁTIS
               </button>
             </div>
@@ -576,7 +593,7 @@ export default function LandingPage() {
       <LiveSocialProofTicker />
 
       {/* CTA fixo no rodapé (mobile) */}
-      <StickyMobileCTA onCTA={goToAuth} />
+      <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />
       <FloatingWhatsApp />
     </>
   );
