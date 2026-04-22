@@ -484,7 +484,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Final */}
-      <section className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
+      <section ref={ctaFinalRef} className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
             PRONTO PARA INVESTIR COMO
