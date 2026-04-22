@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -11,7 +11,7 @@ import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
-import VSLSection from '@/components/landing/VSLSection';
+
 import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
 import ObjectionsSection from '@/components/landing/ObjectionsSection';
@@ -47,9 +47,16 @@ export default function LandingPage() {
     navigate('/auth');
   };
   const [showDemo, setShowDemo] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const DEMO_VIDEO_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/demo/demo-oraculo-mycroft.mp4';
+  // Carrega o player VTurb (smartplayer) uma única vez
+  useEffect(() => {
+    const VTURB_SRC = 'https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/69e8271c88365845bd00ae2e/v4/player.js';
+    if (document.querySelector(`script[src="${VTURB_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
 
   return (
     <>
@@ -152,15 +159,12 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <video
-                    src={DEMO_VIDEO_URL}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    controls
-                    className="w-full aspect-video bg-black"
-                  />
+                  <div className="bg-black flex items-center justify-center">
+                    <vturb-smartplayer
+                      id="vid-69e8271c88365845bd00ae2e"
+                      style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -221,8 +225,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL — VTurb smartplayer */}
-      <VSLSection onCTA={goToAuth} />
+      {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
@@ -526,15 +529,10 @@ export default function LandingPage() {
             >
               Fechar ✕
             </button>
-            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10">
-              <video
-                ref={videoRef}
-                src={DEMO_VIDEO_URL}
-                autoPlay
-                controls
-                playsInline
-                className="w-full"
-                onEnded={() => setShowDemo(false)}
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
+              <vturb-smartplayer
+                id="vid-69e8271c88365845bd00ae2e"
+                style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
               />
             </div>
             <div className="mt-4 text-center">
