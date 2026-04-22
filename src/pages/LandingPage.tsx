@@ -11,6 +11,7 @@ import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
+import WhyDifferentSection from '@/components/landing/WhyDifferentSection';
 
 import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
@@ -110,17 +111,25 @@ export default function LandingPage() {
               </div>
 
               <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                IA QUE ENCONTRA APOSTAS COM
+                A IA QUE ENCONTRA
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
-                  +15% DE EDGE MATEMÁTICO
+                  APOSTAS LUCRATIVAS
                 </span>
-                ANTES DAS CASAS AJUSTAREM
+                ANTES DAS CASAS AJUSTAREM AS ODDS
               </h2>
 
-              <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-                Mycroft analisa 1.000+ jogos por dia, calcula o valor real de cada odd e te avisa em segundos.
-                <span className="text-green-400 font-semibold"> ROI auditado +73%</span> em
-                <span className="text-blue-400 font-semibold"> 1.658 posições</span>.
+              {/* Dor explícita do usuário */}
+              <div className="mb-6 p-4 bg-red-500/5 border-l-4 border-red-500/60 rounded-r-lg">
+                <p className="text-base lg:text-lg text-gray-200 leading-relaxed">
+                  Se você já ganhou apostas mas <span className="text-red-400 font-semibold">nunca conseguiu consistência</span>,
+                  o problema não é sorte. É <span className="text-yellow-400 font-semibold">falta de leitura de mercado</span>.
+                </p>
+              </div>
+
+              <p className="text-lg text-gray-300 mb-8 leading-relaxed">
+                Descubra apostas com vantagem real enquanto a maioria ainda perde dinheiro.
+                <span className="text-green-400 font-semibold"> +R$ 7.100 de lucro</span> e
+                <span className="text-blue-400 font-semibold"> +71% de ROI</span> em apostas auditadas.
               </p>
 
               <div className="mb-6">
@@ -151,6 +160,22 @@ export default function LandingPage() {
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-3xl opacity-30" />
                 <div className="relative bg-[#0f1729] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl">
+                  {/* Hook do vídeo */}
+                  <div className="bg-gradient-to-r from-yellow-500/15 via-yellow-600/10 to-transparent border-b border-yellow-500/30 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <p className="text-xs sm:text-sm font-bold text-yellow-300 uppercase tracking-wide">
+                        Veja como o Hórus identifica apostas com valor em tempo real
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-300">
+                      <span>📈 +71% ROI</span>
+                      <span className="text-gray-600">•</span>
+                      <span>💰 +R$ 7.100</span>
+                      <span className="text-gray-600">•</span>
+                      <span>🎯 138 apostas</span>
+                    </div>
+                  </div>
                   <div className="bg-[#1a1f36] px-4 py-3 flex items-center gap-2 border-b border-gray-700">
                     <div className="flex gap-1.5">
                       <div className="w-3 h-3 rounded-full bg-red-500" />
@@ -262,6 +287,9 @@ export default function LandingPage() {
 
       {/* Contadores ao vivo */}
       <LiveStatsCounter />
+
+      {/* Por que é diferente + Prova Brutal */}
+      <WhyDifferentSection onCTA={goToAuth} />
 
       {/* O que é o Oráculo */}
       <WhatIsOracleSection onCTA={goToAuth} />
