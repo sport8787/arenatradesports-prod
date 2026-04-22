@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull } from 'lucide-react';
+import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull, Hourglass } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Match } from './MatchCard';
+import { isExpiredHtSignal } from '@/lib/signalValidity';
 
 interface CompactMatchTableProps {
   matches: Match[];
@@ -40,6 +41,7 @@ const statusIcon: Record<string, React.ReactNode> = {
   no_value: <Skull className="w-3.5 h-3.5 text-[#A8A29E]" />,
   AGUARDAR: <Clock className="w-3.5 h-3.5 text-[#FBBF24]" />,
   analyzing: <Loader2 className="w-3.5 h-3.5 text-[#60A5FA] animate-spin" />,
+  EXPIRADO: <Hourglass className="w-3.5 h-3.5 text-[#A8A29E]" />,
 };
 
 const statusColors: Record<string, string> = {
@@ -53,6 +55,7 @@ const statusColors: Record<string, string> = {
   no_value: 'text-[#A8A29E]',
   AGUARDAR: 'text-[#FBBF24]',
   analyzing: 'text-[#60A5FA]',
+  EXPIRADO: 'text-[#A8A29E]',
 };
 
 const statusLabels: Record<string, string> = {
@@ -66,7 +69,21 @@ const statusLabels: Record<string, string> = {
   no_value: 'MORTO',
   AGUARDAR: 'AGUARDAR',
   analyzing: 'ANALISANDO',
+  EXPIRADO: 'EXPIRADO',
 };
+
+function getEffectiveStatus(m: Match): Match['mycroftStatus'] {
+  const expired = isExpiredHtSignal({
+    market: m.market,
+    minute: m.minute,
+    period: m.period,
+    status: m.status,
+  });
+  if (expired && (m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity' || m.mycroftStatus === 'LABAREDA')) {
+    return 'EXPIRADO';
+  }
+  return m.mycroftStatus;
+}
 
 export default function CompactMatchTable({ matches, onRowClick }: CompactMatchTableProps) {
   if (matches.length === 0) return null;
@@ -92,13 +109,14 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
           <tbody>
             {matches.map((m) => {
               const critMet = computeCriteriaCompact(m);
-              const isImminent = critMet >= 4 && (m.mycroftStatus === 'AGUARDAR' || m.mycroftStatus === 'analyzing');
+              const effStatus = getEffectiveStatus(m);
+              const isImminent = critMet >= 4 && (effStatus === 'AGUARDAR' || effStatus === 'analyzing');
               const rowBorder =
-                m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity'
+                effStatus === 'APROVADO' || effStatus === 'APROVADO_SITUACIONAL' || effStatus === 'opportunity'
                   ? 'border-l-2 border-l-[#22C55E]'
-                  : m.mycroftStatus === 'LABAREDA'
+                  : effStatus === 'LABAREDA'
                     ? 'border-l-2 border-l-[#F97316]'
-                    : m.mycroftStatus === 'CUIDADO'
+                    : effStatus === 'CUIDADO'
                       ? 'border-l-2 border-l-[#F59E0B]'
                       : isImminent
                         ? 'border-l-2 border-l-[#F59E0B]'
@@ -111,6 +129,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                   className={cn(
                     'border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors',
                     rowBorder,
+                    effStatus === 'EXPIRADO' && 'opacity-70',
                   )}
                 >
                   <td className="px-3 py-2 font-orbitron text-foreground whitespace-nowrap">
@@ -154,18 +173,20 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                   </td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {statusIcon[m.mycroftStatus] ?? null}
-                      <span className={cn('font-orbitron font-bold text-[10px]', statusColors[m.mycroftStatus] ?? 'text-muted-foreground')}>
-                        {statusLabels[m.mycroftStatus] ?? '—'}
+                      {statusIcon[effStatus] ?? null}
+                      <span className={cn('font-orbitron font-bold text-[10px]', statusColors[effStatus] ?? 'text-muted-foreground')}>
+                        {statusLabels[effStatus] ?? '—'}
                       </span>
                       {isImminent && <Zap className="w-3 h-3 text-[#FBBF24] animate-pulse" />}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-left">
-                    {(m.mycroftStatus === 'APROVADO' || m.mycroftStatus === 'APROVADO_SITUACIONAL' || m.mycroftStatus === 'opportunity') && m.planName ? (
+                    {(effStatus === 'APROVADO' || effStatus === 'APROVADO_SITUACIONAL' || effStatus === 'opportunity') && m.planName ? (
                       <span className="font-orbitron text-primary font-bold text-[10px]">{m.planName}</span>
-                    ) : m.mycroftStatus === 'LABAREDA' ? (
+                    ) : effStatus === 'LABAREDA' ? (
                       <span className="font-orbitron text-[#FB923C] font-bold text-[10px]">⚡ LABAREDA</span>
+                    ) : effStatus === 'EXPIRADO' ? (
+                      <span className="font-orbitron text-[#A8A29E] text-[10px]" title={`Mercado "${m.market}" inválido após o 1º tempo`}>⌛ 1T encerrado</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
