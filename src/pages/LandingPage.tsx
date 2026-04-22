@@ -49,6 +49,8 @@ export default function LandingPage() {
     void decrementSlot();
     navigate('/auth');
   };
+  // Wrapper para uso direto em onClick (sem MouseEvent vazando para o tracker)
+  const ctaHandler = (stage: string, label: string) => () => goToAuth(stage, label);
 
   // Tracking de etapas do funil (IntersectionObserver)
   const heroRef = useSectionTracking<HTMLElement>('hero');
