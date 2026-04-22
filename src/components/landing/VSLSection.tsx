@@ -1,12 +1,33 @@
 import { motion } from 'framer-motion';
-import { Play, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface VSLSectionProps {
   onCTA: () => void;
   videoUrl?: string;
 }
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'vturb-smartplayer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { id: string }, HTMLElement>;
+    }
+  }
+}
+
+const VTURB_PLAYER_ID = '69e8271c88365845bd00ae2e';
+const VTURB_ACCOUNT_ID = '425e46be-1934-41ee-ac61-375afed6531f';
+const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/players/${VTURB_PLAYER_ID}/v4/player.js`;
+
 export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
+  useEffect(() => {
+    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SCRIPT_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
   return (
     <section className="py-20 bg-gradient-to-b from-[#0a0f1e] via-[#0f1729] to-[#0a0f1e] relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/5 via-transparent to-transparent" />
@@ -41,27 +62,11 @@ export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
           className="relative"
         >
           <div className="absolute -inset-4 bg-gradient-to-r from-yellow-500/20 via-blue-500/20 to-purple-500/20 rounded-2xl blur-2xl" />
-          <div className="relative aspect-video bg-[#0a0f1e] rounded-2xl overflow-hidden border-2 border-yellow-500/30 shadow-2xl shadow-yellow-500/10">
-            {videoUrl ? (
-              <video
-                src={videoUrl}
-                controls
-                playsInline
-                poster="/og-image.png"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#0f1729] to-[#0a0f1e] text-center p-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center mb-4 shadow-xl shadow-yellow-500/40">
-                  <Play className="w-10 h-10 text-black ml-1" fill="currentColor" />
-                </div>
-                <p className="text-yellow-400 font-bold text-lg mb-2">VSL EM PRODUÇÃO</p>
-                <p className="text-gray-400 text-sm max-w-md">
-                  O vídeo de apresentação está sendo finalizado e estará disponível em breve.
-                  Enquanto isso, comece seu teste grátis abaixo.
-                </p>
-              </div>
-            )}
+          <div className="relative rounded-2xl overflow-hidden border-2 border-yellow-500/30 shadow-2xl shadow-yellow-500/10 bg-[#0a0f1e]">
+            <vturb-smartplayer
+              id={`vid-${VTURB_PLAYER_ID}`}
+              style={{ display: 'block', margin: '0 auto', width: '100%' }}
+            />
           </div>
         </motion.div>
 
