@@ -110,17 +110,25 @@ export default function LandingPage() {
               </div>
 
               <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                IA QUE ENCONTRA APOSTAS COM
+                A IA QUE ENCONTRA
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
-                  +15% DE EDGE MATEMÁTICO
+                  APOSTAS LUCRATIVAS
                 </span>
-                ANTES DAS CASAS AJUSTAREM
+                ANTES DAS CASAS AJUSTAREM AS ODDS
               </h2>
 
-              <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-                Mycroft analisa 1.000+ jogos por dia, calcula o valor real de cada odd e te avisa em segundos.
-                <span className="text-green-400 font-semibold"> ROI auditado +73%</span> em
-                <span className="text-blue-400 font-semibold"> 1.658 posições</span>.
+              {/* Dor explícita do usuário */}
+              <div className="mb-6 p-4 bg-red-500/5 border-l-4 border-red-500/60 rounded-r-lg">
+                <p className="text-base lg:text-lg text-gray-200 leading-relaxed">
+                  Se você já ganhou apostas mas <span className="text-red-400 font-semibold">nunca conseguiu consistência</span>,
+                  o problema não é sorte. É <span className="text-yellow-400 font-semibold">falta de leitura de mercado</span>.
+                </p>
+              </div>
+
+              <p className="text-lg text-gray-300 mb-8 leading-relaxed">
+                Descubra apostas com vantagem real enquanto a maioria ainda perde dinheiro.
+                <span className="text-green-400 font-semibold"> +R$ 7.100 de lucro</span> e
+                <span className="text-blue-400 font-semibold"> +71% de ROI</span> em apostas auditadas.
               </p>
 
               <div className="mb-6">
