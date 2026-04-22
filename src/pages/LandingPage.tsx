@@ -221,8 +221,8 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL — Removida temporariamente até o vídeo ficar pronto */}
-      {/* <VSLSection onCTA={goToAuth} /> */}
+      {/* VSL — VTurb smartplayer */}
+      <VSLSection onCTA={goToAuth} />
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
