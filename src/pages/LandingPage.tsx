@@ -43,12 +43,23 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, loading, navigate]);
 
-  const goToAuth = () => {
-    track.ctaClicked('landing', 'testar_gratis_7_dias');
+  const goToAuth = (stage: string = 'unknown', label: string = 'cta_generic') => {
+    track.funnelCtaClicked(stage, label);
     // Fire-and-forget: decrementa vaga ao clicar no CTA
     void decrementSlot();
     navigate('/auth');
   };
+
+  // Tracking de etapas do funil (IntersectionObserver)
+  const heroRef = useSectionTracking<HTMLElement>('hero');
+  const videoRef = useSectionTracking<HTMLDivElement>('video');
+  const postVslRef = useSectionTracking<HTMLElement>('post_vsl_cta');
+  const provaBrutalRef = useSectionTracking<HTMLDivElement>('prova_brutal');
+  const pricingRef = useSectionTracking<HTMLElement>('pricing');
+  const ctaFinalRef = useSectionTracking<HTMLElement>('cta_final');
+
+  // Tracking do player VSL
+  useVturbTracking('vid-69e8271c88365845bd00ae2e');
   const [showDemo, setShowDemo] = useState(false);
 
   // Carrega o player VTurb (smartplayer) uma única vez
