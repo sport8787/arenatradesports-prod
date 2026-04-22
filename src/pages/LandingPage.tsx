@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -47,9 +47,16 @@ export default function LandingPage() {
     navigate('/auth');
   };
   const [showDemo, setShowDemo] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const DEMO_VIDEO_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/demo/demo-oraculo-mycroft.mp4';
+  // Carrega o player VTurb (smartplayer) uma única vez
+  useEffect(() => {
+    const VTURB_SRC = 'https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/69e8271c88365845bd00ae2e/v4/player.js';
+    if (document.querySelector(`script[src="${VTURB_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
 
   return (
     <>
