@@ -306,85 +306,15 @@ serve(async (req) => {
             market: analysis.market,
           });
 
-          // === TELEGRAM NOTIFICATION for any APPROVED signal ===
+          // === TELEGRAM DESATIVADO PARA ARENA TRADER SPORTS ===
+          // Envio ao Telegram desligado a pedido do usuário para reduzir poluição no grupo principal.
+          // Sinais ao vivo continuarão chegando via Web Push e na própria UI da Arena Trader Sports.
+          // Será reativado em grupo dedicado para sinais ao vivo (a configurar).
           if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA') {
-            try {
-              // Dedup check: only send if no previous Telegram was sent for this match+market combo
-              const marketKey = (analysis.market || 'N/A').trim().toLowerCase();
-              const { count: alreadySent } = await supabase
-                .from('mycroft_analyses')
-                .select('id', { count: 'exact', head: true })
-                .eq('match_id', match.match_id)
-                .ilike('market', marketKey)
-                .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
-                .neq('id', analysisRow.id);
-
-              if ((alreadySent ?? 0) > 0) {
-                console.log(`[AnalyzeLive] ⏭️ Telegram skipped for ${match.home_team} vs ${match.away_team} — already sent for market "${analysis.market}"`);
-              } else {
-                const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-                const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
-                if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-                  const statusEmoji = analysis.verdict === 'LABAREDA' ? '⚡' : '✅';
-                  const planLabel = analysis.plan_name ? ` | Plano: *${analysis.plan_name}*` : '';
-                  const msg = [
-                    `${statusEmoji} *SINAL ${analysis.verdict} — ARENA TRADER SPORTS*`,
-                    ``,
-                    `⚽ *${match.home_team} vs ${match.away_team}*`,
-                    `🏟️ ${match.championship} | ${match.minute ?? 0}'`,
-                    `📊 Mercado: *${analysis.market}*`,
-                    `💰 Odd: *${analysis.odd ?? '—'}*`,
-                    `🎯 Confiança: *${analysis.confidence}%*${planLabel}`,
-                    ``,
-                    `📝 _${analysis.thesis || 'Análise concluída'}_`,
-                    ``,
-                    analysis.risk_management?.stake_value ? `💵 Stake sugerida: *R$ ${Number(analysis.risk_management.stake_value).toFixed(2)}* (${analysis.risk_management.stake_percent}% da banca)` : '',
-                    ``,
-                    `🔗 [Abrir Arena Trader](https://www.oraculo-mycroft.com/arena-trader-sports)`,
-                  ].filter(Boolean).join('\n');
-
-                  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
-                  });
-                  console.log(`[AnalyzeLive] 📲 Telegram sent for ${match.home_team} vs ${match.away_team} (${analysis.verdict})`);
-                }
-              }
-            } catch (tgErr) {
-              console.warn('[AnalyzeLive] Telegram notification error:', tgErr);
-            }
+            console.log(`[AnalyzeLive] 🔕 Telegram disabled — signal stored only (${match.home_team} vs ${match.away_team} | ${analysis.verdict} | ${analysis.market})`);
           }
-
-          // === TELEGRAM NOTIFICATION for UNDER 2.5 EXIT (cancellation) ===
           if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' || analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE') {
-            const planoLabel = analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ? 'UNDER 2.5 EARLY' : 'BACK AO DOMINANTE';
-            try {
-              const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-              const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID');
-              if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-                const msg = [
-                  `🚨 *SAIR DA OPERAÇÃO — ${planoLabel}*`,
-                  ``,
-                  `⚽ *${match.home_team} vs ${match.away_team}*`,
-                  `🏟️ ${match.championship} | ${match.minute ?? 0}' | Placar: ${match.score_home ?? 0}x${match.score_away ?? 0}`,
-                  ``,
-                  `📝 _${analysis.thesis || 'Sinal revogado.'}_`,
-                  ``,
-                  `⚠️ *AÇÃO RECOMENDADA:* Executar cashout ou hedge IMEDIATAMENTE para limitar perda.`,
-                  ``,
-                  `🔗 [Abrir Arena Trader](https://www.oraculo-mycroft.com/arena-trader-sports)`,
-                ].filter(Boolean).join('\n');
-                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' }),
-                });
-                console.log(`[AnalyzeLive] 🚪📲 Telegram EXIT sent for ${match.home_team} vs ${match.away_team}`);
-              }
-            } catch (tgErr) {
-              console.warn('[AnalyzeLive] Telegram exit notification error:', tgErr);
-            }
+            console.log(`[AnalyzeLive] 🔕 Telegram disabled — exit signal stored only (${match.home_team} vs ${match.away_team} | ${analysis.plan_name})`);
           }
         }
       } catch (e) {
