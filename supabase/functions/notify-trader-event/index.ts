@@ -174,8 +174,11 @@ Deno.serve(async (req) => {
     }
 
     const message = buildTelegramMessage(payload);
-    const telegramOk = await sendTelegram(message);
-
+    const telegramOk = await sendTelegramDedup(message, {
+      match_id: payload.match_id,
+      market: payload.market,
+      verdict: payload.event_type,
+    });
     await supabase.from('trader_notifications_sent').insert({
       match_id: payload.match_id,
       market: payload.market,
