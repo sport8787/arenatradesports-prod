@@ -3164,6 +3164,45 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_dedupe: {
+        Row: {
+          channel: string
+          dedupe_key: string
+          expires_at: string
+          id: string
+          market: string | null
+          match_id: string | null
+          payload_hash: string | null
+          sent_at: string
+          source: string | null
+          verdict: string | null
+        }
+        Insert: {
+          channel?: string
+          dedupe_key: string
+          expires_at?: string
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          payload_hash?: string | null
+          sent_at?: string
+          source?: string | null
+          verdict?: string | null
+        }
+        Update: {
+          channel?: string
+          dedupe_key?: string
+          expires_at?: string
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          payload_hash?: string | null
+          sent_at?: string
+          source?: string | null
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       trader_notifications_sent: {
         Row: {
           away_team: string | null
