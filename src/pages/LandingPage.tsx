@@ -11,6 +11,7 @@ import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
 import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
 import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
+import WhyDifferentSection from '@/components/landing/WhyDifferentSection';
 
 import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
 import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
