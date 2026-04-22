@@ -21,10 +21,20 @@ const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/pla
 
 export default function VSLSection({ onCTA, videoUrl }: VSLSectionProps) {
   useEffect(() => {
-    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
+    // Remove qualquer script VTurb antigo (de outros player IDs) para evitar cache de player anterior
+    document
+      .querySelectorAll('script[src*="scripts.converteai.net"]')
+      .forEach((el) => {
+        if (!el.getAttribute('src')?.includes(VTURB_PLAYER_ID)) {
+          el.remove();
+        }
+      });
+
+    if (document.querySelector(`script[data-vturb-player="${VTURB_PLAYER_ID}"]`)) return;
     const s = document.createElement('script');
     s.src = VTURB_SCRIPT_SRC;
     s.async = true;
+    s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
     document.head.appendChild(s);
   }, []);
 
