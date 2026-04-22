@@ -108,7 +108,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-screen flex items-center pt-16 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-[#0a0f1e]" />
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
