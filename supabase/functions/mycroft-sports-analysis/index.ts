@@ -1196,6 +1196,67 @@ serve(async (req) => {
       analysis.risk_management.stake_value = (match.bankroll ?? 500) * analysis.risk_management.stake_percent / 100;
     }
 
+    // === GUARD HT/1T: nunca aprovar mercado de 1º tempo após o intervalo ===
+    // Após min >= 45 o HT já está encerrado/encerrando. Qualquer "Over X HT", "1T",
+    // "Primeiro Tempo", "First Half" deixa de ser válido e precisa ser convertido
+    // para o equivalente de jogo inteiro ou descartado.
+    {
+      const min = match.minute ?? 0;
+      const isHtMarket = (m: unknown): boolean => {
+        if (!m || typeof m !== 'string') return false;
+        const s = m.toLowerCase();
+        return /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half|halftime|half\s*time|intervalo)\b/i.test(s);
+      };
+      const convertHtToFt = (m: string): string => {
+        // Tenta converter "Over X HT" → "Over (X+1) Total"; senão devolve "Over 0.5 Próximo Gol"
+        const overMatch = m.match(/over\s*(\d+(?:\.\d+)?)/i);
+        if (overMatch) {
+          const line = parseFloat(overMatch[1]);
+          const ftLine = line + 1; // 0.5 HT ~ 1.5 FT como aproximação conservadora
+          return `Over ${ftLine.toFixed(1)} Total`;
+        }
+        return 'Over 0.5 Próximo Gol';
+      };
+
+      if (min >= 45 && isHtMarket(analysis.market)) {
+        const original = analysis.market;
+        if (min <= 70) {
+          const converted = convertHtToFt(String(analysis.market));
+          console.log(`[MycroftSports] 🛡️ HT GUARD: "${original}" inválido no min ${min}' → convertido para "${converted}"`);
+          analysis.market = converted;
+          analysis.alerts = [
+            ...(analysis.alerts || []),
+            `🛡️ Mercado "${original}" inválido após o intervalo (min ${min}'). Substituído por "${converted}".`,
+          ];
+          if (analysis.risk_management) {
+            analysis.risk_management.entry = `${converted} @ ${analysis.odd || 1.50}`;
+          }
+        } else {
+          // Após min 70 não há mais como salvar uma entrada de 1T — vetar
+          console.log(`[MycroftSports] 🚫 HT GUARD: "${original}" no min ${min}' → VETADO (impossível entrar em mercado de 1T após o HT)`);
+          analysis.verdict = 'VETADO';
+          analysis.market = 'N/A';
+          analysis.confidence = 0;
+          analysis.thesis = `🚫 Mercado "${original}" inválido: o 1º tempo já terminou (min ${min}').`;
+          analysis.alerts = [
+            ...(analysis.alerts || []),
+            `🚫 Veto automático: mercado de 1º tempo ("${original}") solicitado no min ${min}'.`,
+          ];
+          analysis.risk_management = null;
+        }
+      }
+
+      // Limpa additional_markets de qualquer mercado HT inválido
+      if (Array.isArray(analysis.additional_markets) && min >= 45) {
+        const before = analysis.additional_markets.length;
+        analysis.additional_markets = analysis.additional_markets.filter((am: any) => !isHtMarket(am?.market));
+        const removed = before - analysis.additional_markets.length;
+        if (removed > 0) {
+          console.log(`[MycroftSports] 🛡️ HT GUARD: ${removed} additional_market(s) HT removido(s) no min ${min}'`);
+        }
+      }
+    }
+
     // === VALIDAR ADDITIONAL_MARKETS ===
     if (analysis.additional_markets?.length > 0 && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA')) {
       const bankroll = match.bankroll ?? 500;
