@@ -593,7 +593,7 @@ export default function LandingPage() {
       <LiveSocialProofTicker />
 
       {/* CTA fixo no rodapé (mobile) */}
-      <StickyMobileCTA onCTA={goToAuth} />
+      <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />
       <FloatingWhatsApp />
     </>
   );
