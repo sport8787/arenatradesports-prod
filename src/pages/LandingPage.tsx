@@ -304,13 +304,15 @@ export default function LandingPage() {
       <LiveStatsCounter />
 
       {/* Por que é diferente + Prova Brutal */}
-      <WhyDifferentSection onCTA={goToAuth} />
+      <div ref={provaBrutalRef}>
+        <WhyDifferentSection onCTA={ctaHandler('prova_brutal', 'testar_gratis_7_dias')} />
+      </div>
 
       {/* O que é o Oráculo */}
-      <WhatIsOracleSection onCTA={goToAuth} />
+      <WhatIsOracleSection onCTA={ctaHandler('what_is_oracle', 'cta_section')} />
 
       {/* Prova Social - Entradas Reais */}
-      <SocialProofBetsSection onCTA={goToAuth} />
+      <SocialProofBetsSection onCTA={ctaHandler('social_proof_bets', 'cta_section')} />
 
       {/* Features */}
       <section id="funcionalidades" className="py-20 bg-[#0f1729]">
