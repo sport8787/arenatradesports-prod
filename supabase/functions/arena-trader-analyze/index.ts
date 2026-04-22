@@ -321,41 +321,9 @@ Forneça o relatório forense completo em JSON puro (sem markdown code blocks).`
       horus: parsed.script_horus || 'O mercado está em silêncio... Mas isso nunca dura.',
     };
 
-    // Dispatch Telegram alert (fire-and-forget)
-    try {
-      const TELEGRAM_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-      const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
-      if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-        const tgMsg = `
-🏛️ *ARENA TRADER — ALERTA MYCROFT*
-
-📈 *ATIVO:* ${asset.symbol}
-💰 *PREÇO:* ${currentPrice}
-🎯 *SINAL:* ${parsed.status_mercado}
-📊 *Confluência:* ${parsed.confluencia_score ?? 0}/10
-⚠️ *Estresse:* ${parsed.alerta_de_estresse ?? 'N/A'}
-🐋 *Institucional:* ${parsed.status_institucional ?? 'NEUTRO'}
-
-🔬 *ANÁLISE FORENSE:*
-${parsed.analise_forense ?? 'N/A'}
-
-🎙️ *VEREDITO DE HÓRUS:*
-"${parsed.script_horus ?? ''}"
-        `.trim();
-
-        fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
-            text: tgMsg,
-            parse_mode: "Markdown",
-          }),
-        }).catch(e => console.error("Telegram dispatch failed:", e));
-      }
-    } catch (tgErr) {
-      console.error("Telegram integration error:", tgErr);
-    }
+    // Telegram desativado a pedido do usuário (grupo principal estava poluído com sinais ao vivo).
+    // Será reativado em grupo dedicado de sinais ao vivo no futuro.
+    console.log(`[ArenaTraderAnalyze] 🔕 Telegram disabled — analysis stored only (${asset.symbol} | ${parsed.status_mercado})`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
