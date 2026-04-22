@@ -108,33 +108,9 @@ function buildTelegramMessage(p: Payload): string {
 }
 
 async function sendTelegram(text: string): Promise<boolean> {
-  const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
-  const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
-  if (!token || !chatId) {
-    console.warn('Telegram não configurado');
-    return false;
-  }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
-    });
-    const data = await res.json();
-    if (!data.ok) {
-      console.error('Telegram erro:', data);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.error('Telegram exception:', e);
-    return false;
-  }
+  console.log('Telegram desativado para notify-trader-event');
+  void text;
+  return false;
 }
 
 Deno.serve(async (req) => {

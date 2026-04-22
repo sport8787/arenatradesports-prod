@@ -121,6 +121,215 @@ function classificarSaude(bet: any, oddAtual: number, minuto: number): { saude: 
   return { saude: 'HEALTHY', sinal: false, motivo: 'Posição dentro do esperado.' };
 }
 
+const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
+
+type MatchState = {
+  matchId: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  minute: number;
+  status: 'live' | 'halftime' | 'finished' | 'unknown';
+  period?: string | null;
+  scoreHome: number;
+  scoreAway: number;
+  halftimeHome: number | null;
+  halftimeAway: number | null;
+  stats?: any;
+};
+
+function normalizeTeam(name?: string | null): string {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractLine(market: string, fallback = 2.5): number {
+  const matched = market.match(/(\d+(?:\.\d+)?)/);
+  return matched ? parseFloat(matched[1]) : fallback;
+}
+
+function isFirstHalfMarket(market: string): boolean {
+  return HT_MARKET_REGEX.test(market) || /gol\s*ht/i.test(market);
+}
+
+function inferSelectionSide(market: string, homeTeam?: string, awayTeam?: string): 'home' | 'away' | null {
+  const normalizedMarket = market.toLowerCase().trim();
+  if (normalizedMarket === 'casa' || normalizedMarket === 'home' || normalizedMarket === '1' || normalizedMarket.includes('back casa')) return 'home';
+  if (normalizedMarket === 'fora' || normalizedMarket === 'away' || normalizedMarket === '2' || normalizedMarket.includes('back fora') || normalizedMarket.includes('back visitante')) return 'away';
+
+  const namedSelection = normalizedMarket.replace(/^back\s+/i, '').trim();
+  if (!namedSelection) return null;
+
+  const homeNorm = normalizeTeam(homeTeam);
+  const awayNorm = normalizeTeam(awayTeam);
+  const selectionNorm = normalizeTeam(namedSelection);
+
+  const matchesTeam = (teamNorm: string) =>
+    !!teamNorm && (
+      teamNorm.includes(selectionNorm) ||
+      selectionNorm.includes(teamNorm) ||
+      teamNorm.split(' ').some((word) => word.length > 3 && selectionNorm.includes(word))
+    );
+
+  if (matchesTeam(homeNorm)) return 'home';
+  if (matchesTeam(awayNorm)) return 'away';
+  return null;
+}
+
+function normalizeMatchStatus(status?: string | null, period?: string | null): MatchState['status'] {
+  const normalizedStatus = String(status || '').toLowerCase();
+  const normalizedPeriod = String(period || '').toLowerCase();
+  if (['finished', 'ft', 'aet', 'pen', 'ended'].some((value) => normalizedStatus.includes(value) || normalizedPeriod.includes(value))) return 'finished';
+  if (['halftime', 'ht', 'intervalo'].some((value) => normalizedStatus.includes(value) || normalizedPeriod.includes(value))) return 'halftime';
+  if (normalizedStatus || normalizedPeriod) return 'live';
+  return 'unknown';
+}
+
+async function fetchApiFootballSnapshot(matchId: string): Promise<Partial<MatchState> | null> {
+  const apiKey = Deno.env.get('API_FOOTBALL_KEY');
+  if (!apiKey || !/^\d+$/.test(matchId)) return null;
+
+  try {
+    const response = await fetch(`https://v3.football.api-sports.io/fixtures?id=${matchId}`, {
+      headers: { 'x-apisports-key': apiKey },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const fixture = data.response?.[0];
+    if (!fixture) return null;
+
+    return {
+      homeTeam: fixture.teams?.home?.name || undefined,
+      awayTeam: fixture.teams?.away?.name || undefined,
+      minute: fixture.fixture?.status?.elapsed ?? 0,
+      period: fixture.fixture?.status?.long || null,
+      status: normalizeMatchStatus(fixture.fixture?.status?.short, fixture.fixture?.status?.long),
+      scoreHome: fixture.goals?.home ?? 0,
+      scoreAway: fixture.goals?.away ?? 0,
+      halftimeHome: fixture.score?.halftime?.home ?? null,
+      halftimeAway: fixture.score?.halftime?.away ?? null,
+    };
+  } catch (error) {
+    console.warn(`[evaluate-cashout] API-Football snapshot failed for ${matchId}:`, error);
+    return null;
+  }
+}
+
+async function resolveMatchState(matchId: string, supabase: any, cache: Map<string, MatchState | null>): Promise<MatchState | null> {
+  if (cache.has(matchId)) return cache.get(matchId) ?? null;
+
+  const { data: liveMatch } = await supabase.from('live_matches').select('*').eq('match_id', matchId).maybeSingle();
+  const apiSnapshot = await fetchApiFootballSnapshot(matchId);
+
+  const resolved: MatchState | null = liveMatch || apiSnapshot ? {
+    matchId,
+    homeTeam: liveMatch?.home_team || apiSnapshot?.homeTeam,
+    awayTeam: liveMatch?.away_team || apiSnapshot?.awayTeam,
+    minute: liveMatch?.minute ?? apiSnapshot?.minute ?? 0,
+    status: apiSnapshot?.status || normalizeMatchStatus(liveMatch?.status, liveMatch?.period),
+    period: liveMatch?.period || apiSnapshot?.period || null,
+    scoreHome: liveMatch?.score_home ?? apiSnapshot?.scoreHome ?? 0,
+    scoreAway: liveMatch?.score_away ?? apiSnapshot?.scoreAway ?? 0,
+    halftimeHome: apiSnapshot?.halftimeHome ?? null,
+    halftimeAway: apiSnapshot?.halftimeAway ?? null,
+    stats: liveMatch?.stats || null,
+  } : null;
+
+  cache.set(matchId, resolved);
+  return resolved;
+}
+
+function evaluateSettlement(marketRaw: string, matchState: MatchState): { shouldSettle: boolean; isGreen: boolean; reason: string } {
+  const market = String(marketRaw || '').toLowerCase().trim();
+  const normalizedMarket = /gol\s*ht/i.test(market) ? 'over 0.5 ht' : market;
+  const totalGoals = (matchState.scoreHome ?? 0) + (matchState.scoreAway ?? 0);
+  const secondHalfStarted = matchState.status === 'halftime' || matchState.status === 'finished' || matchState.minute >= 45 || /second|2nd|2t|intervalo|ht/i.test(String(matchState.period || ''));
+  const halftimeHome = matchState.halftimeHome ?? (matchState.status === 'halftime' ? matchState.scoreHome : null);
+  const halftimeAway = matchState.halftimeAway ?? (matchState.status === 'halftime' ? matchState.scoreAway : null);
+  const halftimeTotal = halftimeHome != null && halftimeAway != null ? halftimeHome + halftimeAway : null;
+
+  if (isFirstHalfMarket(normalizedMarket)) {
+    if (!secondHalfStarted && halftimeTotal == null) {
+      return { shouldSettle: false, isGreen: false, reason: 'Mercado HT ainda aberto.' };
+    }
+
+    const htTotal = halftimeTotal ?? 0;
+    if (normalizedMarket.includes('under')) {
+      const line = extractLine(normalizedMarket, 0.5);
+      return {
+        shouldSettle: true,
+        isGreen: htTotal < line,
+        reason: `HT ${halftimeHome ?? 0}x${halftimeAway ?? 0}`,
+      };
+    }
+
+    const line = extractLine(normalizedMarket, 0.5);
+    return {
+      shouldSettle: true,
+      isGreen: htTotal > line,
+      reason: `HT ${halftimeHome ?? 0}x${halftimeAway ?? 0}`,
+    };
+  }
+
+  if (normalizedMarket.includes('over')) {
+    const line = extractLine(normalizedMarket, 2.5);
+    if (totalGoals > line) return { shouldSettle: true, isGreen: true, reason: `Over confirmado com ${matchState.scoreHome}x${matchState.scoreAway}` };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: false, reason: `Over não bateu no placar final ${matchState.scoreHome}x${matchState.scoreAway}` };
+    return { shouldSettle: false, isGreen: false, reason: 'Over ainda aberto.' };
+  }
+
+  if (normalizedMarket.includes('under')) {
+    const line = extractLine(normalizedMarket, 2.5);
+    if (totalGoals > line) return { shouldSettle: true, isGreen: false, reason: `Under estourou com ${matchState.scoreHome}x${matchState.scoreAway}` };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: true, reason: `Under confirmado no placar final ${matchState.scoreHome}x${matchState.scoreAway}` };
+    return { shouldSettle: false, isGreen: false, reason: 'Under ainda aberto.' };
+  }
+
+  if (normalizedMarket.includes('btts') || normalizedMarket.includes('ambas')) {
+    if (matchState.scoreHome > 0 && matchState.scoreAway > 0) return { shouldSettle: true, isGreen: true, reason: 'Ambas marcaram.' };
+    if (matchState.status === 'finished') return { shouldSettle: true, isGreen: false, reason: 'Ambas não marcaram até o fim.' };
+    return { shouldSettle: false, isGreen: false, reason: 'BTTS ainda aberto.' };
+  }
+
+  if (matchState.status !== 'finished') {
+    return { shouldSettle: false, isGreen: false, reason: 'Mercado depende do placar final.' };
+  }
+
+  if (normalizedMarket === 'empate' || normalizedMarket === 'draw' || normalizedMarket === 'x' || normalizedMarket.includes('back empate')) {
+    return { shouldSettle: true, isGreen: matchState.scoreHome === matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+
+  const backSide = inferSelectionSide(normalizedMarket, matchState.homeTeam, matchState.awayTeam);
+  if (backSide === 'home') {
+    return { shouldSettle: true, isGreen: matchState.scoreHome > matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+  if (backSide === 'away') {
+    return { shouldSettle: true, isGreen: matchState.scoreAway > matchState.scoreHome, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+  }
+
+  if (normalizedMarket.includes('lay')) {
+    const laySide = normalizedMarket.includes('casa') || normalizedMarket.includes('home')
+      ? 'home'
+      : normalizedMarket.includes('fora') || normalizedMarket.includes('away') || normalizedMarket.includes('visitante')
+        ? 'away'
+        : inferSelectionSide(normalizedMarket.replace(/^lay\s+/i, 'back '), matchState.homeTeam, matchState.awayTeam);
+
+    if (laySide === 'home') {
+      return { shouldSettle: true, isGreen: matchState.scoreHome <= matchState.scoreAway, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+    }
+    if (laySide === 'away') {
+      return { shouldSettle: true, isGreen: matchState.scoreAway <= matchState.scoreHome, reason: `FT ${matchState.scoreHome}x${matchState.scoreAway}` };
+    }
+  }
+
+  return { shouldSettle: false, isGreen: false, reason: 'Mercado não suportado para liquidação automática.' };
+}
+
 // ═══════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════
@@ -129,6 +338,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const matchStateCache = new Map<string, MatchState | null>();
 
     // Support both cron (all pending) and on-demand (specific user/bet)
     let userId: string | null = null;
@@ -152,75 +362,27 @@ Deno.serve(async (req) => {
 
     for (const pos of positions) {
       try {
-        // Get live stats from live_matches (already fetched by cron)
-        const { data: liveMatch } = await supabase.from('live_matches').select('*').eq('match_id', pos.match_id).maybeSingle();
+        const liveMatch = await resolveMatchState(pos.match_id, supabase, matchStateCache);
         
         // ═══ IN-GAME SETTLEMENT: check if bet condition is already definitively met ═══
         if (liveMatch && (liveMatch.status === 'live' || liveMatch.status === 'halftime' || liveMatch.status === 'finished')) {
-          const scoreH = liveMatch.score_home ?? 0;
-          const scoreA = liveMatch.score_away ?? 0;
-          const totalGols = scoreH + scoreA;
-          const mercado = (pos.market || '').toLowerCase().trim();
+          const scoreH = liveMatch.scoreHome ?? 0;
+          const scoreA = liveMatch.scoreAway ?? 0;
           const minuto = liveMatch.minute || 0;
-          let settledInGame = false;
-          let isGreen = false;
+          const settlement = evaluateSettlement(pos.market || '', liveMatch);
 
-          // Over X.5 — settled when goals exceed line (irreversible)
-          if (mercado.includes('over')) {
-            const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-            if (totalGols > line) { settledInGame = true; isGreen = true; }
-          }
-          // BTTS / Ambas Marcam — settled when both scored (irreversible)
-          else if (mercado.includes('btts') || mercado.includes('ambas')) {
-            if (scoreH > 0 && scoreA > 0) { settledInGame = true; isGreen = true; }
-          }
-          // Under X.5 — LOST when goals exceed line (irreversible)
-          else if (mercado.includes('under')) {
-            const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-            if (totalGols > line) { settledInGame = true; isGreen = false; }
-          }
-
-          // Post-game settlement for all remaining markets when match is finished
-          if (!settledInGame && liveMatch.status === 'finished') {
-            settledInGame = true;
-            if (mercado === 'casa' || mercado === 'home' || mercado === '1' || mercado.includes('back casa')) {
-              isGreen = scoreH > scoreA;
-            } else if (mercado === 'fora' || mercado === 'away' || mercado === '2' || mercado.includes('back fora') || mercado.includes('back visitante')) {
-              isGreen = scoreA > scoreH;
-            } else if (mercado === 'empate' || mercado === 'draw' || mercado === 'x' || mercado.includes('back empate')) {
-              isGreen = scoreH === scoreA;
-            } else if (mercado.includes('over')) {
-              const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-              isGreen = totalGols > line;
-            } else if (mercado.includes('under')) {
-              const line = parseFloat(mercado.replace(/[^0-9.]/g, '')) || 2.5;
-              isGreen = totalGols < line;
-            } else if (mercado.includes('btts') || mercado.includes('ambas')) {
-              isGreen = scoreH > 0 && scoreA > 0;
-            } else if (mercado.includes('lay')) {
-              // Lay casa = green if home doesn't win
-              if (mercado.includes('casa') || mercado.includes('home')) isGreen = scoreH <= scoreA;
-              else if (mercado.includes('fora') || mercado.includes('away')) isGreen = scoreA <= scoreH;
-              else settledInGame = false;
-            } else {
-              // Can't determine market — skip auto-settlement
-              settledInGame = false;
-            }
-          }
-
-          if (settledInGame) {
+          if (settlement.shouldSettle) {
+            const isGreen = settlement.isGreen;
             const profitLoss = isGreen ? +(pos.stake * (pos.odd - 1)).toFixed(2) : -pos.stake;
             const betResult = isGreen ? 'green' : 'red';
             
-            console.log(`[evaluate-cashout] ⚡ IN-GAME SETTLE: ${pos.match_name} | ${pos.market} | ${scoreH}-${scoreA} | ${betResult} | R$${profitLoss}`);
+            console.log(`[evaluate-cashout] ⚡ IN-GAME SETTLE: ${pos.match_name} | ${pos.market} | ${scoreH}-${scoreA} | ${betResult} | R$${profitLoss} | ${settlement.reason}`);
 
             await supabase.from('virtual_bets').update({
               status: betResult, profit_loss: profitLoss,
               score_home: scoreH, score_away: scoreA,
               settled_at: new Date().toISOString(),
-              mycroft_cashout_reason: liveMatch.status === 'finished' 
-                ? `[AUTO] Jogo encerrado ${scoreH}x${scoreA}` 
-                : `[AUTO] Condição ${pos.market} atingida no min ${minuto}' (${scoreH}x${scoreA})`,
+              mycroft_cashout_reason: `[AUTO] ${settlement.reason}`,
             }).eq('id', pos.id);
 
             // Update sports_bankroll
@@ -245,7 +407,7 @@ Deno.serve(async (req) => {
               entry_odd: pos.entry_odd || pos.odd, current_odd: pos.odd,
               cashout_value: isGreen ? pos.stake * pos.odd : 0, stake: pos.stake,
               signal_type: 'AUTO_SETTLE', position_health: betResult.toUpperCase(),
-              mycroft_reason: liveMatch.status === 'finished' ? 'Jogo encerrado' : `Condição atingida min ${minuto}'`,
+              mycroft_reason: settlement.reason,
               was_accepted: true, accepted_at: new Date().toISOString(),
               placar: `${scoreH}-${scoreA}`, minuto,
             });
@@ -270,7 +432,7 @@ Deno.serve(async (req) => {
 
         // Build stats object for estimation
         const statsCtx = {
-          minute: minuto, score_home: liveMatch.score_home ?? 0, score_away: liveMatch.score_away ?? 0,
+          minute: minuto, score_home: liveMatch.scoreHome ?? 0, score_away: liveMatch.scoreAway ?? 0,
           xg_home: stats.xG_home ?? stats.xg_home ?? 0, xg_away: stats.xG_away ?? stats.xg_away ?? 0,
           dangerous_attacks_home: stats.dangerous_attacks_home ?? 0, dangerous_attacks_away: stats.dangerous_attacks_away ?? 0,
           shots_on_target_home: stats.shots_on_target_home ?? 0, shots_on_target_away: stats.shots_on_target_away ?? 0,
