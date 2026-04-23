@@ -39,9 +39,12 @@ export default function ActivePositions() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [settled, setSettled] = useState<SettledBet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recentlySettledIds, setRecentlySettledIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
+    let knownSettledIds = new Set<string>();
+    let isFirstLoad = true;
 
     async function fetchAll() {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -63,8 +66,34 @@ export default function ActivePositions() {
           .limit(10),
       ]);
 
+      const settledList = (settledRes.data as SettledBet[]) || [];
+
+      // Detect newly settled bets (not present in last snapshot)
+      if (!isFirstLoad) {
+        const newIds = settledList.map(b => b.id).filter(id => !knownSettledIds.has(id));
+        if (newIds.length > 0) {
+          setRecentlySettledIds(prev => {
+            const next = new Set(prev);
+            newIds.forEach(id => next.add(id));
+            return next;
+          });
+          // Clear pulse highlight after 8s
+          newIds.forEach(id => {
+            setTimeout(() => {
+              setRecentlySettledIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+              });
+            }, 8000);
+          });
+        }
+      }
+      knownSettledIds = new Set(settledList.map(b => b.id));
+      isFirstLoad = false;
+
       setPositions((pendingRes.data as any[]) || []);
-      setSettled((settledRes.data as any[]) || []);
+      setSettled(settledList);
       setLoading(false);
     }
 
