@@ -323,51 +323,147 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                     className="font-mono text-xs h-9"
                   />
                 </div>
+                {createKeyError && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-xs font-semibold text-destructive break-words">
+                          {createKeyError.title}
+                          {createKeyError.status ? ` (HTTP ${createKeyError.status})` : ''}
+                        </p>
+                        {createKeyError.hint && (
+                          <p className="text-[11px] text-foreground/80 leading-snug break-words">
+                            💡 {createKeyError.hint}
+                          </p>
+                        )}
+                        {createKeyError.detail && (
+                          <details className="text-[10px] text-muted-foreground">
+                            <summary className="cursor-pointer hover:text-foreground">Detalhes técnicos</summary>
+                            <pre className="mt-1 p-2 bg-background/50 rounded font-mono text-[10px] whitespace-pre-wrap break-all max-h-32 overflow-auto">
+{createKeyError.detail}
+                            </pre>
+                          </details>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const txt = `${createKeyError.title}\n${createKeyError.hint || ''}\n${createKeyError.detail || ''}`;
+                            navigator.clipboard?.writeText(txt);
+                            toast.success('Erro copiado');
+                          }}
+                          className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Copiar erro para suporte
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Button
                   className="w-full"
                   size="sm"
                   disabled={creatingKey || !createKeySessionToken.trim() || !createKeyName.trim()}
                   onClick={async () => {
+                    setCreateKeyError(null);
                     setCreatingKey(true);
                     try {
+                      const rawLen = createKeySessionToken.trim().length;
                       const normalized = normalizeSessionToken(createKeySessionToken);
-                      if (!normalized || normalized.length < 20) {
-                        throw new Error('SSOID inválido. Cole apenas o VALOR do cookie ssoid (sem "ssoid=" e sem ponto e vírgula).');
+                      console.log('[CreateBetfairKey] Iniciando…', { rawLen, normalizedLen: normalized.length });
+
+                      if (!normalized) {
+                        throw Object.assign(new Error('SSOID vazio'), {
+                          _details: { title: 'SSOID vazio', hint: 'Cole o valor do cookie ssoid antes de continuar.' } as ErrorDetails,
+                        });
                       }
-                      // Garante que existe sessão antes de invocar
+                      if (normalized.length < 20) {
+                        throw Object.assign(new Error('SSOID inválido'), {
+                          _details: {
+                            title: 'SSOID inválido (muito curto)',
+                            hint: 'Cole apenas o VALOR do cookie ssoid (sem "ssoid=" e sem ponto e vírgula). Esperado ~40+ caracteres.',
+                            detail: `Comprimento recebido: ${normalized.length}`,
+                          } as ErrorDetails,
+                        });
+                      }
+
                       const { data: session } = await supabase.auth.getSession();
                       if (!session?.session?.access_token) {
-                        throw new Error('Sessão expirada. Faça login novamente e tente outra vez.');
+                        throw Object.assign(new Error('Sessão expirada'), {
+                          _details: {
+                            title: 'Sessão expirada',
+                            hint: 'Sua sessão no app expirou. Faça login novamente e repita o processo.',
+                          } as ErrorDetails,
+                        });
                       }
+
                       console.log('[CreateBetfairKey] Invocando edge function…', {
                         ssoidLen: normalized.length,
                         appName: createKeyName.trim(),
                       });
-                      const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
+
+                      const invokePromise = supabase.functions.invoke('create-betfair-appkey', {
                         body: { sessionToken: normalized, appName: createKeyName.trim() },
                       });
+                      const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(Object.assign(new Error('Timeout'), {
+                          _details: {
+                            title: 'Tempo esgotado (30s)',
+                            hint: 'A função demorou demais para responder. Verifique sua conexão e tente novamente.',
+                          } as ErrorDetails,
+                        })), 30000)
+                      );
+
+                      const result: any = await Promise.race([invokePromise, timeoutPromise]);
+                      const { data, error } = result;
                       console.log('[CreateBetfairKey] Resposta:', { data, error });
 
-                      if (error) throw new Error(await extractFunctionErrorMessage(error));
+                      if (error) {
+                        const details = await extractFunctionError(error);
+                        throw Object.assign(new Error(details.title), { _details: details });
+                      }
+                      if (!data) {
+                        throw Object.assign(new Error('Resposta vazia'), {
+                          _details: {
+                            title: 'A função retornou resposta vazia',
+                            hint: 'Tente novamente. Se persistir, contate o suporte.',
+                          } as ErrorDetails,
+                        });
+                      }
                       if (data?.error) {
-                        const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail ?? '');
-                        throw new Error(`${data.error}${detail ? ` — ${detail.slice(0, 200)}` : ''}`);
+                        const detail = typeof data.detail === 'string'
+                          ? data.detail
+                          : data.detail ? JSON.stringify(data.detail).slice(0, 500) : undefined;
+                        throw Object.assign(new Error(data.error), {
+                          _details: { title: data.error, hint: data.hint, detail } as ErrorDetails,
+                        });
                       }
 
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
                         setAppKey(key);
-                        // Also pre-fill SSOID since user already provided it
                         setSsoid(normalized);
                         setCreateKeySessionToken('');
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
+                        setShowCreateKey(false);
                       } else {
-                        toast.warning('A Betfair respondeu mas não retornou nenhuma chave. Verifique no portal Developer.');
+                        setCreateKeyError({
+                          title: 'A Betfair não retornou nenhuma chave',
+                          hint: 'A requisição foi aceita, mas nenhuma App Key foi devolvida. Verifique o portal Developer da Betfair.',
+                          detail: JSON.stringify(data).slice(0, 500),
+                        });
                       }
-                      setShowCreateKey(false);
                     } catch (e: any) {
                       console.error('[CreateBetfairKey] Falha:', e);
-                      toast.error(e?.message || 'Falha ao criar App Key', { duration: 8000 });
+                      const details: ErrorDetails = e?._details || {
+                        title: e?.message || 'Falha ao criar App Key',
+                        hint: 'Erro inesperado. Abra o console do navegador (F12) para mais detalhes.',
+                      };
+                      setCreateKeyError(details);
+                      toast.error(details.title, {
+                        description: details.hint,
+                        duration: 10000,
+                      });
                     } finally {
                       setCreatingKey(false);
                     }
