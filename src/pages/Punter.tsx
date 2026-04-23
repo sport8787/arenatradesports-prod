@@ -27,6 +27,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import SignalsFeed from '@/components/punter/SignalsFeed';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
+import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
@@ -1246,66 +1247,8 @@ export default function PunterPage() {
         {/* Feed de Sinais (APROVADO + GREEN/RED) */}
         <SignalsFeed />
 
-        {/* Navigation Links — Apenas destaques na home */}
-        <div className="space-y-2">
-          {/* Gerador de Múltiplas (destaque) */}
-          <button
-            onClick={() => navigate('/punter/multiplas')}
-            className="w-full border-2 border-primary/40 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 p-4 flex items-center justify-between hover:from-primary/15 hover:to-primary/10 transition-colors group shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-md bg-primary/20 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="font-mono text-sm font-bold text-foreground">Gerador de Múltiplas</p>
-                <p className="font-mono text-[11px] text-muted-foreground">Múltiplas otimizadas por IA — correlação, Kelly, edge agregado</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-mono bg-primary/20 text-primary px-1.5 py-0.5 rounded">BETA</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-            </div>
-          </button>
-
-          {/* Arena Trader Sports (destaque) */}
-          <button
-            onClick={() => navigate('/arena-trader-sports')}
-            className="w-full border-2 border-primary/40 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 p-4 flex items-center justify-between hover:from-primary/15 hover:to-primary/10 transition-colors group shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-md bg-primary/20 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="font-mono text-sm font-bold text-foreground">Arena Trader Sports</p>
-                <p className="font-mono text-[11px] text-muted-foreground">Apostas ao vivo com análise Mycroft em tempo real</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-mono bg-destructive/20 text-destructive px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-            </div>
-          </button>
-
-          {/* Suporte WhatsApp (destaque) */}
-          <WhatsAppSupportButton variant="full" className="w-full" />
-
-          {/* Funções da Arena Punter — agrupa Análise Detalhada, Importar, Configurações e Banca Virtual */}
-          <button
-            onClick={() => navigate('/punter/funcoes')}
-            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
-          >
-            <div className="flex items-center gap-2.5">
-              <LayoutGrid className="w-4 h-4 text-primary" />
-              <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Funções da Arena Punter</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Análise detalhada, importar, banca virtual, configurações</p>
-              </div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-          </button>
-        </div>
+        {/* Navigation Grid — 3 seções (Ações Principais / Minha Banca / Comunidade) */}
+        <PunterNavGrid />
 
 
         {/* Scanner Panel */}
