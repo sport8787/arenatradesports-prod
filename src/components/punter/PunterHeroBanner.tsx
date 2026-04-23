@@ -252,47 +252,25 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick, hideF
 
         {/* Side column: countdown + telegram */}
         <div className="space-y-3">
-          <div className="border border-primary/30 bg-card/50">
-            <div className="px-3 py-1.5 border-b border-primary/20 font-mono text-[10px] flex justify-between text-muted-foreground">
-              <span>NEXT_EVENT</span>
-              <span className="text-destructive animate-pulse">COUNTDOWN</span>
-            </div>
-            <div className="p-4 text-center">
-              <div className="font-mono text-2xl sm:text-3xl font-black text-foreground tabular-nums tracking-tight">
-                {countdown ?? '--:--:--'}
+          {nextMatch && (
+            <div className="border border-primary/30 bg-card/50">
+              <div className="px-3 py-1.5 border-b border-primary/20 font-mono text-[10px] flex justify-between text-muted-foreground">
+                <span>NEXT_EVENT</span>
+                <span className="text-destructive animate-pulse">COUNTDOWN</span>
               </div>
-              <p className="text-[9px] font-mono text-primary/60 uppercase tracking-widest mt-1">
-                Hrs : Min : Seg
-              </p>
-              {nextMatch && (
+              <div className="p-4 text-center">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-foreground tabular-nums tracking-tight">
+                  {countdown ?? '--:--:--'}
+                </div>
+                <p className="text-[9px] font-mono text-primary/60 uppercase tracking-widest mt-1">
+                  Hrs : Min : Seg
+                </p>
                 <p className="text-[10px] text-foreground mt-3 font-bold uppercase truncate">
                   {nextMatch.label}
                 </p>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate('/punter/config')}
-            className="w-full border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-3 group text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="shrink-0 w-9 h-9 flex items-center justify-center border border-primary/40 bg-background">
-                <Send className="w-4 h-4 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Live Data Stream
-                </p>
-                <p className="font-bold text-foreground text-sm">
-                  {onlineCount} agentes conectados
-                </p>
-              </div>
-              <span className="bg-primary text-primary-foreground px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors">
-                Ativar
-              </span>
             </div>
-          </button>
+          )}
 
           <a
             href="https://t.me/oraculo_mycroft"
