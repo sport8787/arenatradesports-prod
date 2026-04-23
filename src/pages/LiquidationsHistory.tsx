@@ -361,7 +361,7 @@ export default function LiquidationsHistory() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={exportPDF}
+                onClick={openPdfDialog}
                 disabled={filtered.length === 0}
                 className="text-xs"
               >
