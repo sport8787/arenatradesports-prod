@@ -11,11 +11,6 @@ import {
   Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FOUNDERS_GROUP } from '@/config/foundersGroup';
-
-const TELEGRAM_URL = 'https://t.me/oraculo_mycroft';
-const SUPPORT_WHATSAPP =
-  'https://wa.me/5581982221714?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft';
 
 type Badge = { label: string; tone: 'live' | 'beta' | 'exclusive' };
 
