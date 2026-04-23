@@ -508,7 +508,7 @@ export default function LiveMatchDetail() {
           <GoldButton onClick={() => navigate('/historico')}>
             <History className="w-4 h-4 mr-2" /> Ver histórico
           </GoldButton>
-          <Button variant="outline" onClick={() => navigate('/punter/menu')}>
+          <Button variant="outline" onClick={() => navigate('/arena-trader-sports')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
           </Button>
         </div>
