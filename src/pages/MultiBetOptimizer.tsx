@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 
 // ============================================================================
 // TYPES
@@ -121,6 +122,7 @@ export default function MultiBetOptimizerPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-3xl">
+        <PunterBreadcrumb items={[{ label: 'Gerador de Múltipla' }]} />
         {/* Warning Banner */}
         <Card className="border-warning/30 bg-warning/5">
           <CardContent className="p-4">

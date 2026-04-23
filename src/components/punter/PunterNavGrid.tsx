@@ -11,11 +11,6 @@ import {
   Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FOUNDERS_GROUP } from '@/config/foundersGroup';
-
-const TELEGRAM_URL = 'https://t.me/oraculo_mycroft';
-const SUPPORT_WHATSAPP =
-  'https://wa.me/5581982221714?text=Preciso%20de%20ajuda%20com%20o%20Or%C3%A1culo%20Mycroft';
 
 type Badge = { label: string; tone: 'live' | 'beta' | 'exclusive' };
 
@@ -102,11 +97,8 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
       onApprovedSignalsClick();
       return;
     }
-    const el = document.getElementById('signals-section');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    navigate('/punter/aprovadas');
   };
-
-  const open = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
 
   return (
     <div className="space-y-5">
@@ -180,7 +172,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         <SectionLabel>Comunidade e Suporte</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
-            onClick={() => open(TELEGRAM_URL)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<MessageCircle className="w-4 h-4" />}
             iconBg="bg-[#229ED9]/15"
             iconColor="text-[#229ED9]"
@@ -188,7 +180,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             description="Sinais e alertas em tempo real"
           />
           <NavCard
-            onClick={() => open(FOUNDERS_GROUP.url)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<MessagesSquare className="w-4 h-4" />}
             iconBg="bg-[#25D366]/15"
             iconColor="text-[#25D366]"
@@ -197,7 +189,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             badge={{ label: 'Exclusivo', tone: 'exclusive' }}
           />
           <NavCard
-            onClick={() => open(SUPPORT_WHATSAPP)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<Info className="w-4 h-4" />}
             iconBg="bg-muted/40"
             iconColor="text-foreground"

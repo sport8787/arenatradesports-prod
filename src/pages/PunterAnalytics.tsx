@@ -1,4 +1,5 @@
 import { ArrowLeft, BarChart3, Target, Clock, TrendingUp, AlertTriangle, Brain, Search, Calculator, Layers, Award, Shield, ShieldAlert } from 'lucide-react';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
@@ -46,6 +47,7 @@ export default function PunterAnalytics() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Meu Desempenho' }]} />
         {/* Poisson/Dixon-Coles */}
         <section>
           <SectionHeader icon={<Calculator className="w-3.5 h-3.5" />} label="MODELO POISSON / DIXON-COLES" />

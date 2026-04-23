@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BarChart3, Upload, Settings, Wallet, ChevronRight } from 'lucide-react';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 
 interface FunctionItem {
   title: string;
@@ -56,6 +57,7 @@ export default function PunterFunctionsPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-3">
+        <PunterBreadcrumb items={[{ label: 'Funções' }]} className="mb-2" />
         <div className="mb-2">
           <p className="font-mono text-xs text-muted-foreground">
             Acesse aqui as funções avançadas e configurações da Arena Punter.

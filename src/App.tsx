@@ -35,6 +35,8 @@ import PunterConfig from "./pages/PunterConfig";
 import PunterImport from "./pages/PunterImport";
 import PunterFunctions from "./pages/PunterFunctions";
 import PunterBancaVirtual from "./pages/PunterBancaVirtual";
+import PunterAprovadas from "./pages/PunterAprovadas";
+import PunterComunidade from "./pages/PunterComunidade";
 import ArenaTrader from "./pages/ArenaTrader";
 import ArenaPoker from "./pages/ArenaPoker";
 import ArenaTraderRankings from "./pages/ArenaTraderRankings";
@@ -101,6 +103,8 @@ const App = () => {
               <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
               <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
               <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
+              <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
+              <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
               <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
               <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
               <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />

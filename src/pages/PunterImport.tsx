@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import BetImportPanel from '@/components/punter/BetImportPanel';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import ImportedBetsAnalytics from '@/components/punter/ImportedBetsAnalytics';
 import BankrollComparison from '@/components/punter/BankrollComparison';
 import BetfairConfig from '@/components/punter/BetfairConfig';
@@ -42,6 +43,7 @@ export default function PunterImport() {
       </header>
 
       <div className="container mx-auto px-4 py-4 max-w-4xl space-y-4">
+        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Importar Apostas' }]} />
         {!user ? (
           <p className="text-muted-foreground text-sm text-center py-8">Faça login para acessar.</p>
         ) : (
