@@ -1260,7 +1260,8 @@ serve(async (req) => {
             `🛡️ Mercado "${original}" inválido após o intervalo (min ${min}'). Substituído por "${converted}".`,
           ];
           if (analysis.risk_management) {
-            analysis.risk_management.entry = `${converted} @ ${analysis.odd || 1.50}`;
+            const oddLabel = analysis.odd != null ? analysis.odd : '—';
+            analysis.risk_management.entry = `${converted} @ ${oddLabel}`;
           }
         } else {
           // Após min 70 não há mais como salvar uma entrada de 1T — vetar
