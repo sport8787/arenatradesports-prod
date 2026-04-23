@@ -77,7 +77,7 @@ export default function PunterComunidadePage() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
-            onClick={() => navigate('/punter')}
+            onClick={() => navigate('/punter/menu')}
             className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Voltar para Arena Punter"
           >

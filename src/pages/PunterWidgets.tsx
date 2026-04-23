@@ -65,7 +65,7 @@ export default function PunterWidgets() {
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">Widgets não disponíveis. Chave da API não configurada.</p>
-            <Button onClick={() => navigate('/punter')} className="mt-4">Voltar</Button>
+            <Button onClick={() => navigate('/punter/menu')} className="mt-4">Voltar</Button>
           </CardContent>
         </Card>
       </div>
@@ -78,7 +78,7 @@ export default function PunterWidgets() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/punter')} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => navigate('/punter/menu')} className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">

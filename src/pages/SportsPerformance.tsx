@@ -132,7 +132,7 @@ export default function SportsPerformance() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <button onClick={() => navigate('/arena-trader-sports')} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => navigate('/punter/menu')} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
