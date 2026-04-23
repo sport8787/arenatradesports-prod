@@ -54,9 +54,18 @@ export default function PoissonPanel() {
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Calculator className="w-4 h-4 text-primary" />
-        <span className="font-mono text-xs font-bold text-foreground">POISSON / DIXON-COLES</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs font-bold text-foreground">POISSON / DIXON-COLES</span>
+        </div>
+        <button
+          onClick={() => setExplainOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-mono rounded-md transition-colors"
+        >
+          <HelpCircle className="w-3 h-3" />
+          EXPLICAR
+        </button>
       </div>
 
       <div className="bg-muted/20 border border-border/60 rounded-lg p-2.5">
@@ -66,6 +75,31 @@ export default function PoissonPanel() {
           calculadas a partir dos gols esperados (xG). Não representam o que está acontecendo ao vivo.
           Cada <span className="text-foreground">Odd</span> exibida é a <span className="text-foreground">odd justa</span> (= 100 ÷ probabilidade): se a casa pagar acima dela, há valor.
         </p>
+      </div>
+
+      {/* Value bet quick example */}
+      <div className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-lg p-2.5 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Target className="w-3 h-3 text-primary" />
+          <span className="text-[10px] font-mono font-bold text-foreground">EXEMPLO RÁPIDO — VALUE BET</span>
+        </div>
+        <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+          Probabilidade do modelo: <span className="text-foreground font-bold">50%</span> → Odd justa = 100 ÷ 50 = <span className="text-foreground font-bold">2.00</span>.
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 mt-1">
+          <div className="flex items-start gap-1.5 bg-green-500/10 border border-green-500/30 rounded px-2 py-1.5">
+            <TrendingUp className="w-3 h-3 text-green-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] font-mono text-foreground leading-snug">
+              Casa paga <span className="font-bold text-green-400">2.20</span> → <span className="font-bold">+10% de valor</span>. Aposta com edge.
+            </p>
+          </div>
+          <div className="flex items-start gap-1.5 bg-red-500/10 border border-red-500/30 rounded px-2 py-1.5">
+            <TrendingDown className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] font-mono text-foreground leading-snug">
+              Casa paga <span className="font-bold text-red-400">1.80</span> → <span className="font-bold">-10% de valor</span>. Não aposte.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Inputs */}
