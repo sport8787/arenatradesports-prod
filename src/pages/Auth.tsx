@@ -53,7 +53,7 @@ const Auth = () => {
       if (profile.username === 'Jogador') {
         setShowNicknameSetup(true);
       } else {
-        navigate('/punter');
+        navigate('/punter/menu');
       }
     }
   }, [isAuthenticated, loading, profile, navigate]);
@@ -112,7 +112,7 @@ const Auth = () => {
         } else {
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso' });
-          navigate('/punter');
+          navigate('/punter/menu');
         }
       } else {
         const { data, error } = await signUp(email, password, username);
@@ -155,7 +155,7 @@ const Auth = () => {
 
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
-          navigate('/punter');
+          navigate('/punter/menu');
         }
       }
     } finally {
@@ -194,7 +194,7 @@ const Auth = () => {
     
     sessionStorage.setItem('guestMode', 'true');
     sessionStorage.setItem('guestNickname', guestNickname);
-    navigate('/punter');
+    navigate('/punter/menu');
   };
 
   const handleSaveNickname = async () => {
@@ -212,7 +212,7 @@ const Auth = () => {
       toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
     } else {
       toast({ title: 'Nickname salvo!', description: `Bem-vindo, ${newNickname}!` });
-      navigate('/punter');
+      navigate('/punter/menu');
     }
   };
 
