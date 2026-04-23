@@ -7,6 +7,9 @@ const corsHeaders = {
 };
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+const LIVE_STATUS_SHORTS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP']);
+const FINISHED_STATUS_SHORTS = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
+const STALE_FINISH_GRACE_MS = 20 * 60 * 1000;
 
 // Whitelist de ligas permitidas (league_id → nome)
 const LIGAS_PERMITIDAS: Record<number, string> = {
@@ -99,6 +102,20 @@ function getSupabaseAdmin() {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+}
+
+function getFixtureLifecycleStatus(shortStatus: string | null | undefined): 'live' | 'finished' | 'scheduled' {
+  const normalized = String(shortStatus || '').toUpperCase();
+  if (LIVE_STATUS_SHORTS.has(normalized)) return 'live';
+  if (FINISHED_STATUS_SHORTS.has(normalized)) return 'finished';
+  return 'scheduled';
+}
+
+function isRecentlyUpdated(updatedAt: string | null | undefined, graceMs = STALE_FINISH_GRACE_MS): boolean {
+  if (!updatedAt) return false;
+  const ts = new Date(updatedAt).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts < graceMs;
 }
 
 interface FixtureStats {
@@ -253,6 +270,8 @@ serve(async (req) => {
       const minute = fixture.fixture.status?.elapsed ?? 0;
       const period = fixture.fixture.status?.long ?? 'Unknown';
       const championship = fixture.league?.name ?? 'Unknown';
+      const apiShortStatus = fixture.fixture.status?.short ?? 'LIVE';
+      const lifecycleStatus = getFixtureLifecycleStatus(apiShortStatus);
 
       const matchData = {
         match_id: fixtureId,
@@ -265,19 +284,21 @@ serve(async (req) => {
         minute,
         period,
         championship,
-        status: 'live',
+        status: lifecycleStatus,
         updated_at: new Date().toISOString(),
       };
 
       // 3. Fetch live stats for all live matches
-      const stats: FixtureStats | null = await fetchFixtureStats(fixture.fixture.id, apiKey);
+      const stats: FixtureStats | null = lifecycleStatus === 'live'
+        ? await fetchFixtureStats(fixture.fixture.id, apiKey)
+        : null;
 
       // 4. Upsert match (preserve mycroft fields)
       const { data: existing } = await supabase
         .from('live_matches')
-        .select('mycroft_status, mycroft_analysis_id')
+        .select('mycroft_status, mycroft_analysis_id, updated_at, status')
         .eq('match_id', fixtureId)
-        .single();
+        .maybeSingle();
 
       const upsertData: any = {
         ...matchData,
@@ -296,7 +317,7 @@ serve(async (req) => {
 
       // Auto-trigger Mycroft (minute >= 20, has stats, sem análise OU status reanalisável)
       const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
-      const shouldAnalyze = minute >= 20 && stats &&
+      const shouldAnalyze = lifecycleStatus === 'live' && minute >= 20 && stats &&
         (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
 
       let analyzed = false;
@@ -369,26 +390,37 @@ serve(async (req) => {
         has_stats: !!stats,
         analyzed,
         verdict,
+        status: lifecycleStatus,
       });
     }
 
-    // 6. Mark matches no longer live as 'finished'
+    // 6. Mark matches no longer live as 'finished' only after grace period to avoid API snapshot flicker
     const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
     const { data: currentLive } = await supabase
       .from('live_matches')
-      .select('match_id')
+      .select('match_id, updated_at, minute, status')
       .eq('status', 'live');
 
-    const staleIds = (currentLive || [])
-      .map((m: any) => m.match_id)
-      .filter((id: string) => !liveMatchIds.includes(id));
+    const staleRows = (currentLive || []).filter((match: any) => {
+      if (liveMatchIds.includes(match.match_id)) return false;
+      return !isRecentlyUpdated(match.updated_at);
+    });
+
+    const staleIds = staleRows.map((m: any) => m.match_id);
+    const skippedRecentIds = (currentLive || [])
+      .filter((match: any) => !liveMatchIds.includes(match.match_id) && isRecentlyUpdated(match.updated_at))
+      .map((m: any) => m.match_id);
+
+    if (skippedRecentIds.length > 0) {
+      console.log(`[FetchLive] Grace period active, keeping ${skippedRecentIds.length} jogos ao vivo temporariamente: ${skippedRecentIds.join(', ')}`);
+    }
 
     if (staleIds.length > 0) {
       await supabase
         .from('live_matches')
         .update({ status: 'finished', updated_at: new Date().toISOString() })
         .in('match_id', staleIds);
-      console.log(`[FetchLive] Marked ${staleIds.length} matches as finished`);
+      console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
     // 7. Fetch today's scheduled fixtures and save to scheduled_games (one-time cache)
