@@ -231,6 +231,8 @@ export default function PunterBetfairReal() {
                   Re-sync Completo
                 </Button>
               </div>
+
+              <SyncStatusPanel sync={sync} elapsed={elapsed} />
             </Card>
 
             {/* CARD 2 — Análise Hórus */}
