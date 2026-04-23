@@ -227,10 +227,11 @@ export default function LiquidationsHistory() {
     if (dateTo) filterParts.push(`Até: ${format(dateTo, 'dd/MM/yyyy', { locale: ptBR })}`);
     doc.text(filterParts.join('   |   '), 40, ownerName ? 94 : 80);
 
+    const resumoY = ownerName ? 124 : 110;
     doc.setTextColor(20);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Resumo', 40, 110);
+    doc.text('Resumo', 40, resumoY);
 
     const summary = [
       ['Total', String(filtered.length)],
@@ -240,7 +241,7 @@ export default function LiquidationsHistory() {
       ['P&L Total', `${stats.pnl >= 0 ? '+' : ''}R$ ${stats.pnl.toFixed(2)}`],
     ];
     autoTable(doc, {
-      startY: 118,
+      startY: resumoY + 8,
       head: [['Métrica', 'Valor']],
       body: summary,
       theme: 'grid',
