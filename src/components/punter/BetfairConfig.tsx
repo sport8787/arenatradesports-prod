@@ -76,6 +76,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
   const [createKeySessionToken, setCreateKeySessionToken] = useState('');
   const [createKeyName, setCreateKeyName] = useState('ArenaTradeSports');
   const [creatingKey, setCreatingKey] = useState(false);
+  const [createKeyError, setCreateKeyError] = useState<ErrorDetails | null>(null);
 
   useEffect(() => {
     loadConnection();
