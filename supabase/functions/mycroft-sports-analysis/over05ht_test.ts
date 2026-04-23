@@ -103,8 +103,9 @@ Deno.test("C1: aprova SEM xG (xG opcional/ausente)", () => {
 Deno.test("C1: rejeita posse 59% (precisa >= 60)", () => {
   const r = evaluateOver05HT({
     minute: 18, scoreHome: 0, scoreAway: 0,
-    home: { possession: 59, dangerousAttacks: 7, shotsOnTarget: 4, xG: 1.0 },
-    away: { possession: 41, dangerousAttacks: 2, shotsOnTarget: 1 },
+    // home falha C1 por posse; totais baixos para não disparar C2
+    home: { possession: 59, dangerousAttacks: 4, shotsOnTarget: 2, xG: 0.4 },
+    away: { possession: 41, dangerousAttacks: 2, shotsOnTarget: 1, xG: 0.2 },
   });
   assertEquals(r.approved, false);
 });
