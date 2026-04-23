@@ -238,7 +238,7 @@ export default function ActivePositions() {
                 const pnl = bet.profit_loss ?? (isWon ? (bet.stake * bet.odd - bet.stake) : -bet.stake);
                 const isProfit = pnl >= 0;
 
-                const label = isCashout ? 'CASH OUT' : isWon ? 'GREEN' : 'RED';
+                const label = isCashout ? 'CASH OUT' : isWon ? 'GREN' : 'RED';
                 const labelColor = isCashout
                   ? 'bg-primary text-primary-foreground'
                   : isWon
@@ -251,38 +251,58 @@ export default function ActivePositions() {
                     : 'border-destructive/40 bg-destructive/5';
 
                 const hasScore = bet.score_home !== null && bet.score_away !== null;
+                const isJustSettled = recentlySettledIds.has(bet.id);
 
                 return (
                   <motion.div
                     key={bet.id}
                     layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className={cn('border rounded-xl p-4 space-y-3', borderColor)}
+                    transition={{ type: 'spring', damping: 18 }}
+                    className={cn(
+                      'border rounded-xl p-4 space-y-3 transition-shadow',
+                      borderColor,
+                      isJustSettled && (isWon
+                        ? 'shadow-[0_0_24px_hsl(var(--success)/0.5)] ring-2 ring-success/40'
+                        : isCashout
+                          ? 'shadow-[0_0_24px_hsl(var(--primary)/0.5)] ring-2 ring-primary/40'
+                          : 'shadow-[0_0_24px_hsl(var(--destructive)/0.5)] ring-2 ring-destructive/40')
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-orbitron text-xs font-bold text-foreground truncate">{bet.match_name}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{bet.market} @ {Number(bet.odd).toFixed(2)}</p>
                       </div>
-                      <span className={cn(
-                        'flex items-center gap-1 px-2.5 py-1 rounded-md font-orbitron text-[10px] font-black uppercase tracking-wider',
-                        labelColor
-                      )}>
+                      <motion.span
+                        initial={isJustSettled ? { scale: 0.6, opacity: 0 } : false}
+                        animate={isJustSettled ? { scale: [0.6, 1.25, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.6 }}
+                        className={cn(
+                          'flex items-center gap-1 px-2.5 py-1 rounded-md font-orbitron text-[11px] font-black uppercase tracking-wider shadow-md',
+                          labelColor,
+                          isJustSettled && 'animate-pulse'
+                        )}
+                      >
                         {isWon ? <CheckCircle2 className="w-3 h-3" /> : isCashout ? <Trophy className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {label}
-                      </span>
+                      </motion.span>
                     </div>
 
                     {/* Placar final */}
                     {hasScore && (
-                      <div className="flex items-center justify-center gap-3 bg-background/60 rounded-lg py-2">
+                      <motion.div
+                        initial={isJustSettled ? { scale: 0.9, opacity: 0 } : false}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="flex items-center justify-center gap-3 bg-background/60 rounded-lg py-2"
+                      >
                         <span className="text-[10px] uppercase text-muted-foreground font-orbitron">Placar Final</span>
                         <span className="font-orbitron text-2xl font-black text-foreground tabular-nums">
                           {bet.score_home} <span className="text-muted-foreground mx-1">×</span> {bet.score_away}
                         </span>
-                      </div>
+                      </motion.div>
                     )}
 
                     {/* Resultado financeiro */}
