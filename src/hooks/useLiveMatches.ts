@@ -93,9 +93,10 @@ export function useLiveMatches() {
         // Remove jogos antigos sem atualização há mais de 4h (evita lixo)
         const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
         if (updatedAgoMs > 4 * 60 * 60 * 1000) return false;
-        // Filtro de liga relaxado: aceita whitelist OU jogo em andamento (minute > 0)
-        const allowed = isAllowedLeague(match.championship) || (match.minute && match.minute > 0);
-        return allowed;
+        // Backend já controla quais jogos entram em live_matches (whitelist de ligas).
+        // Frontend NÃO deve refiltrar por liga — isso causava jogos sumindo da UI
+        // quando o nome do campeonato vinha em outro idioma/variante.
+        return true;
       })
       .map((match: any) => {
         const analysis = match.mycroft_analyses || null;
