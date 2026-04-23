@@ -147,16 +147,9 @@ async function sendTelegramDedup(
   text: string,
   meta: { match_id: string; market: string; verdict: string },
 ): Promise<boolean> {
-  // Despacha em paralelo para:
-  //  1. Canal principal (TELEGRAM_CHAT_ID padrão) — canal 'trader-events'
-  //  2. Grupo público da Arena Trader Sports — canal 'trader-sports-live'
-  // Cada destino tem seu próprio canal de dedupe, então o mesmo evento pode
-  // ir para ambos sem ser bloqueado pelo dedupe global.
-  const [mainOk, liveOk] = await Promise.all([
-    dispatchOne(text, meta, 'trader-events'),
-    dispatchOne(text, meta, 'trader-sports-live', TRADER_SPORTS_LIVE_CHAT),
-  ]);
-  return mainOk || liveOk;
+  // Sinais ao vivo da Arena Trader Sports vão SOMENTE para o grupo dedicado
+  // @oraculo_mycroft_trader. Não enviar para o chat principal (oraculo_mycroft).
+  return await dispatchOne(text, meta, 'trader-sports-live', TRADER_SPORTS_LIVE_CHAT);
 }
 
 Deno.serve(async (req) => {
