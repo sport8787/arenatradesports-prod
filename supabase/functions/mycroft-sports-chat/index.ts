@@ -242,9 +242,9 @@ async function lookupMatchContext(query: string): Promise<string> {
     const { data: live } = await supabase
       .from("live_matches")
       .select("*, mycroft_analyses(*)")
-      .in("status", ["live", "halftime"])
+      .in("status", ["live", "halftime", "1H", "2H", "HT"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(200);
 
     if (live && live.length > 0) {
       // Find matches specifically mentioned in the query
@@ -270,15 +270,6 @@ async function lookupMatchContext(query: string): Promise<string> {
         }
       }
 
-      // Always show all live matches summary so AI has full context
-      const withStats = live.filter((m: any) => {
-        const s = m.stats || {};
-        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) > 0;
-      });
-      const withoutStats = live.filter((m: any) => {
-        const s = m.stats || {};
-        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) === 0;
-      });
 
       // Agrupar por período (ajuda IA a filtrar perguntas tipo "jogos no 1T")
       const firstHalf = live.filter((m: any) => { const min = Number(m.minute)||0; return min > 0 && min <= 45 && (m.status||"").toLowerCase() !== "halftime"; });
