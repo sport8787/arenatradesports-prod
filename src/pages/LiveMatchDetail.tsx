@@ -508,7 +508,7 @@ export default function LiveMatchDetail() {
           <GoldButton onClick={() => navigate('/historico')}>
             <History className="w-4 h-4 mr-2" /> Ver histórico
           </GoldButton>
-          <Button variant="outline" onClick={() => navigate('/punter/menu')}>
+          <Button variant="outline" onClick={() => navigate('/arena-trader-sports')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
           </Button>
         </div>
@@ -532,7 +532,7 @@ export default function LiveMatchDetail() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <button
-            onClick={() => navigate('/punter/menu')}
+            onClick={() => navigate('/arena-trader-sports')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-orbitron uppercase tracking-wider"
           >
             <ArrowLeft className="w-4 h-4" /> Retornar
