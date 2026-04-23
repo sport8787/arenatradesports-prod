@@ -857,7 +857,7 @@ serve(async (req) => {
       let d_priorActiveSignal: any = null;
       if (match.match_id) {
         try {
-          const { data: priorRows } = await supabase
+          const { data: priorRows } = await getSupabaseAdmin()
             .from('mycroft_analyses')
             .select('id, verdict, market, plan_name, created_at')
             .eq('match_id', match.match_id)
