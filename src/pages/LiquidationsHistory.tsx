@@ -297,15 +297,43 @@ export default function LiquidationsHistory() {
     });
 
     const pageCount = doc.getNumberOfPages();
+    const footerLeft = ownerName
+      ? `Documento emitido por ${ownerName} • ${format(ts, "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`
+      : `Carimbo: ${format(ts, "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`;
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(140);
-      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.text(footerLeft, 40, pageH - 20);
+      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, pageH - 20, { align: 'right' });
     }
 
-    doc.save(`liquidacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+    const ownerSlug = ownerName ? '_' + ownerName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) : '';
+    doc.save(`liquidacoes${ownerSlug}_${format(ts, 'yyyy-MM-dd_HHmm')}.pdf`);
     toast.success(`PDF gerado com ${filtered.length} liquidações.`);
+  }
+
+  function openPdfDialog() {
+    if (filtered.length === 0) {
+      toast.error('Nenhuma liquidação para exportar.');
+      return;
+    }
+    if (!pdfOwnerName && defaultName) setPdfOwnerName(defaultName);
+    const now = new Date();
+    const tzOffsetMin = now.getTimezoneOffset();
+    const localIso = new Date(now.getTime() - tzOffsetMin * 60000).toISOString().slice(0, 16);
+    setPdfTimestamp(localIso);
+    setPdfDialogOpen(true);
+  }
+
+  function confirmPdfExport() {
+    const trimmedName = pdfOwnerName.trim();
+    if (trimmedName) localStorage.setItem('liquidations_pdf_owner_name', trimmedName);
+    else localStorage.removeItem('liquidations_pdf_owner_name');
+    const ts = pdfTimestamp ? new Date(pdfTimestamp) : new Date();
+    setPdfDialogOpen(false);
+    exportPDF({ ownerName: trimmedName, timestamp: isNaN(ts.getTime()) ? new Date() : ts });
   }
   return (
     <TooltipProvider delayDuration={150}>
