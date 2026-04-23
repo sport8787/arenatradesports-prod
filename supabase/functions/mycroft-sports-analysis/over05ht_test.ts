@@ -149,9 +149,40 @@ Deno.test("C1: rejeita xG presente abaixo de 0.75", () => {
   assertEquals(r.approved, false);
 });
 
-// ─────────────────────────────────────────────────────────────
-// CENÁRIO 2 — Jogo aberto e movimentado
-// ─────────────────────────────────────────────────────────────
+Deno.test("C1: xG do time SEM posse >= 60% é IGNORADO (não qualifica o outro time)", () => {
+  // away tem xG alto (0.95) mas posse só 40% → não dispara C1.
+  // home tem posse alta mas falha em chutes → também não dispara C1.
+  const r = evaluateOver05HT({
+    minute: 18, scoreHome: 0, scoreAway: 0,
+    home: { possession: 60, dangerousAttacks: 5, shotsOnTarget: 2, xG: 0.2 }, // chutes < 3
+    away: { possession: 40, dangerousAttacks: 6, shotsOnTarget: 4, xG: 0.95 }, // posse < 60
+  });
+  // total attacks=11, shots=6, posse 60/40 → C2 aprovaria? xG total=1.15 ≥ 1.0 ✓
+  // Sim, C2 deve aprovar — o que confirma que NÃO foi via C1.
+  assertEquals(r, { approved: true, cenario: 2 });
+});
+
+Deno.test("C1: xG baixo no time DOMINANTE reprova mesmo com xG alto no outro time", () => {
+  // home domina (posse 70, AP 6, chutes 4) mas xG=0.4 < 0.75 → C1 falha
+  // away tem xG 1.5 mas posse 30 → xG dele é ignorado para C1
+  // Totais baixos para garantir que C2 não passe (assim isolamos o teste em C1)
+  const r = evaluateOver05HT({
+    minute: 18, scoreHome: 0, scoreAway: 0,
+    home: { possession: 70, dangerousAttacks: 6, shotsOnTarget: 4, xG: 0.4 },
+    away: { possession: 30, dangerousAttacks: 1, shotsOnTarget: 0, xG: 1.5 },
+  });
+  // posse 30 < 35 também veta C2 → resultado: reprovado
+  assertEquals(r.approved, false);
+});
+
+Deno.test("C1: xG ausente no time dominante NÃO reprova (xG é opcional)", () => {
+  const r = evaluateOver05HT({
+    minute: 18, scoreHome: 0, scoreAway: 0,
+    home: { possession: 65, dangerousAttacks: 6, shotsOnTarget: 3 }, // sem xG
+    away: { possession: 35, dangerousAttacks: 1, shotsOnTarget: 1, xG: 0.05 },
+  });
+  assertEquals(r, { approved: true, cenario: 1 });
+});
 
 Deno.test("C2: aprova com totais ok e posse equilibrada", () => {
   const r = evaluateOver05HT({
