@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Send, Flame, MessageCircle, Copy, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -59,8 +59,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick, hideF
   const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0, source: 'empty', lastUpdated: null });
   const countdown = useCountdown(nextMatch?.kickoff);
 
-  // Synthetic but believable "punters online" counter (847 ± drift) for social proof
-  const onlineCount = useMemo(() => 820 + Math.floor(Math.random() * 60), []);
+  // (synthetic online counter removed — was creating noise)
 
   useEffect(() => {
     if (!userId) return;
