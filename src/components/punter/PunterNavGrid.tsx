@@ -97,7 +97,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
       onApprovedSignalsClick();
       return;
     }
-    navigate('/punter/aprovadas');
+    navigate('/punter');
   };
 
   return (

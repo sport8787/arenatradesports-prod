@@ -1,0 +1,37 @@
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
+import PunterNavGrid from '@/components/punter/PunterNavGrid';
+
+export default function PunterMenuPage() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
+          <button
+            onClick={() => navigate('/punter')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar para Arena Punter"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+            FUNÇÕES DA ARENA PUNTER
+          </h1>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-5 max-w-5xl space-y-5">
+        <PunterBreadcrumb items={[{ label: 'Funções' }]} />
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Acesse rapidamente</h2>
+          <p className="font-mono text-xs text-muted-foreground mt-1">
+            Todas as ferramentas, ajustes e canais oficiais da Arena Punter.
+          </p>
+        </div>
+        <PunterNavGrid />
+      </main>
+    </div>
+  );
+}
