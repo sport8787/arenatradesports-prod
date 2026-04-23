@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Brain, RefreshCw, TrendingUp, TrendingDown, AlertTriangle,
-  CheckCircle, XCircle, Target, Loader2, Sparkles, Lightbulb,
+  CheckCircle, XCircle, Target, Loader2, Sparkles, Lightbulb, Activity, Clock,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
