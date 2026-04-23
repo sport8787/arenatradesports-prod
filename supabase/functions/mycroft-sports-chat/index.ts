@@ -280,21 +280,36 @@ async function lookupMatchContext(query: string): Promise<string> {
         return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) === 0;
       });
 
+      // Agrupar por período (ajuda IA a filtrar perguntas tipo "jogos no 1T")
+      const firstHalf = live.filter((m: any) => { const min = Number(m.minute)||0; return min > 0 && min <= 45 && (m.status||"").toLowerCase() !== "halftime"; });
+      const halftime = live.filter((m: any) => { const min = Number(m.minute)||0; const st=(m.status||"").toLowerCase(); return st === "halftime" || (m.period||"").toLowerCase().includes("ht") || (min>=45 && min<=46 && st!=="live"); });
+      const secondHalf = live.filter((m: any) => { const min = Number(m.minute)||0; return min > 45 && (m.status||"").toLowerCase() !== "halftime"; });
+
       parts.push(`\n━━━ TODOS OS JOGOS AO VIVO (${live.length} partidas) ━━━`);
-      if (withStats.length > 0) {
-        parts.push("\n🟢 COM ESTATÍSTICAS:");
-        for (const m of withStats.slice(0, 15)) {
+      parts.push(`📊 Distribuição: 1º Tempo=${firstHalf.length} | Intervalo=${halftime.length} | 2º Tempo=${secondHalf.length}`);
+
+      if (firstHalf.length > 0) {
+        parts.push(`\n🟡 JOGOS NO 1º TEMPO (${firstHalf.length}):`);
+        for (const m of firstHalf) {
           parts.push(formatLiveMatchStats(m));
           const analysis = m.mycroft_analyses;
-          if (analysis) {
-            parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
-          }
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
         }
       }
-      if (withoutStats.length > 0) {
-        parts.push(`\n⚪ SEM ESTATÍSTICAS (${withoutStats.length} jogos):`);
-        for (const m of withoutStats.slice(0, 10)) {
-          parts.push(`• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} | ${m.championship} | Min: ${m.minute || "-"}`);
+      if (halftime.length > 0) {
+        parts.push(`\n🟠 JOGOS NO INTERVALO (${halftime.length}):`);
+        for (const m of halftime) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
+        }
+      }
+      if (secondHalf.length > 0) {
+        parts.push(`\n🟢 JOGOS NO 2º TEMPO (${secondHalf.length}):`);
+        for (const m of secondHalf) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
         }
       }
     }
