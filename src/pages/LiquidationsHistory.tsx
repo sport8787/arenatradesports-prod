@@ -134,8 +134,7 @@ export default function LiquidationsHistory() {
   const currentPage = Math.min(page, totalPages);
   const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [filter, dateFrom, dateTo]);
+  // Page is now URL-driven; setters above already reset to page 1 when filters change.
 
   // Stats summary
   const stats = useMemo(() => {
