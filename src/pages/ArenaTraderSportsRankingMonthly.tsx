@@ -116,7 +116,7 @@ export default function ArenaTraderSportsRankingMonthly() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex items-center gap-4 mb-2">
           <button
-            onClick={() => navigate('/arena-trader-sports')}
+            onClick={() => navigate('/punter/menu')}
             className="text-primary/80 hover:text-primary"
             aria-label="Voltar"
           >

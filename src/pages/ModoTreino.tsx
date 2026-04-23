@@ -168,7 +168,7 @@ export default function ModoTreino() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <button onClick={() => navigate('/arena-trader-sports')} className="text-muted-foreground hover:text-foreground"><ArrowLeft /></button>
+          <button onClick={() => navigate('/punter/menu')} className="text-muted-foreground hover:text-foreground"><ArrowLeft /></button>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground font-mono">{game.currentIndex + 1}/{scenarios.length}</span>
             <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
