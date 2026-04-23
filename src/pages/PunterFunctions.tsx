@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Upload, Settings, Wallet, ChevronRight } from 'lucide-react';
+import { ArrowLeft, BarChart3, Upload, Settings, Wallet, ChevronRight, Brain } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 
 interface FunctionItem {
@@ -17,8 +17,14 @@ const FUNCTIONS: FunctionItem[] = [
     to: '/punter/analytics',
   },
   {
+    title: 'Apostas Reais Betfair',
+    description: 'Sincronize, analise erros e compare com a Arena Trader Sports',
+    icon: <Brain className="w-4 h-4 text-primary" />,
+    to: '/punter/betfair-real',
+  },
+  {
     title: 'Importar & Análise',
-    description: 'Importar apostas, ROI, P&L, comparativo de banca',
+    description: 'CSV/PDF, ROI da banca virtual Hórus, comparativo manual',
     icon: <Upload className="w-4 h-4 text-primary" />,
     to: '/punter/import',
   },

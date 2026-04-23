@@ -33,6 +33,7 @@ import PunterAnalytics from "./pages/PunterAnalytics";
 import PunterWidgets from "./pages/PunterWidgets";
 import PunterConfig from "./pages/PunterConfig";
 import PunterImport from "./pages/PunterImport";
+import PunterBetfairReal from "./pages/PunterBetfairReal";
 import PunterFunctions from "./pages/PunterFunctions";
 import PunterBancaVirtual from "./pages/PunterBancaVirtual";
 import PunterAprovadas from "./pages/PunterAprovadas";
@@ -102,6 +103,7 @@ const App = () => {
               <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
               <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
               <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
+              <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
               <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
               <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
               <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
