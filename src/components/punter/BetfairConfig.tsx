@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Key, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Key, Lock, Save, Loader2, CheckCircle, XCircle, RefreshCw, Plus, AlertTriangle, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
