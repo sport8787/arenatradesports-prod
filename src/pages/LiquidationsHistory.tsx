@@ -13,6 +13,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -58,6 +61,17 @@ export default function LiquidationsHistory() {
 
   const [bets, setBets] = useState<SettledBet[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // PDF export dialog state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const defaultName = (user?.user_metadata?.full_name as string) || user?.email || '';
+  const [pdfOwnerName, setPdfOwnerName] = useState<string>(() => {
+    return localStorage.getItem('liquidations_pdf_owner_name') || '';
+  });
+  const [pdfTimestamp, setPdfTimestamp] = useState<string>('');
+  useEffect(() => {
+    if (!pdfOwnerName && defaultName) setPdfOwnerName(defaultName);
+  }, [defaultName]);
 
   // Hydrate state from URL
   const filter = (searchParams.get('result') as ResultFilter) || 'all';
@@ -176,11 +190,14 @@ export default function LiquidationsHistory() {
     toast.success(`${filtered.length} liquidações exportadas.`);
   }
 
-  async function exportPDF() {
+  async function exportPDF(opts?: { ownerName?: string; timestamp?: Date }) {
     if (filtered.length === 0) {
       toast.error('Nenhuma liquidação para exportar.');
       return;
     }
+    const ownerName = (opts?.ownerName ?? pdfOwnerName ?? defaultName ?? '').trim();
+    const ts = opts?.timestamp ?? new Date();
+
     const [{ default: jsPDF }, autoTableMod] = await Promise.all([
       import('jspdf'),
       import('jspdf-autotable'),
@@ -196,18 +213,25 @@ export default function LiquidationsHistory() {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(110);
-    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 40, 66);
+
+    if (ownerName) {
+      doc.text(`Titular: ${ownerName}`, 40, 66);
+      doc.text(`Carimbo: ${format(ts, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`, 40, 80);
+    } else {
+      doc.text(`Carimbo: ${format(ts, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`, 40, 66);
+    }
 
     const filterParts: string[] = [];
     filterParts.push(`Resultado: ${filter === 'all' ? 'Todos' : filter === 'gren' ? 'GREN' : filter === 'red' ? 'RED' : 'Cash Out'}`);
     if (dateFrom) filterParts.push(`De: ${format(dateFrom, 'dd/MM/yyyy', { locale: ptBR })}`);
     if (dateTo) filterParts.push(`Até: ${format(dateTo, 'dd/MM/yyyy', { locale: ptBR })}`);
-    doc.text(filterParts.join('   |   '), 40, 80);
+    doc.text(filterParts.join('   |   '), 40, ownerName ? 94 : 80);
 
+    const resumoY = ownerName ? 124 : 110;
     doc.setTextColor(20);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Resumo', 40, 110);
+    doc.text('Resumo', 40, resumoY);
 
     const summary = [
       ['Total', String(filtered.length)],
@@ -217,7 +241,7 @@ export default function LiquidationsHistory() {
       ['P&L Total', `${stats.pnl >= 0 ? '+' : ''}R$ ${stats.pnl.toFixed(2)}`],
     ];
     autoTable(doc, {
-      startY: 118,
+      startY: resumoY + 8,
       head: [['Métrica', 'Valor']],
       body: summary,
       theme: 'grid',
@@ -273,15 +297,43 @@ export default function LiquidationsHistory() {
     });
 
     const pageCount = doc.getNumberOfPages();
+    const footerLeft = ownerName
+      ? `Documento emitido por ${ownerName} • ${format(ts, "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`
+      : `Carimbo: ${format(ts, "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`;
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(140);
-      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.text(footerLeft, 40, pageH - 20);
+      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, pageH - 20, { align: 'right' });
     }
 
-    doc.save(`liquidacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+    const ownerSlug = ownerName ? '_' + ownerName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) : '';
+    doc.save(`liquidacoes${ownerSlug}_${format(ts, 'yyyy-MM-dd_HHmm')}.pdf`);
     toast.success(`PDF gerado com ${filtered.length} liquidações.`);
+  }
+
+  function openPdfDialog() {
+    if (filtered.length === 0) {
+      toast.error('Nenhuma liquidação para exportar.');
+      return;
+    }
+    if (!pdfOwnerName && defaultName) setPdfOwnerName(defaultName);
+    const now = new Date();
+    const tzOffsetMin = now.getTimezoneOffset();
+    const localIso = new Date(now.getTime() - tzOffsetMin * 60000).toISOString().slice(0, 16);
+    setPdfTimestamp(localIso);
+    setPdfDialogOpen(true);
+  }
+
+  function confirmPdfExport() {
+    const trimmedName = pdfOwnerName.trim();
+    if (trimmedName) localStorage.setItem('liquidations_pdf_owner_name', trimmedName);
+    else localStorage.removeItem('liquidations_pdf_owner_name');
+    const ts = pdfTimestamp ? new Date(pdfTimestamp) : new Date();
+    setPdfDialogOpen(false);
+    exportPDF({ ownerName: trimmedName, timestamp: isNaN(ts.getTime()) ? new Date() : ts });
   }
   return (
     <TooltipProvider delayDuration={150}>
@@ -309,7 +361,7 @@ export default function LiquidationsHistory() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={exportPDF}
+                onClick={openPdfDialog}
                 disabled={filtered.length === 0}
                 className="text-xs"
               >
@@ -495,6 +547,77 @@ export default function LiquidationsHistory() {
             </div>
           )}
         </div>
+
+        <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-orbitron">Exportar PDF</DialogTitle>
+              <DialogDescription>
+                Personalize o titular e o carimbo de data/hora que aparecerão no documento. As preferências ficam salvas para próximas exportações.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pdf-owner" className="text-xs uppercase tracking-wide">
+                  Titular / Identificador
+                </Label>
+                <Input
+                  id="pdf-owner"
+                  value={pdfOwnerName}
+                  onChange={(e) => setPdfOwnerName(e.target.value)}
+                  placeholder={defaultName || 'Seu nome ou apelido'}
+                  maxLength={80}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Aparece no cabeçalho e em todas as páginas do PDF.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="pdf-timestamp" className="text-xs uppercase tracking-wide">
+                  Carimbo de data/hora
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="pdf-timestamp"
+                    type="datetime-local"
+                    value={pdfTimestamp}
+                    onChange={(e) => setPdfTimestamp(e.target.value)}
+                    step={1}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs shrink-0"
+                    onClick={() => {
+                      const now = new Date();
+                      const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                        .toISOString().slice(0, 16);
+                      setPdfTimestamp(localIso);
+                    }}
+                  >
+                    Agora
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Use "Agora" para o instante atual ou ajuste manualmente.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPdfDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={confirmPdfExport}>
+                <FileText className="w-4 h-4 mr-1" />
+                Gerar PDF
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
