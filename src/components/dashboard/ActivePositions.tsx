@@ -34,6 +34,7 @@ interface SettledBet {
   score_home: number | null;
   score_away: number | null;
   settled_at: string | null;
+  cashout_value: number | null;
 }
 
 export default function ActivePositions() {
