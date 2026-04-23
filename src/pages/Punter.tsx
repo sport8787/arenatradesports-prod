@@ -1316,13 +1316,15 @@ export default function PunterPage() {
               </div>
             )}
 
-            <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
-              {loading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
-              ) : (
-                <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO ({ANALYSIS_NT_COST} NT)</>
-              )}
-            </GoldButton>
+            {isAdmin && (
+              <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
+                {loading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
+                ) : (
+                  <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO ({ANALYSIS_NT_COST} NT)</>
+                )}
+              </GoldButton>
+            )}
 
             <Button
               onClick={analyzeCornersMarket}
