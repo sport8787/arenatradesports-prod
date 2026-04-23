@@ -350,6 +350,31 @@ export default function ArenaTraderSports() {
 
         {/* Filters */}
         <div className="space-y-3">
+          {/* Sync indicator */}
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw className={cn('w-3 h-3', refreshing && 'animate-spin text-primary')} />
+              {refreshing ? (
+                <span className="text-primary">Atualizando jogos ao vivo…</span>
+              ) : lastUpdated ? (
+                <span>
+                  Última sincronização:{' '}
+                  <span className="text-foreground font-medium">
+                    {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </span>
+              ) : (
+                <span>Aguardando primeira sincronização…</span>
+              )}
+            </div>
+            <button
+              onClick={() => refetch()}
+              disabled={refreshing}
+              className="text-primary hover:underline disabled:opacity-50"
+            >
+              Atualizar agora
+            </button>
+          </div>
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="all">Todos</TabsTrigger>
