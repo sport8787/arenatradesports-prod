@@ -176,6 +176,113 @@ export default function LiquidationsHistory() {
     toast.success(`${filtered.length} liquidações exportadas.`);
   }
 
+  async function exportPDF() {
+    if (filtered.length === 0) {
+      toast.error('Nenhuma liquidação para exportar.');
+      return;
+    }
+    const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Histórico de Liquidações', 40, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 40, 66);
+
+    const filterParts: string[] = [];
+    filterParts.push(`Resultado: ${filter === 'all' ? 'Todos' : filter === 'gren' ? 'GREN' : filter === 'red' ? 'RED' : 'Cash Out'}`);
+    if (dateFrom) filterParts.push(`De: ${format(dateFrom, 'dd/MM/yyyy', { locale: ptBR })}`);
+    if (dateTo) filterParts.push(`Até: ${format(dateTo, 'dd/MM/yyyy', { locale: ptBR })}`);
+    doc.text(filterParts.join('   |   '), 40, 80);
+
+    doc.setTextColor(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Resumo', 40, 110);
+
+    const summary = [
+      ['Total', String(filtered.length)],
+      ['GREN', String(stats.gren)],
+      ['RED', String(stats.red)],
+      ['CASH OUT', String(stats.co)],
+      ['P&L Total', `${stats.pnl >= 0 ? '+' : ''}R$ ${stats.pnl.toFixed(2)}`],
+    ];
+    autoTable(doc, {
+      startY: 118,
+      head: [['Métrica', 'Valor']],
+      body: summary,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [30, 30, 40], textColor: 255 },
+      columnStyles: { 0: { cellWidth: 120, fontStyle: 'bold' }, 1: { cellWidth: 120 } },
+      margin: { left: 40 },
+    });
+
+    const statusLabel = (s: string) => s === 'won' ? 'GREN' : s === 'lost' ? 'RED' : 'CASH OUT';
+    const rows = filtered.map(b => {
+      const ts = b.settled_at || b.cashed_out_at;
+      const date = ts ? format(new Date(ts), 'dd/MM/yy HH:mm', { locale: ptBR }) : '-';
+      const score = b.score_home != null && b.score_away != null ? `${b.score_home}x${b.score_away}` : '-';
+      const pnl = b.profit_loss ?? (b.status === 'won' ? b.stake * b.odd - b.stake : b.status === 'lost' ? -b.stake : 0);
+      return [
+        date, b.match_name, b.market, Number(b.odd).toFixed(2),
+        statusLabel(b.status), score,
+        `R$ ${Number(b.stake).toFixed(2)}`,
+        `${pnl >= 0 ? '+' : ''}R$ ${Number(pnl).toFixed(2)}`,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Data', 'Partida', 'Mercado', 'Odd', 'Status', 'Placar', 'Stake', 'P&L']],
+      body: rows,
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [30, 30, 40], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 65 }, 1: { cellWidth: 130 }, 2: { cellWidth: 90 },
+        3: { cellWidth: 35, halign: 'right' },
+        4: { cellWidth: 55, halign: 'center', fontStyle: 'bold' },
+        5: { cellWidth: 40, halign: 'center' },
+        6: { cellWidth: 55, halign: 'right' },
+        7: { cellWidth: 60, halign: 'right' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const v = data.cell.raw;
+          if (v === 'GREN') data.cell.styles.textColor = [16, 122, 87];
+          else if (v === 'RED') data.cell.styles.textColor = [185, 28, 28];
+          else if (v === 'CASH OUT') data.cell.styles.textColor = [30, 64, 175];
+        }
+        if (data.section === 'body' && data.column.index === 7) {
+          const v = String(data.cell.raw);
+          if (v.startsWith('+')) data.cell.styles.textColor = [16, 122, 87];
+          else if (v.startsWith('-')) data.cell.styles.textColor = [185, 28, 28];
+        }
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+    }
+
+    doc.save(`liquidacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+    toast.success(`PDF gerado com ${filtered.length} liquidações.`);
+  }
   return (
     <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background">
