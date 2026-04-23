@@ -200,6 +200,66 @@ export default function PoissonPanel() {
           </div>
         </motion.div>
       )}
+
+      <Dialog open={explainOpen} onOpenChange={setExplainOpen}>
+        <DialogContent className="max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-primary" />
+              COMO LER POISSON / DIXON-COLES
+            </DialogTitle>
+            <DialogDescription className="text-[11px] font-mono">
+              Probabilidade, odd justa e onde está o valor da aposta.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-[11px] font-mono leading-relaxed">
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">1. O que é o percentual?</p>
+              <p className="text-muted-foreground">
+                É a <span className="text-foreground">probabilidade estimada do desfecho</span> ao final dos 90 minutos, calculada pela distribuição de Poisson a partir dos gols esperados (xG) de cada time.
+              </p>
+            </div>
+
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">2. O que é a odd justa?</p>
+              <p className="text-muted-foreground">
+                É o preço mínimo que a aposta deveria pagar para ser neutra (sem lucro nem prejuízo no longo prazo):
+              </p>
+              <p className="text-center text-primary font-bold my-2">Odd justa = 100 ÷ probabilidade (%)</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30 rounded-lg p-3 space-y-2">
+              <p className="text-foreground font-bold">3. Exemplo prático</p>
+              <p className="text-muted-foreground">
+                Modelo diz: vitória da casa = <span className="text-foreground font-bold">50%</span>.<br />
+                Odd justa = 100 ÷ 50 = <span className="text-foreground font-bold">2.00</span>.
+              </p>
+              <div className="space-y-1.5 mt-2">
+                <div className="flex items-start gap-2 bg-green-500/10 border border-green-500/30 rounded p-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <p className="text-foreground">
+                    Casa paga <span className="font-bold text-green-400">2.20</span>: <span className="font-bold">há valor (+10%)</span>. A cada R$100 apostados, expectativa é ganhar R$10 no longo prazo.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded p-2">
+                  <TrendingDown className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
+                  <p className="text-foreground">
+                    Casa paga <span className="font-bold text-red-400">1.80</span>: <span className="font-bold">não há valor (-10%)</span>. Mesmo se o time vencer, no longo prazo essa aposta perde dinheiro.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">4. Regra de ouro</p>
+              <p className="text-muted-foreground">
+                <span className="text-primary font-bold">Aposte apenas quando a odd da casa &gt; odd justa.</span> Esse excedente é o seu <span className="text-foreground">edge</span> — a vantagem matemática que separa apostadores profissionais de apostadores comuns.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
