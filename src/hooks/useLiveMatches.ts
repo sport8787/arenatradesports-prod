@@ -134,8 +134,15 @@ export function useLiveMatches() {
       )
       .subscribe();
 
+    // Polling de segurança a cada 15s — evita "sumiço" temporário caso o realtime
+    // perca algum evento ou o debounce engula a última atualização.
+    const pollId = setInterval(() => {
+      fetchMatches();
+    }, 15_000);
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearInterval(pollId);
       supabase.removeChannel(channel);
     };
   }, [fetchMatches, debouncedRefetch]);
