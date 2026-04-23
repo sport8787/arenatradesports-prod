@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { poissonService, type PoissonInput, type PoissonResult } from '@/services/poissonService';
-import { Calculator, RefreshCw, Target, Info } from 'lucide-react';
+import { Calculator, RefreshCw, Target, Info, HelpCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 function InfoTip({ text }: { text: string }) {
   return (
@@ -30,6 +31,7 @@ export default function PoissonPanel() {
   const [awayTeam, setAwayTeam] = useState('');
   const [homeXg, setHomeXg] = useState(1.5);
   const [awayXg, setAwayXg] = useState(1.2);
+  const [explainOpen, setExplainOpen] = useState(false);
 
   async function calculate() {
     if (!homeTeam || !awayTeam) return;
@@ -52,9 +54,18 @@ export default function PoissonPanel() {
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Calculator className="w-4 h-4 text-primary" />
-        <span className="font-mono text-xs font-bold text-foreground">POISSON / DIXON-COLES</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-primary" />
+          <span className="font-mono text-xs font-bold text-foreground">POISSON / DIXON-COLES</span>
+        </div>
+        <button
+          onClick={() => setExplainOpen(true)}
+          className="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-mono rounded-md transition-colors"
+        >
+          <HelpCircle className="w-3 h-3" />
+          EXPLICAR
+        </button>
       </div>
 
       <div className="bg-muted/20 border border-border/60 rounded-lg p-2.5">
@@ -64,6 +75,31 @@ export default function PoissonPanel() {
           calculadas a partir dos gols esperados (xG). Não representam o que está acontecendo ao vivo.
           Cada <span className="text-foreground">Odd</span> exibida é a <span className="text-foreground">odd justa</span> (= 100 ÷ probabilidade): se a casa pagar acima dela, há valor.
         </p>
+      </div>
+
+      {/* Value bet quick example */}
+      <div className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-lg p-2.5 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Target className="w-3 h-3 text-primary" />
+          <span className="text-[10px] font-mono font-bold text-foreground">EXEMPLO RÁPIDO — VALUE BET</span>
+        </div>
+        <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+          Probabilidade do modelo: <span className="text-foreground font-bold">50%</span> → Odd justa = 100 ÷ 50 = <span className="text-foreground font-bold">2.00</span>.
+        </p>
+        <div className="grid grid-cols-2 gap-1.5 mt-1">
+          <div className="flex items-start gap-1.5 bg-green-500/10 border border-green-500/30 rounded px-2 py-1.5">
+            <TrendingUp className="w-3 h-3 text-green-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] font-mono text-foreground leading-snug">
+              Casa paga <span className="font-bold text-green-400">2.20</span> → <span className="font-bold">+10% de valor</span>. Aposta com edge.
+            </p>
+          </div>
+          <div className="flex items-start gap-1.5 bg-red-500/10 border border-red-500/30 rounded px-2 py-1.5">
+            <TrendingDown className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
+            <p className="text-[9px] font-mono text-foreground leading-snug">
+              Casa paga <span className="font-bold text-red-400">1.80</span> → <span className="font-bold">-10% de valor</span>. Não aposte.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Inputs */}
@@ -164,6 +200,66 @@ export default function PoissonPanel() {
           </div>
         </motion.div>
       )}
+
+      <Dialog open={explainOpen} onOpenChange={setExplainOpen}>
+        <DialogContent className="max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-primary" />
+              COMO LER POISSON / DIXON-COLES
+            </DialogTitle>
+            <DialogDescription className="text-[11px] font-mono">
+              Probabilidade, odd justa e onde está o valor da aposta.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-[11px] font-mono leading-relaxed">
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">1. O que é o percentual?</p>
+              <p className="text-muted-foreground">
+                É a <span className="text-foreground">probabilidade estimada do desfecho</span> ao final dos 90 minutos, calculada pela distribuição de Poisson a partir dos gols esperados (xG) de cada time.
+              </p>
+            </div>
+
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">2. O que é a odd justa?</p>
+              <p className="text-muted-foreground">
+                É o preço mínimo que a aposta deveria pagar para ser neutra (sem lucro nem prejuízo no longo prazo):
+              </p>
+              <p className="text-center text-primary font-bold my-2">Odd justa = 100 ÷ probabilidade (%)</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30 rounded-lg p-3 space-y-2">
+              <p className="text-foreground font-bold">3. Exemplo prático</p>
+              <p className="text-muted-foreground">
+                Modelo diz: vitória da casa = <span className="text-foreground font-bold">50%</span>.<br />
+                Odd justa = 100 ÷ 50 = <span className="text-foreground font-bold">2.00</span>.
+              </p>
+              <div className="space-y-1.5 mt-2">
+                <div className="flex items-start gap-2 bg-green-500/10 border border-green-500/30 rounded p-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <p className="text-foreground">
+                    Casa paga <span className="font-bold text-green-400">2.20</span>: <span className="font-bold">há valor (+10%)</span>. A cada R$100 apostados, expectativa é ganhar R$10 no longo prazo.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded p-2">
+                  <TrendingDown className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
+                  <p className="text-foreground">
+                    Casa paga <span className="font-bold text-red-400">1.80</span>: <span className="font-bold">não há valor (-10%)</span>. Mesmo se o time vencer, no longo prazo essa aposta perde dinheiro.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-muted/30 border border-border rounded-lg p-3">
+              <p className="text-foreground font-bold mb-1">4. Regra de ouro</p>
+              <p className="text-muted-foreground">
+                <span className="text-primary font-bold">Aposte apenas quando a odd da casa &gt; odd justa.</span> Esse excedente é o seu <span className="text-foreground">edge</span> — a vantagem matemática que separa apostadores profissionais de apostadores comuns.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
