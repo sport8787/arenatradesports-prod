@@ -1,5 +1,6 @@
 import { useSubscription } from '@/hooks/useSubscription';
-import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Briefcase } from 'lucide-react';
 import { ReactNode } from 'react';
@@ -9,9 +10,11 @@ interface RequireSubscriptionProps {
 }
 
 export function RequireSubscription({ children }: RequireSubscriptionProps) {
+  const { user, loading: authLoading } = useAuth();
   const { hasAccess, loading } = useSubscription();
+  const location = useLocation();
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div
@@ -24,9 +27,16 @@ export function RequireSubscription({ children }: RequireSubscriptionProps) {
     );
   }
 
+  // Bloqueia acesso direto sem autenticação → manda para /auth
+  if (!user) {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?redirect=${redirect}`} replace />;
+  }
+
   if (!hasAccess) {
     return <Navigate to="/paywall" replace />;
   }
 
   return <>{children}</>;
 }
+
