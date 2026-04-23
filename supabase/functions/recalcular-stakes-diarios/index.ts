@@ -25,6 +25,18 @@ const TIER_STAKE: Record<number, number> = {
 
 const MAX_DAILY_EXPOSURE = 15; // % máximo de exposição diária
 
+// Mycroft Tier (alinhado ao BAS exibido na análise: A/B/C/D)
+function getMycroftTier(confidence: number, edge: number, stake: number) {
+  const score = Math.min(
+    100,
+    Math.round(confidence * 0.6 + Math.min(edge * 3, 30) + Math.min(stake * 2, 10))
+  );
+  if (confidence >= 85 && edge >= 10) return { letter: 'A', label: 'ELITE', icon: '👑', score };
+  if (confidence >= 75 && edge >= 7) return { letter: 'B', label: 'PREMIUM', icon: '💎', score };
+  if (confidence >= 68 && edge >= 5) return { letter: 'C', label: 'FORTE', icon: '⚡', score };
+  return { letter: 'D', label: 'ESPECULATIVO', icon: '🎯', score };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -114,9 +126,11 @@ Deno.serve(async (req) => {
 
       totalRecalculadas++;
 
-      const tierLabel = tier === 1 ? '⚡ SINAL FORTE' : tier === 2 ? '✅ SINAL BOM' : '🎯 SINAL MODERADO';
+      const _conf = analysis.confidence ?? 70;
+      const _edge = signal.value_percentage ?? analysis.value_percentage ?? 0;
+      const _mt = getMycroftTier(_conf, _edge, stakeBase);
       console.log(
-        `[Recálculo] ✅ ${analysis.home_team} vs ${analysis.away_team} | ${tierLabel} | Stake ${stakeBase}% | R$ ${stakeAmount}`
+        `[Recálculo] ✅ ${analysis.home_team} vs ${analysis.away_team} | ${_mt.icon} ANÁLISE ${_mt.letter} (${_mt.label}) Score ${_mt.score}/100 | Stake ${stakeBase}% | R$ ${stakeAmount}`
       );
     }
 
@@ -136,8 +150,10 @@ Deno.serve(async (req) => {
             if (originalStake >= 4) tier = 1;
             else if (originalStake >= 3) tier = 2;
             const stakeBase = TIER_STAKE[tier] || 2.25;
-            const tierLabel = tier === 1 ? '⚡ SINAL FORTE' : tier === 2 ? '✅ SINAL BOM' : '🎯 SINAL MODERADO';
-            return `${emoji} ${a.home_team} vs ${a.away_team}\n📊 ${a.market} @ ${s.odd}\n💰 Stake: ${stakeBase}% (${tierLabel})\n📈 Edge: ${s.value_percentage?.toFixed(1) || "?"}%`;
+            const conf = a.confidence ?? 70;
+            const edge = s.value_percentage ?? a.value_percentage ?? 0;
+            const mt = getMycroftTier(conf, edge, stakeBase);
+            return `${emoji} ${a.home_team} vs ${a.away_team}\n📊 ${a.market} @ ${s.odd}\n${mt.icon} ANÁLISE ${mt.letter} — ${mt.label} · Score ${mt.score}/100\n💰 Stake: ${stakeBase}%\n📈 Edge: ${edge?.toFixed(1) || "?"}%`;
           }).filter(Boolean).join("\n━━━━━━━━━━━━━━━━━\n");
 
           const mensagem = `🎯 MYCROFT — STAKES DO DIA\n\n📅 ${hoje}\n⚡ ${totalRecalculadas} apostas com stake recalculado\n\n${linhas}\n\n⚠️ Abra o app para CONFIRMAR ou DISPENSAR`;
