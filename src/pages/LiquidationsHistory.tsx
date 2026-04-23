@@ -5,8 +5,9 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   ArrowLeft, CheckCircle2, XCircle, Trophy, CalendarIcon, Filter,
-  ChevronLeft, ChevronRight, Info, Clock,
+  ChevronLeft, ChevronRight, Info, Clock, Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -122,6 +123,37 @@ export default function LiquidationsHistory() {
     return { gren, red, co, pnl };
   }, [filtered]);
 
+  function exportCSV() {
+    if (filtered.length === 0) {
+      toast.error('Nenhuma liquidação para exportar.');
+      return;
+    }
+    const statusLabel = (s: string) => s === 'won' ? 'GREN' : s === 'lost' ? 'RED' : 'CASH OUT';
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = ['Data', 'Partida', 'Mercado', 'Odd', 'Status', 'Placar', 'Stake (R$)', 'P&L (R$)'];
+    const rows = filtered.map(b => {
+      const ts = b.settled_at || b.cashed_out_at;
+      const date = ts ? format(new Date(ts), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '';
+      const score = b.score_home != null && b.score_away != null ? `${b.score_home}x${b.score_away}` : '';
+      const pnl = b.profit_loss ?? (b.status === 'won' ? b.stake * b.odd - b.stake : b.status === 'lost' ? -b.stake : 0);
+      return [date, b.match_name, b.market, Number(b.odd).toFixed(2), statusLabel(b.status), score, Number(b.stake).toFixed(2), Number(pnl).toFixed(2)];
+    });
+    const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(escape).join(';')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `liquidacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} liquidações exportadas.`);
+  }
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background">
@@ -134,6 +166,16 @@ export default function LiquidationsHistory() {
             <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
               Histórico de Liquidações
             </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCSV}
+              disabled={filtered.length === 0}
+              className="ml-auto text-xs"
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Exportar CSV
+            </Button>
           </div>
         </div>
 
