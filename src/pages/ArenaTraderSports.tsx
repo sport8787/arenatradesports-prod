@@ -360,10 +360,6 @@ export default function ArenaTraderSports() {
         {/* Action buttons row - scrollable */}
         <div className="container mx-auto px-4 pb-3">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            <GoldButton size="sm" onClick={handleFetchLiveMatches} disabled={isFetching}>
-              <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} />
-              {isFetching ? 'Analisando...' : 'Fazer Análise'}
-            </GoldButton>
             <GoldButton size="sm" onClick={handleAnalyzeCorners} disabled={isAnalyzingCorners} variant="outline">
               <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
               Escanteios
@@ -371,10 +367,6 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
               <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
               Liquidar
-            </GoldButton>
-            <GoldButton size="sm" onClick={handleEvaluateCashouts} disabled={isEvaluating} variant="outline">
-              <Banknote className={cn("w-4 h-4 mr-1", isEvaluating && "animate-spin")} />
-              Cash Out
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
