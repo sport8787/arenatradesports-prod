@@ -188,11 +188,23 @@ async function processMemoryActions(userId: string, extraction: { rules: Array<{
   return feedback.join("\n");
 }
 
+function getPeriodLabel(m: any): string {
+  const min = Number(m.minute) || 0;
+  const status = (m.status || "").toLowerCase();
+  const period = (m.period || "").toLowerCase();
+  if (status === "halftime" || period.includes("ht") || period.includes("intervalo")) return "INTERVALO (HT)";
+  if (min > 0 && min <= 45) return `1º TEMPO (${min}')`;
+  if (min > 45 && min < 90) return `2º TEMPO (${min}')`;
+  if (min >= 90) return `FIM/ACRÉSCIMOS (${min}')`;
+  return `Min: ${min || "-"}`;
+}
+
 function formatLiveMatchStats(m: any): string {
   const stats = m.stats || {};
+  const total = (m.score_home ?? 0) + (m.score_away ?? 0);
   const lines = [
-    `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}`,
-    `  Liga: ${m.championship} | Min: ${m.minute || "-"} | Status: ${m.status}`,
+    `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} [Total HT/FT: ${total} gols]`,
+    `  Liga: ${m.championship} | ${getPeriodLabel(m)} | Status: ${m.status}`,
   ];
   
   if (stats.possession_home || stats.possession_away) {
@@ -230,9 +242,9 @@ async function lookupMatchContext(query: string): Promise<string> {
     const { data: live } = await supabase
       .from("live_matches")
       .select("*, mycroft_analyses(*)")
-      .in("status", ["live", "halftime"])
+      .in("status", ["live", "halftime", "1H", "2H", "HT"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(200);
 
     if (live && live.length > 0) {
       // Find matches specifically mentioned in the query
@@ -258,31 +270,37 @@ async function lookupMatchContext(query: string): Promise<string> {
         }
       }
 
-      // Always show all live matches summary so AI has full context
-      const withStats = live.filter((m: any) => {
-        const s = m.stats || {};
-        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) > 0;
-      });
-      const withoutStats = live.filter((m: any) => {
-        const s = m.stats || {};
-        return (s.possession_home || 0) + (s.attacks_home || 0) + (s.shots_total_home || 0) === 0;
-      });
+
+      // Agrupar por período (ajuda IA a filtrar perguntas tipo "jogos no 1T")
+      const firstHalf = live.filter((m: any) => { const min = Number(m.minute)||0; return min > 0 && min <= 45 && (m.status||"").toLowerCase() !== "halftime"; });
+      const halftime = live.filter((m: any) => { const min = Number(m.minute)||0; const st=(m.status||"").toLowerCase(); return st === "halftime" || (m.period||"").toLowerCase().includes("ht") || (min>=45 && min<=46 && st!=="live"); });
+      const secondHalf = live.filter((m: any) => { const min = Number(m.minute)||0; return min > 45 && (m.status||"").toLowerCase() !== "halftime"; });
 
       parts.push(`\n━━━ TODOS OS JOGOS AO VIVO (${live.length} partidas) ━━━`);
-      if (withStats.length > 0) {
-        parts.push("\n🟢 COM ESTATÍSTICAS:");
-        for (const m of withStats.slice(0, 15)) {
+      parts.push(`📊 Distribuição: 1º Tempo=${firstHalf.length} | Intervalo=${halftime.length} | 2º Tempo=${secondHalf.length}`);
+
+      if (firstHalf.length > 0) {
+        parts.push(`\n🟡 JOGOS NO 1º TEMPO (${firstHalf.length}):`);
+        for (const m of firstHalf) {
           parts.push(formatLiveMatchStats(m));
           const analysis = m.mycroft_analyses;
-          if (analysis) {
-            parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
-          }
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
         }
       }
-      if (withoutStats.length > 0) {
-        parts.push(`\n⚪ SEM ESTATÍSTICAS (${withoutStats.length} jogos):`);
-        for (const m of withoutStats.slice(0, 10)) {
-          parts.push(`• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} | ${m.championship} | Min: ${m.minute || "-"}`);
+      if (halftime.length > 0) {
+        parts.push(`\n🟠 JOGOS NO INTERVALO (${halftime.length}):`);
+        for (const m of halftime) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
+        }
+      }
+      if (secondHalf.length > 0) {
+        parts.push(`\n🟢 JOGOS NO 2º TEMPO (${secondHalf.length}):`);
+        for (const m of secondHalf) {
+          parts.push(formatLiveMatchStats(m));
+          const analysis = m.mycroft_analyses;
+          if (analysis) parts.push(`  📊 Mycroft: ${analysis.verdict} | ${analysis.market} | Odd ${analysis.odd} | ${analysis.confidence}%`);
         }
       }
     }
@@ -464,6 +482,8 @@ DIRETRIZES
 4. ANTI-GAMBLING - Detecte tilt/FOMO e avise.
 5. Detecte qual persona usar. Comece com [MYCROFT] ou [HÓRUS].
 6. Respostas concisas e acionáveis em português brasileiro.
+7. **DADOS AO VIVO** — A seção "DADOS DE JOGOS" contém TODOS os jogos ao vivo agora, agrupados por período (1º Tempo / Intervalo / 2º Tempo) com placar, minuto, posse, ataques perigosos, chutes, escanteios, cartões e xG. Quando o usuário perguntar coisas como "quais jogos estão no 1º tempo com chance de over 0.5 HT", "quem tem mais ataques", "qual jogo tem mais pressão", VOCÊ DEVE filtrar a lista por período/critério, citar OS NOMES DOS JOGOS específicos e justificar com as estatísticas reais mostradas. NUNCA diga "não tenho acesso aos jogos ao vivo" — os dados estão acima.
+8. Para over 0.5 HT, priorize: jogos no 1º tempo com 0x0, minuto < 35, posse alta + ataques perigosos > 30 + chutes no gol ≥ 2 do time dominante.
 
 TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
 
