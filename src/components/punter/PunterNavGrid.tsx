@@ -9,6 +9,7 @@ import {
   MessageCircle,
   MessagesSquare,
   Info,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -163,6 +164,15 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconColor="text-foreground"
             title="Importar Apostas"
             description="Importar ROI e P&L de outras casas"
+          />
+          <NavCard
+            onClick={() => navigate('/punter/betfair-real')}
+            icon={<Brain className="w-4 h-4" />}
+            iconBg="bg-primary/15"
+            iconColor="text-primary"
+            title="Apostas Reais Betfair"
+            description="Sincronize e analise erros vs Arena Trader Sports"
+            badge={{ label: 'Novo', tone: 'exclusive' }}
           />
         </div>
       </section>

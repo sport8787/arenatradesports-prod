@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Brain, RefreshCw, TrendingUp, TrendingDown, AlertTriangle,
-  CheckCircle, XCircle, Target, Loader2, Sparkles, Lightbulb,
+  CheckCircle, XCircle, Target, Loader2, Sparkles, Lightbulb, Activity, Clock,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,19 +54,60 @@ interface AnalysisResult {
   }>;
 }
 
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+interface SyncState {
+  status: SyncStatus;
+  lastRunAt: string | null;
+  lastSyncedCount: number | null;
+  lastError: string | null;
+  startedAt: number | null;
+}
+
 export default function PunterBetfairReal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { syncBetfair, syncing } = useBetImport();
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [sync, setSync] = useState<SyncState>({
+    status: 'idle',
+    lastRunAt: null,
+    lastSyncedCount: null,
+    lastError: null,
+    startedAt: null,
+  });
+  const [elapsed, setElapsed] = useState(0);
 
+  // Carrega último status de sync da tabela bookmaker_connections
   useEffect(() => {
-    if (user) loadCachedAnalysis();
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('bookmaker_connections')
+        .select('last_sync_at')
+        .eq('user_id', user.id)
+        .eq('bookmaker', 'betfair')
+        .maybeSingle();
+      if (data?.last_sync_at) {
+        setSync(s => ({ ...s, lastRunAt: data.last_sync_at, status: 'success' }));
+      }
+      loadCachedAnalysis();
+    })();
   }, [user]);
 
+  // Cronômetro durante a sincronização
+  useEffect(() => {
+    if (sync.status !== 'syncing' || !sync.startedAt) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - (sync.startedAt || 0)) / 1000));
+    }, 500);
+    return () => clearInterval(id);
+  }, [sync.status, sync.startedAt]);
+
   const loadCachedAnalysis = async () => {
-    // Tenta carregar a última análise se já foi feita recentemente
     if (!user) return;
     try {
       await runAnalysis(false);
@@ -76,11 +117,31 @@ export default function PunterBetfairReal() {
   };
 
   const handleSync = async (force = false) => {
+    setSync({
+      status: 'syncing',
+      lastRunAt: sync.lastRunAt,
+      lastSyncedCount: null,
+      lastError: null,
+      startedAt: Date.now(),
+    });
     const r = await syncBetfair(force);
     if (r.success) {
+      setSync({
+        status: 'success',
+        lastRunAt: new Date().toISOString(),
+        lastSyncedCount: r.synced ?? 0,
+        lastError: null,
+        startedAt: null,
+      });
       toast.success(`${r.synced} apostas sincronizadas`);
       runAnalysis(true);
     } else {
+      setSync(s => ({
+        ...s,
+        status: 'error',
+        lastError: r.error || 'Erro desconhecido',
+        startedAt: null,
+      }));
       toast.error(r.error || 'Erro ao sincronizar');
     }
   };
@@ -170,6 +231,8 @@ export default function PunterBetfairReal() {
                   Re-sync Completo
                 </Button>
               </div>
+
+              <SyncStatusPanel sync={sync} elapsed={elapsed} />
             </Card>
 
             {/* CARD 2 — Análise Hórus */}
@@ -383,6 +446,89 @@ function BetRow({ bet }: { bet: AnalysisResult['bets'][number] }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SyncStatusPanel({ sync, elapsed }: { sync: SyncState; elapsed: number }) {
+  const statusMeta: Record<SyncStatus, { label: string; tone: string; dot: string; icon: any }> = {
+    idle: { label: 'Aguardando', tone: 'text-muted-foreground', dot: 'bg-muted-foreground', icon: Clock },
+    syncing: { label: 'Sincronizando…', tone: 'text-warning', dot: 'bg-warning animate-pulse', icon: Loader2 },
+    success: { label: 'Sucesso', tone: 'text-success', dot: 'bg-success', icon: CheckCircle },
+    error: { label: 'Falhou', tone: 'text-destructive', dot: 'bg-destructive', icon: XCircle },
+  };
+  const meta = statusMeta[sync.status];
+  const Icon = meta.icon;
+
+  const formatRelative = (iso: string | null) => {
+    if (!iso) return '—';
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return `há ${Math.floor(diff)}s`;
+    if (diff < 3600) return `há ${Math.floor(diff / 60)}min`;
+    if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
+    return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  };
+
+  return (
+    <div className="border border-border rounded-lg bg-secondary/20 p-3 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-primary" />
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Status da Sincronização
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={cn('w-1.5 h-1.5 rounded-full', meta.dot)} />
+          <span className={cn('font-mono text-[10px] font-bold uppercase', meta.tone)}>
+            {meta.label}
+          </span>
+        </div>
+      </div>
+
+      {sync.status === 'syncing' && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+            <span>Em execução…</span>
+            <span>{elapsed}s</span>
+          </div>
+          <div className="h-1 w-full bg-muted/50 rounded-full overflow-hidden">
+            <div className="h-full w-1/3 bg-warning animate-[slide_1.4s_ease-in-out_infinite] rounded-full"
+              style={{ animation: 'pulse 1.4s ease-in-out infinite' }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-2 pt-1">
+        <div>
+          <p className="text-[9px] font-mono uppercase text-muted-foreground">Última execução</p>
+          <p className="text-[11px] font-mono font-semibold text-foreground">
+            {formatRelative(sync.lastRunAt)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] font-mono uppercase text-muted-foreground">Importadas</p>
+          <p className="text-[11px] font-mono font-semibold text-foreground">
+            {sync.lastSyncedCount != null ? sync.lastSyncedCount : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] font-mono uppercase text-muted-foreground">Resultado</p>
+          <div className="flex items-center gap-1">
+            <Icon className={cn('w-3 h-3', meta.tone, sync.status === 'syncing' && 'animate-spin')} />
+            <span className={cn('text-[11px] font-mono font-semibold', meta.tone)}>
+              {meta.label}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {sync.lastError && (
+        <div className="text-[10px] font-mono text-destructive bg-destructive/10 border border-destructive/30 rounded px-2 py-1">
+          {sync.lastError}
+        </div>
+      )}
     </div>
   );
 }
