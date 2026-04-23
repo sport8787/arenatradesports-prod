@@ -102,11 +102,8 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
       onApprovedSignalsClick();
       return;
     }
-    const el = document.getElementById('signals-section');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    navigate('/punter/aprovadas');
   };
-
-  const open = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
 
   return (
     <div className="space-y-5">
