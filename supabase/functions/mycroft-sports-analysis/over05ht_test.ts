@@ -131,9 +131,11 @@ Deno.test("C1: rejeita chutes a gol = 2 (precisa >= 3)", () => {
 Deno.test("C1: rejeita xG presente abaixo de 0.75", () => {
   const r = evaluateOver05HT({
     minute: 18, scoreHome: 0, scoreAway: 0,
-    home: { possession: 65, dangerousAttacks: 7, shotsOnTarget: 4, xG: 0.5 },
-    away: { possession: 35, dangerousAttacks: 2, shotsOnTarget: 1 },
+    // home falha C1 só por xG; totais não atingem C2
+    home: { possession: 65, dangerousAttacks: 5, shotsOnTarget: 3, xG: 0.5 },
+    away: { possession: 35, dangerousAttacks: 1, shotsOnTarget: 1, xG: 0.1 },
   });
+  // total attacks=6 (<8), shots=4 (<5) → C2 falha também
   assertEquals(r.approved, false);
 });
 
