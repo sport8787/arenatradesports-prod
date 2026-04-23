@@ -133,6 +133,9 @@ async function dispatchOne(
         channel,
         chat_id: chat_id ?? undefined,
         source: 'notify-trader-event',
+        // Sinais ao vivo da Arena Trader Sports SEMPRE devem ser enviados ao
+        // grupo dedicado, independente da flag global TELEGRAM_ENABLED.
+        enabled: true,
       }),
     });
     const j = await res.json().catch(() => ({}));
