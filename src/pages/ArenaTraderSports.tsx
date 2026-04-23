@@ -80,7 +80,7 @@ export default function ArenaTraderSports() {
   const navigate = useNavigate();
   
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
+  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
