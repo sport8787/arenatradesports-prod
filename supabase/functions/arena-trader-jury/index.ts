@@ -74,23 +74,22 @@ Responda APENAS com JSON válido:
 {"voto": "CLARO" ou "BLEFE", "confianca": 0-100, "razao": "Uma frase curta (max 120 chars)"}`;
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        max_tokens: 200,
-        temperature: 0.7,
+        model: 'gpt-5-mini',
+        max_completion_tokens: 400,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`[TraderJury] ${profile} Lovable AI error:`, errText);
+      console.error(`[TraderJury] ${profile} OpenAI error:`, errText);
       throw new Error(`API error ${response.status}`);
     }
 
@@ -126,9 +125,9 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), 
+      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 

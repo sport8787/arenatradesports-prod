@@ -386,8 +386,8 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const { match } = await req.json() as { match: MatchData };
     if (!match) return new Response(JSON.stringify({ error: 'Match data required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -457,14 +457,14 @@ serve(async (req) => {
     // Build valid plan_name enum from loaded plans
     const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-5-mini',
         messages: [
           { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
           { role: 'user', content: prompt },
@@ -509,14 +509,13 @@ serve(async (req) => {
           },
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        temperature: 0.1,
-        max_tokens: 4096,
+        max_completion_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] AI Gateway error ${response.status}:`, errorText);
+      console.error(`[MycroftSports] OpenAI error ${response.status}:`, errorText);
       if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
