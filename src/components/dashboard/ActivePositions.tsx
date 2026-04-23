@@ -224,12 +224,19 @@ export default function ActivePositions() {
 
       {/* Liquidações Recentes */}
       {settled.length > 0 && (
+        <TooltipProvider delayDuration={150}>
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-gold" />
             <h3 className="font-orbitron text-sm font-bold text-foreground uppercase">
               Liquidações Recentes ({settled.length})
             </h3>
+            <Link
+              to="/arena-trader-sports/liquidacoes"
+              className="ml-auto inline-flex items-center gap-1 text-[11px] font-orbitron uppercase text-primary hover:underline"
+            >
+              <History className="w-3 h-3" /> Ver histórico completo
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -255,6 +262,12 @@ export default function ActivePositions() {
                 const hasScore = bet.score_home !== null && bet.score_away !== null;
                 const isJustSettled = recentlySettledIds.has(bet.id);
 
+                const tooltipText = isCashout
+                  ? `Posição encerrada via CASH OUT garantindo R$ ${(bet.cashout_value ?? bet.stake).toFixed(2)}.`
+                  : isWon
+                    ? `O mercado "${bet.market}" foi ATINGIDO. Lucro líquido: R$ ${pnl.toFixed(2)}.`
+                    : `O mercado "${bet.market}" NÃO foi atingido. Perda: R$ ${bet.stake.toFixed(2)}.`;
+
                 return (
                   <motion.div
                     key={bet.id}
@@ -278,19 +291,27 @@ export default function ActivePositions() {
                         <p className="font-orbitron text-xs font-bold text-foreground truncate">{bet.match_name}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{bet.market} @ {Number(bet.odd).toFixed(2)}</p>
                       </div>
-                      <motion.span
-                        initial={isJustSettled ? { scale: 0.6, opacity: 0 } : false}
-                        animate={isJustSettled ? { scale: [0.6, 1.25, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.6 }}
-                        className={cn(
-                          'flex items-center gap-1 px-2.5 py-1 rounded-md font-orbitron text-[11px] font-black uppercase tracking-wider shadow-md',
-                          labelColor,
-                          isJustSettled && 'animate-pulse'
-                        )}
-                      >
-                        {isWon ? <CheckCircle2 className="w-3 h-3" /> : isCashout ? <Trophy className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        {label}
-                      </motion.span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <motion.span
+                            initial={isJustSettled ? { scale: 0.6, opacity: 0 } : false}
+                            animate={isJustSettled ? { scale: [0.6, 1.25, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.6 }}
+                            className={cn(
+                              'flex items-center gap-1 px-2.5 py-1 rounded-md font-orbitron text-[11px] font-black uppercase tracking-wider shadow-md cursor-help',
+                              labelColor,
+                              isJustSettled && 'animate-pulse'
+                            )}
+                          >
+                            {isWon ? <CheckCircle2 className="w-3 h-3" /> : isCashout ? <Trophy className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                            {label}
+                            <Info className="w-3 h-3 opacity-70 ml-0.5" />
+                          </motion.span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">
+                          {tooltipText}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
 
                     {/* Placar final */}
