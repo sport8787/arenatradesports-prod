@@ -36,6 +36,7 @@ interface Props {
   featuredSignal?: FeaturedSignal | null;
   nextMatch?: NextMatch | null;
   onCtaClick?: () => void;
+  hideFoundersPromo?: boolean;
 }
 
 function useCountdown(targetIso?: string) {
@@ -53,7 +54,7 @@ function useCountdown(targetIso?: string) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Props) => {
+const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick, hideFoundersPromo }: Props) => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0, source: 'empty', lastUpdated: null });
   const countdown = useCountdown(nextMatch?.kickoff);
