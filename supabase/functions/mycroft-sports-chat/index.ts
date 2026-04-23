@@ -188,11 +188,23 @@ async function processMemoryActions(userId: string, extraction: { rules: Array<{
   return feedback.join("\n");
 }
 
+function getPeriodLabel(m: any): string {
+  const min = Number(m.minute) || 0;
+  const status = (m.status || "").toLowerCase();
+  const period = (m.period || "").toLowerCase();
+  if (status === "halftime" || period.includes("ht") || period.includes("intervalo")) return "INTERVALO (HT)";
+  if (min > 0 && min <= 45) return `1º TEMPO (${min}')`;
+  if (min > 45 && min < 90) return `2º TEMPO (${min}')`;
+  if (min >= 90) return `FIM/ACRÉSCIMOS (${min}')`;
+  return `Min: ${min || "-"}`;
+}
+
 function formatLiveMatchStats(m: any): string {
   const stats = m.stats || {};
+  const total = (m.score_home ?? 0) + (m.score_away ?? 0);
   const lines = [
-    `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}`,
-    `  Liga: ${m.championship} | Min: ${m.minute || "-"} | Status: ${m.status}`,
+    `• ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team} [Total HT/FT: ${total} gols]`,
+    `  Liga: ${m.championship} | ${getPeriodLabel(m)} | Status: ${m.status}`,
   ];
   
   if (stats.possession_home || stats.possession_away) {
