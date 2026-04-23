@@ -1,0 +1,1 @@
+UPDATE public.cron_settings SET is_enabled = true, updated_at = now() WHERE setting_key = 'live_matches_cron';
