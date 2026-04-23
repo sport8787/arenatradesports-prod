@@ -1,0 +1,388 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Brain, RefreshCw, TrendingUp, TrendingDown, AlertTriangle,
+  CheckCircle, XCircle, Target, Loader2, Sparkles, Lightbulb,
+} from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useBetImport } from '@/hooks/useBetImport';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import BetfairConfig from '@/components/punter/BetfairConfig';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
+
+interface AnalysisResult {
+  success: boolean;
+  stats: {
+    total_bets: number;
+    settled: number;
+    pending: number;
+    greens: number;
+    reds: number;
+    total_pl: number;
+    total_stake: number;
+    roi_pct: number;
+    avg_clv_pct: number;
+    aligned_won: number;
+    aligned_lost: number;
+    against_signal: number;
+    no_signal: number;
+    ignored_vetoes: number;
+    blind_entries: number;
+  };
+  insights: string;
+  bets: Array<{
+    id: string;
+    home_team: string | null;
+    away_team: string | null;
+    market: string;
+    odd: number;
+    stake: number;
+    result: string | null;
+    profit_loss: number | null;
+    alignment: string;
+    clv_pct: number | null;
+    error_tags: string[];
+    matched_signal: { verdict: string; thesis: string } | null;
+    placed_at: string | null;
+  }>;
+}
+
+export default function PunterBetfairReal() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { syncBetfair, syncing } = useBetImport();
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  useEffect(() => {
+    if (user) loadCachedAnalysis();
+  }, [user]);
+
+  const loadCachedAnalysis = async () => {
+    // Tenta carregar a última análise se já foi feita recentemente
+    if (!user) return;
+    try {
+      await runAnalysis(false);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleSync = async (force = false) => {
+    const r = await syncBetfair(force);
+    if (r.success) {
+      toast.success(`${r.synced} apostas sincronizadas`);
+      runAnalysis(true);
+    } else {
+      toast.error(r.error || 'Erro ao sincronizar');
+    }
+  };
+
+  const runAnalysis = async (showToast = true) => {
+    if (!user) return;
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-real-bets');
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setResult(data as AnalysisResult);
+      if (showToast) toast.success('Análise concluída');
+    } catch (e: any) {
+      if (showToast) toast.error(`Erro: ${e.message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
+          <button
+            onClick={() => navigate('/punter/funcoes')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+              APOSTAS REAIS BETFAIR
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-4 max-w-4xl space-y-4">
+        <PunterBreadcrumb
+          items={[
+            { label: 'Funções', to: '/punter/funcoes' },
+            { label: 'Apostas Reais Betfair' },
+          ]}
+        />
+
+        {!user ? (
+          <p className="text-muted-foreground text-sm text-center py-8">
+            Faça login para acessar.
+          </p>
+        ) : (
+          <>
+            {/* CARD 1 — Sincronização Betfair */}
+            <Card className="p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🟡</span>
+                <h2 className="font-mono text-sm font-bold text-foreground">
+                  SINCRONIZAR COM A BETFAIR
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Configure suas credenciais (App Key + SSOID) e sincronize automaticamente
+                todas as suas apostas reais. Apenas dados desta seção serão analisados.
+              </p>
+              <BetfairConfig userId={user.id} />
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={() => handleSync(false)}
+                  disabled={syncing}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', syncing && 'animate-spin')} />
+                  {syncing ? 'Sincronizando…' : 'Sincronizar'}
+                </Button>
+                <Button
+                  onClick={() => handleSync(true)}
+                  disabled={syncing}
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', syncing && 'animate-spin')} />
+                  Re-sync Completo
+                </Button>
+              </div>
+            </Card>
+
+            {/* CARD 2 — Análise Hórus */}
+            <Card className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <h2 className="font-mono text-sm font-bold text-foreground">
+                    ANÁLISE DO HÓRUS PUNTER
+                  </h2>
+                </div>
+                <Button
+                  onClick={() => runAnalysis(true)}
+                  disabled={analyzing}
+                  size="sm"
+                >
+                  {analyzing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Brain className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  {analyzing ? 'Analisando…' : 'Analisar Apostas'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                O Hórus cruza suas apostas reais com os sinais aprovados/vetados da Arena
+                Trader Sports, identifica padrões de erro e sugere correções.
+              </p>
+
+              {result && <AnalysisResultPanel result={result} />}
+            </Card>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function AnalysisResultPanel({ result }: { result: AnalysisResult }) {
+  const { stats, insights, bets } = result;
+
+  if (stats.total_bets === 0) {
+    return (
+      <div className="text-center py-6 space-y-2">
+        <Target className="w-8 h-8 text-muted-foreground mx-auto" />
+        <p className="text-xs text-muted-foreground">
+          Nenhuma aposta Betfair encontrada. Sincronize primeiro.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <KPI label="Total" value={stats.total_bets.toString()} />
+        <KPI
+          label="ROI"
+          value={`${stats.roi_pct >= 0 ? '+' : ''}${stats.roi_pct.toFixed(1)}%`}
+          tone={stats.roi_pct >= 0 ? 'success' : 'destructive'}
+        />
+        <KPI
+          label="P/L"
+          value={`${stats.total_pl >= 0 ? '+' : ''}${stats.total_pl.toFixed(2)}`}
+          tone={stats.total_pl >= 0 ? 'success' : 'destructive'}
+        />
+        <KPI
+          label="CLV médio"
+          value={`${stats.avg_clv_pct >= 0 ? '+' : ''}${stats.avg_clv_pct.toFixed(1)}%`}
+          tone={stats.avg_clv_pct >= 0 ? 'success' : 'destructive'}
+        />
+      </div>
+
+      {/* Comparação ATS */}
+      <div className="border border-border rounded-lg p-3 space-y-2">
+        <p className="font-mono text-[10px] text-muted-foreground uppercase">
+          Comparativo com Arena Trader Sports
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <Stat icon={CheckCircle} tone="success" label="Aprovadas vencedoras" value={stats.aligned_won} />
+          <Stat icon={XCircle} tone="destructive" label="Aprovadas perdedoras" value={stats.aligned_lost} />
+          <Stat icon={AlertTriangle} tone="warning" label="Ignorou veto" value={stats.ignored_vetoes} />
+          <Stat icon={Target} tone="muted" label="Entrada cega" value={stats.blind_entries} />
+        </div>
+      </div>
+
+      {/* Insights da IA */}
+      {insights && (
+        <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="w-4 h-4 text-primary" />
+            <p className="font-mono text-xs font-bold text-primary uppercase">
+              Diagnóstico do Hórus
+            </p>
+          </div>
+          <div className="text-xs text-foreground leading-relaxed prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+            <ReactMarkdown>{insights}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de apostas analisadas */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        <div className="px-3 py-2 border-b border-border">
+          <p className="font-mono text-[10px] font-bold uppercase text-muted-foreground">
+            Últimas {bets.length} Apostas Analisadas
+          </p>
+        </div>
+        <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+          {bets.map(bet => (
+            <BetRow key={bet.id} bet={bet} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KPI({ label, value, tone }: { label: string; value: string; tone?: 'success' | 'destructive' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-secondary/30 border border-border rounded-lg p-2.5"
+    >
+      <p className="text-[9px] font-mono text-muted-foreground uppercase">{label}</p>
+      <p
+        className={cn(
+          'font-mono text-base font-bold',
+          tone === 'success' && 'text-success',
+          tone === 'destructive' && 'text-destructive',
+          !tone && 'text-foreground',
+        )}
+      >
+        {value}
+      </p>
+    </motion.div>
+  );
+}
+
+function Stat({
+  icon: Icon, tone, label, value,
+}: { icon: any; tone: 'success' | 'destructive' | 'warning' | 'muted'; label: string; value: number }) {
+  const colorMap = {
+    success: 'text-success',
+    destructive: 'text-destructive',
+    warning: 'text-warning',
+    muted: 'text-muted-foreground',
+  };
+  return (
+    <div className="flex items-center gap-1.5">
+      <Icon className={cn('w-3.5 h-3.5 shrink-0', colorMap[tone])} />
+      <div className="min-w-0">
+        <p className="font-mono text-sm font-bold text-foreground">{value}</p>
+        <p className="text-[9px] text-muted-foreground leading-tight">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function BetRow({ bet }: { bet: AnalysisResult['bets'][number] }) {
+  const won = bet.result === 'green' || bet.result === 'won';
+  const lost = bet.result === 'red' || bet.result === 'lost';
+  const alignmentBadge: Record<string, { label: string; tone: string }> = {
+    aligned_won: { label: 'Alinhado ✓', tone: 'bg-success/15 text-success border-success/30' },
+    aligned_lost: { label: 'Aprovado RED', tone: 'bg-warning/15 text-warning border-warning/30' },
+    against_signal: { label: 'Contra veto', tone: 'bg-destructive/15 text-destructive border-destructive/30' },
+    no_signal: { label: 'Sem sinal', tone: 'bg-muted/30 text-muted-foreground border-border' },
+    pending: { label: 'Pendente', tone: 'bg-muted/30 text-muted-foreground border-border' },
+  };
+  const badge = alignmentBadge[bet.alignment];
+
+  return (
+    <div className="px-3 py-2.5 hover:bg-secondary/20 transition-colors">
+      <div className="flex items-start gap-2">
+        <div className="shrink-0 mt-0.5">
+          {won && <CheckCircle className="w-3.5 h-3.5 text-success" />}
+          {lost && <XCircle className="w-3.5 h-3.5 text-destructive" />}
+          {!won && !lost && <Target className="w-3.5 h-3.5 text-muted-foreground" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground truncate">
+            {bet.home_team || '?'} vs {bet.away_team || '?'}
+          </p>
+          <p className="text-[10px] text-muted-foreground truncate">{bet.market}</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {badge && (
+              <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0 h-4', badge.tone)}>
+                {badge.label}
+              </Badge>
+            )}
+            {bet.error_tags.map(tag => (
+              <Badge key={tag} variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30">
+                {tag.replace(/_/g, ' ')}
+              </Badge>
+            ))}
+            {bet.clv_pct != null && (
+              <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0 h-4', bet.clv_pct >= 0 ? 'bg-success/10 text-success border-success/30' : 'bg-muted/30 text-muted-foreground border-border')}>
+                CLV {bet.clv_pct >= 0 ? '+' : ''}{bet.clv_pct.toFixed(1)}%
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-xs font-mono font-bold text-foreground">@{bet.odd.toFixed(2)}</p>
+          {bet.profit_loss != null && (
+            <p className={cn('text-[10px] font-mono font-bold', (bet.profit_loss || 0) >= 0 ? 'text-success' : 'text-destructive')}>
+              {(bet.profit_loss || 0) >= 0 ? '+' : ''}{bet.profit_loss.toFixed(2)}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
