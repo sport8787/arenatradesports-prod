@@ -16,11 +16,6 @@ const VTURB_ACCOUNT_ID = '425e46be-1934-41ee-ac61-375afed6531f';
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    url: 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/testimonials/depoimento-01.mp4',
-    name: 'Usuário verificado',
-    role: 'Apostador profissional',
-  },
-  {
     vturbId: '69ea210588365845bd04bfd8',
     name: 'Cliente Mycroft',
     role: 'Depoimento real',
@@ -34,6 +29,11 @@ const TESTIMONIALS: Testimonial[] = [
     vturbId: '69ea20dd05c3ed4453dee2da',
     name: 'Cliente Mycroft',
     role: 'Depoimento real',
+  },
+  {
+    url: 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/testimonials/depoimento-01.mp4',
+    name: 'Usuário verificado',
+    role: 'Apostador profissional',
   },
 ];
 
