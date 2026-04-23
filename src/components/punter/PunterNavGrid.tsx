@@ -177,7 +177,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         <SectionLabel>Comunidade e Suporte</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
-            onClick={() => open(TELEGRAM_URL)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<MessageCircle className="w-4 h-4" />}
             iconBg="bg-[#229ED9]/15"
             iconColor="text-[#229ED9]"
@@ -185,7 +185,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             description="Sinais e alertas em tempo real"
           />
           <NavCard
-            onClick={() => open(FOUNDERS_GROUP.url)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<MessagesSquare className="w-4 h-4" />}
             iconBg="bg-[#25D366]/15"
             iconColor="text-[#25D366]"
@@ -194,7 +194,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             badge={{ label: 'Exclusivo', tone: 'exclusive' }}
           />
           <NavCard
-            onClick={() => open(SUPPORT_WHATSAPP)}
+            onClick={() => navigate('/punter/comunidade')}
             icon={<Info className="w-4 h-4" />}
             iconBg="bg-muted/40"
             iconColor="text-foreground"
