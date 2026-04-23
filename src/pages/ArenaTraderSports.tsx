@@ -114,44 +114,6 @@ export default function ArenaTraderSports() {
     fetchBettedIds();
   }, []);
 
-  const handleFetchLiveMatches = useCallback(async () => {
-    setIsFetching(true);
-    try {
-      // Step 1: Fetch live stats (no analysis)
-      const { data, error } = await supabase.functions.invoke('fetch-live-matches');
-      if (error) throw error;
-      toast.success(`${data.total_matches} jogos sincronizados`);
-      await refetch();
-
-      // Step 2: Trigger manual analysis for all eligible matches
-      toast.info('Analisando jogos com estatísticas...');
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-live-matches', {
-        body: { bankroll: bankroll?.balance ?? 500 },
-      });
-
-      if (analysisError) {
-        console.error('Analysis error:', analysisError);
-        toast.error('Erro ao analisar jogos');
-      } else if (analysisData?.analyzed > 0) {
-        const aprovados = (analysisData.results || []).filter((r: any) => r.verdict === 'APROVADO');
-        if (aprovados.length > 0) {
-          toast.success(`🎯 ${aprovados.length} aposta(s) aprovada(s)!`, { duration: 5000 });
-        } else {
-          toast.info(`${analysisData.analyzed} jogos analisados — nenhuma oportunidade encontrada`);
-        }
-      } else {
-        toast.info('Nenhum jogo elegível para análise');
-      }
-      await refetch();
-    } catch (e) {
-      console.error('Fetch live matches error:', e);
-      toast.error('Erro ao buscar jogos ao vivo');
-    } finally {
-      setIsFetching(false);
-    }
-  }, [refetch, bankroll]);
-
-
   const handleSettleBets = useCallback(async () => {
     setIsSettling(true);
     try {
@@ -167,22 +129,6 @@ export default function ArenaTraderSports() {
       setIsSettling(false);
     }
   }, [settleBets]);
-
-  const handleEvaluateCashouts = useCallback(async () => {
-    setIsEvaluating(true);
-    try {
-      const result = await evaluateCashouts();
-      if (result.success) {
-        toast.success(result.data?.message || 'Posições avaliadas!');
-      } else {
-        toast.error(result.error || 'Erro ao avaliar posições');
-      }
-    } catch (e) {
-      toast.error('Erro ao avaliar posições');
-    } finally {
-      setIsEvaluating(false);
-    }
-  }, [evaluateCashouts]);
 
   const handleAnalyzeCorners = useCallback(async () => {
     setIsAnalyzingCorners(true);
