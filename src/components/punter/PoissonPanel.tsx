@@ -31,6 +31,7 @@ export default function PoissonPanel() {
   const [awayTeam, setAwayTeam] = useState('');
   const [homeXg, setHomeXg] = useState(1.5);
   const [awayXg, setAwayXg] = useState(1.2);
+  const [explainOpen, setExplainOpen] = useState(false);
 
   async function calculate() {
     if (!homeTeam || !awayTeam) return;
