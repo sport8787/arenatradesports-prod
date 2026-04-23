@@ -23,6 +23,7 @@ import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMonthly";
 import LiveMatchDetail from "./pages/LiveMatchDetail";
 import TradingHistory from "./pages/TradingHistory";
+import LiquidationsHistory from "./pages/LiquidationsHistory";
 import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
 import Historico from "./pages/Historico";
