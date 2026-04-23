@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Send, Flame, MessageCircle, Copy, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -58,8 +58,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
   const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0, source: 'empty', lastUpdated: null });
   const countdown = useCountdown(nextMatch?.kickoff);
 
-  // Synthetic but believable "punters online" counter (847 ± drift) for social proof
-  const onlineCount = useMemo(() => 820 + Math.floor(Math.random() * 60), []);
+  // (synthetic online counter removed — was creating noise)
 
   useEffect(() => {
     if (!userId) return;
@@ -166,29 +165,31 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
         </span>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
-        <StatCard
-          label="Strike Rate 30d"
-          value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
-          color="primary"
-          progress={stats.settledCount > 0 ? stats.winRate : undefined}
-          hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
-        />
-        <StatCard
-          label="ROI 7d"
-          value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
-          color="warning"
-          hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
-        />
-        <StatCard
-          label="Greens Hoje"
-          value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
-          color="foreground"
-          highlight={stats.greensToday > 0}
-          hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
-        />
-      </div>
+      {/* Stats grid — hidden until user has data */}
+      {stats.source !== 'empty' && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+          <StatCard
+            label="Strike Rate 30d"
+            value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
+            color="primary"
+            progress={stats.settledCount > 0 ? stats.winRate : undefined}
+            hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
+          />
+          <StatCard
+            label="ROI 7d"
+            value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
+            color="warning"
+            hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
+          />
+          <StatCard
+            label="Greens Hoje"
+            value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
+            color="foreground"
+            highlight={stats.greensToday > 0}
+            hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
+          />
+        </div>
+      )}
 
       {/* Featured Signal + Next Match */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -249,47 +250,25 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
 
         {/* Side column: countdown + telegram */}
         <div className="space-y-3">
-          <div className="border border-primary/30 bg-card/50">
-            <div className="px-3 py-1.5 border-b border-primary/20 font-mono text-[10px] flex justify-between text-muted-foreground">
-              <span>NEXT_EVENT</span>
-              <span className="text-destructive animate-pulse">COUNTDOWN</span>
-            </div>
-            <div className="p-4 text-center">
-              <div className="font-mono text-2xl sm:text-3xl font-black text-foreground tabular-nums tracking-tight">
-                {countdown ?? '--:--:--'}
+          {nextMatch && (
+            <div className="border border-primary/30 bg-card/50">
+              <div className="px-3 py-1.5 border-b border-primary/20 font-mono text-[10px] flex justify-between text-muted-foreground">
+                <span>NEXT_EVENT</span>
+                <span className="text-destructive animate-pulse">COUNTDOWN</span>
               </div>
-              <p className="text-[9px] font-mono text-primary/60 uppercase tracking-widest mt-1">
-                Hrs : Min : Seg
-              </p>
-              {nextMatch && (
+              <div className="p-4 text-center">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-foreground tabular-nums tracking-tight">
+                  {countdown ?? '--:--:--'}
+                </div>
+                <p className="text-[9px] font-mono text-primary/60 uppercase tracking-widest mt-1">
+                  Hrs : Min : Seg
+                </p>
                 <p className="text-[10px] text-foreground mt-3 font-bold uppercase truncate">
                   {nextMatch.label}
                 </p>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate('/punter/config')}
-            className="w-full border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors p-3 group text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="shrink-0 w-9 h-9 flex items-center justify-center border border-primary/40 bg-background">
-                <Send className="w-4 h-4 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Live Data Stream
-                </p>
-                <p className="font-bold text-foreground text-sm">
-                  {onlineCount} agentes conectados
-                </p>
-              </div>
-              <span className="bg-primary text-primary-foreground px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors">
-                Ativar
-              </span>
             </div>
-          </button>
+          )}
 
           <a
             href="https://t.me/oraculo_mycroft"
@@ -324,11 +303,8 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
                 <MessageCircle className="w-4 h-4 text-[#25D366]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-[#25D366]/80">
-                  {FOUNDERS_GROUP.eyebrow}
-                </p>
                 <p className="font-bold text-foreground text-sm leading-tight">
-                  {FOUNDERS_GROUP.title}
+                  Acessar Grupo VIP Whatsapp
                 </p>
               </div>
               <span className="bg-[#25D366] text-white px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
