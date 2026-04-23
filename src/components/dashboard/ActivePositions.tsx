@@ -61,7 +61,7 @@ export default function ActivePositions() {
           .order('created_at', { ascending: false }),
         supabase
           .from('virtual_bets')
-          .select('id, match_name, market, odd, stake, status, profit_loss, score_home, score_away, settled_at')
+          .select('id, match_name, market, odd, stake, status, profit_loss, score_home, score_away, settled_at, cashout_value')
           .eq('user_id', user!.id)
           .in('status', ['won', 'lost', 'cashout'])
           .gte('settled_at', twoHoursAgo)
