@@ -94,7 +94,19 @@ export default function ArenaTraderSports() {
   const [isSettling, setIsSettling] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
+    if (typeof window === 'undefined') return 'cards';
+    const saved = window.localStorage.getItem('arenaTraderSports.viewMode');
+    return saved === 'table' || saved === 'cards' ? saved : 'cards';
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('arenaTraderSports.viewMode', viewMode);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [viewMode]);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   // Fetch betted match IDs to prevent duplicates
