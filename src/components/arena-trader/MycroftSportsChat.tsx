@@ -127,48 +127,75 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '🔒 Sua sessão expirou. Faça login novamente para falar com o Mycroft.',
+          timestamp: Date.now(),
+        }]);
+        setIsLoading(false);
+        return;
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2min client timeout
-      
-      const { data: { session } } = await supabase.auth.getSession();
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-sports-chat`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
             query: userMsg.content,
             matchContext,
             conversationHistory: messages.slice(-10),
-            userId: session?.user?.id || null,
+            userId: session.user.id,
           }),
           signal: controller.signal,
         }
       );
       clearTimeout(timeoutId);
-      
+
+      const raw = await response.text();
+      let data: any = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch { /* non-JSON */ }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.response || `Erro ${response.status}`);
+        let friendly = `⚠️ Erro ${response.status} ao conectar com o Mycroft.`;
+        if (response.status === 401) friendly = '🔒 Sessão inválida. Faça login novamente.';
+        else if (response.status === 429) friendly = '⏳ Limite de requisições atingido. Aguarde alguns segundos.';
+        else if (response.status === 402) friendly = '💳 Créditos de IA esgotados. Adicione saldo em Settings → Cloud & AI.';
+        else if (response.status >= 500) friendly = '⚠️ Mycroft está indisponível no momento. Tente novamente em instantes.';
+        const detail = data?.error || data?.response;
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: detail ? `${friendly}\n\n_Detalhe: ${detail}_` : friendly,
+          timestamp: Date.now(),
+        }]);
+        return;
       }
-      
-      const data = await response.json();
 
-
-      const assistantMsg: ChatMessage = {
+      setMessages(prev => [...prev, {
         role: 'assistant',
         content: data?.response || '⚠️ Sem resposta do Mycroft Sports.',
         timestamp: Date.now(),
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-    } catch (err) {
+      }]);
+    } catch (err: any) {
       console.error('Chat error:', err);
+      const isAbort = err?.name === 'AbortError';
+      const isNetwork = err?.message?.toLowerCase?.().includes('failed to fetch');
+      let msg = '⚠️ Erro ao conectar com o Mycroft Sports. Tente novamente.';
+      if (isAbort) msg = '⏱️ Tempo limite excedido (2min). A análise pode estar muito longa — tente uma pergunta mais curta.';
+      else if (isNetwork) msg = '📡 Sem conexão com o servidor. Verifique sua internet.';
+      else if (err?.message) msg += `\n\n_${err.message}_`;
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '⚠️ Erro ao conectar com o Mycroft Sports. Tente novamente.',
+        content: msg,
         timestamp: Date.now(),
       }]);
     } finally {

@@ -325,7 +325,7 @@ export default function ArenaTraderSports() {
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
-              KB & Chat
+              Chat com Mycroft
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />
