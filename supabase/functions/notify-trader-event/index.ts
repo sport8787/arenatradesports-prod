@@ -107,13 +107,16 @@ function buildTelegramMessage(p: Payload): string {
   );
 }
 
-async function sendTelegramDedup(
+// Grupo público dedicado a sinais ao vivo da Arena Trader Sports.
+// O bot @oaraculomycroftfutebol_bot precisa ser membro/admin desse grupo.
+const TRADER_SPORTS_LIVE_CHAT = '@oraculo_mycroft_trader';
+
+async function dispatchOne(
   text: string,
   meta: { match_id: string; market: string; verdict: string },
+  channel: string,
+  chat_id?: string | null,
 ): Promise<boolean> {
-  // All Telegram dispatches must go through telegram-send-dedupe so that the
-  // same (match_id+market+verdict) is never sent twice — even if this function
-  // is invoked multiple times for the same event.
   try {
     const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-send-dedupe`;
     const res = await fetch(url, {
@@ -127,16 +130,33 @@ async function sendTelegramDedup(
         match_id: meta.match_id,
         market: meta.market,
         verdict: meta.verdict,
-        channel: 'trader-events',
+        channel,
+        chat_id: chat_id ?? undefined,
         source: 'notify-trader-event',
       }),
     });
     const j = await res.json().catch(() => ({}));
     return !!j?.telegram_sent;
   } catch (e) {
-    console.error('[notify-trader-event] dedupe dispatch failed:', e);
+    console.error(`[notify-trader-event] dispatch (${channel}) failed:`, e);
     return false;
   }
+}
+
+async function sendTelegramDedup(
+  text: string,
+  meta: { match_id: string; market: string; verdict: string },
+): Promise<boolean> {
+  // Despacha em paralelo para:
+  //  1. Canal principal (TELEGRAM_CHAT_ID padrão) — canal 'trader-events'
+  //  2. Grupo público da Arena Trader Sports — canal 'trader-sports-live'
+  // Cada destino tem seu próprio canal de dedupe, então o mesmo evento pode
+  // ir para ambos sem ser bloqueado pelo dedupe global.
+  const [mainOk, liveOk] = await Promise.all([
+    dispatchOne(text, meta, 'trader-events'),
+    dispatchOne(text, meta, 'trader-sports-live', TRADER_SPORTS_LIVE_CHAT),
+  ]);
+  return mainOk || liveOk;
 }
 
 Deno.serve(async (req) => {
