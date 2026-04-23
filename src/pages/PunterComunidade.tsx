@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, MessagesSquare, Info, ExternalLink, BookOpen, CheckCircle2, Clock, LayoutGrid, Wallet, LineChart, Download, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, MessageCircle, MessagesSquare, Info, ExternalLink, BookOpen, CheckCircle2, Clock, LayoutGrid, Wallet, LineChart, Download, Sparkles, Check, X } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { FOUNDERS_GROUP } from '@/config/foundersGroup';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 const TELEGRAM_URL = 'https://t.me/oraculo_mycroft';
 const SUPPORT_WHATSAPP =
