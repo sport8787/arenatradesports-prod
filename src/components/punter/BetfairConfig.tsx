@@ -30,16 +30,36 @@ const normalizeSessionToken = (value: string) => {
   return firstCookiePart.replace(/^"|"$/g, '');
 };
 
-const extractFunctionErrorMessage = async (error: any) => {
-  const fallback = error?.message || 'Erro desconhecido';
+interface ErrorDetails {
+  title: string;
+  hint?: string;
+  detail?: string;
+  status?: number;
+}
+
+const extractFunctionError = async (error: any): Promise<ErrorDetails> => {
+  const fallbackTitle = error?.message || 'Erro desconhecido ao chamar a função';
   const response = error?.context;
-  if (!response || typeof response.json !== 'function') return fallback;
+  if (!response || typeof response.json !== 'function') {
+    return { title: fallbackTitle, status: response?.status };
+  }
   try {
     const payload = await response.json();
-    const baseError = payload?.error || fallback;
-    return payload?.hint ? `${baseError}: ${payload.hint}` : baseError;
+    return {
+      title: payload?.error || fallbackTitle,
+      hint: payload?.hint,
+      detail: typeof payload?.detail === 'string'
+        ? payload.detail
+        : payload?.detail ? JSON.stringify(payload.detail).slice(0, 500) : undefined,
+      status: response?.status,
+    };
   } catch {
-    return fallback;
+    try {
+      const text = await response.text?.();
+      return { title: fallbackTitle, detail: text?.slice(0, 500), status: response?.status };
+    } catch {
+      return { title: fallbackTitle, status: response?.status };
+    }
   }
 };
 
