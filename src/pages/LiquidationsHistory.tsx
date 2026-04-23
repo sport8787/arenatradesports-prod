@@ -166,6 +166,16 @@ export default function LiquidationsHistory() {
             <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
               Histórico de Liquidações
             </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCSV}
+              disabled={filtered.length === 0}
+              className="ml-auto text-xs"
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Exportar CSV
+            </Button>
           </div>
         </div>
 
