@@ -1,8 +1,26 @@
 import { useState } from 'react';
 import { poissonService, type PoissonInput, type PoissonResult } from '@/services/poissonService';
-import { Calculator, RefreshCw, Target } from 'lucide-react';
+import { Calculator, RefreshCw, Target, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <Info className="w-3 h-3" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[240px] text-[10px] font-mono leading-relaxed">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export default function PoissonPanel() {
   const [result, setResult] = useState<PoissonResult | null>(null);
@@ -78,38 +96,47 @@ export default function PoissonPanel() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           {/* 1X2 */}
           <div>
-            <p className="text-[10px] font-mono text-muted-foreground mb-1.5">
-              RESULTADO FINAL (1X2) — <span className="text-foreground/80">probabilidade de cada desfecho ao fim dos 90 min</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <p className="text-[10px] font-mono text-muted-foreground">
+                RESULTADO FINAL (1X2) — <span className="text-foreground/80">probabilidade de cada desfecho ao fim dos 90 min</span>
+              </p>
+              <InfoTip text="Chance estimada de cada desfecho final (90 min). Soma ≈ 100%. A 'odd justa' é o preço mínimo que a casa deveria pagar para a aposta valer a pena (= 100 ÷ probabilidade)." />
+            </div>
             <div className="grid grid-cols-3 gap-2">
-              <Stat label="VITÓRIA CASA" value={`${result.home_win}%`} sub={`Odd justa ${(100 / result.home_win).toFixed(2)}`} color="text-green-400" />
-              <Stat label="EMPATE" value={`${result.draw}%`} sub={`Odd justa ${(100 / result.draw).toFixed(2)}`} color="text-yellow-400" />
-              <Stat label="VITÓRIA FORA" value={`${result.away_win}%`} sub={`Odd justa ${(100 / result.away_win).toFixed(2)}`} color="text-red-400" />
+              <Stat label="VITÓRIA CASA" value={`${result.home_win}%`} sub={`Odd justa ${(100 / result.home_win).toFixed(2)}`} color="text-green-400" tip={`Probabilidade de o time da casa vencer ao fim dos 90 min. Se a casa pagar acima de ${(100 / result.home_win).toFixed(2)}, há valor.`} />
+              <Stat label="EMPATE" value={`${result.draw}%`} sub={`Odd justa ${(100 / result.draw).toFixed(2)}`} color="text-yellow-400" tip={`Probabilidade de empate no tempo regulamentar. Odd justa = ${(100 / result.draw).toFixed(2)}.`} />
+              <Stat label="VITÓRIA FORA" value={`${result.away_win}%`} sub={`Odd justa ${(100 / result.away_win).toFixed(2)}`} color="text-red-400" tip={`Probabilidade de o visitante vencer no tempo regulamentar. Odd justa = ${(100 / result.away_win).toFixed(2)}.`} />
             </div>
           </div>
 
           {/* Totals */}
           <div>
-            <p className="text-[10px] font-mono text-muted-foreground mb-1.5">
-              TOTAL DE GOLS — <span className="text-foreground/80">probabilidade do jogo terminar com mais que X gols somados</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <p className="text-[10px] font-mono text-muted-foreground">
+                TOTAL DE GOLS — <span className="text-foreground/80">probabilidade do jogo terminar com mais que X gols somados</span>
+              </p>
+              <InfoTip text="Chance de o total de gols (casa + fora) ultrapassar a linha indicada ao fim dos 90 min." />
+            </div>
             <div className="grid grid-cols-3 gap-2">
-              <Stat label="Mais de 1.5 gols" value={`${result.over_1_5}%`} sub={`Odd justa ${(100 / result.over_1_5).toFixed(2)}`} />
-              <Stat label="Mais de 2.5 gols" value={`${result.over_2_5}%`} sub={`Odd justa ${(100 / result.over_2_5).toFixed(2)}`} />
-              <Stat label="Mais de 3.5 gols" value={`${result.over_3_5}%`} sub={`Odd justa ${(100 / result.over_3_5).toFixed(2)}`} />
+              <Stat label="Mais de 1.5 gols" value={`${result.over_1_5}%`} sub={`Odd justa ${(100 / result.over_1_5).toFixed(2)}`} tip="Chance de o jogo terminar com 2 ou mais gols somados." />
+              <Stat label="Mais de 2.5 gols" value={`${result.over_2_5}%`} sub={`Odd justa ${(100 / result.over_2_5).toFixed(2)}`} tip="Chance de o jogo terminar com 3 ou mais gols somados." />
+              <Stat label="Mais de 3.5 gols" value={`${result.over_3_5}%`} sub={`Odd justa ${(100 / result.over_3_5).toFixed(2)}`} tip="Chance de o jogo terminar com 4 ou mais gols somados." />
             </div>
           </div>
 
           {/* BTTS + Lambda */}
           <div>
-            <p className="text-[10px] font-mono text-muted-foreground mb-1.5">
-              AMBOS MARCAM (BTTS) & MÉDIA DE GOLS (λ)
-            </p>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <p className="text-[10px] font-mono text-muted-foreground">
+                AMBOS MARCAM (BTTS) & MÉDIA DE GOLS (λ)
+              </p>
+              <InfoTip text="BTTS = chance de cada time marcar pelo menos 1 gol. λ = média de gols esperados por time, base do cálculo de Poisson." />
+            </div>
             <div className="grid grid-cols-4 gap-2">
-              <Stat label="Ambos marcam: SIM" value={`${result.btts_yes}%`} />
-              <Stat label="Ambos marcam: NÃO" value={`${result.btts_no}%`} />
-              <Stat label="λ Casa (gols esp.)" value={String(result.home_lambda)} color="text-primary" />
-              <Stat label="λ Fora (gols esp.)" value={String(result.away_lambda)} color="text-accent" />
+              <Stat label="Ambos marcam: SIM" value={`${result.btts_yes}%`} tip="Chance de os DOIS times marcarem ao menos 1 gol no jogo." />
+              <Stat label="Ambos marcam: NÃO" value={`${result.btts_no}%`} tip="Chance de pelo menos um dos times NÃO marcar (placar tipo 1-0, 0-0, 2-0...)." />
+              <Stat label="λ Casa (gols esp.)" value={String(result.home_lambda)} color="text-primary" tip="Média de gols esperados do time da casa nos 90 min, já ajustada pela força da liga." />
+              <Stat label="λ Fora (gols esp.)" value={String(result.away_lambda)} color="text-accent" tip="Média de gols esperados do visitante nos 90 min, já ajustada pela força da liga." />
             </div>
             <p className="text-[9px] font-mono text-muted-foreground/70 mt-1.5 leading-relaxed">
               λ (lambda) é a média de gols esperados por time já ajustada pela liga. É o que alimenta a fórmula de Poisson para gerar todas as probabilidades acima.
@@ -118,9 +145,12 @@ export default function PoissonPanel() {
 
           {/* Most Likely Scores */}
           <div>
-            <p className="text-[10px] font-mono text-muted-foreground mb-2">
-              PLACARES EXATOS MAIS PROVÁVEIS — <span className="text-foreground/80">probabilidade de o jogo terminar exatamente nesse resultado</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-2">
+              <p className="text-[10px] font-mono text-muted-foreground">
+                PLACARES EXATOS MAIS PROVÁVEIS — <span className="text-foreground/80">probabilidade de o jogo terminar exatamente nesse resultado</span>
+              </p>
+              <InfoTip text="Top placares com maior probabilidade segundo o modelo. Mesmo o mais provável costuma ter <15% — placar exato é mercado de odd alta." />
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {result.most_likely_scores.slice(0, 8).map((s, i) => (
                 <span key={i} className={cn(
@@ -138,10 +168,13 @@ export default function PoissonPanel() {
   );
 }
 
-function Stat({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+function Stat({ label, value, sub, color, tip }: { label: string; value: string; sub?: string; color?: string; tip?: string }) {
   return (
-    <div className="bg-muted/30 rounded-lg p-2 border border-border text-center">
-      <p className="text-[8px] font-mono text-muted-foreground">{label}</p>
+    <div className="bg-muted/30 rounded-lg p-2 border border-border text-center relative">
+      <div className="flex items-center justify-center gap-1">
+        <p className="text-[8px] font-mono text-muted-foreground">{label}</p>
+        {tip && <InfoTip text={tip} />}
+      </div>
       <p className={cn("text-sm font-mono font-bold", color || "text-foreground")}>{value}</p>
       {sub && <p className="text-[8px] font-mono text-muted-foreground">{sub}</p>}
     </div>
