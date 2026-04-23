@@ -93,7 +93,14 @@ export const useAuth = () => {
         data: { username }
       }
     });
-    
+
+    // Decrement promo slot on successful signup (fire-and-forget)
+    if (!error && data?.user) {
+      supabase.functions.invoke('decrement-promo-slot').catch((e) =>
+        console.warn('promo slot decrement failed:', e)
+      );
+    }
+
     return { data, error };
   };
 
