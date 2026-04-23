@@ -27,6 +27,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import SignalsFeed from '@/components/punter/SignalsFeed';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
+import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
