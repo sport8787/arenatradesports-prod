@@ -190,11 +190,14 @@ export default function LiquidationsHistory() {
     toast.success(`${filtered.length} liquidações exportadas.`);
   }
 
-  async function exportPDF() {
+  async function exportPDF(opts?: { ownerName?: string; timestamp?: Date }) {
     if (filtered.length === 0) {
       toast.error('Nenhuma liquidação para exportar.');
       return;
     }
+    const ownerName = (opts?.ownerName ?? pdfOwnerName ?? defaultName ?? '').trim();
+    const ts = opts?.timestamp ?? new Date();
+
     const [{ default: jsPDF }, autoTableMod] = await Promise.all([
       import('jspdf'),
       import('jspdf-autotable'),
@@ -210,13 +213,19 @@ export default function LiquidationsHistory() {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(110);
-    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 40, 66);
+
+    if (ownerName) {
+      doc.text(`Titular: ${ownerName}`, 40, 66);
+      doc.text(`Carimbo: ${format(ts, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`, 40, 80);
+    } else {
+      doc.text(`Carimbo: ${format(ts, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`, 40, 66);
+    }
 
     const filterParts: string[] = [];
     filterParts.push(`Resultado: ${filter === 'all' ? 'Todos' : filter === 'gren' ? 'GREN' : filter === 'red' ? 'RED' : 'Cash Out'}`);
     if (dateFrom) filterParts.push(`De: ${format(dateFrom, 'dd/MM/yyyy', { locale: ptBR })}`);
     if (dateTo) filterParts.push(`Até: ${format(dateTo, 'dd/MM/yyyy', { locale: ptBR })}`);
-    doc.text(filterParts.join('   |   '), 40, 80);
+    doc.text(filterParts.join('   |   '), 40, ownerName ? 94 : 80);
 
     doc.setTextColor(20);
     doc.setFont('helvetica', 'bold');
