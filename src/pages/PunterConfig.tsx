@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
 import NotificationSettings from '@/components/punter/NotificationSettings';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 
 export default function PunterConfig() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function PunterConfig() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-6 max-w-2xl">
+        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Configurações' }]} />
         {user ? (
            <>
              <section className="space-y-2">
