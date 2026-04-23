@@ -183,10 +183,11 @@ Deno.test("C2: rejeita chutes totais = 4 (precisa >= 5)", () => {
 Deno.test("C2: rejeita posse desequilibrada (away 30%)", () => {
   const r = evaluateOver05HT({
     minute: 20, scoreHome: 0, scoreAway: 0,
-    home: { possession: 70, dangerousAttacks: 5, shotsOnTarget: 3 },
-    away: { possession: 30, dangerousAttacks: 4, shotsOnTarget: 2 },
+    // home não atinge C1 (chutes=2); totais batem C2 mas posse away < 35
+    home: { possession: 70, dangerousAttacks: 5, shotsOnTarget: 2 },
+    away: { possession: 30, dangerousAttacks: 4, shotsOnTarget: 3 },
   });
-  // bate C2 nos demais critérios mas posse < 35
+  // total attacks=9, shots=5, mas posse 30/70 → veto C2
   assertEquals(r.approved, false);
   assertEquals(r.veto, 'Algum time com posse < 35%');
 });
