@@ -87,7 +87,7 @@ export function useLiveMatches() {
       return;
     }
 
-    const mapped = (data || [])
+    const filtered = (data || [])
       .filter((match: any) => {
         const status = String(match.status || '').toLowerCase();
         if (FINISHED_STATUSES.includes(status)) return false;
@@ -101,8 +101,33 @@ export function useLiveMatches() {
         return { ...rest, mycroft_analysis: analysis } as LiveMatch;
       });
 
-    console.log(`[useLiveMatches] ${(data || []).length} brutos → ${mapped.length} ativos`);
-    setMatches(mapped);
+    // Deduplicação por match_id — mantém o registro mais recente (updated_at)
+    const dedupMap = new Map<string, LiveMatch>();
+    for (const m of filtered) {
+      const existing = dedupMap.get(m.match_id);
+      if (!existing) {
+        dedupMap.set(m.match_id, m);
+      } else {
+        const existingTs = new Date(existing.updated_at).getTime();
+        const currentTs = new Date(m.updated_at).getTime();
+        if (currentTs >= existingTs) dedupMap.set(m.match_id, m);
+      }
+    }
+    const mapped = Array.from(dedupMap.values()).sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+
+    console.log(`[useLiveMatches] ${(data || []).length} brutos → ${filtered.length} ativos → ${mapped.length} únicos`);
+
+    // Evita re-render se a lista efetivamente não mudou (mesmo conjunto de match_id + updated_at + mycroft_status)
+    setMatches((prev) => {
+      if (prev.length === mapped.length) {
+        const prevSig = prev.map((p) => `${p.match_id}:${p.updated_at}:${p.mycroft_status ?? ''}:${p.score_home}-${p.score_away}:${p.minute ?? ''}`).join('|');
+        const nextSig = mapped.map((p) => `${p.match_id}:${p.updated_at}:${p.mycroft_status ?? ''}:${p.score_home}-${p.score_away}:${p.minute ?? ''}`).join('|');
+        if (prevSig === nextSig) return prev;
+      }
+      return mapped;
+    });
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());
