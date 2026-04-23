@@ -184,6 +184,10 @@ Deno.test("C1: xG ausente no time dominante NÃO reprova (xG é opcional)", () =
   assertEquals(r, { approved: true, cenario: 1 });
 });
 
+// ─────────────────────────────────────────────────────────────
+// CENÁRIO 2 — Jogo aberto e movimentado
+// ─────────────────────────────────────────────────────────────
+
 Deno.test("C2: aprova com totais ok e posse equilibrada", () => {
   const r = evaluateOver05HT({
     minute: 22, scoreHome: 0, scoreAway: 0,
