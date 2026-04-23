@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw } from 'lucide-react';
 import PunterBackButton from '@/components/punter/PunterBackButton';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { toast } from 'sonner';
@@ -80,7 +80,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   
-  const { matches: liveMatches, loading, refetch } = useLiveMatches();
+  const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
@@ -350,6 +350,31 @@ export default function ArenaTraderSports() {
 
         {/* Filters */}
         <div className="space-y-3">
+          {/* Sync indicator */}
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw className={cn('w-3 h-3', refreshing && 'animate-spin text-primary')} />
+              {refreshing ? (
+                <span className="text-primary">Atualizando jogos ao vivo…</span>
+              ) : lastUpdated ? (
+                <span>
+                  Última sincronização:{' '}
+                  <span className="text-foreground font-medium">
+                    {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </span>
+              ) : (
+                <span>Aguardando primeira sincronização…</span>
+              )}
+            </div>
+            <button
+              onClick={() => refetch()}
+              disabled={refreshing}
+              className="text-primary hover:underline disabled:opacity-50"
+            >
+              Atualizar agora
+            </button>
+          </div>
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="all">Todos</TabsTrigger>
