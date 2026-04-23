@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   ArrowLeft, CheckCircle2, XCircle, Trophy, CalendarIcon, Filter,
-  ChevronLeft, ChevronRight, Info, Clock, Download,
+  ChevronLeft, ChevronRight, Info, Clock, Download, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -54,12 +54,35 @@ function explainOutcome(bet: SettledBet): string {
 export default function LiquidationsHistory() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [bets, setBets] = useState<SettledBet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ResultFilter>('all');
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [page, setPage] = useState(1);
+
+  // Hydrate state from URL
+  const filter = (searchParams.get('result') as ResultFilter) || 'all';
+  const dateFromStr = searchParams.get('from');
+  const dateToStr = searchParams.get('to');
+  const dateFrom = dateFromStr ? new Date(dateFromStr) : undefined;
+  const dateTo = dateToStr ? new Date(dateToStr) : undefined;
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+
+  const updateParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(patch).forEach(([k, v]) => {
+      if (v == null || v === '') next.delete(k);
+      else next.set(k, v);
+    });
+    setSearchParams(next, { replace: true });
+  };
+
+  const setFilter = (v: ResultFilter) => updateParams({ result: v === 'all' ? null : v, page: null });
+  const setDateFrom = (d: Date | undefined) => updateParams({ from: d ? d.toISOString().slice(0, 10) : null, page: null });
+  const setDateTo = (d: Date | undefined) => updateParams({ to: d ? d.toISOString().slice(0, 10) : null, page: null });
+  const setPage = (updater: number | ((p: number) => number)) => {
+    const next = typeof updater === 'function' ? updater(page) : updater;
+    updateParams({ page: next === 1 ? null : String(next) });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -111,8 +134,7 @@ export default function LiquidationsHistory() {
   const currentPage = Math.min(page, totalPages);
   const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [filter, dateFrom, dateTo]);
+  // Page is now URL-driven; setters above already reset to page 1 when filters change.
 
   // Stats summary
   const stats = useMemo(() => {
@@ -154,6 +176,113 @@ export default function LiquidationsHistory() {
     toast.success(`${filtered.length} liquidações exportadas.`);
   }
 
+  async function exportPDF() {
+    if (filtered.length === 0) {
+      toast.error('Nenhuma liquidação para exportar.');
+      return;
+    }
+    const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const autoTable = (autoTableMod as any).default || (autoTableMod as any);
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Histórico de Liquidações', 40, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 40, 66);
+
+    const filterParts: string[] = [];
+    filterParts.push(`Resultado: ${filter === 'all' ? 'Todos' : filter === 'gren' ? 'GREN' : filter === 'red' ? 'RED' : 'Cash Out'}`);
+    if (dateFrom) filterParts.push(`De: ${format(dateFrom, 'dd/MM/yyyy', { locale: ptBR })}`);
+    if (dateTo) filterParts.push(`Até: ${format(dateTo, 'dd/MM/yyyy', { locale: ptBR })}`);
+    doc.text(filterParts.join('   |   '), 40, 80);
+
+    doc.setTextColor(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Resumo', 40, 110);
+
+    const summary = [
+      ['Total', String(filtered.length)],
+      ['GREN', String(stats.gren)],
+      ['RED', String(stats.red)],
+      ['CASH OUT', String(stats.co)],
+      ['P&L Total', `${stats.pnl >= 0 ? '+' : ''}R$ ${stats.pnl.toFixed(2)}`],
+    ];
+    autoTable(doc, {
+      startY: 118,
+      head: [['Métrica', 'Valor']],
+      body: summary,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [30, 30, 40], textColor: 255 },
+      columnStyles: { 0: { cellWidth: 120, fontStyle: 'bold' }, 1: { cellWidth: 120 } },
+      margin: { left: 40 },
+    });
+
+    const statusLabel = (s: string) => s === 'won' ? 'GREN' : s === 'lost' ? 'RED' : 'CASH OUT';
+    const rows = filtered.map(b => {
+      const ts = b.settled_at || b.cashed_out_at;
+      const date = ts ? format(new Date(ts), 'dd/MM/yy HH:mm', { locale: ptBR }) : '-';
+      const score = b.score_home != null && b.score_away != null ? `${b.score_home}x${b.score_away}` : '-';
+      const pnl = b.profit_loss ?? (b.status === 'won' ? b.stake * b.odd - b.stake : b.status === 'lost' ? -b.stake : 0);
+      return [
+        date, b.match_name, b.market, Number(b.odd).toFixed(2),
+        statusLabel(b.status), score,
+        `R$ ${Number(b.stake).toFixed(2)}`,
+        `${pnl >= 0 ? '+' : ''}R$ ${Number(pnl).toFixed(2)}`,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Data', 'Partida', 'Mercado', 'Odd', 'Status', 'Placar', 'Stake', 'P&L']],
+      body: rows,
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [30, 30, 40], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 65 }, 1: { cellWidth: 130 }, 2: { cellWidth: 90 },
+        3: { cellWidth: 35, halign: 'right' },
+        4: { cellWidth: 55, halign: 'center', fontStyle: 'bold' },
+        5: { cellWidth: 40, halign: 'center' },
+        6: { cellWidth: 55, halign: 'right' },
+        7: { cellWidth: 60, halign: 'right' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const v = data.cell.raw;
+          if (v === 'GREN') data.cell.styles.textColor = [16, 122, 87];
+          else if (v === 'RED') data.cell.styles.textColor = [185, 28, 28];
+          else if (v === 'CASH OUT') data.cell.styles.textColor = [30, 64, 175];
+        }
+        if (data.section === 'body' && data.column.index === 7) {
+          const v = String(data.cell.raw);
+          if (v.startsWith('+')) data.cell.styles.textColor = [16, 122, 87];
+          else if (v.startsWith('-')) data.cell.styles.textColor = [185, 28, 28];
+        }
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text(`Página ${i} de ${pageCount}`, pageW - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+    }
+
+    doc.save(`liquidacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+    toast.success(`PDF gerado com ${filtered.length} liquidações.`);
+  }
   return (
     <TooltipProvider delayDuration={150}>
       <div className="min-h-screen bg-background">
@@ -166,16 +295,28 @@ export default function LiquidationsHistory() {
             <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
               Histórico de Liquidações
             </h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportCSV}
-              disabled={filtered.length === 0}
-              className="ml-auto text-xs"
-            >
-              <Download className="w-3.5 h-3.5 mr-1" />
-              Exportar CSV
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportCSV}
+                disabled={filtered.length === 0}
+                className="text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportPDF}
+                disabled={filtered.length === 0}
+                className="text-xs"
+              >
+                <FileText className="w-3.5 h-3.5 mr-1" />
+                PDF
+              </Button>
+            </div>
           </div>
         </div>
 
