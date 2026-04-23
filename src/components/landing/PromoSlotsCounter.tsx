@@ -49,7 +49,7 @@ export default function PromoSlotsCounter({ variant = 'inline' }: Props) {
         <div className="flex items-center gap-2">
           <Flame className={`w-4 h-4 ${critical ? 'text-red-400 animate-pulse' : urgent ? 'text-orange-400' : 'text-yellow-400'}`} />
           <span className={`text-xs font-bold uppercase tracking-wider ${critical ? 'text-red-400' : urgent ? 'text-orange-400' : 'text-yellow-400'}`}>
-            {critical ? 'ÚLTIMAS VAGAS' : urgent ? 'POUCAS VAGAS' : 'OFERTA DE LANÇAMENTO'}
+            {critical ? 'ÚLTIMAS VAGAS' : urgent ? 'POUCAS VAGAS' : 'LOTE EXTRA LIBERADO — +300 VAGAS'}
           </span>
         </div>
         <span className="text-xs text-gray-400">{pct}% preenchido</span>
@@ -76,8 +76,8 @@ export default function PromoSlotsCounter({ variant = 'inline' }: Props) {
           }`}
         />
       </div>
-      <p className="text-[11px] text-gray-400 mt-2 text-center">
-        Após esgotar, o acesso volta ao valor cheio (R$ 299/mês).
+      <p className="text-[11px] text-gray-300 mt-2 text-center">
+        Devido à grande procura, liberamos <span className="font-bold text-yellow-300">+300 vagas extras</span>. Após esgotar, o acesso volta ao valor cheio (R$ 299/mês).
       </p>
     </motion.div>
   );
