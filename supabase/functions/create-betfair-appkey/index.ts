@@ -115,34 +115,50 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => null);
     const sessionToken = normalizeSessionToken(body?.sessionToken);
+    const requestedAppName = typeof body?.appName === "string" && body.appName.trim()
+      ? body.appName.trim()
+      : "ArenaTradeBot";
+
+    console.log("[create-betfair-appkey] user:", claimsData.claims.sub, "ssoidLen:", sessionToken.length, "appName:", requestedAppName);
 
     if (!sessionToken) {
       return jsonResponse({ error: "sessionToken é obrigatório" }, 400);
     }
+    if (sessionToken.length < 20) {
+      return jsonResponse({
+        error: "SSOID inválido",
+        hint: "O valor parece curto demais. Cole apenas o VALOR do cookie ssoid (sem 'ssoid=' e sem ponto e vírgula).",
+      }, 400);
+    }
 
     const BR_API = "https://api.betfair.bet.br/exchange/account/rest/v1.0";
 
-    console.log("Consultando App Keys existentes via getDeveloperAppKeys (BR endpoint)...");
+    console.log("[create-betfair-appkey] Consultando getDeveloperAppKeys (BR)...");
     const getResult = await betfairRequest(
       `${BR_API}/getDeveloperAppKeys/`,
       sessionToken,
       {},
     );
+    console.log("[create-betfair-appkey] getResult.ok:", getResult.ok, "status:", getResult.status);
 
     if (!getResult.ok) {
-      console.log("BR endpoint falhou, tentando endpoint global como fallback...");
+      console.log("[create-betfair-appkey] BR falhou. Tentando endpoint global...");
       const getGlobal = await betfairRequest(
         "https://api.betfair.com/exchange/account/rest/v1.0/getDeveloperAppKeys/",
         sessionToken,
         {},
       );
+      console.log("[create-betfair-appkey] getGlobal.ok:", getGlobal.ok, "status:", getGlobal.status);
       if (!getGlobal.ok) {
+        const detailBr = getResult.data ?? getResult.raw;
+        const detailGlobal = getGlobal.data ?? getGlobal.raw;
+        console.error("[create-betfair-appkey] Falha total:", { detailBr, detailGlobal });
         return jsonResponse(
           {
-            error: "Falha ao consultar App Keys na Betfair (BR e global)",
-            hint: "Sessão inválida, expirada ou sem permissão para consultar as chaves.",
-            detail_br: getResult.data ?? getResult.raw,
-            detail_global: getGlobal.data ?? getGlobal.raw,
+            error: "A Betfair recusou a requisição",
+            hint: "Sessão (SSOID) inválida, expirada ou sem permissão. Faça login na Betfair Brasil, copie um SSOID novo e tente novamente.",
+            detail_br: detailBr,
+            detail_global: detailGlobal,
           },
           400,
         );
@@ -153,25 +169,26 @@ serve(async (req) => {
 
     let keys = extractKeys(getResult.data);
     if (!keys.delayedKey && !keys.liveKey) {
-      // Try creating via BR endpoint
-      console.log("Nenhuma key encontrada, tentando createDeveloperAppKeys no endpoint BR...");
+      console.log("[create-betfair-appkey] Nenhuma key existente. Tentando createDeveloperAppKeys (BR)...");
       const createResult = await betfairRequest(
         `${BR_API}/createDeveloperAppKeys/`,
         sessionToken,
-        { appName: "ArenaTradeBot" },
+        { appName: requestedAppName },
       );
+      console.log("[create-betfair-appkey] createResult.ok:", createResult.ok, "status:", createResult.status);
       if (createResult.ok) {
-        console.log("App Key criada com sucesso via BR endpoint:", JSON.stringify(createResult.data));
+        console.log("[create-betfair-appkey] App Key criada:", JSON.stringify(createResult.data).slice(0, 300));
         keys = extractKeys(createResult.data);
       } else {
-        console.log("createDeveloperAppKeys BR falhou:", JSON.stringify(createResult.data ?? createResult.raw));
+        const createDetail = createResult.data ?? createResult.raw;
+        console.error("[create-betfair-appkey] createDeveloperAppKeys falhou:", JSON.stringify(createDetail).slice(0, 500));
         return jsonResponse(
           {
-            error: "Nenhuma App Key existente encontrada e falha ao criar nova.",
-            hint: "Tente criar manualmente no portal Betfair Developer.",
-            detail: createResult.data ?? createResult.raw,
+            error: "Não foi possível criar a App Key na Betfair",
+            hint: "Pode ser que já exista uma App Key com esse nome OU sua conta ainda não esteja habilitada como Developer. Tente outro nome ou crie manualmente em developer.betfair.com.",
+            detail: createDetail,
           },
-          404,
+          400,
         );
       }
     }
