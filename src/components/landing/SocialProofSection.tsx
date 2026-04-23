@@ -74,7 +74,6 @@ function TestimonialCard({ t }: { t: Testimonial }) {
         </div>
         <div className={isVturb ? 'aspect-[9/16] bg-black' : 'aspect-video bg-black'}>
           {isVturb ? (
-            // @ts-expect-error - custom element
             <vturb-smartplayer
               id={`vid-${t.vturbId}`}
               style={{ display: 'block', width: '100%', height: '100%' }}
