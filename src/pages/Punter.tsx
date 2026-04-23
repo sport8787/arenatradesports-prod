@@ -39,7 +39,7 @@ import { getTierFromStake } from '@/lib/tierLabels';
 import { calculateKellyStake } from '@/lib/kellyCalculator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
@@ -73,6 +73,7 @@ interface PunterSignal {
 
 export default function PunterPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, refetchProfile } = useAuth();
   usePushNotifications(); // Auto-registra Web Push para receber sinais APROVADO + GREEN/RED
   const { isAdmin } = useAdmin();
@@ -290,7 +291,21 @@ export default function PunterPage() {
     setSettlingBets(false);
   };
 
-  // Confirm a future signal — place bet with recalculated stake
+  // Auto-abre painéis quando navegado com ?panel=...
+  useEffect(() => {
+    const panel = searchParams.get('panel');
+    if (!panel) return;
+    if (panel === 'horus-positions') openHistory();
+    else if (panel === 'my-positions') openManualHistory();
+    else if (panel === 'settle') handleSettleBets();
+    else if (panel === 'backtest') setShowBacktest(true);
+    else if (panel === 'rankings') setShowRankings(true);
+    else if (panel === 'certificate') setShowCertificate(true);
+    // limpa o param para não reabrir
+    searchParams.delete('panel');
+    setSearchParams(searchParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const confirmFutureSignal = async (signal: any) => {
     if (!user || !bankroll) return;
 
