@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, RefreshCw, ArrowLeft, FlaskConical, CheckCircle2, Banknote, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, ArrowLeft, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy } from 'lucide-react';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,7 +80,7 @@ export default function ArenaTraderSports() {
   const navigate = useNavigate();
   
   const { matches: liveMatches, loading, refetch } = useLiveMatches();
-  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, evaluateCashouts, updateInitialBalance } = useSportsBankroll();
+  const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -89,10 +89,8 @@ export default function ArenaTraderSports() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
   
   const [isSettling, setIsSettling] = useState(false);
-  const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -116,44 +114,6 @@ export default function ArenaTraderSports() {
     fetchBettedIds();
   }, []);
 
-  const handleFetchLiveMatches = useCallback(async () => {
-    setIsFetching(true);
-    try {
-      // Step 1: Fetch live stats (no analysis)
-      const { data, error } = await supabase.functions.invoke('fetch-live-matches');
-      if (error) throw error;
-      toast.success(`${data.total_matches} jogos sincronizados`);
-      await refetch();
-
-      // Step 2: Trigger manual analysis for all eligible matches
-      toast.info('Analisando jogos com estatísticas...');
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-live-matches', {
-        body: { bankroll: bankroll?.balance ?? 500 },
-      });
-
-      if (analysisError) {
-        console.error('Analysis error:', analysisError);
-        toast.error('Erro ao analisar jogos');
-      } else if (analysisData?.analyzed > 0) {
-        const aprovados = (analysisData.results || []).filter((r: any) => r.verdict === 'APROVADO');
-        if (aprovados.length > 0) {
-          toast.success(`🎯 ${aprovados.length} aposta(s) aprovada(s)!`, { duration: 5000 });
-        } else {
-          toast.info(`${analysisData.analyzed} jogos analisados — nenhuma oportunidade encontrada`);
-        }
-      } else {
-        toast.info('Nenhum jogo elegível para análise');
-      }
-      await refetch();
-    } catch (e) {
-      console.error('Fetch live matches error:', e);
-      toast.error('Erro ao buscar jogos ao vivo');
-    } finally {
-      setIsFetching(false);
-    }
-  }, [refetch, bankroll]);
-
-
   const handleSettleBets = useCallback(async () => {
     setIsSettling(true);
     try {
@@ -169,22 +129,6 @@ export default function ArenaTraderSports() {
       setIsSettling(false);
     }
   }, [settleBets]);
-
-  const handleEvaluateCashouts = useCallback(async () => {
-    setIsEvaluating(true);
-    try {
-      const result = await evaluateCashouts();
-      if (result.success) {
-        toast.success(result.data?.message || 'Posições avaliadas!');
-      } else {
-        toast.error(result.error || 'Erro ao avaliar posições');
-      }
-    } catch (e) {
-      toast.error('Erro ao avaliar posições');
-    } finally {
-      setIsEvaluating(false);
-    }
-  }, [evaluateCashouts]);
 
   const handleAnalyzeCorners = useCallback(async () => {
     setIsAnalyzingCorners(true);
