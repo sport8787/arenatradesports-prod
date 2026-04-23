@@ -419,7 +419,7 @@ export default function LiquidationsHistory() {
         {/* Header */}
         <div className="border-b border-border bg-card/40 backdrop-blur-sm sticky top-0 z-20">
           <div className="container mx-auto px-4 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/punter/menu')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/arena-trader-sports')}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
             </Button>
             <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
