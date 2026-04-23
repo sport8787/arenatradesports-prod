@@ -167,29 +167,31 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick, hideF
         </span>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
-        <StatCard
-          label="Strike Rate 30d"
-          value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
-          color="primary"
-          progress={stats.settledCount > 0 ? stats.winRate : undefined}
-          hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
-        />
-        <StatCard
-          label="ROI 7d"
-          value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
-          color="warning"
-          hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
-        />
-        <StatCard
-          label="Greens Hoje"
-          value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
-          color="foreground"
-          highlight={stats.greensToday > 0}
-          hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
-        />
-      </div>
+      {/* Stats grid — hidden until user has data */}
+      {stats.source !== 'empty' && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+          <StatCard
+            label="Strike Rate 30d"
+            value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
+            color="primary"
+            progress={stats.settledCount > 0 ? stats.winRate : undefined}
+            hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
+          />
+          <StatCard
+            label="ROI 7d"
+            value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
+            color="warning"
+            hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
+          />
+          <StatCard
+            label="Greens Hoje"
+            value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
+            color="foreground"
+            highlight={stats.greensToday > 0}
+            hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
+          />
+        </div>
+      )}
 
       {/* Featured Signal + Next Match */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
