@@ -1157,38 +1157,70 @@ serve(async (req) => {
       }
     }
 
-    // === Override odd chutada pela odd real do mercado quando disponível ===
+    // === RESOLUÇÃO DE ODD REAL ===
+    // Princípio: só exibir odd quando ela vier de fonte de mercado confiável.
+    // Se o mercado escolhido pela IA não tem cotação real disponível (ex.: Over 0.5 HT,
+    // Ambas Marcam, Próximo Gol, escanteios, 1T...), zeramos a odd e sinalizamos que
+    // está indisponível — o frontend já oculta o badge nesse caso.
     if (analysis.market && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA' || analysis.verdict === 'CUIDADO')) {
       const m = String(analysis.market).toLowerCase();
+      const homeName = (match.home || '').toLowerCase();
+      const awayName = (match.away || '').toLowerCase();
       let realOdd: number | undefined;
+
+      // Mercados cobertos pelo cache de odds reais (h2h pré-jogo + Over/Under 2.5 FT)
       if (m.includes('over 2.5') || m.includes('mais 2.5')) realOdd = (match as any).over_odd;
       else if (m.includes('under 2.5') || m.includes('menos 2.5')) realOdd = match.under_odd;
-      else if (m.includes(match.home.toLowerCase()) || m.includes('vitória mandante') || m.includes('back mandante') || m.includes('back home')) realOdd = match.odds?.home;
-      else if (m.includes(match.away.toLowerCase()) || m.includes('vitória visitante') || m.includes('back visitante') || m.includes('back away')) realOdd = match.odds?.away;
-      else if (m.includes('empate') || m === 'draw') realOdd = match.odds?.draw;
+      else if (m.includes('empate') || m === 'draw' || m.includes('match odds — draw')) realOdd = match.odds?.draw;
+      else if (homeName && (m.includes(homeName) || m.includes('vitória mandante') || m.includes('back mandante') || m.includes('back home'))) realOdd = match.odds?.home;
+      else if (awayName && (m.includes(awayName) || m.includes('vitória visitante') || m.includes('back visitante') || m.includes('back away'))) realOdd = match.odds?.away;
 
+      const guessedOdd = typeof analysis.odd === 'number' ? analysis.odd : null;
       if (realOdd && realOdd > 1.01) {
-        if (!analysis.odd || Math.abs(analysis.odd - realOdd) > 0.05) {
-          console.log(`[MycroftSports] 🎯 Odd substituída: chutada ${analysis.odd} → real ${realOdd} (${analysis.market})`);
-          analysis.odd = realOdd;
-          if (analysis.risk_management) {
-            analysis.risk_management.entry = `${analysis.market} @ ${realOdd}`;
-            analysis.risk_management.rr = `1:${(realOdd - 1).toFixed(2)}`;
-            analysis.risk_management.ev = `${Math.round(((analysis.confidence / 100) * realOdd - 1) * 100)}%`;
-          }
+        // Temos odd real: substituir e marcar a fonte
+        if (!guessedOdd || Math.abs(guessedOdd - realOdd) > 0.05) {
+          console.log(`[MycroftSports] 🎯 Odd substituída: chutada ${guessedOdd ?? '—'} → real ${realOdd} (${analysis.market})`);
+        }
+        analysis.odd = realOdd;
+        analysis.odd_source = 'real';
+        if (analysis.risk_management) {
+          analysis.risk_management.entry = `${analysis.market} @ ${realOdd}`;
+          analysis.risk_management.rr = `1:${(realOdd - 1).toFixed(2)}`;
+          analysis.risk_management.ev = `${Math.round(((analysis.confidence / 100) * realOdd - 1) * 100)}%`;
+        }
+      } else {
+        // Sem odd real para este mercado → não exibir odd inventada
+        if (guessedOdd != null) {
+          console.log(`[MycroftSports] ⚠️ Odd indisponível para "${analysis.market}" (chutada ${guessedOdd} descartada — sem cotação real)`);
+        }
+        analysis.odd = null;
+        analysis.odd_source = 'unavailable';
+        analysis.alerts = [
+          ...(analysis.alerts || []),
+          'Odd não disponível para este mercado ao vivo — confira na sua casa antes de entrar.',
+        ];
+        if (analysis.risk_management) {
+          analysis.risk_management.entry = `${analysis.market} @ —`;
+          analysis.risk_management.rr = '—';
+          analysis.risk_management.ev = '—';
         }
       }
     }
 
-    // Ensure odd/risk_management defaults for APROVADO
+    // Garante stake_value mesmo sem odd (stake_percent independe da cotação)
     if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
-      if (!analysis.odd || analysis.odd <= 0) {
-        analysis.odd = 1.50;
-        analysis.alerts = [...(analysis.alerts || []), 'Odd estimada automaticamente'];
-      }
       if (!analysis.risk_management || typeof analysis.risk_management !== 'object' || !Object.keys(analysis.risk_management).length) {
         const bankroll = match.bankroll ?? 500;
-        analysis.risk_management = { stake_percent: 5, stake_value: bankroll * 0.05, entry: `${analysis.market} @ ${analysis.odd}`, stop: 'Condição adversa', target: 'Realização do mercado', rr: `1:${analysis.odd}`, ev: `+${Math.round((analysis.confidence / 100 * analysis.odd - 1) * 100)}%` };
+        const oddLabel = analysis.odd != null ? analysis.odd : '—';
+        analysis.risk_management = {
+          stake_percent: 5,
+          stake_value: bankroll * 0.05,
+          entry: `${analysis.market} @ ${oddLabel}`,
+          stop: 'Condição adversa',
+          target: 'Realização do mercado',
+          rr: analysis.odd != null ? `1:${(analysis.odd - 1).toFixed(2)}` : '—',
+          ev: analysis.odd != null ? `+${Math.round((analysis.confidence / 100 * analysis.odd - 1) * 100)}%` : '—',
+        };
       }
     }
     if (analysis.risk_management && !analysis.risk_management.stake_value && analysis.risk_management.stake_percent) {
