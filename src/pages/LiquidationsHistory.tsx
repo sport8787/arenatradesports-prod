@@ -547,6 +547,77 @@ export default function LiquidationsHistory() {
             </div>
           )}
         </div>
+
+        <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-orbitron">Exportar PDF</DialogTitle>
+              <DialogDescription>
+                Personalize o titular e o carimbo de data/hora que aparecerão no documento. As preferências ficam salvas para próximas exportações.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pdf-owner" className="text-xs uppercase tracking-wide">
+                  Titular / Identificador
+                </Label>
+                <Input
+                  id="pdf-owner"
+                  value={pdfOwnerName}
+                  onChange={(e) => setPdfOwnerName(e.target.value)}
+                  placeholder={defaultName || 'Seu nome ou apelido'}
+                  maxLength={80}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Aparece no cabeçalho e em todas as páginas do PDF.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="pdf-timestamp" className="text-xs uppercase tracking-wide">
+                  Carimbo de data/hora
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="pdf-timestamp"
+                    type="datetime-local"
+                    value={pdfTimestamp}
+                    onChange={(e) => setPdfTimestamp(e.target.value)}
+                    step={1}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs shrink-0"
+                    onClick={() => {
+                      const now = new Date();
+                      const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                        .toISOString().slice(0, 16);
+                      setPdfTimestamp(localIso);
+                    }}
+                  >
+                    Agora
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Use "Agora" para o instante atual ou ajuste manualmente.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPdfDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={confirmPdfExport}>
+                <FileText className="w-4 h-4 mr-1" />
+                Gerar PDF
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
