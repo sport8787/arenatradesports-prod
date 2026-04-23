@@ -236,22 +236,34 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
     setIsLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '🔒 Sua sessão expirou. Faça login novamente.',
+          timestamp: Date.now(),
+        }]);
+        setIsLoading(false);
+        setLearningFromKB(false);
+        return;
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000); // 3min for learning
-      
-      const { data: { session } } = await supabase.auth.getSession();
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mycroft-sports-chat`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
             query: learningPrompt,
             conversationHistory: [],
-            userId: session?.user?.id || null,
+            userId: session.user.id,
           }),
           signal: controller.signal,
         }
