@@ -305,11 +305,8 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick, hideF
                 <MessageCircle className="w-4 h-4 text-[#25D366]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-[#25D366]/80">
-                  {FOUNDERS_GROUP.eyebrow}
-                </p>
                 <p className="font-bold text-foreground text-sm leading-tight">
-                  {FOUNDERS_GROUP.title}
+                  Acessar Grupo VIP Whatsapp
                 </p>
               </div>
               <span className="bg-[#25D366] text-white px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
