@@ -94,7 +94,7 @@ export default function Historico() {
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/arena-trader-sports')} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => navigate('/punter/menu')} className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="font-orbitron text-lg font-bold text-primary">Histórico</h1>
@@ -139,7 +139,7 @@ export default function Historico() {
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-20 text-center space-y-4 bg-card border border-dashed border-border rounded-2xl">
                       <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground/30" />
                       <h2 className="font-orbitron text-lg">Nenhum sinal</h2>
-                      <GoldButton size="sm" onClick={() => navigate('/arena-trader-sports')}>Voltar</GoldButton>
+                      <GoldButton size="sm" onClick={() => navigate('/punter/menu')}>Voltar</GoldButton>
                     </motion.div>
                   )}
                 </AnimatePresence>
