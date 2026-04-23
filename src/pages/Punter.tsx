@@ -1237,17 +1237,8 @@ export default function PunterPage() {
           );
         })()}
 
-        {/* Dual Bankroll Widget */}
-        {bankroll && manualBankroll && !bankrollLoading && !manualLoading && (
-          <DualBankrollDashboard
-            horus={bankroll}
-            manual={manualBankroll}
-            horusPendingBets={pendingBets}
-            manualPendingBets={manualPendingBets}
-            onUpdateHorusBalance={updateInitialBalance}
-            onUpdateManualBalance={updateManualBalance}
-          />
-        )}
+        {/* Banca virtual movida para /punter/banca-virtual */}
+
 
         {/* Daily Summary Widget */}
         {user && <DailySummaryWidget userId={user.id} username={profile?.username} />}
@@ -1255,45 +1246,20 @@ export default function PunterPage() {
         {/* Feed de Sinais (APROVADO + GREEN/RED) */}
         <SignalsFeed />
 
-        {/* Navigation Links */}
+        {/* Navigation Links — Apenas destaques na home */}
         <div className="space-y-2">
-          <button
-            onClick={() => navigate('/punter/analytics')}
-            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
-          >
-            <div className="flex items-center gap-2.5">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Análise Detalhada</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Comparativo, horários, config Hórus, oportunidades</p>
-              </div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-          </button>
-
-          <button
-            onClick={() => navigate('/punter/import')}
-            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
-          >
-            <div className="flex items-center gap-2.5">
-              <Upload className="w-4 h-4 text-primary" />
-              <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Importar & Análise</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Importar apostas, ROI, P&L, comparativo de banca</p>
-              </div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
-          </button>
-
+          {/* Gerador de Múltiplas (destaque) */}
           <button
             onClick={() => navigate('/punter/multiplas')}
-            className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
+            className="w-full border-2 border-primary/40 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 p-4 flex items-center justify-between hover:from-primary/15 hover:to-primary/10 transition-colors group shadow-sm"
           >
-            <div className="flex items-center gap-2.5">
-              <Zap className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-primary/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
               <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Multi-Bet Optimizer</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Múltiplas otimizadas por IA — correlação, Kelly, edge agregado</p>
+                <p className="font-mono text-sm font-bold text-foreground">Gerador de Múltiplas</p>
+                <p className="font-mono text-[11px] text-muted-foreground">Múltiplas otimizadas por IA — correlação, Kelly, edge agregado</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1302,15 +1268,18 @@ export default function PunterPage() {
             </div>
           </button>
 
+          {/* Arena Trader Sports (destaque) */}
           <button
             onClick={() => navigate('/arena-trader-sports')}
-            className="w-full border border-primary/30 rounded-lg bg-primary/5 p-3 flex items-center justify-between hover:bg-primary/10 transition-colors group"
+            className="w-full border-2 border-primary/40 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 p-4 flex items-center justify-between hover:from-primary/15 hover:to-primary/10 transition-colors group shadow-sm"
           >
-            <div className="flex items-center gap-2.5">
-              <Activity className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-primary/20 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-primary" />
+              </div>
               <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Trading Esportivo</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Apostas ao vivo com análise Mycroft em tempo real</p>
+                <p className="font-mono text-sm font-bold text-foreground">Arena Trader Sports</p>
+                <p className="font-mono text-[11px] text-muted-foreground">Apostas ao vivo com análise Mycroft em tempo real</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1319,22 +1288,25 @@ export default function PunterPage() {
             </div>
           </button>
 
+          {/* Suporte WhatsApp (destaque) */}
+          <WhatsAppSupportButton variant="full" className="w-full" />
+
+          {/* Funções da Arena Punter — agrupa Análise Detalhada, Importar, Configurações e Banca Virtual */}
           <button
-            onClick={() => navigate('/punter/config')}
+            onClick={() => navigate('/punter/funcoes')}
             className="w-full border border-border rounded-lg bg-card p-3 flex items-center justify-between hover:bg-muted/30 transition-colors group"
           >
             <div className="flex items-center gap-2.5">
-              <Settings className="w-4 h-4 text-primary" />
+              <LayoutGrid className="w-4 h-4 text-primary" />
               <div className="text-left">
-                <p className="font-mono text-xs font-semibold text-foreground">Configurações</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Betfair, alertas Hórus, conexões</p>
+                <p className="font-mono text-xs font-semibold text-foreground">Funções da Arena Punter</p>
+                <p className="font-mono text-[10px] text-muted-foreground">Análise detalhada, importar, banca virtual, configurações</p>
               </div>
             </div>
             <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90 group-hover:text-foreground transition-colors" />
           </button>
-
-          <WhatsAppSupportButton variant="full" className="w-full" />
         </div>
+
 
         {/* Scanner Panel */}
         <Card className="border-border bg-card">
