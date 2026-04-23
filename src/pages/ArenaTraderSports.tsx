@@ -80,7 +80,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'si
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   
-  const { matches: liveMatches, loading, refetch } = useLiveMatches();
+  const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
