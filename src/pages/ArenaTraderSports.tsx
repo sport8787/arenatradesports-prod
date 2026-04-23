@@ -346,8 +346,8 @@ export default function ArenaTraderSports() {
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
         )}
 
-        {/* Active Positions with Cash Out */}
-        <ActivePositions onCashOut={cashOut} />
+        {/* Active Positions */}
+        <ActivePositions />
 
         {/* Filters */}
         <div className="space-y-3">
