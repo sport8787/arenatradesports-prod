@@ -62,6 +62,17 @@ export default function LiquidationsHistory() {
   const [bets, setBets] = useState<SettledBet[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // PDF export dialog state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const defaultName = (user?.user_metadata?.full_name as string) || user?.email || '';
+  const [pdfOwnerName, setPdfOwnerName] = useState<string>(() => {
+    return localStorage.getItem('liquidations_pdf_owner_name') || '';
+  });
+  const [pdfTimestamp, setPdfTimestamp] = useState<string>('');
+  useEffect(() => {
+    if (!pdfOwnerName && defaultName) setPdfOwnerName(defaultName);
+  }, [defaultName]);
+
   // Hydrate state from URL
   const filter = (searchParams.get('result') as ResultFilter) || 'all';
   const dateFromStr = searchParams.get('from');
