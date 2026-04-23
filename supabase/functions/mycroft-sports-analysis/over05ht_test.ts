@@ -35,10 +35,20 @@ export function evaluateOver05HT(m: MatchInput): Verdict {
     return { approved: false, cenario: null, veto: 'Minuto fora da janela 10-25' };
   }
 
+  /**
+   * Cenário 1: avalia UM time individualmente.
+   * O xG só é considerado quando este mesmo time tem posse >= 60%.
+   * Se este time não tem posse >= 60%, retorna false imediatamente —
+   * o xG dele NÃO é usado para qualificar o outro time.
+   */
   const checkTeamC1 = (t?: TeamStats): boolean => {
     if (!t) return false;
-    const xgOk = t.xG === undefined || t.xG >= 0.75; // opcional
-    return t.possession >= 60 && t.dangerousAttacks >= 5 && t.shotsOnTarget >= 3 && xgOk;
+    if (t.possession < 60) return false; // gate de posse: se falha aqui, xG é irrelevante
+    if (t.dangerousAttacks < 5) return false;
+    if (t.shotsOnTarget < 3) return false;
+    // xG é opcional: ausente = passa; presente = exige >= 0.75 NESTE time (o dominante)
+    if (t.xG !== undefined && t.xG < 0.75) return false;
+    return true;
   };
 
   // Cenário 1 — qualquer time dominando
