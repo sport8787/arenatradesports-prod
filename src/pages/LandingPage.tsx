@@ -66,24 +66,47 @@ export default function LandingPage() {
   // Tracking do player VSL
   useVturbTracking(`vid-${VTURB_PLAYER_ID}`);
   const [showDemo, setShowDemo] = useState(false);
+  const [vturbReloadKey, setVturbReloadKey] = useState(0);
 
-  // Carrega o player VTurb (smartplayer) uma única vez
+  // Força reload total do script VTurb para evitar cache/CDN/browser e re-renderizações inconsistentes
   useEffect(() => {
     document
       .querySelectorAll('script[src*="scripts.converteai.net"]')
+      .forEach((el) => el.remove());
+
+    document
+      .querySelectorAll(`vturb-smartplayer[id="vid-${VTURB_PLAYER_ID}"]`)
       .forEach((el) => {
-        if (!el.getAttribute('src')?.includes(VTURB_PLAYER_ID)) {
-          el.remove();
-        }
+        el.innerHTML = '';
       });
 
-    if (document.querySelector(`script[data-vturb-player="${VTURB_PLAYER_ID}"]`)) return;
+    try {
+      delete (window as any).smartplayer;
+      delete (window as any).vturb;
+      delete (window as any).VTurb;
+    } catch {
+      // noop
+    }
+
     const s = document.createElement('script');
-    s.src = VTURB_SCRIPT_SRC;
+    s.src = `${VTURB_SCRIPT_SRC}?cb=${Date.now()}-${vturbReloadKey}`;
     s.async = true;
     s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
+    s.setAttribute('data-vturb-reload-key', String(vturbReloadKey));
     document.head.appendChild(s);
-  }, []);
+
+    const retry = window.setTimeout(() => {
+      const hasPlayerInstance = Boolean((window as any).smartplayer?.instances?.length);
+      if (!hasPlayerInstance) {
+        setVturbReloadKey((current) => current + 1);
+      }
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(retry);
+      s.remove();
+    };
+  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, vturbReloadKey]);
 
   return (
     <>
@@ -212,6 +235,7 @@ export default function LandingPage() {
                   </div>
                   <div ref={videoRef} className="bg-black flex items-center justify-center">
                     <vturb-smartplayer
+                      key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
                       id={`vid-${VTURB_PLAYER_ID}`}
                       style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
                     />
@@ -587,6 +611,7 @@ export default function LandingPage() {
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
               <vturb-smartplayer
+                key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
                 id={`vid-${VTURB_PLAYER_ID}`}
                 style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
               />
