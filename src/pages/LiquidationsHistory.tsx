@@ -295,16 +295,28 @@ export default function LiquidationsHistory() {
             <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
               Histórico de Liquidações
             </h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportCSV}
-              disabled={filtered.length === 0}
-              className="ml-auto text-xs"
-            >
-              <Download className="w-3.5 h-3.5 mr-1" />
-              Exportar CSV
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportCSV}
+                disabled={filtered.length === 0}
+                className="text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportPDF}
+                disabled={filtered.length === 0}
+                className="text-xs"
+              >
+                <FileText className="w-3.5 h-3.5 mr-1" />
+                PDF
+              </Button>
+            </div>
           </div>
         </div>
 
