@@ -54,12 +54,35 @@ function explainOutcome(bet: SettledBet): string {
 export default function LiquidationsHistory() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [bets, setBets] = useState<SettledBet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ResultFilter>('all');
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [page, setPage] = useState(1);
+
+  // Hydrate state from URL
+  const filter = (searchParams.get('result') as ResultFilter) || 'all';
+  const dateFromStr = searchParams.get('from');
+  const dateToStr = searchParams.get('to');
+  const dateFrom = dateFromStr ? new Date(dateFromStr) : undefined;
+  const dateTo = dateToStr ? new Date(dateToStr) : undefined;
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+
+  const updateParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(patch).forEach(([k, v]) => {
+      if (v == null || v === '') next.delete(k);
+      else next.set(k, v);
+    });
+    setSearchParams(next, { replace: true });
+  };
+
+  const setFilter = (v: ResultFilter) => updateParams({ result: v === 'all' ? null : v, page: null });
+  const setDateFrom = (d: Date | undefined) => updateParams({ from: d ? d.toISOString().slice(0, 10) : null, page: null });
+  const setDateTo = (d: Date | undefined) => updateParams({ to: d ? d.toISOString().slice(0, 10) : null, page: null });
+  const setPage = (updater: number | ((p: number) => number)) => {
+    const next = typeof updater === 'function' ? updater(page) : updater;
+    updateParams({ page: next === 1 ? null : String(next) });
+  };
 
   useEffect(() => {
     if (!user) return;
