@@ -54,19 +54,60 @@ interface AnalysisResult {
   }>;
 }
 
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+interface SyncState {
+  status: SyncStatus;
+  lastRunAt: string | null;
+  lastSyncedCount: number | null;
+  lastError: string | null;
+  startedAt: number | null;
+}
+
 export default function PunterBetfairReal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { syncBetfair, syncing } = useBetImport();
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [sync, setSync] = useState<SyncState>({
+    status: 'idle',
+    lastRunAt: null,
+    lastSyncedCount: null,
+    lastError: null,
+    startedAt: null,
+  });
+  const [elapsed, setElapsed] = useState(0);
 
+  // Carrega último status de sync da tabela bookmaker_connections
   useEffect(() => {
-    if (user) loadCachedAnalysis();
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('bookmaker_connections')
+        .select('last_sync_at')
+        .eq('user_id', user.id)
+        .eq('bookmaker', 'betfair')
+        .maybeSingle();
+      if (data?.last_sync_at) {
+        setSync(s => ({ ...s, lastRunAt: data.last_sync_at, status: 'success' }));
+      }
+      loadCachedAnalysis();
+    })();
   }, [user]);
 
+  // Cronômetro durante a sincronização
+  useEffect(() => {
+    if (sync.status !== 'syncing' || !sync.startedAt) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - (sync.startedAt || 0)) / 1000));
+    }, 500);
+    return () => clearInterval(id);
+  }, [sync.status, sync.startedAt]);
+
   const loadCachedAnalysis = async () => {
-    // Tenta carregar a última análise se já foi feita recentemente
     if (!user) return;
     try {
       await runAnalysis(false);
@@ -76,11 +117,31 @@ export default function PunterBetfairReal() {
   };
 
   const handleSync = async (force = false) => {
+    setSync({
+      status: 'syncing',
+      lastRunAt: sync.lastRunAt,
+      lastSyncedCount: null,
+      lastError: null,
+      startedAt: Date.now(),
+    });
     const r = await syncBetfair(force);
     if (r.success) {
+      setSync({
+        status: 'success',
+        lastRunAt: new Date().toISOString(),
+        lastSyncedCount: r.synced ?? 0,
+        lastError: null,
+        startedAt: null,
+      });
       toast.success(`${r.synced} apostas sincronizadas`);
       runAnalysis(true);
     } else {
+      setSync(s => ({
+        ...s,
+        status: 'error',
+        lastError: r.error || 'Erro desconhecido',
+        startedAt: null,
+      }));
       toast.error(r.error || 'Erro ao sincronizar');
     }
   };
