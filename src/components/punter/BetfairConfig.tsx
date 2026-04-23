@@ -310,12 +310,28 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                     setCreatingKey(true);
                     try {
                       const normalized = normalizeSessionToken(createKeySessionToken);
+                      if (!normalized || normalized.length < 20) {
+                        throw new Error('SSOID inválido. Cole apenas o VALOR do cookie ssoid (sem "ssoid=" e sem ponto e vírgula).');
+                      }
+                      // Garante que existe sessão antes de invocar
+                      const { data: session } = await supabase.auth.getSession();
+                      if (!session?.session?.access_token) {
+                        throw new Error('Sessão expirada. Faça login novamente e tente outra vez.');
+                      }
+                      console.log('[CreateBetfairKey] Invocando edge function…', {
+                        ssoidLen: normalized.length,
+                        appName: createKeyName.trim(),
+                      });
                       const { data, error } = await supabase.functions.invoke('create-betfair-appkey', {
                         body: { sessionToken: normalized, appName: createKeyName.trim() },
                       });
+                      console.log('[CreateBetfairKey] Resposta:', { data, error });
 
                       if (error) throw new Error(await extractFunctionErrorMessage(error));
-                      if (data?.error) throw new Error(data.error);
+                      if (data?.error) {
+                        const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail ?? '');
+                        throw new Error(`${data.error}${detail ? ` — ${detail.slice(0, 200)}` : ''}`);
+                      }
 
                       const key = data?.delayedKey || data?.liveKey || '';
                       if (key) {
@@ -325,11 +341,12 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
                         setCreateKeySessionToken('');
                         toast.success(`App Key criada: ${key.slice(0, 8)}...`);
                       } else {
-                        toast.success('App Key criada! Verifique os detalhes.');
+                        toast.warning('A Betfair respondeu mas não retornou nenhuma chave. Verifique no portal Developer.');
                       }
                       setShowCreateKey(false);
                     } catch (e: any) {
-                      toast.error(`Erro: ${e.message}`);
+                      console.error('[CreateBetfairKey] Falha:', e);
+                      toast.error(e?.message || 'Falha ao criar App Key', { duration: 8000 });
                     } finally {
                       setCreatingKey(false);
                     }
