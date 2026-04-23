@@ -344,7 +344,7 @@ export default function LiquidationsHistory() {
     });
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 20,
+      startY: Math.max((doc as any).lastAutoTable.finalY + 20, pnlY + 28 + 20),
       head: [['Data', 'Partida', 'Mercado', 'Odd', 'Status', 'Placar', 'Stake', 'P&L']],
       body: rows,
       theme: 'striped',
