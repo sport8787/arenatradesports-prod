@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { poissonService, type PoissonInput, type PoissonResult } from '@/services/poissonService';
-import { Calculator, RefreshCw, Target, Info } from 'lucide-react';
+import { Calculator, RefreshCw, Target, Info, HelpCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 function InfoTip({ text }: { text: string }) {
   return (
