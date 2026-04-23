@@ -146,5 +146,5 @@ export function useLiveMatches() {
     };
   }, [fetchMatches, debouncedRefetch]);
 
-  return { matches, loading, refetch: fetchMatches };
+  return { matches, loading, refreshing, lastUpdated, refetch: fetchMatches };
 }
