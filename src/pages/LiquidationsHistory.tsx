@@ -5,8 +5,9 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   ArrowLeft, CheckCircle2, XCircle, Trophy, CalendarIcon, Filter,
-  ChevronLeft, ChevronRight, Info, Clock,
+  ChevronLeft, ChevronRight, Info, Clock, Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
