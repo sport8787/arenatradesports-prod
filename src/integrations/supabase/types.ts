@@ -2236,6 +2236,7 @@ export type Database = {
           rank_title: string
           sports_training_completed: boolean
           sports_training_completed_at: string | null
+          tutorial_read_at: string | null
           updated_at: string
           user_id: string
           username: string
@@ -2254,6 +2255,7 @@ export type Database = {
           rank_title?: string
           sports_training_completed?: boolean
           sports_training_completed_at?: string | null
+          tutorial_read_at?: string | null
           updated_at?: string
           user_id: string
           username: string
@@ -2272,6 +2274,7 @@ export type Database = {
           rank_title?: string
           sports_training_completed?: boolean
           sports_training_completed_at?: string | null
+          tutorial_read_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string

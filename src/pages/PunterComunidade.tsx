@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, MessagesSquare, Info, ExternalLink, BookOpen, CheckCircle2, Clock, LayoutGrid, Wallet, LineChart, Download, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, MessageCircle, MessagesSquare, Info, ExternalLink, BookOpen, CheckCircle2, Clock, LayoutGrid, Wallet, LineChart, Download, Sparkles, Check, X } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { FOUNDERS_GROUP } from '@/config/foundersGroup';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 const TELEGRAM_URL = 'https://t.me/oraculo_mycroft';
 const SUPPORT_WHATSAPP =
@@ -50,6 +53,25 @@ const CHANNELS: Channel[] = [
 
 export default function PunterComunidadePage() {
   const navigate = useNavigate();
+  const { profile, updateProfile } = useAuth();
+  const tutorialRead = !!(profile as any)?.tutorial_read_at;
+  const [showQuickTutorial, setShowQuickTutorial] = useState(true);
+  const [marking, setMarking] = useState(false);
+
+  const handleMarkAsRead = async () => {
+    setMarking(true);
+    const { error } = await updateProfile({ tutorial_read_at: new Date().toISOString() } as any);
+    setMarking(false);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível salvar. Tente novamente.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Tutorial concluído!', description: 'Você está pronto para usar a Arena Punter.' });
+    setShowQuickTutorial(false);
+  };
+
+  const showWelcome = !tutorialRead && showQuickTutorial;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
@@ -69,6 +91,57 @@ export default function PunterComunidadePage() {
 
       <main className="container mx-auto px-4 py-5 max-w-3xl space-y-4">
         <PunterBreadcrumb items={[{ label: 'Comunidade e Suporte' }]} />
+
+        {/* Tutorial resumido para primeiro acesso */}
+        {showWelcome && (
+          <section className="relative border border-primary/40 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 space-y-3">
+            <button
+              onClick={() => setShowQuickTutorial(false)}
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold text-foreground">Bem-vindo ao Oráculo Mycroft</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Em 30 segundos você está pronto. Aqui o essencial:
+            </p>
+            <ul className="text-xs text-foreground/90 space-y-1.5 leading-snug pl-1">
+              <li>🎯 <span className="font-semibold">Apostas Aprovadas</span> (/punter): sinais ativos do Mycroft com odd, edge e stake recomendada.</li>
+              <li>🧭 <span className="font-semibold">Funções</span> (botão no topo): atalho para todas as áreas — Trader, Múltiplas, Banca, Desempenho.</li>
+              <li>💰 <span className="font-semibold">Banca Virtual</span>: configure seu capital antes de operar — o sistema gerencia stake automaticamente.</li>
+              <li>📲 <span className="font-semibold">Telegram VIP</span>: ative para receber sinais em tempo real.</li>
+              <li>📊 <span className="font-semibold">Meu Desempenho</span>: acompanhe ROI, P&L e curva de banca.</li>
+            </ul>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleMarkAsRead}
+                disabled={marking}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-md px-3 py-2 text-xs font-mono font-bold disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {marking ? 'Salvando...' : 'Marcar como lido'}
+              </button>
+              <button
+                onClick={() => setShowQuickTutorial(false)}
+                className="px-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Mais tarde
+              </button>
+            </div>
+          </section>
+        )}
+
+        {tutorialRead && (
+          <div className="flex items-center gap-2 text-[11px] font-mono text-success border border-success/30 bg-success/5 rounded-md px-3 py-2">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Tutorial concluído. Você pode revisitar o guia completo abaixo a qualquer momento.
+          </div>
+        )}
+
         <div>
           <h2 className="text-xl font-bold text-foreground">Canais oficiais</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
