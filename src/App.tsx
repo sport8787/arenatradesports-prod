@@ -44,6 +44,7 @@ import ArenaTraderRankings from "./pages/ArenaTraderRankings";
 import ArenaTraderSeason from "./pages/ArenaTraderSeason";
 import ArenaBlackjack from "./pages/ArenaBlackjack";
 import MycroftMemory from "./pages/MycroftMemory";
+import AdminDashboard from "./pages/AdminDashboard";
 import AdminChatAnalytics from "./pages/AdminChatAnalytics";
 import AdminPushTest from "./pages/AdminPushTest";
 import AdminSettlementLog from "./pages/AdminSettlementLog";
@@ -113,6 +114,7 @@ const App = () => {
               <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
               <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
               <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
               <Route path="/admin/push-test" element={<AdminPushTest />} />
               <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
