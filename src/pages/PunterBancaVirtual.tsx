@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { useManualBankroll } from '@/hooks/useManualBankroll';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
+import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function PunterBancaVirtualPage() {
@@ -61,7 +62,8 @@ export default function PunterBancaVirtualPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-5xl">
+      <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
+        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Configurar Banca Virtual' }]} />
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
