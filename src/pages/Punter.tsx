@@ -1244,8 +1244,7 @@ export default function PunterPage() {
         {/* Daily Summary Widget */}
         {user && <DailySummaryWidget userId={user.id} username={profile?.username} />}
 
-        {/* Feed de Sinais (APROVADO + GREEN/RED) */}
-        <SignalsFeed />
+        {/* Feed de Sinais movido para /punter/aprovadas */}
 
         {/* Navigation Grid — 3 seções (Ações Principais / Minha Banca / Comunidade) */}
         <PunterNavGrid />
