@@ -22,6 +22,28 @@ interface ApprovedBet {
 }
 
 // ============================================================================
+// MYCROFT TIER (alinhado ao BAS exibido na análise: A/B/C/D)
+// ============================================================================
+
+function getMycroftTier(confidence: number, edge: number, stake: number) {
+  const score = Math.min(
+    100,
+    Math.round(confidence * 0.6 + Math.min(edge * 3, 30) + Math.min(stake * 2, 10))
+  );
+
+  if (confidence >= 85 && edge >= 10) {
+    return { letter: 'A', label: 'ELITE', icon: '👑', score };
+  }
+  if (confidence >= 75 && edge >= 7) {
+    return { letter: 'B', label: 'PREMIUM', icon: '💎', score };
+  }
+  if (confidence >= 68 && edge >= 5) {
+    return { letter: 'C', label: 'FORTE', icon: '⚡', score };
+  }
+  return { letter: 'D', label: 'ESPECULATIVO', icon: '🎯', score };
+}
+
+// ============================================================================
 // TELEGRAM FORMATTER
 // ============================================================================
 
@@ -43,13 +65,8 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
     const stake = bet.stake_percentage ?? 1;
     const num = numberEmojis[index] || `${index + 1}.`;
 
-    // User-friendly tier labels
-    let tierIcon: string, tierLabel: string;
-    if (stake >= 4) { tierIcon = '⚡'; tierLabel = 'SINAL FORTE'; }
-    else if (stake >= 3) { tierIcon = '✅'; tierLabel = 'SINAL BOM'; }
-    else { tierIcon = '🎯'; tierLabel = 'SINAL MODERADO'; }
-
     const edge = bet.value_percentage ?? 0;
+    const tier = getMycroftTier(score, edge, stake);
 
     const gameTime = new Date(bet.commence_time).toLocaleString("pt-BR", {
       day: "2-digit",
@@ -64,7 +81,7 @@ function formatTelegramMessage(bets: ApprovedBet[], batchLabel?: string): string
     message += `🏆 ${bet.league}\n`;
     message += `🎲 Mercado: ${bet.market}\n`;
     message += `💰 Odd: ${bet.odd.toFixed(2)} (${bet.bookmaker})\n`;
-    message += `${tierIcon} ${tierLabel}\n`;
+    message += `${tier.icon} ANÁLISE ${tier.letter} — ${tier.label} · Score ${tier.score}/100\n`;
     message += `📊 Confiança: ${score}% · Vantagem: +${edge.toFixed(1)}%\n`;
     message += `💵 Mycroft recomenda: ${stake.toFixed(1)}% da banca\n`;
     message += `🕐 ${gameTime}\n`;
