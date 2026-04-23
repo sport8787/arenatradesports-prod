@@ -1,0 +1,318 @@
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import {
+  ArrowLeft, CheckCircle2, XCircle, Trophy, CalendarIcon, Filter,
+  ChevronLeft, ChevronRight, Info, Clock,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+
+interface SettledBet {
+  id: string;
+  match_name: string;
+  market: string;
+  odd: number;
+  stake: number;
+  status: string;
+  profit_loss: number | null;
+  score_home: number | null;
+  score_away: number | null;
+  settled_at: string | null;
+  cashout_value: number | null;
+  cashed_out_at: string | null;
+}
+
+type ResultFilter = 'all' | 'gren' | 'red' | 'cashout';
+
+const PAGE_SIZE = 20;
+
+function explainOutcome(bet: SettledBet): string {
+  const score = bet.score_home != null && bet.score_away != null
+    ? `Placar final ${bet.score_home}×${bet.score_away}.`
+    : 'Liquidação registrada sem placar disponível.';
+
+  if (bet.status === 'cashout') {
+    return `${score} Você (ou o auto) executou o CASH OUT antes do fim, garantindo R$ ${(bet.cashout_value ?? bet.stake).toFixed(2)} e encerrando a posição na hora.`;
+  }
+  if (bet.status === 'won') {
+    const pnl = bet.profit_loss ?? (bet.stake * bet.odd - bet.stake);
+    return `${score} O mercado "${bet.market}" foi ATINGIDO ao final do jogo, então a aposta foi marcada como GREN com lucro de R$ ${pnl.toFixed(2)}.`;
+  }
+  return `${score} O mercado "${bet.market}" NÃO foi atingido ao final, então a aposta foi marcada como RED com perda de R$ ${bet.stake.toFixed(2)}.`;
+}
+
+export default function LiquidationsHistory() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [bets, setBets] = useState<SettledBet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<ResultFilter>('all');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (!user) return;
+
+    async function fetchAll() {
+      setLoading(true);
+      const { data } = await supabase
+        .from('virtual_bets')
+        .select('id, match_name, market, odd, stake, status, profit_loss, score_home, score_away, settled_at, cashout_value, cashed_out_at')
+        .eq('user_id', user!.id)
+        .in('status', ['won', 'lost', 'cashout'])
+        .order('settled_at', { ascending: false });
+
+      setBets((data as any[] as SettledBet[]) || []);
+      setLoading(false);
+    }
+    fetchAll();
+
+    const channel = supabase
+      .channel(`liquidations_${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'virtual_bets', filter: `user_id=eq.${user.id}` }, () => fetchAll())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  const filtered = useMemo(() => {
+    return bets.filter((b) => {
+      // result filter
+      if (filter === 'gren' && b.status !== 'won') return false;
+      if (filter === 'red' && b.status !== 'lost') return false;
+      if (filter === 'cashout' && b.status !== 'cashout') return false;
+
+      // date filter (uses settled_at or cashed_out_at)
+      const ts = b.settled_at || b.cashed_out_at;
+      if (!ts) return false;
+      const t = new Date(ts).getTime();
+      if (dateFrom && t < dateFrom.setHours(0, 0, 0, 0)) return false;
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        if (t > end.getTime()) return false;
+      }
+      return true;
+    });
+  }, [bets, filter, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [filter, dateFrom, dateTo]);
+
+  // Stats summary
+  const stats = useMemo(() => {
+    const gren = filtered.filter(b => b.status === 'won').length;
+    const red = filtered.filter(b => b.status === 'lost').length;
+    const co = filtered.filter(b => b.status === 'cashout').length;
+    const pnl = filtered.reduce((sum, b) => sum + (Number(b.profit_loss) || 0), 0);
+    return { gren, red, co, pnl };
+  }, [filtered]);
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="border-b border-border bg-card/40 backdrop-blur-sm sticky top-0 z-20">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
+            </Button>
+            <h1 className="font-orbitron text-base font-bold text-foreground uppercase tracking-wide">
+              Histórico de Liquidações
+            </h1>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-5 space-y-5">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border border-success/30 bg-success/5 rounded-xl p-3">
+              <p className="text-[10px] font-orbitron uppercase text-muted-foreground">GREN</p>
+              <p className="text-2xl font-black font-orbitron text-success">{stats.gren}</p>
+            </div>
+            <div className="border border-destructive/30 bg-destructive/5 rounded-xl p-3">
+              <p className="text-[10px] font-orbitron uppercase text-muted-foreground">RED</p>
+              <p className="text-2xl font-black font-orbitron text-destructive">{stats.red}</p>
+            </div>
+            <div className="border border-primary/30 bg-primary/5 rounded-xl p-3">
+              <p className="text-[10px] font-orbitron uppercase text-muted-foreground">Cash Out</p>
+              <p className="text-2xl font-black font-orbitron text-primary">{stats.co}</p>
+            </div>
+            <div className={cn(
+              'border rounded-xl p-3',
+              stats.pnl >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
+            )}>
+              <p className="text-[10px] font-orbitron uppercase text-muted-foreground">Resultado</p>
+              <p className={cn('text-2xl font-black font-orbitron', stats.pnl >= 0 ? 'text-success' : 'text-destructive')}>
+                {stats.pnl >= 0 ? '+' : ''}R$ {stats.pnl.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Tabs value={filter} onValueChange={(v) => setFilter(v as ResultFilter)}>
+              <TabsList>
+                <TabsTrigger value="all"><Filter className="w-3 h-3 mr-1" /> Todos</TabsTrigger>
+                <TabsTrigger value="gren" className="data-[state=active]:bg-success data-[state=active]:text-success-foreground">GREN</TabsTrigger>
+                <TabsTrigger value="red" className="data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">RED</TabsTrigger>
+                <TabsTrigger value="cashout" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Cash Out</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn('text-xs', !dateFrom && 'text-muted-foreground')}>
+                    <CalendarIcon className="w-3.5 h-3.5 mr-1" />
+                    {dateFrom ? format(dateFrom, 'dd/MM/yyyy', { locale: ptBR }) : 'De'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn('text-xs', !dateTo && 'text-muted-foreground')}>
+                    <CalendarIcon className="w-3.5 h-3.5 mr-1" />
+                    {dateTo ? format(dateTo, 'dd/MM/yyyy', { locale: ptBR }) : 'Até'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn('p-3 pointer-events-auto')} />
+                </PopoverContent>
+              </Popover>
+
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          {loading ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">Carregando...</div>
+          ) : pageItems.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-border rounded-xl">
+              <p className="text-muted-foreground text-sm">Nenhuma liquidação encontrada para os filtros selecionados.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <AnimatePresence mode="popLayout">
+                {pageItems.map((bet) => {
+                  const isWon = bet.status === 'won';
+                  const isCashout = bet.status === 'cashout';
+                  const pnl = bet.profit_loss ?? (isWon ? bet.stake * bet.odd - bet.stake : -bet.stake);
+                  const isProfit = pnl >= 0;
+                  const label = isCashout ? 'CASH OUT' : isWon ? 'GREN' : 'RED';
+                  const labelColor = isCashout ? 'bg-primary text-primary-foreground' : isWon ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground';
+                  const borderColor = isCashout ? 'border-primary/40 bg-primary/5' : isWon ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5';
+                  const hasScore = bet.score_home != null && bet.score_away != null;
+                  const ts = bet.settled_at || bet.cashed_out_at;
+
+                  return (
+                    <motion.div
+                      key={bet.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className={cn('border rounded-xl p-4 space-y-3', borderColor)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-orbitron text-xs font-bold text-foreground truncate">{bet.match_name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{bet.market} @ {Number(bet.odd).toFixed(2)}</p>
+                        </div>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className={cn(
+                              'flex items-center gap-1 px-2.5 py-1 rounded-md font-orbitron text-[11px] font-black uppercase tracking-wider shadow-sm cursor-help',
+                              labelColor
+                            )}>
+                              {isWon ? <CheckCircle2 className="w-3 h-3" /> : isCashout ? <Trophy className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                              {label}
+                              <Info className="w-3 h-3 opacity-70 ml-0.5" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">
+                            {explainOutcome(bet)}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      {hasScore && (
+                        <div className="flex items-center justify-center gap-3 bg-background/60 rounded-lg py-2">
+                          <span className="text-[10px] uppercase text-muted-foreground font-orbitron">Placar Final</span>
+                          <span className="font-orbitron text-2xl font-black text-foreground tabular-nums">
+                            {bet.score_home} <span className="text-muted-foreground mx-1">×</span> {bet.score_away}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between bg-background/50 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="text-[10px] uppercase text-muted-foreground font-orbitron">Resultado</p>
+                          <p className={cn('text-lg font-black font-orbitron', isProfit ? 'text-success' : 'text-destructive')}>
+                            {isProfit ? '+' : ''}R$ {Math.abs(pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] uppercase text-muted-foreground font-orbitron">Stake</p>
+                          <p className="text-sm text-muted-foreground font-orbitron">
+                            R$ {Number(bet.stake).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+
+                      {ts && (
+                        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(ts), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <ChevronLeft className="w-4 h-4" /> Anterior
+              </Button>
+              <span className="text-xs font-orbitron text-muted-foreground px-2">
+                Página {currentPage} de {totalPages} · {filtered.length} resultados
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                Próxima <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
