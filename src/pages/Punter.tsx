@@ -42,7 +42,6 @@ import { useNavigate } from 'react-router-dom';
 import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/services/horusPunterVoiceService';
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
-import { useSubscription } from '@/hooks/useSubscription';
 import { translateMarket } from '@/utils/marketTranslator';
 
 interface PunterSignal {
@@ -76,7 +75,6 @@ export default function PunterPage() {
   const { user, profile, refetchProfile } = useAuth();
   usePushNotifications(); // Auto-registra Web Push para receber sinais APROVADO + GREEN/RED
   const { isAdmin } = useAdmin();
-  const { isPaid } = useSubscription();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
   const [loading, setLoading] = useState(false);
@@ -1229,7 +1227,6 @@ export default function PunterPage() {
                 userId={user?.id}
                 featuredSignal={featured}
                 nextMatch={next}
-                hideFoundersPromo={isPaid}
                 onCtaClick={() => {
                   const el = document.getElementById('signals-section');
                   el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
