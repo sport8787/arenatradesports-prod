@@ -1,12 +1,18 @@
 import { motion } from 'framer-motion';
 import { Quote, PlayCircle } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface Testimonial {
-  url: string;
+  /** URL de mp4 (legado). Use vturbId para players VTurb. */
+  url?: string;
+  /** ID do player VTurb (vid-XXXX). Renderiza <vturb-smartplayer>. */
+  vturbId?: string;
   name?: string;
   role?: string;
   poster?: string;
 }
+
+const VTURB_ACCOUNT_ID = '425e46be-1934-41ee-ac61-375afed6531f';
 
 const TESTIMONIALS: Testimonial[] = [
   {
@@ -14,10 +20,39 @@ const TESTIMONIALS: Testimonial[] = [
     name: 'Usuário verificado',
     role: 'Apostador profissional',
   },
-  // Próximos 2 depoimentos entram aqui amanhã
+  {
+    vturbId: '69ea210588365845bd04bfd8',
+    name: 'Cliente Mycroft',
+    role: 'Depoimento real',
+  },
+  {
+    vturbId: '69ea215e88365845bd04c0c9',
+    name: 'Cliente Mycroft',
+    role: 'Depoimento real',
+  },
+  {
+    vturbId: '69ea20dd05c3ed4453dee2da',
+    name: 'Cliente Mycroft',
+    role: 'Depoimento real',
+  },
 ];
 
+function useVturbScript(playerId?: string) {
+  useEffect(() => {
+    if (!playerId) return;
+    if (document.querySelector(`script[data-vturb-player="${playerId}"]`)) return;
+    const s = document.createElement('script');
+    s.src = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/players/${playerId}/v4/player.js`;
+    s.async = true;
+    s.setAttribute('data-vturb-player', playerId);
+    document.head.appendChild(s);
+  }, [playerId]);
+}
+
 function TestimonialCard({ t }: { t: Testimonial }) {
+  useVturbScript(t.vturbId);
+  const isVturb = !!t.vturbId;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -37,8 +72,13 @@ function TestimonialCard({ t }: { t: Testimonial }) {
             <p className="text-gray-400 text-xs truncate">{t.role ?? 'Cliente Mycroft'}</p>
           </div>
         </div>
-        <div className="aspect-video bg-black">
-          {t.url ? (
+        <div className={isVturb ? 'aspect-[9/16] bg-black' : 'aspect-video bg-black'}>
+          {isVturb ? (
+            <vturb-smartplayer
+              id={`vid-${t.vturbId}`}
+              style={{ display: 'block', width: '100%', height: '100%' }}
+            />
+          ) : t.url ? (
             <video
               src={t.url}
               controls
@@ -60,7 +100,7 @@ function TestimonialCard({ t }: { t: Testimonial }) {
 }
 
 export default function SocialProofSection() {
-  const items = TESTIMONIALS.filter((t) => !!t.url);
+  const items = TESTIMONIALS.filter((t) => !!t.url || !!t.vturbId);
   const isSingle = items.length <= 1;
 
   return (
