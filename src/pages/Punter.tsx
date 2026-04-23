@@ -1573,55 +1573,7 @@ export default function PunterPage() {
         )}
 
 
-        {/* Pending Positions */}
-        {pendingBets.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
-                POSIÇÕES ABERTAS ({pendingBets.length})
-              </span>
-              <div className="flex items-center gap-1 text-[10px] font-mono text-primary">
-                <Clock className="w-3 h-3" />
-                PENDENTE
-              </div>
-            </div>
-            <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
-              {pendingBets.map((bet) => {
-                const betMatchId = (bet.match_id || '').toLowerCase();
-                const isNewBet = autoPlacedMatchIds.has(betMatchId);
-                const betDate = bet.created_at ? new Date(bet.created_at) : null;
-                return (
-                  <div key={bet.id} className={cn(
-                    "p-3 flex items-center justify-between bg-card hover:bg-secondary/20 transition-colors",
-                    isNewBet && "bg-success/5 border-l-2 border-l-success"
-                  )}>
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-1.5 h-8 rounded-full", isNewBet ? "bg-success" : "bg-primary/50")} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono text-sm font-semibold text-foreground">{bet.match_name || bet.match_id}</p>
-                          {isNewBet && <span className="text-[9px] font-mono font-bold text-success animate-pulse">● NOVA</span>}
-                        </div>
-                        <p className="font-mono text-[10px] text-muted-foreground">
-                          {bet.market}
-                          {betDate && (
-                            <span className="ml-2 opacity-60">
-                              {betDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {betDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono text-sm font-bold text-foreground">R$ {parseFloat(bet.stake).toFixed(2)}</p>
-                      <p className="font-mono text-[10px] text-muted-foreground">@ {parseFloat(bet.odd).toFixed(2)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Pending Positions removed — view in /punter/banca-virtual */}
       </div>
 
       {/* KB Chat */}
