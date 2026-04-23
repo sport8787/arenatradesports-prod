@@ -1,8 +1,26 @@
 import { useState } from 'react';
 import { poissonService, type PoissonInput, type PoissonResult } from '@/services/poissonService';
-import { Calculator, RefreshCw, Target } from 'lucide-react';
+import { Calculator, RefreshCw, Target, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <Info className="w-3 h-3" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[240px] text-[10px] font-mono leading-relaxed">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export default function PoissonPanel() {
   const [result, setResult] = useState<PoissonResult | null>(null);
