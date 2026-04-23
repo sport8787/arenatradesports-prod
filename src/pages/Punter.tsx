@@ -1183,6 +1183,13 @@ export default function PunterPage() {
           )}
 
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => navigate('/punter/menu')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-mono font-semibold"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Funções</span>
+            </button>
             <HeaderBtn icon={<Bot className="w-3.5 h-3.5" />} label="Posições Hórus" onClick={openHistory} />
             <HeaderBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Posições" onClick={openManualHistory} />
             <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
