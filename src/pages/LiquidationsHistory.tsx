@@ -251,6 +251,84 @@ export default function LiquidationsHistory() {
       margin: { left: 40 },
     });
 
+    // ─── Distribution chart (GREN / RED / CASH OUT + P&L total) ───
+    const chartTop = (doc as any).lastAutoTable.finalY + 24;
+    const chartLeft = 300; // sits to the right of the summary table
+    const chartW = pageW - chartLeft - 40;
+    const chartH = 130;
+    const baselineY = chartTop + chartH - 28; // leave room for x-labels
+    const titleY = chartTop - 6;
+
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20);
+    doc.text('Distribuição de Resultados', chartLeft, titleY);
+
+    // Chart frame
+    doc.setDrawColor(220);
+    doc.setLineWidth(0.5);
+    doc.line(chartLeft, baselineY, chartLeft + chartW, baselineY); // x-axis
+    doc.line(chartLeft, chartTop + 4, chartLeft, baselineY); // y-axis
+
+    const bars: { label: string; value: number; color: [number, number, number] }[] = [
+      { label: 'GREN', value: stats.gren, color: [16, 122, 87] },
+      { label: 'RED', value: stats.red, color: [185, 28, 28] },
+      { label: 'CASH OUT', value: stats.co, color: [30, 64, 175] },
+    ];
+    const maxVal = Math.max(1, ...bars.map(b => b.value));
+    const maxBarH = baselineY - chartTop - 10;
+    const slotW = chartW / bars.length;
+    const barW = slotW * 0.55;
+
+    bars.forEach((b, i) => {
+      const x = chartLeft + i * slotW + (slotW - barW) / 2;
+      const h = (b.value / maxVal) * maxBarH;
+      const y = baselineY - h;
+      doc.setFillColor(b.color[0], b.color[1], b.color[2]);
+      doc.rect(x, y, barW, h, 'F');
+
+      // value above bar
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(b.color[0], b.color[1], b.color[2]);
+      doc.text(String(b.value), x + barW / 2, y - 3, { align: 'center' });
+
+      // label below
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(80);
+      doc.text(b.label, x + barW / 2, baselineY + 12, { align: 'center' });
+
+      // percentage
+      const total = bars.reduce((s, x) => s + x.value, 0) || 1;
+      const pct = ((b.value / total) * 100).toFixed(0) + '%';
+      doc.setTextColor(140);
+      doc.setFontSize(7);
+      doc.text(pct, x + barW / 2, baselineY + 22, { align: 'center' });
+    });
+
+    // P&L total banner under the chart
+    const pnlY = chartTop + chartH + 8;
+    const pnlColor: [number, number, number] = stats.pnl >= 0 ? [16, 122, 87] : [185, 28, 28];
+    doc.setFillColor(pnlColor[0], pnlColor[1], pnlColor[2]);
+    doc.setDrawColor(pnlColor[0], pnlColor[1], pnlColor[2]);
+    doc.roundedRect(chartLeft, pnlY, chartW, 28, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255);
+    doc.text('P&L TOTAL DO PERÍODO', chartLeft + 10, pnlY + 12);
+    doc.setFontSize(13);
+    doc.text(
+      `${stats.pnl >= 0 ? '+' : ''}R$ ${stats.pnl.toFixed(2)}`,
+      chartLeft + chartW - 10,
+      pnlY + 19,
+      { align: 'right' }
+    );
+
+    // Reset text color before continuing
+    doc.setTextColor(20);
+
     const statusLabel = (s: string) => s === 'won' ? 'GREN' : s === 'lost' ? 'RED' : 'CASH OUT';
     const rows = filtered.map(b => {
       const ts = b.settled_at || b.cashed_out_at;
