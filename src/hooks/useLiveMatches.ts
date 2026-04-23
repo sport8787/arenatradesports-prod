@@ -67,12 +67,13 @@ export interface LiveMatch {
 export function useLiveMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMatches = useCallback(async () => {
+    setRefreshing(true);
     // Buscar tudo que NÃO está explicitamente finalizado/cancelado.
-    // O backend já controla quais jogos entram em live_matches; aqui não derrubamos
-    // jogos por status secundário ('2nd_half', 'in_play', null etc).
     const FINISHED_STATUSES = ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'postponed', 'abandoned'];
     const { data, error } = await supabase
       .from('live_matches')
@@ -82,20 +83,16 @@ export function useLiveMatches() {
     if (error) {
       console.error('Error fetching matches:', error);
       setLoading(false);
+      setRefreshing(false);
       return;
     }
 
     const mapped = (data || [])
       .filter((match: any) => {
         const status = String(match.status || '').toLowerCase();
-        // Remove jogos explicitamente finalizados
         if (FINISHED_STATUSES.includes(status)) return false;
-        // Remove jogos antigos sem atualização há mais de 4h (evita lixo)
         const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
         if (updatedAgoMs > 4 * 60 * 60 * 1000) return false;
-        // Backend já controla quais jogos entram em live_matches (whitelist de ligas).
-        // Frontend NÃO deve refiltrar por liga — isso causava jogos sumindo da UI
-        // quando o nome do campeonato vinha em outro idioma/variante.
         return true;
       })
       .map((match: any) => {
@@ -107,6 +104,8 @@ export function useLiveMatches() {
     console.log(`[useLiveMatches] ${(data || []).length} brutos → ${mapped.length} ativos`);
     setMatches(mapped);
     setLoading(false);
+    setRefreshing(false);
+    setLastUpdated(new Date());
   }, []);
 
   // Debounced refetch to avoid rapid-fire updates from realtime
