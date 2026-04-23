@@ -1597,15 +1597,8 @@ export default function PunterPage() {
               </div>
             )}
 
-            {cachedGames.length === 0 && (
-              <div className="border border-dashed border-border rounded-lg p-8 text-center">
-                <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-                <p className="font-mono text-sm text-foreground mb-1">Pronto para escanear</p>
-                <p className="font-mono text-xs text-muted-foreground max-w-sm mx-auto">
-                  Clique em "Analisar Mercado" para identificar oportunidades de value betting ({ANALYSIS_NT_COST} NT).
-                </p>
-              </div>
-            )}
+            {/* Empty state removed — primary "Analisar Mercado" button already conveys this */}
+
           </div>
         )}
 
