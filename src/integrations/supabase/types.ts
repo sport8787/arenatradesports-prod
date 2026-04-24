@@ -1389,6 +1389,42 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_runs: {
+        Row: {
+          context: Json | null
+          duration_ms: number | null
+          error_message: string | null
+          finished_at: string
+          function_name: string
+          id: string
+          started_at: string
+          status: string
+          status_code: number | null
+        }
+        Insert: {
+          context?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string
+          function_name: string
+          id?: string
+          started_at?: string
+          status?: string
+          status_code?: number | null
+        }
+        Update: {
+          context?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string
+          function_name?: string
+          id?: string
+          started_at?: string
+          status?: string
+          status_code?: number | null
+        }
+        Relationships: []
+      }
       founder_cases: {
         Row: {
           activated_at: string | null
@@ -4887,6 +4923,7 @@ export type Database = {
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
+      cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
       decrement_promo_slot: {
         Args: {
           p_event_type?: string
