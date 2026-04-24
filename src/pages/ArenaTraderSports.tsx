@@ -443,7 +443,28 @@ export default function ArenaTraderSports() {
           )}
 
           {statusFilter !== 'simulado' && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                onClick={() => setOnlyFavorites(v => !v)}
+                disabled={favoritesCount === 0 && !onlyFavorites}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5',
+                  onlyFavorites
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/50 hover:text-primary',
+                  favoritesCount === 0 && !onlyFavorites && 'opacity-50 cursor-not-allowed',
+                )}
+                aria-pressed={onlyFavorites}
+                title={favoritesCount === 0 ? 'Favorite jogos clicando na ⭐ no card' : 'Mostrar apenas favoritos'}
+              >
+                <Star className={cn('w-3 h-3', onlyFavorites && 'fill-primary')} />
+                Favoritos
+                {favoritesCount > 0 && (
+                  <span className="ml-0.5 px-1.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
+                    {favoritesCount}
+                  </span>
+                )}
+              </button>
               {championships.map(c => (
                 <button
                   key={c}
