@@ -466,6 +466,27 @@ Deno.serve(async (req) => {
     let evaluated = 0, autoCashedOut = 0;
     const results: any[] = [];
 
+    // Cache de thresholds personalizados por usuário (Map<userId, Map<line, threshold>>)
+    const thresholdsCache = new Map<string, Map<number, UnderThreshold>>();
+    async function getUserThreshold(uid: string, line: number): Promise<UnderThreshold | null> {
+      if (!thresholdsCache.has(uid)) {
+        const { data } = await supabase
+          .from('under_cashout_thresholds')
+          .select('under_line, delta_dangerous_attacks, delta_shots_on_target, delta_xg, enabled')
+          .eq('user_id', uid);
+        const m = new Map<number, UnderThreshold>();
+        (data || []).forEach((r: any) => m.set(Number(r.under_line), {
+          under_line: Number(r.under_line),
+          delta_dangerous_attacks: r.delta_dangerous_attacks,
+          delta_shots_on_target: r.delta_shots_on_target,
+          delta_xg: Number(r.delta_xg),
+          enabled: r.enabled,
+        }));
+        thresholdsCache.set(uid, m);
+      }
+      return thresholdsCache.get(uid)!.get(line) ?? null;
+    }
+
     for (const pos of positions) {
       try {
         const liveMatch = await resolveMatchState(pos.match_id, supabase, matchStateCache);
