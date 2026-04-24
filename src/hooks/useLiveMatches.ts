@@ -91,8 +91,9 @@ export function useLiveMatches() {
       .filter((match: any) => {
         const status = String(match.status || '').toLowerCase();
         if (FINISHED_STATUSES.includes(status)) return false;
+        // Aumentado de 4h → 6h para tolerar lacunas temporárias da API.
         const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
-        if (updatedAgoMs > 4 * 60 * 60 * 1000) return false;
+        if (updatedAgoMs > 6 * 60 * 60 * 1000) return false;
         return true;
       })
       .map((match: any) => {
@@ -119,14 +120,33 @@ export function useLiveMatches() {
 
     console.log(`[useLiveMatches] ${(data || []).length} brutos → ${filtered.length} ativos → ${mapped.length} únicos`);
 
-    // Evita re-render se a lista efetivamente não mudou (mesmo conjunto de match_id + updated_at + mycroft_status)
+    // MERGE estável: preserva jogos que estavam ativos há <2 min mesmo se não vierem
+    // nesta resposta (evita "sumir/voltar" por jitter da API ou marcação prematura
+    // de finished no backend). Atualiza dados dos jogos que vieram.
     setMatches((prev) => {
-      if (prev.length === mapped.length) {
-        const prevSig = prev.map((p) => `${p.match_id}:${p.updated_at}:${p.mycroft_status ?? ''}:${p.score_home}-${p.score_away}:${p.minute ?? ''}`).join('|');
-        const nextSig = mapped.map((p) => `${p.match_id}:${p.updated_at}:${p.mycroft_status ?? ''}:${p.score_home}-${p.score_away}:${p.minute ?? ''}`).join('|');
-        if (prevSig === nextSig) return prev;
+      const incomingMap = new Map(mapped.map((m) => [m.match_id, m]));
+      const RETENTION_MS = 2 * 60 * 1000; // 2 min de retenção otimista
+      const now = Date.now();
+
+      // Mantém jogos anteriores recentes que não voltaram nesta resposta
+      const retained: LiveMatch[] = [];
+      for (const p of prev) {
+        if (incomingMap.has(p.match_id)) continue; // será substituído pelo novo
+        const age = now - new Date(p.updated_at).getTime();
+        if (age <= RETENTION_MS) retained.push(p);
       }
-      return mapped;
+
+      const merged = [...mapped, ...retained].sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+
+      // Evita re-render se assinatura é idêntica
+      if (prev.length === merged.length) {
+        const sig = (arr: LiveMatch[]) =>
+          arr.map((p) => `${p.match_id}:${p.updated_at}:${p.mycroft_status ?? ''}:${p.score_home}-${p.score_away}:${p.minute ?? ''}`).join('|');
+        if (sig(prev) === sig(merged)) return prev;
+      }
+      return merged;
     });
     setLoading(false);
     setRefreshing(false);
