@@ -589,12 +589,14 @@ Deno.serve(async (req) => {
 
         console.log(`[evaluate-cashout] ${pos.match_name} | @${entryOdd}→${oddAtual} | R$${cashoutValue} | ${saude} | signal=${sinal} | ${oddFonte}`);
 
-        // Update position
+        // Update position — Under 2.5 (u25) tem prioridade sobre a saúde genérica.
+        const finalSinal = (u25?.triggered ?? false) || sinal;
+        const finalMotivo = u25?.triggered ? u25.motivo : (sinal ? motivo : null);
         await supabase.from('virtual_bets').update({
           current_odd: oddAtual, cashout_value: cashoutValue, cashout_odd: oddAtual,
           odd_fonte: oddFonte,
-          mycroft_cashout_signal: sinal,
-          mycroft_cashout_reason: sinal ? motivo : null,
+          mycroft_cashout_signal: finalSinal,
+          mycroft_cashout_reason: finalMotivo,
           last_cashout_update: new Date().toISOString(),
         }).eq('id', pos.id);
 
