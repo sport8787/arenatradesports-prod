@@ -157,6 +157,9 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
+            {/* Alertas de edge functions (falhas/h e crédito) */}
+            <EdgeFunctionAlerts />
+
             {/* Seção 1 — Visão geral */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Visão geral</h2>
