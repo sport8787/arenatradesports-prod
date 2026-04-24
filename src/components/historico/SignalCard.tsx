@@ -90,6 +90,16 @@ export default function SignalCard({ signal, index }: SignalCardProps) {
           </>
         )}
       </div>
+      {signal.verdict === 'APROVADO' && (
+        <CopySignalActions
+          signal={{
+            match: signal.match,
+            market: signal.market,
+            odd: signal.odd,
+            confidence: signal.confidence,
+          }}
+        />
+      )}
     </motion.div>
   );
 }
