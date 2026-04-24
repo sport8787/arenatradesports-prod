@@ -316,7 +316,7 @@ ANTI-ABUSO: Máx 2 aprovações situacionais/partida. Não situacional após min
 
 
 function buildPrompt(match: MatchData, planos: any[], memoryRules: string): string {
-  const s = match.stats || {};
+  const s: any = match.stats || {};
 
   // Montar matriz de planos dinamicamente da tabela
   const validPlanNames = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
