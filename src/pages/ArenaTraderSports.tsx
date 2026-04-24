@@ -74,6 +74,9 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     } : null,
     planName: lm.mycroft_analysis?.fundamentation?.plan_name ?? null,
     market: lm.mycroft_analysis?.market ?? null,
+    signalResult: (lm.mycroft_analysis?.result === 'green' || lm.mycroft_analysis?.result === 'red') ? lm.mycroft_analysis.result : null,
+    finalScoreHome: lm.mycroft_analysis?.final_score_home ?? null,
+    finalScoreAway: lm.mycroft_analysis?.final_score_away ?? null,
   };
 };
 

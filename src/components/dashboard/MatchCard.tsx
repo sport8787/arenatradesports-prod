@@ -38,6 +38,9 @@ export interface Match {
   stats?: MatchStats | null;
   planName?: string | null;
   market?: string | null;
+  signalResult?: 'green' | 'red' | null;
+  finalScoreHome?: number | null;
+  finalScoreAway?: number | null;
 }
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
