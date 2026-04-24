@@ -61,6 +61,10 @@ export interface LiveMatch {
     fundamentation: any;
     risk_management: any;
     alerts: string[];
+    result?: string | null;
+    final_score_home?: number | null;
+    final_score_away?: number | null;
+    settled_at?: string | null;
   } | null;
 }
 
