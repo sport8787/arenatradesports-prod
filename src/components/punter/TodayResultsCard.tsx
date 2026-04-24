@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, XCircle, Clock, TrendingUp, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Stats {
   greens: number;
@@ -20,22 +21,31 @@ interface Props {
 
 /**
  * Card no topo da Arena Punter mostrando Greens/Reds/Pending do dia
- * (apenas sinais Hórus de hoje — punter_signals criados com created_at::date = today).
- * Inclui um botão "Apenas hoje" que ativa um filtro visual na lista de sinais.
+ * para o usuário logado. Usa virtual_bets_punter (apostas reais do Hórus,
+ * incluindo as pendentes geradas pelo auto-bet global).
+ *
+ * PnL: soma APENAS profit_loss de bets concluídas (status green/red).
+ * Pendentes contam como 0 para não distorcer o total.
  */
 export default function TodayResultsCard({ todayFilterActive, onToggleFilter }: Props) {
+  const { user } = useAuth();
   const [stats, setStats] = useState<Stats>({
     greens: 0, reds: 0, pending: 0, total: 0, pnl: 0, loading: true,
   });
 
   const load = async () => {
+    if (!user) {
+      setStats({ greens: 0, reds: 0, pending: 0, total: 0, pnl: 0, loading: false });
+      return;
+    }
     setStats(s => ({ ...s, loading: true }));
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
-      .from('punter_signals')
-      .select('result, profit_loss, stake_amount, odd')
+      .from('virtual_bets_punter')
+      .select('status, profit_loss')
+      .eq('user_id', user.id)
       .gte('created_at', startOfDay.toISOString());
 
     if (error || !data) {
@@ -44,24 +54,37 @@ export default function TodayResultsCard({ todayFilterActive, onToggleFilter }: 
     }
 
     let greens = 0, reds = 0, pending = 0, pnl = 0;
-    for (const row of data as Array<{ result: string | null; profit_loss: number | null }>) {
-      if (row.result === 'green') { greens++; pnl += Number(row.profit_loss ?? 0); }
-      else if (row.result === 'red') { reds++; pnl += Number(row.profit_loss ?? 0); }
-      else pending++;
+    for (const row of data as Array<{ status: string | null; profit_loss: number | null }>) {
+      if (row.status === 'green') {
+        greens++;
+        pnl += Number(row.profit_loss ?? 0);
+      } else if (row.status === 'red') {
+        reds++;
+        pnl += Number(row.profit_loss ?? 0);
+      } else {
+        // pending, cancelled, etc — não soma no PnL
+        pending++;
+      }
     }
     setStats({ greens, reds, pending, total: data.length, pnl, loading: false });
   };
 
   useEffect(() => {
     load();
-    // realtime: atualiza quando algum signal de hoje muda
+    if (!user) return;
+    // realtime: atualiza quando alguma bet do usuário muda
     const channel = supabase
-      .channel('punter_signals_today')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_signals' }, () => load())
+      .channel(`virtual_bets_punter_today_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'virtual_bets_punter', filter: `user_id=eq.${user.id}` },
+        () => load()
+      )
       .subscribe();
     const interval = setInterval(load, 60_000); // refresh a cada 1 min
     return () => { supabase.removeChannel(channel); clearInterval(interval); };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const winRate = stats.greens + stats.reds > 0
     ? Math.round((stats.greens / (stats.greens + stats.reds)) * 100)
