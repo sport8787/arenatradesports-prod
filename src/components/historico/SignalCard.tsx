@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { translateMarket } from '@/utils/marketTranslator';
+import CopySignalActions from '@/components/signals/CopySignalActions';
 import type { Signal } from '@/pages/Historico';
 
 interface SignalCardProps {
