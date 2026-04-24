@@ -153,11 +153,16 @@ export default function ActivePositions() {
       {/* Posições Abertas */}
       {positions.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            <h3 className="font-orbitron text-sm font-bold text-foreground uppercase">
-              Posições Abertas ({positions.length})
-            </h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" />
+              <h3 className="font-orbitron text-sm font-bold text-foreground uppercase">
+                Posições Abertas ({positions.length})
+              </h3>
+            </div>
+            <Link to="/arena-trader-sports/under-thresholds" className="text-[10px] font-orbitron uppercase text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+              ⚙ Thresholds Under
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
