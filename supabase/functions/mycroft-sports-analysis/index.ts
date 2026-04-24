@@ -316,7 +316,7 @@ ANTI-ABUSO: Máx 2 aprovações situacionais/partida. Não situacional após min
 
 
 function buildPrompt(match: MatchData, planos: any[], memoryRules: string): string {
-  const s = match.stats || {};
+  const s: any = match.stats || {};
 
   // Montar matriz de planos dinamicamente da tabela
   const validPlanNames = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
@@ -695,7 +695,7 @@ serve(async (req) => {
     // === PLANO UNDER 2.5 EARLY (override server-side) ===
     // Aprova/cancela Under 2.5 quando jogo está parado nos primeiros minutos.
     {
-      const u_s = match.stats || {};
+      const u_s: any = match.stats || {};
       const u_min = match.minute ?? 0;
       const u_scoreH = match.scoreHome ?? 0;
       const u_scoreA = match.scoreAway ?? 0;

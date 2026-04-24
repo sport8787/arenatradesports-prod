@@ -196,7 +196,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("[ParseBetScreenshot] Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to parse screenshot" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) || "Failed to parse screenshot" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

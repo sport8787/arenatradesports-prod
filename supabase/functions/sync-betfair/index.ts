@@ -73,7 +73,7 @@ async function resolveMarketInfo(marketIds: string[], token: string, appKey: str
         };
       }
     } catch (e) {
-      console.log(`[BetfairSync] Failed to resolve market info batch: ${e.message}`);
+      console.log(`[BetfairSync] Failed to resolve market info batch: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   return info;
@@ -285,11 +285,11 @@ serve(async (req) => {
       console.log(`[BetfairSync] Account statement returned ${statementItems.length} items`);
 
       // Build set of existing exchange refIds to avoid duplicates
-      const exchangeRefIds = new Set(settledOrders.map((o: any) => o.betId).filter(Boolean));
+      const exchangeRefIds = new Set<string>(settledOrders.map((o: any) => o.betId).filter(Boolean));
       sportsbookBets = parseSportsbookFromStatement(statementItems, user.id, batchId, exchangeRefIds);
       console.log(`[BetfairSync] Extracted ${sportsbookBets.length} Sportsbook bets from statement`);
     } catch (e) {
-      console.log(`[BetfairSync] Account Statement fetch failed (non-fatal): ${e.message}`);
+      console.log(`[BetfairSync] Account Statement fetch failed (non-fatal): ${e instanceof Error ? e.message : String(e)}`);
       // Non-fatal: sportsbook extraction is best-effort
     }
 
@@ -318,11 +318,12 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
-    if (e.message === 'SSOID_EXPIRED') {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === 'SSOID_EXPIRED') {
       return new Response(JSON.stringify({ 
         error: 'Seu SSOID expirou. Acesse a Betfair, copie um novo SSOID e atualize nas Configurações → Conexões → Betfair.' 
       }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
