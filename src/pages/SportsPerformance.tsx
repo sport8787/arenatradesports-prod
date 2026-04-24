@@ -36,7 +36,7 @@ export default function SportsPerformance() {
         .select('*')
         .eq('user_id', session.session.user.id)
         .neq('status', 'pending')
-        .order('created_at', { ascending: true });
+        .order('placed_at', { ascending: true });
 
       if (data) {
         setBets(data.map((b: any) => ({
