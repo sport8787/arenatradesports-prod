@@ -319,6 +319,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
+    await logEdgeError("sync-betfair", e).catch(() => {});
     const msg = e instanceof Error ? e.message : String(e);
     if (msg === 'SSOID_EXPIRED') {
       return new Response(JSON.stringify({ 

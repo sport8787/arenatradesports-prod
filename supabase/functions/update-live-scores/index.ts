@@ -340,6 +340,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error('[LiveScores] Error:', e);
+    await logEdgeError("update-live-scores", e).catch(() => {});
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

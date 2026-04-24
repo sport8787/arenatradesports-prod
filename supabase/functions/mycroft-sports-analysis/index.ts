@@ -1368,6 +1368,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[MycroftSports] Error:', error);
+    await logEdgeError("mycroft-sports-analysis", error).catch(() => {});
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
