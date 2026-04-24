@@ -1418,6 +1418,12 @@ export default function PunterPage() {
           </Alert>
         )}
 
+        {/* Card Greens/Reds do dia (Hórus auto-bet) */}
+        <TodayResultsCard
+          todayFilterActive={todayOnlyFilter}
+          onToggleFilter={() => setTodayOnlyFilter(v => !v)}
+        />
+
         {/* Portfolio Expected ROI Summary */}
         {signals.length > 0 && (
           <div className="space-y-4">
