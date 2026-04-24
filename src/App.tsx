@@ -21,6 +21,7 @@ import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMonthly";
+import UnderThresholdsConfig from "./pages/UnderThresholdsConfig";
 import LiveMatchDetail from "./pages/LiveMatchDetail";
 import TradingHistory from "./pages/TradingHistory";
 import MycroftSinaisAprovados from "./pages/MycroftSinaisAprovados";
