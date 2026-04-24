@@ -24,6 +24,7 @@ import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMon
 import LiveMatchDetail from "./pages/LiveMatchDetail";
 import TradingHistory from "./pages/TradingHistory";
 import MycroftSinaisAprovados from "./pages/MycroftSinaisAprovados";
+import MycroftSinalDetalhe from "./pages/MycroftSinalDetalhe";
 import LiquidationsHistory from "./pages/LiquidationsHistory";
 import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
