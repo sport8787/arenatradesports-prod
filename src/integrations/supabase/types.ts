@@ -3754,6 +3754,45 @@ export type Database = {
           },
         ]
       }
+      under_cashout_thresholds: {
+        Row: {
+          created_at: string
+          delta_dangerous_attacks: number
+          delta_shots_on_target: number
+          delta_xg: number
+          enabled: boolean
+          id: string
+          risk_profile: string
+          under_line: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta_dangerous_attacks?: number
+          delta_shots_on_target?: number
+          delta_xg?: number
+          enabled?: boolean
+          id?: string
+          risk_profile?: string
+          under_line: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delta_dangerous_attacks?: number
+          delta_shots_on_target?: number
+          delta_xg?: number
+          enabled?: boolean
+          id?: string
+          risk_profile?: string
+          under_line?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       uploaded_hand_files: {
         Row: {
           created_at: string

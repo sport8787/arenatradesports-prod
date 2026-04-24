@@ -122,26 +122,51 @@ function classificarSaude(bet: any, oddAtual: number, minuto: number): { saude: 
 }
 
 // ═══════════════════════════════════════════════════
-// REGRA ESPECÍFICA — UNDER 2.5 CASH OUT ALERT
+// REGRA ESPECÍFICA — UNDER X.5 CASH OUT ALERT (genérico)
 // Gatilho 1: gol marcado após a entrada → SAIR AGORA (CRITICAL)
 // Gatilho 2: pressão ofensiva crescente (1 critério) → ATENÇÃO (WARNING)
 // Gatilho 3: 2+ critérios de pressão → SAIR AGORA (CRITICAL)
+// Thresholds são personalizáveis por usuário via tabela under_cashout_thresholds.
 // ═══════════════════════════════════════════════════
-function isUnder25Market(market: string): boolean {
-  const m = String(market || '').toLowerCase().trim();
-  if (!m.includes('under')) return false;
-  // aceita "under 2.5", "under 2,5", "under2.5"
-  const match = m.match(/under\s*([0-9]+(?:[.,][0-9]+)?)/);
-  if (!match) return false;
-  const line = parseFloat(match[1].replace(',', '.'));
-  return Math.abs(line - 2.5) < 0.01;
+const SUPPORTED_UNDER_LINES = [1.5, 2.5, 3.5, 4.5];
+
+interface UnderThreshold {
+  under_line: number;
+  delta_dangerous_attacks: number;
+  delta_shots_on_target: number;
+  delta_xg: number;
+  enabled: boolean;
 }
 
-function evaluateUnder25Pressure(
+const DEFAULT_THRESHOLD: Omit<UnderThreshold, 'under_line'> = {
+  delta_dangerous_attacks: 4,
+  delta_shots_on_target: 3,
+  delta_xg: 0.5,
+  enabled: true,
+};
+
+function getUnderLine(market: string): number | null {
+  const m = String(market || '').toLowerCase().trim();
+  if (!m.includes('under')) return null;
+  const match = m.match(/under\s*([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return null;
+  const line = parseFloat(match[1].replace(',', '.'));
+  return SUPPORTED_UNDER_LINES.find(l => Math.abs(l - line) < 0.01) ?? null;
+}
+
+function evaluateUnderPressure(
   pos: any,
   matchState: MatchState,
+  threshold: UnderThreshold | null,
 ): { triggered: boolean; severity: 'CRITICAL' | 'WARNING'; signalType: string; motivo: string; deltas?: any } | null {
-  if (!isUnder25Market(pos.market)) return null;
+  const line = getUnderLine(pos.market);
+  if (line == null) return null;
+
+  // Threshold desativado pelo usuário → não emite alerta personalizado
+  if (threshold && !threshold.enabled) return null;
+
+  const t: UnderThreshold = threshold ?? { under_line: line, ...DEFAULT_THRESHOLD };
+
   const entry = (pos.entry_stats || {}) as Record<string, number>;
   const stats: any = matchState.stats || {};
 
@@ -153,8 +178,8 @@ function evaluateUnder25Pressure(
     return {
       triggered: true,
       severity: 'CRITICAL',
-      signalType: 'UNDER25_GOAL',
-      motivo: '⚠️ SAIR AGORA — Gol marcado. Under 2.5 comprometido. Execute o cash out imediatamente.',
+      signalType: `UNDER${String(line).replace('.', '')}_GOAL`,
+      motivo: `⚠️ SAIR AGORA — Gol marcado. Under ${line} comprometido. Execute o cash out imediatamente.`,
     };
   }
 
@@ -173,21 +198,21 @@ function evaluateUnder25Pressure(
   const xgAvailable = xgNow > 0 || (entry.xg_total ?? 0) > 0;
 
   const criteriaHit: string[] = [];
-  if (dDA >= 4) criteriaHit.push(`Ataques perigosos +${dDA}`);
-  if (dST >= 3) criteriaHit.push(`Chutes a gol +${dST}`);
-  if (xgAvailable && dXG >= 0.5) criteriaHit.push(`xG +${dXG.toFixed(2)}`);
+  if (dDA >= t.delta_dangerous_attacks) criteriaHit.push(`Ataques perigosos +${dDA} (≥${t.delta_dangerous_attacks})`);
+  if (dST >= t.delta_shots_on_target)   criteriaHit.push(`Chutes a gol +${dST} (≥${t.delta_shots_on_target})`);
+  if (xgAvailable && dXG >= t.delta_xg) criteriaHit.push(`xG +${dXG.toFixed(2)} (≥${t.delta_xg})`);
 
   if (criteriaHit.length === 0) return null;
 
-  const deltas = { dDA, dST, dXG: Number(dXG.toFixed(2)), criteriaHit };
+  const deltas = { dDA, dST, dXG: Number(dXG.toFixed(2)), criteriaHit, line, threshold: t };
 
   // ── GATILHO 3: 2+ critérios → CRITICAL ──
   if (criteriaHit.length >= 2) {
     return {
       triggered: true,
       severity: 'CRITICAL',
-      signalType: 'UNDER25_EXPLOSIVE',
-      motivo: `🚨 SAIR AGORA — Pressão ofensiva alta em ambos os lados. Risco de gol elevado. Under 2.5 em perigo. (${criteriaHit.join(' • ')})`,
+      signalType: `UNDER${String(line).replace('.', '')}_EXPLOSIVE`,
+      motivo: `🚨 SAIR AGORA — Pressão ofensiva alta em ambos os lados. Risco de gol elevado. Under ${line} em perigo. (${criteriaHit.join(' • ')})`,
       deltas,
     };
   }
@@ -196,8 +221,8 @@ function evaluateUnder25Pressure(
   return {
     triggered: true,
     severity: 'WARNING',
-    signalType: 'UNDER25_PRESSURE',
-    motivo: `⚠️ ATENÇÃO — Jogo ficando movimentado. Ataques perigosos e chutes aumentando. Considere cash out parcial ou saída preventiva. (${criteriaHit.join(' • ')})`,
+    signalType: `UNDER${String(line).replace('.', '')}_PRESSURE`,
+    motivo: `⚠️ ATENÇÃO — Jogo ficando movimentado. Pressão crescente. Considere cash out parcial. Under ${line} sob risco. (${criteriaHit.join(' • ')})`,
     deltas,
   };
 }
@@ -441,6 +466,27 @@ Deno.serve(async (req) => {
     let evaluated = 0, autoCashedOut = 0;
     const results: any[] = [];
 
+    // Cache de thresholds personalizados por usuário (Map<userId, Map<line, threshold>>)
+    const thresholdsCache = new Map<string, Map<number, UnderThreshold>>();
+    async function getUserThreshold(uid: string, line: number): Promise<UnderThreshold | null> {
+      if (!thresholdsCache.has(uid)) {
+        const { data } = await supabase
+          .from('under_cashout_thresholds')
+          .select('under_line, delta_dangerous_attacks, delta_shots_on_target, delta_xg, enabled')
+          .eq('user_id', uid);
+        const m = new Map<number, UnderThreshold>();
+        (data || []).forEach((r: any) => m.set(Number(r.under_line), {
+          under_line: Number(r.under_line),
+          delta_dangerous_attacks: r.delta_dangerous_attacks,
+          delta_shots_on_target: r.delta_shots_on_target,
+          delta_xg: Number(r.delta_xg),
+          enabled: r.enabled,
+        }));
+        thresholdsCache.set(uid, m);
+      }
+      return thresholdsCache.get(uid)!.get(line) ?? null;
+    }
+
     for (const pos of positions) {
       try {
         const liveMatch = await resolveMatchState(pos.match_id, supabase, matchStateCache);
@@ -511,12 +557,16 @@ Deno.serve(async (req) => {
         const entryOdd = pos.entry_odd || pos.odd;
         const minuto = liveMatch.minute || 0;
 
-        // ═══ REGRA UNDER 2.5 — Cash Out Alert (prioritária) ═══
+        // ═══ REGRA UNDER X.5 — Cash Out Alert (prioritária, thresholds personalizados por usuário) ═══
         // Dispara antes da avaliação genérica para que a mensagem específica chegue ao usuário primeiro.
-        const u25 = evaluateUnder25Pressure(pos, liveMatch);
+        const underLine = getUnderLine(pos.market || '');
+        const userThreshold = (underLine != null && pos.user_id)
+          ? await getUserThreshold(pos.user_id, underLine)
+          : null;
+        const u25 = evaluateUnderPressure(pos, liveMatch, userThreshold);
         if (u25?.triggered) {
           const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
-          console.log(`[evaluate-cashout] 🛑 UNDER25 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
+          console.log(`[evaluate-cashout] 🛑 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
 
           // Marca o sinal na própria posição (UI exibe via realtime).
           await supabase.from('virtual_bets').update({
