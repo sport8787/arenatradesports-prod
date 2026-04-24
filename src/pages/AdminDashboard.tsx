@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, RefreshCw, Users, UserCheck, UserX, Clock, CreditCard, Activity } from 'lucide-react';
+import EdgeFunctionAlerts from '@/components/admin/EdgeFunctionAlerts';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
