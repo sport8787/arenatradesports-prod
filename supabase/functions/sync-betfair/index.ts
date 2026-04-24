@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { startEdgeRun } from "../_shared/edgeRunLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -213,6 +214,7 @@ function parseSportsbookFromStatement(items: any[], userId: string, batchId: str
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const run = startEdgeRun("sync-betfair");
   try {
     const supabase = getSupabaseAdmin();
     const authHeader = req.headers.get('Authorization');
@@ -308,6 +310,14 @@ serve(async (req) => {
 
     console.log(`[BetfairSync] Synced ${allBets.length} total bets (${exchangeBets.length} exchange, ${sportsbookBets.length} sportsbook)`);
 
+    await run.success({
+      statusCode: 200,
+      context: {
+        synced: allBets.length,
+        exchange: exchangeBets.length,
+        sportsbook: sportsbookBets.length,
+      },
+    });
     return new Response(JSON.stringify({
       success: true, 
       synced: allBets.length,
@@ -321,6 +331,8 @@ serve(async (req) => {
     console.error('[BetfairSync] Error:', e);
     await logEdgeError("sync-betfair", e).catch(() => {});
     const msg = e instanceof Error ? e.message : String(e);
+    const statusCode = msg === 'SSOID_EXPIRED' ? 401 : 500;
+    await run.error(e, { statusCode });
     if (msg === 'SSOID_EXPIRED') {
       return new Response(JSON.stringify({ 
         error: 'Seu SSOID expirou. Acesse a Betfair, copie um novo SSOID e atualize nas Configurações → Conexões → Betfair.' 
