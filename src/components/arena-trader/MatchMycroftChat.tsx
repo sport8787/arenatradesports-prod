@@ -36,24 +36,110 @@ interface Props {
   matchContext: MatchContext;
 }
 
+const STORAGE_PREFIX = 'mycroft-match-chat:';
+
+interface PersistedState {
+  messages: ChatMessage[];
+  scrollTop: number;
+}
+
+function loadPersisted(matchId: string): PersistedState | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_PREFIX + matchId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.messages)) return null;
+    return { messages: parsed.messages, scrollTop: Number(parsed.scrollTop) || 0 };
+  } catch {
+    return null;
+  }
+}
+
 export default function MatchMycroftChat({ matchContext }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const initial = loadPersisted(matchContext.match_id);
+  const [messages, setMessages] = useState<ChatMessage[]>(initial?.messages ?? []);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const savedScrollRef = useRef<number>(initial?.scrollTop ?? 0);
+  const shouldAutoScrollRef = useRef<boolean>(true);
   const { isTrialActive, isPaid, subscription } = useSubscription();
 
   // Liberado durante trial OU para Enterprise
   const canUse = isTrialActive || (isPaid && subscription?.plan === 'premium');
 
-  useEffect(() => {
-    // Scroll APENAS dentro do container do chat — nunca a página inteira.
-    // scrollIntoView rola o documento no mobile e "joga" a tela pra baixo.
+  // Threshold (px) para considerar "no fim"
+  const BOTTOM_THRESHOLD = 60;
+
+  const checkAtBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_THRESHOLD;
+  }, []);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    setHasUnread(false);
+    shouldAutoScrollRef.current = true;
+  }, []);
+
+  // Persiste mensagens + scrollTop por match_id (sessionStorage)
+  useEffect(() => {
+    try {
+      const payload: PersistedState = {
+        messages,
+        scrollTop: scrollRef.current?.scrollTop ?? savedScrollRef.current,
+      };
+      sessionStorage.setItem(STORAGE_PREFIX + matchContext.match_id, JSON.stringify(payload));
+    } catch { /* quota / privacy mode */ }
+  }, [messages, matchContext.match_id]);
+
+  // Ao expandir: restaura scroll salvo, ou vai pro fim se for primeira abertura
+  useEffect(() => {
+    if (!expanded || !canUse) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      const node = scrollRef.current;
+      if (!node) return;
+      if (savedScrollRef.current > 0) {
+        node.scrollTop = savedScrollRef.current;
+      } else {
+        node.scrollTop = node.scrollHeight;
+      }
+      setIsAtBottom(checkAtBottom());
+    });
+  }, [expanded, canUse, checkAtBottom]);
+
+  // Auto-scroll só se o usuário estava no fim (ou acabou de enviar)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (shouldAutoScrollRef.current || isAtBottom) {
+      el.scrollTop = el.scrollHeight;
+      setHasUnread(false);
+    } else {
+      // chegou mensagem nova mas usuário está rolando para cima
+      if (messages.length > 0) setHasUnread(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isLoading]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = checkAtBottom();
+    setIsAtBottom(atBottom);
+    shouldAutoScrollRef.current = atBottom;
+    savedScrollRef.current = el.scrollTop;
+    if (atBottom) setHasUnread(false);
+  }, [checkAtBottom]);
 
   const send = async () => {
     if (!input.trim() || isLoading) return;
