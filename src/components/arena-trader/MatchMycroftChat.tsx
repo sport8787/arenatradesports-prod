@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Brain, ChevronDown, ChevronUp, Loader2, MessageSquare, Lock } from 'lucide-react';
+import { Send, Brain, ChevronDown, ChevronUp, Loader2, MessageSquare, Lock, ArrowDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
