@@ -121,6 +121,87 @@ function classificarSaude(bet: any, oddAtual: number, minuto: number): { saude: 
   return { saude: 'HEALTHY', sinal: false, motivo: 'Posição dentro do esperado.' };
 }
 
+// ═══════════════════════════════════════════════════
+// REGRA ESPECÍFICA — UNDER 2.5 CASH OUT ALERT
+// Gatilho 1: gol marcado após a entrada → SAIR AGORA (CRITICAL)
+// Gatilho 2: pressão ofensiva crescente (1 critério) → ATENÇÃO (WARNING)
+// Gatilho 3: 2+ critérios de pressão → SAIR AGORA (CRITICAL)
+// ═══════════════════════════════════════════════════
+function isUnder25Market(market: string): boolean {
+  const m = String(market || '').toLowerCase().trim();
+  if (!m.includes('under')) return false;
+  // aceita "under 2.5", "under 2,5", "under2.5"
+  const match = m.match(/under\s*([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return false;
+  const line = parseFloat(match[1].replace(',', '.'));
+  return Math.abs(line - 2.5) < 0.01;
+}
+
+function evaluateUnder25Pressure(
+  pos: any,
+  matchState: MatchState,
+): { triggered: boolean; severity: 'CRITICAL' | 'WARNING'; signalType: string; motivo: string; deltas?: any } | null {
+  if (!isUnder25Market(pos.market)) return null;
+  const entry = (pos.entry_stats || {}) as Record<string, number>;
+  const stats: any = matchState.stats || {};
+
+  const totalGoalsNow = (matchState.scoreHome ?? 0) + (matchState.scoreAway ?? 0);
+  const totalGoalsEntry = (entry.score_home ?? 0) + (entry.score_away ?? 0);
+
+  // ── GATILHO 1: gol marcado após a entrada ──
+  if (totalGoalsNow > totalGoalsEntry) {
+    return {
+      triggered: true,
+      severity: 'CRITICAL',
+      signalType: 'UNDER25_GOAL',
+      motivo: '⚠️ SAIR AGORA — Gol marcado. Under 2.5 comprometido. Execute o cash out imediatamente.',
+    };
+  }
+
+  // Sem baseline → não conseguimos avaliar pressão crescente; sai.
+  if (!entry || Object.keys(entry).length === 0) return null;
+
+  const daNow = (stats.dangerous_attacks_home ?? 0) + (stats.dangerous_attacks_away ?? 0);
+  const stNow = (stats.shots_on_target_home ?? stats.shots_on_goal_home ?? 0) +
+                (stats.shots_on_target_away ?? stats.shots_on_goal_away ?? 0);
+  const xgNow = (stats.xG_home ?? stats.xg_home ?? 0) + (stats.xG_away ?? stats.xg_away ?? 0);
+
+  const dDA = daNow - (entry.dangerous_attacks_total ?? 0);
+  const dST = stNow - (entry.shots_on_target_total ?? 0);
+  const dXG = xgNow - (entry.xg_total ?? 0);
+
+  const xgAvailable = xgNow > 0 || (entry.xg_total ?? 0) > 0;
+
+  const criteriaHit: string[] = [];
+  if (dDA >= 4) criteriaHit.push(`Ataques perigosos +${dDA}`);
+  if (dST >= 3) criteriaHit.push(`Chutes a gol +${dST}`);
+  if (xgAvailable && dXG >= 0.5) criteriaHit.push(`xG +${dXG.toFixed(2)}`);
+
+  if (criteriaHit.length === 0) return null;
+
+  const deltas = { dDA, dST, dXG: Number(dXG.toFixed(2)), criteriaHit };
+
+  // ── GATILHO 3: 2+ critérios → CRITICAL ──
+  if (criteriaHit.length >= 2) {
+    return {
+      triggered: true,
+      severity: 'CRITICAL',
+      signalType: 'UNDER25_EXPLOSIVE',
+      motivo: `🚨 SAIR AGORA — Pressão ofensiva alta em ambos os lados. Risco de gol elevado. Under 2.5 em perigo. (${criteriaHit.join(' • ')})`,
+      deltas,
+    };
+  }
+
+  // ── GATILHO 2: 1 critério → WARNING ──
+  return {
+    triggered: true,
+    severity: 'WARNING',
+    signalType: 'UNDER25_PRESSURE',
+    motivo: `⚠️ ATENÇÃO — Jogo ficando movimentado. Ataques perigosos e chutes aumentando. Considere cash out parcial ou saída preventiva. (${criteriaHit.join(' • ')})`,
+    deltas,
+  };
+}
+
 const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
 
 type MatchState = {
