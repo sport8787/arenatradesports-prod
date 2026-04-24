@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { translateMarket } from '@/utils/marketTranslator';
+import CopySignalActions from '@/components/signals/CopySignalActions';
 
 const READ_KEY = 'punter_feed_read_v1';
 
