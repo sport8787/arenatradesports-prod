@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { playCriticalAlert, playWarningAlert } from '@/lib/criticalAlertSound';
 
 interface Position {
   id: string;
@@ -47,6 +48,10 @@ export default function ActivePositions() {
   useEffect(() => {
     if (!user) return;
     let knownSettledIds = new Set<string>();
+    // Mapeia id -> assinatura do alerta (signal + reason) para detectar transições
+    let knownAlertSig = new Map<string, string>();
+    // Evita tocar o mesmo som repetido em <10s para o mesmo id
+    const lastPlayedAt = new Map<string, number>();
     let isFirstLoad = true;
 
     async function fetchAll() {
@@ -70,6 +75,7 @@ export default function ActivePositions() {
       ]);
 
       const settledList = (settledRes.data as SettledBet[]) || [];
+      const pendingList = (pendingRes.data as Position[]) || [];
 
       // Detect newly settled bets (not present in last snapshot)
       if (!isFirstLoad) {
@@ -80,7 +86,6 @@ export default function ActivePositions() {
             newIds.forEach(id => next.add(id));
             return next;
           });
-          // Clear pulse highlight after 8s
           newIds.forEach(id => {
             setTimeout(() => {
               setRecentlySettledIds(prev => {
@@ -91,11 +96,42 @@ export default function ActivePositions() {
             }, 8000);
           });
         }
+
+        // 🔊 Detectar NOVO sinal crítico/aviso (transição) e tocar som
+        const now = Date.now();
+        for (const pos of pendingList) {
+          if (!pos.mycroft_cashout_signal || !pos.mycroft_cashout_reason) continue;
+          const sig = `${pos.mycroft_cashout_signal}::${pos.mycroft_cashout_reason}`;
+          const prevSig = knownAlertSig.get(pos.id);
+          if (prevSig === sig) continue; // sem mudança
+
+          const last = lastPlayedAt.get(pos.id) || 0;
+          if (now - last < 10000) continue; // throttle 10s
+
+          const reason = pos.mycroft_cashout_reason;
+          const isCritical = /SAIR AGORA|🚨|⚠️ SAIR/i.test(reason);
+          const isWarning = !isCritical && /ATENÇÃO|⚠️/i.test(reason);
+
+          if (isCritical) {
+            playCriticalAlert();
+            lastPlayedAt.set(pos.id, now);
+          } else if (isWarning) {
+            playWarningAlert();
+            lastPlayedAt.set(pos.id, now);
+          }
+        }
       }
+
+      // Atualiza assinaturas conhecidas (sempre, inclusive no primeiro load — para não tocar som de sinais antigos)
+      knownAlertSig = new Map(
+        pendingList
+          .filter(p => p.mycroft_cashout_signal && p.mycroft_cashout_reason)
+          .map(p => [p.id, `${p.mycroft_cashout_signal}::${p.mycroft_cashout_reason}`])
+      );
       knownSettledIds = new Set(settledList.map(b => b.id));
       isFirstLoad = false;
 
-      setPositions((pendingRes.data as any[]) || []);
+      setPositions(pendingList);
       setSettled(settledList);
       setLoading(false);
     }
