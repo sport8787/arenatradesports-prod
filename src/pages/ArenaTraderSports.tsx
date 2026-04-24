@@ -74,6 +74,9 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     } : null,
     planName: lm.mycroft_analysis?.fundamentation?.plan_name ?? null,
     market: lm.mycroft_analysis?.market ?? null,
+    signalResult: (lm.mycroft_analysis?.result === 'green' || lm.mycroft_analysis?.result === 'red') ? lm.mycroft_analysis.result : null,
+    finalScoreHome: lm.mycroft_analysis?.final_score_home ?? null,
+    finalScoreAway: lm.mycroft_analysis?.final_score_away ?? null,
   };
 };
 
@@ -342,6 +345,10 @@ export default function ArenaTraderSports() {
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               Chat com Mycroft
+            </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
+              <CheckCircle2 className="w-4 h-4 mr-1" />
+              Sinais Aprovados
             </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />

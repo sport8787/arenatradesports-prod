@@ -178,11 +178,19 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                   </td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {statusIcon[effStatus] ?? null}
-                      <span className={cn('font-orbitron font-bold text-[10px]', statusColors[effStatus] ?? 'text-muted-foreground')}>
-                        {statusLabels[effStatus] ?? '—'}
-                      </span>
-                      {isImminent && <Zap className="w-3 h-3 text-[#FBBF24] animate-pulse" />}
+                      {m.signalResult === 'green' ? (
+                        <span className="font-orbitron font-bold text-[10px] px-1.5 py-0.5 rounded bg-success text-success-foreground">✓ GREEN</span>
+                      ) : m.signalResult === 'red' ? (
+                        <span className="font-orbitron font-bold text-[10px] px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">✗ RED</span>
+                      ) : (
+                        <>
+                          {statusIcon[effStatus] ?? null}
+                          <span className={cn('font-orbitron font-bold text-[10px]', statusColors[effStatus] ?? 'text-muted-foreground')}>
+                            {statusLabels[effStatus] ?? '—'}
+                          </span>
+                          {isImminent && <Zap className="w-3 h-3 text-[#FBBF24] animate-pulse" />}
+                        </>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-left">
