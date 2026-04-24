@@ -127,6 +127,7 @@ const App = () => {
               <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
               <Route path="/admin/push-test" element={<AdminPushTest />} />
               <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
+              <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
