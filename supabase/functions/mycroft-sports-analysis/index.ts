@@ -695,7 +695,7 @@ serve(async (req) => {
     // === PLANO UNDER 2.5 EARLY (override server-side) ===
     // Aprova/cancela Under 2.5 quando jogo está parado nos primeiros minutos.
     {
-      const u_s = match.stats || {};
+      const u_s: any = match.stats || {};
       const u_min = match.minute ?? 0;
       const u_scoreH = match.scoreHome ?? 0;
       const u_scoreA = match.scoreAway ?? 0;
