@@ -303,17 +303,23 @@ serve(async (req) => {
       }));
     }
 
-    // 4. Mark stale matches as finished
+    // 4. Mark stale matches as finished — APENAS se não atualizam há >10 min.
+    //    Antes, qualquer jogo ausente da resposta atual da API (mesmo por 1 ciclo
+    //    de jitter ou por estar em liga fora da whitelist) era marcado como
+    //    'finished', causando o "sumir/voltar" no dashboard. Agora só marcamos
+    //    finished se o registro estiver realmente parado há bastante tempo.
+    const TEN_MIN_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: currentLive } = await supabase
       .from('live_matches')
-      .select('match_id')
-      .eq('status', 'live');
+      .select('match_id, updated_at')
+      .eq('status', 'live')
+      .lt('updated_at', TEN_MIN_AGO);
 
     let finished = 0;
-    if (currentLive) {
+    if (currentLive && currentLive.length > 0) {
       const staleIds = currentLive
-        .filter(m => !liveFixtureIds.has(m.match_id))
-        .map(m => m.match_id);
+        .filter((m: any) => !liveFixtureIds.has(m.match_id))
+        .map((m: any) => m.match_id);
 
       if (staleIds.length > 0) {
         const { error: finishErr } = await supabase
