@@ -596,8 +596,8 @@ serve(async (req) => {
         const oddNow = Number(analysis.odd) || 0;
         const homeOdd = Number(match.odds?.home) || null;
         const awayOdd = Number(match.odds?.away) || null;
-        const sh = Number(match.score_home ?? 0);
-        const sa = Number(match.score_away ?? 0);
+        const sh = Number(match.scoreHome ?? 0);
+        const sa = Number(match.scoreAway ?? 0);
 
         // Identifica favorito atual pela menor odd disponível (h2h)
         let favSide: 'home' | 'away' | null = null;
