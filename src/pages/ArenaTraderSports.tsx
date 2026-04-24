@@ -259,10 +259,22 @@ export default function ArenaTraderSports() {
           if (effectiveStatus !== statusFilter) return false;
         }
         if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+        if (onlyFavorites && !isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })) return false;
         return true;
       })
-      .sort((a, b) => (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3));
-  }, [statusFilter, selectedChampionships, allMatches]);
+      .sort((a, b) => {
+        // Favoritos sempre no topo (estáveis durante atualizações ao vivo)
+        const favA = isMatchFavorite({ matchId: a.matchId, home: a.home, away: a.away }) ? 0 : 1;
+        const favB = isMatchFavorite({ matchId: b.matchId, home: b.home, away: b.away }) ? 0 : 1;
+        if (favA !== favB) return favA - favB;
+        return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
+      });
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite]);
+
+  const favoritesCount = useMemo(
+    () => allMatches.filter(m => isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })).length,
+    [allMatches, isMatchFavorite],
+  );
 
 
 
