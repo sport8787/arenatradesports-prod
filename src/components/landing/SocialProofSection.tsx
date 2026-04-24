@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { Quote, PlayCircle } from 'lucide-react';
-import { useEffect } from 'react';
+import { Quote, PlayCircle, Play } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Testimonial {
   /** URL de mp4 (legado). Use vturbId para players VTurb. */
@@ -37,20 +37,21 @@ const TESTIMONIALS: Testimonial[] = [
   },
 ];
 
-function useVturbScript(playerId?: string) {
+function useVturbScript(playerId: string | undefined, enabled: boolean) {
   useEffect(() => {
-    if (!playerId) return;
+    if (!playerId || !enabled) return;
     if (document.querySelector(`script[data-vturb-player="${playerId}"]`)) return;
     const s = document.createElement('script');
     s.src = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/players/${playerId}/v4/player.js`;
     s.async = true;
     s.setAttribute('data-vturb-player', playerId);
     document.head.appendChild(s);
-  }, [playerId]);
+  }, [playerId, enabled]);
 }
 
 function TestimonialCard({ t }: { t: Testimonial }) {
-  useVturbScript(t.vturbId);
+  const [activated, setActivated] = useState(false);
+  useVturbScript(t.vturbId, activated);
   const isVturb = !!t.vturbId;
 
   return (
@@ -72,12 +73,26 @@ function TestimonialCard({ t }: { t: Testimonial }) {
             <p className="text-gray-400 text-xs truncate">{t.role ?? 'Cliente Mycroft'}</p>
           </div>
         </div>
-        <div className={isVturb ? 'aspect-[9/16] bg-black' : 'aspect-video bg-black'}>
+        <div className={isVturb ? 'aspect-[9/16] bg-black relative' : 'aspect-video bg-black relative'}>
           {isVturb ? (
-            <vturb-smartplayer
-              id={`vid-${t.vturbId}`}
-              style={{ display: 'block', width: '100%', height: '100%' }}
-            />
+            activated ? (
+              <vturb-smartplayer
+                id={`vid-${t.vturbId}`}
+                style={{ display: 'block', width: '100%', height: '100%' }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setActivated(true)}
+                aria-label="Reproduzir depoimento"
+                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-black/40 via-black/60 to-black/80 hover:from-black/30 hover:via-black/50 hover:to-black/70 transition group/play"
+              >
+                <span className="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center shadow-2xl shadow-yellow-500/40 group-hover/play:scale-110 transition">
+                  <Play className="w-9 h-9 text-black fill-black ml-1" />
+                </span>
+                <span className="text-white font-semibold text-sm tracking-wide">ASSISTIR DEPOIMENTO</span>
+              </button>
+            )
           ) : t.url ? (
             <video
               src={t.url}
