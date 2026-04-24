@@ -511,6 +511,51 @@ Deno.serve(async (req) => {
         const entryOdd = pos.entry_odd || pos.odd;
         const minuto = liveMatch.minute || 0;
 
+        // ═══ REGRA UNDER 2.5 — Cash Out Alert (prioritária) ═══
+        // Dispara antes da avaliação genérica para que a mensagem específica chegue ao usuário primeiro.
+        const u25 = evaluateUnder25Pressure(pos, liveMatch);
+        if (u25?.triggered) {
+          const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
+          console.log(`[evaluate-cashout] 🛑 UNDER25 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
+
+          // Marca o sinal na própria posição (UI exibe via realtime).
+          await supabase.from('virtual_bets').update({
+            mycroft_cashout_signal: true,
+            mycroft_cashout_reason: u25.motivo,
+            last_cashout_update: new Date().toISOString(),
+          }).eq('id', pos.id);
+
+          // Dedupe: evita re-loggar o mesmo gatilho em loops consecutivos.
+          const { data: lastLog } = await supabase
+            .from('cashout_signals_log')
+            .select('id, signal_type, placar')
+            .eq('bet_id', pos.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const sameTrigger = lastLog
+            && lastLog.signal_type === u25.signalType
+            && (u25.signalType !== 'UNDER25_GOAL' || lastLog.placar === placar);
+
+          if (!sameTrigger) {
+            await supabase.from('cashout_signals_log').insert({
+              bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id,
+              match_name: pos.match_name, market: pos.market,
+              entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+              cashout_value: pos.cashout_value ?? pos.stake, stake: pos.stake,
+              signal_type: u25.signalType,
+              position_health: u25.severity,
+              mycroft_reason: u25.motivo,
+              fatores: u25.deltas ?? null,
+              minuto, placar,
+            });
+          }
+          // Não interrompe o fluxo — segue para a avaliação genérica abaixo,
+          // mantendo current_odd/cashout_value atualizados (sem sobrescrever motivo).
+        }
+
+
         // Build stats object for estimation
         const statsCtx = {
           minute: minuto, score_home: liveMatch.scoreHome ?? 0, score_away: liveMatch.scoreAway ?? 0,
