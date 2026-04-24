@@ -8,10 +8,23 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle, RefreshCw, ArrowLeft, CheckCircle2, Activity, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, RefreshCw, ArrowLeft, CheckCircle2, Activity, Trash2, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+
+interface RunRow {
+  id: string;
+  function_name: string;
+  status: string;
+  duration_ms: number | null;
+  status_code: number | null;
+  error_message: string | null;
+  context: Record<string, unknown> | null;
+  started_at: string;
+  finished_at: string;
+}
 
 interface ErrorRow {
   id: string;
@@ -34,6 +47,7 @@ const WINDOW_OPTIONS = [
 
 export default function AdminEdgeFunctionsStatus() {
   const [rows, setRows] = useState<ErrorRow[]>([]);
+  const [runs, setRuns] = useState<RunRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [windowMinutes, setWindowMinutes] = useState("60");
@@ -42,17 +56,23 @@ export default function AdminEdgeFunctionsStatus() {
 
   const fetchRows = async () => {
     const since = new Date(Date.now() - parseInt(windowMinutes) * 60_000).toISOString();
-    const { data, error } = await supabase
-      .from("edge_function_errors")
-      .select("*")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      toast.error("Falha ao carregar logs", { description: error.message });
-      return;
-    }
-    setRows((data ?? []) as ErrorRow[]);
+    const [errRes, runRes] = await Promise.all([
+      supabase
+        .from("edge_function_errors")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("edge_function_runs")
+        .select("*")
+        .gte("started_at", since)
+        .order("started_at", { ascending: false })
+        .limit(200),
+    ]);
+    if (errRes.error) toast.error("Falha ao carregar logs", { description: errRes.error.message });
+    else setRows((errRes.data ?? []) as ErrorRow[]);
+    if (!runRes.error) setRuns((runRes.data ?? []) as RunRow[]);
     setLastFetched(new Date());
     setLoading(false);
   };
@@ -235,77 +255,100 @@ export default function AdminEdgeFunctionsStatus() {
           </Card>
         </div>
 
-        {/* Error list */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="h-4 w-4" /> Erros recentes ({filteredRows.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Carregando...</p>
-            ) : filteredRows.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nenhum erro encontrado nesta janela.
-              </p>
-            ) : (
-              <ScrollArea className="h-[55vh]">
-                <div className="space-y-3">
-                  {filteredRows.map((r) => (
-                    <div
-                      key={r.id}
-                      className="rounded-lg border bg-card p-3 transition hover:bg-accent/30"
-                    >
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant={r.severity === "warning" ? "secondary" : "destructive"}
-                          className="text-xs"
-                        >
-                          {r.function_name}
-                        </Badge>
-                        {r.status_code && (
-                          <Badge variant="outline" className="text-xs">
-                            HTTP {r.status_code}
-                          </Badge>
-                        )}
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(r.created_at), {
-                            locale: ptBR,
-                            addSuffix: true,
-                          })}
-                        </span>
-                      </div>
-                      <p className="break-words font-mono text-sm text-foreground">
-                        {r.error_message}
-                      </p>
-                      {r.error_stack && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">
-                            Stack trace
-                          </summary>
-                          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">
-                            {r.error_stack}
-                          </pre>
-                        </details>
-                      )}
-                      {r.context && Object.keys(r.context).length > 0 && (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">
-                            Contexto
-                          </summary>
-                          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">
-                            {JSON.stringify(r.context, null, 2)}
-                          </pre>
-                        </details>
-                      )}
+        {/* Tabs: Errors + Runs */}
+        <Tabs defaultValue="errors">
+          <TabsList>
+            <TabsTrigger value="errors">
+              <AlertTriangle className="mr-1 h-4 w-4" /> Erros ({filteredRows.length})
+            </TabsTrigger>
+            <TabsTrigger value="runs">
+              <Clock className="mr-1 h-4 w-4" /> Execuções ({runs.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="errors">
+            <Card>
+              <CardContent className="pt-4">
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Carregando...</p>
+                ) : filteredRows.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhum erro encontrado nesta janela.
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[55vh]">
+                    <div className="space-y-3">
+                      {filteredRows.map((r) => (
+                        <div key={r.id} className="rounded-lg border bg-card p-3 transition hover:bg-accent/30">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <Badge variant={r.severity === "warning" ? "secondary" : "destructive"} className="text-xs">
+                              {r.function_name}
+                            </Badge>
+                            {r.status_code && <Badge variant="outline" className="text-xs">HTTP {r.status_code}</Badge>}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(r.created_at), { locale: ptBR, addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="break-words font-mono text-sm text-foreground">{r.error_message}</p>
+                          {r.error_stack && (
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Stack trace</summary>
+                              <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">{r.error_stack}</pre>
+                            </details>
+                          )}
+                          {r.context && Object.keys(r.context).length > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Contexto</summary>
+                              <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(r.context, null, 2)}</pre>
+                            </details>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="runs">
+            <Card>
+              <CardContent className="pt-4">
+                {runs.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhuma execução registrada (instrumentadas: anti-limiting-engine, mycroft-sports-analysis, sync-betfair).
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[55vh]">
+                    <div className="space-y-2">
+                      {runs
+                        .filter((r) => filterFn === "all" || r.function_name === filterFn)
+                        .map((r) => (
+                          <div key={r.id} className="flex items-center gap-3 rounded-lg border bg-card p-2.5 text-sm">
+                            <Badge variant={r.status === "success" ? "outline" : "destructive"} className="text-xs">
+                              {r.status === "success" ? "✓" : "✗"} {r.function_name}
+                            </Badge>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {r.duration_ms != null ? `${r.duration_ms} ms` : "—"}
+                            </span>
+                            {r.status_code && <Badge variant="outline" className="text-xs">HTTP {r.status_code}</Badge>}
+                            {r.error_message && (
+                              <span className="truncate text-xs text-destructive" title={r.error_message}>
+                                {r.error_message}
+                              </span>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(r.started_at), { locale: ptBR, addSuffix: true })}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

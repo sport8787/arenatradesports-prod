@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { startEdgeRun } from "../_shared/edgeRunLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -386,6 +387,7 @@ Banca do trader: R$ ${match.bankroll ?? 500}
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const run = startEdgeRun("mycroft-sports-analysis");
   try {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -1365,10 +1367,15 @@ serve(async (req) => {
       console.warn('[MycroftSports] Cache write failed:', (e as Error).message);
     }
 
+    await run.success({
+      statusCode: 200,
+      context: { match_id: match?.match_id, minute: match?.minute, verdict: analysis?.verdict },
+    });
     return new Response(JSON.stringify(analysis), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('[MycroftSports] Error:', error);
     await logEdgeError("mycroft-sports-analysis", error).catch(() => {});
+    await run.error(error, { statusCode: 500 });
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
