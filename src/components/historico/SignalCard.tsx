@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { translateMarket } from '@/utils/marketTranslator';
+import CopySignalActions from '@/components/signals/CopySignalActions';
 import type { Signal } from '@/pages/Historico';
 
 interface SignalCardProps {
@@ -89,6 +90,16 @@ export default function SignalCard({ signal, index }: SignalCardProps) {
           </>
         )}
       </div>
+      {signal.verdict === 'APROVADO' && (
+        <CopySignalActions
+          signal={{
+            match: signal.match,
+            market: signal.market,
+            odd: signal.odd,
+            confidence: signal.confidence,
+          }}
+        />
+      )}
     </motion.div>
   );
 }
