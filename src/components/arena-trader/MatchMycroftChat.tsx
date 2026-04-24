@@ -42,14 +42,18 @@ export default function MatchMycroftChat({ matchContext }: Props) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { isTrialActive, isPaid, subscription } = useSubscription();
 
   // Liberado durante trial OU para Enterprise
   const canUse = isTrialActive || (isPaid && subscription?.plan === 'premium');
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // Scroll APENAS dentro do container do chat — nunca a página inteira.
+    // scrollIntoView rola o documento no mobile e "joga" a tela pra baixo.
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, isLoading]);
 
   const send = async () => {
     if (!input.trim() || isLoading) return;
@@ -140,7 +144,7 @@ export default function MatchMycroftChat({ matchContext }: Props) {
               </div>
             ) : (
               <>
-                <div className="h-[300px] overflow-y-auto px-4 py-2 space-y-3 border-t border-amber-900/20">
+                <div ref={scrollRef} className="h-[300px] overflow-y-auto overscroll-contain px-4 py-2 space-y-3 border-t border-amber-900/20">
                   {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <MessageSquare className="w-8 h-8 text-amber-400/20 mb-2" />
