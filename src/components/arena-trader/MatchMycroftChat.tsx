@@ -145,6 +145,7 @@ export default function MatchMycroftChat({ matchContext }: Props) {
     if (!input.trim() || isLoading) return;
     const q = input.trim();
     const userMsg: ChatMessage = { role: 'user', content: q, timestamp: Date.now() };
+    shouldAutoScrollRef.current = true; // ao enviar, sempre rola pro fim
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
