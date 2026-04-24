@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { Quote, PlayCircle } from 'lucide-react';
-import { useEffect } from 'react';
+import { Quote, PlayCircle, Play } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Testimonial {
   /** URL de mp4 (legado). Use vturbId para players VTurb. */
