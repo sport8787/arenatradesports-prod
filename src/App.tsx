@@ -52,6 +52,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminChatAnalytics from "./pages/AdminChatAnalytics";
 import AdminPushTest from "./pages/AdminPushTest";
 import AdminSettlementLog from "./pages/AdminSettlementLog";
+import AdminEdgeFunctionsStatus from "./pages/AdminEdgeFunctionsStatus";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
