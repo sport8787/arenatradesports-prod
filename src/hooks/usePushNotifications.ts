@@ -52,14 +52,33 @@ async function subscribeAndPersist(): Promise<boolean> {
   }
 
   const json = subscription.toJSON();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
+  const p256dh = json.keys?.p256dh as string | undefined;
+  const auth = json.keys?.auth as string | undefined;
+  if (!p256dh || !auth) {
+    console.warn('[Push] Subscription sem chaves p256dh/auth — abortando.');
+    return false;
+  }
+
+  // Garante usuário autenticado (RLS exige auth.uid() = user_id)
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user?.id) {
+    console.warn('[Push] Usuário não autenticado — não persiste subscription.');
+    return false;
+  }
+
+  // Remove endpoint órfão de OUTRO usuário (device compartilhado / troca de conta)
+  // Sem este passo o upsert por endpoint dispara violação de RLS.
+  await supabase
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', subscription.endpoint)
+    .neq('user_id', user.id);
 
   const { error } = await supabase.from('push_subscriptions').upsert({
     user_id: user.id,
     endpoint: subscription.endpoint,
-    p256dh: json.keys?.p256dh as string,
-    auth: json.keys?.auth as string,
+    p256dh,
+    auth,
     user_agent: navigator.userAgent,
     last_used_at: new Date().toISOString(),
   }, { onConflict: 'endpoint' });
