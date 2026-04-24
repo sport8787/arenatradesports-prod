@@ -20,7 +20,7 @@ interface Position {
   mycroft_cashout_reason: string | null;
   odd_fonte: string | null;
   last_cashout_update: string | null;
-  created_at: string;
+  placed_at: string;
 }
 
 interface SettledBet {
@@ -55,10 +55,10 @@ export default function ActivePositions() {
       const [pendingRes, settledRes] = await Promise.all([
         supabase
           .from('virtual_bets')
-          .select('id, match_name, market, odd, stake, entry_odd, current_odd, cashout_value, mycroft_cashout_signal, mycroft_cashout_reason, odd_fonte, last_cashout_update, created_at')
+          .select('id, match_name, market, odd, stake, entry_odd, current_odd, cashout_value, mycroft_cashout_signal, mycroft_cashout_reason, odd_fonte, last_cashout_update, placed_at')
           .eq('user_id', user!.id)
           .eq('status', 'pending')
-          .order('created_at', { ascending: false }),
+          .order('placed_at', { ascending: false }),
         supabase
           .from('virtual_bets')
           .select('id, match_name, market, odd, stake, status, profit_loss, score_home, score_away, settled_at, cashout_value')
