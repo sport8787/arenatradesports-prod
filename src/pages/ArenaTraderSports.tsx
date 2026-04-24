@@ -101,6 +101,8 @@ export default function ArenaTraderSports() {
     const saved = window.localStorage.getItem('arenaTraderSports.viewMode');
     return saved === 'table' || saved === 'cards' ? saved : 'cards';
   });
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const { isMatchFavorite, favs } = useFavorites();
 
   useEffect(() => {
     try {
