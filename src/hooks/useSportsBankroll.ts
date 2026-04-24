@@ -99,6 +99,30 @@ export function useSportsBankroll() {
 
     console.log('[SportsBankroll] Inserting bet:', { user_id: user.id, signal_id: analysis.id, match_id: analysis.match_id, market: analysis.market, odd: analysis.odd, stake });
 
+    // Snapshot dos stats no momento da entrada — usado pela regra de saída Under 2.5
+    // (detectar pressão ofensiva crescente vs baseline da entrada).
+    let entryStats: Record<string, number> | null = null;
+    try {
+      const { data: lm } = await supabase
+        .from('live_matches')
+        .select('minute, score_home, score_away, stats')
+        .eq('match_id', String(analysis.match_id))
+        .maybeSingle();
+      if (lm) {
+        const s: any = lm.stats || {};
+        entryStats = {
+          minute: lm.minute ?? 0,
+          score_home: lm.score_home ?? 0,
+          score_away: lm.score_away ?? 0,
+          dangerous_attacks_total: (s.dangerous_attacks_home ?? 0) + (s.dangerous_attacks_away ?? 0),
+          shots_on_target_total: (s.shots_on_target_home ?? s.shots_on_goal_home ?? 0) + (s.shots_on_target_away ?? s.shots_on_goal_away ?? 0),
+          xg_total: (s.xG_home ?? s.xg_home ?? 0) + (s.xG_away ?? s.xg_away ?? 0),
+        };
+      }
+    } catch (e) {
+      console.warn('[SportsBankroll] entry_stats snapshot failed:', e);
+    }
+
     const { data: bet, error: betError } = await supabase
       .from('virtual_bets')
       .insert({
@@ -113,6 +137,7 @@ export function useSportsBankroll() {
         entry_odd: Number(analysis.odd),
         cashout_value: stake,
         current_odd: Number(analysis.odd),
+        entry_stats: entryStats as any,
       })
       .select()
       .single();

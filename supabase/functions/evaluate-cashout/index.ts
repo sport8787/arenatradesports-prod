@@ -121,6 +121,87 @@ function classificarSaude(bet: any, oddAtual: number, minuto: number): { saude: 
   return { saude: 'HEALTHY', sinal: false, motivo: 'Posição dentro do esperado.' };
 }
 
+// ═══════════════════════════════════════════════════
+// REGRA ESPECÍFICA — UNDER 2.5 CASH OUT ALERT
+// Gatilho 1: gol marcado após a entrada → SAIR AGORA (CRITICAL)
+// Gatilho 2: pressão ofensiva crescente (1 critério) → ATENÇÃO (WARNING)
+// Gatilho 3: 2+ critérios de pressão → SAIR AGORA (CRITICAL)
+// ═══════════════════════════════════════════════════
+function isUnder25Market(market: string): boolean {
+  const m = String(market || '').toLowerCase().trim();
+  if (!m.includes('under')) return false;
+  // aceita "under 2.5", "under 2,5", "under2.5"
+  const match = m.match(/under\s*([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return false;
+  const line = parseFloat(match[1].replace(',', '.'));
+  return Math.abs(line - 2.5) < 0.01;
+}
+
+function evaluateUnder25Pressure(
+  pos: any,
+  matchState: MatchState,
+): { triggered: boolean; severity: 'CRITICAL' | 'WARNING'; signalType: string; motivo: string; deltas?: any } | null {
+  if (!isUnder25Market(pos.market)) return null;
+  const entry = (pos.entry_stats || {}) as Record<string, number>;
+  const stats: any = matchState.stats || {};
+
+  const totalGoalsNow = (matchState.scoreHome ?? 0) + (matchState.scoreAway ?? 0);
+  const totalGoalsEntry = (entry.score_home ?? 0) + (entry.score_away ?? 0);
+
+  // ── GATILHO 1: gol marcado após a entrada ──
+  if (totalGoalsNow > totalGoalsEntry) {
+    return {
+      triggered: true,
+      severity: 'CRITICAL',
+      signalType: 'UNDER25_GOAL',
+      motivo: '⚠️ SAIR AGORA — Gol marcado. Under 2.5 comprometido. Execute o cash out imediatamente.',
+    };
+  }
+
+  // Sem baseline → não conseguimos avaliar pressão crescente; sai.
+  if (!entry || Object.keys(entry).length === 0) return null;
+
+  const daNow = (stats.dangerous_attacks_home ?? 0) + (stats.dangerous_attacks_away ?? 0);
+  const stNow = (stats.shots_on_target_home ?? stats.shots_on_goal_home ?? 0) +
+                (stats.shots_on_target_away ?? stats.shots_on_goal_away ?? 0);
+  const xgNow = (stats.xG_home ?? stats.xg_home ?? 0) + (stats.xG_away ?? stats.xg_away ?? 0);
+
+  const dDA = daNow - (entry.dangerous_attacks_total ?? 0);
+  const dST = stNow - (entry.shots_on_target_total ?? 0);
+  const dXG = xgNow - (entry.xg_total ?? 0);
+
+  const xgAvailable = xgNow > 0 || (entry.xg_total ?? 0) > 0;
+
+  const criteriaHit: string[] = [];
+  if (dDA >= 4) criteriaHit.push(`Ataques perigosos +${dDA}`);
+  if (dST >= 3) criteriaHit.push(`Chutes a gol +${dST}`);
+  if (xgAvailable && dXG >= 0.5) criteriaHit.push(`xG +${dXG.toFixed(2)}`);
+
+  if (criteriaHit.length === 0) return null;
+
+  const deltas = { dDA, dST, dXG: Number(dXG.toFixed(2)), criteriaHit };
+
+  // ── GATILHO 3: 2+ critérios → CRITICAL ──
+  if (criteriaHit.length >= 2) {
+    return {
+      triggered: true,
+      severity: 'CRITICAL',
+      signalType: 'UNDER25_EXPLOSIVE',
+      motivo: `🚨 SAIR AGORA — Pressão ofensiva alta em ambos os lados. Risco de gol elevado. Under 2.5 em perigo. (${criteriaHit.join(' • ')})`,
+      deltas,
+    };
+  }
+
+  // ── GATILHO 2: 1 critério → WARNING ──
+  return {
+    triggered: true,
+    severity: 'WARNING',
+    signalType: 'UNDER25_PRESSURE',
+    motivo: `⚠️ ATENÇÃO — Jogo ficando movimentado. Ataques perigosos e chutes aumentando. Considere cash out parcial ou saída preventiva. (${criteriaHit.join(' • ')})`,
+    deltas,
+  };
+}
+
 const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
 
 type MatchState = {
@@ -430,6 +511,51 @@ Deno.serve(async (req) => {
         const entryOdd = pos.entry_odd || pos.odd;
         const minuto = liveMatch.minute || 0;
 
+        // ═══ REGRA UNDER 2.5 — Cash Out Alert (prioritária) ═══
+        // Dispara antes da avaliação genérica para que a mensagem específica chegue ao usuário primeiro.
+        const u25 = evaluateUnder25Pressure(pos, liveMatch);
+        if (u25?.triggered) {
+          const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
+          console.log(`[evaluate-cashout] 🛑 UNDER25 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
+
+          // Marca o sinal na própria posição (UI exibe via realtime).
+          await supabase.from('virtual_bets').update({
+            mycroft_cashout_signal: true,
+            mycroft_cashout_reason: u25.motivo,
+            last_cashout_update: new Date().toISOString(),
+          }).eq('id', pos.id);
+
+          // Dedupe: evita re-loggar o mesmo gatilho em loops consecutivos.
+          const { data: lastLog } = await supabase
+            .from('cashout_signals_log')
+            .select('id, signal_type, placar')
+            .eq('bet_id', pos.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const sameTrigger = lastLog
+            && lastLog.signal_type === u25.signalType
+            && (u25.signalType !== 'UNDER25_GOAL' || lastLog.placar === placar);
+
+          if (!sameTrigger) {
+            await supabase.from('cashout_signals_log').insert({
+              bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id,
+              match_name: pos.match_name, market: pos.market,
+              entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+              cashout_value: pos.cashout_value ?? pos.stake, stake: pos.stake,
+              signal_type: u25.signalType,
+              position_health: u25.severity,
+              mycroft_reason: u25.motivo,
+              fatores: u25.deltas ?? null,
+              minuto, placar,
+            });
+          }
+          // Não interrompe o fluxo — segue para a avaliação genérica abaixo,
+          // mantendo current_odd/cashout_value atualizados (sem sobrescrever motivo).
+        }
+
+
         // Build stats object for estimation
         const statsCtx = {
           minute: minuto, score_home: liveMatch.scoreHome ?? 0, score_away: liveMatch.scoreAway ?? 0,
@@ -463,12 +589,14 @@ Deno.serve(async (req) => {
 
         console.log(`[evaluate-cashout] ${pos.match_name} | @${entryOdd}→${oddAtual} | R$${cashoutValue} | ${saude} | signal=${sinal} | ${oddFonte}`);
 
-        // Update position
+        // Update position — Under 2.5 (u25) tem prioridade sobre a saúde genérica.
+        const finalSinal = (u25?.triggered ?? false) || sinal;
+        const finalMotivo = u25?.triggered ? u25.motivo : (sinal ? motivo : null);
         await supabase.from('virtual_bets').update({
           current_odd: oddAtual, cashout_value: cashoutValue, cashout_odd: oddAtual,
           odd_fonte: oddFonte,
-          mycroft_cashout_signal: sinal,
-          mycroft_cashout_reason: sinal ? motivo : null,
+          mycroft_cashout_signal: finalSinal,
+          mycroft_cashout_reason: finalMotivo,
           last_cashout_update: new Date().toISOString(),
         }).eq('id', pos.id);
 
