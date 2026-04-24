@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { startEdgeRun } from "../_shared/edgeRunLogger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,6 +98,7 @@ function roundTo(value: number, multiple: number): number {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const run = startEdgeRun("anti-limiting-engine");
   try {
     const input: AntiLimitInput = await req.json();
     const bookProfile = BOOKMAKER_PROFILES[input.bookmaker.toLowerCase()] || { strictness: 50, stake_rounding: 5, name: input.bookmaker };
@@ -208,12 +210,14 @@ serve(async (req) => {
       stealth_score: stealthScore,
     };
 
+    await run.success({ statusCode: 200, context: { bookmaker: input.bookmaker } });
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Anti-limiting error:", err);
     const message = err instanceof Error ? err.message : String(err);
+    await run.error(err, { statusCode: 500 });
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
