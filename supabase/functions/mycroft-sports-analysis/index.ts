@@ -581,6 +581,89 @@ serve(async (req) => {
       analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado a partir do minuto 10 — aguardar janela de confirmação.`];
     }
 
+    // === VETO GLOBAL: BACK FAVORITO COM VALOR ===
+    // Bloqueia entradas back-favorito quando:
+    //  (a) Odd do favorito caiu abaixo de 1.40 após gol do favorito (snapshot prévio)
+    //  (b) Placar incompatível com a odd implícita (ex.: odd <1.40 mas favorito não está vencendo / time errado vencendo)
+    try {
+      const isBackFavMarket =
+        analysis?.verdict &&
+        ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'].includes(analysis.verdict) &&
+        typeof analysis.market === 'string' &&
+        /(back\s*favorit|match\s*odds.*back|favorit.*back)/i.test(analysis.market);
+
+      if (isBackFavMarket) {
+        const oddNow = Number(analysis.odd) || 0;
+        const homeOdd = Number(match.odds?.home) || null;
+        const awayOdd = Number(match.odds?.away) || null;
+        const sh = Number(match.scoreHome ?? 0);
+        const sa = Number(match.scoreAway ?? 0);
+
+        // Identifica favorito atual pela menor odd disponível (h2h)
+        let favSide: 'home' | 'away' | null = null;
+        if (homeOdd && awayOdd) favSide = homeOdd <= awayOdd ? 'home' : 'away';
+        else if (/back\s+([^@]+)/i.test(analysis.market)) {
+          const m = analysis.market.match(/back\s+([^@—\-|]+)/i);
+          const target = (m?.[1] || '').trim().toLowerCase();
+          if (target && match.home && target.includes(match.home.toLowerCase().slice(0, 4))) favSide = 'home';
+          else if (target && match.away && target.includes(match.away.toLowerCase().slice(0, 4))) favSide = 'away';
+        }
+
+        const favScore = favSide === 'home' ? sh : favSide === 'away' ? sa : null;
+        const advScore = favSide === 'home' ? sa : favSide === 'away' ? sh : null;
+
+        // (a) Snapshot: pegar última análise do mesmo match_id para detectar gol do favorito desde então
+        const { data: prevAnalyses } = await getSupabaseAdmin()
+          .from('mycroft_analyses')
+          .select('final_score_home, final_score_away, fundamentation, created_at')
+          .eq('match_id', match.match_id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const prev = prevAnalyses?.[0] as any;
+        const prevSh = Number(prev?.fundamentation?.snapshot_score_home ?? prev?.final_score_home ?? sh);
+        const prevSa = Number(prev?.fundamentation?.snapshot_score_away ?? prev?.final_score_away ?? sa);
+        const favGoalSinceLast =
+          favSide === 'home'
+            ? sh > prevSh
+            : favSide === 'away'
+              ? sa > prevSa
+              : false;
+
+        let vetoReason: string | null = null;
+
+        if (favGoalSinceLast && oddNow > 0 && oddNow < 1.40) {
+          vetoReason = `Back favorito vetado: favorito marcou (snapshot ${prevSh}-${prevSa} → ${sh}-${sa}) e odd caiu para ${oddNow} (<1.40).`;
+        } else if (oddNow > 0 && oddNow < 1.40) {
+          // (b) Sanity: odd <1.40 só faz sentido se favorito está vencendo claramente
+          if (favScore !== null && advScore !== null && favScore <= advScore) {
+            vetoReason = `Back favorito vetado: odd ${oddNow} (<1.40) incompatível com placar (favorito ${favScore} x ${advScore} adversário).`;
+          }
+        }
+
+        if (vetoReason) {
+          console.warn(`[MycroftSports] 🛑 ${vetoReason}`);
+          try {
+            await getSupabaseAdmin().from('mycroft_vetoed_log').insert({
+              jogo: `${match.home} vs ${match.away}`,
+              liga: match.championship,
+              mercado: analysis.market,
+              odd: analysis.odd,
+              confianca_recebida: analysis.confidence,
+              verdict_gemini: 'BACK_FAV_VETO',
+              motivo_veto: vetoReason,
+              raw_response: analysis,
+            });
+          } catch (_) { /* best-effort */ }
+          analysis.verdict = 'AGUARDAR';
+          analysis.plan_name = null;
+          analysis.alerts = [...(analysis.alerts || []), `🚫 ${vetoReason}`];
+        }
+      }
+    } catch (e) {
+      console.warn('[MycroftSports] Falha no validador Back Favorito:', e);
+    }
+
     // === VALIDADOR PÓS-IA ===
     // Se aprovou com plano, verificar consistência com a tabela
     if (analysis.verdict === 'APROVADO' && analysis.plan_name) {
