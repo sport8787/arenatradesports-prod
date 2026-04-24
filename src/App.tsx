@@ -102,6 +102,7 @@ const App = () => {
               <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
               <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
               <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
               <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
               <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
