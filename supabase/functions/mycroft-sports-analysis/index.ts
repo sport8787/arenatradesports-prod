@@ -392,8 +392,22 @@ serve(async (req) => {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const { match } = await req.json() as { match: MatchData };
+    const body = await req.json() as { match: MatchData & Record<string, unknown> };
+    const match = body?.match;
     if (!match) return new Response(JSON.stringify({ error: 'Match data required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    // Validação estrita: aceitar apenas scoreHome/scoreAway (camelCase). Rejeita score_home/score_away.
+    const rawMatch = match as Record<string, unknown>;
+    if ('score_home' in rawMatch || 'score_away' in rawMatch) {
+      const msg = "Campos inválidos: use 'scoreHome'/'scoreAway' (camelCase). Recebido 'score_home'/'score_away' (snake_case) — formato não suportado.";
+      console.error('[MycroftSports] ❌', msg);
+      return new Response(JSON.stringify({ error: msg, code: 'INVALID_SCORE_FIELDS' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (typeof match.scoreHome !== 'number' || typeof match.scoreAway !== 'number') {
+      const msg = "Campos obrigatórios ausentes ou em tipo errado: 'scoreHome' e 'scoreAway' devem ser números.";
+      console.error('[MycroftSports] ❌', msg, { scoreHome: match.scoreHome, scoreAway: match.scoreAway });
+      return new Response(JSON.stringify({ error: msg, code: 'MISSING_SCORE_FIELDS' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     console.log(`[MycroftSports] Analyzing: ${match.home} vs ${match.away} (${match.minute}')`);
 
