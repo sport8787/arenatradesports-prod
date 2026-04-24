@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +77,7 @@ ${analise_mycroft}
     });
   } catch (error) {
     console.error("Mycroft Telegram error:", error);
+    await logEdgeError("mycroft-telegram", error).catch(() => {});
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

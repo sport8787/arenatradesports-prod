@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -339,6 +340,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error('[LiveScores] Error:', e);
+    await logEdgeError("update-live-scores", e).catch(() => {});
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

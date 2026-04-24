@@ -52,6 +52,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminChatAnalytics from "./pages/AdminChatAnalytics";
 import AdminPushTest from "./pages/AdminPushTest";
 import AdminSettlementLog from "./pages/AdminSettlementLog";
+import AdminEdgeFunctionsStatus from "./pages/AdminEdgeFunctionsStatus";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -126,6 +127,7 @@ const App = () => {
               <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
               <Route path="/admin/push-test" element={<AdminPushTest />} />
               <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
+              <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

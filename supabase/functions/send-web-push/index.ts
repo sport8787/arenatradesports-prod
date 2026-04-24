@@ -2,6 +2,7 @@
 // Envia Web Push notifications via VAPID para subscriptions registradas
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,6 +82,7 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     console.error('[send-web-push] erro:', e);
+    await logEdgeError("send-web-push", e).catch(() => {});
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

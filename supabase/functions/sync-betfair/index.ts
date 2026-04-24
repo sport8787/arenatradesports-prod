@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -318,6 +319,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[BetfairSync] Error:', e);
+    await logEdgeError("sync-betfair", e).catch(() => {});
     const msg = e instanceof Error ? e.message : String(e);
     if (msg === 'SSOID_EXPIRED') {
       return new Response(JSON.stringify({ 

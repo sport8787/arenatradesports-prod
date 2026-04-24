@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -184,6 +185,7 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error("[Recálculo] ERRO:", error);
+    await logEdgeError("recalcular-stakes-diarios", error).catch(() => {});
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
