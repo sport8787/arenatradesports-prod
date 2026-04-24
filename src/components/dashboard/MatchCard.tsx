@@ -320,8 +320,18 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               {match.status === 'scheduled' && (
                 <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Pré-Live</span>
               )}
-              {match.status === 'finished' && (
+              {match.status === 'finished' && !match.signalResult && (
                 <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Finalizado</span>
+              )}
+              {match.signalResult === 'green' && (
+                <span className="flex items-center gap-1 text-[10px] font-orbitron uppercase font-bold px-2 py-0.5 rounded-full bg-success text-success-foreground border border-success">
+                  <Check className="w-3 h-3" /> GREEN
+                </span>
+              )}
+              {match.signalResult === 'red' && (
+                <span className="flex items-center gap-1 text-[10px] font-orbitron uppercase font-bold px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground border border-destructive">
+                  <ShieldAlert className="w-3 h-3" /> RED
+                </span>
               )}
               <FavoriteButton
                 size="sm"
