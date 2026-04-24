@@ -144,7 +144,7 @@ export default function MatchMycroftChat({ matchContext }: Props) {
               </div>
             ) : (
               <>
-                <div className="h-[300px] overflow-y-auto px-4 py-2 space-y-3 border-t border-amber-900/20">
+                <div ref={scrollRef} className="h-[300px] overflow-y-auto overscroll-contain px-4 py-2 space-y-3 border-t border-amber-900/20">
                   {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <MessageSquare className="w-8 h-8 text-amber-400/20 mb-2" />
