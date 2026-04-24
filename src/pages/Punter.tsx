@@ -1518,7 +1518,10 @@ export default function PunterPage() {
                   kellyPercent={kellyPercent}
                 />
               );
-            })}
+                  })}
+                </>
+              );
+            })()}
           </div>
         )}
 
