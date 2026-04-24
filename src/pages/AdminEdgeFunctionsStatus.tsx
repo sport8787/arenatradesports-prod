@@ -47,6 +47,7 @@ const WINDOW_OPTIONS = [
 
 export default function AdminEdgeFunctionsStatus() {
   const [rows, setRows] = useState<ErrorRow[]>([]);
+  const [runs, setRuns] = useState<RunRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [windowMinutes, setWindowMinutes] = useState("60");
@@ -55,17 +56,23 @@ export default function AdminEdgeFunctionsStatus() {
 
   const fetchRows = async () => {
     const since = new Date(Date.now() - parseInt(windowMinutes) * 60_000).toISOString();
-    const { data, error } = await supabase
-      .from("edge_function_errors")
-      .select("*")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      toast.error("Falha ao carregar logs", { description: error.message });
-      return;
-    }
-    setRows((data ?? []) as ErrorRow[]);
+    const [errRes, runRes] = await Promise.all([
+      supabase
+        .from("edge_function_errors")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("edge_function_runs")
+        .select("*")
+        .gte("started_at", since)
+        .order("started_at", { ascending: false })
+        .limit(200),
+    ]);
+    if (errRes.error) toast.error("Falha ao carregar logs", { description: errRes.error.message });
+    else setRows((errRes.data ?? []) as ErrorRow[]);
+    if (!runRes.error) setRuns((runRes.data ?? []) as RunRow[]);
     setLastFetched(new Date());
     setLoading(false);
   };
