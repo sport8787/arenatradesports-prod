@@ -24,6 +24,7 @@ import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMon
 import LiveMatchDetail from "./pages/LiveMatchDetail";
 import TradingHistory from "./pages/TradingHistory";
 import MycroftSinaisAprovados from "./pages/MycroftSinaisAprovados";
+import MycroftSinalDetalhe from "./pages/MycroftSinalDetalhe";
 import LiquidationsHistory from "./pages/LiquidationsHistory";
 import SportsPerformance from "./pages/SportsPerformance";
 import ModoTreino from "./pages/ModoTreino";
@@ -93,6 +94,7 @@ const App = () => {
               <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
               <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
               <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
               <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
               <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
               <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />

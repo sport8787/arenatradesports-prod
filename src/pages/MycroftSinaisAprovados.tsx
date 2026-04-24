@@ -211,7 +211,7 @@ export default function MycroftSinaisAprovados() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map((s) => (
-              <SignalCard key={s.id} signal={s} onClick={() => navigate(`/arena-trader-sports/jogo/${s.match_id}`)} />
+              <SignalCard key={s.id} signal={s} onClick={() => navigate(`/arena-trader-sports/sinais-aprovados/${s.id}`)} />
             ))}
           </div>
         )}
