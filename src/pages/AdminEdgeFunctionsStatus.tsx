@@ -255,77 +255,100 @@ export default function AdminEdgeFunctionsStatus() {
           </Card>
         </div>
 
-        {/* Error list */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="h-4 w-4" /> Erros recentes ({filteredRows.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Carregando...</p>
-            ) : filteredRows.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nenhum erro encontrado nesta janela.
-              </p>
-            ) : (
-              <ScrollArea className="h-[55vh]">
-                <div className="space-y-3">
-                  {filteredRows.map((r) => (
-                    <div
-                      key={r.id}
-                      className="rounded-lg border bg-card p-3 transition hover:bg-accent/30"
-                    >
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant={r.severity === "warning" ? "secondary" : "destructive"}
-                          className="text-xs"
-                        >
-                          {r.function_name}
-                        </Badge>
-                        {r.status_code && (
-                          <Badge variant="outline" className="text-xs">
-                            HTTP {r.status_code}
-                          </Badge>
-                        )}
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(r.created_at), {
-                            locale: ptBR,
-                            addSuffix: true,
-                          })}
-                        </span>
-                      </div>
-                      <p className="break-words font-mono text-sm text-foreground">
-                        {r.error_message}
-                      </p>
-                      {r.error_stack && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">
-                            Stack trace
-                          </summary>
-                          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">
-                            {r.error_stack}
-                          </pre>
-                        </details>
-                      )}
-                      {r.context && Object.keys(r.context).length > 0 && (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">
-                            Contexto
-                          </summary>
-                          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">
-                            {JSON.stringify(r.context, null, 2)}
-                          </pre>
-                        </details>
-                      )}
+        {/* Tabs: Errors + Runs */}
+        <Tabs defaultValue="errors">
+          <TabsList>
+            <TabsTrigger value="errors">
+              <AlertTriangle className="mr-1 h-4 w-4" /> Erros ({filteredRows.length})
+            </TabsTrigger>
+            <TabsTrigger value="runs">
+              <Clock className="mr-1 h-4 w-4" /> Execuções ({runs.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="errors">
+            <Card>
+              <CardContent className="pt-4">
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Carregando...</p>
+                ) : filteredRows.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhum erro encontrado nesta janela.
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[55vh]">
+                    <div className="space-y-3">
+                      {filteredRows.map((r) => (
+                        <div key={r.id} className="rounded-lg border bg-card p-3 transition hover:bg-accent/30">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <Badge variant={r.severity === "warning" ? "secondary" : "destructive"} className="text-xs">
+                              {r.function_name}
+                            </Badge>
+                            {r.status_code && <Badge variant="outline" className="text-xs">HTTP {r.status_code}</Badge>}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(r.created_at), { locale: ptBR, addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="break-words font-mono text-sm text-foreground">{r.error_message}</p>
+                          {r.error_stack && (
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Stack trace</summary>
+                              <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">{r.error_stack}</pre>
+                            </details>
+                          )}
+                          {r.context && Object.keys(r.context).length > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-xs text-muted-foreground">Contexto</summary>
+                              <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(r.context, null, 2)}</pre>
+                            </details>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="runs">
+            <Card>
+              <CardContent className="pt-4">
+                {runs.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhuma execução registrada (instrumentadas: anti-limiting-engine, mycroft-sports-analysis, sync-betfair).
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[55vh]">
+                    <div className="space-y-2">
+                      {runs
+                        .filter((r) => filterFn === "all" || r.function_name === filterFn)
+                        .map((r) => (
+                          <div key={r.id} className="flex items-center gap-3 rounded-lg border bg-card p-2.5 text-sm">
+                            <Badge variant={r.status === "success" ? "outline" : "destructive"} className="text-xs">
+                              {r.status === "success" ? "✓" : "✗"} {r.function_name}
+                            </Badge>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {r.duration_ms != null ? `${r.duration_ms} ms` : "—"}
+                            </span>
+                            {r.status_code && <Badge variant="outline" className="text-xs">HTTP {r.status_code}</Badge>}
+                            {r.error_message && (
+                              <span className="truncate text-xs text-destructive" title={r.error_message}>
+                                {r.error_message}
+                              </span>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(r.started_at), { locale: ptBR, addSuffix: true })}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
