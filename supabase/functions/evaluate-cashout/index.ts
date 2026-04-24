@@ -557,12 +557,16 @@ Deno.serve(async (req) => {
         const entryOdd = pos.entry_odd || pos.odd;
         const minuto = liveMatch.minute || 0;
 
-        // ═══ REGRA UNDER 2.5 — Cash Out Alert (prioritária) ═══
+        // ═══ REGRA UNDER X.5 — Cash Out Alert (prioritária, thresholds personalizados por usuário) ═══
         // Dispara antes da avaliação genérica para que a mensagem específica chegue ao usuário primeiro.
-        const u25 = evaluateUnder25Pressure(pos, liveMatch);
+        const underLine = getUnderLine(pos.market || '');
+        const userThreshold = (underLine != null && pos.user_id)
+          ? await getUserThreshold(pos.user_id, underLine)
+          : null;
+        const u25 = evaluateUnderPressure(pos, liveMatch, userThreshold);
         if (u25?.triggered) {
           const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
-          console.log(`[evaluate-cashout] 🛑 UNDER25 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
+          console.log(`[evaluate-cashout] 🛑 ${u25.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${u25.motivo}`);
 
           // Marca o sinal na própria posição (UI exibe via realtime).
           await supabase.from('virtual_bets').update({
