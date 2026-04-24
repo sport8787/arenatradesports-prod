@@ -78,7 +78,7 @@ serve(async (req) => {
       const analyzeRes = await fetch(`${baseUrl}/functions/v1/analyze-live-matches`, {
         method: 'POST', headers,
         body: JSON.stringify({ bankroll: 500 }),
-      }).then(r => r.json()).catch(e => ({ error: e.message }));
+      }).then(r => r.json()).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
       result.analysis = analyzeRes;
       console.log(`[CronLive] 🧠 Análise: ${analyzeRes?.analyzed ?? 0} jogos analisados`);
     } else {
@@ -90,7 +90,7 @@ serve(async (req) => {
     if (cashoutEnabled) {
       const cashoutRes = await fetch(`${baseUrl}/functions/v1/evaluate-cashout`, {
         method: 'POST', headers,
-      }).then(r => r.json()).catch(e => ({ error: e.message }));
+      }).then(r => r.json()).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
       result.cashout = cashoutRes;
       console.log(`[CronLive] 💰 Cashout avaliado`);
     } else {
@@ -111,7 +111,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[CronLive] ❌ Erro:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

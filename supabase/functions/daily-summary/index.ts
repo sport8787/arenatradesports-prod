@@ -104,14 +104,14 @@ serve(async (req) => {
         .upsert(summary, { onConflict: "user_id,date" });
 
       if (!error) results.push({ userId, status: "ok" });
-      else results.push({ userId, status: "error", error: error.message });
+      else results.push({ userId, status: "error", error: error instanceof Error ? error.message : String(error) });
     }
 
     return new Response(JSON.stringify({ processed: results.length, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
