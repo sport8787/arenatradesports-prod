@@ -7,6 +7,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { playCriticalAlert, playWarningAlert } from '@/lib/criticalAlertSound';
+import { toast } from 'sonner';
+
+// Padrões de alerta do plano BACK FAVORITO COM VALOR
+const BACKFAV_IMMEDIATE_STOP = /(gol\s+do\s+advers[áa]rio.*odd|odd\s*<\s*1[.,]40.*gol|stop\s+imediato.*back\s*fav)/i;
+const BACKFAV_PREVENTIVE = /(55\s*min.*sem\s*gol\s*do\s*favorit|cash\s*out\s+preventivo|janela\s+encerrada)/i;
+const BACKFAV_MARKET = /(back\s*favorit|match\s*odds.*back|favorit.*back)/i;
 
 interface Position {
   id: string;
