@@ -23,6 +23,8 @@ import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
+import { useFavorites } from '@/hooks/useFavorites';
+import { Star } from 'lucide-react';
 
 // Fallback mock data shown when no real data exists
 const mockMatches: Match[] = [
@@ -99,6 +101,8 @@ export default function ArenaTraderSports() {
     const saved = window.localStorage.getItem('arenaTraderSports.viewMode');
     return saved === 'table' || saved === 'cards' ? saved : 'cards';
   });
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const { isMatchFavorite, favs } = useFavorites();
 
   useEffect(() => {
     try {
@@ -255,10 +259,22 @@ export default function ArenaTraderSports() {
           if (effectiveStatus !== statusFilter) return false;
         }
         if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+        if (onlyFavorites && !isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })) return false;
         return true;
       })
-      .sort((a, b) => (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3));
-  }, [statusFilter, selectedChampionships, allMatches]);
+      .sort((a, b) => {
+        // Favoritos sempre no topo (estáveis durante atualizações ao vivo)
+        const favA = isMatchFavorite({ matchId: a.matchId, home: a.home, away: a.away }) ? 0 : 1;
+        const favB = isMatchFavorite({ matchId: b.matchId, home: b.home, away: b.away }) ? 0 : 1;
+        if (favA !== favB) return favA - favB;
+        return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
+      });
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite]);
+
+  const favoritesCount = useMemo(
+    () => allMatches.filter(m => isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })).length,
+    [allMatches, isMatchFavorite],
+  );
 
 
 
@@ -427,7 +443,28 @@ export default function ArenaTraderSports() {
           )}
 
           {statusFilter !== 'simulado' && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                onClick={() => setOnlyFavorites(v => !v)}
+                disabled={favoritesCount === 0 && !onlyFavorites}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5',
+                  onlyFavorites
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/50 hover:text-primary',
+                  favoritesCount === 0 && !onlyFavorites && 'opacity-50 cursor-not-allowed',
+                )}
+                aria-pressed={onlyFavorites}
+                title={favoritesCount === 0 ? 'Favorite jogos clicando na ⭐ no card' : 'Mostrar apenas favoritos'}
+              >
+                <Star className={cn('w-3 h-3', onlyFavorites && 'fill-primary')} />
+                Favoritos
+                {favoritesCount > 0 && (
+                  <span className="ml-0.5 px-1.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
+                    {favoritesCount}
+                  </span>
+                )}
+              </button>
               {championships.map(c => (
                 <button
                   key={c}

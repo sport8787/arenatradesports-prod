@@ -4,6 +4,7 @@ import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, Ale
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import FavoriteButton from './FavoriteButton';
 
 export interface MatchStats {
   possession_home?: number;
@@ -295,29 +296,35 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         )}
       >
         <div className="p-4 space-y-3">
-          {/* Header: Championship + Live Badge */}
-          <div className="flex items-center justify-between">
+          {/* Header: Championship + Live Badge + Favorite */}
+          <div className="flex items-center justify-between gap-2">
             <span className={cn(
-              'text-[10px] font-orbitron uppercase tracking-wider px-2 py-0.5 rounded-full border',
+              'text-[10px] font-orbitron uppercase tracking-wider px-2 py-0.5 rounded-full border truncate',
               championshipColors[match.championshipColor]
             )}>
               {match.championship}
             </span>
-            {match.status === 'live' && (
-              <span className="flex items-center gap-1.5 text-[10px] font-orbitron uppercase tracking-wider text-destructive">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              {match.status === 'live' && (
+                <span className="flex items-center gap-1.5 text-[10px] font-orbitron uppercase tracking-wider text-destructive">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                  </span>
+                  Ao Vivo
                 </span>
-                Ao Vivo
-              </span>
-            )}
-            {match.status === 'scheduled' && (
-              <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Pré-Live</span>
-            )}
-            {match.status === 'finished' && (
-              <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Finalizado</span>
-            )}
+              )}
+              {match.status === 'scheduled' && (
+                <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Pré-Live</span>
+              )}
+              {match.status === 'finished' && (
+                <span className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground">Finalizado</span>
+              )}
+              <FavoriteButton
+                size="sm"
+                keys={[match.matchId, match.home, match.away]}
+              />
+            </div>
           </div>
 
           {/* Teams + Score */}

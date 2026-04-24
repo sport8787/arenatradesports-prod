@@ -4,6 +4,7 @@ import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull, Hourglass } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Match } from './MatchCard';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import FavoriteButton from './FavoriteButton';
 
 interface CompactMatchTableProps {
   matches: Match[];
@@ -94,6 +95,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border text-muted-foreground font-orbitron uppercase tracking-wider">
+              <th className="px-2 py-2 text-center w-8">★</th>
               <th className="px-3 py-2 text-left">Min</th>
               <th className="px-3 py-2 text-left">Jogo</th>
               <th className="px-3 py-2 text-center">Placar</th>
@@ -132,6 +134,9 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                     effStatus === 'EXPIRADO' && 'opacity-70',
                   )}
                 >
+                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                    <FavoriteButton size="sm" keys={[m.matchId, m.home, m.away]} />
+                  </td>
                   <td className="px-3 py-2 font-orbitron text-foreground whitespace-nowrap">
                     {m.status === 'live' && (
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-destructive mr-1 animate-pulse" />
