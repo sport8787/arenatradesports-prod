@@ -8,10 +8,23 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle, RefreshCw, ArrowLeft, CheckCircle2, Activity, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, RefreshCw, ArrowLeft, CheckCircle2, Activity, Trash2, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+
+interface RunRow {
+  id: string;
+  function_name: string;
+  status: string;
+  duration_ms: number | null;
+  status_code: number | null;
+  error_message: string | null;
+  context: Record<string, unknown> | null;
+  started_at: string;
+  finished_at: string;
+}
 
 interface ErrorRow {
   id: string;
