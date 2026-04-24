@@ -275,6 +275,18 @@ export default function MatchMycroftChat({ matchContext }: Props) {
                   )}
                   <div ref={endRef} />
                 </div>
+                {!isAtBottom && (hasUnread || messages.length > 2) && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom(true)}
+                    className="absolute bottom-2 right-3 z-10 flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/90 text-black text-[10px] font-bold shadow-lg hover:bg-amber-400 transition-colors"
+                    aria-label="Voltar ao fim do chat"
+                  >
+                    <ArrowDown className="w-3 h-3" />
+                    {hasUnread ? 'Novas mensagens' : 'Voltar ao fim'}
+                  </button>
+                )}
+                </div>
 
                 {messages.length === 0 && (
                   <div className="px-4 py-2 flex flex-wrap gap-1.5 border-t border-amber-900/10">
