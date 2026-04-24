@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Type-pinning tests for the shared `MatchStats` shape used by edge functions
  * (mycroft-sports-analysis, evaluate-cashout, etc).
