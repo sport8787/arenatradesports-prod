@@ -260,6 +260,17 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
           </Button>
         )}
       </div>
+      {item.kind === 'APROVADO' && (
+        <CopySignalActions
+          signal={{
+            match: item.match,
+            market: item.market,
+            odd: item.odd,
+            league: item.league,
+            confidence: item.confidence,
+          }}
+        />
+      )}
     </motion.div>
   );
 }
