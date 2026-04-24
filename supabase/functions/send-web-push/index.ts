@@ -2,6 +2,7 @@
 // Envia Web Push notifications via VAPID para subscriptions registradas
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
+import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
