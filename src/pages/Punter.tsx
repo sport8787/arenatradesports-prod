@@ -1463,16 +1463,28 @@ export default function PunterPage() {
               );
             })()}
 
-            <div className="flex items-center justify-between">
-              <h2 className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
-                ATIVOS IDENTIFICADOS ({signals.length})
-              </h2>
-              <div className="flex items-center gap-1 text-[10px] font-mono text-success">
-                <CheckCircle2 className="w-3 h-3" />
-                APROVADOS
-              </div>
-            </div>
-            {signals.map((signal, index) => {
+            {(() => {
+              const todayStr = new Date().toDateString();
+              const visibleSignals = todayOnlyFilter
+                ? signals.filter(s => new Date(s.match.commence_time).toDateString() === todayStr)
+                : signals;
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
+                      ATIVOS IDENTIFICADOS ({visibleSignals.length}{todayOnlyFilter ? ' • HOJE' : ''})
+                    </h2>
+                    <div className="flex items-center gap-1 text-[10px] font-mono text-success">
+                      <CheckCircle2 className="w-3 h-3" />
+                      APROVADOS
+                    </div>
+                  </div>
+                  {visibleSignals.length === 0 && todayOnlyFilter && (
+                    <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
+                      Nenhum sinal de jogos de hoje. Desative o filtro para ver todos.
+                    </div>
+                  )}
+                  {visibleSignals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const hasPendingBet = pendingMatchKeys.has(matchId);
               const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
