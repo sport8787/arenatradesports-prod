@@ -343,6 +343,10 @@ export default function ArenaTraderSports() {
               <Brain className="w-4 h-4 mr-1" />
               Chat com Mycroft
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
+              <CheckCircle2 className="w-4 h-4 mr-1" />
+              Sinais Aprovados
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
