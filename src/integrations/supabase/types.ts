@@ -4219,6 +4219,7 @@ export type Database = {
           commence_time: string | null
           current_odd: number | null
           entry_odd: number | null
+          entry_stats: Json | null
           id: string
           last_cashout_update: string | null
           market: string
@@ -4249,6 +4250,7 @@ export type Database = {
           commence_time?: string | null
           current_odd?: number | null
           entry_odd?: number | null
+          entry_stats?: Json | null
           id?: string
           last_cashout_update?: string | null
           market: string
@@ -4279,6 +4281,7 @@ export type Database = {
           commence_time?: string | null
           current_odd?: number | null
           entry_odd?: number | null
+          entry_stats?: Json | null
           id?: string
           last_cashout_update?: string | null
           market?: string

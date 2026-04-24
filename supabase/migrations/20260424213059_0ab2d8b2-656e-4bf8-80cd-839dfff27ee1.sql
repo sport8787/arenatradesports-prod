@@ -1,0 +1,2 @@
+ALTER TABLE public.virtual_bets ADD COLUMN IF NOT EXISTS entry_stats jsonb;
+COMMENT ON COLUMN public.virtual_bets.entry_stats IS 'Snapshot dos stats no momento da entrada (dangerous_attacks_total, shots_on_target_total, xg_total, minute) — usado para detectar pressão crescente em sinais Under.';
