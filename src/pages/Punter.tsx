@@ -88,6 +88,7 @@ export default function PunterPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
+  const [todayOnlyFilter, setTodayOnlyFilter] = useState(false);
   const [futureSignals, setFutureSignals] = useState<any[]>([]); // awaiting_stake + stake_calculated
   const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
