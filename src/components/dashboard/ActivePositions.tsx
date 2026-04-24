@@ -125,6 +125,20 @@ export default function ActivePositions() {
             playWarningAlert();
             lastPlayedAt.set(pos.id, now);
           }
+
+          // 🚨 Toasts específicos do plano BACK FAVORITO COM VALOR
+          const isBackFav = BACKFAV_MARKET.test(pos.market || '');
+          if (isBackFav && BACKFAV_IMMEDIATE_STOP.test(reason)) {
+            toast.error('🚨 STOP IMEDIATO — Back Favorito', {
+              description: `${pos.match_name}: ${reason}`,
+              duration: 12000,
+            });
+          } else if (isBackFav && BACKFAV_PREVENTIVE.test(reason)) {
+            toast.warning('⏱️ Cash out preventivo — Back Favorito', {
+              description: `${pos.match_name}: ${reason}`,
+              duration: 10000,
+            });
+          }
         }
       }
 
