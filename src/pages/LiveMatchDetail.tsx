@@ -375,7 +375,8 @@ export default function LiveMatchDetail() {
     if (!match || !analysis?.verdict || !analysis?.market) return;
 
     const currentVerdict = String(analysis.verdict).toUpperCase();
-    const isApproved = currentVerdict.includes('APROVAD');
+    const isLabareda = currentVerdict.includes('LABAREDA');
+    const isApproved = currentVerdict.includes('APROVAD') || isLabareda;
     const isRejected = ['VETADO', 'SEM VALOR', 'REJEITADO', 'CANCELADO'].some(v =>
       currentVerdict.includes(v),
     );
