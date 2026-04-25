@@ -2730,6 +2730,93 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_calibration: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          min_confidence: number
+          min_edge: number
+          min_probability: number
+          notes: string | null
+          odd_max: number
+          odd_min: number
+          target_roi: number
+          target_win_rate: number
+          tier1_max_stake: number
+          tier1_min_conf: number
+          tier1_min_edge: number
+          tier1_min_prob: number
+          tier2_max_stake: number
+          tier2_min_conf: number
+          tier2_min_edge: number
+          tier2_min_prob: number
+          tier3_max_stake: number
+          tier3_min_conf: number
+          tier3_min_edge: number
+          tier3_min_prob: number
+          tolerance_pp: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_confidence?: number
+          min_edge?: number
+          min_probability?: number
+          notes?: string | null
+          odd_max?: number
+          odd_min?: number
+          target_roi?: number
+          target_win_rate?: number
+          tier1_max_stake?: number
+          tier1_min_conf?: number
+          tier1_min_edge?: number
+          tier1_min_prob?: number
+          tier2_max_stake?: number
+          tier2_min_conf?: number
+          tier2_min_edge?: number
+          tier2_min_prob?: number
+          tier3_max_stake?: number
+          tier3_min_conf?: number
+          tier3_min_edge?: number
+          tier3_min_prob?: number
+          tolerance_pp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_confidence?: number
+          min_edge?: number
+          min_probability?: number
+          notes?: string | null
+          odd_max?: number
+          odd_min?: number
+          target_roi?: number
+          target_win_rate?: number
+          tier1_max_stake?: number
+          tier1_min_conf?: number
+          tier1_min_edge?: number
+          tier1_min_prob?: number
+          tier2_max_stake?: number
+          tier2_min_conf?: number
+          tier2_min_edge?: number
+          tier2_min_prob?: number
+          tier3_max_stake?: number
+          tier3_min_conf?: number
+          tier3_min_edge?: number
+          tier3_min_prob?: number
+          tolerance_pp?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       punter_rankings: {
         Row: {
           best_streak: number
