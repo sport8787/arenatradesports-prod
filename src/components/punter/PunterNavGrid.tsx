@@ -12,6 +12,7 @@ import {
   Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 
 type Badge = { label: string; tone: 'live' | 'beta' | 'exclusive' };
 
