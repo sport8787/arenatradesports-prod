@@ -294,12 +294,52 @@ serve(async (req) => {
       console.warn('[FetchLive] Falha ao gravar log de filtro:', logErr);
     }
 
-    const results: any[] = [];
-    let analyzedCount = 0;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const tStart = performance.now();
 
-    // 2. Process each fixture - fetch stats from kickoff
+    // 2a. BATCH preload existing rows in a single query (avoid N selects)
+    const allFixtureIds = fixtures.map((f: any) => String(f.fixture.id));
+    const existingMap = new Map<string, { mycroft_status: string | null; mycroft_analysis_id: string | null }>();
+    if (allFixtureIds.length > 0) {
+      const { data: existingRows } = await supabase
+        .from('live_matches')
+        .select('match_id, mycroft_status, mycroft_analysis_id')
+        .in('match_id', allFixtureIds);
+      for (const r of existingRows || []) {
+        existingMap.set(r.match_id, {
+          mycroft_status: r.mycroft_status,
+          mycroft_analysis_id: r.mycroft_analysis_id,
+        });
+      }
+    }
+
+    // 2b. PARALLEL fetch of fixture stats (cached + concurrency-limited)
+    const liveFixtures = fixtures.filter((f: any) =>
+      getFixtureLifecycleStatus(f.fixture.status?.short ?? 'LIVE') === 'live'
+    );
+    const statsResults = await runWithConcurrency(
+      liveFixtures,
+      STATS_CONCURRENCY,
+      (f: any) => fetchFixtureStats(f.fixture.id, apiKey),
+    );
+    const statsMap = new Map<string, FixtureStats | null>();
+    liveFixtures.forEach((f: any, i: number) => {
+      statsMap.set(String(f.fixture.id), statsResults[i] ?? null);
+    });
+    console.log(`[FetchLive] ⏱️ stats batch: ${liveFixtures.length} fixtures in ${Math.round(performance.now() - tStart)}ms`);
+
+    // 2c. Build payloads + BATCH upsert in chunks (much faster than N upserts)
+    const upsertPayloads: any[] = [];
+    type FixtureCtx = {
+      fixtureId: string;
+      matchData: any;
+      stats: FixtureStats | null;
+      lifecycleStatus: 'live' | 'finished' | 'scheduled';
+      minute: number;
+      period: string;
+      championship: string;
+    };
+    const ctxList: FixtureCtx[] = [];
+
     for (const fixture of fixtures) {
       const fixtureId = String(fixture.fixture.id);
       const minute = fixture.fixture.status?.elapsed ?? 0;
@@ -323,111 +363,118 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // 3. Fetch live stats for all live matches
-      const stats: FixtureStats | null = lifecycleStatus === 'live'
-        ? await fetchFixtureStats(fixture.fixture.id, apiKey)
-        : null;
-
-      // 4. Upsert match (preserve mycroft fields)
-      const { data: existing } = await supabase
-        .from('live_matches')
-        .select('mycroft_status, mycroft_analysis_id, updated_at, status')
-        .eq('match_id', fixtureId)
-        .maybeSingle();
+      const stats = lifecycleStatus === 'live' ? statsMap.get(fixtureId) ?? null : null;
+      const existing = existingMap.get(fixtureId);
 
       const upsertData: any = {
         ...matchData,
         stats: stats || { attacks_home: 0, attacks_away: 0, possession_home: 0, possession_away: 0, shots_home: 0, shots_away: 0 },
       };
-
-      // Preserve mycroft fields if they exist
       if (existing) {
         upsertData.mycroft_status = existing.mycroft_status;
         upsertData.mycroft_analysis_id = existing.mycroft_analysis_id;
       }
-
-      await supabase
-        .from('live_matches')
-        .upsert(upsertData, { onConflict: 'match_id' });
-
-      // Auto-trigger Mycroft (minute >= 20, has stats, sem análise OU status reanalisável)
-      const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
-      const shouldAnalyze = lifecycleStatus === 'live' && minute >= 20 && stats &&
-        (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
-
-      let analyzed = false;
-      let verdict: string | undefined;
-      if (shouldAnalyze) {
-        try {
-          const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
-            body: JSON.stringify({
-              match: {
-                home: matchData.home_team,
-                away: matchData.away_team,
-                scoreHome: matchData.score_home,
-                scoreAway: matchData.score_away,
-                minute,
-                period,
-                championship,
-                match_id: fixtureId,
-                stats,
-                bankroll: 500,
-              },
-            }),
-          });
-          if (analysisRes.ok) {
-            const analysis = await analysisRes.json();
-            verdict = analysis.verdict;
-            const { data: analysisRow } = await supabase.from('mycroft_analyses').insert({
-              match_id: fixtureId,
-              verdict: analysis.verdict || 'AGUARDAR',
-              market: analysis.market || 'N/A',
-              thesis: analysis.thesis || '',
-              odd: analysis.odd ?? null,
-              confidence: analysis.confidence ?? 0,
-              risk_management: analysis.risk_management ?? null,
-              alerts: analysis.alerts ?? [],
-              fundamentation: analysis.fundamentation ?? { stats },
-            }).select('id').single();
-            if (analysisRow) {
-              const statusToSet =
-                analysis.verdict === 'AGUARDAR' ? 'aguardar' :
-                analysis.verdict === 'JOGO_MORTO' ? 'jogo_morto' :
-                analysis.verdict === 'CUIDADO' ? 'cuidado' : 'done';
-              await supabase.from('live_matches').update({
-                mycroft_analysis_id: analysisRow.id,
-                mycroft_status: statusToSet,
-                updated_at: new Date().toISOString(),
-              }).eq('match_id', fixtureId);
-              if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
-                await supabase.from('signals_sent').insert({
-                  match_id: fixtureId,
-                  analysis_id: analysisRow.id,
-                });
-              }
-            }
-            analyzed = true;
-            analyzedCount++;
-          } else {
-            console.warn(`[FetchLive] Mycroft fail ${fixtureId}: ${analysisRes.status}`);
-          }
-        } catch (e) {
-          console.error(`[FetchLive] Mycroft error ${fixtureId}:`, e);
-        }
-      }
-
-      results.push({
-        match_id: fixtureId,
-        teams: `${matchData.home_team} vs ${matchData.away_team}`,
-        minute,
-        has_stats: !!stats,
-        analyzed,
-        verdict,
-        status: lifecycleStatus,
-      });
+      upsertPayloads.push(upsertData);
+      ctxList.push({ fixtureId, matchData, stats, lifecycleStatus, minute, period, championship });
     }
+
+    // Batched upsert (chunks of 100)
+    const CHUNK = 100;
+    for (let i = 0; i < upsertPayloads.length; i += CHUNK) {
+      const slice = upsertPayloads.slice(i, i + CHUNK);
+      const { error: upErr } = await supabase
+        .from('live_matches')
+        .upsert(slice, { onConflict: 'match_id' });
+      if (upErr) console.warn('[FetchLive] batch upsert error:', upErr.message);
+    }
+    console.log(`[FetchLive] ⏱️ upsert batch done at ${Math.round(performance.now() - tStart)}ms`);
+
+    // 2d. PARALLEL Mycroft analyses (concurrency-limited)
+    const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const analysisCandidates = ctxList.filter((c) => {
+      const existing = existingMap.get(c.fixtureId);
+      return c.lifecycleStatus === 'live' && c.minute >= 20 && c.stats &&
+        (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
+    });
+
+    let analyzedCount = 0;
+    const results: any[] = ctxList.map((c) => ({
+      match_id: c.fixtureId,
+      teams: `${c.matchData.home_team} vs ${c.matchData.away_team}`,
+      minute: c.minute,
+      has_stats: !!c.stats,
+      analyzed: false,
+      verdict: undefined as string | undefined,
+      status: c.lifecycleStatus,
+    }));
+    const indexById = new Map(ctxList.map((c, i) => [c.fixtureId, i]));
+
+    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c) => {
+      try {
+        const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+          body: JSON.stringify({
+            match: {
+              home: c.matchData.home_team,
+              away: c.matchData.away_team,
+              scoreHome: c.matchData.score_home,
+              scoreAway: c.matchData.score_away,
+              minute: c.minute,
+              period: c.period,
+              championship: c.championship,
+              match_id: c.fixtureId,
+              stats: c.stats,
+              bankroll: 500,
+            },
+          }),
+        });
+        if (!analysisRes.ok) {
+          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status}`);
+          return;
+        }
+        const analysis = await analysisRes.json();
+        const { data: analysisRow } = await supabase.from('mycroft_analyses').insert({
+          match_id: c.fixtureId,
+          verdict: analysis.verdict || 'AGUARDAR',
+          market: analysis.market || 'N/A',
+          thesis: analysis.thesis || '',
+          odd: analysis.odd ?? null,
+          confidence: analysis.confidence ?? 0,
+          risk_management: analysis.risk_management ?? null,
+          alerts: analysis.alerts ?? [],
+          fundamentation: analysis.fundamentation ?? { stats: c.stats },
+        }).select('id').single();
+        if (analysisRow) {
+          const statusToSet =
+            analysis.verdict === 'AGUARDAR' ? 'aguardar' :
+            analysis.verdict === 'JOGO_MORTO' ? 'jogo_morto' :
+            analysis.verdict === 'CUIDADO' ? 'cuidado' : 'done';
+          await supabase.from('live_matches').update({
+            mycroft_analysis_id: analysisRow.id,
+            mycroft_status: statusToSet,
+            updated_at: new Date().toISOString(),
+          }).eq('match_id', c.fixtureId);
+          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+            await supabase.from('signals_sent').insert({
+              match_id: c.fixtureId,
+              analysis_id: analysisRow.id,
+            });
+          }
+        }
+        analyzedCount++;
+        const idx = indexById.get(c.fixtureId);
+        if (idx !== undefined) {
+          results[idx].analyzed = true;
+          results[idx].verdict = analysis.verdict;
+        }
+      } catch (e) {
+        console.error(`[FetchLive] Mycroft error ${c.fixtureId}:`, e);
+      }
+    });
+    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (${analyzedCount}/${analysisCandidates.length})`);
 
     // 6. Mark matches no longer live as 'finished' only after grace period to avoid API snapshot flicker
     const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
