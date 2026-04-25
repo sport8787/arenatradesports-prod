@@ -687,11 +687,27 @@ serve(async (req) => {
               ? sa > prevSa
               : false;
 
-        let vetoReason: string | null = null;
+         let vetoReason: string | null = null;
 
-        if (favGoalSinceLast && oddNow > 0 && oddNow < 1.40) {
+        // (c) VETO TEMPORAL: Back favorito só é válido durante o 1º tempo (até min 45).
+        // Após o intervalo / 2º tempo / minuto 45+, a tese de "favorito ainda tem tempo para resolver"
+        // perde força e a entrada vira armadilha de odd baixa.
+        const curMin = Number(match.minute ?? 0);
+        const curPeriod = String(match.period || '').toLowerCase();
+        const isSecondHalfOrLater =
+          curPeriod.includes('second') ||
+          curPeriod.includes('2nd') ||
+          curPeriod.includes('2t') ||
+          curPeriod.includes('ht') ||
+          curPeriod.includes('intervalo') ||
+          curPeriod.includes('half') && curPeriod.includes('time'); // halftime
+        if (curMin >= 45 || isSecondHalfOrLater) {
+          vetoReason = `Back favorito vetado: janela temporal expirada (min ${curMin}, período "${match.period || 'n/a'}"). Entrada só é válida no 1º tempo até o minuto 45.`;
+        }
+
+        if (!vetoReason && favGoalSinceLast && oddNow > 0 && oddNow < 1.40) {
           vetoReason = `Back favorito vetado: favorito marcou (snapshot ${prevSh}-${prevSa} → ${sh}-${sa}) e odd caiu para ${oddNow} (<1.40).`;
-        } else if (oddNow > 0 && oddNow < 1.40) {
+        } else if (!vetoReason && oddNow > 0 && oddNow < 1.40) {
           // (b) Sanity: odd <1.40 só faz sentido se favorito está vencendo claramente
           if (favScore !== null && advScore !== null && favScore <= advScore) {
             vetoReason = `Back favorito vetado: odd ${oddNow} (<1.40) incompatível com placar (favorito ${favScore} x ${advScore} adversário).`;
