@@ -17,13 +17,13 @@ export default function PunterAprovadasPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
-            APOSTAS APROVADAS
+            SINAIS APROVADOS
           </h1>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-5 max-w-5xl space-y-4">
-        <PunterBreadcrumb items={[{ label: 'Apostas Aprovadas' }]} />
+        <PunterBreadcrumb items={[{ label: 'Sinais Aprovados' }]} />
         <div>
           <h2 className="text-xl font-bold text-foreground">Sinais ativos</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">

@@ -113,7 +113,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             icon={<CheckCircle2 className="w-4 h-4" />}
             iconBg="bg-success/15"
             iconColor="text-success"
-            title="Apostas Aprovadas"
+            title="Sinais Aprovados"
             description="Todos os sinais ativos com análise completa"
           />
           <NavCard
