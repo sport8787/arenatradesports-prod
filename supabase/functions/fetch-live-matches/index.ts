@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { resilientFetch } from "../_shared/resilientFetch.ts";
+
+// Hard wall-clock budget for the entire invocation. Anything not started by
+// this point gets enqueued to mycroft_analysis_queue for the background worker.
+const RUN_BUDGET_MS = 90_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
