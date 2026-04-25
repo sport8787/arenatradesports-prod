@@ -606,18 +606,22 @@ serve(async (req) => {
       console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
-    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate
+    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate.
+    // Also skipped when we're over the run budget (worker still picks up enqueued jobs).
     let scheduledCount = 0;
-    const schedShouldRun = Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
+    const schedShouldRun = !isOverBudget() && Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
     if (!schedShouldRun) {
-      console.log('[FetchLive] ⏭️ Scheduled fetch skipped (cache window active)');
+      console.log(`[FetchLive] ⏭️ Scheduled fetch skipped (${isOverBudget() ? 'over budget' : 'cache window active'})`);
     }
     if (schedShouldRun) try {
       lastScheduledFetchAt = Date.now();
       const today = new Date().toISOString().split('T')[0];
       console.log(`[FetchLive] Fetching scheduled fixtures for ${today}...`);
-      const schedRes = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
+      const schedRes = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
         headers: { 'x-apisports-key': apiKey },
+        retries: 2,
+        timeoutMs: 15_000,
+        breakerKey: 'api-football',
       });
 
       if (schedRes.ok) {
