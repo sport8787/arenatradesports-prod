@@ -315,10 +315,16 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
+    const tStartRun = performance.now();
+    const isOverBudget = () => performance.now() - tStartRun > RUN_BUDGET_MS;
+
     // 1. Fetch all live matches
     console.log('[FetchLive] Fetching all live matches from API-Football...');
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
       headers: { 'x-apisports-key': apiKey },
+      retries: 3,
+      timeoutMs: 12_000,
+      breakerKey: 'api-football',
     });
 
     if (!res.ok) {
