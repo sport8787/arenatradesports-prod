@@ -756,9 +756,9 @@ export default function LiveMatchDetail() {
           <TabsContent value="analysis" className="mt-4 space-y-4">
             {!analysis ? (
               <div className="luxury-card p-8 text-center space-y-2">
-                <Brain className="w-10 h-10 mx-auto text-muted-foreground" />
+                <Brain className="w-10 h-10 mx-auto text-muted-foreground animate-pulse" />
                 <p className="text-sm text-muted-foreground">
-                  Mycroft ainda não analisou esta partida.
+                  O Mycroft está fazendo uma reanálise da partida em busca de oportunidades.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Status: <span className="font-orbitron uppercase">{match.mycroft_status || 'aguardando'}</span>
