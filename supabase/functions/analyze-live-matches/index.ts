@@ -209,15 +209,70 @@ serve(async (req) => {
           console.warn(`[AnalyzeLive] SofaScore enrichment failed:`, sofaErr instanceof Error ? sofaErr.message : sofaErr);
         }
 
-        // 🚨 FLAG xG INDISPONÍVEL: SofaScore falhou + API-Football retornou 0/null
-        // Sinaliza ao Mycroft para NÃO usar critério de xG (evita "xG zerado" enganoso)
+        // 🌐 FALLBACK FLASHSCORE: quando SofaScore não encontra o evento,
+        // tentamos extrair stats reais do Flashscore via Firecrawl + estimar xG sintético.
+        // Custo: 1-2 créditos Firecrawl por jogo. Cache de 90s evita re-scrape.
+        let flashscoreFound = false;
+        if (!sofascoreFound) {
+          try {
+            const fsRes = await fetch(`${supabaseUrl}/functions/v1/flashscore-live-stats`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+              body: JSON.stringify({ home: match.home_team, away: match.away_team }),
+            });
+            if (fsRes.ok) {
+              const fs = await fsRes.json();
+              if (fs?.found) {
+                flashscoreFound = true;
+                const num = (v: any) => (v == null || isNaN(Number(v))) ? null : Number(v);
+                const prefer = (newVal: any, oldVal: any) => {
+                  const n = num(newVal); const o = num(oldVal);
+                  if (n == null) return oldVal ?? null;
+                  if (o == null || o === 0) return n;
+                  return Math.max(n, o);
+                };
+                enrichedStats = {
+                  ...enrichedStats,
+                  // xG do Flashscore é ESTIMADO — marcamos para o Mycroft saber
+                  xG_home: prefer(fs.xg_home, enrichedStats.xG_home ?? enrichedStats.xg_home),
+                  xG_away: prefer(fs.xg_away, enrichedStats.xG_away ?? enrichedStats.xg_away),
+                  xg_home: prefer(fs.xg_home, enrichedStats.xg_home ?? enrichedStats.xG_home),
+                  xg_away: prefer(fs.xg_away, enrichedStats.xg_away ?? enrichedStats.xG_away),
+                  xg_estimated: true, // 🚩 flag — análise deve descontar peso
+                  possession_home: prefer(fs.possession_home, enrichedStats.possession_home),
+                  possession_away: prefer(fs.possession_away, enrichedStats.possession_away),
+                  shots_total_home: prefer(fs.shots_total_home, enrichedStats.shots_total_home),
+                  shots_total_away: prefer(fs.shots_total_away, enrichedStats.shots_total_away),
+                  shots_on_target_home: prefer(fs.shots_on_target_home, enrichedStats.shots_on_target_home),
+                  shots_on_target_away: prefer(fs.shots_on_target_away, enrichedStats.shots_on_target_away),
+                  shots_home: prefer(fs.shots_on_target_home, enrichedStats.shots_home),
+                  shots_away: prefer(fs.shots_on_target_away, enrichedStats.shots_away),
+                  corners_home: prefer(fs.corners_home, enrichedStats.corners_home),
+                  corners_away: prefer(fs.corners_away, enrichedStats.corners_away),
+                  fouls_home: prefer(fs.fouls_home, enrichedStats.fouls_home),
+                  fouls_away: prefer(fs.fouls_away, enrichedStats.fouls_away),
+                  dangerous_attacks_home: prefer(fs.dangerous_attacks_home, enrichedStats.dangerous_attacks_home),
+                  dangerous_attacks_away: prefer(fs.dangerous_attacks_away, enrichedStats.dangerous_attacks_away),
+                  source_enriched: 'flashscore',
+                };
+                console.log(`[AnalyzeLive] 🌐 Flashscore enriched ${match.home_team} vs ${match.away_team}: xG_est ${enrichedStats.xG_home}-${enrichedStats.xG_away}, shots ${enrichedStats.shots_total_home}-${enrichedStats.shots_total_away}`);
+              } else {
+                console.log(`[AnalyzeLive] ℹ️ Flashscore no match found for ${match.home_team} vs ${match.away_team}`);
+              }
+            }
+          } catch (fsErr) {
+            console.warn(`[AnalyzeLive] Flashscore enrichment failed:`, fsErr instanceof Error ? fsErr.message : fsErr);
+          }
+        }
+
+        // 🚨 FLAG xG INDISPONÍVEL: SofaScore E Flashscore falharam + API-Football zerado
         const _xgH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0);
         const _xgA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
         const _shotsTotal = Number((enrichedStats as any).shots_total_home ?? (enrichedStats as any).shots_home ?? 0)
                           + Number((enrichedStats as any).shots_total_away ?? (enrichedStats as any).shots_away ?? 0);
-        if (!sofascoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
+        if (!sofascoreFound && !flashscoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
           (enrichedStats as any).xg_unavailable = true;
-          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore_found=false) — Mycroft será avisado`);
+          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore=false, flashscore=false) — Mycroft será avisado`);
         }
 
         const analysisRes = await fetch(

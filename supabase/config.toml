@@ -79,3 +79,6 @@ verify_jwt = false
 
 [functions.mycroft-corners-punter]
 verify_jwt = false
+
+[functions.flashscore-live-stats]
+verify_jwt = false
