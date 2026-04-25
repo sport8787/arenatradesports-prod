@@ -181,30 +181,55 @@ function inferTier(a: any): number {
   return 3
 }
 
+// Configuração calibrável (carregada da tabela punter_calibration)
+let CALIB = {
+  min_probability: 30, min_edge: 4, min_confidence: 65,
+  odd_min: 1.35, odd_max: 4.50, tolerance_pp: 2,
+  tier1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
+  tier2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
+  tier3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+}
+
+async function loadCalibration(supabase: any) {
+  try {
+    const { data } = await supabase.from('punter_calibration')
+      .select('*').eq('is_active', true).maybeSingle()
+    if (data) {
+      CALIB = {
+        min_probability: Number(data.min_probability),
+        min_edge: Number(data.min_edge),
+        min_confidence: Number(data.min_confidence),
+        odd_min: Number(data.odd_min),
+        odd_max: Number(data.odd_max),
+        tolerance_pp: Number(data.tolerance_pp),
+        tier1: { minEdge: +data.tier1_min_edge, minConf: +data.tier1_min_conf, maxStake: +data.tier1_max_stake, minProb: +data.tier1_min_prob },
+        tier2: { minEdge: +data.tier2_min_edge, minConf: +data.tier2_min_conf, maxStake: +data.tier2_max_stake, minProb: +data.tier2_min_prob },
+        tier3: { minEdge: +data.tier3_min_edge, minConf: +data.tier3_min_conf, maxStake: +data.tier3_max_stake, minProb: +data.tier3_min_prob },
+      }
+      console.log('[Mycroft Punter] ✅ Calibração carregada:', CALIB)
+    }
+  } catch (e) { console.warn('[Mycroft Punter] Falha ao carregar calibração, usando defaults', e) }
+}
+
 function validateAnalysis(a: any): ValidationResult {
   if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
-  // FILTRO 1 — Probabilidade mínima absoluta (30%) — permite mercados de visitante com edge alto
-  if (!a.estimated_probability || a.estimated_probability < 30) {
-    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo 30%)` }
+  if (!a.estimated_probability || a.estimated_probability < CALIB.min_probability) {
+    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo ${CALIB.min_probability}%)` }
   }
-  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
-  if (!a.confidence || a.confidence < 65) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
-  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
+  if (!a.edge_percentage || a.edge_percentage < CALIB.min_edge) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
+  if (!a.confidence || a.confidence < CALIB.min_confidence) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
+  if (!a.odd || a.odd < CALIB.odd_min || a.odd > CALIB.odd_max) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
 
-  // Auto-inferir tier quando ausente/inválido (a IA frequentemente omite o campo)
   if (!a.tier || ![1, 2, 3].includes(a.tier)) {
     a.tier = inferTier(a)
     a._tier_inferred = true
   }
 
   const rules: Record<number, { minEdge: number; minConf: number; maxStake: number; minProb: number }> = {
-    1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
-    2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
-    3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+    1: CALIB.tier1, 2: CALIB.tier2, 3: CALIB.tier3,
   }
 
-  // TOLERÂNCIA: se ficar até 2pp abaixo dos mínimos do tier, faz downgrade ao invés de vetar
-  const TOL = 2
+  const TOL = CALIB.tolerance_pp
   for (let attempt = 0; attempt < 2; attempt++) {
     const r = rules[a.tier]
     const probOk = a.estimated_probability >= r.minProb - TOL
@@ -1403,6 +1428,7 @@ serve(async (req) => {
   execStart = Date.now()
   try {
     const sb=createClient(Deno.env.get('SUPABASE_URL')??'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'',{auth:{persistSession:false}})
+    await loadCalibration(sb)
     const body=await req.json()
     const {sports=['soccer_brazil_campeonato','soccer_brazil_serie_b','soccer_brazil_campeonato_paulista','soccer_brazil_campeonato_carioca','soccer_brazil_campeonato_mineiro','soccer_brazil_campeonato_gaucho','soccer_brazil_campeonato_baiano','soccer_brazil_campeonato_paranaense','soccer_brazil_campeonato_catarinense','soccer_brazil_campeonato_pernambucano','soccer_brazil_copa_nordeste','soccer_brazil_copa_do_brasil','soccer_brazil_serie_c','soccer_brazil_copa_verde','soccer_conmebol_copa_libertadores','soccer_conmebol_copa_sudamericana','soccer_uefa_champs_league','soccer_uefa_europa_league','soccer_epl','soccer_england_efl_cup','soccer_england_league1','soccer_spain_la_liga','soccer_italy_serie_a','soccer_italy_serie_b','soccer_germany_bundesliga','soccer_germany_bundesliga2','soccer_france_ligue_one','soccer_argentina_primera_division','soccer_fifa_world_cup_qualifier_europe','soccer_netherlands_eredivisie','soccer_portugal_primeira_liga','soccer_international_friendlies','soccer_usa_nwsl'],
       sport=null as string|null, hours_ahead=48, bookmakers=['bet365','pinnacle','betfair'], min_value=3, include_corners=true, include_cards=true} = body
