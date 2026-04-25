@@ -8,7 +8,7 @@ const corsHeaders = {
 interface Payload {
   match_id: string;
   market: string;
-  event_type: 'APROVADO' | 'CANCELADO' | 'GREEN' | 'RED' | 'CASHOUT';
+  event_type: 'APROVADO' | 'LABAREDA' | 'CANCELADO' | 'GREEN' | 'RED' | 'CASHOUT';
   home_team: string;
   away_team: string;
   league?: string;
