@@ -577,13 +577,13 @@ serve(async (req) => {
           },
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] OpenAI error ${response.status}:`, errorText);
+      console.error(`[MycroftSports] AI error ${response.status} (${LOVABLE_API_KEY ? 'lovable' : 'openai'}):`, errorText);
       if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
