@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 // CHAVE PÚBLICA VAPID - segura para expor no frontend
 const VAPID_PUBLIC_KEY = 'BBi6mGGqtqQoFAI_oFflxUpvcxh3het0VJvr7PeyISlI4XXiSjAmIj-DRAuQMY176_ZelRuCIA2LvFTea4j-X9M';
+const PUSH_ENABLED_STORAGE_KEY = 'mycroft.browserPush.enabled';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -21,6 +22,17 @@ function isSupportedEnv(): boolean {
     if (window.self !== window.top) return false;
   } catch { return false; }
   return true;
+}
+
+function getStoredPushEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  const raw = window.localStorage.getItem(PUSH_ENABLED_STORAGE_KEY);
+  return raw === null ? true : raw === 'true';
+}
+
+function setStoredPushEnabled(enabled: boolean) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PUSH_ENABLED_STORAGE_KEY, String(enabled));
 }
 
 async function registerSW(): Promise<ServiceWorkerRegistration | null> {
@@ -91,21 +103,63 @@ async function subscribeAndPersist(): Promise<boolean> {
   return true;
 }
 
+async function unsubscribeAndRemove(): Promise<boolean> {
+  if (!isSupportedEnv()) return false;
+
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      ?? await navigator.serviceWorker.getRegistration()
+      ?? await navigator.serviceWorker.ready;
+
+    const subscription = await reg?.pushManager.getSubscription();
+    const endpoint = subscription?.endpoint;
+
+    if (endpoint) {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      let query = supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', endpoint);
+
+      if (user?.id) {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { error } = await query;
+      if (error) {
+        console.warn('[Push] Falha ao remover subscription do banco:', error);
+      }
+    }
+
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+
+    return true;
+  } catch (e) {
+    console.warn('[Push] Falha ao cancelar subscription:', e);
+    return false;
+  }
+}
+
 export function usePushNotifications() {
   const [isSupported] = useState(isSupportedEnv());
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(
     isSupportedEnv() ? Notification.permission : 'unsupported'
   );
+  const [enabled, setEnabled] = useState(getStoredPushEnabled());
   const subscribedRef = useRef(false);
 
   // Auto-subscribe se já tem permissão
   useEffect(() => {
     if (!isSupported) return;
+    if (!enabled) return;
     if (Notification.permission === 'granted' && !subscribedRef.current) {
       subscribedRef.current = true;
       subscribeAndPersist();
     }
-  }, [isSupported]);
+  }, [enabled, isSupported]);
 
   const requestPush = useCallback(async (): Promise<boolean> => {
     if (!isSupported) return false;
@@ -116,10 +170,19 @@ export function usePushNotifications() {
     setPermission(perm);
     if (perm !== 'granted') return false;
 
+    setStoredPushEnabled(true);
+    setEnabled(true);
     const ok = await subscribeAndPersist();
     subscribedRef.current = ok;
     return ok;
   }, [isSupported]);
 
-  return { requestPush, isSupported, permission };
+  const disablePush = useCallback(async (): Promise<boolean> => {
+    setStoredPushEnabled(false);
+    setEnabled(false);
+    subscribedRef.current = false;
+    return unsubscribeAndRemove();
+  }, []);
+
+  return { requestPush, disablePush, isSupported, permission, enabled };
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, MessageCircle, Send, Loader2, Bell, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const { enabled: browserPushEnabled, isSupported: browserPushSupported, disablePush, requestPush } = usePushNotifications();
 
   useEffect(() => {
     const load = async () => {
@@ -87,6 +89,25 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
     setTesting(false);
   };
 
+  const handleBrowserPushToggle = async (checked: boolean) => {
+    if (checked) {
+      const ok = await requestPush();
+      if (!ok) {
+        toast.error('Não foi possível ativar as notificações do navegador');
+        return;
+      }
+      toast.success('Notificações do navegador ativadas');
+      return;
+    }
+
+    const ok = await disablePush();
+    if (ok) {
+      toast.success('Notificações de sinais aprovados desativadas');
+    } else {
+      toast.error('Não foi possível desativar as notificações do navegador');
+    }
+  };
+
   if (!loaded) return null;
 
   return (
@@ -135,6 +156,30 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
               </a>
             </div>
           )}
+        </div>
+
+        {/* Browser Push */}
+        <div className="border border-border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2 gap-3">
+            <div className="flex items-center gap-2.5">
+              <Bell className="w-4 h-4 text-primary" />
+              <div>
+                <p className="text-xs font-mono font-semibold text-foreground">Sinais Aprovados no Navegador</p>
+                <p className="text-[10px] font-mono text-muted-foreground">Alerta popup quando um sinal aprovado chegar</p>
+              </div>
+            </div>
+            <Switch
+              checked={browserPushEnabled}
+              disabled={!browserPushSupported}
+              onCheckedChange={handleBrowserPushToggle}
+            />
+          </div>
+
+          <p className="text-[10px] font-mono text-muted-foreground">
+            {browserPushSupported
+              ? 'Desative aqui para parar os avisos repetidos de sinal aprovado neste navegador.'
+              : 'Seu navegador atual não suporta notificações push.'}
+          </p>
         </div>
 
         {/* Email */}
