@@ -317,6 +317,27 @@ ANTI-ABUSO: Máx 2 aprovações situacionais/partida. Não situacional após min
 `;
 
 
+// Normaliza criterios/vetos vindos do banco (jsonb pode ser array, object {1:"...",2:"..."}, string ou null)
+function toStringArray(input: unknown): string[] {
+  if (!input) return [];
+  if (Array.isArray(input)) return input.map(String).filter(Boolean);
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      return toStringArray(parsed);
+    } catch {
+      return input.split(/\r?\n|;/).map(s => s.trim()).filter(Boolean);
+    }
+  }
+  if (typeof input === 'object') {
+    // Suporta {1: "...", 2: "..."} ou {a: "...", b: "..."}
+    return Object.values(input as Record<string, unknown>)
+      .map(v => (typeof v === 'string' ? v : JSON.stringify(v)))
+      .filter(Boolean);
+  }
+  return [String(input)];
+}
+
 function buildPrompt(match: MatchData, planos: any[], memoryRules: string): string {
   const s: any = match.stats || {};
 
@@ -324,8 +345,10 @@ function buildPrompt(match: MatchData, planos: any[], memoryRules: string): stri
   const validPlanNames = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
   const matrizPlanos = planos.map(p => {
-    const criterios = (p.criterios as string[]).map((c: string, i: number) => `  ${i+1}. ${c}`).join('\n');
-    const vetos = (p.vetos as string[]).map((v: string) => `  ✗ ${v}`).join('\n');
+    const criteriosArr = toStringArray(p.criterios);
+    const vetosArr = toStringArray(p.vetos);
+    const criterios = criteriosArr.map((c, i) => `  ${i+1}. ${c}`).join('\n') || '  (sem critérios definidos)';
+    const vetos = vetosArr.map(v => `  ✗ ${v}`).join('\n') || '  (sem vetos definidos)';
     return `${p.emoji} **${p.nome.toUpperCase()}** [${p.codigo}] — ${p.categoria}
 Mercado: ${p.mercado} | Janela: ${p.janela} | Risco: ${p.risco}
 Conceito: ${p.conceito}
