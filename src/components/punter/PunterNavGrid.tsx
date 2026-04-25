@@ -16,6 +16,7 @@ import {
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import NavCard from '@/components/punter/NavCard';
+import { toast } from 'sonner';
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
