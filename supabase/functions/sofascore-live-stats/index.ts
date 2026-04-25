@@ -203,6 +203,48 @@ async function findEvent(homeTeam: string, awayTeam: string): Promise<number | n
         }
       }
     }
+
+    // ─── FALLBACK: varrer todos os eventos AO VIVO do dia ───
+    // Quando search por nome falha (alias desconhecido), olhamos a lista de jogos
+    // ao vivo do SofaScore e procuramos um match fuzzy por nomes dos times.
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const liveData = await sofaFetch(`/sport/football/events/live`);
+    const liveEvents = liveData?.events || [];
+    if (liveEvents.length > 0) {
+      console.log(`[SofaScore] 🔍 Fallback: varrendo ${liveEvents.length} eventos ao vivo`);
+      for (const ev of liveEvents) {
+        const eHome = ev.homeTeam?.name || '';
+        const eAway = ev.awayTeam?.name || '';
+        const eHomeShort = ev.homeTeam?.shortName || '';
+        const eAwayShort = ev.awayTeam?.shortName || '';
+        const homeMatch = teamMatches(eHome, eHomeShort, homeTeam);
+        const awayMatch = teamMatches(eAway, eAwayShort, awayTeam);
+        if (homeMatch && awayMatch) {
+          console.log(`[SofaScore] 🎯 Fallback live-list matched: ${eHome} vs ${eAway} (event ${ev.id})`);
+          return ev.id;
+        }
+      }
+    }
+
+    // ─── FALLBACK 2: scheduled-events do dia (jogos do dia, mesmo não live agora) ───
+    const scheduledData = await sofaFetch(`/sport/football/scheduled-events/${today}`);
+    const scheduledEvents = scheduledData?.events || [];
+    if (scheduledEvents.length > 0) {
+      console.log(`[SofaScore] 🔍 Fallback scheduled: varrendo ${scheduledEvents.length} eventos do dia`);
+      for (const ev of scheduledEvents) {
+        const eHome = ev.homeTeam?.name || '';
+        const eAway = ev.awayTeam?.name || '';
+        const eHomeShort = ev.homeTeam?.shortName || '';
+        const eAwayShort = ev.awayTeam?.shortName || '';
+        const homeMatch = teamMatches(eHome, eHomeShort, homeTeam);
+        const awayMatch = teamMatches(eAway, eAwayShort, awayTeam);
+        if (homeMatch && awayMatch) {
+          console.log(`[SofaScore] 🎯 Fallback scheduled-list matched: ${eHome} vs ${eAway} (event ${ev.id})`);
+          return ev.id;
+        }
+      }
+    }
+
     return null;
   } catch (e) {
     console.error('[SofaScore] findEvent error:', e);
