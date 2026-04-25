@@ -417,11 +417,11 @@ Ataques Totais: ${s.attacks_home ?? '?'} vs ${s.attacks_away ?? '?'}
 Ataques Perigosos: ${s.dangerous_attacks_home ?? s.attacks_home ?? '?'} vs ${s.dangerous_attacks_away ?? s.attacks_away ?? '?'}
 Chutes (Total): ${s.shots_total_home ?? s.shots_home ?? '?'} vs ${s.shots_total_away ?? s.shots_away ?? '?'}
 Chutes no Gol: ${s.shots_on_target_home ?? s.shots_home ?? '?'} vs ${s.shots_on_target_away ?? s.shots_away ?? '?'}
-xG: ${s.xG_home ?? '?'} vs ${s.xG_away ?? '?'}${s.xg_unavailable ? ' ⚠️ INDISPONÍVEL (NÃO É ZERO REAL — fonte de dados não retornou xG desta partida)' : ''}
+xG: ${s.xG_home ?? '?'} vs ${s.xG_away ?? '?'}${s.xg_unavailable ? ' ⚠️ INDISPONÍVEL (NÃO É ZERO REAL — fonte de dados não retornou xG desta partida)' : (s.xg_estimated ? ' 🌐 ESTIMADO via Flashscore (sintético — use com peso reduzido)' : '')}
 Big Chances (SofaScore): ${s.big_chances_home ?? '?'} vs ${s.big_chances_away ?? '?'}
 Chutes na Área: ${s.shots_inside_box_home ?? '?'} vs ${s.shots_inside_box_away ?? '?'}
 Momentum (últimos 10min, +home/-away): ${s.momentum?.avg_last_10min != null ? `${s.momentum.avg_last_10min.toFixed(1)} (tendência: ${s.momentum.trend})` : '?'}
-${s.xg_unavailable ? '🚨 ATENÇÃO: xG INDISPONÍVEL nesta partida (não significa que é zero — significa que a fonte falhou). NÃO use o critério de xG na análise. Baseie-se em: ataques perigosos, chutes (totais e no gol), posse, big chances e momentum. NÃO mencione "xG zerado" na tese — em vez disso diga "xG não disponível, análise baseada em outros indicadores".' : (s.sofascore_event_id || s.source_enriched === 'sofascore' ? '✅ Dados enriquecidos via SofaScore (xG e Big Chances confiáveis — use-os com peso máximo)' : '⚠️ Apenas API-Football (sem xG SofaScore — seja mais conservador)')}
+${s.xg_unavailable ? '🚨 ATENÇÃO: xG INDISPONÍVEL nesta partida (não significa que é zero — significa que a fonte falhou). NÃO use o critério de xG na análise. Baseie-se em: ataques perigosos, chutes (totais e no gol), posse, big chances e momentum. NÃO mencione "xG zerado" na tese — em vez disso diga "xG não disponível, análise baseada em outros indicadores".' : (s.xg_estimated ? '🌐 xG ESTIMADO via Flashscore (sintético, baseado em chutes). Use como referência, mas reduza confiança em ~10pp e priorize chutes/ataques/posse na tese.' : (s.sofascore_event_id || s.source_enriched === 'sofascore' ? '✅ Dados enriquecidos via SofaScore (xG e Big Chances confiáveis — use-os com peso máximo)' : '⚠️ Apenas API-Football (sem xG SofaScore — seja mais conservador)'))}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
 `.trim();
