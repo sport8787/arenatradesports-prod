@@ -12,6 +12,40 @@ const LIVE_STATUS_SHORTS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', '
 const FINISHED_STATUS_SHORTS = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
 const STALE_FINISH_GRACE_MS = 20 * 60 * 1000;
 
+// === Performance tuning ===
+const STATS_CONCURRENCY = 8;          // parallel fixture-stats requests
+const ANALYSIS_CONCURRENCY = 4;       // parallel Mycroft analyses
+const STATS_CACHE_TTL_MS = 25_000;    // re-use stats within ~25s window
+const SCHEDULED_FETCH_INTERVAL_MS = 15 * 60 * 1000; // refresh scheduled list every 15min only
+
+// Module-scoped caches (persist across invocations within the same isolate)
+const statsCache = new Map<number, { ts: number; stats: FixtureStats | null }>();
+let lastScheduledFetchAt = 0;
+
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, idx: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      try {
+        results[i] = await fn(items[i], i);
+      } catch (e) {
+        // capture but continue
+        results[i] = undefined as unknown as R;
+        console.warn('[FetchLive] worker item failed:', e);
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 // Whitelist de ligas permitidas (league_id → nome)
 const LIGAS_PERMITIDAS: Record<number, string> = {
   // Europa — Top 5 + segundas divisões
@@ -149,34 +183,34 @@ function getStat(stats: any[], type: string): number {
 }
 
 async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<FixtureStats | null> {
+  // Cache hit window — avoids hammering API-Football when cron rounds run close together
+  const cached = statsCache.get(fixtureId);
+  if (cached && Date.now() - cached.ts < STATS_CACHE_TTL_MS) {
+    return cached.stats;
+  }
   try {
-    console.log(`[FetchLive] 🔍 Fetching stats for fixture ${fixtureId}...`);
     const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
     });
     if (!res.ok) {
       console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
+      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
       return null;
     }
 
     const data = await res.json();
     const teams = data.response;
     if (!teams || teams.length < 2) {
-      console.warn(`[FetchLive] No team stats returned for fixture ${fixtureId}`);
+      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
       return null;
     }
 
     const homeStats = teams[0].statistics || [];
     const awayStats = teams[1].statistics || [];
 
-    // Log raw stat types for debugging
-    const statTypes = homeStats.map((s: any) => `${s.type}: ${s.value}`).join(', ');
-    console.log(`[FetchLive] 📊 Raw home stats for ${fixtureId}: ${statTypes.substring(0, 300)}`);
-
-    // API-Football uses 'Shots insidebox' as proxy for dangerous attacks (no 'Dangerous Attacks' field)
     const shotsInsideHome = getStat(homeStats, 'Shots insidebox');
     const shotsInsideAway = getStat(awayStats, 'Shots insidebox');
-    
+
     const result: FixtureStats = {
       attacks_home: shotsInsideHome + getStat(homeStats, 'Shots outsidebox'),
       attacks_away: shotsInsideAway + getStat(awayStats, 'Shots outsidebox'),
@@ -194,11 +228,11 @@ async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<Fix
       xG_away: parseFloat(String(getStat(awayStats, 'expected_goals'))) || 0,
     };
 
-    console.log(`[FetchLive] 📊 Parsed stats: Posse ${result.possession_home}%-${result.possession_away}% | Ataques ${result.attacks_home}-${result.attacks_away} | Perigosos ${result.dangerous_attacks_home}-${result.dangerous_attacks_away} | Chutes ${result.shots_total_home}-${result.shots_total_away} (Gol: ${result.shots_home}-${result.shots_away})`);
-
+    statsCache.set(fixtureId, { ts: Date.now(), stats: result });
     return result;
   } catch (e) {
     console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
+    statsCache.set(fixtureId, { ts: Date.now(), stats: null });
     return null;
   }
 }
@@ -260,12 +294,52 @@ serve(async (req) => {
       console.warn('[FetchLive] Falha ao gravar log de filtro:', logErr);
     }
 
-    const results: any[] = [];
-    let analyzedCount = 0;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const tStart = performance.now();
 
-    // 2. Process each fixture - fetch stats from kickoff
+    // 2a. BATCH preload existing rows in a single query (avoid N selects)
+    const allFixtureIds = fixtures.map((f: any) => String(f.fixture.id));
+    const existingMap = new Map<string, { mycroft_status: string | null; mycroft_analysis_id: string | null }>();
+    if (allFixtureIds.length > 0) {
+      const { data: existingRows } = await supabase
+        .from('live_matches')
+        .select('match_id, mycroft_status, mycroft_analysis_id')
+        .in('match_id', allFixtureIds);
+      for (const r of existingRows || []) {
+        existingMap.set(r.match_id, {
+          mycroft_status: r.mycroft_status,
+          mycroft_analysis_id: r.mycroft_analysis_id,
+        });
+      }
+    }
+
+    // 2b. PARALLEL fetch of fixture stats (cached + concurrency-limited)
+    const liveFixtures = fixtures.filter((f: any) =>
+      getFixtureLifecycleStatus(f.fixture.status?.short ?? 'LIVE') === 'live'
+    );
+    const statsResults = await runWithConcurrency(
+      liveFixtures,
+      STATS_CONCURRENCY,
+      (f: any) => fetchFixtureStats(f.fixture.id, apiKey),
+    );
+    const statsMap = new Map<string, FixtureStats | null>();
+    liveFixtures.forEach((f: any, i: number) => {
+      statsMap.set(String(f.fixture.id), statsResults[i] ?? null);
+    });
+    console.log(`[FetchLive] ⏱️ stats batch: ${liveFixtures.length} fixtures in ${Math.round(performance.now() - tStart)}ms`);
+
+    // 2c. Build payloads + BATCH upsert in chunks (much faster than N upserts)
+    const upsertPayloads: any[] = [];
+    type FixtureCtx = {
+      fixtureId: string;
+      matchData: any;
+      stats: FixtureStats | null;
+      lifecycleStatus: 'live' | 'finished' | 'scheduled';
+      minute: number;
+      period: string;
+      championship: string;
+    };
+    const ctxList: FixtureCtx[] = [];
+
     for (const fixture of fixtures) {
       const fixtureId = String(fixture.fixture.id);
       const minute = fixture.fixture.status?.elapsed ?? 0;
@@ -289,111 +363,118 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // 3. Fetch live stats for all live matches
-      const stats: FixtureStats | null = lifecycleStatus === 'live'
-        ? await fetchFixtureStats(fixture.fixture.id, apiKey)
-        : null;
-
-      // 4. Upsert match (preserve mycroft fields)
-      const { data: existing } = await supabase
-        .from('live_matches')
-        .select('mycroft_status, mycroft_analysis_id, updated_at, status')
-        .eq('match_id', fixtureId)
-        .maybeSingle();
+      const stats = lifecycleStatus === 'live' ? statsMap.get(fixtureId) ?? null : null;
+      const existing = existingMap.get(fixtureId);
 
       const upsertData: any = {
         ...matchData,
         stats: stats || { attacks_home: 0, attacks_away: 0, possession_home: 0, possession_away: 0, shots_home: 0, shots_away: 0 },
       };
-
-      // Preserve mycroft fields if they exist
       if (existing) {
         upsertData.mycroft_status = existing.mycroft_status;
         upsertData.mycroft_analysis_id = existing.mycroft_analysis_id;
       }
-
-      await supabase
-        .from('live_matches')
-        .upsert(upsertData, { onConflict: 'match_id' });
-
-      // Auto-trigger Mycroft (minute >= 20, has stats, sem análise OU status reanalisável)
-      const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
-      const shouldAnalyze = lifecycleStatus === 'live' && minute >= 20 && stats &&
-        (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
-
-      let analyzed = false;
-      let verdict: string | undefined;
-      if (shouldAnalyze) {
-        try {
-          const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
-            body: JSON.stringify({
-              match: {
-                home: matchData.home_team,
-                away: matchData.away_team,
-                scoreHome: matchData.score_home,
-                scoreAway: matchData.score_away,
-                minute,
-                period,
-                championship,
-                match_id: fixtureId,
-                stats,
-                bankroll: 500,
-              },
-            }),
-          });
-          if (analysisRes.ok) {
-            const analysis = await analysisRes.json();
-            verdict = analysis.verdict;
-            const { data: analysisRow } = await supabase.from('mycroft_analyses').insert({
-              match_id: fixtureId,
-              verdict: analysis.verdict || 'AGUARDAR',
-              market: analysis.market || 'N/A',
-              thesis: analysis.thesis || '',
-              odd: analysis.odd ?? null,
-              confidence: analysis.confidence ?? 0,
-              risk_management: analysis.risk_management ?? null,
-              alerts: analysis.alerts ?? [],
-              fundamentation: analysis.fundamentation ?? { stats },
-            }).select('id').single();
-            if (analysisRow) {
-              const statusToSet =
-                analysis.verdict === 'AGUARDAR' ? 'aguardar' :
-                analysis.verdict === 'JOGO_MORTO' ? 'jogo_morto' :
-                analysis.verdict === 'CUIDADO' ? 'cuidado' : 'done';
-              await supabase.from('live_matches').update({
-                mycroft_analysis_id: analysisRow.id,
-                mycroft_status: statusToSet,
-                updated_at: new Date().toISOString(),
-              }).eq('match_id', fixtureId);
-              if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
-                await supabase.from('signals_sent').insert({
-                  match_id: fixtureId,
-                  analysis_id: analysisRow.id,
-                });
-              }
-            }
-            analyzed = true;
-            analyzedCount++;
-          } else {
-            console.warn(`[FetchLive] Mycroft fail ${fixtureId}: ${analysisRes.status}`);
-          }
-        } catch (e) {
-          console.error(`[FetchLive] Mycroft error ${fixtureId}:`, e);
-        }
-      }
-
-      results.push({
-        match_id: fixtureId,
-        teams: `${matchData.home_team} vs ${matchData.away_team}`,
-        minute,
-        has_stats: !!stats,
-        analyzed,
-        verdict,
-        status: lifecycleStatus,
-      });
+      upsertPayloads.push(upsertData);
+      ctxList.push({ fixtureId, matchData, stats, lifecycleStatus, minute, period, championship });
     }
+
+    // Batched upsert (chunks of 100)
+    const CHUNK = 100;
+    for (let i = 0; i < upsertPayloads.length; i += CHUNK) {
+      const slice = upsertPayloads.slice(i, i + CHUNK);
+      const { error: upErr } = await supabase
+        .from('live_matches')
+        .upsert(slice, { onConflict: 'match_id' });
+      if (upErr) console.warn('[FetchLive] batch upsert error:', upErr.message);
+    }
+    console.log(`[FetchLive] ⏱️ upsert batch done at ${Math.round(performance.now() - tStart)}ms`);
+
+    // 2d. PARALLEL Mycroft analyses (concurrency-limited)
+    const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const analysisCandidates = ctxList.filter((c) => {
+      const existing = existingMap.get(c.fixtureId);
+      return c.lifecycleStatus === 'live' && c.minute >= 20 && c.stats &&
+        (!existing?.mycroft_analysis_id || reanalyzableStatuses.includes(existing?.mycroft_status as string));
+    });
+
+    let analyzedCount = 0;
+    const results: any[] = ctxList.map((c) => ({
+      match_id: c.fixtureId,
+      teams: `${c.matchData.home_team} vs ${c.matchData.away_team}`,
+      minute: c.minute,
+      has_stats: !!c.stats,
+      analyzed: false,
+      verdict: undefined as string | undefined,
+      status: c.lifecycleStatus,
+    }));
+    const indexById = new Map(ctxList.map((c, i) => [c.fixtureId, i]));
+
+    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c) => {
+      try {
+        const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+          body: JSON.stringify({
+            match: {
+              home: c.matchData.home_team,
+              away: c.matchData.away_team,
+              scoreHome: c.matchData.score_home,
+              scoreAway: c.matchData.score_away,
+              minute: c.minute,
+              period: c.period,
+              championship: c.championship,
+              match_id: c.fixtureId,
+              stats: c.stats,
+              bankroll: 500,
+            },
+          }),
+        });
+        if (!analysisRes.ok) {
+          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status}`);
+          return;
+        }
+        const analysis = await analysisRes.json();
+        const { data: analysisRow } = await supabase.from('mycroft_analyses').insert({
+          match_id: c.fixtureId,
+          verdict: analysis.verdict || 'AGUARDAR',
+          market: analysis.market || 'N/A',
+          thesis: analysis.thesis || '',
+          odd: analysis.odd ?? null,
+          confidence: analysis.confidence ?? 0,
+          risk_management: analysis.risk_management ?? null,
+          alerts: analysis.alerts ?? [],
+          fundamentation: analysis.fundamentation ?? { stats: c.stats },
+        }).select('id').single();
+        if (analysisRow) {
+          const statusToSet =
+            analysis.verdict === 'AGUARDAR' ? 'aguardar' :
+            analysis.verdict === 'JOGO_MORTO' ? 'jogo_morto' :
+            analysis.verdict === 'CUIDADO' ? 'cuidado' : 'done';
+          await supabase.from('live_matches').update({
+            mycroft_analysis_id: analysisRow.id,
+            mycroft_status: statusToSet,
+            updated_at: new Date().toISOString(),
+          }).eq('match_id', c.fixtureId);
+          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+            await supabase.from('signals_sent').insert({
+              match_id: c.fixtureId,
+              analysis_id: analysisRow.id,
+            });
+          }
+        }
+        analyzedCount++;
+        const idx = indexById.get(c.fixtureId);
+        if (idx !== undefined) {
+          results[idx].analyzed = true;
+          results[idx].verdict = analysis.verdict;
+        }
+      } catch (e) {
+        console.error(`[FetchLive] Mycroft error ${c.fixtureId}:`, e);
+      }
+    });
+    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (${analyzedCount}/${analysisCandidates.length})`);
 
     // 6. Mark matches no longer live as 'finished' only after grace period to avoid API snapshot flicker
     const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
@@ -424,9 +505,14 @@ serve(async (req) => {
       console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
-    // 7. Fetch today's scheduled fixtures and save to scheduled_games (one-time cache)
+    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate
     let scheduledCount = 0;
-    try {
+    const schedShouldRun = Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
+    if (!schedShouldRun) {
+      console.log('[FetchLive] ⏭️ Scheduled fetch skipped (cache window active)');
+    }
+    if (schedShouldRun) try {
+      lastScheduledFetchAt = Date.now();
       const today = new Date().toISOString().split('T')[0];
       console.log(`[FetchLive] Fetching scheduled fixtures for ${today}...`);
       const schedRes = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
@@ -438,6 +524,7 @@ serve(async (req) => {
         const schedFixtures = schedData.response || [];
         console.log(`[FetchLive] Found ${schedFixtures.length} fixtures for today`);
 
+        const schedPayloads: any[] = [];
         for (const fix of schedFixtures) {
           const fixtureDate = new Date(fix.fixture.date);
           const matchDate = fixtureDate.toISOString().split('T')[0];
@@ -450,7 +537,6 @@ serve(async (req) => {
           const eventId = String(fix.fixture.id);
           const fixtureStatus = fix.fixture.status?.short || 'NS';
 
-          // Calculate relevance based on league
           const leagueLower = leagueName.toLowerCase();
           let relevance = 1;
           if (leagueLower.includes('brasileir') || leagueLower.includes('premier') || leagueLower.includes('champions')) relevance = 5;
@@ -459,12 +545,11 @@ serve(async (req) => {
           else if (leagueLower.includes('serie b') || leagueLower.includes('championship')) relevance = 3;
           else relevance = 2;
 
-          // Map API status to our status
           let gameStatus = 'scheduled';
           if (['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'].includes(fixtureStatus)) gameStatus = 'live';
           else if (['FT', 'AET', 'PEN'].includes(fixtureStatus)) gameStatus = 'finished';
 
-          const { error: upsertErr } = await supabase.from('scheduled_games').upsert({
+          schedPayloads.push({
             match_date: matchDate,
             match_time: matchTime,
             match_datetime: fixtureDate.toISOString(),
@@ -477,13 +562,20 @@ serve(async (req) => {
             check_time: checkTime,
             relevance_score: relevance,
             updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'match_date,match_time,home_team,away_team',
           });
-
-          if (!upsertErr) scheduledCount++;
         }
-        console.log(`[FetchLive] Saved ${scheduledCount} scheduled games`);
+
+        // Batched upsert (much faster than N requests)
+        const SCHED_CHUNK = 200;
+        for (let i = 0; i < schedPayloads.length; i += SCHED_CHUNK) {
+          const slice = schedPayloads.slice(i, i + SCHED_CHUNK);
+          const { error: upsertErr } = await supabase
+            .from('scheduled_games')
+            .upsert(slice, { onConflict: 'match_date,match_time,home_team,away_team' });
+          if (!upsertErr) scheduledCount += slice.length;
+          else console.warn('[FetchLive] sched batch upsert error:', upsertErr.message);
+        }
+        console.log(`[FetchLive] Saved ${scheduledCount} scheduled games (batched)`);
       }
     } catch (schedErr) {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
