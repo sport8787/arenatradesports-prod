@@ -10,6 +10,8 @@ import {
   MessagesSquare,
   Info,
   Brain,
+  Search,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
@@ -108,6 +110,22 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* Buscar Sinais — atalho direto para análise */}
+      <section>
+        <SectionLabel>Buscar Sinais</SectionLabel>
+        <div className="grid grid-cols-1 gap-3">
+          <NavCard
+            primary
+            onClick={() => navigate('/punter')}
+            icon={<Search className="w-4 h-4" />}
+            iconBg="bg-primary/15"
+            iconColor="text-primary"
+            title="Buscar Sinais Agora"
+            description="Acessa a Arena Punter e dispara a análise do Mycroft"
+          />
+        </div>
+      </section>
+
       {/* Ações Principais */}
       <section>
         <SectionLabel>Ações Principais</SectionLabel>
@@ -178,6 +196,37 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             title="Apostas Reais Betfair"
             description="Sincronize e analise erros vs Arena Trader Sports"
             badge={{ label: 'Novo', tone: 'exclusive' }}
+          />
+        </div>
+      </section>
+
+      {/* Casas de Apostas */}
+      <section>
+        <SectionLabel>Casas de Apostas</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <NavCard
+            onClick={() => window.open('https://www.pinnacle.com', '_blank', 'noopener,noreferrer')}
+            icon={<ExternalLink className="w-4 h-4" />}
+            iconBg="bg-warning/15"
+            iconColor="text-warning"
+            title="Pinnacle"
+            description="Casa referência em odds altas e sharp money"
+          />
+          <NavCard
+            onClick={() => window.open('https://www.betfair.com', '_blank', 'noopener,noreferrer')}
+            icon={<ExternalLink className="w-4 h-4" />}
+            iconBg="bg-[#FFB80C]/15"
+            iconColor="text-[#FFB80C]"
+            title="Betfair"
+            description="Exchange e Sportsbook — abrir site oficial"
+          />
+          <NavCard
+            onClick={() => window.open('https://www.bet365.com', '_blank', 'noopener,noreferrer')}
+            icon={<ExternalLink className="w-4 h-4" />}
+            iconBg="bg-success/15"
+            iconColor="text-success"
+            title="Bet365"
+            description="Acesso direto ao site oficial da Bet365"
           />
         </div>
       </section>
