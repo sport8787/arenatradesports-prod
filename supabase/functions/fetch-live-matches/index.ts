@@ -182,12 +182,63 @@ function getStat(stats: any[], type: string): number {
   return typeof value === 'number' ? value : 0;
 }
 
-async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<FixtureStats | null> {
-  // Cache hit window — avoids hammering API-Football when cron rounds run close together
+// Persistent DB cache TTL (longer than in-memory; survives across isolate cold starts)
+const PERSISTENT_STATS_TTL_SEC = 25;
+
+async function fetchFromPersistentCache(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  fixtureId: number,
+): Promise<FixtureStats | null | undefined> {
+  try {
+    const { data, error } = await supabase
+      .from('fixture_stats_cache')
+      .select('stats, expires_at')
+      .eq('fixture_id', String(fixtureId))
+      .maybeSingle();
+    if (error || !data) return undefined;
+    if (new Date(data.expires_at).getTime() < Date.now()) return undefined;
+    return (data.stats as FixtureStats | null) ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writePersistentCache(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  fixtureId: number,
+  stats: FixtureStats | null,
+): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + PERSISTENT_STATS_TTL_SEC * 1000).toISOString();
+    await supabase
+      .from('fixture_stats_cache')
+      .upsert(
+        { fixture_id: String(fixtureId), stats, fetched_at: new Date().toISOString(), expires_at: expiresAt },
+        { onConflict: 'fixture_id' },
+      );
+  } catch (e) {
+    console.warn('[FetchLive] persistent cache write failed:', e);
+  }
+}
+
+async function fetchFixtureStats(
+  fixtureId: number,
+  apiKey: string,
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+): Promise<FixtureStats | null> {
+  // L1: in-memory isolate cache
   const cached = statsCache.get(fixtureId);
   if (cached && Date.now() - cached.ts < STATS_CACHE_TTL_MS) {
     return cached.stats;
   }
+
+  // L2: persistent DB cache (shared across isolates / cron runs)
+  const persistent = await fetchFromPersistentCache(supabase, fixtureId);
+  if (persistent !== undefined) {
+    statsCache.set(fixtureId, { ts: Date.now(), stats: persistent });
+    return persistent;
+  }
+
   try {
     const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
