@@ -94,7 +94,7 @@ interface Props {
 
 export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
   const navigate = useNavigate();
-  const { playOnce } = useHorusPunterAudio();
+  const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
 
   const goApproved = () => {
     // Toca o áudio "Sinais Aprovados" UMA ÚNICA VEZ por usuário
