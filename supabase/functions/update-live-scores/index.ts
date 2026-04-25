@@ -304,31 +304,53 @@ serve(async (req) => {
       }));
     }
 
-    // 4. Mark stale matches as finished — APENAS se não atualizam há >10 min.
-    //    Antes, qualquer jogo ausente da resposta atual da API (mesmo por 1 ciclo
-    //    de jitter ou por estar em liga fora da whitelist) era marcado como
-    //    'finished', causando o "sumir/voltar" no dashboard. Agora só marcamos
-    //    finished se o registro estiver realmente parado há bastante tempo.
-    const TEN_MIN_AGO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // 4. Mark finished — duas condições:
+    //    (a) AGGRESSIVO: jogo sumiu da lista live atual da API E último minute conhecido ≥ 88
+    //        → foi para FT mesmo sem capturarmos o status FT explicitamente. Sem esperar 10 min,
+    //        evitando o bug "AO VIVO 90' há +5 min" no dashboard.
+    //    (b) SAFETY NET: jogo sumiu da API e está sem update há >10 min (cobertura geral).
     const { data: currentLive } = await supabase
       .from('live_matches')
-      .select('match_id, updated_at')
-      .eq('status', 'live')
-      .lt('updated_at', TEN_MIN_AGO);
+      .select('match_id, updated_at, minute')
+      .eq('status', 'live');
 
     let finished = 0;
     if (currentLive && currentLive.length > 0) {
-      const staleIds = currentLive
-        .filter((m: any) => !liveFixtureIds.has(m.match_id))
-        .map((m: any) => m.match_id);
+      const TEN_MIN_AGO_MS = Date.now() - 10 * 60 * 1000;
+      const TWO_MIN_AGO_MS = Date.now() - 2 * 60 * 1000;
+      const toFinish: string[] = [];
 
-      if (staleIds.length > 0) {
+      for (const m of currentLive as any[]) {
+        if (liveFixtureIds.has(m.match_id)) continue; // ainda na lista live → mantém
+        const ageMs = m.updated_at ? Date.now() - new Date(m.updated_at).getTime() : Infinity;
+        const minute = Number(m.minute ?? 0);
+
+        // (a) Jogo claramente acabou: minute ≥ 88 e sumiu da API há ≥ 2 min
+        if (minute >= 88 && ageMs >= TWO_MIN_AGO_MS - Date.now() + 2 * 60 * 1000) {
+          // Reescrevendo de forma legível: ageMs ≥ 2 min
+          toFinish.push(m.match_id);
+          continue;
+        }
+        if (minute >= 88 && ageMs >= 2 * 60 * 1000) {
+          toFinish.push(m.match_id);
+          continue;
+        }
+        // (b) Safety: parado há >10 min
+        if (ageMs >= 10 * 60 * 1000) {
+          toFinish.push(m.match_id);
+        }
+      }
+
+      if (toFinish.length > 0) {
         const { error: finishErr } = await supabase
           .from('live_matches')
           .update({ status: 'finished', updated_at: new Date().toISOString() })
-          .in('match_id', staleIds);
+          .in('match_id', toFinish);
 
-        if (!finishErr) finished = staleIds.length;
+        if (!finishErr) {
+          finished = toFinish.length;
+          console.log(`[LiveScores] 🏁 Finalizados ${finished}: ${toFinish.join(', ')}`);
+        }
       }
     }
 
