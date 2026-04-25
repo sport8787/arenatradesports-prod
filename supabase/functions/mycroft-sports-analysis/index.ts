@@ -432,8 +432,16 @@ serve(async (req) => {
 
   const run = startEdgeRun("mycroft-sports-analysis");
   try {
+    // Migrado para Lovable AI Gateway (Gemini 2.5 Flash) — OpenAI-compatible API.
+    // Fallback para OPENAI_API_KEY se LOVABLE_API_KEY não estiver presente.
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const AI_KEY = LOVABLE_API_KEY || OPENAI_API_KEY;
+    const AI_URL = LOVABLE_API_KEY
+      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions';
+    const AI_MODEL = LOVABLE_API_KEY ? 'google/gemini-2.5-flash' : 'gpt-5-mini';
+    if (!AI_KEY) return new Response(JSON.stringify({ error: 'AI key not configured (LOVABLE_API_KEY or OPENAI_API_KEY)' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const body = await req.json() as { match: MatchData & Record<string, unknown> };
     const match = body?.match;
@@ -517,14 +525,14 @@ serve(async (req) => {
     // Build valid plan_name enum from loaded plans
     const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(AI_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${AI_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini',
+        model: AI_MODEL,
         messages: [
           { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
           { role: 'user', content: prompt },
@@ -569,13 +577,13 @@ serve(async (req) => {
           },
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] OpenAI error ${response.status}:`, errorText);
+      console.error(`[MycroftSports] AI error ${response.status} (${LOVABLE_API_KEY ? 'lovable' : 'openai'}):`, errorText);
       if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
