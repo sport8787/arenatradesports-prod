@@ -111,17 +111,17 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
     ];
 
     const resp = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+      AI_URL,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${AI_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini",
+          model: AI_MODEL,
           messages,
-          max_completion_tokens: 1500,
+          max_tokens: 1500,
         }),
       },
     );
