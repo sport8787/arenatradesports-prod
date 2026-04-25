@@ -18,6 +18,12 @@ const BOOKMAKERS = [
   { name: 'Sportingbet', url: 'https://www.sportingbet.bet.br/pt-br/sports', color: 'bg-[hsl(140,60%,40%)] hover:bg-[hsl(140,60%,35%)] text-white' },
 ];
 
+const EXTRA_BOOKMAKERS = [
+  { name: 'Betfair', url: 'https://www.betfair.com', color: 'bg-[hsl(45,100%,52%)] hover:bg-[hsl(45,100%,47%)] text-black' },
+  { name: 'Pinnacle', url: 'https://www.pinnacle.com', color: 'bg-[hsl(35,90%,50%)] hover:bg-[hsl(35,90%,45%)] text-white' },
+  { name: 'Bet365', url: 'https://www.bet365.com', color: 'bg-[hsl(140,70%,25%)] hover:bg-[hsl(140,70%,20%)] text-white' },
+];
+
 export default function CopySignalActions({ signal, compact = false }: { signal: CopySignalData; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
 
@@ -54,6 +60,21 @@ export default function CopySignalActions({ signal, compact = false }: { signal:
 
       <div className="flex flex-wrap gap-1.5">
         {BOOKMAKERS.map((b) => (
+          <a
+            key={b.name}
+            href={b.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex-1 min-w-[90px] inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${b.color}`}
+            aria-label={`Abrir ${b.name}`}
+          >
+            {b.name}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {EXTRA_BOOKMAKERS.map((b) => (
           <a
             key={b.name}
             href={b.url}
