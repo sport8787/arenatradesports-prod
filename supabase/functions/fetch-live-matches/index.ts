@@ -686,15 +686,17 @@ serve(async (req) => {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
     }
 
-    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${staleIds.length} finished, ${scheduledCount} scheduled`);
+    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${staleIds.length} finished, ${scheduledCount} scheduled, ${enqueuedCount} enqueued (run=${Math.round(performance.now() - tStartRun)}ms)`);
 
     return new Response(
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
         analyzed: analyzedCount,
+        enqueued: enqueuedCount,
         finished: staleIds.length,
         scheduled: scheduledCount,
+        run_ms: Math.round(performance.now() - tStartRun),
         matches: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
