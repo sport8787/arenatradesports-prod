@@ -317,7 +317,8 @@ serve(async (req) => {
     let finished = 0;
     if (currentLive && currentLive.length > 0) {
       const TEN_MIN_AGO_MS = Date.now() - 10 * 60 * 1000;
-      const TWO_MIN_AGO_MS = Date.now() - 2 * 60 * 1000;
+      const TWO_MIN_MS = 2 * 60 * 1000;
+      const TEN_MIN_MS = 10 * 60 * 1000;
       const toFinish: string[] = [];
 
       for (const m of currentLive as any[]) {
@@ -326,17 +327,12 @@ serve(async (req) => {
         const minute = Number(m.minute ?? 0);
 
         // (a) Jogo claramente acabou: minute ≥ 88 e sumiu da API há ≥ 2 min
-        if (minute >= 88 && ageMs >= TWO_MIN_AGO_MS - Date.now() + 2 * 60 * 1000) {
-          // Reescrevendo de forma legível: ageMs ≥ 2 min
-          toFinish.push(m.match_id);
-          continue;
-        }
-        if (minute >= 88 && ageMs >= 2 * 60 * 1000) {
+        if (minute >= 88 && ageMs >= TWO_MIN_MS) {
           toFinish.push(m.match_id);
           continue;
         }
         // (b) Safety: parado há >10 min
-        if (ageMs >= 10 * 60 * 1000) {
+        if (ageMs >= TEN_MIN_MS) {
           toFinish.push(m.match_id);
         }
       }
