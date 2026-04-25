@@ -373,7 +373,7 @@ serve(async (req) => {
     const statsResults = await runWithConcurrency(
       liveFixtures,
       STATS_CONCURRENCY,
-      (f: any) => fetchFixtureStats(f.fixture.id, apiKey),
+      (f: any) => fetchFixtureStats(f.fixture.id, apiKey, supabase),
     );
     const statsMap = new Map<string, FixtureStats | null>();
     liveFixtures.forEach((f: any, i: number) => {
