@@ -457,7 +457,9 @@ serve(async (req) => {
     }
     console.log(`[FetchLive] ⏱️ upsert batch done at ${Math.round(performance.now() - tStart)}ms`);
 
-    // 2d. PARALLEL Mycroft analyses (concurrency-limited)
+    // 2d. PARALLEL Mycroft analyses (concurrency-limited) — with hard time budget.
+    // If we're over RUN_BUDGET_MS, we stop processing inline and ENQUEUE the rest
+    // into mycroft_analysis_queue so the background worker picks them up.
     const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -468,6 +470,7 @@ serve(async (req) => {
     });
 
     let analyzedCount = 0;
+    let enqueuedCount = 0;
     const results: any[] = ctxList.map((c) => ({
       match_id: c.fixtureId,
       teams: `${c.matchData.home_team} vs ${c.matchData.away_team}`,
@@ -479,28 +482,55 @@ serve(async (req) => {
     }));
     const indexById = new Map(ctxList.map((c, i) => [c.fixtureId, i]));
 
-    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c) => {
+    const buildPayload = (c: FixtureCtx) => ({
+      match: {
+        home: c.matchData.home_team,
+        away: c.matchData.away_team,
+        scoreHome: c.matchData.score_home,
+        scoreAway: c.matchData.score_away,
+        minute: c.minute,
+        period: c.period,
+        championship: c.championship,
+        match_id: c.fixtureId,
+        stats: c.stats,
+        bankroll: 500,
+      },
+    });
+
+    const enqueueOverflow = async (items: FixtureCtx[]) => {
+      if (!items.length) return;
+      // ON CONFLICT DO NOTHING via partial unique index — silently dedupes.
+      const rows = items.map((c) => ({
+        match_id: c.fixtureId,
+        payload: buildPayload(c),
+      }));
+      const { error } = await supabase.from('mycroft_analysis_queue').insert(rows);
+      if (error && !/duplicate|unique/i.test(error.message)) {
+        console.warn('[FetchLive] enqueue error:', error.message);
+      } else {
+        enqueuedCount += rows.length;
+        console.log(`[FetchLive] 📥 enqueued ${rows.length} analyses (over budget)`);
+      }
+    };
+
+    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c, idx) => {
+      // Hard budget: enqueue this one and skip inline processing.
+      if (isOverBudget()) {
+        await enqueueOverflow([c]);
+        return;
+      }
       try {
-        const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
+        const analysisRes = await resilientFetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
-          body: JSON.stringify({
-            match: {
-              home: c.matchData.home_team,
-              away: c.matchData.away_team,
-              scoreHome: c.matchData.score_home,
-              scoreAway: c.matchData.score_away,
-              minute: c.minute,
-              period: c.period,
-              championship: c.championship,
-              match_id: c.fixtureId,
-              stats: c.stats,
-              bankroll: 500,
-            },
-          }),
+          body: JSON.stringify(buildPayload(c)),
+          retries: 2,
+          timeoutMs: 25_000,
+          breakerKey: 'mycroft-sports-analysis',
         });
         if (!analysisRes.ok) {
-          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status}`);
+          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status} — enqueueing`);
+          await enqueueOverflow([c]);
           return;
         }
         const analysis = await analysisRes.json();
@@ -533,16 +563,19 @@ serve(async (req) => {
           }
         }
         analyzedCount++;
-        const idx = indexById.get(c.fixtureId);
-        if (idx !== undefined) {
-          results[idx].analyzed = true;
-          results[idx].verdict = analysis.verdict;
+        const idxR = indexById.get(c.fixtureId);
+        if (idxR !== undefined) {
+          results[idxR].analyzed = true;
+          results[idxR].verdict = analysis.verdict;
         }
       } catch (e) {
-        console.error(`[FetchLive] Mycroft error ${c.fixtureId}:`, e);
+        const isCircuit = (e as any)?.code === 'CIRCUIT_OPEN';
+        console.error(`[FetchLive] Mycroft error ${c.fixtureId}${isCircuit ? ' (circuit open)' : ''}:`, (e as Error)?.message);
+        // Fall back to queue so the worker retries later.
+        await enqueueOverflow([c]);
       }
     });
-    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (${analyzedCount}/${analysisCandidates.length})`);
+    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (inline=${analyzedCount}, enqueued=${enqueuedCount}/${analysisCandidates.length})`);
 
     // 6. Mark matches no longer live as 'finished' only after grace period to avoid API snapshot flicker
     const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
