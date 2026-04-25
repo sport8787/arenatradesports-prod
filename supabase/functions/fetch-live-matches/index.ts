@@ -12,6 +12,40 @@ const LIVE_STATUS_SHORTS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', '
 const FINISHED_STATUS_SHORTS = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
 const STALE_FINISH_GRACE_MS = 20 * 60 * 1000;
 
+// === Performance tuning ===
+const STATS_CONCURRENCY = 8;          // parallel fixture-stats requests
+const ANALYSIS_CONCURRENCY = 4;       // parallel Mycroft analyses
+const STATS_CACHE_TTL_MS = 25_000;    // re-use stats within ~25s window
+const SCHEDULED_FETCH_INTERVAL_MS = 15 * 60 * 1000; // refresh scheduled list every 15min only
+
+// Module-scoped caches (persist across invocations within the same isolate)
+const statsCache = new Map<number, { ts: number; stats: FixtureStats | null }>();
+let lastScheduledFetchAt = 0;
+
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, idx: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      try {
+        results[i] = await fn(items[i], i);
+      } catch (e) {
+        // capture but continue
+        results[i] = undefined as unknown as R;
+        console.warn('[FetchLive] worker item failed:', e);
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 // Whitelist de ligas permitidas (league_id → nome)
 const LIGAS_PERMITIDAS: Record<number, string> = {
   // Europa — Top 5 + segundas divisões
