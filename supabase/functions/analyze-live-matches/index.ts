@@ -218,7 +218,12 @@ serve(async (req) => {
             const fsRes = await fetch(`${supabaseUrl}/functions/v1/flashscore-live-stats`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
-              body: JSON.stringify({ home: match.home_team, away: match.away_team }),
+              body: JSON.stringify({
+                home: match.home_team,
+                away: match.away_team,
+                league: match.championship ?? null,
+                matchTime: match.created_at ?? new Date().toISOString(),
+              }),
             });
             if (fsRes.ok) {
               const fs = await fsRes.json();
