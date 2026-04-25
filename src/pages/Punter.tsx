@@ -91,6 +91,7 @@ export default function PunterPage() {
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
   const [todayOnlyFilter, setTodayOnlyFilter] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>('all');
   const [futureSignals, setFutureSignals] = useState<any[]>([]); // awaiting_stake + stake_calculated
   const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -1492,23 +1493,58 @@ export default function PunterPage() {
 
             {(() => {
               const todayStr = new Date().toDateString();
-              const visibleSignals = todayOnlyFilter
-                ? signals.filter(s => new Date(s.match.commence_time).toDateString() === todayStr)
-                : signals;
+              const categoryOf = (sp: number): 'A' | 'B' | 'C' => (sp >= 4 ? 'A' : sp >= 3 ? 'B' : 'C');
+              const visibleSignals = signals.filter((s) => {
+                if (todayOnlyFilter && new Date(s.match.commence_time).toDateString() !== todayStr) return false;
+                if (categoryFilter !== 'all') {
+                  const sp = (s as any).recommendation?.stake_percentage ?? 3;
+                  if (categoryOf(sp) !== categoryFilter) return false;
+                }
+                return true;
+              });
+              const counts = signals.reduce(
+                (acc, s) => {
+                  const sp = (s as any).recommendation?.stake_percentage ?? 3;
+                  acc[categoryOf(sp)]++;
+                  return acc;
+                },
+                { A: 0, B: 0, C: 0 } as Record<'A' | 'B' | 'C', number>,
+              );
+              const catBtn = (k: 'all' | 'A' | 'B' | 'C', label: string, count?: number) => (
+                <button
+                  key={k}
+                  onClick={() => setCategoryFilter(k)}
+                  className={cn(
+                    'px-2 py-1 rounded font-mono text-[10px] border transition-colors',
+                    categoryFilter === k
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30',
+                  )}
+                >
+                  {label}{count !== undefined ? ` (${count})` : ''}
+                </button>
+              );
               return (
                 <>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <h2 className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
-                      ATIVOS IDENTIFICADOS ({visibleSignals.length}{todayOnlyFilter ? ' • HOJE' : ''})
+                      ATIVOS IDENTIFICADOS ({visibleSignals.length}{todayOnlyFilter ? ' • HOJE' : ''}{categoryFilter !== 'all' ? ` • CAT ${categoryFilter}` : ''})
                     </h2>
                     <div className="flex items-center gap-1 text-[10px] font-mono text-success">
                       <CheckCircle2 className="w-3 h-3" />
                       APROVADOS
                     </div>
                   </div>
-                  {visibleSignals.length === 0 && todayOnlyFilter && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-[10px] text-muted-foreground tracking-wider mr-1">CATEGORIA:</span>
+                    {catBtn('all', 'TODAS', signals.length)}
+                    {catBtn('A', '⚡ A · FORTE', counts.A)}
+                    {catBtn('B', '✅ B · BOM', counts.B)}
+                    {catBtn('C', '🎯 C · MODERADO', counts.C)}
+                  </div>
+                  {visibleSignals.length === 0 && (todayOnlyFilter || categoryFilter !== 'all') && (
                     <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
-                      Nenhum sinal de jogos de hoje. Desative o filtro para ver todos.
+                      Nenhum sinal com os filtros atuais. Ajuste os filtros para ver mais.
                     </div>
                   )}
                   {visibleSignals.map((signal, index) => {
