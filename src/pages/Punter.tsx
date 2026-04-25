@@ -4,7 +4,7 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, TrendingUp as TrendingUpIcon
+  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, Bell, TrendingUp as TrendingUpIcon
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import PunterRankings from '@/components/punter/PunterRankings';
