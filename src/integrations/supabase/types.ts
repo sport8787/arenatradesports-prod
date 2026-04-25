@@ -1461,6 +1461,27 @@ export type Database = {
         }
         Relationships: []
       }
+      fixture_stats_cache: {
+        Row: {
+          expires_at: string
+          fetched_at: string
+          fixture_id: string
+          stats: Json | null
+        }
+        Insert: {
+          expires_at?: string
+          fetched_at?: string
+          fixture_id: string
+          stats?: Json | null
+        }
+        Update: {
+          expires_at?: string
+          fetched_at?: string
+          fixture_id?: string
+          stats?: Json | null
+        }
+        Relationships: []
+      }
       founder_cases: {
         Row: {
           activated_at: string | null
@@ -4979,6 +5000,7 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
+      cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
       decrement_promo_slot: {
