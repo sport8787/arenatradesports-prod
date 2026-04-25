@@ -51,6 +51,19 @@ function buildTelegramMessage(p: Payload): string {
     );
   }
 
+  if (p.event_type === 'LABAREDA') {
+    return (
+      `⚡ <b>PLANO LABAREDA — Arena Trader Sports</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar: <b>${score}</b> • ${minute}\n` +
+      `🎯 Mercado: <b>${p.market}</b>\n` +
+      `💰 Odd: <b>${p.odd?.toFixed(2) ?? '—'}</b>\n` +
+      `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n\n` +
+      `<i>Oportunidade tardia detectada. Janela curta — confirme rápido no app.</i>`
+    );
+  }
+
   if (p.event_type === 'CANCELADO') {
     return (
       `⚠️ <b>ENTRADA CANCELADA — Arena Trader Sports</b>\n\n` +
