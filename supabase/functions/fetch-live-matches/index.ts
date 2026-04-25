@@ -245,8 +245,11 @@ async function fetchFixtureStats(
   }
 
   try {
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
+    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
+      retries: 2,
+      timeoutMs: 8_000,
+      breakerKey: 'api-football',
     });
     if (!res.ok) {
       console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
