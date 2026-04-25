@@ -10,6 +10,8 @@ import {
   MessagesSquare,
   Info,
   Brain,
+  Search,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
