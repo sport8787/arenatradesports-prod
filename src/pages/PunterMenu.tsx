@@ -42,6 +42,13 @@ export default function PunterMenuPage() {
         </div>
         <PunterNavGrid />
       </main>
+
+      <HorusAudioFallback
+        visible={pendingAudio?.chave === 'apresentacao_horus'}
+        label="Ouvir apresentação do Hórus"
+        onPlay={playPending}
+        onDismiss={dismissPending}
+      />
     </div>
   );
 }
