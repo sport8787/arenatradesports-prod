@@ -246,6 +246,7 @@ async function fetchFixtureStats(
     if (!res.ok) {
       console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
       statsCache.set(fixtureId, { ts: Date.now(), stats: null });
+      await writePersistentCache(supabase, fixtureId, null);
       return null;
     }
 
@@ -253,6 +254,7 @@ async function fetchFixtureStats(
     const teams = data.response;
     if (!teams || teams.length < 2) {
       statsCache.set(fixtureId, { ts: Date.now(), stats: null });
+      await writePersistentCache(supabase, fixtureId, null);
       return null;
     }
 
@@ -280,6 +282,7 @@ async function fetchFixtureStats(
     };
 
     statsCache.set(fixtureId, { ts: Date.now(), stats: result });
+    await writePersistentCache(supabase, fixtureId, result);
     return result;
   } catch (e) {
     console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
