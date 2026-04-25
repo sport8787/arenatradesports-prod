@@ -1254,6 +1254,31 @@ export default function PunterPage() {
           return (
             <>
               <EbookWelcomeCard />
+              {user && (
+                <Collapsible defaultOpen={false}>
+                  <Card className="border-border bg-card">
+                    <CollapsibleTrigger className="w-full">
+                      <div className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-primary" />
+                          <span className="font-mono text-xs font-semibold text-foreground tracking-wider uppercase">
+                            Configurações de Notificações
+                          </span>
+                          <Badge variant="outline" className="text-[9px] font-mono">
+                            Desativar alertas
+                          </Badge>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3">
+                        <NotificationSettings userId={user.id} />
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              )}
               <PunterHeroBanner
                 userId={user?.id}
                 featuredSignal={featured}
