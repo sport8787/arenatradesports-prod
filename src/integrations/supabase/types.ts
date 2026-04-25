@@ -2019,6 +2019,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_analysis_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          match_id: string
+          max_attempts: number
+          payload: Json
+          processed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          match_id: string
+          max_attempts?: number
+          payload: Json
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          match_id?: string
+          max_attempts?: number
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mycroft_chat_logs: {
         Row: {
           away_team: string | null
@@ -5000,7 +5045,31 @@ export type Database = {
         Returns: boolean
       }
       claim_daily_streak_bonus: { Args: { p_user_id: string }; Returns: number }
+      claim_mycroft_analysis_jobs: {
+        Args: { p_limit: number; p_worker: string }
+        Returns: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          match_id: string
+          max_attempts: number
+          payload: Json
+          processed_at: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mycroft_analysis_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
+      cleanup_mycroft_analysis_queue: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
       decrement_promo_slot: {
@@ -5070,6 +5139,7 @@ export type Database = {
           mismatched: number
         }[]
       }
+      requeue_stuck_mycroft_jobs: { Args: never; Returns: number }
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string

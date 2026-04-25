@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { resilientFetch } from "../_shared/resilientFetch.ts";
+
+// Hard wall-clock budget for the entire invocation. Anything not started by
+// this point gets enqueued to mycroft_analysis_queue for the background worker.
+const RUN_BUDGET_MS = 90_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -240,8 +245,11 @@ async function fetchFixtureStats(
   }
 
   try {
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
+    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
+      retries: 2,
+      timeoutMs: 8_000,
+      breakerKey: 'api-football',
     });
     if (!res.ok) {
       console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
@@ -307,10 +315,16 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
+    const tStartRun = performance.now();
+    const isOverBudget = () => performance.now() - tStartRun > RUN_BUDGET_MS;
+
     // 1. Fetch all live matches
     console.log('[FetchLive] Fetching all live matches from API-Football...');
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
       headers: { 'x-apisports-key': apiKey },
+      retries: 3,
+      timeoutMs: 12_000,
+      breakerKey: 'api-football',
     });
 
     if (!res.ok) {
@@ -443,7 +457,9 @@ serve(async (req) => {
     }
     console.log(`[FetchLive] ⏱️ upsert batch done at ${Math.round(performance.now() - tStart)}ms`);
 
-    // 2d. PARALLEL Mycroft analyses (concurrency-limited)
+    // 2d. PARALLEL Mycroft analyses (concurrency-limited) — with hard time budget.
+    // If we're over RUN_BUDGET_MS, we stop processing inline and ENQUEUE the rest
+    // into mycroft_analysis_queue so the background worker picks them up.
     const reanalyzableStatuses = ['aguardar', 'jogo_morto', 'cuidado'];
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -454,6 +470,7 @@ serve(async (req) => {
     });
 
     let analyzedCount = 0;
+    let enqueuedCount = 0;
     const results: any[] = ctxList.map((c) => ({
       match_id: c.fixtureId,
       teams: `${c.matchData.home_team} vs ${c.matchData.away_team}`,
@@ -465,28 +482,55 @@ serve(async (req) => {
     }));
     const indexById = new Map(ctxList.map((c, i) => [c.fixtureId, i]));
 
-    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c) => {
+    const buildPayload = (c: FixtureCtx) => ({
+      match: {
+        home: c.matchData.home_team,
+        away: c.matchData.away_team,
+        scoreHome: c.matchData.score_home,
+        scoreAway: c.matchData.score_away,
+        minute: c.minute,
+        period: c.period,
+        championship: c.championship,
+        match_id: c.fixtureId,
+        stats: c.stats,
+        bankroll: 500,
+      },
+    });
+
+    const enqueueOverflow = async (items: FixtureCtx[]) => {
+      if (!items.length) return;
+      // ON CONFLICT DO NOTHING via partial unique index — silently dedupes.
+      const rows = items.map((c) => ({
+        match_id: c.fixtureId,
+        payload: buildPayload(c),
+      }));
+      const { error } = await supabase.from('mycroft_analysis_queue').insert(rows);
+      if (error && !/duplicate|unique/i.test(error.message)) {
+        console.warn('[FetchLive] enqueue error:', error.message);
+      } else {
+        enqueuedCount += rows.length;
+        console.log(`[FetchLive] 📥 enqueued ${rows.length} analyses (over budget)`);
+      }
+    };
+
+    await runWithConcurrency(analysisCandidates, ANALYSIS_CONCURRENCY, async (c, idx) => {
+      // Hard budget: enqueue this one and skip inline processing.
+      if (isOverBudget()) {
+        await enqueueOverflow([c]);
+        return;
+      }
       try {
-        const analysisRes = await fetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
+        const analysisRes = await resilientFetch(`${supabaseUrl}/functions/v1/mycroft-sports-analysis`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
-          body: JSON.stringify({
-            match: {
-              home: c.matchData.home_team,
-              away: c.matchData.away_team,
-              scoreHome: c.matchData.score_home,
-              scoreAway: c.matchData.score_away,
-              minute: c.minute,
-              period: c.period,
-              championship: c.championship,
-              match_id: c.fixtureId,
-              stats: c.stats,
-              bankroll: 500,
-            },
-          }),
+          body: JSON.stringify(buildPayload(c)),
+          retries: 2,
+          timeoutMs: 25_000,
+          breakerKey: 'mycroft-sports-analysis',
         });
         if (!analysisRes.ok) {
-          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status}`);
+          console.warn(`[FetchLive] Mycroft fail ${c.fixtureId}: ${analysisRes.status} — enqueueing`);
+          await enqueueOverflow([c]);
           return;
         }
         const analysis = await analysisRes.json();
@@ -519,16 +563,19 @@ serve(async (req) => {
           }
         }
         analyzedCount++;
-        const idx = indexById.get(c.fixtureId);
-        if (idx !== undefined) {
-          results[idx].analyzed = true;
-          results[idx].verdict = analysis.verdict;
+        const idxR = indexById.get(c.fixtureId);
+        if (idxR !== undefined) {
+          results[idxR].analyzed = true;
+          results[idxR].verdict = analysis.verdict;
         }
       } catch (e) {
-        console.error(`[FetchLive] Mycroft error ${c.fixtureId}:`, e);
+        const isCircuit = (e as any)?.code === 'CIRCUIT_OPEN';
+        console.error(`[FetchLive] Mycroft error ${c.fixtureId}${isCircuit ? ' (circuit open)' : ''}:`, (e as Error)?.message);
+        // Fall back to queue so the worker retries later.
+        await enqueueOverflow([c]);
       }
     });
-    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (${analyzedCount}/${analysisCandidates.length})`);
+    console.log(`[FetchLive] ⏱️ analyses done at ${Math.round(performance.now() - tStart)}ms (inline=${analyzedCount}, enqueued=${enqueuedCount}/${analysisCandidates.length})`);
 
     // 6. Mark matches no longer live as 'finished' only after grace period to avoid API snapshot flicker
     const liveMatchIds = fixtures.map((f: any) => String(f.fixture.id));
@@ -559,18 +606,22 @@ serve(async (req) => {
       console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
-    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate
+    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate.
+    // Also skipped when we're over the run budget (worker still picks up enqueued jobs).
     let scheduledCount = 0;
-    const schedShouldRun = Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
+    const schedShouldRun = !isOverBudget() && Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
     if (!schedShouldRun) {
-      console.log('[FetchLive] ⏭️ Scheduled fetch skipped (cache window active)');
+      console.log(`[FetchLive] ⏭️ Scheduled fetch skipped (${isOverBudget() ? 'over budget' : 'cache window active'})`);
     }
     if (schedShouldRun) try {
       lastScheduledFetchAt = Date.now();
       const today = new Date().toISOString().split('T')[0];
       console.log(`[FetchLive] Fetching scheduled fixtures for ${today}...`);
-      const schedRes = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
+      const schedRes = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
         headers: { 'x-apisports-key': apiKey },
+        retries: 2,
+        timeoutMs: 15_000,
+        breakerKey: 'api-football',
       });
 
       if (schedRes.ok) {
@@ -635,15 +686,17 @@ serve(async (req) => {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
     }
 
-    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${staleIds.length} finished, ${scheduledCount} scheduled`);
+    console.log(`[FetchLive] Done: ${fixtures.length} matches synced, ${staleIds.length} finished, ${scheduledCount} scheduled, ${enqueuedCount} enqueued (run=${Math.round(performance.now() - tStartRun)}ms)`);
 
     return new Response(
       JSON.stringify({
         ok: true,
         total_matches: fixtures.length,
         analyzed: analyzedCount,
+        enqueued: enqueuedCount,
         finished: staleIds.length,
         scheduled: scheduledCount,
+        run_ms: Math.round(performance.now() - tStartRun),
         matches: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
