@@ -58,35 +58,37 @@ export default function CopySignalActions({ signal, compact = false }: { signal:
         {copied ? 'Copiado' : 'Copiar sinal'}
       </Button>
 
-      <div className="flex flex-wrap gap-1.5">
-        {BOOKMAKERS.map((b) => (
-          <a
-            key={b.name}
-            href={b.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex-1 min-w-[90px] inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${b.color}`}
-            aria-label={`Abrir ${b.name}`}
-          >
-            {b.name}
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {EXTRA_BOOKMAKERS.map((b) => (
-          <a
-            key={b.name}
-            href={b.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex-1 min-w-[90px] inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${b.color}`}
-            aria-label={`Abrir ${b.name}`}
-          >
-            {b.name}
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        ))}
+      <div className="space-y-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
+          {BOOKMAKERS.map((b) => (
+            <a
+              key={b.name}
+              href={b.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-1.5 ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-[11px]'} font-bold uppercase tracking-wide transition-colors min-w-0 ${b.color}`}
+              aria-label={`Abrir ${b.name}`}
+            >
+              <span className="truncate">{b.name}</span>
+              <ExternalLink className="h-3 w-3 shrink-0" />
+            </a>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {EXTRA_BOOKMAKERS.map((b) => (
+            <a
+              key={b.name}
+              href={b.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-1.5 ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-[11px]'} font-bold uppercase tracking-wide transition-colors min-w-0 ${b.color}`}
+              aria-label={`Abrir ${b.name}`}
+            >
+              <span className="truncate">{b.name}</span>
+              <ExternalLink className="h-3 w-3 shrink-0" />
+            </a>
+          ))}
+        </div>
       </div>
       <p className="text-[10px] text-muted-foreground/80 italic leading-tight">
         💡 Copie o sinal, abra a casa e cole/insira a aposta no bilhete.
