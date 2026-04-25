@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.flashscore-live-stats]
 verify_jwt = false
+
+[functions.process-mycroft-queue]
+verify_jwt = false
