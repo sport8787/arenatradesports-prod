@@ -345,6 +345,26 @@ function buildPrompt(match: MatchData, planos: any[], memoryRules: string): stri
   const validPlanNames = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
   const matrizPlanos = planos.map(p => {
+    // Validação: garantir que criterios/vetos sejam arrays. Se não, registrar plano problemático.
+    const criteriosIsArray = Array.isArray(p.criterios);
+    const vetosIsArray = Array.isArray(p.vetos);
+    if (!criteriosIsArray || !vetosIsArray) {
+      const planInfo = {
+        plano_codigo: p.codigo ?? null,
+        plano_nome: p.nome ?? null,
+        criterios_type: Array.isArray(p.criterios) ? 'array' : typeof p.criterios,
+        vetos_type: Array.isArray(p.vetos) ? 'array' : typeof p.vetos,
+        criterios_sample: typeof p.criterios === 'string' ? String(p.criterios).slice(0, 300) : p.criterios,
+        vetos_sample: typeof p.vetos === 'string' ? String(p.vetos).slice(0, 300) : p.vetos,
+      };
+      console.warn('[buildPrompt] Plano com criterios/vetos em formato inesperado:', planInfo);
+      // Best-effort: registrar no edge_function_errors como warning (não bloquear).
+      logEdgeError(
+        'mycroft-sports-analysis',
+        new Error(`Plano "${p.nome ?? p.codigo ?? 'desconhecido'}" com criterios/vetos fora de formato array`),
+        { context: planInfo, severity: 'warning' },
+      ).catch(() => {});
+    }
     const criteriosArr = toStringArray(p.criterios);
     const vetosArr = toStringArray(p.vetos);
     const criterios = criteriosArr.map((c, i) => `  ${i+1}. ${c}`).join('\n') || '  (sem critérios definidos)';
