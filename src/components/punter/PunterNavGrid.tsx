@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
+import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 
 type Badge = { label: string; tone: 'live' | 'beta' | 'exclusive' };
 
