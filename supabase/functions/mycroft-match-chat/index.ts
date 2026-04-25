@@ -53,8 +53,14 @@ serve(async (req) => {
 
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY missing");
+    const AI_KEY = LOVABLE_API_KEY || OPENAI_API_KEY;
+    if (!AI_KEY) throw new Error("No AI key configured (LOVABLE_API_KEY or OPENAI_API_KEY)");
+    const AI_URL = LOVABLE_API_KEY
+      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+    const AI_MODEL = LOVABLE_API_KEY ? "google/gemini-2.5-flash" : "gpt-5-mini";
 
     // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
     let userId: string | null = null;
@@ -105,17 +111,17 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
     ];
 
     const resp = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+      AI_URL,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${AI_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini",
+          model: AI_MODEL,
           messages,
-          max_completion_tokens: 1500,
+          max_tokens: 1500,
         }),
       },
     );
