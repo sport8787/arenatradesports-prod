@@ -578,6 +578,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audios_horus_punter: {
+        Row: {
+          ativo: boolean
+          audio_url: string
+          chave: string
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          audio_url: string
+          chave: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          audio_url?: string
+          chave?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bet_correlations: {
         Row: {
           correlation_coefficient: number | null
@@ -1497,6 +1533,27 @@ export type Database = {
           texto?: string
           updated_at?: string
           voice_id?: string
+        }
+        Relationships: []
+      }
+      horus_punter_audio_plays: {
+        Row: {
+          audio_chave: string
+          id: string
+          played_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_chave: string
+          id?: string
+          played_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_chave?: string
+          id?: string
+          played_at?: string
+          user_id?: string
         }
         Relationships: []
       }

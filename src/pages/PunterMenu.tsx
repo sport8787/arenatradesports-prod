@@ -1,10 +1,19 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
+import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 
 export default function PunterMenuPage() {
   const navigate = useNavigate();
+  const { playOnce } = useHorusPunterAudio();
+
+  useEffect(() => {
+    // Toca apresentação do Hórus na primeira visita ao /menu
+    const t = setTimeout(() => playOnce('apresentacao_horus'), 600);
+    return () => clearTimeout(t);
+  }, [playOnce]);
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
