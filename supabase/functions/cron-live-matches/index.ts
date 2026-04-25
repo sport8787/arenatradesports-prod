@@ -87,6 +87,14 @@ serve(async (req) => {
       result.analysis = { skipped: true, reason: 'analyze_disabled' };
     }
 
+    // Worker da fila: drena análises enfileiradas pelo fetch-live-matches quando ele estourou o budget.
+    // Roda em background — não bloqueia a próxima execução do cron.
+    const queueRes = await fetch(`${baseUrl}/functions/v1/process-mycroft-queue`, {
+      method: 'POST', headers,
+    }).then(r => r.json()).catch(e => ({ error: e instanceof Error ? e.message : String(e) }));
+    result.queue_worker = queueRes;
+    console.log(`[CronLive] 📥 Worker fila: claimed=${queueRes?.claimed ?? 0} done=${queueRes?.done ?? 0} failed=${queueRes?.failed ?? 0}`);
+
     // Cashout (controlado por toggle, desativado por padrão)
     if (cashoutEnabled) {
       const cashoutRes = await fetch(`${baseUrl}/functions/v1/evaluate-cashout`, {
