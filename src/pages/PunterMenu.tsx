@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
+import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 
 export default function PunterMenuPage() {
   const navigate = useNavigate();
-  const { playOnce } = useHorusPunterAudio();
+  const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
 
   useEffect(() => {
     // Toca apresentação do Hórus na primeira visita ao /menu
@@ -41,6 +42,13 @@ export default function PunterMenuPage() {
         </div>
         <PunterNavGrid />
       </main>
+
+      <HorusAudioFallback
+        visible={pendingAudio?.chave === 'apresentacao_horus'}
+        label="Ouvir apresentação do Hórus"
+        onPlay={playPending}
+        onDismiss={dismissPending}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
+import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 
 type Badge = { label: string; tone: 'live' | 'beta' | 'exclusive' };
 
@@ -93,7 +94,7 @@ interface Props {
 
 export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
   const navigate = useNavigate();
-  const { playOnce } = useHorusPunterAudio();
+  const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
 
   const goApproved = () => {
     // Toca o áudio "Sinais Aprovados" UMA ÚNICA VEZ por usuário
@@ -212,6 +213,13 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
           />
         </div>
       </section>
+
+      <HorusAudioFallback
+        visible={pendingAudio?.chave === 'sinais_aprovados'}
+        label="Ouvir mensagem dos Sinais Aprovados"
+        onPlay={playPending}
+        onDismiss={dismissPending}
+      />
     </div>
   );
 }
