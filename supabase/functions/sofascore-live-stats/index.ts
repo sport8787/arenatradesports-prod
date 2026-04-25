@@ -58,7 +58,7 @@ function normalize(s: string): string {
 }
 
 // Strip noise commonly added by API-Football: "FC", "CF", "Club", "Atletico", suffixes "de Santiago"
-const NOISE_TOKENS = ['fc', 'cf', 'sc', 'ac', 'club', 'clube', 'sporting', 'cd', 'sd', 'ud', 'rcd', 'real', 'deportivo', 'atletico', 'athletic', 'cska', 'fk'];
+const NOISE_TOKENS = ['fc', 'cf', 'sc', 'ac', 'club', 'clube', 'sporting', 'cd', 'sd', 'ud', 'rcd', 'real', 'deportivo', 'atletico', 'athletic', 'cska', 'fk', 'aa', 'ec', 'ca', 'se', 'cr', 'rb', 'afc', 'cfc', 'mg', 'rj', 'sp', 'rs', 'pr', 'go', 'ba', 'ce', 'pe'];
 function simplify(s: string): string {
   const tokens = (s || '').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -69,15 +69,86 @@ function simplify(s: string): string {
   return tokens.join('');
 }
 
+// Dicionário de aliases para times BR/Sul-Americanos onde API-Football usa nome diferente do SofaScore.
+// Chave: nome normalizado (lowercase, sem acento) que API-Football costuma enviar.
+// Valor: array de nomes alternativos para buscar no SofaScore.
+const TEAM_ALIASES: Record<string, string[]> = {
+  // Brasileirão
+  'america mineiro': ['America MG', 'America-MG'],
+  'america-mg': ['America MG', 'America Mineiro'],
+  'atletico mineiro': ['Atletico-MG', 'Atletico MG'],
+  'atletico-mg': ['Atletico Mineiro', 'Atletico MG'],
+  'atletico goianiense': ['Atletico-GO', 'Atletico GO'],
+  'atletico-go': ['Atletico Goianiense'],
+  'atletico paranaense': ['Athletico-PR', 'Athletico Paranaense'],
+  'athletico paranaense': ['Athletico-PR'],
+  'gremio': ['Gremio FBPA', 'Gremio Porto Alegre'],
+  'internacional': ['SC Internacional', 'Internacional RS'],
+  'corinthians': ['Sport Club Corinthians Paulista', 'Corinthians SP'],
+  'palmeiras': ['SE Palmeiras'],
+  'sao paulo': ['Sao Paulo FC'],
+  'santos': ['Santos FC'],
+  'flamengo': ['CR Flamengo', 'Flamengo RJ'],
+  'fluminense': ['Fluminense FC', 'Fluminense RJ'],
+  'vasco da gama': ['Vasco', 'CR Vasco da Gama'],
+  'botafogo': ['Botafogo FR', 'Botafogo RJ'],
+  'cruzeiro': ['Cruzeiro EC', 'Cruzeiro MG'],
+  'bahia': ['EC Bahia', 'Bahia BA'],
+  'ponte preta': ['AA Ponte Preta', 'Ponte Preta SP'],
+  'aa ponte preta': ['Ponte Preta'],
+  'csa': ['CSA AL', 'Centro Sportivo Alagoano'],
+  'crb': ['Clube de Regatas Brasil', 'CRB AL'],
+  // Argentina
+  'atletico torque': ['Montevideo City Torque', 'City Torque'],
+  'central cordoba': ['Central Cordoba SdE', 'Central Cordoba Santiago'],
+  'argentinos juniors': ['Argentinos Jrs'],
+  'gimnasia la plata': ['Gimnasia LP', 'Gimnasia y Esgrima LP'],
+  'gimnasia y esgrima': ['Gimnasia LP'],
+  'estudiantes': ['Estudiantes LP', 'Estudiantes La Plata'],
+  'newells old boys': ["Newell's Old Boys", 'Newells'],
+  'union santa fe': ['Union de Santa Fe', 'Union'],
+  'banfield': ['CA Banfield'],
+  'tigre': ['CA Tigre'],
+  'velez sarsfield': ['Velez', 'Velez Sarsfield'],
+  'racing club': ['Racing Club Avellaneda', 'Racing'],
+  'independiente': ['CA Independiente', 'Independiente Avellaneda'],
+  'lanus': ['CA Lanus'],
+  'platense': ['CA Platense', 'Club Atletico Platense'],
+  'san lorenzo': ['San Lorenzo de Almagro', 'CA San Lorenzo'],
+  'barracas central': ['CA Barracas Central'],
+  'huracan': ['CA Huracan'],
+  'belgrano': ['CA Belgrano', 'Belgrano Cordoba'],
+  'godoy cruz': ['Godoy Cruz Antonio Tomba'],
+  'instituto cordoba': ['Instituto'],
+  'rosario central': ['CA Rosario Central'],
+  // Uruguai/Bolivia/Outros sul-americanos
+  'boston river': ['Boston River Montevideo'],
+  'montevideo wanderers': ['Wanderers Montevideo'],
+  'penarol': ['CA Penarol', 'Penarol Montevideo'],
+  'nacional montevideo': ['Club Nacional', 'Nacional'],
+  'liverpool montevideo': ['Liverpool FC Montevideo', 'Liverpool'],
+};
+
+function getAliases(name: string): string[] {
+  const key = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return TEAM_ALIASES[key] || [];
+}
+
 // Returns multiple search variants of a team name to try
 function teamVariants(name: string): string[] {
   const variants = new Set<string>();
   variants.add(name);
+  // Aliases customizados (top priority)
+  for (const a of getAliases(name)) variants.add(a);
   // Strip "de Santiago", "del Plata", multi-word suffixes
   variants.add(name.replace(/\s+(de|del|do|da)\s+\w+$/i, '').trim());
   // Strip dots: "Independ. Rivadavia" → "Independiente Rivadavia"
   variants.add(name.replace(/\.\s*/g, 'iente '));
   variants.add(name.replace(/\.\s*/g, ' '));
+  // Remove suffix de UF brasileira: "Ponte Preta SP" → "Ponte Preta"
+  variants.add(name.replace(/\s*[-/]?\s*(MG|RJ|SP|RS|PR|GO|BA|CE|PE|AL|SC|DF|ES|PB|RN|MA|PA|AM|AC|RO|RR|AP|TO|PI|MS|MT|SE)\s*$/i, '').trim());
+  // Remove prefixos comuns: "CA ", "CR ", "EC ", "AA ", "SE ", "SC "
+  variants.add(name.replace(/^(CA|CR|EC|AA|SE|SC|CF|FC|RC|AC|CD|SD|UD|RCD)\s+/i, '').trim());
   // First two tokens only
   const tokens = name.split(/\s+/).filter(Boolean);
   if (tokens.length >= 2) variants.add(tokens.slice(0, 2).join(' '));
