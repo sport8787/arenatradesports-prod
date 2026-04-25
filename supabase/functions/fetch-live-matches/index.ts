@@ -505,9 +505,14 @@ serve(async (req) => {
       console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
-    // 7. Fetch today's scheduled fixtures and save to scheduled_games (one-time cache)
+    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate
     let scheduledCount = 0;
-    try {
+    const schedShouldRun = Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
+    if (!schedShouldRun) {
+      console.log('[FetchLive] ⏭️ Scheduled fetch skipped (cache window active)');
+    }
+    if (schedShouldRun) try {
+      lastScheduledFetchAt = Date.now();
       const today = new Date().toISOString().split('T')[0];
       console.log(`[FetchLive] Fetching scheduled fixtures for ${today}...`);
       const schedRes = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
