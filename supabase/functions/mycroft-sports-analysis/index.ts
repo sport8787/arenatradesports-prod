@@ -707,7 +707,7 @@ serve(async (req) => {
 
         if (!vetoReason && favGoalSinceLast && oddNow > 0 && oddNow < 1.40) {
           vetoReason = `Back favorito vetado: favorito marcou (snapshot ${prevSh}-${prevSa} → ${sh}-${sa}) e odd caiu para ${oddNow} (<1.40).`;
-        } else if (oddNow > 0 && oddNow < 1.40) {
+        } else if (!vetoReason && oddNow > 0 && oddNow < 1.40) {
           // (b) Sanity: odd <1.40 só faz sentido se favorito está vencendo claramente
           if (favScore !== null && advScore !== null && favScore <= advScore) {
             vetoReason = `Back favorito vetado: odd ${oddNow} (<1.40) incompatível com placar (favorito ${favScore} x ${advScore} adversário).`;
