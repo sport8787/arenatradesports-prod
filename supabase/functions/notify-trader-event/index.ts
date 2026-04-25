@@ -8,7 +8,7 @@ const corsHeaders = {
 interface Payload {
   match_id: string;
   market: string;
-  event_type: 'APROVADO' | 'CANCELADO' | 'GREEN' | 'RED' | 'CASHOUT';
+  event_type: 'APROVADO' | 'LABAREDA' | 'CANCELADO' | 'GREEN' | 'RED' | 'CASHOUT';
   home_team: string;
   away_team: string;
   league?: string;
@@ -48,6 +48,19 @@ function buildTelegramMessage(p: Payload): string {
       `💰 Odd: <b>${p.odd?.toFixed(2) ?? '—'}</b>\n` +
       `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n\n` +
       `<i>Acesse o app para confirmar a entrada.</i>`
+    );
+  }
+
+  if (p.event_type === 'LABAREDA') {
+    return (
+      `⚡ <b>PLANO LABAREDA — Arena Trader Sports</b>\n\n` +
+      `${matchLine}\n` +
+      `${leagueLine}` +
+      `📊 Placar: <b>${score}</b> • ${minute}\n` +
+      `🎯 Mercado: <b>${p.market}</b>\n` +
+      `💰 Odd: <b>${p.odd?.toFixed(2) ?? '—'}</b>\n` +
+      `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n\n` +
+      `<i>Oportunidade tardia detectada. Janela curta — confirme rápido no app.</i>`
     );
   }
 

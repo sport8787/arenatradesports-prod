@@ -375,7 +375,8 @@ export default function LiveMatchDetail() {
     if (!match || !analysis?.verdict || !analysis?.market) return;
 
     const currentVerdict = String(analysis.verdict).toUpperCase();
-    const isApproved = currentVerdict.includes('APROVAD');
+    const isLabareda = currentVerdict.includes('LABAREDA');
+    const isApproved = currentVerdict.includes('APROVAD') || isLabareda;
     const isRejected = ['VETADO', 'SEM VALOR', 'REJEITADO', 'CANCELADO'].some(v =>
       currentVerdict.includes(v),
     );
@@ -391,8 +392,11 @@ export default function LiveMatchDetail() {
 
     if (isApproved && lastNotifiedRef.current.approved !== marketKey) {
       lastNotifiedRef.current.approved = marketKey;
+      const pushTitle = isLabareda
+        ? `⚡ LABAREDA: ${analysis.market}`
+        : `✅ APROVADO: ${analysis.market}`;
       showBrowserPush(
-        `✅ APROVADO: ${analysis.market}`,
+        pushTitle,
         `${match.home_team} x ${match.away_team} • ${match.score_home ?? 0}:${match.score_away ?? 0} ${match.minute ?? 0}' • Odd ${Number(analysis.odd ?? 0).toFixed(2)} (${analysis.confidence ?? '—'}%)`,
         { tag: marketKey, url: window.location.href },
       );
@@ -400,7 +404,7 @@ export default function LiveMatchDetail() {
         body: {
           match_id: match.match_id,
           market: analysis.market,
-          event_type: 'APROVADO',
+          event_type: isLabareda ? 'LABAREDA' : 'APROVADO',
           home_team: match.home_team,
           away_team: match.away_team,
           league: match.championship,
