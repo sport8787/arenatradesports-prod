@@ -170,9 +170,14 @@ export default function EdgeFunctionAlerts() {
             <Button size="sm" variant="outline" onClick={fetchErrors} disabled={loading}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
+            <Link to="/admin/edge-errors">
+              <Button size="sm" variant="ghost">
+                Ver erros →
+              </Button>
+            </Link>
             <Link to="/admin/edge-status">
               <Button size="sm" variant="ghost">
-                Detalhes →
+                Status →
               </Button>
             </Link>
           </div>

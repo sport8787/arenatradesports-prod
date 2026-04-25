@@ -54,6 +54,7 @@ import AdminChatAnalytics from "./pages/AdminChatAnalytics";
 import AdminPushTest from "./pages/AdminPushTest";
 import AdminSettlementLog from "./pages/AdminSettlementLog";
 import AdminEdgeFunctionsStatus from "./pages/AdminEdgeFunctionsStatus";
+import AdminEdgeFunctionErrors from "./pages/AdminEdgeFunctionErrors";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -130,6 +131,7 @@ const App = () => {
               <Route path="/admin/push-test" element={<AdminPushTest />} />
               <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
               <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
+              <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
