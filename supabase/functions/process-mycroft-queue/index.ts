@@ -57,9 +57,11 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     // Re-queue any jobs stuck in 'processing' for >5min (dead worker).
-    await supabase.rpc('requeue_stuck_mycroft_jobs').catch((e) =>
-      console.warn('[Worker] requeue_stuck_mycroft_jobs failed:', e?.message),
-    );
+    try {
+      await supabase.rpc('requeue_stuck_mycroft_jobs');
+    } catch (e) {
+      console.warn('[Worker] requeue_stuck_mycroft_jobs failed:', (e as Error)?.message);
+    }
 
     let totalDone = 0;
     let totalFailed = 0;
