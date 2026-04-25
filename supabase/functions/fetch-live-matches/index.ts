@@ -183,34 +183,34 @@ function getStat(stats: any[], type: string): number {
 }
 
 async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<FixtureStats | null> {
+  // Cache hit window — avoids hammering API-Football when cron rounds run close together
+  const cached = statsCache.get(fixtureId);
+  if (cached && Date.now() - cached.ts < STATS_CACHE_TTL_MS) {
+    return cached.stats;
+  }
   try {
-    console.log(`[FetchLive] 🔍 Fetching stats for fixture ${fixtureId}...`);
     const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
       headers: { 'x-apisports-key': apiKey },
     });
     if (!res.ok) {
       console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
+      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
       return null;
     }
 
     const data = await res.json();
     const teams = data.response;
     if (!teams || teams.length < 2) {
-      console.warn(`[FetchLive] No team stats returned for fixture ${fixtureId}`);
+      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
       return null;
     }
 
     const homeStats = teams[0].statistics || [];
     const awayStats = teams[1].statistics || [];
 
-    // Log raw stat types for debugging
-    const statTypes = homeStats.map((s: any) => `${s.type}: ${s.value}`).join(', ');
-    console.log(`[FetchLive] 📊 Raw home stats for ${fixtureId}: ${statTypes.substring(0, 300)}`);
-
-    // API-Football uses 'Shots insidebox' as proxy for dangerous attacks (no 'Dangerous Attacks' field)
     const shotsInsideHome = getStat(homeStats, 'Shots insidebox');
     const shotsInsideAway = getStat(awayStats, 'Shots insidebox');
-    
+
     const result: FixtureStats = {
       attacks_home: shotsInsideHome + getStat(homeStats, 'Shots outsidebox'),
       attacks_away: shotsInsideAway + getStat(awayStats, 'Shots outsidebox'),
@@ -228,11 +228,11 @@ async function fetchFixtureStats(fixtureId: number, apiKey: string): Promise<Fix
       xG_away: parseFloat(String(getStat(awayStats, 'expected_goals'))) || 0,
     };
 
-    console.log(`[FetchLive] 📊 Parsed stats: Posse ${result.possession_home}%-${result.possession_away}% | Ataques ${result.attacks_home}-${result.attacks_away} | Perigosos ${result.dangerous_attacks_home}-${result.dangerous_attacks_away} | Chutes ${result.shots_total_home}-${result.shots_total_away} (Gol: ${result.shots_home}-${result.shots_away})`);
-
+    statsCache.set(fixtureId, { ts: Date.now(), stats: result });
     return result;
   } catch (e) {
     console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
+    statsCache.set(fixtureId, { ts: Date.now(), stats: null });
     return null;
   }
 }
