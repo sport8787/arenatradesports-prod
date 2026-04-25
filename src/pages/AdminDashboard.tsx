@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, RefreshCw, Users, UserCheck, UserX, Clock, CreditCard, Activity } from 'lucide-react';
 import EdgeFunctionAlerts from '@/components/admin/EdgeFunctionAlerts';
+import PunterCalibration from '@/components/admin/PunterCalibration';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
