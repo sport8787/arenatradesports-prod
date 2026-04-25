@@ -4,7 +4,7 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, TrendingUp as TrendingUpIcon
+  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, Bell, TrendingUp as TrendingUpIcon
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import PunterRankings from '@/components/punter/PunterRankings';
@@ -30,6 +30,8 @@ import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
+import NotificationSettings from '@/components/punter/NotificationSettings';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
@@ -1252,6 +1254,31 @@ export default function PunterPage() {
           return (
             <>
               <EbookWelcomeCard />
+              {user && (
+                <Collapsible defaultOpen={false}>
+                  <Card className="border-border bg-card">
+                    <CollapsibleTrigger className="w-full">
+                      <div className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-primary" />
+                          <span className="font-mono text-xs font-semibold text-foreground tracking-wider uppercase">
+                            Configurações de Notificações
+                          </span>
+                          <Badge variant="outline" className="text-[9px] font-mono">
+                            Desativar alertas
+                          </Badge>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3">
+                        <NotificationSettings userId={user.id} />
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              )}
               <PunterHeroBanner
                 userId={user?.id}
                 featuredSignal={featured}
