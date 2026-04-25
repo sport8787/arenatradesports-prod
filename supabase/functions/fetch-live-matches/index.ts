@@ -524,6 +524,7 @@ serve(async (req) => {
         const schedFixtures = schedData.response || [];
         console.log(`[FetchLive] Found ${schedFixtures.length} fixtures for today`);
 
+        const schedPayloads: any[] = [];
         for (const fix of schedFixtures) {
           const fixtureDate = new Date(fix.fixture.date);
           const matchDate = fixtureDate.toISOString().split('T')[0];
@@ -536,7 +537,6 @@ serve(async (req) => {
           const eventId = String(fix.fixture.id);
           const fixtureStatus = fix.fixture.status?.short || 'NS';
 
-          // Calculate relevance based on league
           const leagueLower = leagueName.toLowerCase();
           let relevance = 1;
           if (leagueLower.includes('brasileir') || leagueLower.includes('premier') || leagueLower.includes('champions')) relevance = 5;
@@ -545,12 +545,11 @@ serve(async (req) => {
           else if (leagueLower.includes('serie b') || leagueLower.includes('championship')) relevance = 3;
           else relevance = 2;
 
-          // Map API status to our status
           let gameStatus = 'scheduled';
           if (['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'].includes(fixtureStatus)) gameStatus = 'live';
           else if (['FT', 'AET', 'PEN'].includes(fixtureStatus)) gameStatus = 'finished';
 
-          const { error: upsertErr } = await supabase.from('scheduled_games').upsert({
+          schedPayloads.push({
             match_date: matchDate,
             match_time: matchTime,
             match_datetime: fixtureDate.toISOString(),
@@ -563,13 +562,20 @@ serve(async (req) => {
             check_time: checkTime,
             relevance_score: relevance,
             updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'match_date,match_time,home_team,away_team',
           });
-
-          if (!upsertErr) scheduledCount++;
         }
-        console.log(`[FetchLive] Saved ${scheduledCount} scheduled games`);
+
+        // Batched upsert (much faster than N requests)
+        const SCHED_CHUNK = 200;
+        for (let i = 0; i < schedPayloads.length; i += SCHED_CHUNK) {
+          const slice = schedPayloads.slice(i, i + SCHED_CHUNK);
+          const { error: upsertErr } = await supabase
+            .from('scheduled_games')
+            .upsert(slice, { onConflict: 'match_date,match_time,home_team,away_team' });
+          if (!upsertErr) scheduledCount += slice.length;
+          else console.warn('[FetchLive] sched batch upsert error:', upsertErr.message);
+        }
+        console.log(`[FetchLive] Saved ${scheduledCount} scheduled games (batched)`);
       }
     } catch (schedErr) {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
