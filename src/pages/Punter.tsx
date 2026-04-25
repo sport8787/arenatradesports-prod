@@ -32,7 +32,7 @@ import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
