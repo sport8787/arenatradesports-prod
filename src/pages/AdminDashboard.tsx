@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, RefreshCw, Users, UserCheck, UserX, Clock, CreditCard, Activity } from 'lucide-react';
 import EdgeFunctionAlerts from '@/components/admin/EdgeFunctionAlerts';
 import PunterCalibration from '@/components/admin/PunterCalibration';
+import PunterPromptSimulator from '@/components/admin/PunterPromptSimulator';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
@@ -160,6 +161,9 @@ export default function AdminDashboard() {
           <>
             {/* Alertas de edge functions (falhas/h e crédito) */}
             <EdgeFunctionAlerts />
+
+            {/* Simulador do novo prompt do Punter */}
+            <PunterPromptSimulator />
 
             {/* Calibração do Mycroft Punter */}
             <PunterCalibration />
