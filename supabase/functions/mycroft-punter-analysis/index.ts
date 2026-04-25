@@ -181,30 +181,55 @@ function inferTier(a: any): number {
   return 3
 }
 
+// Configuração calibrável (carregada da tabela punter_calibration)
+let CALIB = {
+  min_probability: 30, min_edge: 4, min_confidence: 65,
+  odd_min: 1.35, odd_max: 4.50, tolerance_pp: 2,
+  tier1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
+  tier2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
+  tier3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+}
+
+async function loadCalibration(supabase: any) {
+  try {
+    const { data } = await supabase.from('punter_calibration')
+      .select('*').eq('is_active', true).maybeSingle()
+    if (data) {
+      CALIB = {
+        min_probability: Number(data.min_probability),
+        min_edge: Number(data.min_edge),
+        min_confidence: Number(data.min_confidence),
+        odd_min: Number(data.odd_min),
+        odd_max: Number(data.odd_max),
+        tolerance_pp: Number(data.tolerance_pp),
+        tier1: { minEdge: +data.tier1_min_edge, minConf: +data.tier1_min_conf, maxStake: +data.tier1_max_stake, minProb: +data.tier1_min_prob },
+        tier2: { minEdge: +data.tier2_min_edge, minConf: +data.tier2_min_conf, maxStake: +data.tier2_max_stake, minProb: +data.tier2_min_prob },
+        tier3: { minEdge: +data.tier3_min_edge, minConf: +data.tier3_min_conf, maxStake: +data.tier3_max_stake, minProb: +data.tier3_min_prob },
+      }
+      console.log('[Mycroft Punter] ✅ Calibração carregada:', CALIB)
+    }
+  } catch (e) { console.warn('[Mycroft Punter] Falha ao carregar calibração, usando defaults', e) }
+}
+
 function validateAnalysis(a: any): ValidationResult {
   if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
-  // FILTRO 1 — Probabilidade mínima absoluta (30%) — permite mercados de visitante com edge alto
-  if (!a.estimated_probability || a.estimated_probability < 30) {
-    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo 30%)` }
+  if (!a.estimated_probability || a.estimated_probability < CALIB.min_probability) {
+    return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo ${CALIB.min_probability}%)` }
   }
-  if (!a.edge_percentage || a.edge_percentage < 4) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
-  if (!a.confidence || a.confidence < 65) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
-  if (!a.odd || a.odd < 1.35 || a.odd > 4.50) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
+  if (!a.edge_percentage || a.edge_percentage < CALIB.min_edge) return { valid: false, reason: `Edge insuficiente: ${a.edge_percentage}%` }
+  if (!a.confidence || a.confidence < CALIB.min_confidence) return { valid: false, reason: `Confiança insuficiente: ${a.confidence}%` }
+  if (!a.odd || a.odd < CALIB.odd_min || a.odd > CALIB.odd_max) return { valid: false, reason: `Odd fora do range: ${a.odd}` }
 
-  // Auto-inferir tier quando ausente/inválido (a IA frequentemente omite o campo)
   if (!a.tier || ![1, 2, 3].includes(a.tier)) {
     a.tier = inferTier(a)
     a._tier_inferred = true
   }
 
   const rules: Record<number, { minEdge: number; minConf: number; maxStake: number; minProb: number }> = {
-    1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
-    2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
-    3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+    1: CALIB.tier1, 2: CALIB.tier2, 3: CALIB.tier3,
   }
 
-  // TOLERÂNCIA: se ficar até 2pp abaixo dos mínimos do tier, faz downgrade ao invés de vetar
-  const TOL = 2
+  const TOL = CALIB.tolerance_pp
   for (let attempt = 0; attempt < 2; attempt++) {
     const r = rules[a.tier]
     const probOk = a.estimated_probability >= r.minProb - TOL
