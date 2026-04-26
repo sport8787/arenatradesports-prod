@@ -229,20 +229,51 @@ async function notificarTelegram(aprovados: any[]) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Lê configurações dinâmicas (global + por arena)
+    const { data: cfgs } = await sb
+      .from("eventos_raros_config")
+      .select("arena, enabled, score_threshold, notify_telegram");
+    const cfgGlobal = cfgs?.find((c: any) => c.arena === "global");
+    if (cfgGlobal && cfgGlobal.enabled === false) {
+      return new Response(
+        JSON.stringify({ skipped: true, reason: "Eventos Raros desativado globalmente" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const cfgPunter = cfgs?.find((c: any) => c.arena === "punter");
+    const cfgTrader = cfgs?.find((c: any) => c.arena === "trader_sports");
+    const arenasAtivas: string[] = [];
+    if (cfgPunter?.enabled !== false) arenasAtivas.push("punter");
+    if (cfgTrader?.enabled !== false) arenasAtivas.push("trader_sports");
+    if (!arenasAtivas.length) {
+      return new Response(
+        JSON.stringify({ skipped: true, reason: "Nenhuma arena ativa" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    // Threshold = menor entre as arenas ativas (assim cada arena filtra o seu na leitura)
+    const scoreMin = Math.min(
+      ...arenasAtivas.map((a) =>
+        a === "punter" ? (cfgPunter?.score_threshold ?? 60) : (cfgTrader?.score_threshold ?? 60)
+      ),
+    );
+
     const fixtures = await buscarFixturesHoje();
-    console.log(`[eventos-raros-prelive] ${fixtures.length} fixtures encontradas`);
+    console.log(`[eventos-raros-prelive] ${fixtures.length} fixtures · scoreMin=${scoreMin} · arenas=${arenasAtivas.join(",")}`);
     const aprovados: any[] = [];
     for (const f of fixtures.slice(0, 80)) {
       try {
-        const ap = await processarFixture(f);
+        const ap = await processarFixture(f, scoreMin, arenasAtivas);
         if (ap) aprovados.push(ap);
       } catch (e) {
         console.error("[fixture]", f.fixture?.id, e);
       }
     }
-    await notificarTelegram(aprovados);
+    if (cfgGlobal?.notify_telegram !== false) {
+      await notificarTelegram(aprovados);
+    }
     return new Response(
-      JSON.stringify({ analisadas: fixtures.length, aprovadas: aprovados.length, aprovados }),
+      JSON.stringify({ analisadas: fixtures.length, aprovadas: aprovados.length, scoreMin, arenas: arenasAtivas, aprovados }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {
