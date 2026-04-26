@@ -90,8 +90,11 @@ export default function PunterPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
-  const [todayOnlyFilter, setTodayOnlyFilter] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>('all');
+  const [todayOnlyFilter, setTodayOnlyFilter] = useState(() => searchParams.get('today') === '1');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>(() => {
+    const c = searchParams.get('cat');
+    return c === 'A' || c === 'B' || c === 'C' ? c : 'all';
+  });
   const [futureSignals, setFutureSignals] = useState<any[]>([]); // awaiting_stake + stake_calculated
   const [timeWindow, setTimeWindow] = useState<'15min' | '48h'>('48h');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
