@@ -212,6 +212,34 @@ serve(async (req) => {
       }).eq("id", analysis_id);
     }
 
+    // Auditoria: grava cada execução sob demanda
+    let audit_id: string | null = null;
+    try {
+      const { data: auditRow } = await sb.from("sherlock_audit_log").insert({
+        user_id: user_id ?? null,
+        analysis_id: analysis_id ?? null,
+        home_team,
+        away_team,
+        home_id: home_id ?? null,
+        away_id: away_id ?? null,
+        season: seasonYear,
+        market,
+        plan_name,
+        veto: report.veto,
+        veto_reason: report.veto_reason,
+        confidence_delta: report.confidence_delta,
+        notes: report.notes,
+        bonus: report.bonus,
+        vetos: report.vetos,
+        home_stats: homeStats,
+        away_stats: awayStats,
+        request_payload: body,
+      }).select("id").single();
+      audit_id = auditRow?.id ?? null;
+    } catch (e) {
+      console.warn("[sherlock] falha ao gravar auditoria:", (e as Error).message);
+    }
+
     return new Response(JSON.stringify({
       ok: true,
       home_team,
@@ -221,6 +249,7 @@ serve(async (req) => {
       home_stats: homeStats,
       away_stats: awayStats,
       report,
+      audit_id,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
