@@ -302,7 +302,7 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
           </Button>
         )}
       </div>
-      {item.kind === 'APROVADO' && (
+      {(item.kind === 'APROVADO' || item.kind === 'LIVE') && (
         <CopySignalActions
           signal={{
             match: item.match,
