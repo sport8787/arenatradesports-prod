@@ -892,11 +892,30 @@ Deno.serve(async (req) => {
       ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusOver25)
     )
 
+    // 🤖 HÓRUS AUTO-BET: dispara entradas automáticas para cada sinal aprovado
+    let horusResult: any = null;
+    if (aprovados.length > 0) {
+      try {
+        const horusRes = await fetch(`${SUPABASE_URL}/functions/v1/horus-auto-bet-favorito`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_SVC_KEY}`,
+          },
+        });
+        horusResult = await horusRes.json().catch(() => ({}));
+        console.log('[PLANO FAVORITO] 🤖 Hórus auto-bet:', JSON.stringify(horusResult));
+      } catch (horusErr) {
+        console.error('[PLANO FAVORITO] horus-auto-bet-favorito falhou:', horusErr);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       analisados: resultados.length,
       aprovados: aprovados.length,
       notificados: sinaísEmitidos,
+      horus_auto_bet: horusResult,
       duracao_s: ((Date.now() - start) / 1000).toFixed(1),
       top: aprovados.slice(0, 10).map(a => ({
         jogo: `${a.homeTeam} x ${a.awayTeam}`,
