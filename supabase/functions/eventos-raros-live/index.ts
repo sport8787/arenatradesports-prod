@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
           `🚀 *EVENTO RARO — Entrada (${BETFAIR_MODE})*`,
           `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
           `🏆 ${c.league_name ?? "—"}`,
-          `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+          `🎯 ${rotuloEstrategia(c.placar_alvo, c.placar_alvo === "LAY_GOLEADA" ? favoritoDoCandidato(c) : null)}`,
           `⏱️ Entrada: min ${minuto}`,
           `📊 Score qualidade: *${c.score_qualidade ?? "—"}/100*`,
           `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
