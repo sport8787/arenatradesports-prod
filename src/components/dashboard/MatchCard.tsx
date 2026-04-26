@@ -42,6 +42,8 @@ export interface Match {
   signalResult?: 'green' | 'red' | null;
   finalScoreHome?: number | null;
   finalScoreAway?: number | null;
+  confidence?: number | null;
+  alerts?: string[] | null;
 }
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
