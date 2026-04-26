@@ -63,10 +63,19 @@ async function fetchFixture(home: string, away: string, isoDate: string) {
   return match || null;
 }
 
-// Liquida o mercado dado o placar final
-function settleMarket(market: string, scoreH: number, scoreA: number): "GREEN" | "RED" | "VOID" | null {
+// Liquida o mercado dado o placar final + nomes dos times (para reconhecer "Botafogo para vencer" etc.)
+function settleMarket(
+  market: string,
+  scoreH: number,
+  scoreA: number,
+  homeTeam = "",
+  awayTeam = "",
+): "GREEN" | "RED" | "VOID" | null {
   const m = market.toLowerCase().trim();
   const total = scoreH + scoreA;
+  const nh = normalize(homeTeam);
+  const na = normalize(awayTeam);
+  const mn = normalize(market);
 
   // Vitória casa / fora / empate
   if (m === "casa" || m === "1" || m.includes("vitória casa") || m.includes("vitoria casa")) {
@@ -112,6 +121,31 @@ function settleMarket(market: string, scoreH: number, scoreA: number): "GREEN" |
   }
   if (m.includes("12") || m.includes("casa ou fora")) {
     return scoreH !== scoreA ? "GREEN" : "RED";
+  }
+
+  // Asian Handicap simples — ex: "AH +0.5 Away", "AH -1 Home", "Handicap Asiático -0.5 Casa"
+  // Só linhas inteiras/meias (não 1/4); para 1/4 retorna null para evitar erro
+  const ahMatch = m.match(/(?:ah|handicap[^\d-+]*)\s*([+-]?\d+(?:\.\d+)?)\s*(home|away|casa|fora)/);
+  if (ahMatch) {
+    const line = parseFloat(ahMatch[1]);
+    const side = ahMatch[2];
+    if ((line * 4) % 1 !== 0) return null; // linhas tipo 0.25, 0.75 → não suportado
+    const isHome = side === "home" || side === "casa";
+    const adjusted = isHome ? scoreH + line - scoreA : scoreA + line - scoreH;
+    if (adjusted > 0) return "GREEN";
+    if (adjusted < 0) return "RED";
+    // adjusted === 0 → push em linha inteira
+    if (line % 1 === 0) return "VOID";
+    // linha .5 nunca empata
+    return "RED";
+  }
+
+  // Vitória do time pelo NOME — ex: "Botafogo para vencer", "Getafe", "Vitória Arouca", "SC Telstar para vencer"
+  if (nh && (mn === nh || mn.includes(nh))) {
+    return scoreH > scoreA ? "GREEN" : "RED";
+  }
+  if (na && (mn === na || mn.includes(na))) {
+    return scoreA > scoreH ? "GREEN" : "RED";
   }
 
   console.warn(`Mercado não reconhecido para liquidação: ${market}`);
