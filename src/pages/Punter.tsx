@@ -27,6 +27,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import SignalsFeed from '@/components/punter/SignalsFeed';
 import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
+import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
 import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
