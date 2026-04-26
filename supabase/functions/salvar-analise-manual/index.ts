@@ -234,15 +234,16 @@ Deno.serve(async (req) => {
     const scores = calcScores(payload);
 
     const scoreMap: Record<string, number> = {
-      "Over 0.5 HT":  scores.score_over05ht,
-      "Over 1.5 HT":  scores.score_over15ht,
-      "Over 2.5 FT":  scores.score_over25ft,
-      "Over 3.5 FT":  scores.score_over35ft,
-      "Under 2.5 FT": scores.score_under25ft,
-      "BTTS FT":      scores.score_bttsft,
-      "Lay Goleada":  scores.score_lay_goleada,
-      "Lay 2x2":      scores.score_lay_2x2,
-      "Lay 1x3/3x1":  scores.score_lay_1x3,
+      "Over 0.5 HT":       scores.score_over05ht,
+      "Over 1.5 HT":       scores.score_over15ht,
+      "Over 2.5 FT":       scores.score_over25ft,
+      "Over 3.5 FT":       scores.score_over35ft,
+      "Under 2.5 FT":      scores.score_under25ft,
+      "BTTS FT":           scores.score_bttsft,
+      "Lay Goleada":       scores.score_lay_goleada,
+      "Lay 2x2":           scores.score_lay_2x2,
+      "Lay 1x3/3x1":       scores.score_lay_1x3,
+      "Handicap Asiático": scores.score_handicap_asiatico,
     };
     const scoreValues = Object.values(scoreMap);
     const melhorScore = Math.max(...scoreValues);
