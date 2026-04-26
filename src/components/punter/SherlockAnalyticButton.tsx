@@ -208,6 +208,43 @@ export default function SherlockAnalyticButton({
               )}
             </div>
           )}
+
+          <div className="mt-2 border-t border-border pt-3">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <History className="h-3.5 w-3.5" />
+              Histórico Sherlock {analysisId ? "deste sinal" : "desta partida"}
+            </div>
+            {historyLoading ? (
+              <p className="text-xs text-muted-foreground">Carregando…</p>
+            ) : history.length === 0 ? (
+              <p className="text-xs italic text-muted-foreground">Nenhuma execução anterior registrada.</p>
+            ) : (
+              <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                {history.map((h) => (
+                  <div key={h.id} className="rounded border border-border bg-card/40 px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">
+                        {h.veto ? (
+                          <span className="text-destructive">🚫 VETO</span>
+                        ) : h.confidence_delta > 0 ? (
+                          <span className="text-primary">+{h.confidence_delta}pp</span>
+                        ) : h.confidence_delta < 0 ? (
+                          <span className="text-destructive">{h.confidence_delta}pp</span>
+                        ) : (
+                          <span className="text-muted-foreground">neutro</span>
+                        )}
+                        {h.market ? <span className="ml-2 text-muted-foreground">{h.market}</span> : null}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}
+                      </span>
+                    </div>
+                    {h.veto_reason && <p className="mt-0.5 text-destructive/90">{h.veto_reason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
