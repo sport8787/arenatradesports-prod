@@ -163,6 +163,10 @@ export default function AdminDashboard() {
             {/* Alertas de edge functions (falhas/h e crédito) */}
             <EdgeFunctionAlerts />
 
+            {/* Tentativas bloqueadas de alterar snapshot de aprovação */}
+            <ApprovalSnapshotViolations />
+
+
             {/* Simulador do novo prompt do Punter */}
             <PunterPromptSimulator />
 
