@@ -497,7 +497,14 @@ async function fetchEnrichedData(homeTeam: string, awayTeam: string, apiKey: str
     homeSeasonStats,
     awaySeasonStats,
     predictions: predictionsData,
-    model_level
+    model_level,
+    // Raw IDs/league exposed for Sherlock advanced indicators
+    homeId,
+    awayId,
+    leagueId,
+    // Raw fixtures (last 5) reusable for CV computation
+    homeFixtures,
+    awayFixtures,
   }
 }
 
