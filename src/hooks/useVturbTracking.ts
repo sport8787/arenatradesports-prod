@@ -9,8 +9,10 @@ import { track } from '@/lib/analytics';
  * Dispara: play, progress_25, progress_50, progress_75, complete, pause.
  * Cada milestone só dispara uma vez por sessão de página.
  */
-export function useVturbTracking(playerId: string) {
+export function useVturbTracking(playerId: string, enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
+
     const fired = new Set<string>();
     const fire = (event: string, extra?: Record<string, any>) => {
       if (fired.has(event)) return;
@@ -63,5 +65,5 @@ export function useVturbTracking(playerId: string) {
       cancelled = true;
       cleanup?.();
     };
-  }, [playerId]);
+  }, [enabled, playerId]);
 }
