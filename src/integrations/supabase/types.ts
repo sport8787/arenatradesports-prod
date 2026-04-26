@@ -3694,6 +3694,63 @@ export type Database = {
         }
         Relationships: []
       }
+      team_advanced_stats: {
+        Row: {
+          away_avg_goals_conceded: number | null
+          away_avg_goals_scored: number | null
+          away_avg_xg: number | null
+          away_cv_conceded: number | null
+          away_cv_scored: number | null
+          created_at: string
+          home_avg_goals_conceded: number | null
+          home_avg_goals_scored: number | null
+          home_avg_xg: number | null
+          home_cv_conceded: number | null
+          home_cv_scored: number | null
+          last_updated: string
+          sample_size: number | null
+          season: number
+          team_id: number
+          team_name: string | null
+        }
+        Insert: {
+          away_avg_goals_conceded?: number | null
+          away_avg_goals_scored?: number | null
+          away_avg_xg?: number | null
+          away_cv_conceded?: number | null
+          away_cv_scored?: number | null
+          created_at?: string
+          home_avg_goals_conceded?: number | null
+          home_avg_goals_scored?: number | null
+          home_avg_xg?: number | null
+          home_cv_conceded?: number | null
+          home_cv_scored?: number | null
+          last_updated?: string
+          sample_size?: number | null
+          season: number
+          team_id: number
+          team_name?: string | null
+        }
+        Update: {
+          away_avg_goals_conceded?: number | null
+          away_avg_goals_scored?: number | null
+          away_avg_xg?: number | null
+          away_cv_conceded?: number | null
+          away_cv_scored?: number | null
+          created_at?: string
+          home_avg_goals_conceded?: number | null
+          home_avg_goals_scored?: number | null
+          home_avg_xg?: number | null
+          home_cv_conceded?: number | null
+          home_cv_scored?: number | null
+          last_updated?: string
+          sample_size?: number | null
+          season?: number
+          team_id?: number
+          team_name?: string | null
+        }
+        Relationships: []
+      }
       telegram_dedupe: {
         Row: {
           channel: string
