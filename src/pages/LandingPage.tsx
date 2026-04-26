@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -8,18 +8,17 @@ import {
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
-import WhatIsOracleSection from '@/components/landing/WhatIsOracleSection';
-import LiveStatsCounter from '@/components/landing/LiveStatsCounter';
-import SocialProofBetsSection from '@/components/landing/SocialProofBetsSection';
-import WhyDifferentSection from '@/components/landing/WhyDifferentSection';
-
-import LiveSocialProofTicker from '@/components/landing/LiveSocialProofTicker';
-import BeforeAfterSection from '@/components/landing/BeforeAfterSection';
-import ObjectionsSection from '@/components/landing/ObjectionsSection';
-import StickyMobileCTA from '@/components/landing/StickyMobileCTA';
-import FloatingWhatsApp from '@/components/landing/FloatingWhatsApp';
-import PromoSlotsCounter from '@/components/landing/PromoSlotsCounter';
-import SocialProofSection from '@/components/landing/SocialProofSection';
+const WhatIsOracleSection = lazy(() => import('@/components/landing/WhatIsOracleSection'));
+const LiveStatsCounter = lazy(() => import('@/components/landing/LiveStatsCounter'));
+const SocialProofBetsSection = lazy(() => import('@/components/landing/SocialProofBetsSection'));
+const WhyDifferentSection = lazy(() => import('@/components/landing/WhyDifferentSection'));
+const LiveSocialProofTicker = lazy(() => import('@/components/landing/LiveSocialProofTicker'));
+const BeforeAfterSection = lazy(() => import('@/components/landing/BeforeAfterSection'));
+const ObjectionsSection = lazy(() => import('@/components/landing/ObjectionsSection'));
+const StickyMobileCTA = lazy(() => import('@/components/landing/StickyMobileCTA'));
+const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsApp'));
+const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
+const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
@@ -30,6 +29,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const { decrementSlot } = usePromoSlots();
+  const [shouldLoadVturb, setShouldLoadVturb] = useState(false);
 
   // Track landing view (com UTMs anexadas) — uma vez por sessão
   useEffect(() => {
@@ -64,12 +64,34 @@ export default function LandingPage() {
   const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/${VTURB_PLAYER_ID}/v4/player.js`;
 
   // Tracking do player VSL
-  useVturbTracking(`vid-${VTURB_PLAYER_ID}`);
+  useVturbTracking(`vid-${VTURB_PLAYER_ID}`, shouldLoadVturb);
   const [showDemo, setShowDemo] = useState(false);
   const [vturbReloadKey, setVturbReloadKey] = useState(0);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+    const isSlowConnection =
+      'connection' in navigator &&
+      ((navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection?.saveData ||
+        ['slow-2g', '2g', '3g'].includes(
+          (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || ''
+        ));
+
+    if (!isMobileViewport && !isSlowConnection) {
+      setShouldLoadVturb(true);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setShouldLoadVturb(true), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // Força reload total do script VTurb para evitar cache/CDN/browser e re-renderizações inconsistentes
   useEffect(() => {
+    if (!shouldLoadVturb) return;
+
     document
       .querySelectorAll('script[src*="scripts.converteai.net"]')
       .forEach((el) => el.remove());
@@ -106,7 +128,7 @@ export default function LandingPage() {
       window.clearTimeout(retry);
       s.remove();
     };
-  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, vturbReloadKey]);
+  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, shouldLoadVturb, vturbReloadKey]);
 
   return (
     <>
@@ -182,7 +204,9 @@ export default function LandingPage() {
               </p>
 
               <div className="mb-6">
-                <PromoSlotsCounter variant="inline" />
+                <Suspense fallback={<div className="h-10" />}>
+                  <PromoSlotsCounter variant="inline" />
+                </Suspense>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -234,11 +258,17 @@ export default function LandingPage() {
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
                   <div ref={videoRef} className="bg-black flex items-center justify-center">
-                    <vturb-smartplayer
-                      key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                      id={`vid-${VTURB_PLAYER_ID}`}
-                      style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-                    />
+                    {shouldLoadVturb ? (
+                      <vturb-smartplayer
+                        key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
+                        id={`vid-${VTURB_PLAYER_ID}`}
+                        style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
+                      />
+                    ) : (
+                      <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
+                        Carregando demonstração…
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -333,21 +363,31 @@ export default function LandingPage() {
       </section>
 
       {/* Prova Real — Depoimento + Demo do sistema */}
-      <SocialProofSection />
+      <Suspense fallback={null}>
+        <SocialProofSection />
+      </Suspense>
 
       {/* Contadores ao vivo */}
-      <LiveStatsCounter />
+      <Suspense fallback={null}>
+        <LiveStatsCounter />
+      </Suspense>
 
       {/* Por que é diferente + Prova Brutal */}
       <div ref={provaBrutalRef}>
-        <WhyDifferentSection onCTA={ctaHandler('prova_brutal', 'testar_gratis_7_dias')} />
+        <Suspense fallback={null}>
+          <WhyDifferentSection onCTA={ctaHandler('prova_brutal', 'testar_gratis_7_dias')} />
+        </Suspense>
       </div>
 
       {/* O que é o Oráculo */}
-      <WhatIsOracleSection onCTA={ctaHandler('what_is_oracle', 'cta_section')} />
+      <Suspense fallback={null}>
+        <WhatIsOracleSection onCTA={ctaHandler('what_is_oracle', 'cta_section')} />
+      </Suspense>
 
       {/* Prova Social - Entradas Reais */}
-      <SocialProofBetsSection onCTA={ctaHandler('social_proof_bets', 'cta_section')} />
+      <Suspense fallback={null}>
+        <SocialProofBetsSection onCTA={ctaHandler('social_proof_bets', 'cta_section')} />
+      </Suspense>
 
       {/* Features */}
       <section id="funcionalidades" className="py-20 bg-[#0f1729]">
@@ -493,10 +533,14 @@ export default function LandingPage() {
       </section>
 
       {/* Antes vs Depois */}
-      <BeforeAfterSection />
+      <Suspense fallback={null}>
+        <BeforeAfterSection />
+      </Suspense>
 
       {/* Objeções */}
-      <ObjectionsSection />
+      <Suspense fallback={null}>
+        <ObjectionsSection />
+      </Suspense>
 
       {/* FAQ */}
       <section className="py-20 bg-[#0f1729]">
@@ -610,11 +654,17 @@ export default function LandingPage() {
               Fechar ✕
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
-              <vturb-smartplayer
-                key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                id={`vid-${VTURB_PLAYER_ID}`}
-                style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-              />
+              {shouldLoadVturb ? (
+                <vturb-smartplayer
+                  key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
+                  id={`vid-${VTURB_PLAYER_ID}`}
+                  style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
+                />
+              ) : (
+                <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
+                  Carregando demonstração…
+                </div>
+              )}
             </div>
             <div className="mt-4 text-center">
               <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
@@ -626,11 +676,15 @@ export default function LandingPage() {
       )}
 
       {/* Notificação de prova social ao vivo */}
-      <LiveSocialProofTicker />
+      <Suspense fallback={null}>
+        <LiveSocialProofTicker />
+      </Suspense>
 
       {/* CTA fixo no rodapé (mobile) */}
-      <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />
-      <FloatingWhatsApp />
+      <Suspense fallback={null}>
+        <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />
+        <FloatingWhatsApp />
+      </Suspense>
     </>
   );
 }
