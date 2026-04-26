@@ -162,7 +162,7 @@ async function getOdds(
   leagueId: number
 ): Promise<OddsMarket> {
   const sportKey = LIGAS_ODDS_API[leagueId]
-  if (!sportKey) return { over15: null, over25: null, favOdd: null }
+  if (!sportKey) return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null }
 
   try {
     const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds`+
@@ -170,11 +170,11 @@ async function getOdds(
 
     const r  = await fetch(url)
     const d  = await r.json() as any[]
-    const game = d.find((g: any) =>
+    const game = Array.isArray(d) ? d.find((g: any) =>
       g.home_team?.toLowerCase().includes(homeTeam.toLowerCase().split(' ')[0]) ||
       g.away_team?.toLowerCase().includes(awayTeam.toLowerCase().split(' ')[0])
-    )
-    if (!game) return { over15: null, over25: null, favOdd: null }
+    ) : null
+    if (!game) return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null }
 
     let over15: number | null = null
     let over25: number | null = null
@@ -203,8 +203,8 @@ async function getOdds(
     const favOdd = homeOdd && awayOdd ? (isFavHome ? homeOdd : awayOdd) : null
     const undOdd = homeOdd && awayOdd ? (isFavHome ? awayOdd : homeOdd) : null
 
-    return { over15, over25, favOdd, undOdd }
-  } catch { return { over15: null, over25: null, favOdd: null, undOdd: null } }
+    return { over15, over25, favOdd, undOdd, homeOdd, awayOdd }
+  } catch { return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null } }
 }
 
 // =============================================================================
