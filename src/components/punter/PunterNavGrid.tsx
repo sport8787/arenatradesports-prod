@@ -48,7 +48,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
       {/* Buscar Sinais — atalho direto para análise */}
       <section>
         <SectionLabel>Buscar Sinais</SectionLabel>
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <NavCard
             primary
             onClick={() => {
@@ -63,6 +63,15 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconColor="text-primary"
             title="Buscar Sinais Agora"
             description="Acessa a Arena Punter e dispara a análise do Mycroft"
+          />
+          <NavCard
+            onClick={() => navigate('/punter/analise-manual')}
+            icon={<FileText className="w-4 h-4" />}
+            iconBg="bg-warning/15"
+            iconColor="text-warning"
+            title="Análise Manual"
+            description="Cole estatísticas do Sherlock e analise o jogo manualmente"
+            badge={{ label: 'Novo', tone: 'exclusive' }}
           />
         </div>
       </section>
