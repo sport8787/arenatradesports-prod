@@ -7,58 +7,59 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import MultiBetOptimizer from "./pages/MultiBetOptimizer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
 import { RequireSubscription } from "@/components/RequireSubscription";
-import LandingPage from "./pages/LandingPage";
-import Paywall from "./pages/Paywall";
-import OfertaEspecial from "./pages/OfertaEspecial";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import MinhasApostas from "./pages/MinhasApostas";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import ArenaTraderSports from "./pages/ArenaTraderSports";
-import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMonthly";
-import ArenaTraderSportsEventosRaros from "./pages/ArenaTraderSportsEventosRaros";
-import UnderThresholdsConfig from "./pages/UnderThresholdsConfig";
-import BackFavoritoComValor from "./pages/BackFavoritoComValor";
-import LiveMatchDetail from "./pages/LiveMatchDetail";
-import TradingHistory from "./pages/TradingHistory";
-import MycroftSinaisAprovados from "./pages/MycroftSinaisAprovados";
-import MycroftSinalDetalhe from "./pages/MycroftSinalDetalhe";
-import LiquidationsHistory from "./pages/LiquidationsHistory";
-import SportsPerformance from "./pages/SportsPerformance";
-import ModoTreino from "./pages/ModoTreino";
-import Historico from "./pages/Historico";
-import BetHistory from "./pages/BetHistory";
-import Punter from "./pages/Punter";
-import PunterAnalytics from "./pages/PunterAnalytics";
-import PunterWidgets from "./pages/PunterWidgets";
-import PunterConfig from "./pages/PunterConfig";
-import PunterImport from "./pages/PunterImport";
-import PunterBetfairReal from "./pages/PunterBetfairReal";
-import PunterFunctions from "./pages/PunterFunctions";
-import PunterBancaVirtual from "./pages/PunterBancaVirtual";
-import PunterAnaliseManual from "./pages/PunterAnaliseManual";
-import PunterAprovadas from "./pages/PunterAprovadas";
-import PunterComunidade from "./pages/PunterComunidade";
-import PunterMenu from "./pages/PunterMenu";
-import ArenaTrader from "./pages/ArenaTrader";
-import ArenaPoker from "./pages/ArenaPoker";
-import ArenaTraderRankings from "./pages/ArenaTraderRankings";
-import ArenaTraderSeason from "./pages/ArenaTraderSeason";
-import ArenaBlackjack from "./pages/ArenaBlackjack";
-import MycroftMemory from "./pages/MycroftMemory";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminChatAnalytics from "./pages/AdminChatAnalytics";
-import AdminPushTest from "./pages/AdminPushTest";
-import AdminSettlementLog from "./pages/AdminSettlementLog";
-import AdminEdgeFunctionsStatus from "./pages/AdminEdgeFunctionsStatus";
-import AdminEdgeFunctionErrors from "./pages/AdminEdgeFunctionErrors";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
+
+const MultiBetOptimizer = React.lazy(() => import("./pages/MultiBetOptimizer"));
+const LandingPage = React.lazy(() => import("./pages/LandingPage"));
+const Paywall = React.lazy(() => import("./pages/Paywall"));
+const OfertaEspecial = React.lazy(() => import("./pages/OfertaEspecial"));
+const Index = React.lazy(() => import("./pages/Index"));
+const Auth = React.lazy(() => import("./pages/Auth"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const MinhasApostas = React.lazy(() => import("./pages/MinhasApostas"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const ArenaTraderSports = React.lazy(() => import("./pages/ArenaTraderSports"));
+const ArenaTraderSportsRankingMonthly = React.lazy(() => import("./pages/ArenaTraderSportsRankingMonthly"));
+const ArenaTraderSportsEventosRaros = React.lazy(() => import("./pages/ArenaTraderSportsEventosRaros"));
+const UnderThresholdsConfig = React.lazy(() => import("./pages/UnderThresholdsConfig"));
+const BackFavoritoComValor = React.lazy(() => import("./pages/BackFavoritoComValor"));
+const LiveMatchDetail = React.lazy(() => import("./pages/LiveMatchDetail"));
+const TradingHistory = React.lazy(() => import("./pages/TradingHistory"));
+const MycroftSinaisAprovados = React.lazy(() => import("./pages/MycroftSinaisAprovados"));
+const MycroftSinalDetalhe = React.lazy(() => import("./pages/MycroftSinalDetalhe"));
+const LiquidationsHistory = React.lazy(() => import("./pages/LiquidationsHistory"));
+const SportsPerformance = React.lazy(() => import("./pages/SportsPerformance"));
+const ModoTreino = React.lazy(() => import("./pages/ModoTreino"));
+const Historico = React.lazy(() => import("./pages/Historico"));
+const BetHistory = React.lazy(() => import("./pages/BetHistory"));
+const Punter = React.lazy(() => import("./pages/Punter"));
+const PunterAnalytics = React.lazy(() => import("./pages/PunterAnalytics"));
+const PunterWidgets = React.lazy(() => import("./pages/PunterWidgets"));
+const PunterConfig = React.lazy(() => import("./pages/PunterConfig"));
+const PunterImport = React.lazy(() => import("./pages/PunterImport"));
+const PunterBetfairReal = React.lazy(() => import("./pages/PunterBetfairReal"));
+const PunterFunctions = React.lazy(() => import("./pages/PunterFunctions"));
+const PunterBancaVirtual = React.lazy(() => import("./pages/PunterBancaVirtual"));
+const PunterAnaliseManual = React.lazy(() => import("./pages/PunterAnaliseManual"));
+const PunterAprovadas = React.lazy(() => import("./pages/PunterAprovadas"));
+const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
+const PunterMenu = React.lazy(() => import("./pages/PunterMenu"));
+const ArenaTrader = React.lazy(() => import("./pages/ArenaTrader"));
+const ArenaPoker = React.lazy(() => import("./pages/ArenaPoker"));
+const ArenaTraderRankings = React.lazy(() => import("./pages/ArenaTraderRankings"));
+const ArenaTraderSeason = React.lazy(() => import("./pages/ArenaTraderSeason"));
+const ArenaBlackjack = React.lazy(() => import("./pages/ArenaBlackjack"));
+const MycroftMemory = React.lazy(() => import("./pages/MycroftMemory"));
+const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
+const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
+const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
+const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
+const AdminEdgeFunctionsStatus = React.lazy(() => import("./pages/AdminEdgeFunctionsStatus"));
+const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFunctionErrors"));
 
 const queryClient = new QueryClient();
 
@@ -89,55 +90,57 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <TrialBanner />
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/lobby" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/privacidade" element={<PrivacyPolicy />} />
-              <Route path="/paywall" element={<Paywall />} />
-              <Route path="/oferta-especial" element={<OfertaEspecial />} />
-              <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
-              <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
-              <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
-              <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
-              <Route path="/minhas-apostas" element={<RequireSubscription><MinhasApostas /></RequireSubscription>} />
-              <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
-              <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
-              <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
-              <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
-              <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
-              <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
-              <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
-              <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
-              <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
-              <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
-              <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
-              <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
-              <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
-              <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
-              <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
-              <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
-              <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
-              <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
-              <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
-              <Route path="/admin/push-test" element={<AdminPushTest />} />
-              <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
-              <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
-              <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/lobby" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/privacidade" element={<PrivacyPolicy />} />
+                <Route path="/paywall" element={<Paywall />} />
+                <Route path="/oferta-especial" element={<OfertaEspecial />} />
+                <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
+                <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
+                <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
+                <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
+                <Route path="/minhas-apostas" element={<RequireSubscription><MinhasApostas /></RequireSubscription>} />
+                <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
+                <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
+                <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
+                <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
+                <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
+                <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
+                <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
+                <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
+                <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
+                <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
+                <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
+                <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
+                <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
+                <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
+                <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
+                <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
+                <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
+                <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
+                <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
+                <Route path="/admin/push-test" element={<AdminPushTest />} />
+                <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
+                <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
+                <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </React.Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
