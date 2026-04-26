@@ -104,6 +104,7 @@ export type Database = {
           r_sof1_a: number | null
           r_sof1_h: number | null
           score_bttsft: number | null
+          score_handicap_asiatico: number | null
           score_lay_1x3: number | null
           score_lay_2x2: number | null
           score_lay_goleada: number | null
@@ -177,6 +178,7 @@ export type Database = {
           r_sof1_a?: number | null
           r_sof1_h?: number | null
           score_bttsft?: number | null
+          score_handicap_asiatico?: number | null
           score_lay_1x3?: number | null
           score_lay_2x2?: number | null
           score_lay_goleada?: number | null
@@ -250,6 +252,7 @@ export type Database = {
           r_sof1_a?: number | null
           r_sof1_h?: number | null
           score_bttsft?: number | null
+          score_handicap_asiatico?: number | null
           score_lay_1x3?: number | null
           score_lay_2x2?: number | null
           score_lay_goleada?: number | null
