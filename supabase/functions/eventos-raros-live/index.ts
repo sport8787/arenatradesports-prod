@@ -194,6 +194,16 @@ Deno.serve(async (req) => {
             resultado: r === "RED" ? "RED" : "PENDENTE",
           }).eq("id", sinalAtivo.id);
           saidas++;
+          const icon = r === "RED" ? "🔴" : "🟢";
+          await tg([
+            `${icon} *EVENTO RARO — Saída*`,
+            `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
+            `🏆 ${c.league_name ?? "—"}`,
+            `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+            `⏱️ Min ${minuto} · ${motivo}`,
+            `📊 Resultado: *${r === "RED" ? "RED" : "PENDENTE"}*`,
+            `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
+          ].join("\n"));
         }
         continue;
       }
@@ -211,6 +221,15 @@ Deno.serve(async (req) => {
           resultado: "PENDENTE",
         });
         entradas++;
+        await tg([
+          `🚀 *EVENTO RARO — Entrada (${BETFAIR_MODE})*`,
+          `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
+          `🏆 ${c.league_name ?? "—"}`,
+          `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+          `⏱️ Entrada: min ${minuto}`,
+          `📊 Score qualidade: *${c.score_qualidade ?? "—"}/100*`,
+          `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
+        ].join("\n"));
       }
     }
 
