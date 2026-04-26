@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Microscope, Loader2, ShieldAlert, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Microscope, Loader2, ShieldAlert, CheckCircle2, AlertTriangle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface SherlockButtonProps {
   homeTeam: string;
