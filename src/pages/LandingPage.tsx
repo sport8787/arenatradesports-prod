@@ -30,6 +30,7 @@ export default function LandingPage() {
   const { isAuthenticated, loading } = useAuth();
   const { decrementSlot } = usePromoSlots();
   const [shouldLoadVturb, setShouldLoadVturb] = useState(false);
+  const [vturbFailed, setVturbFailed] = useState(false);
 
   // Track landing view (com UTMs anexadas) — uma vez por sessão
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function LandingPage() {
 
   // Força reload total do script VTurb para evitar cache/CDN/browser e re-renderizações inconsistentes
   useEffect(() => {
-    if (!shouldLoadVturb) return;
+    if (!shouldLoadVturb || vturbFailed) return;
 
     document
       .querySelectorAll('script[src*="scripts.converteai.net"]')
@@ -115,12 +116,15 @@ export default function LandingPage() {
     s.async = true;
     s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
     s.setAttribute('data-vturb-reload-key', String(vturbReloadKey));
+    s.onerror = () => setVturbFailed(true);
     document.head.appendChild(s);
 
     const retry = window.setTimeout(() => {
       const hasPlayerInstance = Boolean((window as any).smartplayer?.instances?.length);
-      if (!hasPlayerInstance) {
+      if (!hasPlayerInstance && vturbReloadKey < 1) {
         setVturbReloadKey((current) => current + 1);
+      } else if (!hasPlayerInstance) {
+        setVturbFailed(true);
       }
     }, 2500);
 
@@ -128,7 +132,7 @@ export default function LandingPage() {
       window.clearTimeout(retry);
       s.remove();
     };
-  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, shouldLoadVturb, vturbReloadKey]);
+  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, shouldLoadVturb, vturbFailed, vturbReloadKey]);
 
   return (
     <>
@@ -258,7 +262,7 @@ export default function LandingPage() {
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
                   <div ref={videoRef} className="bg-black flex items-center justify-center">
-                    {shouldLoadVturb ? (
+                    {shouldLoadVturb && !vturbFailed ? (
                       <vturb-smartplayer
                         key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
                         id={`vid-${VTURB_PLAYER_ID}`}
@@ -654,7 +658,7 @@ export default function LandingPage() {
               Fechar ✕
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
-              {shouldLoadVturb ? (
+              {shouldLoadVturb && !vturbFailed ? (
                 <vturb-smartplayer
                   key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
                   id={`vid-${VTURB_PLAYER_ID}`}
