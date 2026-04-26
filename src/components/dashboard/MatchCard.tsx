@@ -4,6 +4,7 @@ import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, Ale
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import { formatMatchPeriod } from '@/lib/matchPeriod';
 import FavoriteButton from './FavoriteButton';
 
 export interface MatchStats {
@@ -439,7 +440,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span className="font-orbitron">{match.minute}' | {match.period}</span>
+              <span className="font-orbitron">{match.minute}' | {formatMatchPeriod(match.period)}</span>
             </div>
             <div className="truncate max-w-[60%] text-right">
               {(effectiveStatus === 'APROVADO' || effectiveStatus === 'APROVADO_SITUACIONAL' || effectiveStatus === 'opportunity') && match.planName && (

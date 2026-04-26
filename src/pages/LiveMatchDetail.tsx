@@ -622,7 +622,7 @@ export default function LiveMatchDetail() {
               <div className="flex items-center justify-center gap-2 text-xs font-orbitron uppercase tracking-wider text-muted-foreground">
                 <Clock className="w-3 h-3" />
                 <span>{match.minute ?? 0}'</span>
-                {match.period && <span className="truncate">• {match.period}</span>}
+                {match.period && <span className="truncate">• {formatMatchPeriod(match.period)}</span>}
               </div>
             </div>
 
