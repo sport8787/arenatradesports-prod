@@ -26,6 +26,7 @@ import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
 import SignalsFeed from '@/components/punter/SignalsFeed';
+import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
 import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
@@ -1318,6 +1319,9 @@ export default function PunterPage() {
 
         {/* Feed de Sinais (APROVADO + GREEN/RED) */}
         <SignalsFeed />
+
+        {/* Eventos Raros — placares incomuns identificados pelo motor estatístico */}
+        <EventosRarosPanel arena="punter" />
 
         {/* Navigation Grid movido para /punter/menu */}
 

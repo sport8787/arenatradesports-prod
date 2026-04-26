@@ -1497,6 +1497,170 @@ export type Database = {
         }
         Relationships: []
       }
+      eventos_raros_candidatos: {
+        Row: {
+          arenas: string[] | null
+          away_team: string
+          clean_sheet_rate_away: number | null
+          clean_sheet_rate_home: number | null
+          created_at: string | null
+          desequilibrio_forcas: number | null
+          forca_ofensiva_away: number | null
+          forca_ofensiva_home: number | null
+          fragilidade_def_away: number | null
+          fragilidade_def_home: number | null
+          freq_1x3_h2h: number | null
+          freq_2x2_h2h: number | null
+          freq_goleada_away: number | null
+          freq_goleada_h2h: number | null
+          freq_goleada_home: number | null
+          home_team: string
+          id: string
+          league_id: number
+          league_name: string | null
+          match_date: string
+          match_id: string
+          media_gols_h2h: number | null
+          motivo_descarte: string | null
+          placar_alternativo: string | null
+          placar_alvo: string | null
+          score_qualidade: number | null
+          season: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          arenas?: string[] | null
+          away_team: string
+          clean_sheet_rate_away?: number | null
+          clean_sheet_rate_home?: number | null
+          created_at?: string | null
+          desequilibrio_forcas?: number | null
+          forca_ofensiva_away?: number | null
+          forca_ofensiva_home?: number | null
+          fragilidade_def_away?: number | null
+          fragilidade_def_home?: number | null
+          freq_1x3_h2h?: number | null
+          freq_2x2_h2h?: number | null
+          freq_goleada_away?: number | null
+          freq_goleada_h2h?: number | null
+          freq_goleada_home?: number | null
+          home_team: string
+          id?: string
+          league_id: number
+          league_name?: string | null
+          match_date: string
+          match_id: string
+          media_gols_h2h?: number | null
+          motivo_descarte?: string | null
+          placar_alternativo?: string | null
+          placar_alvo?: string | null
+          score_qualidade?: number | null
+          season?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          arenas?: string[] | null
+          away_team?: string
+          clean_sheet_rate_away?: number | null
+          clean_sheet_rate_home?: number | null
+          created_at?: string | null
+          desequilibrio_forcas?: number | null
+          forca_ofensiva_away?: number | null
+          forca_ofensiva_home?: number | null
+          fragilidade_def_away?: number | null
+          fragilidade_def_home?: number | null
+          freq_1x3_h2h?: number | null
+          freq_2x2_h2h?: number | null
+          freq_goleada_away?: number | null
+          freq_goleada_h2h?: number | null
+          freq_goleada_home?: number | null
+          home_team?: string
+          id?: string
+          league_id?: number
+          league_name?: string | null
+          match_date?: string
+          match_id?: string
+          media_gols_h2h?: number | null
+          motivo_descarte?: string | null
+          placar_alternativo?: string | null
+          placar_alvo?: string | null
+          score_qualidade?: number | null
+          season?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      eventos_raros_sinais: {
+        Row: {
+          candidato_id: string | null
+          created_at: string | null
+          id: string
+          match_id: string
+          minuto_entrada: number | null
+          minuto_saida: number | null
+          modo_betfair: string | null
+          motivo_saida: string | null
+          odd_entrada: number | null
+          odd_saida: number | null
+          placar_alvo: string
+          placar_no_momento: string | null
+          placar_saida: string | null
+          profit_loss: number | null
+          resultado: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidato_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_id: string
+          minuto_entrada?: number | null
+          minuto_saida?: number | null
+          modo_betfair?: string | null
+          motivo_saida?: string | null
+          odd_entrada?: number | null
+          odd_saida?: number | null
+          placar_alvo: string
+          placar_no_momento?: string | null
+          placar_saida?: string | null
+          profit_loss?: number | null
+          resultado?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidato_id?: string | null
+          created_at?: string | null
+          id?: string
+          match_id?: string
+          minuto_entrada?: number | null
+          minuto_saida?: number | null
+          modo_betfair?: string | null
+          motivo_saida?: string | null
+          odd_entrada?: number | null
+          odd_saida?: number | null
+          placar_alvo?: string
+          placar_no_momento?: string | null
+          placar_saida?: string | null
+          profit_loss?: number | null
+          resultado?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_raros_sinais_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_raros_candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fixture_stats_cache: {
         Row: {
           expires_at: string
