@@ -1009,6 +1009,165 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
 }
 
 // ═══════════════════════════════════════════════
+// SHERLOCK — Indicadores avançados (CV, médias casa/fora)
+// ═══════════════════════════════════════════════
+
+interface TeamAdvancedStats {
+  team_id: number
+  season: number
+  team_name?: string | null
+  home_avg_goals_scored: number
+  home_avg_goals_conceded: number
+  home_cv_scored: number
+  home_cv_conceded: number
+  away_avg_goals_scored: number
+  away_avg_goals_conceded: number
+  away_cv_scored: number
+  away_cv_conceded: number
+  sample_size?: number | null
+  last_updated?: string | null
+}
+
+function calcularCV(valores: number[]): number {
+  if (!valores || valores.length === 0) return 0
+  const media = valores.reduce((a, b) => a + b, 0) / valores.length
+  if (media === 0) return 0
+  const variancia = valores.reduce((acc, v) => acc + Math.pow(v - media, 2), 0) / valores.length
+  return Math.sqrt(variancia) / media
+}
+
+async function fetchAllRecentFixturesSherlock(teamId: number, apiKey: string, last = 20): Promise<any[]> {
+  if (!apiKey || !teamId) return []
+  try {
+    const res = await fetch(
+      `${API_FOOTBALL_BASE}/fixtures?team=${teamId}&last=${last}&status=FT`,
+      { headers: apiHeaders(apiKey) }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.response || []
+  } catch { return [] }
+}
+
+function computeContextStats(fixtures: any[], teamId: number, ctx: 'home' | 'away') {
+  const filtered = fixtures.filter((f: any) => {
+    const isHome = f.teams?.home?.id === teamId
+    const isAway = f.teams?.away?.id === teamId
+    if (ctx === 'home') return isHome && f.goals?.home !== null
+    return isAway && f.goals?.away !== null
+  }).slice(0, 15)
+
+  if (filtered.length < 3) return { mediaPro: 0, mediaContra: 0, cvPro: 0, cvContra: 0, n: filtered.length }
+  const golsPro = filtered.map((f: any) => ctx === 'home' ? f.goals.home : f.goals.away)
+  const golsContra = filtered.map((f: any) => ctx === 'home' ? f.goals.away : f.goals.home)
+  return {
+    mediaPro: golsPro.reduce((a, b) => a + b, 0) / golsPro.length,
+    mediaContra: golsContra.reduce((a, b) => a + b, 0) / golsContra.length,
+    cvPro: calcularCV(golsPro),
+    cvContra: calcularCV(golsContra),
+    n: filtered.length,
+  }
+}
+
+async function getOrComputeAdvancedStats(
+  teamId: number | null,
+  teamName: string,
+  season: number,
+  apiKey: string,
+  supabaseClient: any,
+): Promise<TeamAdvancedStats | null> {
+  if (!teamId) return null
+  const { data: cached } = await supabaseClient
+    .from('team_advanced_stats')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('season', season)
+    .maybeSingle()
+
+  const fresh = cached?.last_updated &&
+    (Date.now() - new Date(cached.last_updated).getTime()) < 24 * 60 * 60 * 1000
+  if (fresh) return cached as TeamAdvancedStats
+
+  const fixtures = await fetchAllRecentFixturesSherlock(teamId, apiKey, 20)
+  if (fixtures.length < 3) return (cached as TeamAdvancedStats) || null
+
+  const home = computeContextStats(fixtures, teamId, 'home')
+  const away = computeContextStats(fixtures, teamId, 'away')
+
+  const row = {
+    team_id: teamId,
+    season,
+    team_name: teamName,
+    home_avg_goals_scored: +home.mediaPro.toFixed(2),
+    home_avg_goals_conceded: +home.mediaContra.toFixed(2),
+    home_cv_scored: +home.cvPro.toFixed(2),
+    home_cv_conceded: +home.cvContra.toFixed(2),
+    away_avg_goals_scored: +away.mediaPro.toFixed(2),
+    away_avg_goals_conceded: +away.mediaContra.toFixed(2),
+    away_cv_scored: +away.cvPro.toFixed(2),
+    away_cv_conceded: +away.cvContra.toFixed(2),
+    sample_size: fixtures.length,
+    last_updated: new Date().toISOString(),
+  }
+
+  await supabaseClient.from('team_advanced_stats').upsert(row, { onConflict: 'team_id,season' })
+  return row as TeamAdvancedStats
+}
+
+interface SherlockResult { veto: boolean; reason?: string; confidenceDelta: number; notes: string[] }
+
+function applySherlockRules(
+  analysis: any,
+  homeStats: TeamAdvancedStats | null,
+  awayStats: TeamAdvancedStats | null,
+): SherlockResult {
+  const notes: string[] = []
+  let confidenceDelta = 0
+  const market = (analysis.market || '').toString().toLowerCase()
+  const plan = (analysis.plan_name || '').toString().toUpperCase()
+
+  const isLayGoleada = plan.includes('LAY_GOLEADA') || market.includes('lay goleada') || market.includes('lay-goleada')
+  if (homeStats && isLayGoleada) {
+    const saldoHome = homeStats.home_avg_goals_scored - homeStats.home_avg_goals_conceded
+    if (saldoHome > 1.2) {
+      return { veto: true, reason: `LAY GOLEADA bloqueado: saldo médio do mandante em casa ${saldoHome.toFixed(2)} > 1.20 (alta propensão a goleada).`, confidenceDelta: 0, notes: [] }
+    }
+    if (homeStats.home_cv_scored > 1.0 || homeStats.home_cv_conceded > 1.0) {
+      return { veto: true, reason: `LAY GOLEADA bloqueado: mandante inconsistente (CV ofensivo ${homeStats.home_cv_scored.toFixed(2)} / defensivo ${homeStats.home_cv_conceded.toFixed(2)}).`, confidenceDelta: 0, notes: [] }
+    }
+  }
+
+  if (homeStats && (homeStats.home_cv_scored > 1.0 || homeStats.home_cv_conceded > 1.0)) {
+    notes.push(`⚠️ Mandante imprevisível (CV pró ${homeStats.home_cv_scored.toFixed(2)} / contra ${homeStats.home_cv_conceded.toFixed(2)})`)
+    confidenceDelta -= 5
+  }
+  if (awayStats && (awayStats.away_cv_scored > 1.0 || awayStats.away_cv_conceded > 1.0)) {
+    notes.push(`⚠️ Visitante imprevisível (CV pró ${awayStats.away_cv_scored.toFixed(2)} / contra ${awayStats.away_cv_conceded.toFixed(2)})`)
+    confidenceDelta -= 5
+  }
+
+  if (homeStats && market.includes('over 2.5')) {
+    if (homeStats.home_cv_scored < 0.5 && homeStats.home_avg_goals_scored > 1.5) {
+      confidenceDelta += 5
+      notes.push(`✅ Mandante consistente ofensivo (CV ${homeStats.home_cv_scored.toFixed(2)}, média ${homeStats.home_avg_goals_scored.toFixed(2)}) → +5pp Over 2.5`)
+    }
+  }
+
+  if (market.includes('under 2.5')) {
+    if (homeStats && homeStats.home_cv_conceded < 0.6 && homeStats.home_avg_goals_conceded < 1.0) {
+      confidenceDelta += 3
+      notes.push(`✅ Mandante defensivo consistente (CV ${homeStats.home_cv_conceded.toFixed(2)}, sofridos ${homeStats.home_avg_goals_conceded.toFixed(2)}) → +3pp Under 2.5`)
+    }
+    if (awayStats && awayStats.away_cv_conceded < 0.6 && awayStats.away_avg_goals_conceded < 1.0) {
+      confidenceDelta += 2
+      notes.push(`✅ Visitante defensivo consistente (CV ${awayStats.away_cv_conceded.toFixed(2)}, sofridos ${awayStats.away_avg_goals_conceded.toFixed(2)}) → +2pp Under 2.5`)
+    }
+  }
+
+  return { veto: false, confidenceDelta, notes }
+}
+
+// ═══════════════════════════════════════════════
 // Main analysis function (Anthropic Claude only)
 // ═══════════════════════════════════════════════
 
