@@ -55,7 +55,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
                 description: 'Buscando sinais aprovados na Arena Punter',
                 duration: 3500,
               });
-              navigate('/punter');
+              navigate('/punter?panel=analyze');
             }}
             icon={<Search className="w-4 h-4" />}
             iconBg="bg-primary/15"

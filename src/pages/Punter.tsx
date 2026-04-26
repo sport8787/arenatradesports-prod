@@ -311,6 +311,10 @@ export default function PunterPage() {
     else if (panel === 'backtest') setShowBacktest(true);
     else if (panel === 'rankings') setShowRankings(true);
     else if (panel === 'certificate') setShowCertificate(true);
+    else if (panel === 'analyze') {
+      // dispara análise automaticamente ao chegar via "Buscar Sinais Agora"
+      setTimeout(() => { analyzeGames(); }, 400);
+    }
     // limpa o param para não reabrir
     searchParams.delete('panel');
     setSearchParams(searchParams, { replace: true });
