@@ -12,23 +12,24 @@ interface CompactMatchTableProps {
 }
 
 function computeCriteriaCompact(match: Match) {
+  // B1-B5 (resumido para a tabela compacta)
   const s = match.stats;
-  const possHome = s?.possession_home ?? 0;
-  const atkHome = s?.attacks_home ?? 0;
-  const atkAway = s?.attacks_away ?? 0;
-  const shotsHome = s?.shots_home ?? 0;
-  const cornersHome = s?.corners_home ?? 0;
-  const xgHome = s?.xG_home ?? 0;
-  const xgAway = s?.xG_away ?? 0;
+  const status = match.mycroftStatus;
+  const isApproved = status === 'APROVADO' || status === 'APROVADO_SITUACIONAL' || status === 'opportunity' || status === 'LABAREDA';
+  const conf = match.confidence ?? null;
+  const period = (match.period || '').toLowerCase();
+  const isHalftime = period.includes('intervalo') || period.includes('halftime') || period.includes('ht');
+  const shots = s?.shots_home ?? 0;
+  const corners = s?.corners_home ?? 0;
+  const atk = s?.attacks_home ?? 0;
+  const atkOpp = s?.attacks_away ?? 0;
 
-  const criteria = [
-    (possHome > 55) || (atkHome > atkAway * 1.3),
-    (shotsHome >= 3) || (cornersHome >= 2),
-    xgHome > xgAway,
-    match.scoreHome >= match.scoreAway,
-    match.minute >= 25 && match.minute <= 80,
-  ];
-  return criteria.filter(Boolean).length;
+  const b1 = conf != null ? conf >= 40 : isApproved;
+  const b2 = isApproved;
+  const b3 = status === 'APROVADO_SITUACIONAL' || (match.alerts || []).some(a => /\bS[1-4]\b/i.test(a));
+  const b4 = !isHalftime && match.minute >= 10 && match.minute <= 65;
+  const b5 = (shots >= 3 || corners >= 3) && (atk > atkOpp * 1.2 || shots >= 4);
+  return [b1, b2, b3, b4, b5].filter(Boolean).length;
 }
 
 const statusIcon: Record<string, React.ReactNode> = {

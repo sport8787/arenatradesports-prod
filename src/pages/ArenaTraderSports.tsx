@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw, Sparkles } from 'lucide-react';
 import PunterBackButton from '@/components/punter/PunterBackButton';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { toast } from 'sonner';
@@ -22,7 +22,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
-import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
+
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
@@ -78,10 +78,12 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     signalResult: (lm.mycroft_analysis?.result === 'green' || lm.mycroft_analysis?.result === 'red') ? lm.mycroft_analysis.result : null,
     finalScoreHome: lm.mycroft_analysis?.final_score_home ?? null,
     finalScoreAway: lm.mycroft_analysis?.final_score_away ?? null,
+    confidence: lm.mycroft_analysis?.confidence ?? null,
+    alerts: lm.mycroft_analysis?.alerts ?? null,
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'finished' | 'simulado';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
@@ -258,7 +260,13 @@ export default function ArenaTraderSports() {
         }
         // In all other tabs, exclude sim_ matches
         if (m.matchId?.startsWith('sim_')) return false;
-        if (statusFilter !== 'all') {
+        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento
+        if (statusFilter === 'aprovados') {
+          const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
+          if (effectiveStatus !== 'live') return false;
+          const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+          if (!approvedStatuses.includes(m.mycroftStatus)) return false;
+        } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
         }
@@ -351,6 +359,10 @@ export default function ArenaTraderSports() {
               <CheckCircle2 className="w-4 h-4 mr-1" />
               Sinais Aprovados
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
+              <Sparkles className="w-4 h-4 mr-1" />
+              Eventos Raros
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
@@ -384,10 +396,7 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         <ActivePositions />
 
-        {/* Eventos Raros — placares incomuns (LAY) */}
-        <div id="eventos-raros" className="scroll-mt-20">
-          <EventosRarosPanel arena="trader_sports" />
-        </div>
+        {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
         {/* Filters */}
         <div className="space-y-3">
@@ -428,6 +437,21 @@ export default function ArenaTraderSports() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="live">Ao Vivo</TabsTrigger>
+              <TabsTrigger value="aprovados" className="gap-1.5">
+                Sinais Aprovados
+                {(() => {
+                  const approved = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+                  const count = allMatches.filter(m => {
+                    const eff = (m.status as string) === 'halftime' ? 'live' : m.status;
+                    return eff === 'live' && approved.includes(m.mycroftStatus) && !m.matchId?.startsWith('sim_');
+                  }).length;
+                  return count > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold">
+                      {count}
+                    </span>
+                  ) : null;
+                })()}
+              </TabsTrigger>
               <TabsTrigger value="scheduled" className="gap-1.5">
                 Pré-Live
                 {(() => {

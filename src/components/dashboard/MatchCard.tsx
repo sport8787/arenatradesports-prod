@@ -42,6 +42,8 @@ export interface Match {
   signalResult?: 'green' | 'red' | null;
   finalScoreHome?: number | null;
   finalScoreAway?: number | null;
+  confidence?: number | null;
+  alerts?: string[] | null;
 }
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
@@ -52,105 +54,121 @@ interface CriteriaResult {
   state: CriteriaState;
   detail: string;
   vetoReason?: string;
+  eliminatory?: boolean;
 }
 
+/**
+ * Sistema B1-B5 (atualizado)
+ * B1 — Probabilidade Poisson ≥ 40% (ELIMINATÓRIO)
+ * B2 — Valor Esperado positivo (edge)  (ELIMINATÓRIO)
+ * B3 — Regra Situacional S1-S4 confirmada
+ * B4 — Janela de tempo válida 10-70', não HT (ELIMINATÓRIO)
+ * B5 — Stats ao vivo confirmam (Pressão + Dentro da área)
+ *
+ * Como o Poisson e o EV são calculados na edge function que produz o veredito
+ * (APROVADO/LABAREDA), inferimos B1 e B2 a partir do status + confidence.
+ * Já B4 e B5 são 100% calculáveis no client a partir dos dados ao vivo.
+ */
 function computeCriteria(match: Match): CriteriaResult[] {
   const s = match.stats;
-  const possHome = s?.possession_home;
-  const atkHome = s?.attacks_home;
-  const atkAway = s?.attacks_away;
-  const shotsHome = s?.shots_home;
-  const cornersHome = s?.corners_home;
-  const xgHome = s?.xG_home;
-  const xgAway = s?.xG_away;
+  const status = match.mycroftStatus;
+  const isApproved = status === 'APROVADO' || status === 'APROVADO_SITUACIONAL' || status === 'opportunity' || status === 'LABAREDA';
+  const isVetoed = status === 'VETADO' || status === 'JOGO_MORTO' || status === 'no_value';
+  const conf = match.confidence ?? null;
+  const period = (match.period || '').toLowerCase();
+  const isHalftime = period.includes('intervalo') || period.includes('halftime') || period.includes('ht');
 
-  // 1 — DOMÍNIO
-  let dominioState: CriteriaState = 'gray';
-  let dominioDetail = 'Dados indisponíveis';
-  let dominioVeto: string | undefined;
-  if (possHome != null || atkHome != null) {
-    const poss = possHome ?? 0;
-    const atk = atkHome ?? 0;
-    const atkOpp = atkAway ?? 0;
-    dominioDetail = poss > 0 ? `${poss}% posse` : `${atk} vs ${atkOpp} ataques`;
-    if (poss > 55 || atk > atkOpp * 1.3) {
-      dominioState = 'green';
-    } else if (poss < 45 && atk < atkOpp) {
-      dominioState = 'red';
-      dominioVeto = `sem domínio (${poss}% posse, ${atk} vs ${atkOpp} ataques)`;
-    } else {
-      dominioState = 'gray';
-    }
+  // B1 — Poisson ≥ 40% (eliminatório)
+  let b1: CriteriaState = 'gray';
+  let b1Detail = 'Aguardando análise Poisson';
+  let b1Veto: string | undefined;
+  if (conf != null) {
+    b1Detail = `Probabilidade ${conf}%`;
+    if (conf >= 40) b1 = 'green';
+    else if (conf >= 30) { b1 = 'yellow'; b1Veto = `prob. abaixo do alvo (${conf}%)`; }
+    else { b1 = 'red'; b1Veto = `prob. ${conf}% < 40%`; }
+  } else if (isApproved) {
+    b1 = 'green';
+    b1Detail = 'Aprovado pelo motor (≥40%)';
+  } else if (isVetoed) {
+    b1 = 'red';
+    b1Detail = 'Vetado pelo motor';
+    b1Veto = 'probabilidade Poisson abaixo do alvo';
   }
 
-  // 2 — PRESSÃO
-  let pressaoState: CriteriaState = 'gray';
-  let pressaoDetail = 'Dados indisponíveis';
-  let pressaoVeto: string | undefined;
-  if (shotsHome != null || cornersHome != null) {
-    const shots = shotsHome ?? 0;
-    const corners = cornersHome ?? 0;
-    pressaoDetail = `${shots} finalizações, ${corners} escanteios`;
-    if (shots >= 3 || corners >= 2) {
-      pressaoState = 'green';
-    } else if (shots <= 1 && corners <= 1) {
-      pressaoState = 'red';
-      pressaoVeto = `sem pressão (${shots} finalizações, ${corners} escanteios)`;
-    } else {
-      pressaoState = 'gray';
-    }
+  // B2 — Valor Esperado positivo (eliminatório)
+  let b2: CriteriaState = 'gray';
+  let b2Detail = 'EV pendente';
+  let b2Veto: string | undefined;
+  if (isApproved) {
+    b2 = 'green';
+    b2Detail = 'EV positivo';
+  } else if (isVetoed) {
+    b2 = 'red';
+    b2Detail = 'EV negativo';
+    b2Veto = 'sem valor esperado positivo';
   }
 
-  // 3 — xG
-  let xgState: CriteriaState = 'gray';
-  let xgDetail = 'xG indisponível';
-  let xgVeto: string | undefined;
-  if (xgHome != null && xgAway != null) {
-    xgDetail = `${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)}`;
-    if (xgHome > xgAway) {
-      xgState = 'green';
-    } else if (xgAway > 0 && xgHome < xgAway * 0.5) {
-      xgState = 'red';
-      xgVeto = `xG muito inferior (${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)})`;
-    } else {
-      xgState = 'gray';
-    }
-  }
-
-  // 4 — PLACAR
-  const diff = match.scoreHome - match.scoreAway;
-  let placarState: CriteriaState;
-  let placarDetail = `${match.scoreHome} - ${match.scoreAway}`;
-  let placarVeto: string | undefined;
-  if (diff >= 0) {
-    placarState = 'green';
-  } else if (diff === -1) {
-    placarState = 'yellow';
-    placarVeto = `perdendo por 1 gol (${match.scoreHome}-${match.scoreAway})`;
+  // B3 — Situacional S1-S4
+  let b3: CriteriaState = 'gray';
+  let b3Detail = 'Sem padrão situacional';
+  if (status === 'APROVADO_SITUACIONAL') {
+    b3 = 'green';
+    b3Detail = 'Padrão S1-S4 confirmado';
   } else {
-    placarState = 'red';
-    placarVeto = `placar desfavorável (${match.scoreHome}-${match.scoreAway})`;
+    const sit = (match.alerts || []).find(a => /\bS[1-4]\b/i.test(a));
+    if (sit) { b3 = 'green'; b3Detail = sit; }
+    else if (isApproved) { b3 = 'yellow'; b3Detail = 'Aprovado sem padrão situacional'; }
   }
 
-  // 5 — TIMING
-  let timingState: CriteriaState;
-  let timingDetail = `${match.minute}'`;
-  let timingVeto: string | undefined;
-  if (match.minute >= 25 && match.minute <= 80) {
-    timingState = 'green';
-  } else if (match.minute > 82) {
-    timingState = 'red';
-    timingVeto = `minuto avançado (${match.minute}')`;
+  // B4 — Janela de tempo válida 10-70', não HT (eliminatório)
+  let b4: CriteriaState;
+  let b4Detail = `${match.minute}'`;
+  let b4Veto: string | undefined;
+  if (isHalftime) {
+    b4 = 'red';
+    b4Detail = 'Intervalo';
+    b4Veto = 'janela inválida (intervalo)';
+  } else if (match.minute >= 10 && match.minute <= 65) {
+    b4 = 'green';
+  } else if (match.minute > 65 && match.minute <= 70) {
+    b4 = 'yellow';
+    b4Veto = `janela fechando (${match.minute}')`;
+  } else if (match.minute > 70) {
+    b4 = 'red';
+    b4Veto = `fora da janela (${match.minute}')`;
   } else {
-    timingState = 'gray';
+    b4 = 'gray';
+    b4Detail = `${match.minute}' (cedo)`;
+  }
+
+  // B5 — Stats ao vivo (Pressão + dentro da área)
+  let b5: CriteriaState = 'gray';
+  let b5Detail = 'Stats indisponíveis';
+  const shots = s?.shots_home;
+  const corners = s?.corners_home;
+  const atk = s?.attacks_home;
+  const atkOpp = s?.attacks_away;
+  if (shots != null || corners != null || atk != null) {
+    const sH = shots ?? 0;
+    const cH = corners ?? 0;
+    const aH = atk ?? 0;
+    const aA = atkOpp ?? 0;
+    b5Detail = `${sH} fin., ${cH} esc.${aH || aA ? ` · ${aH}v${aA} ataques` : ''}`;
+    const pressao = sH >= 3 || cH >= 3;
+    const dentroArea = aH > aA * 1.2 || sH >= 4;
+    if (pressao && dentroArea) b5 = 'green';
+    else if (pressao || dentroArea) b5 = 'yellow';
+    else if (sH === 0 && cH === 0 && aH < aA) b5 = 'red';
+    else b5 = 'gray';
   }
 
   return [
-    { key: 'dominio', label: 'Domínio', state: dominioState, detail: dominioDetail, vetoReason: dominioVeto },
-    { key: 'pressao', label: 'Pressão', state: pressaoState, detail: pressaoDetail, vetoReason: pressaoVeto },
-    { key: 'xg', label: 'xG favorável', state: xgState, detail: xgDetail, vetoReason: xgVeto },
-    { key: 'placar', label: 'Placar', state: placarState, detail: placarDetail, vetoReason: placarVeto },
-    { key: 'timing', label: 'Timing', state: timingState, detail: timingDetail, vetoReason: timingVeto },
+    { key: 'b1', label: 'B1 · Poisson ≥40%', state: b1, detail: b1Detail, vetoReason: b1Veto, eliminatory: true },
+    { key: 'b2', label: 'B2 · EV positivo', state: b2, detail: b2Detail, vetoReason: b2Veto, eliminatory: true },
+    { key: 'b3', label: 'B3 · Situacional S1-S4', state: b3, detail: b3Detail },
+    { key: 'b4', label: 'B4 · Janela 10-70\'', state: b4, detail: b4Detail, vetoReason: b4Veto, eliminatory: true },
+    { key: 'b5', label: 'B5 · Stats (pressão + área)', state: b5, detail: b5Detail },
   ];
 }
 
@@ -267,6 +285,8 @@ interface MatchCardProps {
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const criteria = useMemo(() => computeCriteria(match), [match]);
   const criteriaMet = criteria.filter(c => c.state === 'green').length;
+  // Eliminatórios (B1, B2, B4): se algum estiver vermelho, card fica opaco e não pulsa
+  const eliminatoryFailed = criteria.some(c => c.eliminatory && c.state === 'red');
   const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
 
   // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
@@ -283,7 +303,16 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
 
   const statusConfig = getStatusConfig(effectiveStatus);
   const borderClass = getCardBorderClass(effectiveStatus, criteriaMet);
-  const isImminent = criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
+  // Pulso conforme bolinhas verdes (5/5 forte = LABAREDA, 4/5 suave = APROVADO)
+  // Eliminatório vermelho cancela qualquer pulso e deixa o card opaco
+  const pulseClass = eliminatoryFailed
+    ? 'opacity-60'
+    : criteriaMet >= 5
+      ? 'animate-pulse'
+      : criteriaMet >= 4
+        ? 'animate-pulse-border-yellow'
+        : '';
+  const isImminent = !eliminatoryFailed && criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -296,7 +325,8 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         className={cn(
           'relative rounded-xl overflow-hidden border-2 transition-all duration-300 cursor-pointer',
           'bg-gradient-to-b from-[hsl(0,0%,10%)] to-[hsl(0,0%,6%)]',
-          borderClass
+          borderClass,
+          pulseClass,
         )}
       >
         <div className="p-4 space-y-3">
@@ -404,14 +434,19 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                               dotColors[c.state]
                             )} />
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs max-w-[200px]">
-                            {c.state === 'red' ? (
-                              <span>❌ <span className="font-semibold">{c.label}:</span> {c.detail} — {c.vetoReason}</span>
-                            ) : c.state === 'yellow' ? (
-                              <span>⚠️ <span className="font-semibold">{c.label}:</span> {c.detail} — risco</span>
-                            ) : (
-                              <span><span className="font-semibold">{c.label}:</span> {c.detail} {stateEmoji[c.state]}</span>
-                            )}
+                          <TooltipContent side="top" className="text-xs max-w-[240px]">
+                            <div className="space-y-0.5">
+                              <div>
+                                <span className="font-semibold">{c.label}</span>
+                                {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
+                              </div>
+                              <div className="text-muted-foreground">{c.detail}</div>
+                              {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
+                              {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
+                              {c.state === 'yellow' && !c.vetoReason && <div>⚠️ atenção</div>}
+                              {c.state === 'green' && <div>{stateEmoji.green} ok</div>}
+                              {c.state === 'gray' && <div>— sem dados</div>}
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       );
