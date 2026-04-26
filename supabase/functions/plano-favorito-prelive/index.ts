@@ -8,12 +8,17 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const API_FOOTBALL_KEY  = Deno.env.get('API_FOOTBALL_KEY')!
-const ODDS_API_KEY      = Deno.env.get('ODDS_API_KEY')!
-const TELEGRAM_TOKEN    = Deno.env.get('TELEGRAM_BOT_TOKEN')!
-const TELEGRAM_CHAT     = Deno.env.get('TELEGRAM_CHAT_ID')!
+const API_FOOTBALL_KEY  = Deno.env.get('API_FOOTBALL_KEY') ?? ''
+const ODDS_API_KEY      = Deno.env.get('ODDS_API_KEY') ?? ''
+const TELEGRAM_TOKEN    = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? ''
+const TELEGRAM_CHAT     = Deno.env.get('TELEGRAM_CHAT_ID') ?? ''
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY)
 const AF_BASE  = 'https://v3.football.api-sports.io'
