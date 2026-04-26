@@ -154,7 +154,7 @@ export default function SherlockAnalyticButton({
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                   <span>
                     Ajuste de confiança sugerido:{" "}
-                    <strong className={result.report.confidence_delta > 0 ? "text-emerald-500" : "text-amber-500"}>
+                    <strong className={result.report.confidence_delta > 0 ? "text-primary" : "text-destructive"}>
                       {result.report.confidence_delta > 0 ? "+" : ""}{result.report.confidence_delta}pp
                     </strong>
                   </span>
