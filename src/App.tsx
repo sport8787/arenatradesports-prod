@@ -19,6 +19,7 @@ const Paywall = React.lazy(() => import("./pages/Paywall"));
 const OfertaEspecial = React.lazy(() => import("./pages/OfertaEspecial"));
 const Index = React.lazy(() => import("./pages/Index"));
 const Auth = React.lazy(() => import("./pages/Auth"));
+const ChangePassword = React.lazy(() => import("./pages/ChangePassword"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const MinhasApostas = React.lazy(() => import("./pages/MinhasApostas"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
@@ -95,6 +96,7 @@ const App = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/lobby" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/trocar-senha" element={<ChangePassword />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/paywall" element={<Paywall />} />
                 <Route path="/oferta-especial" element={<OfertaEspecial />} />
