@@ -40,6 +40,7 @@ import PunterImport from "./pages/PunterImport";
 import PunterBetfairReal from "./pages/PunterBetfairReal";
 import PunterFunctions from "./pages/PunterFunctions";
 import PunterBancaVirtual from "./pages/PunterBancaVirtual";
+import PunterAnaliseManual from "./pages/PunterAnaliseManual";
 import PunterAprovadas from "./pages/PunterAprovadas";
 import PunterComunidade from "./pages/PunterComunidade";
 import PunterMenu from "./pages/PunterMenu";
