@@ -434,14 +434,19 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                               dotColors[c.state]
                             )} />
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs max-w-[200px]">
-                            {c.state === 'red' ? (
-                              <span>❌ <span className="font-semibold">{c.label}:</span> {c.detail} — {c.vetoReason}</span>
-                            ) : c.state === 'yellow' ? (
-                              <span>⚠️ <span className="font-semibold">{c.label}:</span> {c.detail} — risco</span>
-                            ) : (
-                              <span><span className="font-semibold">{c.label}:</span> {c.detail} {stateEmoji[c.state]}</span>
-                            )}
+                          <TooltipContent side="top" className="text-xs max-w-[240px]">
+                            <div className="space-y-0.5">
+                              <div>
+                                <span className="font-semibold">{c.label}</span>
+                                {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
+                              </div>
+                              <div className="text-muted-foreground">{c.detail}</div>
+                              {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
+                              {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
+                              {c.state === 'yellow' && !c.vetoReason && <div>⚠️ atenção</div>}
+                              {c.state === 'green' && <div>{stateEmoji.green} ok</div>}
+                              {c.state === 'gray' && <div>— sem dados</div>}
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       );
