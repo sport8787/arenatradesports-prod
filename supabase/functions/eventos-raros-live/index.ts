@@ -24,9 +24,18 @@ const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://oraculo-mycroft.com
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const API_BASE = "https://v3.football.api-sports.io";
 
-function rotuloEstrategia(alvo: string): string {
+function favoritoDoCandidato(c: any): string {
+  const fh = Number(c.forca_ofensiva_home ?? 0);
+  const fa = Number(c.forca_ofensiva_away ?? 0);
+  return fh >= fa ? c.home_team : c.away_team;
+}
+
+function rotuloEstrategia(alvo: string, favorito?: string | null): string {
   switch (alvo) {
-    case "LAY_GOLEADA": return "LAY Goleada (≥3 gols de diferença)";
+    case "LAY_GOLEADA":
+      return favorito
+        ? `LAY Goleada do favorito (${favorito}) — apostar contra vitória por ≥3 gols`
+        : "LAY Goleada do favorito (≥3 gols de diferença)";
     case "LAY_2x2": return "LAY 2x2 (placar exato)";
     case "LAY_1x3": return "LAY 1x3 (placar exato)";
     case "LAY_3x1": return "LAY 3x1 (placar exato)";
