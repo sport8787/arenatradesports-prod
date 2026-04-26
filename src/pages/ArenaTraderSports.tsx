@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { isExpiredHtSignal } from '@/lib/signalValidity';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw, Sparkles } from 'lucide-react';
