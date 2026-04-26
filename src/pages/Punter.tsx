@@ -116,6 +116,7 @@ export default function PunterPage() {
   const [placingHorusBets, setPlacingHorusBets] = useState(false);
   const [cornersLoading, setCornersLoading] = useState(false);
   const [cornersResults, setCornersResults] = useState<any[]>([]);
+  const [haLoading, setHaLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     const isNew = sessionStorage.getItem('showOpening') === 'true';
     const completed = localStorage.getItem('onboarding_completed') === 'true';
@@ -1410,6 +1411,43 @@ export default function PunterPage() {
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO ESCANTEIOS...</>
               ) : (
                 <><CornerDownRight className="mr-2 h-4 w-4" /> ANALISAR ESCANTEIOS ({ANALYSIS_NT_COST} NT)</>
+              )}
+            </Button>
+
+            <Button
+              onClick={async () => {
+                if (haLoading) return;
+                setHaLoading(true);
+                toast.info('🎯 Buscando oportunidades em Handicap Asiático... (pode levar até 2 min)');
+                try {
+                  const { data, error } = await supabase.functions.invoke('handicap-asiatico-prelive', { body: {} });
+                  if (error) throw error;
+                  if (data?.success) {
+                    const aprov = data.aprovados ?? 0;
+                    const total = data.jogos_analisados ?? 0;
+                    if (aprov > 0) {
+                      toast.success(`✅ ${aprov} oportunidades de HA encontradas (${total} jogos analisados)`);
+                    } else {
+                      toast.info(`Nenhuma oportunidade de HA aprovada (${total} jogos analisados)`);
+                    }
+                  } else {
+                    toast.error(data?.error || 'Falha na análise de Handicap Asiático');
+                  }
+                } catch (e: any) {
+                  console.error('HA analysis error', e);
+                  toast.error(e?.message || 'Erro ao analisar Handicap Asiático');
+                } finally {
+                  setHaLoading(false);
+                }
+              }}
+              disabled={haLoading || cornersLoading || loading}
+              variant="outline"
+              className="w-full font-mono text-xs tracking-wider border-warning/50 text-warning hover:bg-warning/10"
+            >
+              {haLoading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO HANDICAP ASIÁTICO...</>
+              ) : (
+                <><TrendingUpIcon className="mr-2 h-4 w-4" /> ANALISAR HANDICAP ASIÁTICO ({ANALYSIS_NT_COST} NT)</>
               )}
             </Button>
 
