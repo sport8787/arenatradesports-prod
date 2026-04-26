@@ -261,12 +261,14 @@ export default function ArenaTraderSports() {
         }
         // In all other tabs, exclude sim_ matches
         if (m.matchId?.startsWith('sim_')) return false;
-        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento
+        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento (live ou halftime)
         if (statusFilter === 'aprovados') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== 'live') return false;
           const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
           if (!approvedStatuses.includes(m.mycroftStatus)) return false;
+          // Excluir sinais de 1º tempo já expirados (após HT)
+          if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
         } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
