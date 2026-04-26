@@ -1249,6 +1249,7 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        <PlanoFavoritoPanel />
         {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
         {(() => {
           const sortedByConfidence = [...signals].sort(
