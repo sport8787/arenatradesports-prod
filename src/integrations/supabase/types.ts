@@ -3940,6 +3940,93 @@ export type Database = {
         }
         Relationships: []
       }
+      sinais_handicap_prelive: {
+        Row: {
+          ai_analysis: string | null
+          away_team: string
+          created_at: string | null
+          diferenca_gols: number | null
+          fav_odd: number | null
+          favorito: string | null
+          fixture_id: string
+          gols_fav: number | null
+          gols_und: number | null
+          ha_type: string | null
+          home_team: string
+          id: string
+          indicadores: Json | null
+          league_id: number | null
+          league_name: string | null
+          linha: string
+          liquidacao: string | null
+          match_date: string | null
+          odd_ha: number | null
+          resultado_ha: string | null
+          score_ha: number | null
+          status_ha: string | null
+          und_odd: number | null
+          underdog: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_analysis?: string | null
+          away_team: string
+          created_at?: string | null
+          diferenca_gols?: number | null
+          fav_odd?: number | null
+          favorito?: string | null
+          fixture_id: string
+          gols_fav?: number | null
+          gols_und?: number | null
+          ha_type?: string | null
+          home_team: string
+          id?: string
+          indicadores?: Json | null
+          league_id?: number | null
+          league_name?: string | null
+          linha: string
+          liquidacao?: string | null
+          match_date?: string | null
+          odd_ha?: number | null
+          resultado_ha?: string | null
+          score_ha?: number | null
+          status_ha?: string | null
+          und_odd?: number | null
+          underdog?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_analysis?: string | null
+          away_team?: string
+          created_at?: string | null
+          diferenca_gols?: number | null
+          fav_odd?: number | null
+          favorito?: string | null
+          fixture_id?: string
+          gols_fav?: number | null
+          gols_und?: number | null
+          ha_type?: string | null
+          home_team?: string
+          id?: string
+          indicadores?: Json | null
+          league_id?: number | null
+          league_name?: string | null
+          linha?: string
+          liquidacao?: string | null
+          match_date?: string | null
+          odd_ha?: number | null
+          resultado_ha?: string | null
+          score_ha?: number | null
+          status_ha?: string | null
+          und_odd?: number | null
+          underdog?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       solo_rankings: {
         Row: {
           best_round: number
