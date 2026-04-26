@@ -367,15 +367,51 @@ serve(async (req) => {
             market: analysis.market,
           });
 
-          // === TELEGRAM DESATIVADO PARA ARENA TRADER SPORTS ===
-          // Envio ao Telegram desligado a pedido do usuário para reduzir poluição no grupo principal.
-          // Sinais ao vivo continuarão chegando via Web Push e na própria UI da Arena Trader Sports.
-          // Será reativado em grupo dedicado para sinais ao vivo (a configurar).
-          if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA') {
-            console.log(`[AnalyzeLive] 🔕 Telegram disabled — signal stored only (${match.home_team} vs ${match.away_team} | ${analysis.verdict} | ${analysis.market})`);
-          }
-          if (analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' || analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE') {
-            console.log(`[AnalyzeLive] 🔕 Telegram disabled — exit signal stored only (${match.home_team} vs ${match.away_team} | ${analysis.plan_name})`);
+          // === TELEGRAM ATIVO — grupo dedicado @oraculo_mycroft_trader ===
+          // Sinais ao vivo (APROVADO, APROVADO_SITUACIONAL, LABAREDA) e cancelamentos
+          // são enviados via notify-trader-event, que despacha para o grupo dedicado
+          // através do telegram-send-dedupe (com dedupe por match+market+verdict+canal).
+          const shouldNotifyEntry =
+            analysis.verdict === 'APROVADO' ||
+            analysis.verdict === 'APROVADO_SITUACIONAL' ||
+            analysis.verdict === 'LABAREDA';
+          const shouldNotifyCancel =
+            analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ||
+            analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE';
+
+          if (shouldNotifyEntry || shouldNotifyCancel) {
+            const eventType = shouldNotifyCancel
+              ? 'CANCELADO'
+              : (analysis.verdict === 'LABAREDA' ? 'LABAREDA' : 'APROVADO');
+            try {
+              const notifyRes = await fetch(
+                `${supabaseUrl}/functions/v1/notify-trader-event`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  },
+                  body: JSON.stringify({
+                    match_id: match.match_id,
+                    market: analysis.market || 'N/A',
+                    event_type: eventType,
+                    home_team: match.home_team,
+                    away_team: match.away_team,
+                    league: match.championship ?? null,
+                    odd: analysis.odd ?? null,
+                    confidence: analysis.confidence ?? null,
+                    minute: match.minute ?? null,
+                    score_home: match.score_home ?? 0,
+                    score_away: match.score_away ?? 0,
+                  }),
+                }
+              );
+              const notifyJson = await notifyRes.json().catch(() => ({}));
+              console.log(`[AnalyzeLive] 📨 Telegram notify (${eventType}) for ${match.home_team} vs ${match.away_team} | ${analysis.market} → sent=${notifyJson?.telegram_sent} skipped=${notifyJson?.skipped ?? false}`);
+            } catch (notifyErr) {
+              console.error(`[AnalyzeLive] notify-trader-event failed for ${match.match_id}:`, notifyErr);
+            }
           }
         }
       } catch (e) {
