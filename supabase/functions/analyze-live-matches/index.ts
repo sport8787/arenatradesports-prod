@@ -402,6 +402,8 @@ serve(async (req) => {
                     odd: analysis.odd ?? null,
                     confidence: analysis.confidence ?? null,
                     minute: match.minute ?? null,
+                    period: match.period ?? null,
+                    status: match.status ?? null,
                     score_home: match.score_home ?? 0,
                     score_away: match.score_away ?? 0,
                   }),
