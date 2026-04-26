@@ -1602,18 +1602,28 @@ export default function PunterPage() {
               const realBetDate = realBet ? new Date(realBet.created_at) : null;
 
               return (
-                <SignalCard
-                  key={index}
-                  signal={signal}
-                  onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
-                  bankroll={bankroll}
-                  manualBankroll={manualBankroll}
-                  isNew={!hasPendingBet && !wasAutoPlaced}
-                  horusEntered={hasPendingBet || wasAutoPlaced}
-                  horusStake={realHorusStake}
-                  horusBetDate={realBetDate}
-                  kellyPercent={kellyPercent}
-                />
+                <div key={index} className="space-y-1">
+                  <SignalCard
+                    signal={signal}
+                    onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
+                    bankroll={bankroll}
+                    manualBankroll={manualBankroll}
+                    isNew={!hasPendingBet && !wasAutoPlaced}
+                    horusEntered={hasPendingBet || wasAutoPlaced}
+                    horusStake={realHorusStake}
+                    horusBetDate={realBetDate}
+                    kellyPercent={kellyPercent}
+                  />
+                  <div className="flex justify-end px-1">
+                    <SherlockAnalyticButton
+                      homeTeam={signal.match.home_team}
+                      awayTeam={signal.match.away_team}
+                      market={signal.recommendation.market}
+                      planName={(signal.recommendation as any).plan_name ?? ''}
+                      analysisId={(signal as any).analysis_id ?? null}
+                    />
+                  </div>
+                </div>
               );
                   })}
                 </>
