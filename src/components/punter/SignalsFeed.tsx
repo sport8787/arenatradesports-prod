@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, CheckCheck, Bell, Trophy, XCircle, Target } from 'lucide-react';
+import { Check, CheckCheck, Bell, Trophy, XCircle, Target, Radio } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ const READ_KEY = 'punter_feed_read_v1';
 
 interface FeedItem {
   id: string;
-  kind: 'APROVADO' | 'GREEN' | 'RED';
+  kind: 'APROVADO' | 'GREEN' | 'RED' | 'LIVE';
   created_at: string;
   league: string;
   match: string;
@@ -25,6 +25,7 @@ interface FeedItem {
   odd: number | null;
   confidence: number | null;
   profit_loss: number | null;
+  commence_time?: string | null;
 }
 
 function loadRead(): Set<string> {
@@ -47,7 +48,7 @@ export default function SignalsFeed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [readIds, setReadIds] = useState<Set<string>>(loadRead);
-  const [tab, setTab] = useState<'all' | 'unread' | 'green' | 'red'>('unread');
+  const [tab, setTab] = useState<'all' | 'unread' | 'live' | 'green' | 'red'>('live');
 
   const fetchFeed = useCallback(async () => {
     // 1) Sinais APROVADOS recentes (últimos 7 dias)
@@ -55,13 +56,14 @@ export default function SignalsFeed() {
 
     const { data: aprovados } = await supabase
       .from('punter_analyses')
-      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, result, settled_at, profit_loss')
+      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, result, settled_at, profit_loss, commence_time')
       .eq('verdict', 'APROVADO')
       .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
       .limit(50);
 
     const list: FeedItem[] = [];
+    const nowMs = Date.now();
     (aprovados || []).forEach((a: any) => {
       // Card APROVADO
       list.push({
@@ -74,7 +76,30 @@ export default function SignalsFeed() {
         odd: a.odd,
         confidence: a.confidence,
         profit_loss: null,
+        commence_time: a.commence_time,
       });
+      // Card AO VIVO: aprovado, jogo já começou e ainda não foi liquidado
+      const commenceMs = a.commence_time ? new Date(a.commence_time).getTime() : null;
+      const isLive =
+        commenceMs != null &&
+        commenceMs <= nowMs &&
+        commenceMs >= nowMs - 3 * 60 * 60 * 1000 && // janela de 3h
+        !a.result &&
+        !a.settled_at;
+      if (isLive) {
+        list.push({
+          id: `live-${a.id}`,
+          kind: 'LIVE',
+          created_at: a.created_at,
+          league: a.league || '—',
+          match: `${a.home_team} vs ${a.away_team}`,
+          market: a.market,
+          odd: a.odd,
+          confidence: a.confidence,
+          profit_loss: null,
+          commence_time: a.commence_time,
+        });
+      }
       // Card de resultado se já liquidado
       if (a.result === 'won' || a.result === 'green') {
         list.push({
@@ -116,8 +141,12 @@ export default function SignalsFeed() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_analyses' }, () => fetchFeed())
       .subscribe();
 
+    // Atualização periódica (30s) para refrescar a aba AO VIVO conforme jogos começam/terminam
+    const interval = setInterval(() => fetchFeed(), 30_000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [fetchFeed]);
 
@@ -139,6 +168,7 @@ export default function SignalsFeed() {
   const filtered = useMemo(() => {
     return items.filter((i) => {
       if (tab === 'unread') return !readIds.has(i.id);
+      if (tab === 'live') return i.kind === 'LIVE';
       if (tab === 'green') return i.kind === 'GREEN';
       if (tab === 'red') return i.kind === 'RED';
       return true;
@@ -146,6 +176,7 @@ export default function SignalsFeed() {
   }, [items, readIds, tab]);
 
   const unreadCount = useMemo(() => items.filter((i) => !readIds.has(i.id)).length, [items, readIds]);
+  const liveCount = useMemo(() => items.filter((i) => i.kind === 'LIVE').length, [items]);
 
   return (
     <Card className="border-primary/20">
@@ -167,7 +198,16 @@ export default function SignalsFeed() {
       </CardHeader>
       <CardContent>
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
+            <TabsTrigger value="live" className="gap-1.5">
+              <Radio className="h-3.5 w-3.5 text-destructive animate-pulse" />
+              Ao Vivo
+              {liveCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
+                  {liveCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="unread">Não lidos</TabsTrigger>
             <TabsTrigger value="all">Todos</TabsTrigger>
             <TabsTrigger value="green">GREEN</TabsTrigger>
@@ -216,7 +256,9 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
       ? { icon: Trophy, label: '🟢 GREEN', cls: 'border-success/40 bg-success/10', text: 'text-success' }
       : item.kind === 'RED'
         ? { icon: XCircle, label: '🔴 RED', cls: 'border-destructive/40 bg-destructive/10', text: 'text-destructive' }
-        : { icon: Target, label: '🎯 APROVADO', cls: 'border-primary/40 bg-primary/10', text: 'text-primary' };
+        : item.kind === 'LIVE'
+          ? { icon: Radio, label: '🔴 AO VIVO', cls: 'border-destructive/40 bg-destructive/10 animate-pulse', text: 'text-destructive' }
+          : { icon: Target, label: '🎯 APROVADO', cls: 'border-primary/40 bg-primary/10', text: 'text-primary' };
 
   const Icon = config.icon;
 
@@ -260,7 +302,7 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
           </Button>
         )}
       </div>
-      {item.kind === 'APROVADO' && (
+      {(item.kind === 'APROVADO' || item.kind === 'LIVE') && (
         <CopySignalActions
           signal={{
             match: item.match,
