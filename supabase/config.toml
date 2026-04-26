@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.process-mycroft-queue]
 verify_jwt = false
+
+[functions.handicap-asiatico-prelive]
+verify_jwt = false
