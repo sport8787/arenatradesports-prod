@@ -668,17 +668,11 @@ async function analisarJogo(fixture: any): Promise<Analise | null> {
   // Busca odds
   const odds = await getOdds(teams.home.name, teams.away.name, league.id)
 
-  // Determina favorito
-  let favOdd: number, undOdd: number, isFavoriteHome: boolean
-  if (odds.favOdd) {
-    isFavoriteHome = odds.favOdd === (await getOdds(teams.home.name, teams.away.name, league.id)).favOdd
-    // Tenta determinar via odd home vs away diretamente
-    // Simplificação: usa a odd da The Odds API
-    favOdd = odds.favOdd
-    undOdd = 0 // será preenchido abaixo
-  } else {
-    return null // sem odds, não processa
-  }
+  // Determina favorito a partir das odds home/away
+  if (odds.homeOdd == null || odds.awayOdd == null) return null
+  const isFavoriteHome = odds.homeOdd <= odds.awayOdd
+  const favOdd = isFavoriteHome ? odds.homeOdd : odds.awayOdd
+  const undOdd = isFavoriteHome ? odds.awayOdd : odds.homeOdd
 
   // Filtra odd do favorito
   if (favOdd < 1.40 || favOdd > 2.00) return null
