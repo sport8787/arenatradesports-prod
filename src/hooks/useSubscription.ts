@@ -32,34 +32,37 @@ export function useSubscription() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('user_subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching subscription:', error);
-      setLoading(false);
-      return;
-    }
-
-    if (data) {
-      const sub = data as unknown as Subscription;
-      setSubscription(sub);
-
-      if (sub.plan === 'trial' && sub.trial_ends_at) {
-        const now = new Date();
-        const endsAt = new Date(sub.trial_ends_at);
-        const diffTime = endsAt.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        setDaysLeft(Math.max(0, diffDays));
-      } else {
-        setDaysLeft(0);
+      if (error) {
+        console.error('Error fetching subscription:', error);
+        return;
       }
-    }
 
-    setLoading(false);
+      if (data) {
+        const sub = data as unknown as Subscription;
+        setSubscription(sub);
+
+        if (sub.plan === 'trial' && sub.trial_ends_at) {
+          const now = new Date();
+          const endsAt = new Date(sub.trial_ends_at);
+          const diffTime = endsAt.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          setDaysLeft(Math.max(0, diffDays));
+        } else {
+          setDaysLeft(0);
+        }
+      }
+    } catch (e) {
+      console.error('fetchSubscription threw:', e);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
