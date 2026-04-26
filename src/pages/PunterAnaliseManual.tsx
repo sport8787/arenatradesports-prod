@@ -641,6 +641,7 @@ export default function PunterAnaliseManual() {
                   ['ht', 'Mercados HT'],
                   ['er', 'Eventos Raros'],
                   ['exp', 'Exportar'],
+                  ['hist', 'Histórico'],
                 ] as const).map(([key, label]) => (
                   <button
                     key={key}
@@ -660,12 +661,67 @@ export default function PunterAnaliseManual() {
               {tab === 'exp' ? (
                 <Card>
                   <CardContent className="p-4 space-y-2">
-                    <Button variant="outline" onClick={copyExport} className="w-full">
-                      {copied ? <><Check className="w-4 h-4 mr-1" /> Copiado!</> : <><Copy className="w-4 h-4 mr-1" /> Copiar para clipboard</>}
-                    </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Button variant="outline" onClick={copyExport}>
+                        {copied ? <><Check className="w-4 h-4 mr-1" /> Copiado!</> : <><Copy className="w-4 h-4 mr-1" /> Copiar texto</>}
+                      </Button>
+                      <Button onClick={handleSave} disabled={saving}>
+                        {saving ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Salvando…</> : <><Save className="w-4 h-4 mr-1" /> Salvar análise</>}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Os scores são recalculados no servidor para garantir integridade do histórico.
+                    </p>
                     <pre className="text-[11px] font-mono whitespace-pre-wrap bg-muted/40 border border-border rounded-md p-3 max-h-[320px] overflow-y-auto text-muted-foreground">
                       {exportText}
                     </pre>
+                  </CardContent>
+                </Card>
+              ) : tab === 'hist' ? (
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 flex items-center gap-1.5">
+                        <History className="w-3 h-3" /> Suas últimas 20 análises
+                      </p>
+                      <Button size="sm" variant="ghost" onClick={loadHistory} disabled={loadingHistory} className="h-7 text-[11px]">
+                        {loadingHistory ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Atualizar'}
+                      </Button>
+                    </div>
+                    {loadingHistory ? (
+                      <div className="text-center text-xs text-muted-foreground py-6">Carregando…</div>
+                    ) : history.length === 0 ? (
+                      <div className="text-center text-xs text-muted-foreground py-6">Nenhuma análise salva ainda.</div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {history.map((h) => {
+                          const score = Number(h.melhor_score) || 0;
+                          const tone = score >= 65 ? 'success' : score >= 45 ? 'warning' : 'muted';
+                          return (
+                            <div key={h.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/20 px-3 py-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-medium truncate">{h.home_team} x {h.away_team}</div>
+                                <div className="text-[10px] text-muted-foreground truncate">
+                                  {h.league_name || '—'} · {new Date(h.created_at).toLocaleString('pt-BR')}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{h.melhor_sinal || '—'}</div>
+                                <div className={cn(
+                                  'text-sm font-semibold',
+                                  tone === 'success' ? 'text-success' : tone === 'warning' ? 'text-warning' : 'text-muted-foreground',
+                                )}>
+                                  {score}/100
+                                </div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  ✓ {h.sinais_aprovados ?? 0} · ⚠ {h.sinais_atencao ?? 0}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
