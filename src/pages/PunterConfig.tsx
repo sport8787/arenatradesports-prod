@@ -1,9 +1,10 @@
-import { ArrowLeft, Settings, Bell } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
+import EventosRarosConfig from '@/components/eventos-raros/EventosRarosConfig';
 
 export default function PunterConfig() {
   const navigate = useNavigate();
@@ -41,6 +42,13 @@ export default function PunterConfig() {
                  <Settings className="w-3.5 h-3.5" /> Alertas do Hórus
                </h2>
                <HorusConfig userId={user.id} />
+             </section>
+
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Sparkles className="w-3.5 h-3.5" /> Eventos Raros
+               </h2>
+               <EventosRarosConfig />
              </section>
            </>
         ) : (

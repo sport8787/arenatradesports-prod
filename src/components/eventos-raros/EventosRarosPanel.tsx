@@ -44,9 +44,30 @@ export default function EventosRarosPanel({ arena }: Props) {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
   const [sinais, setSinais] = useState<Sinal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enabled, setEnabled] = useState(true);
+  const [threshold, setThreshold] = useState(60);
 
   useEffect(() => {
     const load = async () => {
+      // Lê config da arena (e fallback para global)
+      const { data: cfgs } = await supabase
+        .from("eventos_raros_config")
+        .select("arena, enabled, score_threshold")
+        .in("arena", [arena, "global"]);
+      const cfgArena = cfgs?.find((c: any) => c.arena === arena);
+      const cfgGlobal = cfgs?.find((c: any) => c.arena === "global");
+      const isEnabled = (cfgArena?.enabled ?? true) && (cfgGlobal?.enabled ?? true);
+      const scoreMin = cfgArena?.score_threshold ?? 60;
+      setEnabled(isEnabled);
+      setThreshold(scoreMin);
+
+      if (!isEnabled) {
+        setCandidatos([]);
+        setSinais([]);
+        setLoading(false);
+        return;
+      }
+
       const desde = new Date(Date.now() - 6 * 3600_000).toISOString();
       const ateAmanha = new Date(Date.now() + 36 * 3600_000).toISOString();
       const [{ data: cands }, { data: sins }] = await Promise.all([
@@ -54,6 +75,7 @@ export default function EventosRarosPanel({ arena }: Props) {
           .from("eventos_raros_candidatos")
           .select("*")
           .eq("status", "APROVADO")
+          .gte("score_qualidade", scoreMin)
           .contains("arenas", [arena])
           .gte("match_date", desde)
           .lte("match_date", ateAmanha)
@@ -75,9 +97,12 @@ export default function EventosRarosPanel({ arena }: Props) {
       .channel("eventos-raros-" + arena)
       .on("postgres_changes", { event: "*", schema: "public", table: "eventos_raros_candidatos" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "eventos_raros_sinais" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "eventos_raros_config" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [arena]);
+
+  if (!enabled) return null;
 
   const sinaisAtivos = sinais.filter((s) => s.status === "ATIVO");
 
