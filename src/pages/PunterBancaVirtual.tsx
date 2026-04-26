@@ -26,17 +26,15 @@ export default function PunterBancaVirtualPage() {
     (async () => {
       const [{ data: horus }, { data: manual }] = await Promise.all([
         supabase
-          .from('bets_history')
+          .from('virtual_bets_punter')
           .select('*')
           .eq('user_id', user.id)
-          .eq('source', 'horus')
-          .eq('result', 'pending'),
+          .eq('status', 'pending'),
         supabase
-          .from('bets_history')
+          .from('virtual_bets_manual')
           .select('*')
           .eq('user_id', user.id)
-          .eq('source', 'manual')
-          .eq('result', 'pending'),
+          .eq('status', 'pending'),
       ]);
       setPendingBets(horus || []);
       setManualPendingBets(manual || []);
