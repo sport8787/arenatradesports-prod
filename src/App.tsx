@@ -21,6 +21,7 @@ import MinhasApostas from "./pages/MinhasApostas";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ArenaTraderSports from "./pages/ArenaTraderSports";
 import ArenaTraderSportsRankingMonthly from "./pages/ArenaTraderSportsRankingMonthly";
+import ArenaTraderSportsEventosRaros from "./pages/ArenaTraderSportsEventosRaros";
 import UnderThresholdsConfig from "./pages/UnderThresholdsConfig";
 import BackFavoritoComValor from "./pages/BackFavoritoComValor";
 import LiveMatchDetail from "./pages/LiveMatchDetail";
@@ -103,6 +104,7 @@ const App = () => {
               <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
               <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
               <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
+              <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
               <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
               <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
               <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
