@@ -87,6 +87,8 @@ interface OddsMarket {
   over25: number | null
   favOdd: number | null
   undOdd: number | null
+  homeOdd?: number | null
+  awayOdd?: number | null
 }
 
 interface Analise {
