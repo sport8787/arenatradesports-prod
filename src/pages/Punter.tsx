@@ -1509,19 +1509,31 @@ export default function PunterPage() {
 
             {(() => {
               const todayStr = new Date().toDateString();
-              const categoryOf = (sp: number): 'A' | 'B' | 'C' => (sp >= 4 ? 'A' : sp >= 3 ? 'B' : 'C');
+              // Mapeia stake_percentage → categoria A/B/C usando a MESMA fonte de verdade dos tiers
+              // (getTierFromStake do tierLabels). Retorna null quando não há stake informado,
+              // para evitar classificar incorretamente como "C" por causa de um default fixo.
+              const categoryOf = (sp: number | null | undefined): 'A' | 'B' | 'C' | null => {
+                if (sp == null || isNaN(Number(sp))) return null;
+                const label = getTierFromStake(Number(sp)).label; // SINAL FORTE | SINAL BOM | SINAL MODERADO
+                if (label === 'SINAL FORTE') return 'A';
+                if (label === 'SINAL BOM') return 'B';
+                if (label === 'SINAL MODERADO') return 'C';
+                return null;
+              };
               const visibleSignals = signals.filter((s) => {
                 if (todayOnlyFilter && new Date(s.match.commence_time).toDateString() !== todayStr) return false;
                 if (categoryFilter !== 'all') {
-                  const sp = (s as any).recommendation?.stake_percentage ?? 3;
-                  if (categoryOf(sp) !== categoryFilter) return false;
+                  const sp = (s as any).recommendation?.stake_percentage;
+                  const cat = categoryOf(sp);
+                  if (cat !== categoryFilter) return false; // sem stake → não classifica em nenhuma categoria
                 }
                 return true;
               });
               const counts = signals.reduce(
                 (acc, s) => {
-                  const sp = (s as any).recommendation?.stake_percentage ?? 3;
-                  acc[categoryOf(sp)]++;
+                  const sp = (s as any).recommendation?.stake_percentage;
+                  const cat = categoryOf(sp);
+                  if (cat) acc[cat]++;
                   return acc;
                 },
                 { A: 0, B: 0, C: 0 } as Record<'A' | 'B' | 'C', number>,
