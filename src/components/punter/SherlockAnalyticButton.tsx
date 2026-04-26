@@ -59,9 +59,35 @@ export default function SherlockAnalyticButton({
   size = "sm",
   variant = "outline",
 }: SherlockButtonProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SherlockResponse | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchHistory = async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    let q = supabase
+      .from("sherlock_audit_log" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (analysisId) {
+      q = q.eq("analysis_id", analysisId);
+    } else {
+      q = q.eq("home_team", homeTeam).eq("away_team", awayTeam);
+    }
+    const { data } = await q;
+    setHistory((data as any[]) ?? []);
+    setHistoryLoading(false);
+  };
+
+  useEffect(() => {
+    if (open) fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const run = async () => {
     setLoading(true);
@@ -78,10 +104,12 @@ export default function SherlockAnalyticButton({
           market,
           plan_name: planName,
           analysis_id: analysisId,
+          user_id: user?.id ?? null,
         },
       });
       if (error) throw error;
       setResult(data as SherlockResponse);
+      fetchHistory();
       if (data?.report?.veto) {
         toast.error("Sherlock vetou esta operação", { description: data.report.veto_reason ?? "" });
       } else if (data?.report?.bonus?.length) {
