@@ -1593,6 +1593,39 @@ export type Database = {
         }
         Relationships: []
       }
+      eventos_raros_config: {
+        Row: {
+          arena: string
+          betfair_mode: string
+          enabled: boolean
+          id: string
+          notify_telegram: boolean
+          score_threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          arena: string
+          betfair_mode?: string
+          enabled?: boolean
+          id?: string
+          notify_telegram?: boolean
+          score_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          arena?: string
+          betfair_mode?: string
+          enabled?: boolean
+          id?: string
+          notify_telegram?: boolean
+          score_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       eventos_raros_sinais: {
         Row: {
           candidato_id: string | null
