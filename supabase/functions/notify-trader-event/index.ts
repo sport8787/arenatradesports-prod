@@ -202,6 +202,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 🛡️ Bloqueio anti-atraso: se o sinal é de 1º tempo e o jogo já passou da janela,
+    // NÃO envia (evita Telegram chegando no 2º tempo com placar/minuto defasados).
+    if ((payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA') &&
+        isExpiredHtSignal({ market: payload.market, minute: payload.minute, period: payload.period, status: payload.status })) {
+      console.warn(`[notify-trader-event] ⌛ Sinal HT expirado — não enviado | match=${payload.match_id} market=${payload.market} minute=${payload.minute} period=${payload.period}`);
+      return new Response(JSON.stringify({ skipped: true, reason: 'ht_window_expired' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
