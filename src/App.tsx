@@ -96,6 +96,7 @@ const App = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/lobby" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/trocar-senha" element={<ChangePassword />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/paywall" element={<Paywall />} />
                 <Route path="/oferta-especial" element={<OfertaEspecial />} />
