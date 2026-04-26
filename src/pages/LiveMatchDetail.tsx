@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
 import MatchMycroftChat from '@/components/arena-trader/MatchMycroftChat';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import { formatMatchPeriod } from '@/lib/matchPeriod';
 
 interface SnapshotEvent {
   at: string;
