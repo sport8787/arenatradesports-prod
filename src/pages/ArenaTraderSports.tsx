@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw, Sparkles } from 'lucide-react';
 import PunterBackButton from '@/components/punter/PunterBackButton';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { toast } from 'sonner';
@@ -357,6 +357,10 @@ export default function ArenaTraderSports() {
               <CheckCircle2 className="w-4 h-4 mr-1" />
               Sinais Aprovados
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
+              <Sparkles className="w-4 h-4 mr-1" />
+              Eventos Raros
+            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
               <BarChart3 className="w-4 h-4 mr-1" />
               Histórico
@@ -390,10 +394,7 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         <ActivePositions />
 
-        {/* Eventos Raros — placares incomuns (LAY) */}
-        <div id="eventos-raros" className="scroll-mt-20">
-          <EventosRarosPanel arena="trader_sports" />
-        </div>
+        {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
         {/* Filters */}
         <div className="space-y-3">
