@@ -263,7 +263,7 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
     placar_alternativo: alternativo,
     score_qualidade: score,
     status,
-    motivo_descarte: alvo ? null : `Score insuficiente: ${score} (mínimo ${scoreMin})`,
+    motivo_descarte: alvo ? null : (sherlockVetoMotivo ?? `Score insuficiente: ${score} (mínimo ${scoreMin})`),
     arenas,
     ...ind,
   });
