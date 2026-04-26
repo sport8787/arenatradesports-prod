@@ -24,9 +24,18 @@ const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://oraculo-mycroft.com
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const API_BASE = "https://v3.football.api-sports.io";
 
-function rotuloEstrategia(alvo: string): string {
+function favoritoDoCandidato(c: any): string {
+  const fh = Number(c.forca_ofensiva_home ?? 0);
+  const fa = Number(c.forca_ofensiva_away ?? 0);
+  return fh >= fa ? c.home_team : c.away_team;
+}
+
+function rotuloEstrategia(alvo: string, favorito?: string | null): string {
   switch (alvo) {
-    case "LAY_GOLEADA": return "LAY Goleada (≥3 gols de diferença)";
+    case "LAY_GOLEADA":
+      return favorito
+        ? `LAY Goleada do favorito (${favorito}) — apostar contra vitória por ≥3 gols`
+        : "LAY Goleada do favorito (≥3 gols de diferença)";
     case "LAY_2x2": return "LAY 2x2 (placar exato)";
     case "LAY_1x3": return "LAY 1x3 (placar exato)";
     case "LAY_3x1": return "LAY 3x1 (placar exato)";
@@ -199,7 +208,7 @@ Deno.serve(async (req) => {
             `${icon} *EVENTO RARO — Saída*`,
             `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
             `🏆 ${c.league_name ?? "—"}`,
-            `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+            `🎯 ${rotuloEstrategia(c.placar_alvo, c.placar_alvo === "LAY_GOLEADA" ? favoritoDoCandidato(c) : null)}`,
             `⏱️ Min ${minuto} · ${motivo}`,
             `📊 Resultado: *${r === "RED" ? "RED" : "PENDENTE"}*`,
             `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
@@ -225,7 +234,7 @@ Deno.serve(async (req) => {
           `🚀 *EVENTO RARO — Entrada (${BETFAIR_MODE})*`,
           `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
           `🏆 ${c.league_name ?? "—"}`,
-          `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+          `🎯 ${rotuloEstrategia(c.placar_alvo, c.placar_alvo === "LAY_GOLEADA" ? favoritoDoCandidato(c) : null)}`,
           `⏱️ Entrada: min ${minuto}`,
           `📊 Score qualidade: *${c.score_qualidade ?? "—"}/100*`,
           `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
