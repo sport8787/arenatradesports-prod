@@ -168,6 +168,7 @@ export default function SignalsFeed() {
   const filtered = useMemo(() => {
     return items.filter((i) => {
       if (tab === 'unread') return !readIds.has(i.id);
+      if (tab === 'live') return i.kind === 'LIVE';
       if (tab === 'green') return i.kind === 'GREEN';
       if (tab === 'red') return i.kind === 'RED';
       return true;
@@ -175,6 +176,7 @@ export default function SignalsFeed() {
   }, [items, readIds, tab]);
 
   const unreadCount = useMemo(() => items.filter((i) => !readIds.has(i.id)).length, [items, readIds]);
+  const liveCount = useMemo(() => items.filter((i) => i.kind === 'LIVE').length, [items]);
 
   return (
     <Card className="border-primary/20">
