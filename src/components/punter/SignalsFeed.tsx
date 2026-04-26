@@ -63,6 +63,7 @@ export default function SignalsFeed() {
       .limit(50);
 
     const list: FeedItem[] = [];
+    const nowMs = Date.now();
     (aprovados || []).forEach((a: any) => {
       // Card APROVADO
       list.push({
@@ -75,7 +76,30 @@ export default function SignalsFeed() {
         odd: a.odd,
         confidence: a.confidence,
         profit_loss: null,
+        commence_time: a.commence_time,
       });
+      // Card AO VIVO: aprovado, jogo já começou e ainda não foi liquidado
+      const commenceMs = a.commence_time ? new Date(a.commence_time).getTime() : null;
+      const isLive =
+        commenceMs != null &&
+        commenceMs <= nowMs &&
+        commenceMs >= nowMs - 3 * 60 * 60 * 1000 && // janela de 3h
+        !a.result &&
+        !a.settled_at;
+      if (isLive) {
+        list.push({
+          id: `live-${a.id}`,
+          kind: 'LIVE',
+          created_at: a.created_at,
+          league: a.league || '—',
+          match: `${a.home_team} vs ${a.away_team}`,
+          market: a.market,
+          odd: a.odd,
+          confidence: a.confidence,
+          profit_loss: null,
+          commence_time: a.commence_time,
+        });
+      }
       // Card de resultado se já liquidado
       if (a.result === 'won' || a.result === 'green') {
         list.push({
