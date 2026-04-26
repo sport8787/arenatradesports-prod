@@ -81,7 +81,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'finished' | 'simulado';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
@@ -258,7 +258,13 @@ export default function ArenaTraderSports() {
         }
         // In all other tabs, exclude sim_ matches
         if (m.matchId?.startsWith('sim_')) return false;
-        if (statusFilter !== 'all') {
+        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento
+        if (statusFilter === 'aprovados') {
+          const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
+          if (effectiveStatus !== 'live') return false;
+          const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+          if (!approvedStatuses.includes(m.mycroftStatus)) return false;
+        } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
         }
