@@ -1321,7 +1321,9 @@ export default function PunterPage() {
         <SignalsFeed />
 
         {/* Eventos Raros — placares incomuns identificados pelo motor estatístico */}
-        <EventosRarosPanel arena="punter" />
+        <div id="eventos-raros" className="scroll-mt-20">
+          <EventosRarosPanel arena="punter" />
+        </div>
 
         {/* Navigation Grid movido para /punter/menu */}
 

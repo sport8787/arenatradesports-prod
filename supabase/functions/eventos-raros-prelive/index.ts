@@ -173,6 +173,46 @@ function escolherPlacarAlvo(ind: Indicadores, scoreMin = 60): {
   };
 }
 
+const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://oraculo-mycroft.com";
+
+function rotuloEstrategia(alvo: string): string {
+  switch (alvo) {
+    case "LAY_GOLEADA": return "LAY Goleada (≥3 gols de diferença)";
+    case "LAY_2x2": return "LAY 2x2 (placar exato)";
+    case "LAY_1x3": return "LAY 1x3 (placar exato)";
+    case "LAY_3x1": return "LAY 3x1 (placar exato)";
+    default: return alvo;
+  }
+}
+
+function emojiEstrategia(alvo: string): string {
+  switch (alvo) {
+    case "LAY_GOLEADA": return "🛡️";
+    case "LAY_2x2": return "🎯";
+    case "LAY_1x3": return "🎯";
+    case "LAY_3x1": return "🎯";
+    default: return "🔮";
+  }
+}
+
+function formatarHorarioBRT(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    }) + " BRT";
+  } catch { return iso; }
+}
+
+function linkArena(arenas: string[]): string {
+  // Prioriza Trader Sports se houver, senão Punter
+  if (arenas.includes("trader_sports")) return `${SITE_URL}/arena-trader-sports#eventos-raros`;
+  if (arenas.includes("punter")) return `${SITE_URL}/punter#eventos-raros`;
+  return SITE_URL;
+}
+
 async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
   const matchId = String(f.fixture.id);
   const exist = await sb.from("eventos_raros_candidatos").select("id").eq("match_id", matchId).maybeSingle();
@@ -210,19 +250,43 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
     ...ind,
   });
 
-  return alvo ? { match: `${f.teams.home.name} x ${f.teams.away.name}`, alvo, score } : null;
+  return alvo
+    ? {
+        match: `${f.teams.home.name} x ${f.teams.away.name}`,
+        liga: f.league.name,
+        pais: f.league.country,
+        horario: f.fixture.date,
+        alvo,
+        alternativo,
+        score,
+        arenas,
+      }
+    : null;
 }
 
 async function notificarTelegram(aprovados: any[]) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !aprovados.length) return;
-  const linhas = aprovados.slice(0, 10).map((a, i) =>
-    `${i + 1}️⃣ ${a.match}\n🎯 ${a.alvo} · Score ${a.score}/100`
-  ).join("\n━━━━━━\n");
-  const msg = `🔮 EVENTOS RAROS — ${aprovados.length} candidatos\n\n${linhas}`;
+  const linhas = aprovados.slice(0, 10).map((a, i) => {
+    const alt = a.alternativo ? ` · alt: ${a.alternativo}` : "";
+    return [
+      `${i + 1}️⃣ *${a.match}*`,
+      `🏆 ${a.liga}${a.pais ? ` (${a.pais})` : ""}`,
+      `🕐 ${formatarHorarioBRT(a.horario)}`,
+      `${emojiEstrategia(a.alvo)} ${rotuloEstrategia(a.alvo)}${alt}`,
+      `📊 Score: *${a.score}/100*`,
+      `🔗 [Abrir no painel](${linkArena(a.arenas)})`,
+    ].join("\n");
+  }).join("\n━━━━━━━━━━━━━\n");
+  const msg = `🔮 *EVENTOS RAROS — Pré-Live*\n${aprovados.length} candidato(s) aprovado(s)\n\n${linhas}`;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg }),
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: msg,
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    }),
   });
 }
 

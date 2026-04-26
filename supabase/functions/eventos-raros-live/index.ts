@@ -17,9 +17,42 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
 const BETFAIR_MODE = Deno.env.get("BETFAIR_MODE") ?? "simulado";
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
+const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://oraculo-mycroft.com";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const API_BASE = "https://v3.football.api-sports.io";
+
+function rotuloEstrategia(alvo: string): string {
+  switch (alvo) {
+    case "LAY_GOLEADA": return "LAY Goleada (≥3 gols de diferença)";
+    case "LAY_2x2": return "LAY 2x2 (placar exato)";
+    case "LAY_1x3": return "LAY 1x3 (placar exato)";
+    case "LAY_3x1": return "LAY 3x1 (placar exato)";
+    default: return alvo;
+  }
+}
+
+function linkArena(arenas: string[] | null): string {
+  if (arenas?.includes("trader_sports")) return `${SITE_URL}/arena-trader-sports#eventos-raros`;
+  if (arenas?.includes("punter")) return `${SITE_URL}/punter#eventos-raros`;
+  return SITE_URL;
+}
+
+async function tg(text: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text,
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    }),
+  }).catch(() => {});
+}
 
 async function getLiveFixture(matchId: string) {
   const r = await fetch(`${API_BASE}/fixtures?id=${matchId}`, {
@@ -161,6 +194,16 @@ Deno.serve(async (req) => {
             resultado: r === "RED" ? "RED" : "PENDENTE",
           }).eq("id", sinalAtivo.id);
           saidas++;
+          const icon = r === "RED" ? "🔴" : "🟢";
+          await tg([
+            `${icon} *EVENTO RARO — Saída*`,
+            `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
+            `🏆 ${c.league_name ?? "—"}`,
+            `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+            `⏱️ Min ${minuto} · ${motivo}`,
+            `📊 Resultado: *${r === "RED" ? "RED" : "PENDENTE"}*`,
+            `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
+          ].join("\n"));
         }
         continue;
       }
@@ -178,6 +221,15 @@ Deno.serve(async (req) => {
           resultado: "PENDENTE",
         });
         entradas++;
+        await tg([
+          `🚀 *EVENTO RARO — Entrada (${BETFAIR_MODE})*`,
+          `⚽ ${c.home_team} *${sh}-${sa}* ${c.away_team}`,
+          `🏆 ${c.league_name ?? "—"}`,
+          `🎯 ${rotuloEstrategia(c.placar_alvo)}`,
+          `⏱️ Entrada: min ${minuto}`,
+          `📊 Score qualidade: *${c.score_qualidade ?? "—"}/100*`,
+          `🔗 [Abrir no painel](${linkArena(c.arenas)})`,
+        ].join("\n"));
       }
     }
 
