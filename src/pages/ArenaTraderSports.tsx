@@ -78,6 +78,8 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     signalResult: (lm.mycroft_analysis?.result === 'green' || lm.mycroft_analysis?.result === 'red') ? lm.mycroft_analysis.result : null,
     finalScoreHome: lm.mycroft_analysis?.final_score_home ?? null,
     finalScoreAway: lm.mycroft_analysis?.final_score_away ?? null,
+    confidence: lm.mycroft_analysis?.confidence ?? null,
+    alerts: lm.mycroft_analysis?.alerts ?? null,
   };
 };
 
