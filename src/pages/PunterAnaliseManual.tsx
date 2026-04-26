@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Copy, Check, FileText } from 'lucide-react';
+import { ArrowLeft, ClipboardPaste, Copy, Check, FileText, Save, History, Loader2 } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 // ============================================================
 // Tipos
@@ -342,8 +344,58 @@ export default function PunterAnaliseManual() {
   const [oddA, setOddA] = useState('');
   const [shData, setShData] = useState('');
   const [data, setData] = useState<ParsedData | null>(null);
-  const [tab, setTab] = useState<'all' | 'ht' | 'er' | 'exp'>('all');
+  const [tab, setTab] = useState<'all' | 'ht' | 'er' | 'exp' | 'hist'>('all');
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const { user } = useAuth();
+
+  const loadHistory = async () => {
+    if (!user) return;
+    setLoadingHistory(true);
+    const { data: rows, error } = await supabase
+      .from('analises_manuais' as any)
+      .select('id, home_team, away_team, league_name, melhor_sinal, melhor_score, sinais_aprovados, sinais_atencao, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setLoadingHistory(false);
+    if (error) { toast.error('Erro ao carregar histórico: ' + error.message); return; }
+    setHistory(rows || []);
+  };
+
+  useEffect(() => { if (tab === 'hist') loadHistory(); /* eslint-disable-next-line */ }, [tab, user?.id]);
+
+  const handleSave = async () => {
+    if (!data) { toast.error('Analise os dados antes de salvar.'); return; }
+    if (!home.trim() || !away.trim()) { toast.error('Informe os times casa e visitante.'); return; }
+    if (!user) { toast.error('Faça login para salvar.'); return; }
+    setSaving(true);
+    try {
+      const payload: Record<string, any> = {
+        home_team: home.trim(),
+        away_team: away.trim(),
+        league_name: league.trim() || undefined,
+        odd_h: oddH ? parseFloat(oddH) : undefined,
+        odd_d: oddD ? parseFloat(oddD) : undefined,
+        odd_a: oddA ? parseFloat(oddA) : undefined,
+        fonte: 'sherlock',
+      };
+      // copia todos os campos parseados (ignora undefined)
+      Object.entries(data).forEach(([k, v]) => { if (v !== undefined) payload[k] = v; });
+
+      const { data: resp, error } = await supabase.functions.invoke('salvar-analise-manual', { body: payload });
+      if (error) throw error;
+      if ((resp as any)?.error) throw new Error((resp as any).error);
+      toast.success(`Análise salva — Melhor: ${(resp as any).analise.melhor_sinal} (${(resp as any).analise.melhor_score}/100)`);
+      if (tab === 'hist') loadHistory();
+    } catch (e: any) {
+      toast.error('Falha ao salvar: ' + (e.message || String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const D: ParsedData = useMemo(() => {
     if (!data) return {};
