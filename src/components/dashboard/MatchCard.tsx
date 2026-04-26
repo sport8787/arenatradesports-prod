@@ -408,6 +408,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           )}
         </div>
       </motion.div>
+      <CriteriaDetailModal match={match} open={criteriaModalOpen} onOpenChange={setCriteriaModalOpen} />
     </TooltipProvider>
   );
 }
