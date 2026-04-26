@@ -285,6 +285,8 @@ interface MatchCardProps {
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const criteria = useMemo(() => computeCriteria(match), [match]);
   const criteriaMet = criteria.filter(c => c.state === 'green').length;
+  // Eliminatórios (B1, B2, B4): se algum estiver vermelho, card fica opaco e não pulsa
+  const eliminatoryFailed = criteria.some(c => c.eliminatory && c.state === 'red');
   const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
 
   // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
@@ -301,7 +303,16 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
 
   const statusConfig = getStatusConfig(effectiveStatus);
   const borderClass = getCardBorderClass(effectiveStatus, criteriaMet);
-  const isImminent = criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
+  // Pulso conforme bolinhas verdes (5/5 forte = LABAREDA, 4/5 suave = APROVADO)
+  // Eliminatório vermelho cancela qualquer pulso e deixa o card opaco
+  const pulseClass = eliminatoryFailed
+    ? 'opacity-60'
+    : criteriaMet >= 5
+      ? 'animate-pulse'
+      : criteriaMet >= 4
+        ? 'animate-pulse-border-yellow'
+        : '';
+  const isImminent = !eliminatoryFailed && criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
 
   return (
     <TooltipProvider delayDuration={200}>
