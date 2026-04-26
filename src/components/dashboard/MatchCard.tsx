@@ -156,11 +156,12 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
-  const criteria = useMemo(() => computeCriteria(match), [match]);
-  const criteriaMet = criteria.filter(c => c.state === 'green').length;
-  // Eliminatórios (B1, B2, B4): se algum estiver vermelho, card fica opaco e não pulsa
-  const eliminatoryFailed = criteria.some(c => c.eliminatory && c.state === 'red');
-  const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
+  const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
+  const criteria = useMemo(() => computeCriteriaShared(match), [match]);
+  const summary = useMemo(() => getCriteriaSummary(criteria), [criteria]);
+  const criteriaMet = summary.greens;
+  const eliminatoryFailed = summary.eliminatoryFailed;
+  const vetoSummary = summary.vetoSummary;
 
   // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
   const htExpired = useMemo(
