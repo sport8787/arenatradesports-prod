@@ -173,7 +173,7 @@ function escolherPlacarAlvo(ind: Indicadores, scoreMin = 60): {
   };
 }
 
-async function processarFixture(f: any) {
+async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
   const matchId = String(f.fixture.id);
   const exist = await sb.from("eventos_raros_candidatos").select("id").eq("match_id", matchId).maybeSingle();
   if (exist.data) return null;
@@ -189,7 +189,7 @@ async function processarFixture(f: any) {
   ]);
 
   const ind = indicadores(statsHome, statsAway, h2h);
-  const { alvo, alternativo, score } = escolherPlacarAlvo(ind);
+  const { alvo, alternativo, score } = escolherPlacarAlvo(ind, scoreMin);
 
   const status = alvo ? "APROVADO" : "DESCARTADO";
 
@@ -205,8 +205,8 @@ async function processarFixture(f: any) {
     placar_alternativo: alternativo,
     score_qualidade: score,
     status,
-    motivo_descarte: alvo ? null : `Score insuficiente: ${score}`,
-    arenas: ["punter", "trader_sports"],
+    motivo_descarte: alvo ? null : `Score insuficiente: ${score} (mínimo ${scoreMin})`,
+    arenas,
     ...ind,
   });
 
