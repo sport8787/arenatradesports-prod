@@ -314,6 +314,19 @@ export default function PunterPage() {
     setSearchParams(searchParams, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Sincroniza filtros (?today=1 e ?cat=A|B|C) na URL para permitir compartilhar/recarregar mantendo estado
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (todayOnlyFilter) next.set('today', '1');
+    else next.delete('today');
+    if (categoryFilter !== 'all') next.set('cat', categoryFilter);
+    else next.delete('cat');
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayOnlyFilter, categoryFilter]);
   const confirmFutureSignal = async (signal: any) => {
     if (!user || !bankroll) return;
 
