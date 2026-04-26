@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPushPermission, requestPushPermission, showBrowserPush, type PushPermission } from '@/lib/browserPush';
 import MatchMycroftChat from '@/components/arena-trader/MatchMycroftChat';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import { formatMatchPeriod } from '@/lib/matchPeriod';
 
 interface SnapshotEvent {
   at: string;
@@ -687,14 +688,7 @@ export default function LiveMatchDetail() {
               {analysis.approved_at_period && (
                 <>
                   {' | '}
-                  {(() => {
-                    const p = String(analysis.approved_at_period).toUpperCase();
-                    if (p.includes('FIRST') || p === '1H' || p === 'HT1') return '1º Tempo';
-                    if (p.includes('SECOND') || p === '2H' || p === 'HT2') return '2º Tempo';
-                    if (p.includes('HALF_TIME') || p === 'HT') return 'Intervalo';
-                    if (p.includes('EXTRA') || p.includes('ET')) return 'Prorrogação';
-                    return analysis.approved_at_period;
-                  })()}
+                  {formatMatchPeriod(analysis.approved_at_period)}
                 </>
               )}
             </p>
