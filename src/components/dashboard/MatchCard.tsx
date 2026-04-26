@@ -325,7 +325,8 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         className={cn(
           'relative rounded-xl overflow-hidden border-2 transition-all duration-300 cursor-pointer',
           'bg-gradient-to-b from-[hsl(0,0%,10%)] to-[hsl(0,0%,6%)]',
-          borderClass
+          borderClass,
+          pulseClass,
         )}
       >
         <div className="p-4 space-y-3">
