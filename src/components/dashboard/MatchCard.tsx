@@ -288,53 +288,57 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               </span>
             </div>
 
-            {/* Criteria Dots */}
+            {/* Criteria Dots — clique abre modal explicativo */}
             {match.status === 'live' && (
               <div className="space-y-1.5">
-                <div className="flex items-center justify-center gap-2">
-                    {criteria.map((c) => {
-                      const dotColors = {
-                        green: 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]',
-                        red: 'bg-[#EF4444] border-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.6)]',
-                        yellow: 'bg-[#F59E0B] border-[#F59E0B] shadow-[0_0_6px_rgba(245,158,11,0.6)]',
-                        gray: 'bg-transparent border-muted-foreground/40',
-                      };
-                      const stateEmoji = { green: '✓', red: '✗', yellow: '⚠', gray: '—' };
-                      return (
-                        <Tooltip key={c.key}>
-                          <TooltipTrigger asChild>
-                            <div className={cn(
-                              'w-3 h-3 rounded-full border transition-all duration-300 cursor-help',
-                              dotColors[c.state]
-                            )} />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs max-w-[240px]">
-                            <div className="space-y-0.5">
-                              <div>
-                                <span className="font-semibold">{c.label}</span>
-                                {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
-                              </div>
-                              <div className="text-muted-foreground">{c.detail}</div>
-                              {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
-                              {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
-                              {c.state === 'yellow' && !c.vetoReason && <div>⚠️ atenção</div>}
-                              {c.state === 'green' && <div>{stateEmoji.green} ok</div>}
-                              {c.state === 'gray' && <div>— sem dados</div>}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setCriteriaModalOpen(true); }}
+                  className="w-full flex items-center justify-center gap-2 group hover:bg-muted/30 rounded-md py-1 transition-colors"
+                  aria-label="Ver detalhes dos critérios B1-B5"
+                >
+                  {criteria.map((c) => {
+                    const dotColors = {
+                      green: 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]',
+                      red: 'bg-[#EF4444] border-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.6)]',
+                      yellow: 'bg-[#F59E0B] border-[#F59E0B] shadow-[0_0_6px_rgba(245,158,11,0.6)]',
+                      gray: 'bg-transparent border-muted-foreground/40',
+                    };
+                    return (
+                      <Tooltip key={c.key}>
+                        <TooltipTrigger asChild>
+                          <div className={cn(
+                            'w-3 h-3 rounded-full border transition-all duration-300',
+                            dotColors[c.state]
+                          )} />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs max-w-[240px]">
+                          <div className="space-y-0.5">
+                            <div>
+                              <span className="font-semibold">{c.label}</span>
+                              {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
+                            <div className="text-muted-foreground">{c.detail}</div>
+                            {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
+                            {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
+                            {c.state === 'gray' && <div>— sem dados</div>}
+                            <div className="text-[10px] text-muted-foreground/80 pt-0.5 italic">clique para detalhes</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                   <span className="text-[10px] text-muted-foreground font-orbitron ml-1">
                     {criteriaMet}/5
                   </span>
-                </div>
+                  <Info className="w-3 h-3 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                </button>
 
                 {/* Imminent entry alert */}
                 {isImminent && (
                   <div className="text-center">
                     <span className="text-[11px] font-orbitron font-bold text-[#FBBF24] animate-pulse">
-                      ⚡ Entrada iminente
+                      ⚡ Entrada iminente — fique atento
                     </span>
                   </div>
                 )}
