@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_snapshot_violations: {
+        Row: {
+          analysis_id: string
+          attempted_value: string | null
+          created_at: string
+          field_name: string
+          id: string
+          match_id: string | null
+          old_value: string | null
+          reason: string
+          source: string | null
+        }
+        Insert: {
+          analysis_id: string
+          attempted_value?: string | null
+          created_at?: string
+          field_name: string
+          id?: string
+          match_id?: string | null
+          old_value?: string | null
+          reason?: string
+          source?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          attempted_value?: string | null
+          created_at?: string
+          field_name?: string
+          id?: string
+          match_id?: string | null
+          old_value?: string | null
+          reason?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       arena_matches: {
         Row: {
           away_team: string

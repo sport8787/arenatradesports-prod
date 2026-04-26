@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink, Bell, BellOff } from 'lucide-react';
+import { ArrowLeft, Brain, Activity, History, Trophy, Clock, Target, AlertTriangle, TrendingUp, Loader2, Wallet, ExternalLink, Bell, BellOff, Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -682,16 +683,38 @@ export default function LiveMatchDetail() {
           )}
 
           {analysis?.approved_at_timestamp && (
-            <p className="mt-2 text-left text-[11px] text-muted-foreground font-medium pl-1">
-              Sinal aprovado no minuto {analysis.approved_at_minute ?? 0}'
-              {' | '}Placar: {analysis.approved_at_score_home ?? 0}:{analysis.approved_at_score_away ?? 0}
-              {analysis.approved_at_period && (
-                <>
-                  {' | '}
-                  {formatMatchPeriod(analysis.approved_at_period)}
-                </>
-              )}
-            </p>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="mt-2 flex items-center gap-1.5 pl-1 text-left text-[11px] text-muted-foreground font-medium cursor-help">
+                    <Lock className="w-3 h-3 text-emerald-500/80" aria-hidden="true" />
+                    <span>
+                      Sinal aprovado no minuto {analysis.approved_at_minute ?? 0}'
+                      {' | '}Placar: {analysis.approved_at_score_home ?? 0}:{analysis.approved_at_score_away ?? 0}
+                      {analysis.approved_at_period && (
+                        <>{' | '}{formatMatchPeriod(analysis.approved_at_period)}</>
+                      )}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                  <p className="font-medium mb-1">📌 Snapshot imutável</p>
+                  <p className="text-muted-foreground">
+                    Estes dados foram registrados no momento exato da aprovação e
+                    não podem ser alterados.
+                  </p>
+                  <p className="mt-1.5 text-muted-foreground">
+                    Aprovado em:{' '}
+                    <span className="font-mono">
+                      {new Date(analysis.approved_at_timestamp).toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit',
+                      })}
+                    </span>
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {!htSignalExpired && analysis && (VERDICT_META[String(analysis.verdict).toUpperCase()]?.isActive) && (

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, RefreshCw, Users, UserCheck, UserX, Clock, CreditCard, Activity } from 'lucide-react';
 import EdgeFunctionAlerts from '@/components/admin/EdgeFunctionAlerts';
+import ApprovalSnapshotViolations from '@/components/admin/ApprovalSnapshotViolations';
 import PunterCalibration from '@/components/admin/PunterCalibration';
 import PunterPromptSimulator from '@/components/admin/PunterPromptSimulator';
 
@@ -161,6 +162,10 @@ export default function AdminDashboard() {
           <>
             {/* Alertas de edge functions (falhas/h e crédito) */}
             <EdgeFunctionAlerts />
+
+            {/* Tentativas bloqueadas de alterar snapshot de aprovação */}
+            <ApprovalSnapshotViolations />
+
 
             {/* Simulador do novo prompt do Punter */}
             <PunterPromptSimulator />
