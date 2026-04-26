@@ -148,63 +148,142 @@ async function getH2H(homeId: number, awayId: number, last = 5): Promise<Fixture
 async function getUpcomingFixtures(): Promise<any[]> {
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
-  const to   = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0]
-  return await afFetch('/fixtures', { from, to, timezone: 'America/Recife' })
+  const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
+  const season = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1
+  // Brazilian leagues use the calendar year as season
+  const seasonBR = now.getUTCFullYear()
+
+  const ligas = Array.from(LIGAS_PERMITIDAS)
+  const all: any[] = []
+
+  // Busca em paralelo (lotes de 4 para respeitar rate limit)
+  for (let i = 0; i < ligas.length; i += 4) {
+    const lote = ligas.slice(i, i + 4)
+    const results = await Promise.allSettled(
+      lote.map(async (leagueId) => {
+        // Brasileirão (71/72) usa ano-calendário; europeias usam temporada cruzada
+        const seasonsToTry = [71, 72, 253, 262, 307].includes(leagueId)
+          ? [seasonBR, seasonBR - 1]
+          : [season, season + 1, seasonBR]
+        for (const s of seasonsToTry) {
+          try {
+            const r = await afFetch('/fixtures', {
+              league: leagueId,
+              season: s,
+              from,
+              to,
+              status: 'NS-TBD',
+              timezone: 'America/Recife',
+            })
+            if (r && r.length > 0) {
+              console.log(`[PLANO FAVORITO] liga ${leagueId} season ${s}: ${r.length} jogos`)
+              return r
+            }
+          } catch (e) {
+            console.warn(`[PLANO FAVORITO] liga ${leagueId} s${s} erro:`, String(e))
+          }
+        }
+        return []
+      }),
+    )
+    for (const r of results) {
+      if (r.status === 'fulfilled') all.push(...r.value)
+    }
+    if (i + 4 < ligas.length) await new Promise((res) => setTimeout(res, 1500))
+  }
+  return all
 }
 
 // =============================================================================
 // BUSCA ODDS — The Odds API
 // =============================================================================
 
+async function getOddsFromAF(fixtureId: number): Promise<OddsMarket> {
+  try {
+    const r = await afFetch('/odds', { fixture: fixtureId, bookmaker: 8 }) // bet365
+    let homeOdd: number | null = null, awayOdd: number | null = null
+    let over15: number | null = null, over25: number | null = null
+    const bookmakers = r?.[0]?.bookmakers ?? []
+    for (const bm of bookmakers) {
+      for (const bet of (bm.bets ?? [])) {
+        if (bet.name === 'Match Winner') {
+          homeOdd ??= parseFloat(bet.values?.find((v: any) => v.value === 'Home')?.odd) || null
+          awayOdd ??= parseFloat(bet.values?.find((v: any) => v.value === 'Away')?.odd) || null
+        }
+        if (bet.name === 'Goals Over/Under') {
+          over15 ??= parseFloat(bet.values?.find((v: any) => v.value === 'Over 1.5')?.odd) || null
+          over25 ??= parseFloat(bet.values?.find((v: any) => v.value === 'Over 2.5')?.odd) || null
+        }
+      }
+    }
+    const isFavHome = homeOdd !== null && awayOdd !== null ? homeOdd <= awayOdd : true
+    const favOdd = homeOdd && awayOdd ? (isFavHome ? homeOdd : awayOdd) : null
+    const undOdd = homeOdd && awayOdd ? (isFavHome ? awayOdd : homeOdd) : null
+    return { over15, over25, favOdd, undOdd, homeOdd, awayOdd }
+  } catch {
+    return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null }
+  }
+}
+
 async function getOdds(
   homeTeam: string,
   awayTeam: string,
-  leagueId: number
+  leagueId: number,
+  fixtureId: number,
 ): Promise<OddsMarket> {
   const sportKey = LIGAS_ODDS_API[leagueId]
-  if (!sportKey) return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null }
 
-  try {
-    const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds`+
-      `?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h,totals&oddsFormat=decimal`
+  // Tenta The Odds API primeiro (se mapeada e chave configurada)
+  if (sportKey && ODDS_API_KEY) {
+    try {
+      const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds`+
+        `?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h,totals&oddsFormat=decimal`
 
-    const r  = await fetch(url)
-    const d  = await r.json() as any[]
-    const game = Array.isArray(d) ? d.find((g: any) =>
-      g.home_team?.toLowerCase().includes(homeTeam.toLowerCase().split(' ')[0]) ||
-      g.away_team?.toLowerCase().includes(awayTeam.toLowerCase().split(' ')[0])
-    ) : null
-    if (!game) return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null }
+      const r  = await fetch(url)
+      const d  = await r.json() as any[]
+      const game = Array.isArray(d) ? d.find((g: any) =>
+        g.home_team?.toLowerCase().includes(homeTeam.toLowerCase().split(' ')[0]) ||
+        g.away_team?.toLowerCase().includes(awayTeam.toLowerCase().split(' ')[0])
+      ) : null
 
-    let over15: number | null = null
-    let over25: number | null = null
-    let homeOdd: number | null = null
-    let awayOdd: number | null = null
+      if (game) {
+        let over15: number | null = null
+        let over25: number | null = null
+        let homeOdd: number | null = null
+        let awayOdd: number | null = null
 
-    for (const bm of (game.bookmakers || [])) {
-      for (const mkt of (bm.markets || [])) {
-        if (mkt.key === 'h2h') {
-          const h = mkt.outcomes.find((o: any) => o.name === game.home_team)
-          const a = mkt.outcomes.find((o: any) => o.name === game.away_team)
-          if (h && !homeOdd) homeOdd = h.price
-          if (a && !awayOdd) awayOdd = a.price
+        for (const bm of (game.bookmakers || [])) {
+          for (const mkt of (bm.markets || [])) {
+            if (mkt.key === 'h2h') {
+              const h = mkt.outcomes.find((o: any) => o.name === game.home_team)
+              const a = mkt.outcomes.find((o: any) => o.name === game.away_team)
+              if (h && !homeOdd) homeOdd = h.price
+              if (a && !awayOdd) awayOdd = a.price
+            }
+            if (mkt.key === 'totals') {
+              const o15 = mkt.outcomes.find((o: any) => o.name === 'Over' && Math.abs(o.point - 1.5) < 0.1)
+              const o25 = mkt.outcomes.find((o: any) => o.name === 'Over' && Math.abs(o.point - 2.5) < 0.1)
+              if (o15 && !over15) over15 = o15.price
+              if (o25 && !over25) over25 = o25.price
+            }
+          }
+          if (homeOdd && awayOdd && over15 && over25) break
         }
-        if (mkt.key === 'totals') {
-          const o15 = mkt.outcomes.find((o: any) => o.name === 'Over' && Math.abs(o.point - 1.5) < 0.1)
-          const o25 = mkt.outcomes.find((o: any) => o.name === 'Over' && Math.abs(o.point - 2.5) < 0.1)
-          if (o15 && !over15) over15 = o15.price
-          if (o25 && !over25) over25 = o25.price
+
+        if (homeOdd && awayOdd) {
+          const isFavHome  = homeOdd <= awayOdd
+          const favOdd = isFavHome ? homeOdd : awayOdd
+          const undOdd = isFavHome ? awayOdd : homeOdd
+          return { over15, over25, favOdd, undOdd, homeOdd, awayOdd }
         }
       }
-      if (homeOdd && awayOdd && over15 && over25) break
+    } catch (e) {
+      console.warn('[getOdds] The Odds API erro:', String(e))
     }
+  }
 
-    const isFavHome  = homeOdd !== null && awayOdd !== null ? homeOdd <= awayOdd : true
-    const favOdd = homeOdd && awayOdd ? (isFavHome ? homeOdd : awayOdd) : null
-    const undOdd = homeOdd && awayOdd ? (isFavHome ? awayOdd : homeOdd) : null
-
-    return { over15, over25, favOdd, undOdd, homeOdd, awayOdd }
-  } catch { return { over15: null, over25: null, favOdd: null, undOdd: null, homeOdd: null, awayOdd: null } }
+  // Fallback: API-Football odds endpoint
+  return await getOddsFromAF(fixtureId)
 }
 
 // =============================================================================
@@ -666,7 +745,7 @@ async function analisarJogo(fixture: any): Promise<Analise | null> {
   if (!LIGAS_PERMITIDAS.has(league.id)) return null
 
   // Busca odds
-  const odds = await getOdds(teams.home.name, teams.away.name, league.id)
+  const odds = await getOdds(teams.home.name, teams.away.name, league.id, fix.id)
 
   // Determina favorito a partir das odds home/away
   if (odds.homeOdd == null || odds.awayOdd == null) return null
