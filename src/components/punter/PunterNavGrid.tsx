@@ -12,6 +12,7 @@ import {
   Brain,
   Search,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
