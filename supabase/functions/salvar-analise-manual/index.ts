@@ -172,6 +172,29 @@ function calcScores(p: AnalisePayload) {
   }
   scores.score_lay_1x3 = clamp(s);
 
+  // Handicap Asiático (favoritismo + ataque/defesa)
+  s = 30;
+  if (p.odd_h && p.odd_a) {
+    const d = Math.abs(p.odd_h - p.odd_a);
+    if (d > 2.5) s += 25;
+    else if (d > 1.5) s += 15;
+    else if (d > 0.7) s += 8;
+    else s -= 12;
+    const favHome = p.odd_h < p.odd_a;
+    const ataqueFav = favHome ? (p.gm_h ?? 0) : (p.gm_a ?? 0);
+    const defesaUnd = favHome ? (p.gs_a ?? 0) : (p.gs_h ?? 0);
+    if (ataqueFav > 1.5 && defesaUnd > 1.2) s += 12;
+    else if (ataqueFav > 0 && ataqueFav < 1.0) s -= 10;
+    const cdgFav = favHome ? p.cdg1h : p.cdg1a;
+    if (cdgFav !== undefined) {
+      if (cdgFav < 2.0) s += 8;
+      else if (cdgFav > 4.0) s -= 10;
+    }
+  } else {
+    s = 0;
+  }
+  scores.score_handicap_asiatico = clamp(s);
+
   return scores;
 }
 
