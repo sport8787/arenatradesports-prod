@@ -250,19 +250,43 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
     ...ind,
   });
 
-  return alvo ? { match: `${f.teams.home.name} x ${f.teams.away.name}`, alvo, score } : null;
+  return alvo
+    ? {
+        match: `${f.teams.home.name} x ${f.teams.away.name}`,
+        liga: f.league.name,
+        pais: f.league.country,
+        horario: f.fixture.date,
+        alvo,
+        alternativo,
+        score,
+        arenas,
+      }
+    : null;
 }
 
 async function notificarTelegram(aprovados: any[]) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !aprovados.length) return;
-  const linhas = aprovados.slice(0, 10).map((a, i) =>
-    `${i + 1}️⃣ ${a.match}\n🎯 ${a.alvo} · Score ${a.score}/100`
-  ).join("\n━━━━━━\n");
-  const msg = `🔮 EVENTOS RAROS — ${aprovados.length} candidatos\n\n${linhas}`;
+  const linhas = aprovados.slice(0, 10).map((a, i) => {
+    const alt = a.alternativo ? ` · alt: ${a.alternativo}` : "";
+    return [
+      `${i + 1}️⃣ *${a.match}*`,
+      `🏆 ${a.liga}${a.pais ? ` (${a.pais})` : ""}`,
+      `🕐 ${formatarHorarioBRT(a.horario)}`,
+      `${emojiEstrategia(a.alvo)} ${rotuloEstrategia(a.alvo)}${alt}`,
+      `📊 Score: *${a.score}/100*`,
+      `🔗 [Abrir no painel](${linkArena(a.arenas)})`,
+    ].join("\n");
+  }).join("\n━━━━━━━━━━━━━\n");
+  const msg = `🔮 *EVENTOS RAROS — Pré-Live*\n${aprovados.length} candidato(s) aprovado(s)\n\n${linhas}`;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg }),
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: msg,
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    }),
   });
 }
 
