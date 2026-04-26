@@ -448,6 +448,7 @@ export default function PunterAnaliseManual() {
       'Lay Goleada': scoreLayGoleada(D),
       'Lay 2x2': scoreLay2x2(D),
       'Lay 1x3/3x1': scoreLay1x3(D),
+      'Handicap Asiático': scoreHandicapAsiatico(D),
     } as Record<string, ScoreResult>;
   }, [D, data]);
 
