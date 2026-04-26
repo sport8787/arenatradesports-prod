@@ -743,11 +743,37 @@ async function analisarJogo(fixture: any): Promise<Analise | null> {
 // HANDLER PRINCIPAL
 // =============================================================================
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const start = Date.now()
   console.log('[PLANO FAVORITO] Iniciando análise pré-live...')
 
   try {
+    // Verifica autenticação + role admin (quando chamado pelo frontend)
+    const authHeader = req.headers.get('Authorization') ?? ''
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '')
+      const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: authHeader } },
+      })
+      const { data: userData } = await userClient.auth.getUser(token)
+      if (userData?.user) {
+        const { data: hasRole } = await userClient.rpc('has_role', {
+          _user_id: userData.user.id,
+          _role: 'admin',
+        })
+        if (!hasRole) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Apenas administradores podem disparar esta análise.' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          )
+        }
+      }
+    }
+
     const fixtures = await getUpcomingFixtures()
     console.log(`[PLANO FAVORITO] ${fixtures.length} jogos nas próximas 24h`)
 
@@ -755,7 +781,6 @@ Deno.serve(async (_req) => {
     let sinaísEmitidos = 0
     const LIMITE_SINAIS_DIA = 3
 
-    // Processa em lotes de 3 (respeita rate limit API-Football)
     for (let i = 0; i < fixtures.length && sinaísEmitidos < LIMITE_SINAIS_DIA; i += 3) {
       const lote = fixtures.slice(i, i + 3)
       const analises = await Promise.allSettled(lote.map(f => analisarJogo(f)))
@@ -769,11 +794,9 @@ Deno.serve(async (_req) => {
           ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusOver15) ||
           ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusOver25)
 
-        // Salva todos (incluindo CUIDADO e DESCARTADO)
         await salvarSinal(a)
 
-        // Notifica só aprovados, respeitando limite diário
-        if (temAprovado && sinaísEmitidos < LIMITE_SINAIS_DIA) {
+        if (temAprovado && sinaísEmitidos < LIMITE_SINAIS_DIA && TELEGRAM_TOKEN && TELEGRAM_CHAT) {
           await notificar(a)
           sinaísEmitidos++
         }
@@ -785,29 +808,31 @@ Deno.serve(async (_req) => {
     }
 
     const aprovados = resultados.filter(a =>
+      ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusVitoria) ||
       ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusOver15) ||
       ['SINAL_FORTE', 'SINAL_BOM'].includes(a.statusOver25)
     )
 
     return new Response(JSON.stringify({
-      success:   true,
+      success: true,
       analisados: resultados.length,
-      aprovados:  aprovados.length,
+      aprovados: aprovados.length,
       notificados: sinaísEmitidos,
-      duracao_s:  ((Date.now() - start) / 1000).toFixed(1),
-      top: aprovados.slice(0, 5).map(a => ({
-        jogo:    `${a.homeTeam} x ${a.awayTeam}`,
+      duracao_s: ((Date.now() - start) / 1000).toFixed(1),
+      top: aprovados.slice(0, 10).map(a => ({
+        jogo: `${a.homeTeam} x ${a.awayTeam}`,
         favorito: a.isFavoriteHome ? a.homeTeam : a.awayTeam,
-        fav_odd:  a.favOdd,
-        o15:     `${a.scoreOver15} (${a.statusOver15})`,
-        o25:     `${a.scoreOver25} (${a.statusOver25})`,
+        fav_odd: a.favOdd,
+        vit: `${a.scoreVitoria} (${a.statusVitoria})`,
+        o15: `${a.scoreOver15} (${a.statusOver15})`,
+        o25: `${a.scoreOver25} (${a.statusOver25})`,
       })),
-    }), { headers: { 'Content-Type': 'application/json' } })
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (err) {
     console.error('[PLANO FAVORITO] Erro:', err)
     return new Response(JSON.stringify({ success: false, error: String(err) }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
