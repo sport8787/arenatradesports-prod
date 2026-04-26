@@ -148,8 +148,50 @@ async function getH2H(homeId: number, awayId: number, last = 5): Promise<Fixture
 async function getUpcomingFixtures(): Promise<any[]> {
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
-  const to   = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0]
-  return await afFetch('/fixtures', { from, to, timezone: 'America/Recife' })
+  const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
+  const season = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1
+  // Brazilian leagues use the calendar year as season
+  const seasonBR = now.getUTCFullYear()
+
+  const ligas = Array.from(LIGAS_PERMITIDAS)
+  const all: any[] = []
+
+  // Busca em paralelo (lotes de 4 para respeitar rate limit)
+  for (let i = 0; i < ligas.length; i += 4) {
+    const lote = ligas.slice(i, i + 4)
+    const results = await Promise.allSettled(
+      lote.map(async (leagueId) => {
+        // Brasileirão (71/72) usa ano-calendário; europeias usam temporada cruzada
+        const seasonsToTry = [71, 72, 253, 262, 307].includes(leagueId)
+          ? [seasonBR, seasonBR - 1]
+          : [season, season + 1, seasonBR]
+        for (const s of seasonsToTry) {
+          try {
+            const r = await afFetch('/fixtures', {
+              league: leagueId,
+              season: s,
+              from,
+              to,
+              status: 'NS-TBD',
+              timezone: 'America/Recife',
+            })
+            if (r && r.length > 0) {
+              console.log(`[PLANO FAVORITO] liga ${leagueId} season ${s}: ${r.length} jogos`)
+              return r
+            }
+          } catch (e) {
+            console.warn(`[PLANO FAVORITO] liga ${leagueId} s${s} erro:`, String(e))
+          }
+        }
+        return []
+      }),
+    )
+    for (const r of results) {
+      if (r.status === 'fulfilled') all.push(...r.value)
+    }
+    if (i + 4 < ligas.length) await new Promise((res) => setTimeout(res, 1500))
+  }
+  return all
 }
 
 // =============================================================================
