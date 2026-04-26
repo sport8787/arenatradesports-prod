@@ -123,7 +123,8 @@ export default function EdgeFunctionAlerts() {
 
   const overThreshold = grouped.filter((g) => g.count >= threshold);
   const creditIssues = grouped.filter((g) => g.has_credit_issue);
-  const totalLastHour = errors.length;
+  const totalLastHour = errors.filter((e) => e.severity !== "warning").length;
+  const totalWarningsLastHour = errors.filter((e) => e.severity === "warning").length;
 
   // Toast quando funções cruzam o threshold (uma vez por função/sessão)
   const [warned] = useState<Set<string>>(new Set());
@@ -155,6 +156,11 @@ export default function EdgeFunctionAlerts() {
             <Badge variant="outline" className="ml-2">
               {totalLastHour} erros / 1h
             </Badge>
+            {totalWarningsLastHour > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {totalWarningsLastHour} warnings
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Label htmlFor="thr" className="text-xs text-muted-foreground">
