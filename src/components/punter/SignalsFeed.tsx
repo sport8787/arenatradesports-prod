@@ -256,7 +256,9 @@ function FeedRow({ item, read, onRead }: { item: FeedItem; read: boolean; onRead
       ? { icon: Trophy, label: '🟢 GREEN', cls: 'border-success/40 bg-success/10', text: 'text-success' }
       : item.kind === 'RED'
         ? { icon: XCircle, label: '🔴 RED', cls: 'border-destructive/40 bg-destructive/10', text: 'text-destructive' }
-        : { icon: Target, label: '🎯 APROVADO', cls: 'border-primary/40 bg-primary/10', text: 'text-primary' };
+        : item.kind === 'LIVE'
+          ? { icon: Radio, label: '🔴 AO VIVO', cls: 'border-destructive/40 bg-destructive/10 animate-pulse', text: 'text-destructive' }
+          : { icon: Target, label: '🎯 APROVADO', cls: 'border-primary/40 bg-primary/10', text: 'text-primary' };
 
   const Icon = config.icon;
 
