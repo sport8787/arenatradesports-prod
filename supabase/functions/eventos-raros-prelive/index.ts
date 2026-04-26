@@ -229,7 +229,25 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
   ]);
 
   const ind = indicadores(statsHome, statsAway, h2h);
-  const { alvo, alternativo, score } = escolherPlacarAlvo(ind, scoreMin);
+  let { alvo, alternativo, score } = escolherPlacarAlvo(ind, scoreMin);
+
+  // ─── Sherlock Veto: LAY GOLEADA com mandante ofensivamente forte ───
+  // Bloqueia LAY_GOLEADA quando saldo médio do mandante > 1.2 (alta
+  // propensão a goleada). Se o alternativo for válido, promove ele.
+  let sherlockVetoMotivo: string | null = null;
+  if (alvo === "LAY_GOLEADA") {
+    const saldoHome = (ind.forca_ofensiva_home ?? 0) - (ind.fragilidade_def_home ?? 0);
+    if (saldoHome > 1.2) {
+      sherlockVetoMotivo = `Sherlock VETO: saldo médio mandante ${saldoHome.toFixed(2)} > 1.20 (alta propensão a goleada)`;
+      console.log(`[EventosRaros][Sherlock] 🚫 ${f.teams.home.name} vs ${f.teams.away.name}: ${sherlockVetoMotivo}`);
+      if (alternativo && alternativo !== "LAY_GOLEADA") {
+        alvo = alternativo;
+        alternativo = null;
+      } else {
+        alvo = null;
+      }
+    }
+  }
 
   const status = alvo ? "APROVADO" : "DESCARTADO";
 
@@ -245,7 +263,7 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
     placar_alternativo: alternativo,
     score_qualidade: score,
     status,
-    motivo_descarte: alvo ? null : `Score insuficiente: ${score} (mínimo ${scoreMin})`,
+    motivo_descarte: alvo ? null : (sherlockVetoMotivo ?? `Score insuficiente: ${score} (mínimo ${scoreMin})`),
     arenas,
     ...ind,
   });
