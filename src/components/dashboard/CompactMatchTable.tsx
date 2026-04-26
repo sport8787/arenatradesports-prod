@@ -1,35 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull, Hourglass } from 'lucide-react';
+import { Clock, Target, Loader2, Zap, Flame, AlertTriangle, Skull, Hourglass, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Match } from './MatchCard';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
+import { computeCriteria, getCriteriaSummary } from '@/lib/matchCriteria';
 import FavoriteButton from './FavoriteButton';
+import CriteriaDetailModal from './CriteriaDetailModal';
 
 interface CompactMatchTableProps {
   matches: Match[];
   onRowClick?: (matchId: string) => void;
-}
-
-function computeCriteriaCompact(match: Match) {
-  // B1-B5 (resumido para a tabela compacta)
-  const s = match.stats;
-  const status = match.mycroftStatus;
-  const isApproved = status === 'APROVADO' || status === 'APROVADO_SITUACIONAL' || status === 'opportunity' || status === 'LABAREDA';
-  const conf = match.confidence ?? null;
-  const period = (match.period || '').toLowerCase();
-  const isHalftime = period.includes('intervalo') || period.includes('halftime') || period.includes('ht');
-  const shots = s?.shots_home ?? 0;
-  const corners = s?.corners_home ?? 0;
-  const atk = s?.attacks_home ?? 0;
-  const atkOpp = s?.attacks_away ?? 0;
-
-  const b1 = conf != null ? conf >= 40 : isApproved;
-  const b2 = isApproved;
-  const b3 = status === 'APROVADO_SITUACIONAL' || (match.alerts || []).some(a => /\bS[1-4]\b/i.test(a));
-  const b4 = !isHalftime && match.minute >= 10 && match.minute <= 65;
-  const b5 = (shots >= 3 || corners >= 3) && (atk > atkOpp * 1.2 || shots >= 4);
-  return [b1, b2, b3, b4, b5].filter(Boolean).length;
 }
 
 const statusIcon: Record<string, React.ReactNode> = {
@@ -74,6 +55,13 @@ const statusLabels: Record<string, string> = {
   EXPIRADO: 'EXPIRADO',
 };
 
+const dotColorMap = {
+  green: 'bg-[#22C55E] shadow-[0_0_4px_rgba(34,197,94,0.6)]',
+  red: 'bg-[#EF4444] shadow-[0_0_4px_rgba(239,68,68,0.6)]',
+  yellow: 'bg-[#F59E0B] shadow-[0_0_4px_rgba(245,158,11,0.6)]',
+  gray: 'bg-muted-foreground/30',
+} as const;
+
 function getEffectiveStatus(m: Match): Match['mycroftStatus'] {
   const expired = isExpiredHtSignal({
     market: m.market,
@@ -88,6 +76,7 @@ function getEffectiveStatus(m: Match): Match['mycroftStatus'] {
 }
 
 export default function CompactMatchTable({ matches, onRowClick }: CompactMatchTableProps) {
+  const [modalMatch, setModalMatch] = useState<Match | null>(null);
   if (matches.length === 0) return null;
 
   return (
@@ -104,16 +93,17 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
               <th className="px-3 py-2 text-center">Posse</th>
               <th className="px-3 py-2 text-center">Chutes</th>
               <th className="px-3 py-2 text-center">xG</th>
-              <th className="px-3 py-2 text-center">Crit.</th>
+              <th className="px-3 py-2 text-center">B1-B5</th>
               <th className="px-3 py-2 text-center">Status</th>
               <th className="px-3 py-2 text-left">Plano</th>
             </tr>
           </thead>
           <tbody>
             {matches.map((m) => {
-              const critMet = computeCriteriaCompact(m);
+              const criteria = computeCriteria(m);
+              const { greens: critMet, eliminatoryFailed } = getCriteriaSummary(criteria);
               const effStatus = getEffectiveStatus(m);
-              const isImminent = critMet >= 4 && (effStatus === 'AGUARDAR' || effStatus === 'analyzing');
+              const isImminent = !eliminatoryFailed && critMet >= 4 && (effStatus === 'AGUARDAR' || effStatus === 'analyzing');
               const rowBorder =
                 effStatus === 'APROVADO' || effStatus === 'APROVADO_SITUACIONAL' || effStatus === 'opportunity'
                   ? 'border-l-2 border-l-[#22C55E]'
@@ -132,7 +122,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                   className={cn(
                     'border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors',
                     rowBorder,
-                    effStatus === 'EXPIRADO' && 'opacity-70',
+                    (effStatus === 'EXPIRADO' || eliminatoryFailed) && 'opacity-70',
                   )}
                 >
                   <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
@@ -162,20 +152,32 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                       ? `${m.stats.xG_home.toFixed(1)}-${(m.stats.xG_away ?? 0).toFixed(1)}`
                       : '—'}
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <div className="flex items-center justify-center gap-0.5">
-                      {[0, 1, 2, 3, 4].map(i => (
-                        <div
-                          key={i}
-                          className={cn(
-                            'w-2 h-2 rounded-full',
-                            i < critMet
-                              ? 'bg-[#22C55E] shadow-[0_0_4px_rgba(34,197,94,0.5)]'
-                              : 'bg-muted-foreground/30'
-                          )}
-                        />
+                  <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => setModalMatch(m)}
+                      className="inline-flex items-center justify-center gap-1 hover:bg-muted/40 rounded px-1 py-0.5 transition-colors"
+                      aria-label="Ver detalhes B1-B5"
+                    >
+                      {criteria.map((c) => (
+                        <Tooltip key={c.key}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                'w-2 h-2 rounded-full border border-transparent',
+                                dotColorMap[c.state],
+                              )}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[220px]">
+                            <div className="font-semibold">{c.label}</div>
+                            <div className="text-muted-foreground">{c.detail}</div>
+                            {c.vetoReason && <div>↳ {c.vetoReason}</div>}
+                          </TooltipContent>
+                        </Tooltip>
                       ))}
-                    </div>
+                      <Info className="w-2.5 h-2.5 text-muted-foreground/60 ml-0.5" />
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -211,6 +213,11 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
           </tbody>
         </table>
       </div>
+      <CriteriaDetailModal
+        match={modalMatch}
+        open={!!modalMatch}
+        onOpenChange={(o) => !o && setModalMatch(null)}
+      />
     </TooltipProvider>
   );
 }
