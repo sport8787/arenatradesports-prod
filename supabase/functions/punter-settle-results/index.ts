@@ -212,7 +212,7 @@ serve(async (req) => {
         const scoreH = fixture.goals?.home ?? 0;
         const scoreA = fixture.goals?.away ?? 0;
 
-        const result = settleMarket(a.market, scoreH, scoreA);
+        const result = settleMarket(a.market, scoreH, scoreA, a.home_team, a.away_team);
         if (!result) {
           unsupported++;
           results.push({ id: a.id, status: "market_unsupported", market: a.market });
