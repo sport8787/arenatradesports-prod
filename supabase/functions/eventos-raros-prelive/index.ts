@@ -300,7 +300,7 @@ async function notificarTelegram(aprovados: any[]) {
       `${i + 1}️⃣ *${a.match}*`,
       `🏆 ${a.liga}${a.pais ? ` (${a.pais})` : ""}`,
       `🕐 ${formatarHorarioBRT(a.horario)}`,
-      `${emojiEstrategia(a.alvo)} ${rotuloEstrategia(a.alvo)}${alt}`,
+      `${emojiEstrategia(a.alvo)} ${rotuloEstrategia(a.alvo, a.alvo === "LAY_GOLEADA" ? a.favorito : null)}${alt}`,
       `📊 Score: *${a.score}/100*`,
       `🔗 [Abrir no painel](${linkArena(a.arenas)})`,
     ].join("\n");
