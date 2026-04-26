@@ -385,7 +385,9 @@ export default function ArenaTraderSports() {
         <ActivePositions />
 
         {/* Eventos Raros — placares incomuns (LAY) */}
-        <EventosRarosPanel arena="trader_sports" />
+        <div id="eventos-raros" className="scroll-mt-20">
+          <EventosRarosPanel arena="trader_sports" />
+        </div>
 
         {/* Filters */}
         <div className="space-y-3">
