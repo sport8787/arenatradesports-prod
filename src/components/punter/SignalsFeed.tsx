@@ -17,7 +17,7 @@ const READ_KEY = 'punter_feed_read_v1';
 
 interface FeedItem {
   id: string;
-  kind: 'APROVADO' | 'GREEN' | 'RED';
+  kind: 'APROVADO' | 'GREEN' | 'RED' | 'LIVE';
   created_at: string;
   league: string;
   match: string;
@@ -25,6 +25,7 @@ interface FeedItem {
   odd: number | null;
   confidence: number | null;
   profit_loss: number | null;
+  commence_time?: string | null;
 }
 
 function loadRead(): Set<string> {
