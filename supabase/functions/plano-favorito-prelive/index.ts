@@ -745,7 +745,7 @@ async function analisarJogo(fixture: any): Promise<Analise | null> {
   if (!LIGAS_PERMITIDAS.has(league.id)) return null
 
   // Busca odds
-  const odds = await getOdds(teams.home.name, teams.away.name, league.id)
+  const odds = await getOdds(teams.home.name, teams.away.name, league.id, fix.id)
 
   // Determina favorito a partir das odds home/away
   if (odds.homeOdd == null || odds.awayOdd == null) return null
