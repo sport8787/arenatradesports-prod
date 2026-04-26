@@ -3853,6 +3853,90 @@ export type Database = {
           },
         ]
       }
+      sinais_favorito_prelive: {
+        Row: {
+          away_team: string
+          created_at: string
+          fav_odd: number | null
+          fav_venceu: boolean | null
+          favorito: string | null
+          fixture_id: string
+          gols_ft: number | null
+          gols_ht: number | null
+          home_team: string
+          id: string
+          indicadores: Json | null
+          league_id: number | null
+          league_name: string | null
+          match_date: string | null
+          resultado_over15: string | null
+          resultado_over25: string | null
+          resultado_vitoria: string | null
+          score_over15: number | null
+          score_over25: number | null
+          score_vitoria: number | null
+          status_over15: string | null
+          status_over25: string | null
+          status_vitoria: string | null
+          und_odd: number | null
+          updated_at: string
+        }
+        Insert: {
+          away_team: string
+          created_at?: string
+          fav_odd?: number | null
+          fav_venceu?: boolean | null
+          favorito?: string | null
+          fixture_id: string
+          gols_ft?: number | null
+          gols_ht?: number | null
+          home_team: string
+          id?: string
+          indicadores?: Json | null
+          league_id?: number | null
+          league_name?: string | null
+          match_date?: string | null
+          resultado_over15?: string | null
+          resultado_over25?: string | null
+          resultado_vitoria?: string | null
+          score_over15?: number | null
+          score_over25?: number | null
+          score_vitoria?: number | null
+          status_over15?: string | null
+          status_over25?: string | null
+          status_vitoria?: string | null
+          und_odd?: number | null
+          updated_at?: string
+        }
+        Update: {
+          away_team?: string
+          created_at?: string
+          fav_odd?: number | null
+          fav_venceu?: boolean | null
+          favorito?: string | null
+          fixture_id?: string
+          gols_ft?: number | null
+          gols_ht?: number | null
+          home_team?: string
+          id?: string
+          indicadores?: Json | null
+          league_id?: number | null
+          league_name?: string | null
+          match_date?: string | null
+          resultado_over15?: string | null
+          resultado_over25?: string | null
+          resultado_vitoria?: string | null
+          score_over15?: number | null
+          score_over25?: number | null
+          score_vitoria?: number | null
+          status_over15?: string | null
+          status_over25?: string | null
+          status_vitoria?: string | null
+          und_odd?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       solo_rankings: {
         Row: {
           best_round: number
@@ -5729,6 +5813,23 @@ export type Database = {
           total_analises: number | null
           ultima_analise: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_roi_plano_favorito: {
+        Row: {
+          greens_o15: number | null
+          greens_o25: number | null
+          greens_vit: number | null
+          status_over15: string | null
+          status_over25: string | null
+          status_vitoria: string | null
+          total_o15: number | null
+          total_o25: number | null
+          total_vit: number | null
+          winrate_o15: number | null
+          winrate_o25: number | null
+          winrate_vit: number | null
         }
         Relationships: []
       }
