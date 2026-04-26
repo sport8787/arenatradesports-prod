@@ -48,7 +48,7 @@ export default function SignalsFeed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [readIds, setReadIds] = useState<Set<string>>(loadRead);
-  const [tab, setTab] = useState<'all' | 'unread' | 'green' | 'red'>('unread');
+  const [tab, setTab] = useState<'all' | 'unread' | 'live' | 'green' | 'red'>('live');
 
   const fetchFeed = useCallback(async () => {
     // 1) Sinais APROVADOS recentes (últimos 7 dias)
