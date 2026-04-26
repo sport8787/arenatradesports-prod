@@ -271,6 +271,12 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
     ...ind,
   });
 
+  // Identifica favorito esperado (time com maior força ofensiva) — usado para o LAY Goleada
+  const favorito =
+    (ind.forca_ofensiva_home ?? 0) >= (ind.forca_ofensiva_away ?? 0)
+      ? f.teams.home.name
+      : f.teams.away.name;
+
   return alvo
     ? {
         match: `${f.teams.home.name} x ${f.teams.away.name}`,
@@ -281,6 +287,7 @@ async function processarFixture(f: any, scoreMin: number, arenas: string[]) {
         alternativo,
         score,
         arenas,
+        favorito,
       }
     : null;
 }
