@@ -51,18 +51,12 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <NavCard
             primary
-            onClick={() => {
-              toast.loading('Iniciando análise do Mycroft...', {
-                description: 'Buscando sinais aprovados na Arena Punter',
-                duration: 3500,
-              });
-              navigate('/punter?panel=analyze');
-            }}
+            onClick={() => navigate('/punter')}
             icon={<Search className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Buscar Sinais Agora"
-            description="Acessa a Arena Punter e dispara a análise do Mycroft"
+            description="Acessa a Arena Punter (sem disparar nova busca)"
           />
           <NavCard
             onClick={() => navigate('/punter/analise-manual')}
