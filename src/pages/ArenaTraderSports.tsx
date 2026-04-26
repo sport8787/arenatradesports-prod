@@ -22,6 +22,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
@@ -382,6 +383,9 @@ export default function ArenaTraderSports() {
 
         {/* Active Positions */}
         <ActivePositions />
+
+        {/* Eventos Raros — placares incomuns (LAY) */}
+        <EventosRarosPanel arena="trader_sports" />
 
         {/* Filters */}
         <div className="space-y-3">
