@@ -33,6 +33,14 @@ export function RequireSubscription({ children }: RequireSubscriptionProps) {
     return <Navigate to={`/auth?redirect=${redirect}`} replace />;
   }
 
+  // Força troca de senha se admin marcou must_change_password
+  if (
+    (user.user_metadata as any)?.must_change_password === true &&
+    location.pathname !== '/trocar-senha'
+  ) {
+    return <Navigate to="/trocar-senha" replace />;
+  }
+
   if (!hasAccess) {
     return <Navigate to="/paywall" replace />;
   }
