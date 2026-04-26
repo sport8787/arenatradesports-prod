@@ -680,6 +680,26 @@ export default function LiveMatchDetail() {
             </div>
           )}
 
+          {analysis?.approved_at_timestamp && (
+            <p className="mt-2 text-left text-[11px] text-muted-foreground font-medium pl-1">
+              Sinal aprovado no minuto {analysis.approved_at_minute ?? 0}'
+              {' | '}Placar: {analysis.approved_at_score_home ?? 0}:{analysis.approved_at_score_away ?? 0}
+              {analysis.approved_at_period && (
+                <>
+                  {' | '}
+                  {(() => {
+                    const p = String(analysis.approved_at_period).toUpperCase();
+                    if (p.includes('FIRST') || p === '1H' || p === 'HT1') return '1º Tempo';
+                    if (p.includes('SECOND') || p === '2H' || p === 'HT2') return '2º Tempo';
+                    if (p.includes('HALF_TIME') || p === 'HT') return 'Intervalo';
+                    if (p.includes('EXTRA') || p.includes('ET')) return 'Prorrogação';
+                    return analysis.approved_at_period;
+                  })()}
+                </>
+              )}
+            </p>
+          )}
+
           {!htSignalExpired && analysis && (VERDICT_META[String(analysis.verdict).toUpperCase()]?.isActive) && (
             <div className="mt-4 mx-auto max-w-2xl rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-center">
               <p className="text-xs sm:text-sm font-orbitron uppercase tracking-wider text-yellow-400">
