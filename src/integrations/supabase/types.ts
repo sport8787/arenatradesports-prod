@@ -1962,6 +1962,11 @@ export type Database = {
       mycroft_analyses: {
         Row: {
           alerts: string[] | null
+          approved_at_minute: number | null
+          approved_at_period: string | null
+          approved_at_score_away: number | null
+          approved_at_score_home: number | null
+          approved_at_timestamp: string | null
           confidence: number | null
           created_at: string | null
           final_score_away: number | null
@@ -1981,6 +1986,11 @@ export type Database = {
         }
         Insert: {
           alerts?: string[] | null
+          approved_at_minute?: number | null
+          approved_at_period?: string | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          approved_at_timestamp?: string | null
           confidence?: number | null
           created_at?: string | null
           final_score_away?: number | null
@@ -2000,6 +2010,11 @@ export type Database = {
         }
         Update: {
           alerts?: string[] | null
+          approved_at_minute?: number | null
+          approved_at_period?: string | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          approved_at_timestamp?: string | null
           confidence?: number | null
           created_at?: string | null
           final_score_away?: number | null
