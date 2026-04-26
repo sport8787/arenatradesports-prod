@@ -43,6 +43,13 @@ export default function PunterConfig() {
                </h2>
                <HorusConfig userId={user.id} />
              </section>
+
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Sparkles className="w-3.5 h-3.5" /> Eventos Raros
+               </h2>
+               <EventosRarosConfig />
+             </section>
            </>
         ) : (
           <p className="text-muted-foreground text-sm text-center py-8">Faça login para acessar as configurações.</p>
