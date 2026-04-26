@@ -141,8 +141,12 @@ export default function SignalsFeed() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_analyses' }, () => fetchFeed())
       .subscribe();
 
+    // Atualização periódica (30s) para refrescar a aba AO VIVO conforme jogos começam/terminam
+    const interval = setInterval(() => fetchFeed(), 30_000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [fetchFeed]);
 
