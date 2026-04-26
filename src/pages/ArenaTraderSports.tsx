@@ -446,7 +446,11 @@ export default function ArenaTraderSports() {
                   const approved = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
                   const count = allMatches.filter(m => {
                     const eff = (m.status as string) === 'halftime' ? 'live' : m.status;
-                    return eff === 'live' && approved.includes(m.mycroftStatus) && !m.matchId?.startsWith('sim_');
+                    if (eff !== 'live') return false;
+                    if (!approved.includes(m.mycroftStatus)) return false;
+                    if (m.matchId?.startsWith('sim_')) return false;
+                    if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
+                    return true;
                   }).length;
                   return count > 0 ? (
                     <span className="px-1.5 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold">
