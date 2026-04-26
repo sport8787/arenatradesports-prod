@@ -1354,6 +1354,30 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         analysis.value_percentage = analysis.edge_percentage || analysis.ev_percentage || 0
       }
 
+      // ─── SHERLOCK: Validador estatístico pós-IA ───
+      try {
+        const seasonYear = new Date(game.commence_time).getFullYear()
+        const [homeAdv, awayAdv] = await Promise.all([
+          getOrComputeAdvancedStats(enriched.homeId ?? null, game.home_team, seasonYear, apiFootballKey, supabaseClient),
+          getOrComputeAdvancedStats(enriched.awayId ?? null, game.away_team, seasonYear, apiFootballKey, supabaseClient),
+        ])
+        const sherlock = applySherlockRules(analysis, homeAdv, awayAdv)
+        if (sherlock.veto && analysis.verdict === 'APROVADO') {
+          console.log(`[Sherlock] 🚫 VETO em ${game.home_team} vs ${game.away_team}: ${sherlock.reason}`)
+          analysis.verdict = 'VETADO'
+          analysis.veto_reason = sherlock.reason
+          analysis.sherlock_veto = true
+        } else if (sherlock.confidenceDelta !== 0 && typeof analysis.confidence === 'number') {
+          analysis.confidence = Math.max(0, Math.min(92, analysis.confidence + sherlock.confidenceDelta))
+        }
+        if (sherlock.notes.length > 0) {
+          analysis.sherlock_notes = sherlock.notes
+          analysis.risk_factors = [analysis.risk_factors, ...sherlock.notes].filter(Boolean).join(' | ')
+        }
+      } catch (sherlockErr) {
+        console.warn('[Sherlock] Falha não crítica ao aplicar indicadores avançados:', sherlockErr)
+      }
+
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
 
       // Save analysis to DB
