@@ -44,6 +44,228 @@ export type Database = {
         }
         Relationships: []
       }
+      analises_manuais: {
+        Row: {
+          away_team: string
+          btts_a: number | null
+          btts_h: number | null
+          btts_ht_a: number | null
+          btts_ht_h: number | null
+          cdg1a: number | null
+          cdg1h: number | null
+          cdg2a: number | null
+          cdg2h: number | null
+          created_at: string
+          cv1a: number | null
+          cv1h: number | null
+          cv2a: number | null
+          cv2h: number | null
+          esc_ft_avg_a: number | null
+          esc_ft_avg_h: number | null
+          esc_ht_avg_a: number | null
+          esc_ht_avg_h: number | null
+          fonte: string | null
+          gm_a: number | null
+          gm_cv_a: number | null
+          gm_cv_h: number | null
+          gm_h: number | null
+          gs_a: number | null
+          gs_cv_a: number | null
+          gs_cv_h: number | null
+          gs_h: number | null
+          home_team: string
+          id: string
+          league_name: string | null
+          match_date: string | null
+          melhor_score: number | null
+          melhor_sinal: string | null
+          o052t_a: number | null
+          o052t_h: number | null
+          o05ft_a: number | null
+          o05ft_h: number | null
+          o05ht_a: number | null
+          o05ht_h: number | null
+          o152t_a: number | null
+          o152t_h: number | null
+          o15ft_a: number | null
+          o15ft_h: number | null
+          o15ht_a: number | null
+          o15ht_h: number | null
+          o25ft_a: number | null
+          o25ft_h: number | null
+          o35ft_a: number | null
+          o35ft_h: number | null
+          observacao: string | null
+          odd_a: number | null
+          odd_d: number | null
+          odd_h: number | null
+          r_marc1_a: number | null
+          r_marc1_h: number | null
+          r_sof1_a: number | null
+          r_sof1_h: number | null
+          score_bttsft: number | null
+          score_lay_1x3: number | null
+          score_lay_2x2: number | null
+          score_lay_goleada: number | null
+          score_over05ht: number | null
+          score_over15ht: number | null
+          score_over25ft: number | null
+          score_over35ft: number | null
+          score_under25ft: number | null
+          sinais_aprovados: number | null
+          sinais_atencao: number | null
+          sinais_descartados: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          away_team: string
+          btts_a?: number | null
+          btts_h?: number | null
+          btts_ht_a?: number | null
+          btts_ht_h?: number | null
+          cdg1a?: number | null
+          cdg1h?: number | null
+          cdg2a?: number | null
+          cdg2h?: number | null
+          created_at?: string
+          cv1a?: number | null
+          cv1h?: number | null
+          cv2a?: number | null
+          cv2h?: number | null
+          esc_ft_avg_a?: number | null
+          esc_ft_avg_h?: number | null
+          esc_ht_avg_a?: number | null
+          esc_ht_avg_h?: number | null
+          fonte?: string | null
+          gm_a?: number | null
+          gm_cv_a?: number | null
+          gm_cv_h?: number | null
+          gm_h?: number | null
+          gs_a?: number | null
+          gs_cv_a?: number | null
+          gs_cv_h?: number | null
+          gs_h?: number | null
+          home_team: string
+          id?: string
+          league_name?: string | null
+          match_date?: string | null
+          melhor_score?: number | null
+          melhor_sinal?: string | null
+          o052t_a?: number | null
+          o052t_h?: number | null
+          o05ft_a?: number | null
+          o05ft_h?: number | null
+          o05ht_a?: number | null
+          o05ht_h?: number | null
+          o152t_a?: number | null
+          o152t_h?: number | null
+          o15ft_a?: number | null
+          o15ft_h?: number | null
+          o15ht_a?: number | null
+          o15ht_h?: number | null
+          o25ft_a?: number | null
+          o25ft_h?: number | null
+          o35ft_a?: number | null
+          o35ft_h?: number | null
+          observacao?: string | null
+          odd_a?: number | null
+          odd_d?: number | null
+          odd_h?: number | null
+          r_marc1_a?: number | null
+          r_marc1_h?: number | null
+          r_sof1_a?: number | null
+          r_sof1_h?: number | null
+          score_bttsft?: number | null
+          score_lay_1x3?: number | null
+          score_lay_2x2?: number | null
+          score_lay_goleada?: number | null
+          score_over05ht?: number | null
+          score_over15ht?: number | null
+          score_over25ft?: number | null
+          score_over35ft?: number | null
+          score_under25ft?: number | null
+          sinais_aprovados?: number | null
+          sinais_atencao?: number | null
+          sinais_descartados?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          away_team?: string
+          btts_a?: number | null
+          btts_h?: number | null
+          btts_ht_a?: number | null
+          btts_ht_h?: number | null
+          cdg1a?: number | null
+          cdg1h?: number | null
+          cdg2a?: number | null
+          cdg2h?: number | null
+          created_at?: string
+          cv1a?: number | null
+          cv1h?: number | null
+          cv2a?: number | null
+          cv2h?: number | null
+          esc_ft_avg_a?: number | null
+          esc_ft_avg_h?: number | null
+          esc_ht_avg_a?: number | null
+          esc_ht_avg_h?: number | null
+          fonte?: string | null
+          gm_a?: number | null
+          gm_cv_a?: number | null
+          gm_cv_h?: number | null
+          gm_h?: number | null
+          gs_a?: number | null
+          gs_cv_a?: number | null
+          gs_cv_h?: number | null
+          gs_h?: number | null
+          home_team?: string
+          id?: string
+          league_name?: string | null
+          match_date?: string | null
+          melhor_score?: number | null
+          melhor_sinal?: string | null
+          o052t_a?: number | null
+          o052t_h?: number | null
+          o05ft_a?: number | null
+          o05ft_h?: number | null
+          o05ht_a?: number | null
+          o05ht_h?: number | null
+          o152t_a?: number | null
+          o152t_h?: number | null
+          o15ft_a?: number | null
+          o15ft_h?: number | null
+          o15ht_a?: number | null
+          o15ht_h?: number | null
+          o25ft_a?: number | null
+          o25ft_h?: number | null
+          o35ft_a?: number | null
+          o35ft_h?: number | null
+          observacao?: string | null
+          odd_a?: number | null
+          odd_d?: number | null
+          odd_h?: number | null
+          r_marc1_a?: number | null
+          r_marc1_h?: number | null
+          r_sof1_a?: number | null
+          r_sof1_h?: number | null
+          score_bttsft?: number | null
+          score_lay_1x3?: number | null
+          score_lay_2x2?: number | null
+          score_lay_goleada?: number | null
+          score_over05ht?: number | null
+          score_over15ht?: number | null
+          score_over25ft?: number | null
+          score_over35ft?: number | null
+          score_under25ft?: number | null
+          sinais_aprovados?: number | null
+          sinais_atencao?: number | null
+          sinais_descartados?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       approval_snapshot_violations: {
         Row: {
           analysis_id: string
@@ -5495,6 +5717,18 @@ export type Database = {
           relevance_score?: number | null
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      v_historico_analises: {
+        Row: {
+          com_aprovado: number | null
+          media_aprovados: number | null
+          melhor_sinal: string | null
+          score_medio: number | null
+          total_analises: number | null
+          ultima_analise: string | null
+          user_id: string | null
         }
         Relationships: []
       }
