@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Microscope, Loader2, ShieldAlert, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Microscope, Loader2, ShieldAlert, CheckCircle2, AlertTriangle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface SherlockButtonProps {
   homeTeam: string;
@@ -56,9 +59,35 @@ export default function SherlockAnalyticButton({
   size = "sm",
   variant = "outline",
 }: SherlockButtonProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SherlockResponse | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchHistory = async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    let q = supabase
+      .from("sherlock_audit_log" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (analysisId) {
+      q = q.eq("analysis_id", analysisId);
+    } else {
+      q = q.eq("home_team", homeTeam).eq("away_team", awayTeam);
+    }
+    const { data } = await q;
+    setHistory((data as any[]) ?? []);
+    setHistoryLoading(false);
+  };
+
+  useEffect(() => {
+    if (open) fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const run = async () => {
     setLoading(true);
@@ -75,10 +104,12 @@ export default function SherlockAnalyticButton({
           market,
           plan_name: planName,
           analysis_id: analysisId,
+          user_id: user?.id ?? null,
         },
       });
       if (error) throw error;
       setResult(data as SherlockResponse);
+      fetchHistory();
       if (data?.report?.veto) {
         toast.error("Sherlock vetou esta operação", { description: data.report.veto_reason ?? "" });
       } else if (data?.report?.bonus?.length) {
@@ -177,6 +208,43 @@ export default function SherlockAnalyticButton({
               )}
             </div>
           )}
+
+          <div className="mt-2 border-t border-border pt-3">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <History className="h-3.5 w-3.5" />
+              Histórico Sherlock {analysisId ? "deste sinal" : "desta partida"}
+            </div>
+            {historyLoading ? (
+              <p className="text-xs text-muted-foreground">Carregando…</p>
+            ) : history.length === 0 ? (
+              <p className="text-xs italic text-muted-foreground">Nenhuma execução anterior registrada.</p>
+            ) : (
+              <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                {history.map((h) => (
+                  <div key={h.id} className="rounded border border-border bg-card/40 px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">
+                        {h.veto ? (
+                          <span className="text-destructive">🚫 VETO</span>
+                        ) : h.confidence_delta > 0 ? (
+                          <span className="text-primary">+{h.confidence_delta}pp</span>
+                        ) : h.confidence_delta < 0 ? (
+                          <span className="text-destructive">{h.confidence_delta}pp</span>
+                        ) : (
+                          <span className="text-muted-foreground">neutro</span>
+                        )}
+                        {h.market ? <span className="ml-2 text-muted-foreground">{h.market}</span> : null}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}
+                      </span>
+                    </div>
+                    {h.veto_reason && <p className="mt-0.5 text-destructive/90">{h.veto_reason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

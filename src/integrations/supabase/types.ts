@@ -3524,6 +3524,75 @@ export type Database = {
         }
         Relationships: []
       }
+      sherlock_audit_log: {
+        Row: {
+          analysis_id: string | null
+          away_id: number | null
+          away_stats: Json | null
+          away_team: string
+          bonus: Json
+          confidence_delta: number
+          created_at: string
+          home_id: number | null
+          home_stats: Json | null
+          home_team: string
+          id: string
+          market: string | null
+          notes: Json
+          plan_name: string | null
+          request_payload: Json | null
+          season: number | null
+          user_id: string | null
+          veto: boolean
+          veto_reason: string | null
+          vetos: Json
+        }
+        Insert: {
+          analysis_id?: string | null
+          away_id?: number | null
+          away_stats?: Json | null
+          away_team: string
+          bonus?: Json
+          confidence_delta?: number
+          created_at?: string
+          home_id?: number | null
+          home_stats?: Json | null
+          home_team: string
+          id?: string
+          market?: string | null
+          notes?: Json
+          plan_name?: string | null
+          request_payload?: Json | null
+          season?: number | null
+          user_id?: string | null
+          veto?: boolean
+          veto_reason?: string | null
+          vetos?: Json
+        }
+        Update: {
+          analysis_id?: string | null
+          away_id?: number | null
+          away_stats?: Json | null
+          away_team?: string
+          bonus?: Json
+          confidence_delta?: number
+          created_at?: string
+          home_id?: number | null
+          home_stats?: Json | null
+          home_team?: string
+          id?: string
+          market?: string | null
+          notes?: Json
+          plan_name?: string | null
+          request_payload?: Json | null
+          season?: number | null
+          user_id?: string | null
+          veto?: boolean
+          veto_reason?: string | null
+          vetos?: Json
+        }
+        Relationships: []
+      }
       signals_sent: {
         Row: {
           analysis_id: string | null
