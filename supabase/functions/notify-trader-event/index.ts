@@ -15,6 +15,8 @@ interface Payload {
   odd?: number;
   confidence?: number;
   minute?: number;
+  period?: string | null;
+  status?: string | null;
   score_home?: number;
   score_away?: number;
   previous_market?: string; // para CANCELADO
