@@ -132,7 +132,7 @@ function indicadores(statsHome: any, statsAway: any, h2h: any[]): Indicadores {
   };
 }
 
-function escolherPlacarAlvo(ind: Indicadores): {
+function escolherPlacarAlvo(ind: Indicadores, scoreMin = 60): {
   alvo: PlacarTipo | null;
   alternativo: PlacarTipo | null;
   score: number;
@@ -165,10 +165,10 @@ function escolherPlacarAlvo(ind: Indicadores): {
   opcoes.push({ tipo: "LAY_3x1", score: score3x1 });
 
   opcoes.sort((a, b) => b.score - a.score);
-  if (opcoes[0].score < 60) return { alvo: null, alternativo: null, score: opcoes[0].score };
+  if (opcoes[0].score < scoreMin) return { alvo: null, alternativo: null, score: opcoes[0].score };
   return {
     alvo: opcoes[0].tipo,
-    alternativo: opcoes[1]?.score >= 50 ? opcoes[1].tipo : null,
+    alternativo: opcoes[1]?.score >= Math.max(scoreMin - 10, 30) ? opcoes[1].tipo : null,
     score: opcoes[0].score,
   };
 }
