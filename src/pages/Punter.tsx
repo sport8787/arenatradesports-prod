@@ -49,6 +49,7 @@ import { playHorusTrigger, playHorusTTS, buildAnalysisResultPhrase } from '@/ser
 import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
 import { translateMarket } from '@/utils/marketTranslator';
+import PlanoFavoritoPanel from '@/components/punter/PlanoFavoritoPanel';
 
 interface PunterSignal {
   analysis_id?: string; // ID from punter_analyses for reliable signal lookup
