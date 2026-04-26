@@ -175,6 +175,7 @@ serve(async (req) => {
       market = "",
       plan_name = "",
       analysis_id = null,
+      user_id = null,
     } = body || {};
 
     if (!home_team || !away_team) {
