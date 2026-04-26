@@ -34,11 +34,30 @@ function fmtBRL(n?: number): string {
   return `${sign}R$ ${Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.replace('+R$', '+ R$').replace('R$', n >= 0 ? 'R$' : '- R$');
 }
 
+// Valida se sinal de 1º tempo já expirou (espelha src/lib/signalValidity.ts)
+const HT_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half|halftime|half\s*time|intervalo)\b/i;
+function isFirstHalfMarket(market?: string | null): boolean {
+  if (!market) return false;
+  return HT_REGEX.test(market);
+}
+function isExpiredHtSignal(p: { market?: string | null; minute?: number | null; period?: string | null; status?: string | null }): boolean {
+  if (!isFirstHalfMarket(p.market)) return false;
+  const min = p.minute ?? 0;
+  const period = (p.period || '').toLowerCase();
+  const status = (p.status || '').toLowerCase();
+  if (status === 'finished') return true;
+  if (min >= 45) return true;
+  if (period.includes('second') || period.includes('2nd') || period.includes('2t') || period.includes('2º') || period === 'ht' || period.includes('halftime') || period.includes('half_time') || period.includes('intervalo') || period.includes('extra') || period.includes('overtime') || period === 'ft' || period.includes('full_time')) return true;
+  return false;
+}
+
 function buildTelegramMessage(p: Payload): string {
   const score = `${p.score_home ?? 0}:${p.score_away ?? 0}`;
   const minute = p.minute ? `${p.minute}'` : '—';
   const matchLine = `<b>${p.home_team} x ${p.away_team}</b>`;
   const leagueLine = p.league ? `🏆 ${p.league}\n` : '';
+  const nowBRT = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  const sentAtLine = `🕒 Enviado às <b>${nowBRT}</b> (BRT)\n`;
 
   if (p.event_type === 'APROVADO') {
     return (
@@ -48,8 +67,9 @@ function buildTelegramMessage(p: Payload): string {
       `📊 Placar: <b>${score}</b> • ${minute}\n` +
       `🎯 Mercado: <b>${p.market}</b>\n` +
       `💰 Odd: <b>${p.odd?.toFixed(2) ?? '—'}</b>\n` +
-      `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n\n` +
-      `<i>Acesse o app para confirmar a entrada.</i>`
+      `🧠 Confiança: <b>${p.confidence ?? '—'}%</b>\n` +
+      sentAtLine +
+      `\n<i>Acesse o app para confirmar a entrada.</i>`
     );
   }
 
