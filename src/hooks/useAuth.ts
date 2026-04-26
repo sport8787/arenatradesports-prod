@@ -59,25 +59,49 @@ export const useAuth = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id).then((profile) => {
-          setProfile(profile);
-          identifyUser(session.user.id, {
-            email: session.user.email,
-            username: profile?.username,
-            plan: 'active',
-          });
-          track.dailyLogin(profile?.daily_streak_count || 0);
+    // Safety timeout: nunca deixar loading travado por mais de 8s
+    // (evita tela preta de splash em conexões lentas / falhas de rede no celular)
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 8000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          // Não bloqueia o splash esperando o profile — libera a UI imediatamente
+          // e carrega o profile em background.
           setLoading(false);
-        });
-      } else {
+          clearTimeout(safetyTimeout);
+          fetchProfile(session.user.id)
+            .then((profile) => {
+              setProfile(profile);
+              try {
+                identifyUser(session.user.id, {
+                  email: session.user.email,
+                  username: profile?.username,
+                  plan: 'active',
+                });
+                track.dailyLogin(profile?.daily_streak_count || 0);
+              } catch (e) {
+                console.warn('analytics identify failed', e);
+              }
+            })
+            .catch((e) => {
+              console.warn('fetchProfile failed (background):', e);
+            });
+        } else {
+          setLoading(false);
+          clearTimeout(safetyTimeout);
+        }
+      })
+      .catch((e) => {
+        console.error('getSession failed:', e);
         setLoading(false);
-      }
-    });
+        clearTimeout(safetyTimeout);
+      });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
