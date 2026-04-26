@@ -198,7 +198,16 @@ export default function SignalsFeed() {
       </CardHeader>
       <CardContent>
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
+            <TabsTrigger value="live" className="gap-1.5">
+              <Radio className="h-3.5 w-3.5 text-destructive animate-pulse" />
+              Ao Vivo
+              {liveCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
+                  {liveCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="unread">Não lidos</TabsTrigger>
             <TabsTrigger value="all">Todos</TabsTrigger>
             <TabsTrigger value="green">GREEN</TabsTrigger>
