@@ -28,12 +28,20 @@ export function isExpiredHtSignal(params: {
 
   if (status === "finished") return true;
   if (min >= 45) return true;
+  // Período já está no 2º tempo, prorrogação ou intervalo encerrado
   if (
     period.includes("second") ||
     period.includes("2nd") ||
     period.includes("2t") ||
-    period.includes("ht") || // halftime
-    period.includes("intervalo")
+    period.includes("2º") ||
+    period === "ht" ||
+    period.includes("halftime") ||
+    period.includes("half_time") ||
+    period.includes("intervalo") ||
+    period.includes("extra") ||
+    period.includes("overtime") ||
+    period === "ft" ||
+    period.includes("full_time")
   ) {
     return true;
   }

@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
 import { formatMatchPeriod } from '@/lib/matchPeriod';
 import FavoriteButton from './FavoriteButton';
+import { computeCriteria as computeCriteriaShared, getCriteriaSummary } from '@/lib/matchCriteria';
+import CriteriaDetailModal from './CriteriaDetailModal';
 
 export interface MatchStats {
   possession_home?: number;
@@ -48,135 +50,6 @@ export interface Match {
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
 
-interface CriteriaResult {
-  key: string;
-  label: string;
-  state: CriteriaState;
-  detail: string;
-  vetoReason?: string;
-  eliminatory?: boolean;
-}
-
-/**
- * Sistema B1-B5 (atualizado)
- * B1 — Probabilidade Poisson ≥ 40% (ELIMINATÓRIO)
- * B2 — Valor Esperado positivo (edge)  (ELIMINATÓRIO)
- * B3 — Regra Situacional S1-S4 confirmada
- * B4 — Janela de tempo válida 10-70', não HT (ELIMINATÓRIO)
- * B5 — Stats ao vivo confirmam (Pressão + Dentro da área)
- *
- * Como o Poisson e o EV são calculados na edge function que produz o veredito
- * (APROVADO/LABAREDA), inferimos B1 e B2 a partir do status + confidence.
- * Já B4 e B5 são 100% calculáveis no client a partir dos dados ao vivo.
- */
-function computeCriteria(match: Match): CriteriaResult[] {
-  const s = match.stats;
-  const status = match.mycroftStatus;
-  const isApproved = status === 'APROVADO' || status === 'APROVADO_SITUACIONAL' || status === 'opportunity' || status === 'LABAREDA';
-  const isVetoed = status === 'VETADO' || status === 'JOGO_MORTO' || status === 'no_value';
-  const conf = match.confidence ?? null;
-  const period = (match.period || '').toLowerCase();
-  const isHalftime = period.includes('intervalo') || period.includes('halftime') || period.includes('ht');
-
-  // B1 — Poisson ≥ 40% (eliminatório)
-  let b1: CriteriaState = 'gray';
-  let b1Detail = 'Aguardando análise Poisson';
-  let b1Veto: string | undefined;
-  if (conf != null) {
-    b1Detail = `Probabilidade ${conf}%`;
-    if (conf >= 40) b1 = 'green';
-    else if (conf >= 30) { b1 = 'yellow'; b1Veto = `prob. abaixo do alvo (${conf}%)`; }
-    else { b1 = 'red'; b1Veto = `prob. ${conf}% < 40%`; }
-  } else if (isApproved) {
-    b1 = 'green';
-    b1Detail = 'Aprovado pelo motor (≥40%)';
-  } else if (isVetoed) {
-    b1 = 'red';
-    b1Detail = 'Vetado pelo motor';
-    b1Veto = 'probabilidade Poisson abaixo do alvo';
-  }
-
-  // B2 — Valor Esperado positivo (eliminatório)
-  let b2: CriteriaState = 'gray';
-  let b2Detail = 'EV pendente';
-  let b2Veto: string | undefined;
-  if (isApproved) {
-    b2 = 'green';
-    b2Detail = 'EV positivo';
-  } else if (isVetoed) {
-    b2 = 'red';
-    b2Detail = 'EV negativo';
-    b2Veto = 'sem valor esperado positivo';
-  }
-
-  // B3 — Situacional S1-S4
-  let b3: CriteriaState = 'gray';
-  let b3Detail = 'Sem padrão situacional';
-  if (status === 'APROVADO_SITUACIONAL') {
-    b3 = 'green';
-    b3Detail = 'Padrão S1-S4 confirmado';
-  } else {
-    const sit = (match.alerts || []).find(a => /\bS[1-4]\b/i.test(a));
-    if (sit) { b3 = 'green'; b3Detail = sit; }
-    else if (isApproved) { b3 = 'yellow'; b3Detail = 'Aprovado sem padrão situacional'; }
-  }
-
-  // B4 — Janela de tempo válida 10-70', não HT (eliminatório)
-  let b4: CriteriaState;
-  let b4Detail = `${match.minute}'`;
-  let b4Veto: string | undefined;
-  if (isHalftime) {
-    b4 = 'red';
-    b4Detail = 'Intervalo';
-    b4Veto = 'janela inválida (intervalo)';
-  } else if (match.minute >= 10 && match.minute <= 65) {
-    b4 = 'green';
-  } else if (match.minute > 65 && match.minute <= 70) {
-    b4 = 'yellow';
-    b4Veto = `janela fechando (${match.minute}')`;
-  } else if (match.minute > 70) {
-    b4 = 'red';
-    b4Veto = `fora da janela (${match.minute}')`;
-  } else {
-    b4 = 'gray';
-    b4Detail = `${match.minute}' (cedo)`;
-  }
-
-  // B5 — Stats ao vivo (Pressão + dentro da área)
-  let b5: CriteriaState = 'gray';
-  let b5Detail = 'Stats indisponíveis';
-  const shots = s?.shots_home;
-  const corners = s?.corners_home;
-  const atk = s?.attacks_home;
-  const atkOpp = s?.attacks_away;
-  if (shots != null || corners != null || atk != null) {
-    const sH = shots ?? 0;
-    const cH = corners ?? 0;
-    const aH = atk ?? 0;
-    const aA = atkOpp ?? 0;
-    b5Detail = `${sH} fin., ${cH} esc.${aH || aA ? ` · ${aH}v${aA} ataques` : ''}`;
-    const pressao = sH >= 3 || cH >= 3;
-    const dentroArea = aH > aA * 1.2 || sH >= 4;
-    if (pressao && dentroArea) b5 = 'green';
-    else if (pressao || dentroArea) b5 = 'yellow';
-    else if (sH === 0 && cH === 0 && aH < aA) b5 = 'red';
-    else b5 = 'gray';
-  }
-
-  return [
-    { key: 'b1', label: 'B1 · Poisson ≥40%', state: b1, detail: b1Detail, vetoReason: b1Veto, eliminatory: true },
-    { key: 'b2', label: 'B2 · EV positivo', state: b2, detail: b2Detail, vetoReason: b2Veto, eliminatory: true },
-    { key: 'b3', label: 'B3 · Situacional S1-S4', state: b3, detail: b3Detail },
-    { key: 'b4', label: 'B4 · Janela 10-70\'', state: b4, detail: b4Detail, vetoReason: b4Veto, eliminatory: true },
-    { key: 'b5', label: 'B5 · Stats (pressão + área)', state: b5, detail: b5Detail },
-  ];
-}
-
-function getVetoSummary(criteria: CriteriaResult[]): string | null {
-  const reds = criteria.filter(c => c.state === 'red' && c.vetoReason);
-  if (reds.length === 0) return null;
-  return reds[0].vetoReason!;
-}
 
 const championshipColors: Record<string, string> = {
   yellow: 'bg-primary/20 text-primary border-primary/30',
@@ -283,11 +156,12 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
-  const criteria = useMemo(() => computeCriteria(match), [match]);
-  const criteriaMet = criteria.filter(c => c.state === 'green').length;
-  // Eliminatórios (B1, B2, B4): se algum estiver vermelho, card fica opaco e não pulsa
-  const eliminatoryFailed = criteria.some(c => c.eliminatory && c.state === 'red');
-  const vetoSummary = useMemo(() => getVetoSummary(criteria), [criteria]);
+  const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
+  const criteria = useMemo(() => computeCriteriaShared(match), [match]);
+  const summary = useMemo(() => getCriteriaSummary(criteria), [criteria]);
+  const criteriaMet = summary.greens;
+  const eliminatoryFailed = summary.eliminatoryFailed;
+  const vetoSummary = summary.vetoSummary;
 
   // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
   const htExpired = useMemo(
@@ -414,53 +288,57 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               </span>
             </div>
 
-            {/* Criteria Dots */}
+            {/* Criteria Dots — clique abre modal explicativo */}
             {match.status === 'live' && (
               <div className="space-y-1.5">
-                <div className="flex items-center justify-center gap-2">
-                    {criteria.map((c) => {
-                      const dotColors = {
-                        green: 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]',
-                        red: 'bg-[#EF4444] border-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.6)]',
-                        yellow: 'bg-[#F59E0B] border-[#F59E0B] shadow-[0_0_6px_rgba(245,158,11,0.6)]',
-                        gray: 'bg-transparent border-muted-foreground/40',
-                      };
-                      const stateEmoji = { green: '✓', red: '✗', yellow: '⚠', gray: '—' };
-                      return (
-                        <Tooltip key={c.key}>
-                          <TooltipTrigger asChild>
-                            <div className={cn(
-                              'w-3 h-3 rounded-full border transition-all duration-300 cursor-help',
-                              dotColors[c.state]
-                            )} />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs max-w-[240px]">
-                            <div className="space-y-0.5">
-                              <div>
-                                <span className="font-semibold">{c.label}</span>
-                                {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
-                              </div>
-                              <div className="text-muted-foreground">{c.detail}</div>
-                              {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
-                              {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
-                              {c.state === 'yellow' && !c.vetoReason && <div>⚠️ atenção</div>}
-                              {c.state === 'green' && <div>{stateEmoji.green} ok</div>}
-                              {c.state === 'gray' && <div>— sem dados</div>}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setCriteriaModalOpen(true); }}
+                  className="w-full flex items-center justify-center gap-2 group hover:bg-muted/30 rounded-md py-1 transition-colors"
+                  aria-label="Ver detalhes dos critérios B1-B5"
+                >
+                  {criteria.map((c) => {
+                    const dotColors = {
+                      green: 'bg-[#22C55E] border-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.6)]',
+                      red: 'bg-[#EF4444] border-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.6)]',
+                      yellow: 'bg-[#F59E0B] border-[#F59E0B] shadow-[0_0_6px_rgba(245,158,11,0.6)]',
+                      gray: 'bg-transparent border-muted-foreground/40',
+                    };
+                    return (
+                      <Tooltip key={c.key}>
+                        <TooltipTrigger asChild>
+                          <div className={cn(
+                            'w-3 h-3 rounded-full border transition-all duration-300',
+                            dotColors[c.state]
+                          )} />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs max-w-[240px]">
+                          <div className="space-y-0.5">
+                            <div>
+                              <span className="font-semibold">{c.label}</span>
+                              {c.eliminatory && <span className="ml-1 text-[10px] uppercase tracking-wider text-destructive">eliminatório</span>}
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
+                            <div className="text-muted-foreground">{c.detail}</div>
+                            {c.state === 'red' && c.vetoReason && <div>❌ {c.vetoReason}</div>}
+                            {c.state === 'yellow' && c.vetoReason && <div>⚠️ {c.vetoReason}</div>}
+                            {c.state === 'gray' && <div>— sem dados</div>}
+                            <div className="text-[10px] text-muted-foreground/80 pt-0.5 italic">clique para detalhes</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                   <span className="text-[10px] text-muted-foreground font-orbitron ml-1">
                     {criteriaMet}/5
                   </span>
-                </div>
+                  <Info className="w-3 h-3 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                </button>
 
                 {/* Imminent entry alert */}
                 {isImminent && (
                   <div className="text-center">
                     <span className="text-[11px] font-orbitron font-bold text-[#FBBF24] animate-pulse">
-                      ⚡ Entrada iminente
+                      ⚡ Entrada iminente — fique atento
                     </span>
                   </div>
                 )}
@@ -530,6 +408,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           )}
         </div>
       </motion.div>
+      <CriteriaDetailModal match={match} open={criteriaModalOpen} onOpenChange={setCriteriaModalOpen} />
     </TooltipProvider>
   );
 }
