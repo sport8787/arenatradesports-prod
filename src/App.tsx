@@ -90,55 +90,57 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <TrialBanner />
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/lobby" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/privacidade" element={<PrivacyPolicy />} />
-              <Route path="/paywall" element={<Paywall />} />
-              <Route path="/oferta-especial" element={<OfertaEspecial />} />
-              <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
-              <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
-              <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
-              <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
-              <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
-              <Route path="/minhas-apostas" element={<RequireSubscription><MinhasApostas /></RequireSubscription>} />
-              <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
-              <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
-              <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
-              <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
-              <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
-              <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
-              <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
-              <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
-              <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
-              <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
-              <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
-              <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
-              <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
-              <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
-              <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
-              <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
-              <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
-              <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
-              <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
-              <Route path="/admin/push-test" element={<AdminPushTest />} />
-              <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
-              <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
-              <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/lobby" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/privacidade" element={<PrivacyPolicy />} />
+                <Route path="/paywall" element={<Paywall />} />
+                <Route path="/oferta-especial" element={<OfertaEspecial />} />
+                <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/jogo/:id" element={<RequireSubscription><LiveMatchDetail /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
+                <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
+                <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
+                <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
+                <Route path="/minhas-apostas" element={<RequireSubscription><MinhasApostas /></RequireSubscription>} />
+                <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
+                <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
+                <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
+                <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
+                <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
+                <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
+                <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
+                <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
+                <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
+                <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
+                <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
+                <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
+                <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
+                <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
+                <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
+                <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
+                <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
+                <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
+                <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
+                <Route path="/admin/push-test" element={<AdminPushTest />} />
+                <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
+                <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
+                <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </React.Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
