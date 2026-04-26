@@ -1,0 +1,188 @@
+import { useEffect, useState, useCallback } from 'react';
+import { Crown, Loader2, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAdmin } from '@/hooks/useAdmin';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+
+interface SinalFavorito {
+  id: string;
+  fixture_id: string;
+  home_team: string;
+  away_team: string;
+  league_name: string | null;
+  match_date: string | null;
+  favorito: string | null;
+  fav_odd: number | null;
+  score_vitoria: number | null;
+  score_over15: number | null;
+  score_over25: number | null;
+  status_vitoria: string | null;
+  status_over15: string | null;
+  status_over25: string | null;
+}
+
+const STATUS_TONE: Record<string, string> = {
+  SINAL_FORTE: 'bg-success/15 text-success border-success/30',
+  SINAL_BOM: 'bg-primary/15 text-primary border-primary/30',
+};
+
+function StatusChip({ label, status, score }: { label: string; status: string | null; score: number | null }) {
+  if (!status || !['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-mono font-bold ${STATUS_TONE[status]}`}
+    >
+      {label} {score ?? '—'} · {status === 'SINAL_FORTE' ? 'FORTE' : 'BOM'}
+    </span>
+  );
+}
+
+export default function PlanoFavoritoPanel() {
+  const { isAdmin } = useAdmin();
+  const [signals, setSignals] = useState<SinalFavorito[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const fromDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('sinais_favorito_prelive' as any)
+      .select(
+        'id,fixture_id,home_team,away_team,league_name,match_date,favorito,fav_odd,score_vitoria,score_over15,score_over25,status_vitoria,status_over15,status_over25',
+      )
+      .gte('match_date', fromDate)
+      .or(
+        'status_vitoria.in.(SINAL_FORTE,SINAL_BOM),status_over15.in.(SINAL_FORTE,SINAL_BOM),status_over25.in.(SINAL_FORTE,SINAL_BOM)',
+      )
+      .order('match_date', { ascending: true })
+      .limit(20);
+
+    if (error) {
+      console.error('[PlanoFavorito] load error', error);
+    } else {
+      setSignals((data ?? []) as unknown as SinalFavorito[]);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleRun = async () => {
+    setRunning(true);
+    const t = toast.loading('Disparando análise Plano Favorito...', {
+      description: 'Buscando jogos e calculando scores. Pode levar 1-3 min.',
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke('plano-favorito-prelive', {
+        body: {},
+      });
+      if (error) throw error;
+      toast.success(`Análise concluída — ${data?.aprovados ?? 0} aprovados`, {
+        id: t,
+        description: `Analisados: ${data?.analisados ?? 0} · Notificados: ${data?.notificados ?? 0}`,
+      });
+      await load();
+    } catch (err: any) {
+      toast.error('Erro ao rodar análise', { id: t, description: err?.message ?? String(err) });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-warning/15">
+            <Crown className="w-4 h-4 text-warning" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground leading-tight">Plano Favorito — Pré-Live</h3>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              Vitória do Favorito · Over 1.5 · Over 2.5 (odd 1.40-2.00)
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-8 px-2">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              onClick={handleRun}
+              disabled={running}
+              className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
+            >
+              {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <span className="text-[11px] font-mono font-bold">
+                {running ? 'Analisando...' : 'Rodar análise (Admin)'}
+              </span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-6 text-muted-foreground text-xs font-mono">
+          <Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando sinais...
+        </div>
+      ) : signals.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border/60 p-5 text-center">
+          <TrendingUp className="w-6 h-6 mx-auto text-muted-foreground/60 mb-1.5" />
+          <p className="text-xs text-muted-foreground">Nenhum sinal aprovado nas próximas horas.</p>
+          {isAdmin && (
+            <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
+              Use "Rodar análise" para buscar agora.
+            </p>
+          )}
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {signals.map((s) => {
+            const horario = s.match_date
+              ? new Date(s.match_date).toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '—';
+            return (
+              <li
+                key={s.id}
+                className="rounded-md border border-border/60 bg-background/40 p-2.5 flex flex-col gap-1.5"
+              >
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground leading-tight">
+                      {s.home_team} <span className="text-muted-foreground">×</span> {s.away_team}
+                    </p>
+                    <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                      {s.league_name ?? '—'} · {horario}
+                    </p>
+                  </div>
+                  {s.favorito && (
+                    <Badge variant="outline" className="text-[10px] font-mono border-warning/40 text-warning">
+                      Fav: {s.favorito} {s.fav_odd ? `@ ${Number(s.fav_odd).toFixed(2)}` : ''}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <StatusChip label="VIT" status={s.status_vitoria} score={s.score_vitoria} />
+                  <StatusChip label="O1.5" status={s.status_over15} score={s.score_over15} />
+                  <StatusChip label="O2.5" status={s.status_over25} score={s.score_over25} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
