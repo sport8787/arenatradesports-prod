@@ -138,12 +138,12 @@ export default function SherlockAnalyticButton({
               )}
 
               {!result.report.veto && result.report.bonus.length > 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-emerald-600">Bônus de confiança</p>
+                    <p className="font-semibold text-primary">Bônus de confiança</p>
                     {result.report.bonus.map((b, i) => (
-                      <p key={i} className="text-emerald-700 dark:text-emerald-400">{b}</p>
+                      <p key={i} className="text-foreground/90">{b}</p>
                     ))}
                   </div>
                 </div>
