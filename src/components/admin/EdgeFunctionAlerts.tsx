@@ -14,6 +14,7 @@ type ErrorRow = {
   function_name: string;
   error_message: string;
   status_code: number | null;
+  severity: string;
   created_at: string;
 };
 
@@ -57,7 +58,7 @@ export default function EdgeFunctionAlerts() {
     const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from("edge_function_errors")
-      .select("id, function_name, error_message, status_code, created_at")
+      .select("id, function_name, error_message, status_code, severity, created_at")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
       .limit(500);
@@ -101,6 +102,7 @@ export default function EdgeFunctionAlerts() {
   const grouped: FuncCount[] = (() => {
     const map = new Map<string, FuncCount>();
     for (const e of errors) {
+      if (e.severity === "warning") continue;
       const cur = map.get(e.function_name);
       const credit = isCreditIssue(e.error_message, e.status_code);
       if (cur) {
