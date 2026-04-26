@@ -311,8 +311,38 @@ function scoreLay1x3(D: ParsedData): ScoreResult {
   return { score: clamp(s), factors: f };
 }
 
-// ============================================================
-// Status helpers
+// Handicap Asiático — recomenda lado favorito (-0.5 / -1) ou underdog (+0.5/+1)
+// baseado em diferença de odds, força ofensiva e defensiva
+function scoreHandicapAsiatico(D: ParsedData): ScoreResult {
+  let s = 30; const f: Factor[] = [];
+  const { odd_h: oh, odd_a: oa, gm_h: gmH, gm_a: gmA, gs_h: gsH, gs_a: gsA } = D;
+  if (!oh || !oa) {
+    f.push({ t: 'Sem odds 1X2 — não é possível calcular AH', c: 'w', v: '⚠' });
+    return { score: 0, factors: f };
+  }
+  const diff = Math.abs(oh - oa);
+  const fav = oh < oa ? 'Casa' : 'Visitante';
+  const linha = diff > 2.5 ? '-1.0' : diff > 1.2 ? '-0.5' : '+0.25';
+  if (diff > 2.5) { s += 25; f.push({ t: `Favoritismo forte para ${fav} (Δodd ${diff.toFixed(2)}) → AH ${linha}`, c: 'p', v: '+25' }); }
+  else if (diff > 1.5) { s += 15; f.push({ t: `Favoritismo moderado para ${fav} (Δodd ${diff.toFixed(2)}) → AH ${linha}`, c: 'p', v: '+15' }); }
+  else if (diff > 0.7) { s += 8; f.push({ t: `Leve favoritismo ${fav} (Δodd ${diff.toFixed(2)}) → AH ${linha}`, c: 'p', v: '+8' }); }
+  else { s -= 12; f.push({ t: `Times equilibrados (Δodd ${diff.toFixed(2)}) — AH arriscado`, c: 'n', v: '-12' }); }
+  // Força ofensiva do favorito vs defesa do underdog
+  if (gmH && gmA && gsH && gsA) {
+    const ataqueFav = fav === 'Casa' ? gmH : gmA;
+    const defesaUnd = fav === 'Casa' ? gsA : gsH;
+    if (ataqueFav > 1.5 && defesaUnd > 1.2) { s += 12; f.push({ t: `Favorito ataca bem (${ataqueFav.toFixed(1)}) vs defesa frágil (${defesaUnd.toFixed(1)})`, c: 'p', v: '+12' }); }
+    else if (ataqueFav < 1.0) { s -= 10; f.push({ t: `Favorito ataque fraco (${ataqueFav.toFixed(1)}) — risco AH`, c: 'n', v: '-10' }); }
+  }
+  // Conferir CDG (consistência) do favorito
+  const cdgFav = fav === 'Casa' ? D.cdg1h : D.cdg1a;
+  if (cdgFav !== undefined) {
+    if (cdgFav < 2.0) { s += 8; f.push({ t: `Favorito consistente (CDG ${cdgFav.toFixed(2)})`, c: 'p', v: '+8' }); }
+    else if (cdgFav > 4.0) { s -= 10; f.push({ t: `Favorito inconsistente (CDG ${cdgFav.toFixed(2)})`, c: 'n', v: '-10' }); }
+  }
+  f.push({ t: `Linha sugerida: ${fav} ${linha}`, c: 'w', v: 'ℹ' });
+  return { score: clamp(s), factors: f };
+}
 // ============================================================
 function statusFor(s: number) {
   if (s >= 65) return { label: 'APROVADO', tone: 'success' as const };
@@ -418,6 +448,7 @@ export default function PunterAnaliseManual() {
       'Lay Goleada': scoreLayGoleada(D),
       'Lay 2x2': scoreLay2x2(D),
       'Lay 1x3/3x1': scoreLay1x3(D),
+      'Handicap Asiático': scoreHandicapAsiatico(D),
     } as Record<string, ScoreResult>;
   }, [D, data]);
 

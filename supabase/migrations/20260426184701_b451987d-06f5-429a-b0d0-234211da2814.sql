@@ -1,0 +1,1 @@
+ALTER TABLE public.analises_manuais ADD COLUMN IF NOT EXISTS score_handicap_asiatico integer;
