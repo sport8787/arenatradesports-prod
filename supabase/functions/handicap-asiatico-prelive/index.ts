@@ -15,7 +15,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const API_FOOTBALL_KEY = Deno.env.get('API_FOOTBALL_KEY')!;
 const ODDS_API_KEY = Deno.env.get('THE_ODDS_API_KEY')!;
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
 const TELEGRAM_CHAT = Deno.env.get('TELEGRAM_CHAT_ID');
 
