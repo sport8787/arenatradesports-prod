@@ -421,7 +421,7 @@ async function analisarJogo(fixture: any): Promise<any | null> {
   const { fixture: fix, league, teams } = fixture;
   if (!LIGAS_PERMITIDAS.has(league.id)) return null;
 
-  const oddsData = await getOddsHA(teams.home.name, teams.away.name, league.id);
+  const oddsData = await getOddsHA(teams.home.name, teams.away.name, league.id, fix.id);
   if (!oddsData.favOdd || !oddsData.undOdd) return null;
   if (oddsData.favOdd > 2.2) return null;
 
