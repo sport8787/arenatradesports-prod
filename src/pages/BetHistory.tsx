@@ -92,7 +92,11 @@ export default function BetHistoryPage() {
       .order('created_at', { ascending: false });
 
     const punterBets: Bet[] = (punterData || []).map((b: any) => {
-      const conf = b.punter_analyses?.confidence ?? null;
+      // Prioriza confidence da analysis vinculada; se ausente (ex.: Plano Favorito grava só thesis),
+      // extrai o score do texto da tese para manter a categoria CAT consistente com o sinal aprovado.
+      const analysisConf = b.punter_analyses?.confidence ?? null;
+      const thesisScore = extractScoreFromThesis(b.thesis);
+      const conf = analysisConf ?? thesisScore;
       return {
         id: b.id,
         match_name: b.match_name || b.match_id,
