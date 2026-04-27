@@ -11,6 +11,7 @@ interface BetRow {
   profit_loss: number | null;
   placed_at: string;
   league?: string;
+  categoria?: 'A' | 'B' | 'C';
 }
 
 interface ReportStats {
@@ -84,6 +85,7 @@ export function generateBetReportPdf(
       b.match_name.length > 35 ? b.match_name.substring(0, 35) + '…' : b.match_name,
       b.league || '-',
       b.market,
+      b.categoria || '-',
       b.odd.toFixed(2),
       `R$ ${b.stake.toFixed(2)}`,
       st,
@@ -93,7 +95,7 @@ export function generateBetReportPdf(
 
   autoTable(doc, {
     startY: y0 + 22,
-    head: [['Data', 'Jogo', 'Liga', 'Mercado', 'Odd', 'Stake', 'Status', 'P/L']],
+    head: [['Data', 'Jogo', 'Liga', 'Mercado', 'Cat.', 'Odd', 'Stake', 'Status', 'P/L']],
     body: rows,
     theme: 'grid',
     styles: {
@@ -115,23 +117,30 @@ export function generateBetReportPdf(
     },
     columnStyles: {
       0: { cellWidth: 20 },
-      1: { cellWidth: 60 },
-      4: { halign: 'center' },
-      5: { halign: 'right' },
-      6: { halign: 'center' },
-      7: { halign: 'right' },
+      1: { cellWidth: 55 },
+      4: { halign: 'center', cellWidth: 12, fontStyle: 'bold' },
+      5: { halign: 'center' },
+      6: { halign: 'right' },
+      7: { halign: 'center' },
+      8: { halign: 'right' },
     },
     didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 7) {
+      if (data.section === 'body' && data.column.index === 8) {
         const val = data.cell.text.join('');
         if (val.includes('-')) data.cell.styles.textColor = [239, 68, 68];
         else if (val !== '-') data.cell.styles.textColor = [34, 197, 94];
       }
-      if (data.section === 'body' && data.column.index === 6) {
+      if (data.section === 'body' && data.column.index === 7) {
         const val = data.cell.text.join('');
         if (val.includes('GREEN')) data.cell.styles.textColor = [34, 197, 94];
         else if (val.includes('RED')) data.cell.styles.textColor = [239, 68, 68];
         else if (val.includes('PENDING')) data.cell.styles.textColor = [234, 179, 8];
+      }
+      if (data.section === 'body' && data.column.index === 4) {
+        const val = data.cell.text.join('').trim();
+        if (val === 'A') data.cell.styles.textColor = [239, 68, 68];
+        else if (val === 'B') data.cell.styles.textColor = [234, 179, 8];
+        else if (val === 'C') data.cell.styles.textColor = [150, 150, 150];
       }
     },
   });

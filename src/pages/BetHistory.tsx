@@ -38,6 +38,15 @@ interface Bet {
   thesis?: string | null;
   commence_time?: string | null;
   league?: string;
+  confidence?: number | null;
+  categoria?: 'A' | 'B' | 'C';
+}
+
+function deriveCategoria(confidence: number | null | undefined): 'A' | 'B' | 'C' {
+  if (confidence == null) return 'C';
+  if (confidence >= 80) return 'A';
+  if (confidence >= 65) return 'B';
+  return 'C';
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
@@ -69,30 +78,35 @@ export default function BetHistoryPage() {
 
     const { data: punterData } = await supabase
       .from('virtual_bets_punter')
-      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)')
+      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league, confidence)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    const punterBets: Bet[] = (punterData || []).map((b: any) => ({
-      id: b.id,
-      match_name: b.match_name || b.match_id,
-      market: b.market,
-      odd: parseFloat(b.odd),
-      stake: parseFloat(b.stake),
-      status: b.status,
-      result: b.result,
-      profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
-      placed_at: b.created_at,
-      settled_at: b.status === 'settled' ? b.updated_at : undefined,
-      source: 'punter' as const,
-      score_home: b.score_home,
-      score_away: b.score_away,
-      red_card_home: b.red_card_home,
-      red_card_away: b.red_card_away,
-      thesis: b.thesis,
-      commence_time: b.commence_time,
-      league: b.punter_analyses?.league || undefined,
-    }));
+    const punterBets: Bet[] = (punterData || []).map((b: any) => {
+      const conf = b.punter_analyses?.confidence ?? null;
+      return {
+        id: b.id,
+        match_name: b.match_name || b.match_id,
+        market: b.market,
+        odd: parseFloat(b.odd),
+        stake: parseFloat(b.stake),
+        status: b.status,
+        result: b.result,
+        profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
+        placed_at: b.created_at,
+        settled_at: b.status === 'settled' ? b.updated_at : undefined,
+        source: 'punter' as const,
+        score_home: b.score_home,
+        score_away: b.score_away,
+        red_card_home: b.red_card_home,
+        red_card_away: b.red_card_away,
+        thesis: b.thesis,
+        commence_time: b.commence_time,
+        league: b.punter_analyses?.league || undefined,
+        confidence: conf,
+        categoria: deriveCategoria(conf),
+      };
+    });
 
     setBets(punterBets.sort((a, b) =>
       new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
@@ -558,10 +572,23 @@ export default function BetHistoryPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">⚽</span>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px] font-orbitron">
                             {bet.source === 'punter' ? 'Punter' : 'Sports'}
                           </Badge>
+                          {bet.categoria && (
+                            <Badge
+                              className={cn(
+                                'text-[10px] font-orbitron font-bold border',
+                                bet.categoria === 'A' && 'bg-destructive/20 text-destructive border-destructive/50',
+                                bet.categoria === 'B' && 'bg-warning/20 text-warning border-warning/50',
+                                bet.categoria === 'C' && 'bg-muted text-muted-foreground border-muted-foreground/30',
+                              )}
+                              title={`Categoria ${bet.categoria} — confiança ${bet.confidence ?? '—'}%`}
+                            >
+                              CAT {bet.categoria}
+                            </Badge>
+                          )}
                           <h3 className="font-orbitron text-sm font-bold text-foreground">
                             {bet.match_name}
                           </h3>
