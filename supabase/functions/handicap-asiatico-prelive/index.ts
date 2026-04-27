@@ -534,6 +534,49 @@ async function salvarSinal(a: any, userId: string | null) {
     indicadores: a.indicadores,
     ai_analysis: a.aiAnalysis,
   });
+
+  // === Espelhar em punter_analyses para o feed do app enxergar ===
+  // Mostra mercado claro: "Casa -1.0", "Visitante +0.5", etc.
+  if (a.statusHA === 'SINAL_FORTE' || a.statusHA === 'SINAL_BOM') {
+    try {
+      const teamSide = a.haType === 'POSITIVO'
+        ? (a.isFavHome ? 'Visitante' : 'Casa')
+        : (a.isFavHome ? 'Casa' : 'Visitante');
+      const marketLabel = `HA ${teamSide} ${a.linhaRecomendada}`;
+      const matchIdStd = `ha-${a.fixtureId}-${a.linhaRecomendada}`;
+
+      const { data: existing } = await supabase
+        .from('punter_analyses')
+        .select('id')
+        .eq('match_id', matchIdStd)
+        .eq('market', marketLabel)
+        .maybeSingle();
+
+      const payload = {
+        match_id: matchIdStd,
+        home_team: a.homeTeam,
+        away_team: a.awayTeam,
+        league: a.leagueName,
+        commence_time: a.matchDate,
+        market: marketLabel,
+        bookmaker: 'handicap-asiatico-prelive',
+        odd: a.oddHA,
+        verdict: 'APROVADO',
+        confidence: Math.round(a.scoreHA),
+        thesis: a.liquidacao,
+        analysis: a.aiAnalysis,
+        analyzed_by: 'handicap-asiatico',
+      };
+
+      if (existing) {
+        await supabase.from('punter_analyses').update(payload).eq('id', existing.id);
+      } else {
+        await supabase.from('punter_analyses').insert(payload);
+      }
+    } catch (e) {
+      console.error('[HA] mirror punter_analyses err', e);
+    }
+  }
 }
 
 async function notificarTelegram(a: any) {
