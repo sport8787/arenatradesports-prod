@@ -171,7 +171,7 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, f
         g.home_team?.toLowerCase().includes(homeTeam.toLowerCase().split(' ')[0]) ||
         g.away_team?.toLowerCase().includes(awayTeam.toLowerCase().split(' ')[0]),
     );
-    if (!game) return empty;
+    if (!game) return await getOddsAF(fixtureId);
 
     let homeOdd: number | null = null;
     let awayOdd: number | null = null;
@@ -199,10 +199,10 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, f
       if (homeOdd && awayOdd) break;
     }
 
-    if (!homeOdd || !awayOdd) return empty;
+    if (!homeOdd || !awayOdd) return await getOddsAF(fixtureId);
     return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
   } catch {
-    return empty;
+    return await getOddsAF(fixtureId);
   }
 }
 
