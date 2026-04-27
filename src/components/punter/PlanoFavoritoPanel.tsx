@@ -47,7 +47,8 @@ export default function PlanoFavoritoPanel() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const fromDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    // Apenas jogos futuros (a partir de agora) — não mostra jogos que já começaram/terminaram
+    const fromDate = new Date().toISOString();
     const { data, error } = await supabase
       .from('sinais_favorito_prelive' as any)
       .select(
