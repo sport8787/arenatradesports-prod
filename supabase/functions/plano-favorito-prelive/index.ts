@@ -649,33 +649,115 @@ function getStatus(score: number, threshold: number): string {
 // =============================================================================
 
 async function salvarSinal(analise: Analise) {
-  // Evita duplicatas
+  // Evita duplicatas no histórico bruto
   const { data: exist } = await supabase
     .from('sinais_favorito_prelive')
     .select('id')
     .eq('fixture_id', String(analise.fixtureId))
     .maybeSingle()
 
-  if (exist) return
+  if (!exist) {
+    await supabase.from('sinais_favorito_prelive').insert({
+      fixture_id:     String(analise.fixtureId),
+      home_team:      analise.homeTeam,
+      away_team:      analise.awayTeam,
+      league_id:      analise.leagueId,
+      league_name:    analise.leagueName,
+      match_date:     analise.matchDate,
+      favorito:       analise.isFavoriteHome ? analise.homeTeam : analise.awayTeam,
+      fav_odd:        analise.favOdd,
+      und_odd:        analise.undOdd,
+      score_vitoria:  analise.scoreVitoria,
+      score_over15:   analise.scoreOver15,
+      score_over25:   analise.scoreOver25,
+      status_vitoria: analise.statusVitoria,
+      status_over15:  analise.statusOver15,
+      status_over25:  analise.statusOver25,
+      indicadores:    analise.indicadores,
+    })
+  }
 
-  await supabase.from('sinais_favorito_prelive').insert({
-    fixture_id:     String(analise.fixtureId),
-    home_team:      analise.homeTeam,
-    away_team:      analise.awayTeam,
-    league_id:      analise.leagueId,
-    league_name:    analise.leagueName,
-    match_date:     analise.matchDate,
-    favorito:       analise.isFavoriteHome ? analise.homeTeam : analise.awayTeam,
-    fav_odd:        analise.favOdd,
-    und_odd:        analise.undOdd,
-    score_vitoria:  analise.scoreVitoria,
-    score_over15:   analise.scoreOver15,
-    score_over25:   analise.scoreOver25,
-    status_vitoria: analise.statusVitoria,
-    status_over15:  analise.statusOver15,
-    status_over25:  analise.statusOver25,
-    indicadores:    analise.indicadores,
-  })
+  // 🪞 Espelha cada sub-mercado aprovado em punter_analyses para aparecer
+  // no Feed/Dashboard junto com os demais sinais aprovados (com análise detalhada).
+  await mirrorToPunterAnalyses(analise)
+}
+
+// =============================================================================
+// ESPELHAMENTO EM punter_analyses (Feed unificado de sinais aprovados)
+// =============================================================================
+
+function classifyCat(score: number): 'A' | 'B' | 'C' {
+  if (score >= 80) return 'A'
+  if (score >= 65) return 'B'
+  return 'C'
+}
+
+function buildJustificativa(analise: Analise, mercado: string, score: number): string {
+  const ind = analise.indicadores
+  const fav = analise.isFavoriteHome ? analise.homeTeam : analise.awayTeam
+  const linhas: string[] = []
+  linhas.push(`📌 Plano Favorito Pré-Live — ${mercado}`)
+  linhas.push(`Favorito: ${fav} @ ${analise.favOdd.toFixed(2)} (Underdog @ ${analise.undOdd.toFixed(2)})`)
+  linhas.push(`Score: ${score}/100 — Categoria ${classifyCat(score)}`)
+  linhas.push('')
+  linhas.push('📊 Fundamentos:')
+  if (ind.win_rate_fav !== undefined) linhas.push(`• Win rate fav (local): ${ind.win_rate_fav}%`)
+  if (ind.win_rate_und !== undefined) linhas.push(`• Win rate und (local): ${ind.win_rate_und}%`)
+  if (ind.form_fav_5 !== undefined) linhas.push(`• Forma fav últimos 5: ${ind.form_fav_5}%`)
+  if (ind.h2h_vitorias_fav_5 !== undefined) linhas.push(`• H2H vitórias fav (5): ${ind.h2h_vitorias_fav_5}/5`)
+  if (ind.fav_gols_local !== undefined) linhas.push(`• Gols fav/jogo (local): ${Number(ind.fav_gols_local).toFixed(2)}`)
+  if (ind.o15_fav !== undefined) linhas.push(`• Over 1.5 fav: ${ind.o15_fav}%`)
+  if (ind.o25_fav !== undefined) linhas.push(`• Over 2.5 fav: ${ind.o25_fav}%`)
+  if (ind.h2h_o25 !== undefined) linhas.push(`• H2H Over 2.5: ${ind.h2h_o25}%`)
+  if (ind.und_clean_sheet !== undefined) linhas.push(`• Clean Sheet und: ${ind.und_clean_sheet}%`)
+  if (ind.btts_fav !== undefined) linhas.push(`• BTTS fav: ${ind.btts_fav}%`)
+  if (ind.goleadas_fav !== undefined) linhas.push(`• Goleadas fav: ${ind.goleadas_fav}%`)
+  return linhas.join('\n')
+}
+
+async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25', label: string, score: number, status: string, odd: number | null) {
+  if (!['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return
+  const cat = classifyCat(score)
+  const matchIdStd = `pf-${analise.fixtureId}-${marketKey}`
+  const justificativa = buildJustificativa(analise, label, score)
+
+  const payload: any = {
+    match_id: matchIdStd,
+    league: analise.leagueName,
+    home_team: analise.homeTeam,
+    away_team: analise.awayTeam,
+    market: label,
+    odd: odd,
+    confidence: Math.min(100, Math.max(0, Math.round(score))),
+    verdict: 'APROVADO',
+    commence_time: analise.matchDate,
+    justificativa,
+    categoria: cat,
+    fonte: 'plano-favorito-prelive',
+    indicadores: analise.indicadores,
+  }
+
+  // Upsert por match_id+market para evitar duplicatas
+  try {
+    await supabase
+      .from('punter_analyses')
+      .upsert(payload, { onConflict: 'match_id,market', ignoreDuplicates: false })
+  } catch (e) {
+    // fallback: tenta insert simples se schema não tiver alguns campos opcionais
+    try {
+      const { categoria, indicadores, fonte, ...minimal } = payload
+      await supabase.from('punter_analyses').upsert(minimal, { onConflict: 'match_id,market', ignoreDuplicates: false })
+    } catch (e2) {
+      console.error('[PLANO FAVORITO] mirror erro', e2)
+    }
+  }
+}
+
+async function mirrorToPunterAnalyses(analise: Analise) {
+  const fav = analise.isFavoriteHome ? analise.homeTeam : analise.awayTeam
+  await mirrorOne(analise, 'vitoria', `Vitória do Favorito (${fav})`, analise.scoreVitoria, analise.statusVitoria, analise.favOdd)
+  await mirrorOne(analise, 'over15', 'Over 1.5 FT', analise.scoreOver15, analise.statusOver15, null)
+  await mirrorOne(analise, 'over25', 'Over 2.5 FT', analise.scoreOver25, analise.statusOver25, null)
 }
 
 // =============================================================================
