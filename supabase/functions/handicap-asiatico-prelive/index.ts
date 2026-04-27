@@ -447,8 +447,6 @@ async function salvarSinal(s: any) {
         thesis: `HA ${s.linhaRecomendada} no ${s.teamAlvo} | Cat ${s.categoria}`,
         analysis: justificativa,
         analyzed_by: 'handicap-asiatico',
-        categoria: s.categoria,
-        fonte: 'handicap-asiatico-prelive',
       };
 
       if (existing) {
