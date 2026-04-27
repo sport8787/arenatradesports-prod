@@ -52,9 +52,33 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 
 async function getUpcoming(): Promise<any[]> {
   const now = new Date();
-  const from = now.toISOString().split('T')[0];
-  const to = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
-  return await afFetch('/fixtures', { from, to, timezone: 'America/Recife' });
+  const d1 = now.toISOString().split('T')[0];
+  const d2 = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
+  const dates = d1 === d2 ? [d1] : [d1, d2];
+  const horizonMs = now.getTime() + 24 * 3600 * 1000;
+  const all: any[] = [];
+  const seen = new Set<number>();
+  for (const date of dates) {
+    try {
+      const resp = await afFetch('/fixtures', { date, timezone: 'America/Recife' });
+      for (const f of resp || []) {
+        const lid = f?.league?.id;
+        const fid = f?.fixture?.id;
+        const ts = f?.fixture?.timestamp ? f.fixture.timestamp * 1000 : new Date(f?.fixture?.date).getTime();
+        const status = f?.fixture?.status?.short;
+        if (!LIGAS_PERMITIDAS.has(lid)) continue;
+        if (status && status !== 'NS' && status !== 'TBD') continue;
+        if (ts < now.getTime() || ts > horizonMs) continue;
+        if (seen.has(fid)) continue;
+        seen.add(fid);
+        all.push(f);
+      }
+    } catch (e) {
+      console.error('[HA] getUpcoming err', date, e);
+    }
+  }
+  console.log(`[HA] upcoming filtrados: ${all.length} (de ${dates.length} datas)`);
+  return all;
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number) {
