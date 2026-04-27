@@ -399,20 +399,20 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           </div>
 
           {/* Comparative */}
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-            <p className="font-mono text-[10px] font-semibold text-primary mb-2">
+          <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="font-mono text-[9px] sm:text-[10px] font-semibold text-primary mb-1.5 sm:mb-2">
               💰 COMPARATIVO (R$ 100 apostado)
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
-                <p className="font-mono text-[10px] text-muted-foreground">Se apostas SIMPLES:</p>
-                <p className="font-mono text-xs font-bold text-foreground">
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se apostas SIMPLES:</p>
+                <p className="font-mono text-[11px] sm:text-xs font-bold text-foreground">
                   EV +R$ {(parlay.avgEdge * parlay.bets.length).toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="font-mono text-[10px] text-muted-foreground">Se esta MÚLTIPLA:</p>
-                <p className="font-mono text-xs font-bold text-success">
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se esta MÚLTIPLA:</p>
+                <p className="font-mono text-[11px] sm:text-xs font-bold text-success">
                   EV +R$ {(parlay.expectedROI).toFixed(2)} ({parlay.expectedROI > 0 ? '+' : ''}{parlay.expectedROI.toFixed(1)}%)
                 </p>
               </div>
@@ -420,14 +420,14 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           </div>
 
           {/* Kelly */}
-          <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg">
-            <p className="font-mono text-[10px] font-semibold text-accent-foreground mb-1">
+          <div className="p-2.5 sm:p-3 bg-accent/5 border border-accent/20 rounded-lg">
+            <p className="font-mono text-[9px] sm:text-[10px] font-semibold text-accent-foreground mb-1">
               🎲 KELLY CRITERION
             </p>
-            <p className="font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-[11px] sm:text-xs text-muted-foreground">
               Stake Sugerido: <span className="font-bold text-foreground">{parlay.kellyStake}%</span> da banca
             </p>
-            <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+            <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
               Banca R$ 10.000 → Stake: R$ {(10000 * parlay.kellyStake / 100).toFixed(0)}
             </p>
           </div>
