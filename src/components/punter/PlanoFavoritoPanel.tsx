@@ -32,7 +32,7 @@ function StatusChip({ label, status, score }: { label: string; status: string | 
   if (!status || !['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return null;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-mono font-bold ${STATUS_TONE[status]}`}
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold ${STATUS_TONE[status]}`}
     >
       {label} {score ?? '—'} · {status === 'SINAL_FORTE' ? 'FORTE' : 'BOM'}
     </span>
