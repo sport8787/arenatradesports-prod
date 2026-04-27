@@ -78,30 +78,35 @@ export default function BetHistoryPage() {
 
     const { data: punterData } = await supabase
       .from('virtual_bets_punter')
-      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league)')
+      .select('*, punter_analyses!virtual_bets_punter_analysis_id_fkey(league, confidence)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    const punterBets: Bet[] = (punterData || []).map((b: any) => ({
-      id: b.id,
-      match_name: b.match_name || b.match_id,
-      market: b.market,
-      odd: parseFloat(b.odd),
-      stake: parseFloat(b.stake),
-      status: b.status,
-      result: b.result,
-      profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
-      placed_at: b.created_at,
-      settled_at: b.status === 'settled' ? b.updated_at : undefined,
-      source: 'punter' as const,
-      score_home: b.score_home,
-      score_away: b.score_away,
-      red_card_home: b.red_card_home,
-      red_card_away: b.red_card_away,
-      thesis: b.thesis,
-      commence_time: b.commence_time,
-      league: b.punter_analyses?.league || undefined,
-    }));
+    const punterBets: Bet[] = (punterData || []).map((b: any) => {
+      const conf = b.punter_analyses?.confidence ?? null;
+      return {
+        id: b.id,
+        match_name: b.match_name || b.match_id,
+        market: b.market,
+        odd: parseFloat(b.odd),
+        stake: parseFloat(b.stake),
+        status: b.status,
+        result: b.result,
+        profit_loss: b.profit_loss ? parseFloat(b.profit_loss) : null,
+        placed_at: b.created_at,
+        settled_at: b.status === 'settled' ? b.updated_at : undefined,
+        source: 'punter' as const,
+        score_home: b.score_home,
+        score_away: b.score_away,
+        red_card_home: b.red_card_home,
+        red_card_away: b.red_card_away,
+        thesis: b.thesis,
+        commence_time: b.commence_time,
+        league: b.punter_analyses?.league || undefined,
+        confidence: conf,
+        categoria: deriveCategoria(conf),
+      };
+    });
 
     setBets(punterBets.sort((a, b) =>
       new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
