@@ -38,6 +38,15 @@ interface Bet {
   thesis?: string | null;
   commence_time?: string | null;
   league?: string;
+  confidence?: number | null;
+  categoria?: 'A' | 'B' | 'C';
+}
+
+function deriveCategoria(confidence: number | null | undefined): 'A' | 'B' | 'C' {
+  if (confidence == null) return 'C';
+  if (confidence >= 80) return 'A';
+  if (confidence >= 65) return 'B';
+  return 'C';
 }
 
 type FilterStatus = 'all' | 'pending' | 'green' | 'red' | 'cancelled';
