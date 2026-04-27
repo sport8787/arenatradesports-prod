@@ -11,6 +11,7 @@ interface BetRow {
   profit_loss: number | null;
   placed_at: string;
   league?: string;
+  categoria?: 'A' | 'B' | 'C';
 }
 
 interface ReportStats {
