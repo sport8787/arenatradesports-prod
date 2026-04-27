@@ -15,7 +15,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const API_FOOTBALL_KEY = Deno.env.get('API_FOOTBALL_KEY')!;
 const ODDS_API_KEY = Deno.env.get('THE_ODDS_API_KEY')!;
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
 const TELEGRAM_CHAT = Deno.env.get('TELEGRAM_CHAT_ID');
 
@@ -52,9 +52,33 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 
 async function getUpcoming(): Promise<any[]> {
   const now = new Date();
-  const from = now.toISOString().split('T')[0];
-  const to = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
-  return await afFetch('/fixtures', { from, to, timezone: 'America/Recife' });
+  const d1 = now.toISOString().split('T')[0];
+  const d2 = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
+  const dates = d1 === d2 ? [d1] : [d1, d2];
+  const horizonMs = now.getTime() + 24 * 3600 * 1000;
+  const all: any[] = [];
+  const seen = new Set<number>();
+  for (const date of dates) {
+    try {
+      const resp = await afFetch('/fixtures', { date, timezone: 'America/Recife' });
+      for (const f of resp || []) {
+        const lid = f?.league?.id;
+        const fid = f?.fixture?.id;
+        const ts = f?.fixture?.timestamp ? f.fixture.timestamp * 1000 : new Date(f?.fixture?.date).getTime();
+        const status = f?.fixture?.status?.short;
+        if (!LIGAS_PERMITIDAS.has(lid)) continue;
+        if (status && status !== 'NS' && status !== 'TBD') continue;
+        if (ts < now.getTime() || ts > horizonMs) continue;
+        if (seen.has(fid)) continue;
+        seen.add(fid);
+        all.push(f);
+      }
+    } catch (e) {
+      console.error('[HA] getUpcoming err', date, e);
+    }
+  }
+  console.log(`[HA] upcoming filtrados: ${all.length} (de ${dates.length} datas)`);
+  return all;
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number) {
@@ -81,10 +105,63 @@ async function getH2H(h: number, a: number, last = 6): Promise<any[]> {
   }
 }
 
-async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number) {
+async function getOddsAF(fixtureId: number) {
+  const empty = { favOdd: null as number | null, undOdd: null as number | null, haOdds: {} as Partial<Record<HALine, number>> };
+  try {
+    const resp = await afFetch('/odds', { fixture: fixtureId });
+    if (!resp || !resp.length) return empty;
+    let homeOdd: number | null = null;
+    let awayOdd: number | null = null;
+    const haOdds: Partial<Record<HALine, number>> = {};
+    const lineMap: Record<string, HALine> = {
+      '0': '0.0', '0.0': '0.0',
+      '1': '+1.0', '1.0': '+1.0', '+1': '+1.0', '+1.0': '+1.0',
+      '1.25': '+1.25', '+1.25': '+1.25',
+      '1.5': '+1.5', '+1.5': '+1.5',
+      '-1': '-1.0', '-1.0': '-1.0',
+      '-1.25': '-1.25',
+      '-1.5': '-1.5',
+    };
+    for (const item of resp) {
+      for (const bm of item.bookmakers || []) {
+        for (const bet of bm.bets || []) {
+          const name = (bet.name || '').toLowerCase();
+          if (name === 'match winner' || name === '1x2' || name === 'full time result') {
+            for (const v of bet.values || []) {
+              const val = String(v.value).toLowerCase();
+              const odd = parseFloat(v.odd);
+              if ((val === 'home' || val === '1') && !homeOdd) homeOdd = odd;
+              if ((val === 'away' || val === '2') && !awayOdd) awayOdd = odd;
+            }
+          }
+          if (name.includes('asian handicap') || name === 'handicap') {
+            for (const v of bet.values || []) {
+              const m = String(v.value).match(/(home|away)\s*\(?(-?\+?\d+(?:\.\d+)?)\)?/i);
+              if (!m) continue;
+              const side = m[1].toLowerCase();
+              const num = parseFloat(m[2]);
+              const adj = side === 'away' ? -num : num;
+              const key = adj > 0 ? '+' + adj.toString() : adj.toString();
+              const line = lineMap[key];
+              if (line && !haOdds[line]) haOdds[line] = parseFloat(v.odd);
+            }
+          }
+        }
+        if (homeOdd && awayOdd) break;
+      }
+    }
+    if (!homeOdd || !awayOdd) return empty;
+    return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
+  } catch (e) {
+    console.error('[HA] getOddsAF err', fixtureId, e);
+    return empty;
+  }
+}
+
+async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, fixtureId: number) {
   const sportKey = LIGAS_ODDS_MAP[leagueId];
   const empty = { favOdd: null as number | null, undOdd: null as number | null, haOdds: {} as Partial<Record<HALine, number>> };
-  if (!sportKey) return empty;
+  if (!sportKey) return await getOddsAF(fixtureId);
 
   try {
     const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h,asian_handicap&oddsFormat=decimal`;
@@ -94,7 +171,7 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number) {
         g.home_team?.toLowerCase().includes(homeTeam.toLowerCase().split(' ')[0]) ||
         g.away_team?.toLowerCase().includes(awayTeam.toLowerCase().split(' ')[0]),
     );
-    if (!game) return empty;
+    if (!game) return await getOddsAF(fixtureId);
 
     let homeOdd: number | null = null;
     let awayOdd: number | null = null;
@@ -122,10 +199,10 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number) {
       if (homeOdd && awayOdd) break;
     }
 
-    if (!homeOdd || !awayOdd) return empty;
+    if (!homeOdd || !awayOdd) return await getOddsAF(fixtureId);
     return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
   } catch {
-    return empty;
+    return await getOddsAF(fixtureId);
   }
 }
 
@@ -312,16 +389,14 @@ Forneça em até 4 linhas (português brasileiro):
 3. Veredito final (entrar/aguardar)
 Seja objetivo, técnico e direto. Sem emojis.`;
 
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 250,
-        temperature: 0.4,
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: 'Você é o Mycroft Punter, analista quantitativo de Handicap Asiático.' },
           { role: 'user', content: prompt },
@@ -344,7 +419,7 @@ async function analisarJogo(fixture: any): Promise<any | null> {
   const { fixture: fix, league, teams } = fixture;
   if (!LIGAS_PERMITIDAS.has(league.id)) return null;
 
-  const oddsData = await getOddsHA(teams.home.name, teams.away.name, league.id);
+  const oddsData = await getOddsHA(teams.home.name, teams.away.name, league.id, fix.id);
   if (!oddsData.favOdd || !oddsData.undOdd) return null;
   if (oddsData.favOdd > 2.2) return null;
 
