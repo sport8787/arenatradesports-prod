@@ -508,13 +508,13 @@ function MetricBox({ label, value, sublabel, icon: Icon, variant }: {
   };
 
   return (
-    <div className={`p-2.5 rounded-lg ${colors[variant]}`}>
-      <div className="flex items-center gap-1.5 mb-0.5">
+    <div className={`p-2 sm:p-2.5 rounded-lg ${colors[variant]}`}>
+      <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
         <Icon className="w-3 h-3" />
-        <p className="font-mono text-[10px]">{label}</p>
+        <p className="font-mono text-[9px] sm:text-[10px]">{label}</p>
       </div>
-      <p className="font-mono text-sm font-bold">{value}</p>
-      {sublabel && <p className="font-mono text-[9px] opacity-70">{sublabel}</p>}
+      <p className="font-mono text-[12px] sm:text-sm font-bold">{value}</p>
+      {sublabel && <p className="font-mono text-[8px] sm:text-[9px] opacity-70">{sublabel}</p>}
     </div>
   );
 }
