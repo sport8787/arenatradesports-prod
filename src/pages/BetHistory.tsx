@@ -572,10 +572,23 @@ export default function BetHistoryPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">⚽</span>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={bet.source === 'punter' ? 'secondary' : 'outline'} className="text-[10px] font-orbitron">
                             {bet.source === 'punter' ? 'Punter' : 'Sports'}
                           </Badge>
+                          {bet.categoria && (
+                            <Badge
+                              className={cn(
+                                'text-[10px] font-orbitron font-bold border',
+                                bet.categoria === 'A' && 'bg-destructive/20 text-destructive border-destructive/50',
+                                bet.categoria === 'B' && 'bg-warning/20 text-warning border-warning/50',
+                                bet.categoria === 'C' && 'bg-muted text-muted-foreground border-muted-foreground/30',
+                              )}
+                              title={`Categoria ${bet.categoria} — confiança ${bet.confidence ?? '—'}%`}
+                            >
+                              CAT {bet.categoria}
+                            </Badge>
+                          )}
                           <h3 className="font-orbitron text-sm font-bold text-foreground">
                             {bet.match_name}
                           </h3>
