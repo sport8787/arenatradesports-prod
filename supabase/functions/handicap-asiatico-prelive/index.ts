@@ -389,16 +389,14 @@ Forneça em até 4 linhas (português brasileiro):
 3. Veredito final (entrar/aguardar)
 Seja objetivo, técnico e direto. Sem emojis.`;
 
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 250,
-        temperature: 0.4,
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: 'Você é o Mycroft Punter, analista quantitativo de Handicap Asiático.' },
           { role: 'user', content: prompt },
