@@ -17,7 +17,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
+// Eventos raros são enviados APENAS para o grupo do Trader (t.me/oraculo_mycroft_trader).
+// Cai no TELEGRAM_CHAT_ID_TRADER; se não configurado, não envia (não usa fallback para o grupo punter).
+const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID_TRADER");
 
 const API_BASE = "https://v3.football.api-sports.io";
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
