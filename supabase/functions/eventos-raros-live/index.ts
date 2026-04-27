@@ -18,7 +18,8 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
 const BETFAIR_MODE = Deno.env.get("BETFAIR_MODE") ?? "simulado";
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
+// Eventos raros LIVE vão APENAS para o grupo Trader.
+const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID_TRADER");
 const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://oraculo-mycroft.com";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);

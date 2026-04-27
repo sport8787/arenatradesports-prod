@@ -42,6 +42,15 @@ interface Bet {
   categoria?: 'A' | 'B' | 'C';
 }
 
+function extractScoreFromThesis(thesis: string | null | undefined): number | null {
+  if (!thesis) return null;
+  // Captura padrões "Score 71/100", "Score: 89", "score 100/100"
+  const m = thesis.match(/score[:\s]+(\d{1,3})(?:\/100)?/i);
+  if (!m) return null;
+  const v = parseInt(m[1], 10);
+  return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : null;
+}
+
 function deriveCategoria(confidence: number | null | undefined): 'A' | 'B' | 'C' {
   if (confidence == null) return 'C';
   if (confidence >= 80) return 'A';
@@ -83,7 +92,11 @@ export default function BetHistoryPage() {
       .order('created_at', { ascending: false });
 
     const punterBets: Bet[] = (punterData || []).map((b: any) => {
-      const conf = b.punter_analyses?.confidence ?? null;
+      // Prioriza confidence da analysis vinculada; se ausente (ex.: Plano Favorito grava só thesis),
+      // extrai o score do texto da tese para manter a categoria CAT consistente com o sinal aprovado.
+      const analysisConf = b.punter_analyses?.confidence ?? null;
+      const thesisScore = extractScoreFromThesis(b.thesis);
+      const conf = analysisConf ?? thesisScore;
       return {
         id: b.id,
         match_name: b.match_name || b.match_id,
