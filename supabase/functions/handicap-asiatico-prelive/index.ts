@@ -105,10 +105,63 @@ async function getH2H(h: number, a: number, last = 6): Promise<any[]> {
   }
 }
 
-async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number) {
+async function getOddsAF(fixtureId: number) {
+  const empty = { favOdd: null as number | null, undOdd: null as number | null, haOdds: {} as Partial<Record<HALine, number>> };
+  try {
+    const resp = await afFetch('/odds', { fixture: fixtureId });
+    if (!resp || !resp.length) return empty;
+    let homeOdd: number | null = null;
+    let awayOdd: number | null = null;
+    const haOdds: Partial<Record<HALine, number>> = {};
+    const lineMap: Record<string, HALine> = {
+      '0': '0.0', '0.0': '0.0',
+      '1': '+1.0', '1.0': '+1.0', '+1': '+1.0', '+1.0': '+1.0',
+      '1.25': '+1.25', '+1.25': '+1.25',
+      '1.5': '+1.5', '+1.5': '+1.5',
+      '-1': '-1.0', '-1.0': '-1.0',
+      '-1.25': '-1.25',
+      '-1.5': '-1.5',
+    };
+    for (const item of resp) {
+      for (const bm of item.bookmakers || []) {
+        for (const bet of bm.bets || []) {
+          const name = (bet.name || '').toLowerCase();
+          if (name === 'match winner' || name === '1x2' || name === 'full time result') {
+            for (const v of bet.values || []) {
+              const val = String(v.value).toLowerCase();
+              const odd = parseFloat(v.odd);
+              if ((val === 'home' || val === '1') && !homeOdd) homeOdd = odd;
+              if ((val === 'away' || val === '2') && !awayOdd) awayOdd = odd;
+            }
+          }
+          if (name.includes('asian handicap') || name === 'handicap') {
+            for (const v of bet.values || []) {
+              const m = String(v.value).match(/(home|away)\s*\(?(-?\+?\d+(?:\.\d+)?)\)?/i);
+              if (!m) continue;
+              const side = m[1].toLowerCase();
+              const num = parseFloat(m[2]);
+              const adj = side === 'away' ? -num : num;
+              const key = adj > 0 ? '+' + adj.toString() : adj.toString();
+              const line = lineMap[key];
+              if (line && !haOdds[line]) haOdds[line] = parseFloat(v.odd);
+            }
+          }
+        }
+        if (homeOdd && awayOdd) break;
+      }
+    }
+    if (!homeOdd || !awayOdd) return empty;
+    return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
+  } catch (e) {
+    console.error('[HA] getOddsAF err', fixtureId, e);
+    return empty;
+  }
+}
+
+async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, fixtureId: number) {
   const sportKey = LIGAS_ODDS_MAP[leagueId];
   const empty = { favOdd: null as number | null, undOdd: null as number | null, haOdds: {} as Partial<Record<HALine, number>> };
-  if (!sportKey) return empty;
+  if (!sportKey) return await getOddsAF(fixtureId);
 
   try {
     const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h,asian_handicap&oddsFormat=decimal`;
