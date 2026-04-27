@@ -32,7 +32,7 @@ function StatusChip({ label, status, score }: { label: string; status: string | 
   if (!status || !['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return null;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-mono font-bold ${STATUS_TONE[status]}`}
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono font-bold ${STATUS_TONE[status]}`}
     >
       {label} {score ?? '—'} · {status === 'SINAL_FORTE' ? 'FORTE' : 'BOM'}
     </span>
@@ -47,7 +47,8 @@ export default function PlanoFavoritoPanel() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const fromDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    // Apenas jogos futuros (a partir de agora) — não mostra jogos que já começaram/terminaram
+    const fromDate = new Date().toISOString();
     const { data, error } = await supabase
       .from('sinais_favorito_prelive' as any)
       .select(
@@ -95,21 +96,21 @@ export default function PlanoFavoritoPanel() {
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-warning/15">
-            <Crown className="w-4 h-4 text-warning" />
+    <section className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md bg-warning/15">
+            <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground leading-tight">Plano Favorito — Pré-Live</h3>
-            <p className="text-[11px] text-muted-foreground font-mono">
+            <h3 className="text-[13px] sm:text-sm font-bold text-foreground leading-tight">Plano Favorito — Pré-Live</h3>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-mono leading-tight">
               Vitória do Favorito · Over 1.5 · Over 2.5 (odd 1.40-2.00)
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-8 px-2">
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-7 sm:h-8 px-2">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
           {isAdmin && (
@@ -117,11 +118,11 @@ export default function PlanoFavoritoPanel() {
               size="sm"
               onClick={handleRun}
               disabled={running}
-              className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
+              className="h-7 sm:h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
             >
               {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              <span className="text-[11px] font-mono font-bold">
-                {running ? 'Analisando...' : 'Rodar análise (Admin)'}
+              <span className="text-[10px] sm:text-[11px] font-mono font-bold">
+                {running ? 'Analisando...' : 'Rodar (Admin)'}
               </span>
             </Button>
           )}
@@ -156,19 +157,19 @@ export default function PlanoFavoritoPanel() {
             return (
               <li
                 key={s.id}
-                className="rounded-md border border-border/60 bg-background/40 p-2.5 flex flex-col gap-1.5"
+                className="rounded-md border border-border/60 bg-background/40 p-2 sm:p-2.5 flex flex-col gap-1.5"
               >
                 <div className="flex items-start justify-between gap-2 flex-wrap">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground leading-tight">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] sm:text-sm font-semibold text-foreground leading-tight break-words">
                       {s.home_team} <span className="text-muted-foreground">×</span> {s.away_team}
                     </p>
-                    <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                    <p className="text-[9px] sm:text-[10px] font-mono text-muted-foreground mt-0.5 truncate">
                       {s.league_name ?? '—'} · {horario}
                     </p>
                   </div>
                   {s.favorito && (
-                    <Badge variant="outline" className="text-[10px] font-mono border-warning/40 text-warning">
+                    <Badge variant="outline" className="text-[9px] sm:text-[10px] font-mono border-warning/40 text-warning shrink-0">
                       Fav: {s.favorito} {s.fav_odd ? `@ ${Number(s.fav_odd).toFixed(2)}` : ''}
                     </Badge>
                   )}

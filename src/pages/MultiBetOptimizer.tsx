@@ -330,23 +330,23 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
       transition={{ delay: rank * 0.1 }}
     >
       <Card className="border-border bg-card hover:border-primary/30 transition-colors">
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">{getRankEmoji(rank)}</span>
-              <div>
-                <p className={`font-mono text-sm font-bold ${getScoreColor(parlay.score)}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg sm:text-xl shrink-0">{getRankEmoji(rank)}</span>
+              <div className="min-w-0">
+                <p className={`font-mono text-[11px] sm:text-sm font-bold ${getScoreColor(parlay.score)} truncate`}>
                   SCORE {parlay.score.toFixed(2)} ({getScoreLabel(parlay.score)})
                 </p>
-                <p className="font-mono text-[10px] text-muted-foreground">
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">
                   {parlay.bets.length} seleções
                 </p>
               </div>
             </div>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 hover:bg-muted rounded-md transition-colors"
+              className="p-1.5 hover:bg-muted rounded-md transition-colors shrink-0"
             >
               {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </button>
@@ -355,23 +355,23 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           {/* Bets List */}
           <div className="space-y-1.5">
             {parlay.bets.map((bet, i) => (
-              <div key={bet.id} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="font-mono text-[10px] text-muted-foreground">{i + 1}.</span>
-                  <div className="min-w-0">
-                    <p className="font-mono text-xs font-medium text-foreground truncate">
+              <div key={bet.id} className="flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                  <span className="font-mono text-[9px] sm:text-[10px] text-muted-foreground shrink-0">{i + 1}.</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[11px] sm:text-xs font-medium text-foreground truncate">
                       {bet.home_team} vs {bet.away_team}
                     </p>
-                    <p className="font-mono text-[10px] text-muted-foreground truncate">
+                    <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground truncate">
                       {bet.league} • {bet.market}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="font-mono text-xs font-bold text-foreground">@{bet.odd.toFixed(2)}</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="font-mono text-[11px] sm:text-xs font-bold text-foreground">@{bet.odd.toFixed(2)}</span>
                   <Badge
                     variant="secondary"
-                    className={`font-mono text-[10px] ${
+                    className={`font-mono text-[9px] sm:text-[10px] px-1.5 ${
                       bet.asset_score >= 90 ? 'bg-warning/20 text-warning' :
                       bet.asset_score >= 70 ? 'bg-primary/20 text-primary' :
                       'bg-success/20 text-success'
@@ -385,7 +385,7 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           </div>
 
           {/* Metrics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <MetricBox label="Odd Total" value={parlay.totalOdd.toFixed(2)} icon={Target} variant="primary" />
             <MetricBox label="Edge Médio" value={`${parlay.avgEdge.toFixed(1)}%`} icon={TrendingUp} variant="success" />
             <MetricBox
@@ -399,20 +399,20 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           </div>
 
           {/* Comparative */}
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-            <p className="font-mono text-[10px] font-semibold text-primary mb-2">
+          <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="font-mono text-[9px] sm:text-[10px] font-semibold text-primary mb-1.5 sm:mb-2">
               💰 COMPARATIVO (R$ 100 apostado)
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
-                <p className="font-mono text-[10px] text-muted-foreground">Se apostas SIMPLES:</p>
-                <p className="font-mono text-xs font-bold text-foreground">
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se apostas SIMPLES:</p>
+                <p className="font-mono text-[11px] sm:text-xs font-bold text-foreground">
                   EV +R$ {(parlay.avgEdge * parlay.bets.length).toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="font-mono text-[10px] text-muted-foreground">Se esta MÚLTIPLA:</p>
-                <p className="font-mono text-xs font-bold text-success">
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se esta MÚLTIPLA:</p>
+                <p className="font-mono text-[11px] sm:text-xs font-bold text-success">
                   EV +R$ {(parlay.expectedROI).toFixed(2)} ({parlay.expectedROI > 0 ? '+' : ''}{parlay.expectedROI.toFixed(1)}%)
                 </p>
               </div>
@@ -420,14 +420,14 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
           </div>
 
           {/* Kelly */}
-          <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg">
-            <p className="font-mono text-[10px] font-semibold text-accent-foreground mb-1">
+          <div className="p-2.5 sm:p-3 bg-accent/5 border border-accent/20 rounded-lg">
+            <p className="font-mono text-[9px] sm:text-[10px] font-semibold text-accent-foreground mb-1">
               🎲 KELLY CRITERION
             </p>
-            <p className="font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-[11px] sm:text-xs text-muted-foreground">
               Stake Sugerido: <span className="font-bold text-foreground">{parlay.kellyStake}%</span> da banca
             </p>
-            <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+            <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
               Banca R$ 10.000 → Stake: R$ {(10000 * parlay.kellyStake / 100).toFixed(0)}
             </p>
           </div>
@@ -508,13 +508,13 @@ function MetricBox({ label, value, sublabel, icon: Icon, variant }: {
   };
 
   return (
-    <div className={`p-2.5 rounded-lg ${colors[variant]}`}>
-      <div className="flex items-center gap-1.5 mb-0.5">
+    <div className={`p-2 sm:p-2.5 rounded-lg ${colors[variant]}`}>
+      <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
         <Icon className="w-3 h-3" />
-        <p className="font-mono text-[10px]">{label}</p>
+        <p className="font-mono text-[9px] sm:text-[10px]">{label}</p>
       </div>
-      <p className="font-mono text-sm font-bold">{value}</p>
-      {sublabel && <p className="font-mono text-[9px] opacity-70">{sublabel}</p>}
+      <p className="font-mono text-[12px] sm:text-sm font-bold">{value}</p>
+      {sublabel && <p className="font-mono text-[8px] sm:text-[9px] opacity-70">{sublabel}</p>}
     </div>
   );
 }
