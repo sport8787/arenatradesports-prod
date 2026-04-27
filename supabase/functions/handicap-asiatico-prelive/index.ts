@@ -510,30 +510,29 @@ async function salvarSinal(a: any, userId: string | null) {
       indicadores: a.indicadores,
       ai_analysis: a.aiAnalysis,
     }).eq('id', ex.id);
-    return;
+  } else {
+    await supabase.from('sinais_handicap_prelive').insert({
+      user_id: userId,
+      fixture_id: String(a.fixtureId),
+      home_team: a.homeTeam,
+      away_team: a.awayTeam,
+      league_id: a.leagueId,
+      league_name: a.leagueName,
+      match_date: a.matchDate,
+      favorito: a.isFavHome ? a.homeTeam : a.awayTeam,
+      underdog: a.isFavHome ? a.awayTeam : a.homeTeam,
+      fav_odd: a.favOdd,
+      und_odd: a.undOdd,
+      linha: a.linhaRecomendada,
+      ha_type: a.haType,
+      score_ha: a.scoreHA,
+      status_ha: a.statusHA,
+      odd_ha: a.oddHA,
+      liquidacao: a.liquidacao,
+      indicadores: a.indicadores,
+      ai_analysis: a.aiAnalysis,
+    });
   }
-
-  await supabase.from('sinais_handicap_prelive').insert({
-    user_id: userId,
-    fixture_id: String(a.fixtureId),
-    home_team: a.homeTeam,
-    away_team: a.awayTeam,
-    league_id: a.leagueId,
-    league_name: a.leagueName,
-    match_date: a.matchDate,
-    favorito: a.isFavHome ? a.homeTeam : a.awayTeam,
-    underdog: a.isFavHome ? a.awayTeam : a.homeTeam,
-    fav_odd: a.favOdd,
-    und_odd: a.undOdd,
-    linha: a.linhaRecomendada,
-    ha_type: a.haType,
-    score_ha: a.scoreHA,
-    status_ha: a.statusHA,
-    odd_ha: a.oddHA,
-    liquidacao: a.liquidacao,
-    indicadores: a.indicadores,
-    ai_analysis: a.aiAnalysis,
-  });
 
   // === Espelhar em punter_analyses para o feed do app enxergar ===
   // Mostra mercado claro: "Casa -1.0", "Visitante +0.5", etc.
