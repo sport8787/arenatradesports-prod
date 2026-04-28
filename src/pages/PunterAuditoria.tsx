@@ -206,10 +206,33 @@ export default function PunterAuditoria() {
           </div>
         )}
 
-        {/* Filtros */}
+        {/* Filtros de período */}
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          {(['all','yesterday','pending','green','red'] as const).map(f => (
+          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">Período:</span>
+          {([
+            ['today', 'Hoje'],
+            ['yesterday', 'Ontem'],
+            ['7d', 'Últimos 7d'],
+            ['30d', 'Últimos 30d'],
+            ['all', 'Todos'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setDateRange(key)}
+              className={`px-3 py-1 rounded-md text-xs font-mono uppercase tracking-wider border transition-colors ${
+                dateRange === key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtros de resultado */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1 ml-6">Resultado:</span>
+          {(['all','pending','green','red'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -217,9 +240,20 @@ export default function PunterAuditoria() {
                 filter === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'
               }`}
             >
-              {f === 'all' ? 'Todas' : f === 'yesterday' ? 'Ontem' : f === 'pending' ? 'Pendentes' : f === 'green' ? 'Greens' : 'Reds'}
+              {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendentes' : f === 'green' ? 'Greens' : 'Reds'}
             </button>
           ))}
+        </div>
+
+        {/* Resumo do período filtrado */}
+        <div className="bg-card/50 border border-border rounded-xl p-3 flex flex-wrap gap-4 text-xs font-mono">
+          <span>Exibindo: <strong>{filtered.length}</strong></span>
+          <span className="text-success">Greens: <strong>{filtered.filter(b => ['green','won','win'].includes((b.result||'').toLowerCase())).length}</strong></span>
+          <span className="text-destructive">Reds: <strong>{filtered.filter(b => ['red','lost','loss'].includes((b.result||'').toLowerCase())).length}</strong></span>
+          <span className="text-warning">Pendentes: <strong>{filtered.filter(b => b.status === 'pending' && !b.result).length}</strong></span>
+          <span>P&L: <strong className={filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0) >= 0 ? 'text-success' : 'text-destructive'}>
+            {filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0).toFixed(2)}
+          </strong></span>
         </div>
 
         {/* Lista */}
