@@ -170,9 +170,9 @@ serve(async (req) => {
       .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
       .is("result", null)
       .lt("commence_time", cutoff)
-      .lt("settle_attempts", 8)
+      .lt("settle_attempts", 30) // antes 8 — ficavam travados em mercados unsupported
       .order("commence_time", { ascending: true })
-      .limit(120);
+      .limit(150);
 
     if (error) throw error;
 
@@ -182,7 +182,28 @@ serve(async (req) => {
     let settled = 0;
     let notFound = 0;
     let unsupported = 0;
+    let scoresSavedOnly = 0;
     const results: any[] = [];
+
+    // Helper: cascateia placar para virtual_bets_punter e virtual_bets_manual mesmo sem liquidar
+    async function persistFinalScoreToBets(matchId: string, scoreH: number, scoreA: number) {
+      try {
+        await supabase
+          .from("virtual_bets_punter")
+          .update({ score_home: scoreH, score_away: scoreA, updated_at: new Date().toISOString() })
+          .eq("match_id", matchId)
+          .eq("status", "pending")
+          .is("score_home", null);
+      } catch (e) { console.error("score punter err:", e); }
+      try {
+        await supabase
+          .from("virtual_bets_manual")
+          .update({ score_home: scoreH, score_away: scoreA, updated_at: new Date().toISOString() })
+          .eq("match_id", matchId)
+          .eq("status", "pending")
+          .is("score_home", null);
+      } catch (e) { console.error("score manual err:", e); }
+    }
 
     for (const a of items) {
       try {
@@ -213,10 +234,20 @@ serve(async (req) => {
         const scoreH = fixture.goals?.home ?? 0;
         const scoreA = fixture.goals?.away ?? 0;
 
+        // SEMPRE persiste o placar nas virtual_bets pendentes do mesmo match_id.
+        // Isso permite que o usuário liquide manualmente vendo o resultado no histórico.
+        await persistFinalScoreToBets(a.match_id, scoreH, scoreA);
+
         const result = settleMarket(a.market, scoreH, scoreA, a.home_team, a.away_team);
         if (!result) {
           unsupported++;
-          results.push({ id: a.id, status: "market_unsupported", market: a.market });
+          // Salva placar na própria análise mesmo sem result, para a UI exibir.
+          await supabase
+            .from("punter_analyses")
+            .update({ final_score_home: scoreH, final_score_away: scoreA })
+            .eq("id", a.id);
+          scoresSavedOnly++;
+          results.push({ id: a.id, status: "market_unsupported_score_saved", market: a.market, score: `${scoreH}-${scoreA}` });
           continue;
         }
 
@@ -240,42 +271,49 @@ serve(async (req) => {
           })
           .eq("id", a.id);
 
-        // Cascateia liquidação para apostas virtuais do Punter (Hórus auto-bet) vinculadas pela analysis_id.
-        // Sem isso, virtual_bets_punter ficava 'pending' para sempre — UI /apostas mostra erroneamente.
+        // Cascateia liquidação para virtual_bets_punter (Hórus) por analysis_id E por match_id (fallback).
         try {
-          const { data: bets } = await supabase
+          const lower = (result as string).toLowerCase();
+          // 1) Por analysis_id (Hórus auto-bet)
+          const { data: betsByAnalysis } = await supabase
             .from("virtual_bets_punter")
-            .select("id, stake, odd")
+            .select("id, stake, odd, market")
             .eq("analysis_id", a.id)
             .eq("status", "pending");
 
-          if (bets && bets.length > 0) {
-            const lower = (result as string).toLowerCase(); // green | red | void
-            const updates = bets.map((b: any) => {
-              const stakeVal = Number(b.stake) || 0;
-              const oddVal = Number(b.odd) || Number(a.odd) || 0;
-              const betPnl = result === "GREEN"
-                ? stakeVal * (oddVal - 1)
-                : result === "RED"
-                ? -stakeVal
-                : 0;
-              return supabase
-                .from("virtual_bets_punter")
-                .update({
-                  status: "settled",
-                  result: lower,
-                  profit_loss: betPnl,
-                  score_home: scoreH,
-                  score_away: scoreA,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", b.id);
-            });
-            await Promise.allSettled(updates);
-            console.log(`💰 Cascata: ${bets.length} virtual_bets_punter liquidadas (analysis ${a.id})`);
+          // 2) Por match_id+market (manual), considerando market parecido
+          const { data: betsManualSame } = await supabase
+            .from("virtual_bets_manual")
+            .select("id, stake, odd, market")
+            .eq("match_id", a.match_id)
+            .eq("status", "pending");
+
+          const allBets = [
+            ...((betsByAnalysis || []).map((b: any) => ({ ...b, table: "virtual_bets_punter" }))),
+            ...((betsManualSame || []).map((b: any) => ({ ...b, table: "virtual_bets_manual" }))),
+          ];
+
+          for (const b of allBets) {
+            // Para manual: só liquida se o mercado da aposta for o MESMO da análise
+            if (b.table === "virtual_bets_manual" && normalize(b.market || "") !== normalize(a.market)) continue;
+            const stakeVal = Number(b.stake) || 0;
+            const oddVal = Number(b.odd) || Number(a.odd) || 0;
+            const betPnl = result === "GREEN" ? stakeVal * (oddVal - 1) : result === "RED" ? -stakeVal : 0;
+            await supabase
+              .from(b.table)
+              .update({
+                status: "settled",
+                result: lower,
+                profit_loss: betPnl,
+                score_home: scoreH,
+                score_away: scoreA,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", b.id);
           }
+          if (allBets.length > 0) console.log(`💰 Cascata: ${allBets.length} virtual_bets liquidadas (analysis ${a.id})`);
         } catch (cascadeErr) {
-          console.error(`Erro cascateando virtual_bets_punter para ${a.id}:`, cascadeErr);
+          console.error(`Erro cascateando virtual_bets para ${a.id}:`, cascadeErr);
         }
 
         settled++;
@@ -315,6 +353,7 @@ serve(async (req) => {
         settled,
         not_found: notFound,
         unsupported,
+        scores_saved_only: scoresSavedOnly,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
