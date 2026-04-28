@@ -80,12 +80,12 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'APROVADO_SITUACIONAL':
       return {
         bg: 'bg-[#1A3A2A]', border: 'border-[#34D399]', text: 'text-[#6EE7B7]',
-        label: '📍 SITUACIONAL', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
+        label: '📍 APROVADO SITUACIONAL', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
       };
     case 'LABAREDA':
       return {
         bg: 'bg-[#7C2D12]', border: 'border-[#F97316]', text: 'text-[#FB923C]',
-        label: '⚡ LABAREDA', animate: 'animate-pulse', icon: <Flame className="w-4 h-4" />,
+        label: '⚡ APROVADO LABAREDAS', animate: 'animate-pulse', icon: <Flame className="w-4 h-4" />,
       };
     case 'CUIDADO':
       return {
@@ -363,7 +363,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               )}
               {effectiveStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
                 <span className="font-orbitron font-bold text-[#6EE7B7]">
-                  📍 SITUACIONAL
+                  📍 APROVADO SITUACIONAL
                 </span>
               )}
               {effectiveStatus === 'LABAREDA' && (
