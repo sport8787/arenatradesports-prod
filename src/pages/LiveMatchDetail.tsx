@@ -395,7 +395,7 @@ export default function LiveMatchDetail() {
     if (isApproved && lastNotifiedRef.current.approved !== marketKey) {
       lastNotifiedRef.current.approved = marketKey;
       const pushTitle = isLabareda
-        ? `⚡ LABAREDA: ${analysis.market}`
+        ? `⚡ APROVADO LABAREDAS: ${analysis.market}`
         : `✅ APROVADO: ${analysis.market}`;
       showBrowserPush(
         pushTitle,

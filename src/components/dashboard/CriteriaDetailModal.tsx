@@ -78,7 +78,7 @@ export default function CriteriaDetailModal({ match, open, onOpenChange }: Crite
               {eliminatoryFailed
                 ? `Veto eliminatório${vetoSummary ? ` — ${vetoSummary}` : ''}`
                 : greens === 5
-                  ? '⚡ LABAREDA — sinal forte'
+                  ? '⚡ APROVADO LABAREDAS — sinal forte'
                   : isImminent
                     ? '⚠️ Entrada iminente — acompanhar'
                     : greens >= 2
@@ -133,7 +133,7 @@ export default function CriteriaDetailModal({ match, open, onOpenChange }: Crite
         </div>
 
         <div className="text-[11px] text-muted-foreground border-t border-border pt-3 leading-relaxed">
-          <strong className="text-foreground">Como ler:</strong> 5/5 verde = LABAREDA (entrada forte).
+          <strong className="text-foreground">Como ler:</strong> 5/5 verde = APROVADO LABAREDAS (entrada forte).
           4/5 = APROVADO (entrada iminente, fique atento). Qualquer eliminatório vermelho (B1, B2 ou B4) veta o sinal independente dos demais.
           B3 e B5 qualificam mas não vetam sozinhos.
         </div>
