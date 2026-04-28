@@ -4,7 +4,7 @@ import {
   Target, Loader2, BarChart3, Calendar, DollarSign, 
   CheckCircle2, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Wallet, ArrowLeft, Brain, Clock, History, TrendingDown, XCircle, Activity, LayoutGrid, FlaskConical,
-  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, Bell, TrendingUp as TrendingUpIcon
+  Sparkles, User, Bot, Trophy, Award, Upload, Settings, Zap, CornerDownRight, MessageCircle, Bell, Copy, TrendingUp as TrendingUpIcon
 } from 'lucide-react';
 import BacktestPanel from '@/components/punter/BacktestPanel';
 import PunterRankings from '@/components/punter/PunterRankings';
@@ -1950,18 +1950,6 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <p className="text-xs text-foreground/80 leading-relaxed">{signal.recommendation.thesis}</p>
           </div>
 
-          {/* Copiar entrada do Hórus + atalhos para casas */}
-          <CopySignalActions
-            compact
-            signal={{
-              match: `${signal.match.home_team} vs ${signal.match.away_team}`,
-              market: signal.recommendation.market,
-              odd: signal.recommendation.odd,
-              league: signal.match.league,
-              confidence: signal.recommendation.confidence,
-            }}
-          />
-
           {/* Hórus Status */}
           {horusEntered && (
             <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center justify-between gap-2">
@@ -2006,6 +1994,24 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   step="0.01"
                 />
               </div>
+              {horusStake > 0 && (
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    const valor = horusStake.toFixed(2);
+                    setCustomStake(valor);
+                    try { await navigator.clipboard.writeText(valor); } catch {}
+                    toast.success(`Valor do Hórus aplicado: R$ ${valor}`);
+                  }}
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 px-2 font-mono text-[10px] gap-1 whitespace-nowrap"
+                  title={`Copiar valor sugerido pelo Hórus: R$ ${horusStake.toFixed(2)}`}
+                >
+                  <Copy className="w-3 h-3" />
+                  R$ {horusStake.toFixed(2)}
+                </Button>
+              )}
               <Button
                 onClick={handleManualBet}
                 variant="outline"
@@ -2016,6 +2022,11 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 APOSTAR
               </Button>
             </div>
+            {horusStake > 0 && (
+              <p className="text-[9px] font-mono text-muted-foreground/80 leading-tight">
+                💡 Clique no valor R$ {horusStake.toFixed(2)} para copiar a mesma stake sugerida pelo Hórus.
+              </p>
+            )}
           </div>
 
           {/* Expand */}
