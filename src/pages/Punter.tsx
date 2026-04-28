@@ -2216,6 +2216,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
                   const status = bet.result || bet.status;
                   const { score, grade, config } = getScoreGrade(bet);
                   const cumROI = cumulativeMap.get(bet.id);
+                  const hasFinalScore = bet.score_home != null && bet.score_away != null;
 
                   return (
                     <motion.div
@@ -2247,7 +2248,9 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
                           ) : status === 'red' ? (
                             <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-[10px]">RED</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-warning border-warning/30 text-[10px]">PENDENTE</Badge>
+                            <Badge variant="outline" className="text-warning border-warning/30 text-[10px]">
+                              {hasFinalScore ? `PEND ${bet.score_home}-${bet.score_away}` : 'PENDENTE'}
+                            </Badge>
                           )}
                         </div>
                       </div>
