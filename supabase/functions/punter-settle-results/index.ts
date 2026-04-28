@@ -330,20 +330,6 @@ serve(async (req) => {
       }
     }
 
-        settled++;
-        results.push({
-          id: a.id,
-          match: `${a.home_team} ${scoreH}-${scoreA} ${a.away_team}`,
-          market: a.market,
-          result,
-          pnl,
-        });
-      } catch (e) {
-        console.error(`Erro ao liquidar ${a.id}:`, e);
-        results.push({ id: a.id, status: "error", error: String(e) });
-      }
-    }
-
     // Dispara envio dos resultados pro Telegram
     if (settled > 0) {
       try {
@@ -367,6 +353,7 @@ serve(async (req) => {
         settled,
         not_found: notFound,
         unsupported,
+        scores_saved_only: scoresSavedOnly,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
