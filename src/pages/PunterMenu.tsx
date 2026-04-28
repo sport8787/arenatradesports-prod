@@ -1,14 +1,27 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 export default function PunterMenuPage() {
   const navigate = useNavigate();
   const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({ title: 'Erro ao sair', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Sessão encerrada', description: 'Até a próxima.' });
+    navigate('/auth', { replace: true });
+  };
 
   useEffect(() => {
     // Toca apresentação do Hórus na primeira visita ao /menu
@@ -26,9 +39,17 @@ export default function PunterMenuPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1">
             FUNÇÕES DA ARENA PUNTER
           </h1>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors text-xs font-mono font-semibold"
+            aria-label="Sair da conta"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">SAIR</span>
+          </button>
         </div>
       </header>
 
