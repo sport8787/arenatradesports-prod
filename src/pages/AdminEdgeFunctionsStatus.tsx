@@ -256,9 +256,12 @@ export default function AdminEdgeFunctionsStatus() {
           </Card>
         </div>
 
-        {/* Tabs: Errors + Runs */}
-        <Tabs defaultValue="errors">
+        {/* Tabs: AI Monitor + Errors + Runs */}
+        <Tabs defaultValue="ai">
           <TabsList>
+            <TabsTrigger value="ai">
+              <Sparkles className="mr-1 h-4 w-4" /> IA Monitor (Gemini/OpenAI)
+            </TabsTrigger>
             <TabsTrigger value="errors">
               <AlertTriangle className="mr-1 h-4 w-4" /> Erros ({filteredRows.length})
             </TabsTrigger>
@@ -266,6 +269,11 @@ export default function AdminEdgeFunctionsStatus() {
               <Clock className="mr-1 h-4 w-4" /> Execuções ({runs.length})
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="ai">
+            <AIMonitorPanel runs={runs} errors={rows} />
+          </TabsContent>
+
 
           <TabsContent value="errors">
             <Card>
