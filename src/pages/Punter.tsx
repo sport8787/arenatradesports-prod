@@ -2095,16 +2095,21 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
   initialBalance: number;
   detailLink?: string;
 }) {
+  // Status real: status pode ser 'pending'|'settled'|'cancelled'; result fica 'green'|'red'|'void' quando liquidada
+  const isGreen = (b: any) => b.result === 'green' || b.status === 'green';
+  const isRed = (b: any) => b.result === 'red' || b.status === 'red';
+  const isPending = (b: any) => b.status === 'pending';
+
   const filtered = bets.filter(b => {
     if (filter === 'all') return true;
-    if (filter === 'pending') return b.status === 'pending';
-    if (filter === 'green') return b.status === 'green' || b.result === 'green';
-    if (filter === 'red') return b.status === 'red' || b.result === 'red';
+    if (filter === 'pending') return isPending(b);
+    if (filter === 'green') return isGreen(b);
+    if (filter === 'red') return isRed(b);
     return true;
   });
 
-  const greens = bets.filter(b => b.status === 'green' || b.result === 'green').length;
-  const reds = bets.filter(b => b.status === 'red' || b.result === 'red').length;
+  const greens = bets.filter(isGreen).length;
+  const reds = bets.filter(isRed).length;
   const totalPL = bets.reduce((sum: number, b: any) => sum + (parseFloat(b.profit_loss) || 0), 0);
   const cumulativeROI = initialBalance > 0 ? (totalPL / initialBalance * 100) : 0;
 
