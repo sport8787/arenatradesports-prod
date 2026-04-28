@@ -402,7 +402,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                   : 'bg-[#22C55E] text-black'
               )}
             >
-              {effectiveStatus === 'LABAREDA' ? 'Ver Oportunidade Labareda' : 'Ver Análise Completa'}
+              {effectiveStatus === 'LABAREDA' ? 'Ver Oportunidade Labaredas' : 'Ver Análise Completa'}
               <ArrowRight className="w-4 h-4" />
             </motion.button>
           )}

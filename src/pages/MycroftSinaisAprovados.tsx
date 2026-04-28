@@ -33,8 +33,8 @@ type ResultFilter = 'all' | 'green' | 'red' | 'pending';
 
 const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
   APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
-  APROVADO_SITUACIONAL: { label: '🎯 SITUACIONAL', className: 'bg-success/10 text-success border-success/30' },
-  LABAREDA: { label: '⚡ LABAREDA', className: 'bg-warning/15 text-warning border-warning/40' },
+  APROVADO_SITUACIONAL: { label: '🎯 APROVADO SITUACIONAL', className: 'bg-success/10 text-success border-success/30' },
+  LABAREDA: { label: '⚡ APROVADO LABAREDAS', className: 'bg-warning/15 text-warning border-warning/40' },
 };
 
 function isFinishedStatus(status?: string | null) {
