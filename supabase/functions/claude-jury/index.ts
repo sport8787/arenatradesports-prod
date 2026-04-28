@@ -282,14 +282,14 @@ async function getJurorVote(
     
     console.log(`[ClaudeJury] Calling ${jurorProfile} juror...`);
     
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         max_tokens: ANTHROPIC_CONFIG.maxTokens,
         temperature: ANTHROPIC_CONFIG.temperature,
         messages: [{
@@ -301,10 +301,10 @@ async function getJurorVote(
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[ClaudeJury] Lovable AI error ${response.status}:`, errorText);
+      console.error(`[ClaudeJury] Gemini error ${response.status}:`, errorText);
       if (response.status === 429) throw new Error('Rate limit excedido');
       if (response.status === 402) throw new Error('Créditos insuficientes');
-      throw new Error(`Lovable AI error: ${response.status}`);
+      throw new Error(`Gemini error: ${response.status}`);
     }
     
     const data = await response.json();
@@ -337,12 +337,12 @@ serve(async (req) => {
   }
   
   try {
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
     
     if (!apiKey) {
-      console.error('[ClaudeJury] LOVABLE_API_KEY not configured');
+      console.error('[ClaudeJury] GEMINI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
+        JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

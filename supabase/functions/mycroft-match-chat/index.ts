@@ -53,14 +53,11 @@ serve(async (req) => {
 
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const AI_KEY = LOVABLE_API_KEY || OPENAI_API_KEY;
-    if (!AI_KEY) throw new Error("No AI key configured (LOVABLE_API_KEY or OPENAI_API_KEY)");
-    const AI_URL = LOVABLE_API_KEY
-      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
-      : "https://api.openai.com/v1/chat/completions";
-    const AI_MODEL = LOVABLE_API_KEY ? "google/gemini-2.5-flash" : "gpt-5-mini";
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const AI_KEY = GEMINI_API_KEY;
+    const AI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+    const AI_MODEL = "gemini-2.5-flash";
 
     // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
     let userId: string | null = null;

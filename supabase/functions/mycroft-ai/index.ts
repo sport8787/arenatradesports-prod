@@ -148,12 +148,12 @@ serve(async (req) => {
       throw new Error('Missing questionText');
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not configured');
     }
 
-    console.log(`Generating Mycroft ${type || 'bluff'} via Lovable AI for:`, questionText);
+    console.log(`Generating Mycroft ${type || 'bluff'} via Gemini direct for:`, questionText);
     console.log(`💸 MAX_DYNAMIC_CHARS limit: ${MAX_DYNAMIC_CHARS}`);
 
     if (voiceMetrics) {
@@ -165,14 +165,14 @@ serve(async (req) => {
 
     const maxTokens = type === 'verdict' ? 60 : 300;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        Authorization: `Bearer ${geminiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         max_tokens: maxTokens,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -184,14 +184,14 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Lovable AI error:', response.status, errorText);
+      console.error('Gemini error:', response.status, errorText);
       if (response.status === 429) {
         throw new Error('Rate limit excedido, tente novamente em alguns segundos.');
       }
       if (response.status === 402) {
-        throw new Error('Créditos insuficientes no workspace Lovable AI.');
+        throw new Error('Quota Gemini excedida.');
       }
-      throw new Error(`Lovable AI error: ${response.status}`);
+      throw new Error(`Gemini error: ${response.status}`);
     }
 
     const data = await response.json();

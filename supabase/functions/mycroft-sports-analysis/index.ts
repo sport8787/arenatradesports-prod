@@ -420,16 +420,12 @@ serve(async (req) => {
 
   const run = startEdgeRun("mycroft-sports-analysis");
   try {
-    // Migrado para Lovable AI Gateway (Gemini 2.5 Flash) — OpenAI-compatible API.
-    // Fallback para OPENAI_API_KEY se LOVABLE_API_KEY não estiver presente.
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const AI_KEY = LOVABLE_API_KEY || OPENAI_API_KEY;
-    const AI_URL = LOVABLE_API_KEY
-      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
-      : 'https://api.openai.com/v1/chat/completions';
-    const AI_MODEL = LOVABLE_API_KEY ? 'google/gemini-2.5-flash' : 'gpt-5-mini';
-    if (!AI_KEY) return new Response(JSON.stringify({ error: 'AI key not configured (LOVABLE_API_KEY or OPENAI_API_KEY)' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Migrado para Gemini direto (v1beta OpenAI-compatible). Plano pago configurado.
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const AI_KEY = GEMINI_API_KEY;
+    const AI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    const AI_MODEL = 'gemini-2.5-flash';
+    if (!AI_KEY) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const body = await req.json() as { match: MatchData & Record<string, unknown> };
     const match = body?.match;
@@ -571,7 +567,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[MycroftSports] AI error ${response.status} (${LOVABLE_API_KEY ? 'lovable' : 'openai'}):`, errorText);
+      console.error(`[MycroftSports] Gemini error ${response.status}:`, errorText);
       if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -18,7 +18,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_AI_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 
 // Janela de tolerância entre horário da aposta e horário da análise (minutos)
 const TIME_WINDOW_MIN = 30;
@@ -136,7 +136,7 @@ function calculateCLV(bet: RealBet): number | null {
 }
 
 async function generateInsights(matched: MatchedBet[]): Promise<string> {
-  if (!LOVABLE_AI_KEY) return "IA indisponível — adicione LOVABLE_API_KEY.";
+  if (!GEMINI_API_KEY) return "IA indisponível — adicione GEMINI_API_KEY.";
 
   const reds = matched.filter(m => ['aligned_lost', 'against_signal', 'no_signal'].includes(m.alignment) && (m.result === 'red' || m.result === 'lost'));
   const greens = matched.filter(m => m.alignment === 'aligned_won');
@@ -173,14 +173,14 @@ Gere uma resposta em markdown com:
 Tom: direto, dedutivo, sem rodeios. Máximo 200 palavras.`;
 
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_AI_KEY}`,
+        "Authorization": `Bearer ${GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
       }),
     });
