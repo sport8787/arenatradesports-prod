@@ -47,7 +47,8 @@ export default function PunterAuditoria() {
   const [loading, setLoading] = useState(true);
   const [reprocessing, setReprocessing] = useState(false);
   const [bets, setBets] = useState<BetRow[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'green' | 'red' | 'yesterday'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
+  const [dateRange, setDateRange] = useState<'today' | 'yesterday' | '7d' | '30d' | 'all'>('all');
   const [reportLast, setReportLast] = useState<{ checked: number; settled: number; not_found: number; unsupported: number; scores_saved_only: number } | null>(null);
 
   const loadBets = async () => {
