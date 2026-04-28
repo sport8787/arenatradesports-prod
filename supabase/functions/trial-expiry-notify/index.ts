@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         if (!alreadyPush) {
           try {
             const payload = buildPushPayload(daysLeft);
-            await admin.functions.invoke("send-push-notification", {
+            await admin.functions.invoke("send-web-push", {
               body: { user_id: s.user_id, ...payload },
             });
             await admin.from("trial_notification_log").insert({
