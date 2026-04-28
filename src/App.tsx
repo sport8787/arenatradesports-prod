@@ -49,6 +49,7 @@ const PunterAnaliseManual = React.lazy(() => import("./pages/PunterAnaliseManual
 const PunterAprovadas = React.lazy(() => import("./pages/PunterAprovadas"));
 const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
 const PunterMenu = React.lazy(() => import("./pages/PunterMenu"));
+const PunterAuditoria = React.lazy(() => import("./pages/PunterAuditoria"));
 const ArenaTrader = React.lazy(() => import("./pages/ArenaTrader"));
 const ArenaPoker = React.lazy(() => import("./pages/ArenaPoker"));
 const ArenaTraderRankings = React.lazy(() => import("./pages/ArenaTraderRankings"));
@@ -128,6 +129,7 @@ const App = () => {
                 <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
                 <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
                 <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
+                <Route path="/punter/auditoria" element={<RequireSubscription><PunterAuditoria /></RequireSubscription>} />
                 <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
                 <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
                 <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />

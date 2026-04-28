@@ -13,6 +13,7 @@ import {
   Search,
   ExternalLink,
   FileText,
+  ShieldCheck,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
@@ -139,6 +140,15 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconColor="text-primary"
             title="Apostas Reais Betfair"
             description="Sincronize e analise erros vs Arena Trader Sports"
+            badge={{ label: 'Novo', tone: 'exclusive' }}
+          />
+          <NavCard
+            onClick={() => navigate('/punter/auditoria')}
+            icon={<ShieldCheck className="w-4 h-4" />}
+            iconBg="bg-success/15"
+            iconColor="text-success"
+            title="Auditoria de Apostas"
+            description="Todas as apostas (Hórus + manual) e reprocessar liquidação de ontem"
             badge={{ label: 'Novo', tone: 'exclusive' }}
           />
         </div>
