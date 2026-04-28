@@ -32,6 +32,7 @@ import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
+import CopySignalActions from '@/components/signals/CopySignalActions';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
@@ -1948,6 +1949,18 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <p className="text-[10px] font-mono text-muted-foreground mb-1">TESE DE INVESTIMENTO</p>
             <p className="text-xs text-foreground/80 leading-relaxed">{signal.recommendation.thesis}</p>
           </div>
+
+          {/* Copiar entrada do Hórus + atalhos para casas */}
+          <CopySignalActions
+            compact
+            signal={{
+              match: `${signal.match.home_team} vs ${signal.match.away_team}`,
+              market: signal.recommendation.market,
+              odd: signal.recommendation.odd,
+              league: signal.match.league,
+              confidence: signal.recommendation.confidence,
+            }}
+          />
 
           {/* Hórus Status */}
           {horusEntered && (
