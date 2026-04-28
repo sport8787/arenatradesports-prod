@@ -973,23 +973,22 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
-// AI Provider: Anthropic Claude
+// AI Provider: OpenAI (Direct)
 // ═══════════════════════════════════════════════
 
 async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
-  if (!apiKey) throw new Error('LOVABLE_API_KEY not configured')
+  const apiKey = Deno.env.get('OPENAI_API_KEY')
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      max_tokens: 1500,
-      temperature: 0.3,
+      model: 'gpt-5-mini',
+      max_completion_tokens: 1500,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -999,9 +998,9 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
 
   if (!response.ok) {
     const errText = await response.text()
-    if (response.status === 429) throw new Error('Rate limit excedido na Lovable AI')
-    if (response.status === 402) throw new Error('Créditos insuficientes na Lovable AI')
-    throw new Error(`Lovable AI error ${response.status}: ${errText}`)
+    if (response.status === 429) throw new Error('Rate limit excedido na OpenAI')
+    if (response.status === 402 || response.status === 401) throw new Error('Créditos/auth insuficientes na OpenAI')
+    throw new Error(`OpenAI error ${response.status}: ${errText}`)
   }
 
   const data = await response.json()

@@ -993,22 +993,22 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY')
-  if (!LOVABLE_KEY) throw new Error('LOVABLE_API_KEY not configured')
+  const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')
+  if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not configured')
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25_000)
 
   let r: Response
   try {
-    r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LOVABLE_KEY}`,
+        'Authorization': `Bearer ${OPENAI_KEY}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-5-mini',
         messages: [
           { role: 'system', content: sys },
           { role: 'user', content: `IMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` },
@@ -1027,13 +1027,12 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
           },
         }],
         tool_choice: { type: 'function', function: { name: 'punter_analysis' } },
-        temperature: 0.1,
         max_completion_tokens: 8192,
       }),
       signal: controller.signal,
     })
   } catch (e: any) {
-    if (e?.name === 'AbortError') throw new Error('GEMINI_TIMEOUT')
+    if (e?.name === 'AbortError') throw new Error('OPENAI_TIMEOUT')
     throw e
   } finally {
     clearTimeout(timeoutId)
@@ -1041,15 +1040,14 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
   if (!r.ok) {
     const errBody = await r.text()
-    console.error(`[Mycroft Punter] Lovable AI error ${r.status}: ${errBody.substring(0, 500)}`)
+    console.error(`[Mycroft Punter] OpenAI error ${r.status}: ${errBody.substring(0, 500)}`)
     if (r.status === 429) {
-      // Rate limit do Lovable AI Gateway — backoff curto e tentar novamente externamente
       throw new Error(`RATE_LIMITED:15`)
     }
-    if (r.status === 402) {
+    if (r.status === 402 || r.status === 401) {
       throw new Error(`AI_CREDITS_EXHAUSTED`)
     }
-    throw new Error(`Lovable AI error ${r.status}`)
+    throw new Error(`OpenAI error ${r.status}`)
   }
 
   const data = await r.json()
