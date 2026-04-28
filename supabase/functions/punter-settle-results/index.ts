@@ -161,17 +161,18 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Busca sinais aprovados, jogo terminou há +2h, ainda não liquidados, com menos de 8 tentativas
+    // Busca sinais aprovados (todos os verdicts ativos), jogo terminou há +2h, ainda não liquidados.
+    // Inclui APROVADO_SITUACIONAL e LABAREDA — antes só pegava APROVADO, deixando milhares pendentes.
     const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: pending, error } = await supabase
       .from("punter_analyses")
       .select("id, match_id, home_team, away_team, league, commence_time, market, odd, stake_percentage, settle_attempts")
-      .eq("verdict", "APROVADO")
+      .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
       .is("result", null)
       .lt("commence_time", cutoff)
       .lt("settle_attempts", 8)
       .order("commence_time", { ascending: true })
-      .limit(30);
+      .limit(120);
 
     if (error) throw error;
 
@@ -238,6 +239,44 @@ serve(async (req) => {
             profit_loss: pnl,
           })
           .eq("id", a.id);
+
+        // Cascateia liquidação para apostas virtuais do Punter (Hórus auto-bet) vinculadas pela analysis_id.
+        // Sem isso, virtual_bets_punter ficava 'pending' para sempre — UI /apostas mostra erroneamente.
+        try {
+          const { data: bets } = await supabase
+            .from("virtual_bets_punter")
+            .select("id, stake, odd")
+            .eq("analysis_id", a.id)
+            .eq("status", "pending");
+
+          if (bets && bets.length > 0) {
+            const lower = (result as string).toLowerCase(); // green | red | void
+            const updates = bets.map((b: any) => {
+              const stakeVal = Number(b.stake) || 0;
+              const oddVal = Number(b.odd) || Number(a.odd) || 0;
+              const betPnl = result === "GREEN"
+                ? stakeVal * (oddVal - 1)
+                : result === "RED"
+                ? -stakeVal
+                : 0;
+              return supabase
+                .from("virtual_bets_punter")
+                .update({
+                  status: "settled",
+                  result: lower,
+                  profit_loss: betPnl,
+                  score_home: scoreH,
+                  score_away: scoreA,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", b.id);
+            });
+            await Promise.allSettled(updates);
+            console.log(`💰 Cascata: ${bets.length} virtual_bets_punter liquidadas (analysis ${a.id})`);
+          }
+        } catch (cascadeErr) {
+          console.error(`Erro cascateando virtual_bets_punter para ${a.id}:`, cascadeErr);
+        }
 
         settled++;
         results.push({
