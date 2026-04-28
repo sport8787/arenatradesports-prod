@@ -2000,8 +2000,22 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   onClick={async () => {
                     const valor = horusStake.toFixed(2);
                     setCustomStake(valor);
-                    try { await navigator.clipboard.writeText(valor); } catch {}
-                    toast.success(`Valor do Hórus aplicado: R$ ${valor}`);
+                    let copiado = false;
+                    try {
+                      await navigator.clipboard.writeText(valor);
+                      copiado = true;
+                    } catch {}
+                    toast.success(
+                      copiado
+                        ? `✅ R$ ${valor} copiado e preenchido na ENTRADA MANUAL`
+                        : `✅ R$ ${valor} preenchido na ENTRADA MANUAL`,
+                      {
+                        description: copiado
+                          ? 'Valor sugerido pelo Hórus pronto para colar na casa de aposta ou apostar na banca virtual.'
+                          : 'Valor sugerido pelo Hórus aplicado no campo (cópia para a área de transferência indisponível).',
+                        duration: 4000,
+                      }
+                    );
                   }}
                   variant="secondary"
                   size="sm"
