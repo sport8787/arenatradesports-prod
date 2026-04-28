@@ -1,5 +1,9 @@
 project_id = "affquongjlhmusxzohjl"
 
+[functions.trial-expiry-notify]
+verify_jwt = false
+
+
 [functions.mycroft-sports-analysis]
 verify_jwt = false
 

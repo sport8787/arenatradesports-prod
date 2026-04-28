@@ -4803,6 +4803,30 @@ export type Database = {
           },
         ]
       }
+      trial_notification_log: {
+        Row: {
+          channel: string
+          days_left: number
+          id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          days_left: number
+          id?: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          days_left?: number
+          id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       under_cashout_thresholds: {
         Row: {
           created_at: string
