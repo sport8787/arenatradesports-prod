@@ -1,14 +1,27 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 export default function PunterMenuPage() {
   const navigate = useNavigate();
   const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({ title: 'Erro ao sair', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Sessão encerrada', description: 'Até a próxima.' });
+    navigate('/auth', { replace: true });
+  };
 
   useEffect(() => {
     // Toca apresentação do Hórus na primeira visita ao /menu
