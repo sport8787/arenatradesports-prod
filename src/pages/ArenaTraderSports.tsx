@@ -23,6 +23,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -110,6 +111,9 @@ export default function ArenaTraderSports() {
   });
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { isMatchFavorite, favs } = useFavorites();
+
+  // Sinal sonoro ao detectar nova análise APROVADA / SITUACIONAL / LABAREDA via realtime
+  useApprovedSignalSound(true);
 
   useEffect(() => {
     try {
