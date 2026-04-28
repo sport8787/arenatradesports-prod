@@ -47,7 +47,8 @@ export default function PunterAuditoria() {
   const [loading, setLoading] = useState(true);
   const [reprocessing, setReprocessing] = useState(false);
   const [bets, setBets] = useState<BetRow[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'green' | 'red' | 'yesterday'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
+  const [dateRange, setDateRange] = useState<'today' | 'yesterday' | '7d' | '30d' | 'all'>('all');
   const [reportLast, setReportLast] = useState<{ checked: number; settled: number; not_found: number; unsupported: number; scores_saved_only: number } | null>(null);
 
   const loadBets = async () => {
@@ -81,20 +82,31 @@ export default function PunterAuditoria() {
 
   const filtered = useMemo(() => {
     const now = new Date();
-    const startYesterday = new Date(now); startYesterday.setDate(now.getDate() - 1); startYesterday.setHours(0,0,0,0);
+    const startToday = new Date(now); startToday.setHours(0,0,0,0);
+    const endToday = new Date(now); endToday.setHours(23,59,59,999);
+    const startYesterday = new Date(startToday); startYesterday.setDate(startYesterday.getDate() - 1);
     const endYesterday = new Date(startYesterday); endYesterday.setHours(23,59,59,999);
+    const start7d = new Date(startToday); start7d.setDate(start7d.getDate() - 6);
+    const start30d = new Date(startToday); start30d.setDate(start30d.getDate() - 29);
+
     return bets.filter(b => {
       const r = (b.result || '').toLowerCase();
-      if (filter === 'pending') return b.status === 'pending' && !r;
-      if (filter === 'green') return r === 'green' || r === 'won' || r === 'win';
-      if (filter === 'red') return r === 'red' || r === 'lost' || r === 'loss';
-      if (filter === 'yesterday') {
+      // Result filter
+      if (filter === 'pending' && !(b.status === 'pending' && !r)) return false;
+      if (filter === 'green' && !(r === 'green' || r === 'won' || r === 'win')) return false;
+      if (filter === 'red' && !(r === 'red' || r === 'lost' || r === 'loss')) return false;
+
+      // Date range filter
+      if (dateRange !== 'all') {
         const ref = b.commence_time ? new Date(b.commence_time) : new Date(b.created_at);
-        return ref >= startYesterday && ref <= endYesterday;
+        if (dateRange === 'today' && !(ref >= startToday && ref <= endToday)) return false;
+        if (dateRange === 'yesterday' && !(ref >= startYesterday && ref <= endYesterday)) return false;
+        if (dateRange === '7d' && !(ref >= start7d && ref <= endToday)) return false;
+        if (dateRange === '30d' && !(ref >= start30d && ref <= endToday)) return false;
       }
       return true;
     });
-  }, [bets, filter]);
+  }, [bets, filter, dateRange]);
 
   const summary = useMemo(() => {
     const total = bets.length;
@@ -194,10 +206,33 @@ export default function PunterAuditoria() {
           </div>
         )}
 
-        {/* Filtros */}
+        {/* Filtros de período */}
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          {(['all','yesterday','pending','green','red'] as const).map(f => (
+          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">Período:</span>
+          {([
+            ['today', 'Hoje'],
+            ['yesterday', 'Ontem'],
+            ['7d', 'Últimos 7d'],
+            ['30d', 'Últimos 30d'],
+            ['all', 'Todos'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setDateRange(key)}
+              className={`px-3 py-1 rounded-md text-xs font-mono uppercase tracking-wider border transition-colors ${
+                dateRange === key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtros de resultado */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1 ml-6">Resultado:</span>
+          {(['all','pending','green','red'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -205,9 +240,20 @@ export default function PunterAuditoria() {
                 filter === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'
               }`}
             >
-              {f === 'all' ? 'Todas' : f === 'yesterday' ? 'Ontem' : f === 'pending' ? 'Pendentes' : f === 'green' ? 'Greens' : 'Reds'}
+              {f === 'all' ? 'Todas' : f === 'pending' ? 'Pendentes' : f === 'green' ? 'Greens' : 'Reds'}
             </button>
           ))}
+        </div>
+
+        {/* Resumo do período filtrado */}
+        <div className="bg-card/50 border border-border rounded-xl p-3 flex flex-wrap gap-4 text-xs font-mono">
+          <span>Exibindo: <strong>{filtered.length}</strong></span>
+          <span className="text-success">Greens: <strong>{filtered.filter(b => ['green','won','win'].includes((b.result||'').toLowerCase())).length}</strong></span>
+          <span className="text-destructive">Reds: <strong>{filtered.filter(b => ['red','lost','loss'].includes((b.result||'').toLowerCase())).length}</strong></span>
+          <span className="text-warning">Pendentes: <strong>{filtered.filter(b => b.status === 'pending' && !b.result).length}</strong></span>
+          <span>P&L: <strong className={filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0) >= 0 ? 'text-success' : 'text-destructive'}>
+            {filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0).toFixed(2)}
+          </strong></span>
         </div>
 
         {/* Lista */}
