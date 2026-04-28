@@ -2019,11 +2019,14 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   }}
                   variant="secondary"
                   size="sm"
-                  className="h-8 px-2 font-mono text-[10px] gap-1 whitespace-nowrap"
-                  title={`Copiar valor sugerido pelo Hórus: R$ ${horusStake.toFixed(2)}`}
+                  className="h-8 px-2 font-mono text-[10px] gap-1 whitespace-nowrap border border-primary/40 bg-primary/10 hover:bg-primary/20"
+                  title={`Stake sugerida pelo Hórus (4-5% da banca): R$ ${horusStake.toFixed(2)}`}
                 >
                   <Copy className="w-3 h-3" />
-                  R$ {horusStake.toFixed(2)}
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-[8px] uppercase tracking-wider text-primary/80">Hórus · 4-5%</span>
+                    <span className="font-bold">R$ {horusStake.toFixed(2)}</span>
+                  </span>
                 </Button>
               )}
               <Button
