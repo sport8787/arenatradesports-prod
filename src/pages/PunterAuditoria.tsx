@@ -82,20 +82,31 @@ export default function PunterAuditoria() {
 
   const filtered = useMemo(() => {
     const now = new Date();
-    const startYesterday = new Date(now); startYesterday.setDate(now.getDate() - 1); startYesterday.setHours(0,0,0,0);
+    const startToday = new Date(now); startToday.setHours(0,0,0,0);
+    const endToday = new Date(now); endToday.setHours(23,59,59,999);
+    const startYesterday = new Date(startToday); startYesterday.setDate(startYesterday.getDate() - 1);
     const endYesterday = new Date(startYesterday); endYesterday.setHours(23,59,59,999);
+    const start7d = new Date(startToday); start7d.setDate(start7d.getDate() - 6);
+    const start30d = new Date(startToday); start30d.setDate(start30d.getDate() - 29);
+
     return bets.filter(b => {
       const r = (b.result || '').toLowerCase();
-      if (filter === 'pending') return b.status === 'pending' && !r;
-      if (filter === 'green') return r === 'green' || r === 'won' || r === 'win';
-      if (filter === 'red') return r === 'red' || r === 'lost' || r === 'loss';
-      if (filter === 'yesterday') {
+      // Result filter
+      if (filter === 'pending' && !(b.status === 'pending' && !r)) return false;
+      if (filter === 'green' && !(r === 'green' || r === 'won' || r === 'win')) return false;
+      if (filter === 'red' && !(r === 'red' || r === 'lost' || r === 'loss')) return false;
+
+      // Date range filter
+      if (dateRange !== 'all') {
         const ref = b.commence_time ? new Date(b.commence_time) : new Date(b.created_at);
-        return ref >= startYesterday && ref <= endYesterday;
+        if (dateRange === 'today' && !(ref >= startToday && ref <= endToday)) return false;
+        if (dateRange === 'yesterday' && !(ref >= startYesterday && ref <= endYesterday)) return false;
+        if (dateRange === '7d' && !(ref >= start7d && ref <= endToday)) return false;
+        if (dateRange === '30d' && !(ref >= start30d && ref <= endToday)) return false;
       }
       return true;
     });
-  }, [bets, filter]);
+  }, [bets, filter, dateRange]);
 
   const summary = useMemo(() => {
     const total = bets.length;
