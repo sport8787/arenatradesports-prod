@@ -1,27 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, CheckCircle2, Clock, XCircle, Filter } from 'lucide-react';
+import { ArrowLeft, RefreshCw, CheckCircle2, Clock, XCircle, Filter, Download, FileText, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { BetAuditDetailSheet, type AuditBetLite } from '@/components/punter/BetAuditDetailSheet';
 
 type Source = 'horus' | 'manual';
 
-interface BetRow {
-  id: string;
+interface BetRow extends AuditBetLite {
   source: Source;
-  match_id: string | null;
-  match_name: string | null;
-  market: string;
-  odd: number;
-  stake: number;
-  status: string;
-  result: string | null;
-  profit_loss: number | null;
-  score_home: number | null;
-  score_away: number | null;
-  commence_time: string | null;
-  created_at: string;
 }
 
 const PAGE_SIZE = 200;
@@ -45,40 +33,69 @@ function statusBadge(b: BetRow) {
 export default function PunterAuditoria() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [bets, setBets] = useState<BetRow[]>([]);
+  const [horusOffset, setHorusOffset] = useState(0);
+  const [manualOffset, setManualOffset] = useState(0);
+  const [horusHasMore, setHorusHasMore] = useState(true);
+  const [manualHasMore, setManualHasMore] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [dateRange, setDateRange] = useState<'today' | 'yesterday' | '7d' | '30d' | 'all'>('all');
   const [reportLast, setReportLast] = useState<{ checked: number; settled: number; not_found: number; unsupported: number; scores_saved_only: number } | null>(null);
+  const [selected, setSelected] = useState<BetRow | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const loadBets = async () => {
+  const fetchPage = async (userId: string, hOff: number, mOff: number) => {
+    const cols = 'id, match_id, match_name, market, odd, stake, status, result, profit_loss, score_home, score_away, commence_time, created_at';
+    const [horusRes, manualRes] = await Promise.all([
+      supabase.from('virtual_bets_punter')
+        .select(cols + ', analysis_id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(hOff, hOff + PAGE_SIZE - 1),
+      supabase.from('virtual_bets_manual')
+        .select(cols)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(mOff, mOff + PAGE_SIZE - 1),
+    ]);
+    const h = (horusRes.data || []).map((r: any) => ({ ...r, source: 'horus' as Source }));
+    const m = (manualRes.data || []).map((r: any) => ({ ...r, source: 'manual' as Source, analysis_id: null }));
+    return { h, m, horusHas: h.length === PAGE_SIZE, manualHas: m.length === PAGE_SIZE };
+  };
+
+  const loadInitial = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-
-    const [horusRes, manualRes] = await Promise.all([
-      supabase.from('virtual_bets_punter')
-        .select('id, match_id, match_name, market, odd, stake, status, result, profit_loss, score_home, score_away, commence_time, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE),
-      supabase.from('virtual_bets_manual')
-        .select('id, match_id, match_name, market, odd, stake, status, result, profit_loss, score_home, score_away, commence_time, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE),
-    ]);
-
-    const merged: BetRow[] = [
-      ...((horusRes.data || []).map((r: any) => ({ ...r, source: 'horus' as Source }))),
-      ...((manualRes.data || []).map((r: any) => ({ ...r, source: 'manual' as Source }))),
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
+    const { h, m, horusHas, manualHas } = await fetchPage(user.id, 0, 0);
+    const merged = [...h, ...m].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setBets(merged);
+    setHorusOffset(h.length);
+    setManualOffset(m.length);
+    setHorusHasMore(horusHas);
+    setManualHasMore(manualHas);
     setLoading(false);
   };
 
-  useEffect(() => { loadBets(); }, []);
+  const loadMore = async () => {
+    if (loadingMore) return;
+    if (!horusHasMore && !manualHasMore) return;
+    setLoadingMore(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoadingMore(false); return; }
+    const hOff = horusHasMore ? horusOffset : 9_999_999;
+    const mOff = manualHasMore ? manualOffset : 9_999_999;
+    const { h, m, horusHas, manualHas } = await fetchPage(user.id, hOff, mOff);
+    setBets(prev => [...prev, ...h, ...m].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    if (horusHasMore) { setHorusOffset(o => o + h.length); setHorusHasMore(horusHas); }
+    if (manualHasMore) { setManualOffset(o => o + m.length); setManualHasMore(manualHas); }
+    setLoadingMore(false);
+  };
+
+  useEffect(() => { loadInitial(); }, []);
 
   const filtered = useMemo(() => {
     const now = new Date();
@@ -91,12 +108,9 @@ export default function PunterAuditoria() {
 
     return bets.filter(b => {
       const r = (b.result || '').toLowerCase();
-      // Result filter
       if (filter === 'pending' && !(b.status === 'pending' && !r)) return false;
       if (filter === 'green' && !(r === 'green' || r === 'won' || r === 'win')) return false;
       if (filter === 'red' && !(r === 'red' || r === 'lost' || r === 'loss')) return false;
-
-      // Date range filter
       if (dateRange !== 'all') {
         const ref = b.commence_time ? new Date(b.commence_time) : new Date(b.created_at);
         if (dateRange === 'today' && !(ref >= startToday && ref <= endToday)) return false;
@@ -132,17 +146,83 @@ export default function PunterAuditoria() {
         unsupported: r.unsupported ?? 0,
         scores_saved_only: r.scores_saved_only ?? 0,
       });
-      toast({
-        title: 'Auditoria concluída',
-        description: `Verificados: ${r.checked ?? 0} • Liquidados: ${r.settled ?? 0} • Sem suporte: ${r.unsupported ?? 0}`,
-      });
-      await loadBets();
+      toast({ title: 'Auditoria concluída', description: `Verificados: ${r.checked ?? 0} • Liquidados: ${r.settled ?? 0} • Sem suporte: ${r.unsupported ?? 0}` });
+      await loadInitial();
     } catch (e: any) {
       toast({ title: 'Erro ao reprocessar', description: String(e?.message || e), variant: 'destructive' });
     } finally {
       setReprocessing(false);
     }
   };
+
+  const exportCSV = () => {
+    const header = ['Origem','Jogo','Mercado','Odd','Stake','Status','Resultado','Placar','P&L','Início','Criada em'];
+    const rows = filtered.map(b => [
+      b.source === 'horus' ? 'HÓRUS' : 'MANUAL',
+      (b.match_name || b.match_id || '').replace(/"/g,'""'),
+      b.market.replace(/"/g,'""'),
+      Number(b.odd).toFixed(2),
+      Number(b.stake).toFixed(2),
+      b.status,
+      (b.result || ''),
+      b.score_home != null && b.score_away != null ? `${b.score_home}-${b.score_away}` : '',
+      b.profit_loss != null ? Number(b.profit_loss).toFixed(2) : '',
+      fmtDate(b.commence_time),
+      fmtDate(b.created_at),
+    ]);
+    const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `auditoria-punter-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'CSV exportado', description: `${filtered.length} apostas` });
+  };
+
+  const exportPDF = async () => {
+    setExporting(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFontSize(14);
+      doc.text('Auditoria Punter — Relatório de Apostas', 14, 14);
+      doc.setFontSize(9);
+      const periodLabel = ({today:'Hoje', yesterday:'Ontem', '7d':'Últimos 7d', '30d':'Últimos 30d', all:'Todos'} as any)[dateRange];
+      const filterLabel = ({all:'Todas', pending:'Pendentes', green:'Greens', red:'Reds'} as any)[filter];
+      doc.text(`Período: ${periodLabel} • Filtro: ${filterLabel} • Gerado: ${new Date().toLocaleString('pt-BR')}`, 14, 20);
+      doc.text(`Total: ${filtered.length} • Greens: ${filtered.filter(b => ['green','won','win'].includes((b.result||'').toLowerCase())).length} • Reds: ${filtered.filter(b => ['red','lost','loss'].includes((b.result||'').toLowerCase())).length} • Pendentes: ${filtered.filter(b => b.status==='pending' && !b.result).length} • P&L: ${filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0).toFixed(2)}`, 14, 25);
+
+      autoTable(doc, {
+        startY: 30,
+        head: [['Origem','Jogo','Mercado','Odd','Stake','Status','Placar','P&L','Início']],
+        body: filtered.map(b => [
+          b.source === 'horus' ? 'HÓRUS' : 'MANUAL',
+          (b.match_name || b.match_id || '').slice(0, 40),
+          b.market.slice(0, 30),
+          Number(b.odd).toFixed(2),
+          Number(b.stake).toFixed(2),
+          (b.result || b.status).toUpperCase(),
+          b.score_home != null && b.score_away != null ? `${b.score_home}-${b.score_away}` : '—',
+          b.profit_loss != null ? Number(b.profit_loss).toFixed(2) : '—',
+          fmtDate(b.commence_time),
+        ]),
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [30, 30, 40], textColor: 255 },
+      });
+
+      doc.save(`auditoria-punter-${new Date().toISOString().slice(0,10)}.pdf`);
+      toast({ title: 'PDF exportado', description: `${filtered.length} apostas` });
+    } catch (e: any) {
+      toast({ title: 'Erro ao exportar PDF', description: String(e?.message || e), variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const hasMore = horusHasMore || manualHasMore;
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,11 +278,6 @@ export default function PunterAuditoria() {
               <p>Mercado sem suporte: <strong className="text-warning">{reportLast.unsupported}</strong></p>
               <p>Placar salvo: <strong>{reportLast.scores_saved_only}</strong></p>
             </div>
-            {reportLast.unsupported > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Mercados sem suporte automático mostram o placar final na lista — liquide manualmente em <button className="text-primary underline" onClick={() => navigate('/apostas')}>/apostas</button>.
-              </p>
-            )}
           </div>
         )}
 
@@ -245,8 +320,8 @@ export default function PunterAuditoria() {
           ))}
         </div>
 
-        {/* Resumo do período filtrado */}
-        <div className="bg-card/50 border border-border rounded-xl p-3 flex flex-wrap gap-4 text-xs font-mono">
+        {/* Resumo do período + ações de exportação */}
+        <div className="bg-card/50 border border-border rounded-xl p-3 flex flex-wrap items-center gap-4 text-xs font-mono">
           <span>Exibindo: <strong>{filtered.length}</strong></span>
           <span className="text-success">Greens: <strong>{filtered.filter(b => ['green','won','win'].includes((b.result||'').toLowerCase())).length}</strong></span>
           <span className="text-destructive">Reds: <strong>{filtered.filter(b => ['red','lost','loss'].includes((b.result||'').toLowerCase())).length}</strong></span>
@@ -254,6 +329,14 @@ export default function PunterAuditoria() {
           <span>P&L: <strong className={filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0) >= 0 ? 'text-success' : 'text-destructive'}>
             {filtered.reduce((s,b)=>s+(Number(b.profit_loss)||0),0).toFixed(2)}
           </strong></span>
+          <div className="ml-auto flex gap-2">
+            <Button size="sm" variant="outline" onClick={exportCSV} disabled={!filtered.length} className="gap-1.5">
+              <Download className="w-3.5 h-3.5" /> CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportPDF} disabled={!filtered.length || exporting} className="gap-1.5">
+              <FileText className="w-3.5 h-3.5" /> {exporting ? 'Gerando…' : 'PDF'}
+            </Button>
+          </div>
         </div>
 
         {/* Lista */}
@@ -265,7 +348,11 @@ export default function PunterAuditoria() {
           ) : (
             <div className="divide-y divide-border">
               {filtered.map(b => (
-                <div key={`${b.source}-${b.id}`} className="p-3 flex items-center gap-3 flex-wrap">
+                <button
+                  key={`${b.source}-${b.id}`}
+                  onClick={() => { setSelected(b); setSheetOpen(true); }}
+                  className="w-full p-3 flex items-center gap-3 flex-wrap text-left hover:bg-muted/40 transition-colors"
+                >
                   <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-semibold ${b.source === 'horus' ? 'bg-primary/15 text-primary' : 'bg-warning/15 text-warning'}`}>
                     {b.source === 'horus' ? 'HÓRUS' : 'MANUAL'}
                   </span>
@@ -280,16 +367,33 @@ export default function PunterAuditoria() {
                       {Number(b.profit_loss) >= 0 ? '+' : ''}{Number(b.profit_loss).toFixed(2)}
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
 
+        {/* Carregar mais */}
+        {!loading && hasMore && (
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={loadMore} disabled={loadingMore} className="gap-2">
+              <ChevronDown className={`w-4 h-4 ${loadingMore ? 'animate-bounce' : ''}`} />
+              {loadingMore ? 'Carregando…' : `Carregar mais (${PAGE_SIZE} por origem)`}
+            </Button>
+          </div>
+        )}
+
         <p className="text-[11px] text-muted-foreground text-center">
-          Mostrando até {PAGE_SIZE} apostas por origem. O reprocessamento varre análises Punter ainda não liquidadas (jogos terminados há 2h+).
+          Total carregado: {bets.length} apostas. {!hasMore && 'Todas as apostas já foram carregadas.'} Clique em qualquer aposta para ver detalhes, eventos e ações sugeridas.
         </p>
       </main>
+
+      <BetAuditDetailSheet
+        bet={selected}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdated={loadInitial}
+      />
     </div>
   );
 }
