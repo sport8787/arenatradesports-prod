@@ -1950,6 +1950,18 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
             <p className="text-xs text-foreground/80 leading-relaxed">{signal.recommendation.thesis}</p>
           </div>
 
+          {/* Copiar entrada do Hórus + atalhos para casas */}
+          <CopySignalActions
+            compact
+            signal={{
+              match: `${signal.match.home_team} vs ${signal.match.away_team}`,
+              market: signal.recommendation.market,
+              odd: signal.recommendation.odd,
+              league: signal.match.league,
+              confidence: signal.recommendation.confidence,
+            }}
+          />
+
           {/* Hórus Status */}
           {horusEntered && (
             <div className="bg-primary/5 border border-primary/15 rounded p-2.5 flex items-center justify-between gap-2">
