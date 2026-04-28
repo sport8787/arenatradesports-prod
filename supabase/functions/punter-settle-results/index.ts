@@ -240,6 +240,44 @@ serve(async (req) => {
           })
           .eq("id", a.id);
 
+        // Cascateia liquidação para apostas virtuais do Punter (Hórus auto-bet) vinculadas pela analysis_id.
+        // Sem isso, virtual_bets_punter ficava 'pending' para sempre — UI /apostas mostra erroneamente.
+        try {
+          const { data: bets } = await supabase
+            .from("virtual_bets_punter")
+            .select("id, stake, odd")
+            .eq("analysis_id", a.id)
+            .eq("status", "pending");
+
+          if (bets && bets.length > 0) {
+            const lower = (result as string).toLowerCase(); // green | red | void
+            const updates = bets.map((b: any) => {
+              const stakeVal = Number(b.stake) || 0;
+              const oddVal = Number(b.odd) || Number(a.odd) || 0;
+              const betPnl = result === "GREEN"
+                ? stakeVal * (oddVal - 1)
+                : result === "RED"
+                ? -stakeVal
+                : 0;
+              return supabase
+                .from("virtual_bets_punter")
+                .update({
+                  status: "settled",
+                  result: lower,
+                  profit_loss: betPnl,
+                  score_home: scoreH,
+                  score_away: scoreA,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", b.id);
+            });
+            await Promise.allSettled(updates);
+            console.log(`💰 Cascata: ${bets.length} virtual_bets_punter liquidadas (analysis ${a.id})`);
+          }
+        } catch (cascadeErr) {
+          console.error(`Erro cascateando virtual_bets_punter para ${a.id}:`, cascadeErr);
+        }
+
         settled++;
         results.push({
           id: a.id,
