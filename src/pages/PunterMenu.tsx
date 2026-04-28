@@ -39,9 +39,17 @@ export default function PunterMenuPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight">
+          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1">
             FUNÇÕES DA ARENA PUNTER
           </h1>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors text-xs font-mono font-semibold"
+            aria-label="Sair da conta"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">SAIR</span>
+          </button>
         </div>
       </header>
 
