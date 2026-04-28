@@ -44,8 +44,8 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   APROVADO: 'APROVADO',
   opportunity: 'APROVADO',
-  APROVADO_SITUACIONAL: 'SITUACIONAL',
-  LABAREDA: 'LABAREDA',
+  APROVADO_SITUACIONAL: 'APROVADO SITUACIONAL',
+  LABAREDA: 'APROVADO LABAREDAS',
   CUIDADO: 'CUIDADO',
   JOGO_MORTO: 'MORTO',
   VETADO: 'MORTO',
@@ -200,7 +200,7 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                     {(effStatus === 'APROVADO' || effStatus === 'APROVADO_SITUACIONAL' || effStatus === 'opportunity') && m.planName ? (
                       <span className="font-orbitron text-primary font-bold text-[10px]">{m.planName}</span>
                     ) : effStatus === 'LABAREDA' ? (
-                      <span className="font-orbitron text-[#FB923C] font-bold text-[10px]">⚡ LABAREDA</span>
+                      <span className="font-orbitron text-[#FB923C] font-bold text-[10px]">⚡ APROVADO LABAREDAS</span>
                     ) : effStatus === 'EXPIRADO' ? (
                       <span className="font-orbitron text-[#A8A29E] text-[10px]" title={`Mercado "${m.market}" inválido após o 1º tempo`}>⌛ 1T encerrado</span>
                     ) : (

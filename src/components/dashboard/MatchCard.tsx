@@ -363,7 +363,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               )}
               {effectiveStatus === 'APROVADO_SITUACIONAL' && !match.planName && (
                 <span className="font-orbitron font-bold text-[#6EE7B7]">
-                  📍 SITUACIONAL
+                  📍 APROVADO SITUACIONAL
                 </span>
               )}
               {effectiveStatus === 'LABAREDA' && (
