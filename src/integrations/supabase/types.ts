@@ -2137,6 +2137,33 @@ export type Database = {
         }
         Relationships: []
       }
+      live_match_stats_overrides: {
+        Row: {
+          created_at: string
+          edited_by: string | null
+          match_id: string
+          notes: string | null
+          stats: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          edited_by?: string | null
+          match_id: string
+          notes?: string | null
+          stats?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          edited_by?: string | null
+          match_id?: string
+          notes?: string | null
+          stats?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       live_matches: {
         Row: {
           away_logo: string | null
