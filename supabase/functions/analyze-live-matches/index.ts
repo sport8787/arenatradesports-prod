@@ -415,6 +415,7 @@ serve(async (req) => {
                 stats: enrichedStats,
                 bankroll: bankroll ?? 500,
                 existingApprovedMarkets,
+                punterPreliveAnalyses,
               },
             }),
           }
