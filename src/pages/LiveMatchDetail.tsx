@@ -18,6 +18,8 @@ import { getPushPermission, requestPushPermission, showBrowserPush, type PushPer
 import MatchMycroftChat from '@/components/arena-trader/MatchMycroftChat';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
 import { formatMatchPeriod } from '@/lib/matchPeriod';
+import { useAdmin } from '@/hooks/useAdmin';
+import AdminStatsEditorModal from '@/components/dashboard/AdminStatsEditorModal';
 
 interface SnapshotEvent {
   at: string;
