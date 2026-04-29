@@ -9,7 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Play, AlertTriangle, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import { Play, AlertTriangle, RefreshCw, TrendingUp, TrendingDown, Filter, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 type Modo = "trader" | "punter";
@@ -105,6 +106,12 @@ export function MycroftRulesSimulatorTab() {
   const [historyOptions, setHistoryOptions] = useState<HistoryOption[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
+  // Filtros do ranking
+  const [filterCategory, setFilterCategory] = useState<"all" | "pontuacao" | "veto">("all");
+  const [filterField, setFilterField] = useState<string>("all");
+  const [filterOperator, setFilterOperator] = useState<string>("all");
+  const [filterRuleSearch, setFilterRuleSearch] = useState("");
+
   const loadHistoryOptions = async (m: Modo) => {
     const { data } = await supabase
       .from("mycroft_rules_history" as any)
@@ -159,12 +166,14 @@ export function MycroftRulesSimulatorTab() {
     else { toast.success("Limiar atualizado"); loadThresholds(); checkAlerts(); }
   };
 
-  const runSimulation = async () => {
+  const runSimulation = async (overrideRules?: any[]) => {
     setRunning(true);
     setResult(null);
     try {
       const body: any = { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined };
-      if (rulesSourceMode === "history_at" && historyAt) {
+      if (overrideRules && overrideRules.length > 0) {
+        body.override_rules = overrideRules;
+      } else if (rulesSourceMode === "history_at" && historyAt) {
         body.history_at = new Date(historyAt).toISOString();
       } else if (rulesSourceMode === "history_versions" && selectedHistoryIds.length > 0) {
         body.history_version_ids = selectedHistoryIds;
@@ -180,6 +189,54 @@ export function MycroftRulesSimulatorTab() {
       setRunning(false);
     }
   };
+
+  const rerunWithFilteredRules = async () => {
+    const { data, error } = await supabase
+      .from("mycroft_rules" as any)
+      .select("*")
+      .eq("modo", modo)
+      .eq("active", true);
+    if (error) { toast.error("Erro ao carregar regras"); return; }
+    const filtered = ((data ?? []) as any[]).filter((r) => {
+      if (filterCategory !== "all" && r.category !== filterCategory) return false;
+      if (filterField !== "all" && r.field !== filterField) return false;
+      if (filterOperator !== "all" && r.operator !== filterOperator) return false;
+      if (filterRuleSearch && !r.name.toLowerCase().includes(filterRuleSearch.toLowerCase())) return false;
+      return true;
+    });
+    if (filtered.length === 0) { toast.warning("Nenhuma regra após filtros."); return; }
+    toast.info(`Re-rodando com ${filtered.length} regras filtradas…`);
+    await runSimulation(filtered);
+  };
+
+  const filteredRanking = useMemo(() => {
+    if (!result?.rule_ranking) return [];
+    return result.rule_ranking.filter((r) => {
+      if (filterCategory !== "all" && r.category !== filterCategory) return false;
+      if (filterField !== "all" && r.field !== filterField) return false;
+      if (filterOperator !== "all" && r.op !== filterOperator) return false;
+      if (filterRuleSearch && !r.rule.toLowerCase().includes(filterRuleSearch.toLowerCase())) return false;
+      return true;
+    });
+  }, [result, filterCategory, filterField, filterOperator, filterRuleSearch]);
+
+  const availableFields = useMemo(() => {
+    const set = new Set<string>();
+    result?.rule_ranking?.forEach((r) => set.add(r.field));
+    return Array.from(set).sort();
+  }, [result]);
+
+  const availableOps = useMemo(() => {
+    const set = new Set<string>();
+    result?.rule_ranking?.forEach((r) => set.add(r.op));
+    return Array.from(set).sort();
+  }, [result]);
+
+  const clearFilters = () => {
+    setFilterCategory("all"); setFilterField("all"); setFilterOperator("all"); setFilterRuleSearch("");
+  };
+
+  const hasFilters = filterCategory !== "all" || filterField !== "all" || filterOperator !== "all" || !!filterRuleSearch;
 
   const winDelta = useMemo(() => {
     if (!result?.winrate.novo_winrate || !result?.winrate.atual_winrate) return null;
@@ -310,7 +367,7 @@ export function MycroftRulesSimulatorTab() {
             )}
           </div>
 
-          <Button onClick={runSimulation} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
+          <Button onClick={() => runSimulation()} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
             <Play className="h-4 w-4 mr-2" />{running ? "Rodando…" : "Rodar simulação"}
           </Button>
           {result?.rules_source && (
@@ -367,8 +424,58 @@ export function MycroftRulesSimulatorTab() {
               {/* RANKING DE REGRAS DIVERGENTES */}
               {result.rule_ranking && result.rule_ranking.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Regras que mais contribuíram para divergências</h4>
-                  <p className="text-xs text-muted-foreground mb-2">Ordenado por nº de casos divergentes em que a regra disparou. Use para identificar quais ajustar primeiro.</p>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                    <div>
+                      <h4 className="text-sm font-semibold">Regras que mais contribuíram para divergências</h4>
+                      <p className="text-xs text-muted-foreground">Mostrando <strong>{filteredRanking.length}</strong> de {result.rule_ranking.length} regras. Filtre e re-rode com somente as regras filtradas para isolar impacto.</p>
+                    </div>
+                    <Button size="sm" variant="default" onClick={rerunWithFilteredRules} disabled={running || !hasFilters}>
+                      <Play className="h-3 w-3 mr-1" />Re-rodar só com regras filtradas
+                    </Button>
+                  </div>
+
+                  {/* FILTROS DO RANKING */}
+                  <div className="border rounded-lg p-3 mb-3 bg-muted/20 grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                    <div>
+                      <Label className="text-[11px] flex items-center gap-1"><Filter className="h-3 w-3" />Categoria</Label>
+                      <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as any)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="pontuacao">Pontuação</SelectItem>
+                          <SelectItem value="veto">Veto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Field</Label>
+                      <Select value={filterField} onValueChange={setFilterField}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {availableFields.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Operador</Label>
+                      <Select value={filterOperator} onValueChange={setFilterOperator}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {availableOps.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Buscar regra</Label>
+                      <Input className="h-8 text-xs" placeholder="nome contém…" value={filterRuleSearch} onChange={(e) => setFilterRuleSearch(e.target.value)} />
+                    </div>
+                    <Button size="sm" variant="outline" onClick={clearFilters} disabled={!hasFilters} className="h-8">
+                      <X className="h-3 w-3 mr-1" />Limpar
+                    </Button>
+                  </div>
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -383,7 +490,10 @@ export function MycroftRulesSimulatorTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {result.rule_ranking.map((r) => (
+                      {filteredRanking.length === 0 && (
+                        <TableRow><TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-4">Nenhuma regra corresponde aos filtros.</TableCell></TableRow>
+                      )}
+                      {filteredRanking.map((r) => (
                         <TableRow key={r.rule}>
                           <TableCell className="text-xs font-medium">{r.rule}</TableCell>
                           <TableCell>
