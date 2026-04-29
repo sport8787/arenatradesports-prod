@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Play, AlertTriangle, RefreshCw, TrendingUp, TrendingDown, Filter, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { MycroftRulesImpactChart } from "./MycroftRulesImpactChart";
 
 type Modo = "trader" | "punter";
 
@@ -515,6 +516,10 @@ export function MycroftRulesSimulatorTab() {
                       ))}
                     </TableBody>
                   </Table>
+
+                  <div className="mt-4">
+                    <MycroftRulesImpactChart ranking={filteredRanking} />
+                  </div>
                 </div>
               )}
 
