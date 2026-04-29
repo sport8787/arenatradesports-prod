@@ -214,7 +214,7 @@ export function MycroftRulesSimulatorTab() {
     return result.rule_ranking.filter((r) => {
       if (filterCategory !== "all" && r.category !== filterCategory) return false;
       if (filterField !== "all" && r.field !== filterField) return false;
-      if (filterOperator !== "all" && r.operator !== filterOperator) return false;
+      if (filterOperator !== "all" && r.op !== filterOperator) return false;
       if (filterRuleSearch && !r.rule.toLowerCase().includes(filterRuleSearch.toLowerCase())) return false;
       return true;
     });
