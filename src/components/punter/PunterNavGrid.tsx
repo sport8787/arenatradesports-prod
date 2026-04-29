@@ -1,24 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2,
-  Clock,
-  LayoutGrid,
   Wallet,
-  LineChart,
-  Download,
-  MessageCircle,
   MessagesSquare,
   Info,
-  Brain,
   Search,
-  ExternalLink,
-  FileText,
   ShieldCheck,
+  Activity,
+  Send,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import NavCard from '@/components/punter/NavCard';
-import { toast } from 'sonner';
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
@@ -32,70 +24,36 @@ interface Props {
 
 export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
   const navigate = useNavigate();
-  const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
-
-  const goApproved = () => {
-    // Toca o áudio "Sinais Aprovados" UMA ÚNICA VEZ por usuário
-    playOnce('sinais_aprovados');
-    if (onApprovedSignalsClick) {
-      onApprovedSignalsClick();
-      return;
-    }
-    navigate('/punter');
-  };
+  const { pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
 
   return (
-    <div className="space-y-5">
-      {/* Buscar Sinais — atalho direto para análise */}
+    <div className="space-y-6">
+      {/* Arenas e Ferramentas Principais */}
       <section>
-        <SectionLabel>Buscar Sinais</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <SectionLabel>Arenas e Ferramentas</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
             primary
             onClick={() => navigate('/punter')}
             icon={<Search className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
-            title="Buscar Sinais Agora"
-            description="Acessa a Arena Punter (sem disparar nova busca)"
+            title="Arena Punter"
+            description="Sinais pré-jogo do Mycroft com edge real"
           />
-          <NavCard
-            onClick={() => navigate('/punter/analise-manual')}
-            icon={<FileText className="w-4 h-4" />}
-            iconBg="bg-warning/15"
-            iconColor="text-warning"
-            title="Análise Manual"
-            description="Cole estatísticas do Sherlock e analise o jogo manualmente"
-            badge={{ label: 'Novo', tone: 'exclusive' }}
-          />
-        </div>
-      </section>
-
-      {/* Ações Principais */}
-      <section>
-        <SectionLabel>Ações Principais</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
             primary
-            onClick={goApproved}
-            icon={<CheckCircle2 className="w-4 h-4" />}
-            iconBg="bg-success/15"
-            iconColor="text-success"
-            title="Sinais Liquidados"
-            description="Histórico de greens e reds + sinais ainda em andamento"
-          />
-          <NavCard
             onClick={() => navigate('/arena-trader-sports')}
-            icon={<Clock className="w-4 h-4" />}
+            icon={<Activity className="w-4 h-4" />}
             iconBg="bg-destructive/15"
             iconColor="text-destructive"
-            title="Arena Trader Sports"
-            description="Análise ao vivo pelo Mycroft"
+            title="Arena Live"
+            description="Análise ao vivo pelo Mycroft em tempo real"
             badge={{ label: 'Ao vivo', tone: 'live' }}
           />
           <NavCard
             onClick={() => navigate('/punter/multiplas')}
-            icon={<LayoutGrid className="w-4 h-4" />}
+            icon={<MessagesSquare className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Gerador de Múltipla"
@@ -105,106 +63,26 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         </div>
       </section>
 
-      {/* Minha Banca */}
+      {/* Bancas e Suporte */}
       <section>
-        <SectionLabel>Minha Banca</SectionLabel>
+        <SectionLabel>Bancas e Suporte</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
             onClick={() => navigate('/punter/banca-virtual')}
             icon={<Wallet className="w-4 h-4" />}
             iconBg="bg-warning/15"
             iconColor="text-warning"
-            title="Configurar Banca Virtual"
+            title="Banca Virtual"
             description="Defina seu capital e gestão de risco"
           />
           <NavCard
-            onClick={() => navigate('/punter/analytics')}
-            icon={<LineChart className="w-4 h-4" />}
-            iconBg="bg-primary/15"
-            iconColor="text-primary"
-            title="Meu Desempenho"
-            description="ROI, P&L e histórico completo"
-          />
-          <NavCard
-            onClick={() => navigate('/punter/import')}
-            icon={<Download className="w-4 h-4" />}
-            iconBg="bg-muted/40"
-            iconColor="text-foreground"
-            title="Importar Apostas"
-            description="Importar ROI e P&L de outras casas"
-          />
-          <NavCard
             onClick={() => navigate('/punter/betfair-real')}
-            icon={<Brain className="w-4 h-4" />}
+            icon={<ShieldCheck className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
-            title="Apostas Reais Betfair"
-            description="Sincronize e analise erros vs Arena Trader Sports"
+            title="Banca Real"
+            description="Apostas reais Betfair sincronizadas"
             badge={{ label: 'Novo', tone: 'exclusive' }}
-          />
-          <NavCard
-            onClick={() => navigate('/punter/auditoria')}
-            icon={<ShieldCheck className="w-4 h-4" />}
-            iconBg="bg-success/15"
-            iconColor="text-success"
-            title="Auditoria de Apostas"
-            description="Todas as apostas (Hórus + manual) e reprocessar liquidação de ontem"
-            badge={{ label: 'Novo', tone: 'exclusive' }}
-          />
-        </div>
-      </section>
-
-      {/* Casas de Apostas */}
-      <section>
-        <SectionLabel>Casas de Apostas</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <NavCard
-            onClick={() => window.open('https://www.pinnacle.com', '_blank', 'noopener,noreferrer')}
-            icon={<ExternalLink className="w-4 h-4" />}
-            iconBg="bg-warning/15"
-            iconColor="text-warning"
-            title="Pinnacle"
-            description="Casa referência em odds altas e sharp money"
-          />
-          <NavCard
-            onClick={() => window.open('https://www.betfair.com', '_blank', 'noopener,noreferrer')}
-            icon={<ExternalLink className="w-4 h-4" />}
-            iconBg="bg-[#FFB80C]/15"
-            iconColor="text-[#FFB80C]"
-            title="Betfair"
-            description="Exchange e Sportsbook — abrir site oficial"
-          />
-          <NavCard
-            onClick={() => window.open('https://www.bet365.com', '_blank', 'noopener,noreferrer')}
-            icon={<ExternalLink className="w-4 h-4" />}
-            iconBg="bg-success/15"
-            iconColor="text-success"
-            title="Bet365"
-            description="Acesso direto ao site oficial da Bet365"
-          />
-        </div>
-      </section>
-
-      {/* Comunidade e Suporte */}
-      <section>
-        <SectionLabel>Comunidade e Suporte</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <NavCard
-            onClick={() => navigate('/punter/comunidade')}
-            icon={<MessageCircle className="w-4 h-4" />}
-            iconBg="bg-[#229ED9]/15"
-            iconColor="text-[#229ED9]"
-            title="Grupo VIP Telegram"
-            description="Sinais e alertas em tempo real"
-          />
-          <NavCard
-            onClick={() => navigate('/punter/comunidade')}
-            icon={<MessagesSquare className="w-4 h-4" />}
-            iconBg="bg-[#25D366]/15"
-            iconColor="text-[#25D366]"
-            title="Grupo Fundadores"
-            description="Acesso direto e voz no produto"
-            badge={{ label: 'Exclusivo', tone: 'exclusive' }}
           />
           <NavCard
             onClick={() => navigate('/punter/comunidade')}
@@ -213,6 +91,41 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconColor="text-foreground"
             title="Suporte e Tutorial"
             description="Dúvidas, bugs e como usar"
+          />
+        </div>
+      </section>
+
+      {/* Comunidade */}
+      <section>
+        <SectionLabel>Comunidade</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <NavCard
+            onClick={() => navigate('/punter/comunidade')}
+            icon={<Send className="w-4 h-4" />}
+            iconBg="bg-[#229ED9]/15"
+            iconColor="text-[#229ED9]"
+            title="Grupo VIP Telegram Pré Live"
+            description="Sinais pré-jogo e alertas em tempo real"
+          />
+          <NavCard
+            onClick={() =>
+              window.open('https://t.me/oraculo_mycroft_trader', '_blank', 'noopener,noreferrer')
+            }
+            icon={<Send className="w-4 h-4" />}
+            iconBg="bg-destructive/15"
+            iconColor="text-destructive"
+            title="Grupo VIP Telegram AO VIVO"
+            description="Sinais ao vivo do Oráculo Mycroft Trader"
+            badge={{ label: 'Ao vivo', tone: 'live' }}
+          />
+          <NavCard
+            onClick={() => navigate('/punter/comunidade')}
+            icon={<MessagesSquare className="w-4 h-4" />}
+            iconBg="bg-[#25D366]/15"
+            iconColor="text-[#25D366]"
+            title="Grupo Whatsapp Fundadores"
+            description="Acesso direto e voz no produto"
+            badge={{ label: 'Exclusivo', tone: 'exclusive' }}
           />
         </div>
       </section>
