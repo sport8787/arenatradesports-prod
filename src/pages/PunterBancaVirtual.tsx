@@ -63,8 +63,16 @@ export default function PunterBancaVirtualPage() {
       <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
         <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Configurar Banca Virtual' }]} />
 
-        {/* Atalhos rápidos para painéis no /punter */}
+        {/* Atalhos para ferramentas relacionadas */}
         <section>
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
+            Ferramentas relacionadas
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+            <QuickBtn icon={<FileText className="w-3.5 h-3.5" />} label="Análise Manual" onClick={() => navigate('/punter/analise-manual')} />
+            <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Sinais Liquidados" onClick={() => navigate('/punter')} />
+            <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Apostas" onClick={() => navigate('/punter/auditoria')} />
+          </div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
             Painéis rápidos
           </p>
