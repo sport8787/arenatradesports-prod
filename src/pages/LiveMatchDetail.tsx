@@ -270,6 +270,8 @@ export default function LiveMatchDetail() {
   const [customStake, setCustomStake] = useState('');
   const [betLoading, setBetLoading] = useState(false);
   const [pushPerm, setPushPerm] = useState<PushPermission>('default');
+  const [statsEditorOpen, setStatsEditorOpen] = useState(false);
+  const { isAdmin } = useAdmin();
   const lastNotifiedRef = useRef<{ approved?: string; cancelled?: string }>({});
 
   // Fallback: se o jogo não estiver mais no feed ao vivo, busca direto no banco
