@@ -14,8 +14,10 @@ interface ReqBody {
   sample_size?: number;        // padrão 200
   window_hours?: number;       // padrão 168 (7 dias)
   mercado_filter?: string;     // opcional, substring
-  override_rules?: MycroftRule[];   // se enviado, usa essas regras em vez das ativas
+  override_rules?: MycroftRule[];   // se enviado, usa essas regras
   override_config?: Partial<MycroftConfig>;
+  history_version_ids?: string[];   // IDs de mycroft_rules_history para usar como override
+  history_at?: string;              // ISO timestamp: reconstrói o estado das regras nessa data
 }
 
 Deno.serve(async (req) => {
