@@ -989,7 +989,8 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
     },
     body: JSON.stringify({
       model: 'gemini-2.5-flash',
-      max_completion_tokens: 1500,
+      max_completion_tokens: 3000,
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -1008,9 +1009,72 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
   return data.choices?.[0]?.message?.content || ''
 }
 
-// ═══════════════════════════════════════════════
-// SHERLOCK — Indicadores avançados (CV, médias casa/fora)
-// ═══════════════════════════════════════════════
+/**
+ * Parser tolerante: extrai e tenta reparar JSON truncado vindo da IA.
+ * 1) Tenta JSON.parse direto.
+ * 2) Localiza o primeiro `{` e tenta JSON.parse do trecho até o último `}` válido.
+ * 3) Se ainda truncado, balanceia chaves/colchetes/aspas pendentes e tenta parsear.
+ */
+function parseJsonRobust(raw: string): any | null {
+  if (!raw) return null
+  // 1) parse direto
+  try { return JSON.parse(raw) } catch {}
+
+  const start = raw.indexOf('{')
+  if (start === -1) return null
+  const sliced = raw.slice(start)
+
+  // 2) tentar do { até o último } presente
+  const lastBrace = sliced.lastIndexOf('}')
+  if (lastBrace > 0) {
+    try { return JSON.parse(sliced.slice(0, lastBrace + 1)) } catch {}
+  }
+
+  // 3) balanceamento — fecha strings, arrays e objetos em aberto
+  let inString = false
+  let escape = false
+  let braces = 0
+  let brackets = 0
+  let lastSafe = -1 // último índice onde podemos cortar sem ficar dentro de string
+  for (let i = 0; i < sliced.length; i++) {
+    const c = sliced[i]
+    if (escape) { escape = false; continue }
+    if (c === '\\') { escape = true; continue }
+    if (c === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (c === '{') braces++
+    else if (c === '}') braces--
+    else if (c === '[') brackets++
+    else if (c === ']') brackets--
+    if (!inString && (c === ',' || c === '}' || c === ']')) lastSafe = i
+  }
+
+  // remove vírgula final pendente para não quebrar
+  let candidate = sliced
+  if (lastSafe !== -1 && (inString || braces > 0 || brackets > 0)) {
+    candidate = sliced.slice(0, lastSafe + 1).replace(/,\s*$/, '')
+    // recontar pendências sobre o candidato truncado
+    inString = false; escape = false; braces = 0; brackets = 0
+    for (let i = 0; i < candidate.length; i++) {
+      const c = candidate[i]
+      if (escape) { escape = false; continue }
+      if (c === '\\') { escape = true; continue }
+      if (c === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (c === '{') braces++
+      else if (c === '}') braces--
+      else if (c === '[') brackets++
+      else if (c === ']') brackets--
+    }
+  }
+  if (inString) candidate += '"'
+  while (brackets-- > 0) candidate += ']'
+  while (braces-- > 0) candidate += '}'
+
+  try { return JSON.parse(candidate) } catch (e) {
+    return null
+  }
+}
 
 interface TeamAdvancedStats {
   team_id: number
@@ -1333,16 +1397,14 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       if (!analysisText) throw new Error('AI não retornou análise válida')
 
-      // Clean and extract JSON
+      // Clean and extract JSON (com recuperação de JSON truncado)
       const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) {
-        console.error(`[Mycroft Punter] Resposta sem JSON (tentativa ${attempt + 1}):`, cleanJson.substring(0, 200))
+      const analysis = parseJsonRobust(cleanJson)
+      if (!analysis) {
+        console.error(`[Mycroft Punter] Resposta sem JSON parseável (tentativa ${attempt + 1}):`, cleanJson.substring(0, 300))
         if (attempt < maxRetries - 1) continue
         throw new Error('Falha ao parsear análise - sem JSON na resposta')
       }
-
-      const analysis = JSON.parse(jsonMatch[0])
 
       // Normalize verdict
       if (analysis.verdict && analysis.verdict.startsWith('APROVADO')) {
