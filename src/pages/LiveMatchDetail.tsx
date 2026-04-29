@@ -935,21 +935,44 @@ export default function LiveMatchDetail() {
           {/* Estatísticas */}
           <TabsContent value="stats" className="mt-4">
             <div className="luxury-card p-5 space-y-5">
-              {Object.keys(stats).length === 0 ? (
+              {isAdmin && (
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-amber-500/20">
+                  <div className="text-[11px] text-amber-300/90 leading-snug">
+                    🛠️ <strong>Modo Admin:</strong> você pode corrigir manualmente qualquer estatística zerada/faltando (xG, posse, chutes, escanteios, odd da entrada).
+                  </div>
+                  <button
+                    onClick={() => setStatsEditorOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase rounded-md bg-amber-500 text-amber-950 hover:bg-amber-400 transition-colors shrink-0"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar Stats
+                  </button>
+                </div>
+              )}
+              {Object.keys(stats).length === 0 && !isAdmin ? (
                 <div className="text-center py-8 space-y-2">
                   <Activity className="w-10 h-10 mx-auto text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">Estatísticas indisponíveis no momento.</p>
                 </div>
               ) : (
                 <>
+                  <StatRow label="xG (Gols Esperados)" home={stats.xG_home ?? stats.xg_home ?? 0} away={stats.xG_away ?? stats.xg_away ?? 0} />
                   <StatRow label="Posse de Bola" home={stats.possession_home} away={stats.possession_away} suffix="%" />
                   <StatRow label="Ataques Perigosos" home={stats.dangerous_attacks_home ?? stats.attacks_home} away={stats.dangerous_attacks_away ?? stats.attacks_away} />
-                  <StatRow label="Chutes" home={stats.shots_home} away={stats.shots_away} />
+                  <StatRow label="Chutes" home={stats.shots_total_home ?? stats.shots_home} away={stats.shots_total_away ?? stats.shots_away} />
                   <StatRow label="Chutes no Gol" home={stats.shots_on_target_home} away={stats.shots_on_target_away} />
                   <StatRow label="Escanteios" home={stats.corners_home} away={stats.corners_away} />
                   <StatRow label="Cartões" home={stats.cards_home} away={stats.cards_away} />
-                  {(stats.xG_home != null || stats.xG_away != null) && (
-                    <StatRow label="xG (Gols Esperados)" home={stats.xG_home} away={stats.xG_away} />
+                  {stats.odd_manual != null && Number(stats.odd_manual) > 0 && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-[11px] font-orbitron uppercase tracking-wider text-amber-300">Odd manual (admin)</span>
+                      <span className="text-amber-200 font-bold tabular-nums">{Number(stats.odd_manual).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {stats.admin_override && (
+                    <p className="text-[10px] text-amber-300/70 text-center">
+                      ✏️ Algumas estatísticas foram corrigidas manualmente pelo admin.
+                    </p>
                   )}
                 </>
               )}
