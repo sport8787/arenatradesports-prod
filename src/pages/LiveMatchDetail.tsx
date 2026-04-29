@@ -1188,6 +1188,17 @@ export default function LiveMatchDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isAdmin && match && (
+        <AdminStatsEditorModal
+          isOpen={statsEditorOpen}
+          onClose={() => setStatsEditorOpen(false)}
+          matchId={match.match_id || match.id}
+          homeTeam={match.home_team}
+          awayTeam={match.away_team}
+          currentStats={stats}
+        />
+      )}
     </div>
   );
 }
