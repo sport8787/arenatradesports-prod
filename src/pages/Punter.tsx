@@ -1349,55 +1349,11 @@ export default function PunterPage() {
             </div>
 
             {isAdmin && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={timeWindow === '15min' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeWindow('15min')}
-                  className="font-mono text-xs"
-                >
-                  <Clock className="w-3 h-3 mr-1.5" />
-                  15 MIN
-                </Button>
-                <Button
-                  variant={timeWindow === '48h' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeWindow('48h')}
-                  className="font-mono text-xs"
-                >
-                  <Calendar className="w-3 h-3 mr-1.5" />
-                  48H
-                </Button>
-              </div>
-            )}
-
-            {isAdmin && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={aiProvider === 'gemini' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAiProvider('gemini')}
-                  className="font-mono text-xs"
-                >
-                  Gemini
-                </Button>
-                <Button
-                  variant={aiProvider === 'anthropic' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAiProvider('anthropic')}
-                  className="font-mono text-xs"
-                >
-                  Claude
-                </Button>
-              </div>
-            )}
-
-            {isAdmin && (
               <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
                 ) : (
-                  <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO ({ANALYSIS_NT_COST} NT)</>
+                  <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
                 )}
               </GoldButton>
             )}
