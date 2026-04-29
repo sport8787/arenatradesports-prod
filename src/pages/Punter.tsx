@@ -693,6 +693,10 @@ export default function PunterPage() {
       setError('Você precisa estar logado para analisar jogos');
       return;
     }
+    if (!isAdmin) {
+      toast.error('🔒 Análise de Mercado é exclusiva para administradores');
+      return;
+    }
 
     // Análise de mercado é exclusiva para admin — sem cobrança de NT.
     refetchProfile();
