@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, RefreshCw, History } from "lucide-react";
+import { MycroftRulesAuditTab } from "@/components/admin/MycroftRulesAuditTab";
 
 type Modo = "trader" | "punter";
 
