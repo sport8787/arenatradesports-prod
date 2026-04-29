@@ -405,6 +405,21 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ========== GUARD ANTI-DUPLICIDADE DE MERCADO ==========
+        // Se o Mycroft retornou um mercado JÁ aprovado neste jogo, descarta como AGUARDAR
+        // (evita reenviar o mesmo sinal). Reanálises devem produzir mercados COMPLEMENTARES.
+        if (activeVerdicts.includes(analysis.verdict) && existingApprovedMarkets.length > 0) {
+          const newKey = normalizeMarketKey(analysis.market);
+          const dupHit = existingApprovedMarkets.find(e => normalizeMarketKey(e.market) === newKey);
+          if (dupHit) {
+            console.log(`[AnalyzeLive] 🔁 DUPLICATA bloqueada: "${analysis.market}" já aprovado em ${dupHit.created_at}`);
+            analysis.verdict = 'AGUARDAR';
+            analysis.thesis = `[DUPLICATA] Mercado "${analysis.market}" já foi aprovado anteriormente neste jogo. Reanálise busca mercados COMPLEMENTARES. ` + (analysis.thesis || '');
+            analysis.plan_name = null;
+          }
+        }
+        // ====================================================================
+
         // Save analysis
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
