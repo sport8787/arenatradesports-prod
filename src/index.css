@@ -151,18 +151,29 @@
     text-shadow: 0 0 10px hsl(142 100% 50% / 0.8);
   }
 
-  /* Card Luxury Effect */
+  /* Card Luxury Effect — alinhado ao tema landing */
   .luxury-card {
     @apply relative bg-card rounded-xl overflow-hidden;
-    background: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 6%) 100%);
-    border: 1px solid hsl(43 74% 49% / 0.2);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 hsl(0 0% 20% / 0.5);
+    background: linear-gradient(145deg, hsl(224 38% 11%) 0%, hsl(224 40% 6%) 100%);
+    border: 1px solid hsl(42 65% 56% / 0.18);
+    box-shadow:
+      0 10px 40px -10px hsl(224 47% 2% / 0.7),
+      inset 0 1px 0 hsl(210 25% 96% / 0.04);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .luxury-card:hover {
+    border-color: hsl(42 65% 56% / 0.35);
+    box-shadow:
+      0 14px 48px -12px hsl(224 47% 2% / 0.8),
+      0 0 32px -8px hsl(42 65% 56% / 0.2),
+      inset 0 1px 0 hsl(210 25% 96% / 0.05);
   }
 
   .luxury-card::before {
     content: '';
     @apply absolute top-0 left-0 right-0 h-px;
-    background: linear-gradient(90deg, transparent, hsl(43 74% 49% / 0.5), transparent);
+    background: linear-gradient(90deg, transparent, hsl(42 65% 56% / 0.6), transparent);
   }
 
   /* Question Option */
