@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
