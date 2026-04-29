@@ -34,7 +34,22 @@ function getReanalysisInterval(status: string, minute: number): number {
   if (status === 'labareda' || status === 'LABAREDA') {
     return 1 * MIN; // Always 1 min for LABAREDA
   }
+  // Jogo já APROVADO: ainda assim revisitamos a cada 3 min para tentar mercados
+  // COMPLEMENTARES (ex: aprovou Over 0.5 HT, depois pode aprovar Over 1.5 FT).
+  if (status === 'approved_extra' || status === 'APPROVED_EXTRA') {
+    if (minute < 60) return 3 * MIN;
+    return 2 * MIN;
+  }
   return 5 * MIN; // default
+}
+
+// Normaliza mercado para chave de comparação (evita duplicados óbvios)
+function normalizeMarketKey(m: string): string {
+  return String(m || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 serve(async (req) => {
