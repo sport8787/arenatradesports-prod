@@ -2885,6 +2885,51 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_rules_history: {
+        Row: {
+          changed_by: string | null
+          changed_by_email: string | null
+          changed_fields: string[] | null
+          created_at: string
+          diff: Json | null
+          id: string
+          modo: string | null
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changed_fields?: string[] | null
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          modo?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          changed_fields?: string[] | null
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          modo?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       mycroft_settlement_log: {
         Row: {
           analysis_id: string | null
