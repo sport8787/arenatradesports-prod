@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, RefreshCw, History } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, RefreshCw, History, AlertTriangle, FlaskConical } from "lucide-react";
 import { MycroftRulesAuditTab } from "@/components/admin/MycroftRulesAuditTab";
+import { MycroftRulesSimulatorTab } from "@/components/admin/MycroftRulesSimulatorTab";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type Modo = "trader" | "punter";
 
@@ -71,6 +73,26 @@ export default function AdminMycroftRules() {
   const [config, setConfig] = useState<ConfigState>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [shadowReport, setShadowReport] = useState<any[]>([]);
+  const [globalAlerts, setGlobalAlerts] = useState<Array<{ modo: string; pct: number; samples: number; threshold: number }>>([]);
+
+  async function loadGlobalAlerts() {
+    const list: Array<{ modo: string; pct: number; samples: number; threshold: number }> = [];
+    const { data: ths } = await supabase.from("mycroft_alert_thresholds" as any).select("*").eq("active", true);
+    for (const t of (ths ?? []) as any[]) {
+      const since = new Date(Date.now() - t.window_hours * 3600_000).toISOString();
+      const { data: rows } = await supabase
+        .from("analises_comparativas" as any)
+        .select("verdicto_atual,verdicto_novo")
+        .eq("modo", t.modo).gte("created_at", since).limit(2000);
+      const arr = (rows ?? []) as any[];
+      if (arr.length < t.min_samples) continue;
+      const div = arr.filter((r) => (r.verdicto_atual === "APROVADO") !== (r.verdicto_novo === "APROVADO")).length;
+      const pct = (100 * div) / arr.length;
+      if (pct > t.divergence_threshold_pct) list.push({ modo: t.modo, pct: +pct.toFixed(1), samples: arr.length, threshold: t.divergence_threshold_pct });
+    }
+    setGlobalAlerts(list);
+  }
+  useEffect(() => { if (isAdmin) loadGlobalAlerts(); }, [isAdmin]);
 
   useEffect(() => {
     if (!adminLoading && isAdmin) loadAll();
@@ -166,12 +188,31 @@ export default function AdminMycroftRules() {
         <Button variant="outline" size="sm" onClick={loadAll}><RefreshCw className="h-4 w-4 mr-1" />Recarregar</Button>
       </div>
 
-      <Tabs value={modo} onValueChange={(v) => v !== "audit" && setModo(v as Modo)}>
+      {globalAlerts.length > 0 && (
+        <div className="space-y-2">
+          {globalAlerts.map((a) => (
+            <Alert key={a.modo} variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>⚠️ Divergência Shadow alta — modo {a.modo.toUpperCase()}</AlertTitle>
+              <AlertDescription>
+                {a.pct}% das análises divergiram (limiar {a.threshold}% sobre {a.samples} amostras). Ajuste regras antes de migrar.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
+
+      <Tabs value={modo} onValueChange={(v) => v !== "audit" && v !== "simulator" && setModo(v as Modo)}>
         <TabsList>
           <TabsTrigger value="trader">⚡ Trader (live)</TabsTrigger>
           <TabsTrigger value="punter">🎯 Punter (pré-live)</TabsTrigger>
+          <TabsTrigger value="simulator"><FlaskConical className="h-4 w-4 mr-1" />Simulador</TabsTrigger>
           <TabsTrigger value="audit"><History className="h-4 w-4 mr-1" />Auditoria</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="simulator">
+          <MycroftRulesSimulatorTab />
+        </TabsContent>
 
         <TabsContent value="audit">
           <MycroftRulesAuditTab />
