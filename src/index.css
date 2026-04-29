@@ -6,79 +6,91 @@
 
 @layer base {
   :root {
-    /* Professional Investment Platform — Deep Navy & Gold */
-    --background: 222 47% 5%;
-    --foreground: 210 20% 95%;
+    /* ============================================================
+       ORÁCULO MYCROFT — Modern Premium Theme (v2)
+       Inspirado na landing: navy profundo + dourado refinado,
+       maior contraste e legibilidade em dashboards densos.
+       ============================================================ */
 
-    --card: 222 40% 8%;
-    --card-foreground: 210 20% 95%;
+    /* Surfaces — navy mais frio e profundo */
+    --background: 224 47% 4%;
+    --foreground: 210 30% 97%;
 
-    --popover: 222 40% 8%;
-    --popover-foreground: 210 20% 95%;
+    --card: 224 38% 9%;
+    --card-foreground: 210 25% 96%;
 
-    /* Institutional Gold — Primary */
-    --primary: 43 74% 49%;
-    --primary-foreground: 222 47% 5%;
+    --popover: 224 40% 7%;
+    --popover-foreground: 210 25% 96%;
 
-    /* Navy Secondary */
-    --secondary: 222 30% 14%;
-    --secondary-foreground: 210 20% 90%;
+    /* Primary — Dourado refinado (menos saturado, mais champagne) */
+    --primary: 42 65% 56%;
+    --primary-foreground: 224 47% 5%;
+    --primary-glow: 42 80% 68%;
 
-    --muted: 222 25% 18%;
-    --muted-foreground: 215 15% 55%;
+    /* Secondary — Navy elevado */
+    --secondary: 224 28% 15%;
+    --secondary-foreground: 210 25% 94%;
 
-    /* Teal Accent */
-    --accent: 173 80% 40%;
-    --accent-foreground: 222 47% 5%;
+    /* Muted — texto auxiliar com mais contraste (era 55% → 68%) */
+    --muted: 224 22% 16%;
+    --muted-foreground: 215 18% 70%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 98%;
+    /* Accent — Cyan/Teal premium */
+    --accent: 188 75% 48%;
+    --accent-foreground: 224 47% 5%;
 
-    /* Success — Profit Green */
-    --success: 152 69% 40%;
-    --success-foreground: 210 20% 98%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 210 25% 98%;
 
-    /* Warning */
-    --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 5%;
+    --success: 152 64% 44%;
+    --success-foreground: 210 25% 98%;
 
-    --border: 222 20% 18%;
-    --input: 222 25% 14%;
-    --ring: 43 74% 49%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 224 47% 5%;
 
-    --radius: 0.5rem;
+    /* Borders mais visíveis para densidade alta */
+    --border: 224 22% 22%;
+    --input: 224 26% 13%;
+    --ring: 42 65% 56%;
 
-    /* Mycroft AI Colors */
-    --mycroft-green: 152 69% 40%;
-    --mycroft-cyan: 173 80% 40%;
-    --mycroft-glow: 0 0 30px hsl(152 69% 40% / 0.3);
+    --radius: 0.75rem;
+
+    /* Mycroft AI — verde institucional */
+    --mycroft-green: 152 64% 44%;
+    --mycroft-cyan: 188 75% 48%;
+    --mycroft-glow: 0 0 40px hsl(152 64% 44% / 0.25);
 
     /* Arena */
-    --arena-gold: 43 74% 53%;
-    --arena-cyan: 173 80% 40%;
+    --arena-gold: 42 70% 58%;
+    --arena-cyan: 188 75% 48%;
 
-    /* Glow */
-    --gold-glow: 0 0 30px hsl(43 74% 49% / 0.15);
+    /* Glows refinados */
+    --gold-glow: 0 0 40px hsl(42 65% 56% / 0.18);
 
-    /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(43 74% 49%) 0%, hsl(38 80% 55%) 50%, hsl(43 74% 49%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(222 47% 8%) 0%, hsl(222 47% 4%) 100%);
-    --gradient-mycroft: linear-gradient(135deg, hsl(152 69% 40% / 0.1) 0%, hsl(173 80% 40% / 0.1) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(222 40% 10%) 0%, hsl(222 40% 7%) 100%);
+    /* Gradients — mais sutis, premium tipo landing */
+    --gradient-gold: linear-gradient(135deg, hsl(42 65% 50%) 0%, hsl(38 78% 62%) 50%, hsl(42 65% 50%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(224 47% 7%) 0%, hsl(224 47% 3%) 100%);
+    --gradient-mycroft: linear-gradient(135deg, hsl(152 64% 44% / 0.12) 0%, hsl(188 75% 48% / 0.12) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(224 38% 11%) 0%, hsl(224 40% 7%) 100%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(42 65% 56% / 0.08) 0%, transparent 60%);
 
-    --sidebar-background: 222 40% 8%;
-    --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 43 74% 49%;
-    --sidebar-primary-foreground: 222 47% 5%;
-    --sidebar-accent: 222 30% 14%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 222 20% 18%;
-    --sidebar-ring: 43 74% 49%;
+    /* Shadows premium */
+    --shadow-elegant: 0 10px 40px -10px hsl(224 47% 2% / 0.6);
+    --shadow-gold: 0 8px 32px -8px hsl(42 65% 56% / 0.35);
+
+    --sidebar-background: 224 38% 8%;
+    --sidebar-foreground: 210 25% 95%;
+    --sidebar-primary: 42 65% 56%;
+    --sidebar-primary-foreground: 224 47% 5%;
+    --sidebar-accent: 224 28% 14%;
+    --sidebar-accent-foreground: 210 25% 95%;
+    --sidebar-border: 224 22% 20%;
+    --sidebar-ring: 42 65% 56%;
   }
 
   .dark {
-    --background: 222 47% 5%;
-    --foreground: 210 20% 95%;
+    --background: 224 47% 4%;
+    --foreground: 210 30% 97%;
   }
 }
 
@@ -89,12 +101,23 @@
 
   body {
     @apply bg-background text-foreground font-rajdhani antialiased;
-    background: linear-gradient(180deg, hsl(222 47% 6%) 0%, hsl(222 47% 4%) 50%, hsl(222 47% 3%) 100%);
+    background:
+      radial-gradient(ellipse at top, hsl(42 65% 56% / 0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom, hsl(188 75% 48% / 0.04) 0%, transparent 55%),
+      linear-gradient(180deg, hsl(224 47% 5%) 0%, hsl(224 47% 3%) 50%, hsl(224 47% 2%) 100%);
+    background-attachment: fixed;
     min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-orbitron;
+    letter-spacing: -0.01em;
+  }
+
+  /* Selection com dourado refinado */
+  ::selection {
+    background: hsl(42 65% 56% / 0.3);
+    color: hsl(210 30% 97%);
   }
 }
 
