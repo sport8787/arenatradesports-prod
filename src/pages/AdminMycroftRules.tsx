@@ -188,12 +188,31 @@ export default function AdminMycroftRules() {
         <Button variant="outline" size="sm" onClick={loadAll}><RefreshCw className="h-4 w-4 mr-1" />Recarregar</Button>
       </div>
 
-      <Tabs value={modo} onValueChange={(v) => v !== "audit" && setModo(v as Modo)}>
+      {globalAlerts.length > 0 && (
+        <div className="space-y-2">
+          {globalAlerts.map((a) => (
+            <Alert key={a.modo} variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>⚠️ Divergência Shadow alta — modo {a.modo.toUpperCase()}</AlertTitle>
+              <AlertDescription>
+                {a.pct}% das análises divergiram (limiar {a.threshold}% sobre {a.samples} amostras). Ajuste regras antes de migrar.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
+
+      <Tabs value={modo} onValueChange={(v) => v !== "audit" && v !== "simulator" && setModo(v as Modo)}>
         <TabsList>
           <TabsTrigger value="trader">⚡ Trader (live)</TabsTrigger>
           <TabsTrigger value="punter">🎯 Punter (pré-live)</TabsTrigger>
+          <TabsTrigger value="simulator"><FlaskConical className="h-4 w-4 mr-1" />Simulador</TabsTrigger>
           <TabsTrigger value="audit"><History className="h-4 w-4 mr-1" />Auditoria</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="simulator">
+          <MycroftRulesSimulatorTab />
+        </TabsContent>
 
         <TabsContent value="audit">
           <MycroftRulesAuditTab />
