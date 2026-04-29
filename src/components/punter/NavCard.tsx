@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Eye } from 'lucide-react';
 
 export type NavCardBadge = {
   label: string;
@@ -47,8 +48,17 @@ export default function NavCard({
         className,
       )}
     >
-      <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-110', iconBg)}>
-        <span className={cn('flex', iconColor)}>{icon}</span>
+      <div className="flex items-start justify-between">
+        <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-110', iconBg)}>
+          <span className={cn('flex', iconColor)}>{icon}</span>
+        </div>
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary opacity-70 transition-opacity group-hover:opacity-100"
+          title="Oráculo Mycroft"
+          aria-label="Oráculo Mycroft"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </span>
       </div>
       <div className="space-y-1.5">
         <p className="text-sm font-bold text-foreground leading-tight tracking-tight">{title}</p>

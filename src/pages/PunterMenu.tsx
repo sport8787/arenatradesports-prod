@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, LogOut } from 'lucide-react';
+import { ArrowLeft, LogOut, Eye } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
@@ -39,7 +39,10 @@ export default function PunterMenuPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1">
+          <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+              <Eye className="h-3.5 w-3.5" />
+            </span>
             FUNÇÕES DO ORÁCULO MYCROFT
           </h1>
           <button
