@@ -34,7 +34,7 @@ interface AdminStatsEditorModalProps {
   currentStats?: EditableMatchStats | null;
 }
 
-const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number }> = [
+const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number; solo?: boolean }> = [
   { key: 'xG_home', label: 'xG', team: 'home', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'xG_away', label: 'xG', team: 'away', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'possession_home', label: 'Posse %', team: 'home', group: 'Posse de bola', max: 100 },
@@ -51,6 +51,7 @@ const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home'
   { key: 'big_chances_away', label: 'Big Chances', team: 'away', group: 'Big Chances' },
   { key: 'corners_home', label: 'Escanteios', team: 'home', group: 'Escanteios' },
   { key: 'corners_away', label: 'Escanteios', team: 'away', group: 'Escanteios' },
+  { key: 'odd_manual', label: 'Odd da entrada (manual)', team: 'home', group: 'Odd manual', step: 0.01, max: 1000, solo: true },
 ];
 
 export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTeam, awayTeam, currentStats }: AdminStatsEditorModalProps) {
