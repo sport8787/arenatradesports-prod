@@ -216,40 +216,57 @@ export function MycroftRulesAuditTab() {
                 <div className="col-span-2"><span className="text-muted-foreground">Record: </span><code>{selected.record_id}</code></div>
               </div>
 
-              {selected.operation === "UPDATE" && selected.diff && Object.keys(selected.diff).length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">Diff</h4>
-                  <div className="space-y-2">
-                    {Object.entries(selected.diff as Record<string, any>).map(([key, val]) => (
-                      <div key={key} className="border rounded p-2 text-xs">
-                        <div className="font-mono font-semibold mb-1">{key}</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-destructive/10 p-2 rounded">
-                            <div className="text-muted-foreground text-[10px] mb-1">ANTES</div>
-                            <pre className="whitespace-pre-wrap break-all">{JSON.stringify(val.old, null, 2)}</pre>
+              {selected.operation === "UPDATE" && (() => {
+                const changed = new Set(selected.changed_fields ?? []);
+                const allKeys = Array.from(new Set([
+                  ...Object.keys(selected.old_data ?? {}),
+                  ...Object.keys(selected.new_data ?? {}),
+                ])).filter((k) => !["updated_at"].includes(k));
+                const fmt = (v: any) => v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v, null, 2) : String(v);
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold">Comparação lado a lado</h4>
+                      <Badge variant="outline">{changed.size} campo(s) alterado(s)</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] sticky top-0 bg-background z-10">
+                      <div className="font-semibold p-2 bg-destructive/10 rounded">ANTES</div>
+                      <div className="font-semibold p-2 bg-green-500/10 rounded">DEPOIS</div>
+                    </div>
+                    <div className="space-y-1">
+                      {allKeys.map((k) => {
+                        const isChanged = changed.has(k);
+                        const oldV = selected.old_data?.[k];
+                        const newV = selected.new_data?.[k];
+                        return (
+                          <div key={k} className="grid grid-cols-2 gap-2 text-xs">
+                            <div className={`p-2 rounded border ${isChanged ? "bg-destructive/10 border-destructive/30" : "bg-muted/30 border-transparent opacity-60"}`}>
+                              <div className="font-mono text-[10px] text-muted-foreground mb-0.5">{k}</div>
+                              <pre className="whitespace-pre-wrap break-all">{fmt(oldV)}</pre>
+                            </div>
+                            <div className={`p-2 rounded border ${isChanged ? "bg-green-500/10 border-green-500/30" : "bg-muted/30 border-transparent opacity-60"}`}>
+                              <div className="font-mono text-[10px] text-muted-foreground mb-0.5">{k}</div>
+                              <pre className="whitespace-pre-wrap break-all">{fmt(newV)}</pre>
+                            </div>
                           </div>
-                          <div className="bg-green-500/10 p-2 rounded">
-                            <div className="text-muted-foreground text-[10px] mb-1">DEPOIS</div>
-                            <pre className="whitespace-pre-wrap break-all">{JSON.stringify(val.new, null, 2)}</pre>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {selected.operation === "INSERT" && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Dados criados</h4>
-                  <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-64">{JSON.stringify(selected.new_data, null, 2)}</pre>
+                  <pre className="text-xs bg-green-500/10 p-3 rounded overflow-auto max-h-96 border border-green-500/30">{JSON.stringify(selected.new_data, null, 2)}</pre>
                 </div>
               )}
 
               {selected.operation === "DELETE" && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Dados removidos</h4>
-                  <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-64">{JSON.stringify(selected.old_data, null, 2)}</pre>
+                  <pre className="text-xs bg-destructive/10 p-3 rounded overflow-auto max-h-96 border border-destructive/30">{JSON.stringify(selected.old_data, null, 2)}</pre>
                 </div>
               )}
             </div>
