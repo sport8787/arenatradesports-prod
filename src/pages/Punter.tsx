@@ -1415,6 +1415,7 @@ export default function PunterPage() {
               )}
             </Button>
 
+            {isAdmin && (
             <Button
               onClick={async () => {
                 if (haLoading) return;
@@ -1451,6 +1452,7 @@ export default function PunterPage() {
                 <><TrendingUpIcon className="mr-2 h-4 w-4" /> ANALISAR HANDICAP ASIÁTICO ({ANALYSIS_NT_COST} NT)</>
               )}
             </Button>
+            )}
 
             {(signals.length > 0 || futureSignals.length > 0) && (
               <Button
