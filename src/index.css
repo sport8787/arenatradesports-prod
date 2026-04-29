@@ -276,28 +276,53 @@
 
 @layer utilities {
   .text-gold {
-    color: hsl(43 74% 49%);
+    color: hsl(42 65% 56%);
   }
 
   .text-glow-gold {
-    text-shadow: 0 0 10px hsl(43 74% 49% / 0.5);
+    text-shadow: 0 0 12px hsl(42 65% 56% / 0.5);
   }
 
   .text-glow-cyan {
-    text-shadow: 0 0 10px hsl(180 100% 50% / 0.5);
+    text-shadow: 0 0 12px hsl(188 75% 48% / 0.55);
   }
 
   .text-glow-green {
-    text-shadow: 0 0 10px hsl(142 100% 50% / 0.5);
+    text-shadow: 0 0 12px hsl(152 64% 44% / 0.55);
   }
 
   .border-gold {
-    border-color: hsl(43 74% 49% / 0.3);
+    border-color: hsl(42 65% 56% / 0.3);
   }
 
   .bg-glass {
-    @apply backdrop-blur-sm;
-    background: hsl(0 0% 10% / 0.8);
+    @apply backdrop-blur-md;
+    background: hsl(224 38% 9% / 0.7);
+    border: 1px solid hsl(224 22% 22% / 0.6);
+  }
+
+  /* === Modern landing-aligned helpers (opt-in) === */
+  .surface-elevated {
+    background: linear-gradient(145deg, hsl(224 38% 11%) 0%, hsl(224 40% 7%) 100%);
+    border: 1px solid hsl(224 22% 22%);
+    box-shadow: 0 10px 40px -10px hsl(224 47% 2% / 0.6);
+  }
+
+  .ring-gold {
+    box-shadow: 0 0 0 1px hsl(42 65% 56% / 0.4), 0 8px 32px -8px hsl(42 65% 56% / 0.25);
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, hsl(42 80% 68%) 0%, hsl(42 65% 50%) 50%, hsl(38 78% 60%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .divider-gold {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(42 65% 56% / 0.4), transparent);
   }
 }
 
