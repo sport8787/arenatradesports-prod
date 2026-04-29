@@ -1,7 +1,8 @@
 // Simulador de regras Mycroft — roda o engine contra cenários históricos
 // (snapshots de analises_comparativas) com regras CUSTOM (preview) ou as ativas.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { avaliarJogo, type MycroftRule, type MycroftConfig, type Modo } from "../_shared/mycroft-rules-engine.ts";
+import type { MycroftRule, MycroftConfig, Modo } from "../_shared/mycroft-rules-engine.ts";
+import { runEngineLocal } from "./local-engine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
