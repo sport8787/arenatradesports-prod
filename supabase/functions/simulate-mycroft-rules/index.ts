@@ -64,20 +64,6 @@ Deno.serve(async (req) => {
       ...(body.override_config ?? {}),
     } as MycroftConfig;
 
-    // Mock SB que devolve as regras/config sem hit no cache do engine
-    const mockSb: any = {
-      from: (table: string) => ({
-        select: () => ({
-          eq: () => ({
-            eq: () => ({ order: () => Promise.resolve({ data: rules }) }),
-          }),
-        }),
-      }),
-    };
-    // Patch: vamos usar avaliarJogo mas burlando o cache — mais seguro: replicar lógica inline.
-    // Simpler: chamar engine com override via inject? O engine tem cache. Usamos copy local.
-    const { runEngineLocal } = await import("./local-engine.ts");
-
     const dist = { APROVADO: 0, CUIDADO: 0, AGUARDAR: 0, VETADO: 0 };
     const distAtual: Record<string, number> = {};
     let divergentes = 0;
