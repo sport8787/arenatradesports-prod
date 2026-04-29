@@ -2528,6 +2528,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_alert_thresholds: {
+        Row: {
+          active: boolean
+          divergence_threshold_pct: number
+          id: string
+          min_samples: number
+          modo: string
+          updated_at: string
+          updated_by: string | null
+          window_hours: number
+        }
+        Insert: {
+          active?: boolean
+          divergence_threshold_pct?: number
+          id?: string
+          min_samples?: number
+          modo: string
+          updated_at?: string
+          updated_by?: string | null
+          window_hours?: number
+        }
+        Update: {
+          active?: boolean
+          divergence_threshold_pct?: number
+          id?: string
+          min_samples?: number
+          modo?: string
+          updated_at?: string
+          updated_by?: string | null
+          window_hours?: number
+        }
+        Relationships: []
+      }
       mycroft_analyses: {
         Row: {
           alerts: string[] | null
