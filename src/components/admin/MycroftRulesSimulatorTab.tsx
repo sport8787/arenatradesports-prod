@@ -163,9 +163,13 @@ export function MycroftRulesSimulatorTab() {
     setRunning(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("simulate-mycroft-rules", {
-        body: { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined },
-      });
+      const body: any = { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined };
+      if (rulesSourceMode === "history_at" && historyAt) {
+        body.history_at = new Date(historyAt).toISOString();
+      } else if (rulesSourceMode === "history_versions" && selectedHistoryIds.length > 0) {
+        body.history_version_ids = selectedHistoryIds;
+      }
+      const { data, error } = await supabase.functions.invoke("simulate-mycroft-rules", { body });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Falha");
       if (data.total === 0) toast.warning("Sem cenários no período. Aumente a janela.");
