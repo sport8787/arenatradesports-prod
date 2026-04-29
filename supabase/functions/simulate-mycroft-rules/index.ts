@@ -14,8 +14,10 @@ interface ReqBody {
   sample_size?: number;        // padrão 200
   window_hours?: number;       // padrão 168 (7 dias)
   mercado_filter?: string;     // opcional, substring
-  override_rules?: MycroftRule[];   // se enviado, usa essas regras em vez das ativas
+  override_rules?: MycroftRule[];   // se enviado, usa essas regras
   override_config?: Partial<MycroftConfig>;
+  history_version_ids?: string[];   // IDs de mycroft_rules_history para usar como override
+  history_at?: string;              // ISO timestamp: reconstrói o estado das regras nessa data
 }
 
 Deno.serve(async (req) => {
@@ -46,11 +48,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Carrega regras/config — override ou as ativas
+    // Carrega regras/config — override direto, override por histórico, ou ativas
     let rules: MycroftRule[];
     let config: MycroftConfig;
+    let rules_source = "active";
+
     if (body.override_rules?.length) {
       rules = body.override_rules.filter((r) => r.active && r.modo === modo).sort((a, b) => b.priority - a.priority);
+      rules_source = "override_inline";
+    } else if (body.history_version_ids?.length) {
+      // Reconstrói regras a partir de versões históricas selecionadas (snapshot do new_data)
+      const { data: hist } = await sb
+        .from("mycroft_rules_history")
+        .select("record_id,new_data,operation")
+        .in("id", body.history_version_ids);
+      rules = ((hist ?? []) as any[])
+        .filter((h) => h.operation !== "DELETE" && h.new_data)
+        .map((h) => h.new_data as MycroftRule)
+        .filter((r) => r && r.modo === modo);
+      rules_source = "history_versions";
+    } else if (body.history_at) {
+      // Reconstrói o estado das regras na data fornecida usando a última versão de cada record_id <= history_at
+      const { data: hist } = await sb
+        .from("mycroft_rules_history")
+        .select("record_id,new_data,old_data,operation,created_at")
+        .eq("table_name", "mycroft_rules")
+        .lte("created_at", body.history_at)
+        .order("created_at", { ascending: true });
+      const latest = new Map<string, any>();
+      for (const h of (hist ?? []) as any[]) {
+        if (h.operation === "DELETE") latest.delete(h.record_id);
+        else latest.set(h.record_id, h.new_data);
+      }
+      rules = Array.from(latest.values()).filter((r) => r && r.modo === modo && r.active) as MycroftRule[];
+      rules_source = `history_at:${body.history_at}`;
     } else {
       const { data } = await sb.from("mycroft_rules").select("*").eq("modo", modo).eq("active", true);
       rules = (data ?? []) as MycroftRule[];
@@ -72,6 +103,18 @@ Deno.serve(async (req) => {
     let green_novo = 0, red_novo = 0, green_atual = 0, red_atual = 0, total_settled = 0;
     const samples: any[] = [];
 
+    // Ranking de regras: contribuição em casos divergentes
+    interface RuleStat {
+      rule: string; field: string; op: string; value: number;
+      category: "pontuacao" | "veto"; points: number | null;
+      hits_total: number; hits_div: number;
+      veto_div: number; bonus_div: number;
+      flips_to_aprovado: number; flips_from_aprovado: number;
+    }
+    const ruleStats = new Map<string, RuleStat>();
+    const ruleMeta = new Map<string, MycroftRule>();
+    rules.forEach((r) => ruleMeta.set(r.name, r));
+
     for (const c of cenarios) {
       const stats = (c.stats_snapshot ?? {}) as Record<string, any>;
       const result = runEngineLocal({ rules, config, mercado: c.mercado, odd: c.odd_atual ?? undefined, minute: stats.minute, stats });
@@ -81,10 +124,38 @@ Deno.serve(async (req) => {
 
       const aprovouNovo = result.status === "APROVADO";
       const aprovouAtual = va === "APROVADO";
-      if (aprovouNovo !== aprovouAtual) {
+      const isDiv = aprovouNovo !== aprovouAtual;
+      if (isDiv) {
         divergentes++;
         if (aprovouNovo && !aprovouAtual) novos_aprovou_atual_nao++;
         if (!aprovouNovo && aprovouAtual) atual_aprovou_novo_nao++;
+      }
+
+      // Atribui contribuição às regras que MATCHED
+      for (const log of result.logs) {
+        if (!log.matched) continue;
+        const meta = ruleMeta.get(log.rule);
+        if (!meta) continue;
+        const key = log.rule;
+        let s = ruleStats.get(key);
+        if (!s) {
+          s = {
+            rule: log.rule, field: log.field, op: log.op, value: log.value,
+            category: meta.category, points: meta.points,
+            hits_total: 0, hits_div: 0,
+            veto_div: 0, bonus_div: 0,
+            flips_to_aprovado: 0, flips_from_aprovado: 0,
+          };
+          ruleStats.set(key, s);
+        }
+        s.hits_total++;
+        if (isDiv) {
+          s.hits_div++;
+          if (log.veto) s.veto_div++;
+          if (log.delta) s.bonus_div++;
+          if (aprovouNovo && !aprovouAtual) s.flips_to_aprovado++;
+          if (!aprovouNovo && aprovouAtual) s.flips_from_aprovado++;
+        }
       }
 
       if (c.resultado_real) {
@@ -99,12 +170,23 @@ Deno.serve(async (req) => {
           home: c.home_team, away: c.away_team, league: c.league,
           verdicto_atual: va, verdicto_novo: result.status,
           score_novo: result.score, stake_novo: result.stake,
-          divergente: aprovouNovo !== aprovouAtual,
+          divergente: isDiv,
           resultado_real: c.resultado_real,
           razoes: result.explicacao.razoes.slice(0, 3),
         });
       }
     }
+
+    // Ranking ordenado por impacto em divergências
+    const ruleRanking = Array.from(ruleStats.values())
+      .map((s) => ({
+        ...s,
+        impacto_pct: s.hits_total > 0 ? +(100 * s.hits_div / s.hits_total).toFixed(1) : 0,
+        impacto_score: s.hits_div * (s.flips_to_aprovado + s.flips_from_aprovado + 1),
+      }))
+      .filter((s) => s.hits_div > 0)
+      .sort((a, b) => b.hits_div - a.hits_div)
+      .slice(0, 20);
 
     const total = cenarios.length;
     return new Response(JSON.stringify({
@@ -123,6 +205,8 @@ Deno.serve(async (req) => {
         atual_aprovou: green_atual + red_atual,
       },
       samples,
+      rule_ranking: ruleRanking,
+      rules_source,
       config_used: config,
       rules_count: rules.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

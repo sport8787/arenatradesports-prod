@@ -37,7 +37,24 @@ interface SimResult {
     atual_aprovou: number;
   };
   samples: any[];
+  rule_ranking?: Array<{
+    rule: string; field: string; op: string; value: number;
+    category: "pontuacao" | "veto"; points: number | null;
+    hits_total: number; hits_div: number;
+    veto_div: number; bonus_div: number;
+    flips_to_aprovado: number; flips_from_aprovado: number;
+    impacto_pct: number;
+  }>;
+  rules_source?: string;
   rules_count: number;
+}
+
+interface HistoryOption {
+  id: string;
+  created_at: string;
+  changed_by_email: string | null;
+  operation: string;
+  rule_name: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -83,6 +100,29 @@ export function MycroftRulesSimulatorTab() {
   const [mercadoFilter, setMercadoFilter] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
+  const [rulesSourceMode, setRulesSourceMode] = useState<"current" | "history_at" | "history_versions">("current");
+  const [historyAt, setHistoryAt] = useState<string>(""); // datetime-local
+  const [historyOptions, setHistoryOptions] = useState<HistoryOption[]>([]);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+
+  const loadHistoryOptions = async (m: Modo) => {
+    const { data } = await supabase
+      .from("mycroft_rules_history" as any)
+      .select("id,created_at,changed_by_email,operation,new_data,old_data")
+      .eq("table_name", "mycroft_rules")
+      .eq("modo", m)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setHistoryOptions(((data ?? []) as any[]).map((h) => ({
+      id: h.id,
+      created_at: h.created_at,
+      changed_by_email: h.changed_by_email,
+      operation: h.operation,
+      rule_name: h.new_data?.name ?? h.old_data?.name ?? "—",
+    })));
+  };
+
+  useEffect(() => { loadHistoryOptions(modo); setSelectedHistoryIds([]); }, [modo]);
 
   const loadThresholds = async () => {
     const { data } = await supabase.from("mycroft_alert_thresholds" as any).select("*");
@@ -123,9 +163,13 @@ export function MycroftRulesSimulatorTab() {
     setRunning(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("simulate-mycroft-rules", {
-        body: { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined },
-      });
+      const body: any = { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined };
+      if (rulesSourceMode === "history_at" && historyAt) {
+        body.history_at = new Date(historyAt).toISOString();
+      } else if (rulesSourceMode === "history_versions" && selectedHistoryIds.length > 0) {
+        body.history_version_ids = selectedHistoryIds;
+      }
+      const { data, error } = await supabase.functions.invoke("simulate-mycroft-rules", { body });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error ?? "Falha");
       if (data.total === 0) toast.warning("Sem cenários no período. Aumente a janela.");
@@ -227,9 +271,51 @@ export function MycroftRulesSimulatorTab() {
               <Input placeholder="ex: over 2.5" value={mercadoFilter} onChange={(e) => setMercadoFilter(e.target.value)} />
             </div>
           </div>
-          <Button onClick={runSimulation} disabled={running}>
+
+          {/* FONTE DE REGRAS */}
+          <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Fonte das regras</div>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant={rulesSourceMode === "current" ? "default" : "outline"} onClick={() => setRulesSourceMode("current")}>Regras ativas (atual)</Button>
+              <Button size="sm" variant={rulesSourceMode === "history_at" ? "default" : "outline"} onClick={() => setRulesSourceMode("history_at")}>Snapshot por data</Button>
+              <Button size="sm" variant={rulesSourceMode === "history_versions" ? "default" : "outline"} onClick={() => setRulesSourceMode("history_versions")}>Versões específicas</Button>
+            </div>
+            {rulesSourceMode === "history_at" && (
+              <div>
+                <Label className="text-xs">Reconstruir estado em</Label>
+                <Input type="datetime-local" value={historyAt} onChange={(e) => setHistoryAt(e.target.value)} />
+                <p className="text-[11px] text-muted-foreground mt-1">Aplica todas as alterações registradas até esta data.</p>
+              </div>
+            )}
+            {rulesSourceMode === "history_versions" && (
+              <div className="space-y-2">
+                <Label className="text-xs">Selecione versões ({selectedHistoryIds.length} marcadas)</Label>
+                <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1 bg-background">
+                  {historyOptions.length === 0 && <p className="text-xs text-muted-foreground">Sem histórico para este modo.</p>}
+                  {historyOptions.map((h) => (
+                    <label key={h.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedHistoryIds.includes(h.id)}
+                        onChange={(e) => setSelectedHistoryIds((p) => e.target.checked ? [...p, h.id] : p.filter((x) => x !== h.id))}
+                      />
+                      <Badge variant="outline" className="text-[10px]">{h.operation}</Badge>
+                      <span className="font-medium">{h.rule_name}</span>
+                      <span className="text-muted-foreground ml-auto">{new Date(h.created_at).toLocaleString("pt-BR")}</span>
+                      <span className="text-muted-foreground">{h.changed_by_email ?? "—"}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Button onClick={runSimulation} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
             <Play className="h-4 w-4 mr-2" />{running ? "Rodando…" : "Rodar simulação"}
           </Button>
+          {result?.rules_source && (
+            <p className="text-[11px] text-muted-foreground">Fonte usada: <code>{result.rules_source}</code> · {result.rules_count} regras</p>
+          )}
 
           {result && result.total > 0 && (
             <div className="space-y-4 pt-3">
@@ -275,6 +361,50 @@ export function MycroftRulesSimulatorTab() {
                       {winDelta != null ? `${winDelta > 0 ? "+" : ""}${winDelta}pp` : "—"}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* RANKING DE REGRAS DIVERGENTES */}
+              {result.rule_ranking && result.rule_ranking.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Regras que mais contribuíram para divergências</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Ordenado por nº de casos divergentes em que a regra disparou. Use para identificar quais ajustar primeiro.</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Regra</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Condição</TableHead>
+                        <TableHead className="text-right">Hits</TableHead>
+                        <TableHead className="text-right">Em divergência</TableHead>
+                        <TableHead className="text-right">% impacto</TableHead>
+                        <TableHead className="text-right">→ APROVADO</TableHead>
+                        <TableHead className="text-right">← APROVADO</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.rule_ranking.map((r) => (
+                        <TableRow key={r.rule}>
+                          <TableCell className="text-xs font-medium">{r.rule}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.category === "veto" ? "destructive" : "secondary"} className="text-[10px]">
+                              {r.category === "veto" ? "VETO" : `+${r.points ?? 0}pts`}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono">{r.field} {r.op} {r.value}</TableCell>
+                          <TableCell className="text-right text-xs">{r.hits_total}</TableCell>
+                          <TableCell className="text-right text-xs font-bold">{r.hits_div}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="outline" className={r.impacto_pct > 50 ? "bg-destructive/15 text-destructive border-destructive/30" : r.impacto_pct > 25 ? "bg-yellow-500/15 text-yellow-500 border-yellow-500/30" : ""}>
+                              {r.impacto_pct}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-green-500">+{r.flips_to_aprovado}</TableCell>
+                          <TableCell className="text-right text-xs text-destructive">−{r.flips_from_aprovado}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
 
