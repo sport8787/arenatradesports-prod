@@ -57,6 +57,7 @@ const ArenaTraderSeason = React.lazy(() => import("./pages/ArenaTraderSeason"));
 const ArenaBlackjack = React.lazy(() => import("./pages/ArenaBlackjack"));
 const MycroftMemory = React.lazy(() => import("./pages/MycroftMemory"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
+const AdminMycroftRules = React.lazy(() => import("./pages/AdminMycroftRules"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
@@ -142,6 +143,7 @@ const App = () => {
                 <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
                 <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
+                <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>

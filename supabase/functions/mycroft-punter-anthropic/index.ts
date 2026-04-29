@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1416,6 +1417,33 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         })
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
+
+      // ─── SHADOW MODE: motor de regras dinâmicas ───
+      try {
+        await shadowCompare({
+          sb: supabaseClient,
+          modo: 'punter',
+          source_function: 'mycroft-punter-anthropic',
+          match_id: matchId,
+          mercado: analysis.market || 'N/A',
+          home_team: game.home_team,
+          away_team: game.away_team,
+          league: game.sport_title,
+          odd: analysis.odd ?? undefined,
+          stats: {
+            value_percentage: Number(analysis.value_percentage ?? 0),
+            implied_probability: Number(analysis.implied_probability ?? 0),
+            estimated_probability: Number(analysis.estimated_probability ?? 0),
+            expected_value: Number(analysis.expected_value ?? 0),
+            confidence: Number(analysis.confidence ?? 0),
+            odd: Number(analysis.odd ?? 0),
+          },
+          verdicto_atual: analysis.verdict,
+          score_atual: Number(analysis.confidence ?? 0),
+          stake_atual: Number(analysis.stake_percentage ?? 0),
+          data_jogo: game.commence_time,
+        });
+      } catch (e) { console.warn('[shadowMode] punter falhou:', (e as Error).message); }
 
       // Persist detector results
       const modelProb = analysis.estimated_probability || null

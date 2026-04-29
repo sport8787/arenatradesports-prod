@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { shadowCompare } from '../_shared/mycroft-rules-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -458,6 +459,35 @@ async function salvarSinal(s: any) {
       console.error('[HA] mirror punter_analyses err', e);
     }
   }
+
+  // ─── SHADOW MODE: motor de regras dinâmicas (modo trader pré-live) ───
+  try {
+    await shadowCompare({
+      sb: supabase,
+      modo: 'trader',
+      source_function: 'handicap-asiatico-prelive',
+      match_id: `ha-${s.fixtureId}-${s.linhaRecomendada}`,
+      fixture_id: String(s.fixtureId ?? ''),
+      mercado: `HA ${s.linhaRecomendada}`,
+      home_team: s.homeTeam,
+      away_team: s.awayTeam,
+      league: s.leagueName,
+      odd: s.oddHA ?? undefined,
+      stats: {
+        score_ha: Number(s.scoreHA ?? 0),
+        fav_odd: Number(s.favOdd ?? 0),
+        und_odd: Number(s.undOdd ?? 0),
+        odd_ha: Number(s.oddHA ?? 0),
+        win2_rate: Number(s.indicadores?.win2_rate ?? 0),
+        gs_und: Number(s.indicadores?.gs_und ?? 0),
+        derrotas_und_rate: Number(s.indicadores?.derrotas_und_rate ?? 0),
+        sem_marcar_und_rate: Number(s.indicadores?.sem_marcar_und_rate ?? 0),
+      },
+      verdicto_atual: s.statusHA,
+      score_atual: Number(s.scoreHA ?? 0),
+      data_jogo: s.matchDate,
+    });
+  } catch (e) { console.warn('[shadowMode] HA prelive falhou:', (e as Error).message); }
 }
 
 async function notificarTelegram(s: any) {

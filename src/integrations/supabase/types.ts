@@ -44,6 +44,90 @@ export type Database = {
         }
         Relationships: []
       }
+      analises_comparativas: {
+        Row: {
+          away_team: string | null
+          created_at: string
+          data_jogo: string | null
+          explicacao_novo: Json | null
+          fixture_id: string | null
+          home_team: string | null
+          id: string
+          league: string | null
+          logs_novo: Json | null
+          match_id: string | null
+          mercado: string | null
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          odd_atual: number | null
+          odd_novo: number | null
+          resultado_real: string | null
+          score_atual: number | null
+          score_novo: number | null
+          settled_at: string | null
+          source_function: string
+          stake_atual: number | null
+          stake_novo: number | null
+          stats_snapshot: Json | null
+          updated_at: string
+          verdicto_atual: string | null
+          verdicto_novo: string | null
+        }
+        Insert: {
+          away_team?: string | null
+          created_at?: string
+          data_jogo?: string | null
+          explicacao_novo?: Json | null
+          fixture_id?: string | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          logs_novo?: Json | null
+          match_id?: string | null
+          mercado?: string | null
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          odd_atual?: number | null
+          odd_novo?: number | null
+          resultado_real?: string | null
+          score_atual?: number | null
+          score_novo?: number | null
+          settled_at?: string | null
+          source_function: string
+          stake_atual?: number | null
+          stake_novo?: number | null
+          stats_snapshot?: Json | null
+          updated_at?: string
+          verdicto_atual?: string | null
+          verdicto_novo?: string | null
+        }
+        Update: {
+          away_team?: string | null
+          created_at?: string
+          data_jogo?: string | null
+          explicacao_novo?: Json | null
+          fixture_id?: string | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          logs_novo?: Json | null
+          match_id?: string | null
+          mercado?: string | null
+          modo?: Database["public"]["Enums"]["mycroft_modo"]
+          odd_atual?: number | null
+          odd_novo?: number | null
+          resultado_real?: string | null
+          score_atual?: number | null
+          score_novo?: number | null
+          settled_at?: string | null
+          source_function?: string
+          stake_atual?: number | null
+          stake_novo?: number | null
+          stats_snapshot?: Json | null
+          updated_at?: string
+          verdicto_atual?: string | null
+          verdicto_novo?: string | null
+        }
+        Relationships: []
+      }
       analises_manuais: {
         Row: {
           away_team: string
@@ -2615,6 +2699,36 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_config: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          updated_at: string
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          updated_at?: string
+          updated_by?: string | null
+          value: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          modo?: Database["public"]["Enums"]["mycroft_modo"]
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       mycroft_memory: {
         Row: {
           category: string
@@ -2711,6 +2825,63 @@ export type Database = {
           risco?: string
           versao?: number | null
           vetos?: Json
+        }
+        Relationships: []
+      }
+      mycroft_rules: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          field: string
+          id: string
+          mercado: string | null
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          name: string
+          operator: string
+          points: number | null
+          priority: number
+          time_end: number | null
+          time_start: number | null
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          field: string
+          id?: string
+          mercado?: string | null
+          modo: Database["public"]["Enums"]["mycroft_modo"]
+          name: string
+          operator: string
+          points?: number | null
+          priority?: number
+          time_end?: number | null
+          time_start?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          value: number
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          field?: string
+          id?: string
+          mercado?: string | null
+          modo?: Database["public"]["Enums"]["mycroft_modo"]
+          name?: string
+          operator?: string
+          points?: number | null
+          priority?: number
+          time_end?: number | null
+          time_start?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
         }
         Relationships: []
       }
@@ -6100,6 +6271,7 @@ export type Database = {
       app_role: "admin" | "user"
       audio_frequency: "alta" | "media" | "baixa"
       difficulty_level: "Easy" | "Medium" | "Hard"
+      mycroft_modo: "trader" | "punter"
       room_status:
         | "lobby"
         | "question"
@@ -6238,6 +6410,7 @@ export const Constants = {
       app_role: ["admin", "user"],
       audio_frequency: ["alta", "media", "baixa"],
       difficulty_level: ["Easy", "Medium", "Hard"],
+      mycroft_modo: ["trader", "punter"],
       room_status: [
         "lobby",
         "question",

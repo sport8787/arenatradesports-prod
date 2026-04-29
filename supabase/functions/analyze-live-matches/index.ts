@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -508,6 +509,39 @@ serve(async (req) => {
           console.error(`[AnalyzeLive] ❌ Insert error for ${match.match_id}:`, JSON.stringify(insertError));
           continue;
         }
+
+        // ─── SHADOW MODE: motor de regras dinâmicas (não afeta produção) ───
+        try {
+          const _stats: any = (enrichedStats as any) || {};
+          await shadowCompare({
+            sb: supabase,
+            modo: 'trader',
+            source_function: 'analyze-live-matches',
+            match_id: match.match_id,
+            mercado: analysis.market || 'N/A',
+            home_team: match.home_team,
+            away_team: match.away_team,
+            league: (match as any).championship || (match as any).league || null,
+            odd: analysis.odd ?? undefined,
+            minute: Number(match.minute ?? 0),
+            stats: {
+              minute: Number(match.minute ?? 0),
+              score_home: Number(match.score_home ?? 0),
+              score_away: Number(match.score_away ?? 0),
+              total_goals: Number(match.score_home ?? 0) + Number(match.score_away ?? 0),
+              xg_home: Number(_stats.xg_home ?? _stats.xG_home ?? 0),
+              xg_away: Number(_stats.xg_away ?? _stats.xG_away ?? 0),
+              xg_total: Number(_stats.xg_home ?? _stats.xG_home ?? 0) + Number(_stats.xg_away ?? _stats.xG_away ?? 0),
+              shots_total: Number(_stats.shots_total ?? 0),
+              shots_on_target: Number(_stats.shots_on_target_total ?? _stats.shots_on_target ?? 0),
+              dangerous_attacks: Number(_stats.dangerous_attacks_total ?? _stats.dangerous_attacks ?? 0),
+              possession_max: Math.max(Number(_stats.possession_home ?? 0), Number(_stats.possession_away ?? 0)),
+              corners_total: Number(_stats.corners_total ?? 0),
+            },
+            verdicto_atual: analysis.verdict,
+            score_atual: Number(analysis.confidence ?? 0),
+          });
+        } catch (e) { console.warn('[shadowMode] live falhou:', (e as Error).message); }
 
         if (analysisRow) {
           // Map verdict to mycroft_status — preserve dynamic statuses for reanalysis
