@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet, DollarSign } from 'lucide-react';
+import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet, DollarSign, Pencil } from 'lucide-react';
 import OddsComparator from './OddsComparator';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
+import AdminStatsEditorModal from './AdminStatsEditorModal';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export interface AdditionalMarket {
   market: string;
