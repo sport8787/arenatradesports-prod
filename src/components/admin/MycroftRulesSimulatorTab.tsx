@@ -367,7 +367,7 @@ export function MycroftRulesSimulatorTab() {
             )}
           </div>
 
-          <Button onClick={runSimulation} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
+          <Button onClick={() => runSimulation()} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
             <Play className="h-4 w-4 mr-2" />{running ? "Rodando…" : "Rodar simulação"}
           </Button>
           {result?.rules_source && (
