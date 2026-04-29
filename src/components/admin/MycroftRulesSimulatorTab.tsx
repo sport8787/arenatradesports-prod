@@ -106,6 +106,12 @@ export function MycroftRulesSimulatorTab() {
   const [historyOptions, setHistoryOptions] = useState<HistoryOption[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
 
+  // Filtros do ranking
+  const [filterCategory, setFilterCategory] = useState<"all" | "pontuacao" | "veto">("all");
+  const [filterField, setFilterField] = useState<string>("all");
+  const [filterOperator, setFilterOperator] = useState<string>("all");
+  const [filterRuleSearch, setFilterRuleSearch] = useState("");
+
   const loadHistoryOptions = async (m: Modo) => {
     const { data } = await supabase
       .from("mycroft_rules_history" as any)
