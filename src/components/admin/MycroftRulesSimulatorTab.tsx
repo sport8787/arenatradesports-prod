@@ -516,6 +516,10 @@ export function MycroftRulesSimulatorTab() {
                       ))}
                     </TableBody>
                   </Table>
+
+                  <div className="mt-4">
+                    <MycroftRulesImpactChart ranking={filteredRanking} />
+                  </div>
                 </div>
               )}
 
