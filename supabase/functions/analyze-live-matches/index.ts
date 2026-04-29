@@ -314,6 +314,47 @@ serve(async (req) => {
         const analysis = await analysisRes.json();
         console.log(`[AnalyzeLive] Verdict for ${match.match_id}: ${analysis.verdict} (${analysis.confidence}%)`);
 
+        // ========== VETO TEMPORAL POR MERCADO (server-side guard) ==========
+        // Regras solicitadas pelo produto:
+        //  • Over 0.5 HT → só aprovar até o minuto 30 do 1T E placar 0x0
+        //    (se já saiu 1 gol no HT — 1x0 / 0x1 / qualquer — VETAR)
+        //  • Over 1.5 / 2.5 / 3.5 / 4.5 (FT) → só aprovar até o minuto 70
+        // Aplica-se apenas a verdicts ativos (APROVADO / APROVADO_SITUACIONAL / LABAREDA)
+        const activeVerdicts = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'];
+        if (activeVerdicts.includes(analysis.verdict)) {
+          const marketLower = String(analysis.market || '').toLowerCase();
+          const minute = Number(match.minute ?? 0);
+          const sh = Number(match.score_home ?? 0);
+          const sa = Number(match.score_away ?? 0);
+          const totalGoals = sh + sa;
+
+          // 1) Over 0.5 HT
+          const isOver05HT =
+            /over\s*0\.?5/.test(marketLower) &&
+            (/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower));
+          if (isOver05HT) {
+            if (minute > 30 || totalGoals >= 1) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: <=30' e 0x0)`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Regra exige minuto ≤ 30 e placar 0x0. ` + (analysis.thesis || '');
+              analysis.plan_name = null;
+            }
+          }
+
+          // 2) Over 1.5 / 2.5 / 3.5 / 4.5 (FT) — só até minuto 70
+          //    Não aplica a Over X.5 HT (já tratado/menor escopo) nem Under.
+          const over15plusFT =
+            /over\s*(1\.?5|2\.?5|3\.?5|4\.?5)/.test(marketLower) &&
+            !/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half|2t|2[ºo]?\s*tempo|segundo\s*tempo|second\s*half)/.test(marketLower);
+          if (over15plusFT && minute > 70) {
+            console.log(`[AnalyzeLive] 🚫 VETO Over 1.5/2.5/3.5/4.5 FT — min=${minute} (regra: <=70')`);
+            analysis.verdict = 'AGUARDAR';
+            analysis.thesis = `[VETO TEMPORAL] ${analysis.market} bloqueado: minuto ${minute} > 70'. Janela de valor encerrada. ` + (analysis.thesis || '');
+            analysis.plan_name = null;
+          }
+        }
+        // ====================================================================
+
         // Save analysis
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
