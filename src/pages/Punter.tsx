@@ -1305,13 +1305,24 @@ export default function PunterPage() {
             </div>
 
             {isAdmin && (
-              <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
-                {loading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
-                ) : (
-                  <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
-                )}
-              </GoldButton>
+              <div className="space-y-1">
+                <GoldButton
+                  onClick={analyzeGames}
+                  disabled={loading}
+                  title="Exclusivo Admin · Sem custo NT · Powered by OpenAI"
+                  aria-label="Analisar mercado — exclusivo admin, sem custo de NT"
+                  className="w-full font-mono text-xs tracking-wider"
+                >
+                  {loading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
+                  ) : (
+                    <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+                  )}
+                </GoldButton>
+                <p className="text-[10px] font-mono text-muted-foreground text-center">
+                  🔒 Exclusivo Admin · Sem custo NT · OpenAI
+                </p>
+              </div>
             )}
 
             <Button
