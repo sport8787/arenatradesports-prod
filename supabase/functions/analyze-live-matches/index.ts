@@ -95,17 +95,16 @@ serve(async (req) => {
       return true;
     }).slice(0, 5);
 
-    // Re-analyze ALL non-APROVADO matches with tiered intervals
-    // Statuses eligible for reanalysis: aguardar, jogo_morto, cuidado, labareda
-    const REANALYSIS_STATUSES = ['aguardar', 'jogo_morto', 'cuidado', 'labareda'];
-    
+    // Re-analyze ALL matches (incluindo APROVADOS) com tiered intervals.
+    // Para jogos APROVADOS, o objetivo é buscar MERCADOS COMPLEMENTARES
+    // (ex: aprovou Over 0.5 HT — pode aprovar Over 1.5 FT depois).
     const { data: matchesForReanalysis, error: matchError2 } = await supabase
       .from('live_matches')
-      .select('*, mycroft_analyses!inner(id, verdict, plan_name, created_at)')
+      .select('*, mycroft_analyses!inner(id, verdict, plan_name, market, created_at)')
       .eq('status', 'live')
       .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
-      .limit(20);
+      .limit(30);
 
     const now = Date.now();
     const reAnalyzable = (matchesForReanalysis || []).filter((m: any) => {
@@ -119,32 +118,44 @@ serve(async (req) => {
       const isUnder25Active = verdict === 'APROVADO' && planName === 'PLANO UNDER 2.5 EARLY';
       const isDominanteActive = verdict === 'APROVADO' && planName === 'PLANO BACK AO DOMINANTE';
       const isMonitoredActive = isUnder25Active || isDominanteActive;
-
-      // Demais APROVADOS não são reanalisados (signal already emitted)
-      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isMonitoredActive) return false;
+      const isApproved = verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL';
 
       // Determine effective status for interval calculation
-      const effectiveStatus = isMonitoredActive ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
+      let effectiveStatus: string;
+      if (isMonitoredActive) effectiveStatus = 'labareda';
+      else if (isApproved) effectiveStatus = 'approved_extra'; // busca mercados COMPLEMENTARES
+      else effectiveStatus = (verdict || m.mycroft_status || 'aguardar');
+
       const interval = getReanalysisInterval(effectiveStatus, min);
 
       // For early minutes, also check special context
       if (min < 10 && !hasSpecialEarlyContext(m)) return false;
 
+      // Não reanalisar jogos APROVADOS após o min 85 (janela de novos mercados encerrada)
+      if (isApproved && !isMonitoredActive && min > 85) return false;
+
       if (elapsed > interval) {
-        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isMonitoredActive ? ` [${planName}-MONITOR]` : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        const tag = isMonitoredActive ? `[${planName}-MONITOR]` : (isApproved ? '[BUSCA-EXTRA]' : '');
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${tag}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
         return true;
       }
       return false;
-    }).slice(0, 5);
+    }).slice(0, 8);
 
     if (reAnalyzable.length > 0) {
       console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} matches eligible for re-analysis`);
       for (const m of reAnalyzable) {
-        await supabase.from('live_matches').update({
-          mycroft_analysis_id: null,
-          mycroft_status: 'pending',
-          updated_at: new Date().toISOString(),
-        }).eq('match_id', m.match_id);
+        const verdict = m.mycroft_analyses?.verdict || '';
+        const isApproved = verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL';
+        // Para APROVADOS, NÃO resetar o vínculo (mantém sinal entregue visível).
+        // Para outros, reseta para que a nova análise vire a "atual".
+        if (!isApproved) {
+          await supabase.from('live_matches').update({
+            mycroft_analysis_id: null,
+            mycroft_status: 'pending',
+            updated_at: new Date().toISOString(),
+          }).eq('match_id', m.match_id);
+        }
       }
     }
 
