@@ -306,6 +306,29 @@ serve(async (req) => {
           console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore=false, flashscore=false) — Mycroft será avisado`);
         }
 
+        // 🎯 MERCADOS JÁ APROVADOS NESTE JOGO — para Mycroft NÃO repetir e
+        // procurar entradas COMPLEMENTARES (ex: já tem Over 0.5 HT → tentar Over 1.5/2.5 FT, BTTS, escanteios)
+        let existingApprovedMarkets: Array<{ market: string; verdict: string; minute: number | null; created_at: string }> = [];
+        try {
+          const { data: priorApproved } = await supabase
+            .from('mycroft_analyses')
+            .select('market, verdict, approved_at_minute, created_at')
+            .eq('match_id', match.match_id)
+            .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
+            .order('created_at', { ascending: true });
+          existingApprovedMarkets = (priorApproved || []).map((r: any) => ({
+            market: r.market,
+            verdict: r.verdict,
+            minute: r.approved_at_minute,
+            created_at: r.created_at,
+          }));
+          if (existingApprovedMarkets.length > 0) {
+            console.log(`[AnalyzeLive] 🎯 ${match.home_team} vs ${match.away_team} já tem ${existingApprovedMarkets.length} mercado(s) aprovado(s): ${existingApprovedMarkets.map(e => e.market).join(' | ')}`);
+          }
+        } catch (e) {
+          console.warn('[AnalyzeLive] Falha ao buscar mercados já aprovados:', (e as Error)?.message);
+        }
+
         const analysisRes = await fetch(
           `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
           {
@@ -326,6 +349,7 @@ serve(async (req) => {
                 match_id: match.match_id,
                 stats: enrichedStats,
                 bankroll: bankroll ?? 500,
+                existingApprovedMarkets,
               },
             }),
           }
