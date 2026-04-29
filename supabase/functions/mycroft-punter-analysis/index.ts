@@ -993,22 +993,22 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
     schemaProperties.referee_impact = { type: 'string', nullable: true }
   }
 
-  const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')
-  if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not configured')
+  const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not configured')
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25_000)
 
   let r: Response
   try {
-    r = await fetch('https://api.openai.com/v1/chat/completions', {
+    r = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`,
+        'Authorization': `Bearer ${GEMINI_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: sys },
           { role: 'user', content: `IMPORTANTE — IDIOMA OBRIGATÓRIO: Você DEVE responder TODOS os campos de texto (thesis, analysis, risk_factors, market) em PORTUGUÊS BRASILEIRO. Respostas em inglês serão REJEITADAS.\n\n${usr}` },
@@ -1027,12 +1027,12 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
           },
         }],
         tool_choice: { type: 'function', function: { name: 'punter_analysis' } },
-        max_completion_tokens: 8192,
+        max_completion_tokens: 8000,
       }),
       signal: controller.signal,
     })
   } catch (e: any) {
-    if (e?.name === 'AbortError') throw new Error('OPENAI_TIMEOUT')
+    if (e?.name === 'AbortError') throw new Error('GEMINI_TIMEOUT')
     throw e
   } finally {
     clearTimeout(timeoutId)
@@ -1040,14 +1040,14 @@ async function callGemini(sys:string, usr:string, incCorners:boolean=false, incC
 
   if (!r.ok) {
     const errBody = await r.text()
-    console.error(`[Mycroft Punter] OpenAI error ${r.status}: ${errBody.substring(0, 500)}`)
+    console.error(`[Mycroft Punter] Gemini error ${r.status}: ${errBody.substring(0, 500)}`)
     if (r.status === 429) {
       throw new Error(`RATE_LIMITED:15`)
     }
     if (r.status === 402 || r.status === 401) {
       throw new Error(`AI_CREDITS_EXHAUSTED`)
     }
-    throw new Error(`OpenAI error ${r.status}`)
+    throw new Error(`Gemini error ${r.status}`)
   }
 
   const data = await r.json()
