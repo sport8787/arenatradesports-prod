@@ -205,6 +205,8 @@ Deno.serve(async (req) => {
         atual_aprovou: green_atual + red_atual,
       },
       samples,
+      rule_ranking: ruleRanking,
+      rules_source,
       config_used: config,
       rules_count: rules.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
