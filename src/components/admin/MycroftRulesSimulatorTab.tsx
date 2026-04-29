@@ -166,12 +166,14 @@ export function MycroftRulesSimulatorTab() {
     else { toast.success("Limiar atualizado"); loadThresholds(); checkAlerts(); }
   };
 
-  const runSimulation = async () => {
+  const runSimulation = async (overrideRules?: any[]) => {
     setRunning(true);
     setResult(null);
     try {
       const body: any = { modo, sample_size: sampleSize, window_hours: windowHours, mercado_filter: mercadoFilter || undefined };
-      if (rulesSourceMode === "history_at" && historyAt) {
+      if (overrideRules && overrideRules.length > 0) {
+        body.override_rules = overrideRules;
+      } else if (rulesSourceMode === "history_at" && historyAt) {
         body.history_at = new Date(historyAt).toISOString();
       } else if (rulesSourceMode === "history_versions" && selectedHistoryIds.length > 0) {
         body.history_version_ids = selectedHistoryIds;
@@ -187,6 +189,54 @@ export function MycroftRulesSimulatorTab() {
       setRunning(false);
     }
   };
+
+  const rerunWithFilteredRules = async () => {
+    const { data, error } = await supabase
+      .from("mycroft_rules" as any)
+      .select("*")
+      .eq("modo", modo)
+      .eq("active", true);
+    if (error) { toast.error("Erro ao carregar regras"); return; }
+    const filtered = ((data ?? []) as any[]).filter((r) => {
+      if (filterCategory !== "all" && r.category !== filterCategory) return false;
+      if (filterField !== "all" && r.field !== filterField) return false;
+      if (filterOperator !== "all" && r.operator !== filterOperator) return false;
+      if (filterRuleSearch && !r.name.toLowerCase().includes(filterRuleSearch.toLowerCase())) return false;
+      return true;
+    });
+    if (filtered.length === 0) { toast.warning("Nenhuma regra após filtros."); return; }
+    toast.info(`Re-rodando com ${filtered.length} regras filtradas…`);
+    await runSimulation(filtered);
+  };
+
+  const filteredRanking = useMemo(() => {
+    if (!result?.rule_ranking) return [];
+    return result.rule_ranking.filter((r) => {
+      if (filterCategory !== "all" && r.category !== filterCategory) return false;
+      if (filterField !== "all" && r.field !== filterField) return false;
+      if (filterOperator !== "all" && r.operator !== filterOperator) return false;
+      if (filterRuleSearch && !r.rule.toLowerCase().includes(filterRuleSearch.toLowerCase())) return false;
+      return true;
+    });
+  }, [result, filterCategory, filterField, filterOperator, filterRuleSearch]);
+
+  const availableFields = useMemo(() => {
+    const set = new Set<string>();
+    result?.rule_ranking?.forEach((r) => set.add(r.field));
+    return Array.from(set).sort();
+  }, [result]);
+
+  const availableOps = useMemo(() => {
+    const set = new Set<string>();
+    result?.rule_ranking?.forEach((r) => set.add(r.op));
+    return Array.from(set).sort();
+  }, [result]);
+
+  const clearFilters = () => {
+    setFilterCategory("all"); setFilterField("all"); setFilterOperator("all"); setFilterRuleSearch("");
+  };
+
+  const hasFilters = filterCategory !== "all" || filterField !== "all" || filterOperator !== "all" || !!filterRuleSearch;
 
   const winDelta = useMemo(() => {
     if (!result?.winrate.novo_winrate || !result?.winrate.atual_winrate) return null;
