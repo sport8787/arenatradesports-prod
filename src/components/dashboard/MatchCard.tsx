@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
@@ -8,6 +8,8 @@ import { formatMatchPeriod } from '@/lib/matchPeriod';
 import FavoriteButton from './FavoriteButton';
 import { computeCriteria as computeCriteriaShared, getCriteriaSummary } from '@/lib/matchCriteria';
 import CriteriaDetailModal from './CriteriaDetailModal';
+import AdminStatsEditorModal from './AdminStatsEditorModal';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export interface MatchStats {
   possession_home?: number;
