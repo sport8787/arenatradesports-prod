@@ -694,53 +694,9 @@ export default function PunterPage() {
       return;
     }
 
-    // Try to deduct NT server-side, but don't block analysis on failure
-    try {
-      const { data: spentOk, error: spendErr } = await supabase.rpc('spend_nt_balance', {
-        p_user_id: user.id,
-        p_amount: ANALYSIS_NT_COST,
-      });
-      if (spendErr) {
-        console.error('spend_nt_balance error:', spendErr);
-        // If profile not found, try to create one first then retry
-        if (spendErr.message?.includes('Profile not found')) {
-          await supabase.from('profiles').upsert({
-            user_id: user.id,
-            username: user.email?.split('@')[0] || 'Jogador',
-            nt_balance: 5000,
-            bc_balance: 1000,
-            bluff_coins: 1000,
-          }, { onConflict: 'user_id' });
-          // Retry spend
-          const { data: retryOk } = await supabase.rpc('spend_nt_balance', {
-            p_user_id: user.id,
-            p_amount: ANALYSIS_NT_COST,
-          });
-          if (retryOk === false) {
-            toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT.`);
-            return;
-          }
-        } else {
-          // Non-critical: log but continue with analysis
-          console.warn('NT deduction failed, proceeding anyway:', spendErr.message);
-        }
-      } else if (spentOk === false) {
-        const { data: freshProfile } = await supabase
-          .from('profiles')
-          .select('nt_balance')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        const currentBalance = freshProfile?.nt_balance ?? 0;
-        toast.error(`⚡ Saldo insuficiente! Você precisa de ${ANALYSIS_NT_COST} NT para analisar. Saldo: ${currentBalance} NT`);
-        return;
-      } else {
-        toast.info(`⚡ -${ANALYSIS_NT_COST} NT debitados para análise`);
-      }
-    } catch (ntErr) {
-      console.warn('NT balance check failed, proceeding:', ntErr);
-    }
-    // Refresh profile to sync NT balance in UI
+    // Análise de mercado é exclusiva para admin — sem cobrança de NT.
     refetchProfile();
+
 
     setLoading(true);
     setError(null);
