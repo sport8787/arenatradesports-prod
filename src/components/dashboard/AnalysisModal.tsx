@@ -609,6 +609,16 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
           </motion.div>
         </>
       )}
+      {isAdmin && match?.matchId && (
+        <AdminStatsEditorModal
+          isOpen={adminEditOpen}
+          onClose={() => setAdminEditOpen(false)}
+          matchId={match.matchId}
+          homeTeam={match.home}
+          awayTeam={match.away}
+          currentStats={stats as any}
+        />
+      )}
     </AnimatePresence>
   );
 }
