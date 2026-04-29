@@ -989,7 +989,8 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
     },
     body: JSON.stringify({
       model: 'gemini-2.5-flash',
-      max_completion_tokens: 1500,
+      max_completion_tokens: 3000,
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
