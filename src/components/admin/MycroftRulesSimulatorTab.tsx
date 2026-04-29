@@ -37,7 +37,24 @@ interface SimResult {
     atual_aprovou: number;
   };
   samples: any[];
+  rule_ranking?: Array<{
+    rule: string; field: string; op: string; value: number;
+    category: "pontuacao" | "veto"; points: number | null;
+    hits_total: number; hits_div: number;
+    veto_div: number; bonus_div: number;
+    flips_to_aprovado: number; flips_from_aprovado: number;
+    impacto_pct: number;
+  }>;
+  rules_source?: string;
   rules_count: number;
+}
+
+interface HistoryOption {
+  id: string;
+  created_at: string;
+  changed_by_email: string | null;
+  operation: string;
+  rule_name: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
