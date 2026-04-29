@@ -271,9 +271,51 @@ export function MycroftRulesSimulatorTab() {
               <Input placeholder="ex: over 2.5" value={mercadoFilter} onChange={(e) => setMercadoFilter(e.target.value)} />
             </div>
           </div>
-          <Button onClick={runSimulation} disabled={running}>
+
+          {/* FONTE DE REGRAS */}
+          <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Fonte das regras</div>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant={rulesSourceMode === "current" ? "default" : "outline"} onClick={() => setRulesSourceMode("current")}>Regras ativas (atual)</Button>
+              <Button size="sm" variant={rulesSourceMode === "history_at" ? "default" : "outline"} onClick={() => setRulesSourceMode("history_at")}>Snapshot por data</Button>
+              <Button size="sm" variant={rulesSourceMode === "history_versions" ? "default" : "outline"} onClick={() => setRulesSourceMode("history_versions")}>Versões específicas</Button>
+            </div>
+            {rulesSourceMode === "history_at" && (
+              <div>
+                <Label className="text-xs">Reconstruir estado em</Label>
+                <Input type="datetime-local" value={historyAt} onChange={(e) => setHistoryAt(e.target.value)} />
+                <p className="text-[11px] text-muted-foreground mt-1">Aplica todas as alterações registradas até esta data.</p>
+              </div>
+            )}
+            {rulesSourceMode === "history_versions" && (
+              <div className="space-y-2">
+                <Label className="text-xs">Selecione versões ({selectedHistoryIds.length} marcadas)</Label>
+                <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1 bg-background">
+                  {historyOptions.length === 0 && <p className="text-xs text-muted-foreground">Sem histórico para este modo.</p>}
+                  {historyOptions.map((h) => (
+                    <label key={h.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedHistoryIds.includes(h.id)}
+                        onChange={(e) => setSelectedHistoryIds((p) => e.target.checked ? [...p, h.id] : p.filter((x) => x !== h.id))}
+                      />
+                      <Badge variant="outline" className="text-[10px]">{h.operation}</Badge>
+                      <span className="font-medium">{h.rule_name}</span>
+                      <span className="text-muted-foreground ml-auto">{new Date(h.created_at).toLocaleString("pt-BR")}</span>
+                      <span className="text-muted-foreground">{h.changed_by_email ?? "—"}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Button onClick={runSimulation} disabled={running || (rulesSourceMode === "history_at" && !historyAt) || (rulesSourceMode === "history_versions" && selectedHistoryIds.length === 0)}>
             <Play className="h-4 w-4 mr-2" />{running ? "Rodando…" : "Rodar simulação"}
           </Button>
+          {result?.rules_source && (
+            <p className="text-[11px] text-muted-foreground">Fonte usada: <code>{result.rules_source}</code> · {result.rules_count} regras</p>
+          )}
 
           {result && result.total > 0 && (
             <div className="space-y-4 pt-3">
