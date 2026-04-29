@@ -143,6 +143,7 @@ const App = () => {
                 <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
                 <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
+                <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>
