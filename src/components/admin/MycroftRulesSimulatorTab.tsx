@@ -424,8 +424,58 @@ export function MycroftRulesSimulatorTab() {
               {/* RANKING DE REGRAS DIVERGENTES */}
               {result.rule_ranking && result.rule_ranking.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Regras que mais contribuíram para divergências</h4>
-                  <p className="text-xs text-muted-foreground mb-2">Ordenado por nº de casos divergentes em que a regra disparou. Use para identificar quais ajustar primeiro.</p>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                    <div>
+                      <h4 className="text-sm font-semibold">Regras que mais contribuíram para divergências</h4>
+                      <p className="text-xs text-muted-foreground">Mostrando <strong>{filteredRanking.length}</strong> de {result.rule_ranking.length} regras. Filtre e re-rode com somente as regras filtradas para isolar impacto.</p>
+                    </div>
+                    <Button size="sm" variant="default" onClick={rerunWithFilteredRules} disabled={running || !hasFilters}>
+                      <Play className="h-3 w-3 mr-1" />Re-rodar só com regras filtradas
+                    </Button>
+                  </div>
+
+                  {/* FILTROS DO RANKING */}
+                  <div className="border rounded-lg p-3 mb-3 bg-muted/20 grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
+                    <div>
+                      <Label className="text-[11px] flex items-center gap-1"><Filter className="h-3 w-3" />Categoria</Label>
+                      <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as any)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="pontuacao">Pontuação</SelectItem>
+                          <SelectItem value="veto">Veto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Field</Label>
+                      <Select value={filterField} onValueChange={setFilterField}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {availableFields.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Operador</Label>
+                      <Select value={filterOperator} onValueChange={setFilterOperator}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {availableOps.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Buscar regra</Label>
+                      <Input className="h-8 text-xs" placeholder="nome contém…" value={filterRuleSearch} onChange={(e) => setFilterRuleSearch(e.target.value)} />
+                    </div>
+                    <Button size="sm" variant="outline" onClick={clearFilters} disabled={!hasFilters} className="h-8">
+                      <X className="h-3 w-3 mr-1" />Limpar
+                    </Button>
+                  </div>
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -440,7 +490,10 @@ export function MycroftRulesSimulatorTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {result.rule_ranking.map((r) => (
+                      {filteredRanking.length === 0 && (
+                        <TableRow><TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-4">Nenhuma regra corresponde aos filtros.</TableCell></TableRow>
+                      )}
+                      {filteredRanking.map((r) => (
                         <TableRow key={r.rule}>
                           <TableCell className="text-xs font-medium">{r.rule}</TableCell>
                           <TableCell>
