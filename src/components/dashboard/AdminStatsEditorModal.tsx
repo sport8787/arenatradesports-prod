@@ -59,6 +59,8 @@ export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTe
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // Inicializa os valores APENAS quando o modal abre — não reinicializa quando
+  // currentStats muda (realtime/polling) para não apagar o que o admin está digitando.
   useEffect(() => {
     if (!isOpen) return;
     const init: Record<string, string> = {};
@@ -67,7 +69,8 @@ export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTe
       init[f.key as string] = v != null && Number.isFinite(Number(v)) && Number(v) > 0 ? String(v) : '';
     });
     setValues(init);
-  }, [isOpen, currentStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleChange = (key: string, raw: string) => {
     setValues(prev => ({ ...prev, [key]: raw.replace(',', '.') }));
