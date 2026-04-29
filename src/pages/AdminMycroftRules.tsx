@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, ArrowLeft, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, RefreshCw, History } from "lucide-react";
+import { MycroftRulesAuditTab } from "@/components/admin/MycroftRulesAuditTab";
 
 type Modo = "trader" | "punter";
 
@@ -165,11 +166,16 @@ export default function AdminMycroftRules() {
         <Button variant="outline" size="sm" onClick={loadAll}><RefreshCw className="h-4 w-4 mr-1" />Recarregar</Button>
       </div>
 
-      <Tabs value={modo} onValueChange={(v) => setModo(v as Modo)}>
+      <Tabs value={modo} onValueChange={(v) => v !== "audit" && setModo(v as Modo)}>
         <TabsList>
           <TabsTrigger value="trader">⚡ Trader (live)</TabsTrigger>
           <TabsTrigger value="punter">🎯 Punter (pré-live)</TabsTrigger>
+          <TabsTrigger value="audit"><History className="h-4 w-4 mr-1" />Auditoria</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="audit">
+          <MycroftRulesAuditTab />
+        </TabsContent>
 
         <TabsContent value={modo} className="space-y-6">
           {/* CONFIG */}
