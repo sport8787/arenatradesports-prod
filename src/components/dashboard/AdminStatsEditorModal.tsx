@@ -155,9 +155,15 @@ export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTe
                     <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground">{group}</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {fields.map(f => (
-                        <div key={f.key as string}>
+                        <div key={f.key as string} className={f.solo ? 'col-span-2' : ''}>
                           <label className="block text-[10px] text-muted-foreground mb-1">
-                            <span className="font-bold">{f.team === 'home' ? homeTeam : awayTeam}</span> · {f.label}
+                            {f.solo ? (
+                              <span className="font-bold">{f.label}</span>
+                            ) : (
+                              <>
+                                <span className="font-bold">{f.team === 'home' ? homeTeam : awayTeam}</span> · {f.label}
+                              </>
+                            )}
                           </label>
                           <input
                             type="number"
