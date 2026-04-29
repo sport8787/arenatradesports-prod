@@ -48,11 +48,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Carrega regras/config — override ou as ativas
+    // Carrega regras/config — override direto, override por histórico, ou ativas
     let rules: MycroftRule[];
     let config: MycroftConfig;
+    let rules_source = "active";
+
     if (body.override_rules?.length) {
       rules = body.override_rules.filter((r) => r.active && r.modo === modo).sort((a, b) => b.priority - a.priority);
+      rules_source = "override_inline";
+    } else if (body.history_version_ids?.length) {
+      // Reconstrói regras a partir de versões históricas selecionadas (snapshot do new_data)
+      const { data: hist } = await sb
+        .from("mycroft_rules_history")
+        .select("record_id,new_data,operation")
+        .in("id", body.history_version_ids);
+      rules = ((hist ?? []) as any[])
+        .filter((h) => h.operation !== "DELETE" && h.new_data)
+        .map((h) => h.new_data as MycroftRule)
+        .filter((r) => r && r.modo === modo);
+      rules_source = "history_versions";
+    } else if (body.history_at) {
+      // Reconstrói o estado das regras na data fornecida usando a última versão de cada record_id <= history_at
+      const { data: hist } = await sb
+        .from("mycroft_rules_history")
+        .select("record_id,new_data,old_data,operation,created_at")
+        .eq("table_name", "mycroft_rules")
+        .lte("created_at", body.history_at)
+        .order("created_at", { ascending: true });
+      const latest = new Map<string, any>();
+      for (const h of (hist ?? []) as any[]) {
+        if (h.operation === "DELETE") latest.delete(h.record_id);
+        else latest.set(h.record_id, h.new_data);
+      }
+      rules = Array.from(latest.values()).filter((r) => r && r.modo === modo && r.active) as MycroftRule[];
+      rules_source = `history_at:${body.history_at}`;
     } else {
       const { data } = await sb.from("mycroft_rules").select("*").eq("modo", modo).eq("active", true);
       rules = (data ?? []) as MycroftRule[];
