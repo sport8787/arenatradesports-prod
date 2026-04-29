@@ -306,6 +306,71 @@ serve(async (req) => {
           console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore=false, flashscore=false) — Mycroft será avisado`);
         }
 
+        // 🛠️ ADMIN OVERRIDE: estatísticas editadas manualmente por admin têm prioridade sobre tudo
+        // (admin viu o jogo e corrigiu valores zerados — confiamos nele)
+        try {
+          const { data: override } = await supabase
+            .from('live_match_stats_overrides')
+            .select('stats, updated_at')
+            .eq('match_id', match.match_id)
+            .maybeSingle();
+          if (override?.stats && typeof override.stats === 'object') {
+            const overrideStats = override.stats as Record<string, any>;
+            // Merge campo a campo: só sobrescreve se o valor do override for válido (>0 ou não-nulo)
+            const merged: Record<string, any> = { ...enrichedStats };
+            let appliedKeys: string[] = [];
+            for (const [k, v] of Object.entries(overrideStats)) {
+              if (v == null) continue;
+              if (typeof v === 'number' && Number.isFinite(v)) {
+                merged[k] = v;
+                appliedKeys.push(k);
+              } else if (typeof v !== 'number') {
+                merged[k] = v;
+                appliedKeys.push(k);
+              }
+            }
+            if (appliedKeys.length > 0) {
+              merged.admin_override = true;
+              merged.admin_override_at = override.updated_at;
+              // xG informado por admin: limpa flags de indisponível/estimado
+              if (appliedKeys.some(k => /^xg_/i.test(k) || /^xG_/.test(k))) {
+                merged.xg_unavailable = false;
+                merged.xg_estimated = false;
+              }
+              enrichedStats = merged as any;
+              console.log(`[AnalyzeLive] 🛠️ ADMIN OVERRIDE aplicado em ${match.match_id}: ${appliedKeys.join(', ')}`);
+            }
+          }
+        } catch (e) {
+          console.warn('[AnalyzeLive] Falha ao buscar admin override:', (e as Error)?.message);
+        }
+
+        // 📊 CONTEXTO PRÉ-LIVE PUNTER: busca todas análises do Mycroft Punter para este match
+        // (inclusive AGUARDAR/REPROVADO — útil para Trader saber a tese pré-jogo do Mycroft)
+        let punterPreliveAnalyses: Array<{ market: string; verdict: string; thesis: string | null; confidence: number | null; estimated_probability: number | null; odd: number | null; created_at: string }> = [];
+        try {
+          const { data: punterRows } = await supabase
+            .from('punter_analyses')
+            .select('market, verdict, thesis, confidence, estimated_probability, odd, created_at')
+            .eq('match_id', match.match_id)
+            .order('created_at', { ascending: false })
+            .limit(8);
+          punterPreliveAnalyses = (punterRows || []).map((r: any) => ({
+            market: r.market,
+            verdict: r.verdict,
+            thesis: r.thesis,
+            confidence: r.confidence,
+            estimated_probability: r.estimated_probability,
+            odd: r.odd,
+            created_at: r.created_at,
+          }));
+          if (punterPreliveAnalyses.length > 0) {
+            console.log(`[AnalyzeLive] 📊 Punter pré-live para ${match.home_team} vs ${match.away_team}: ${punterPreliveAnalyses.length} análise(s) — ${punterPreliveAnalyses.map(p => `${p.market}=${p.verdict}`).join(' | ')}`);
+          }
+        } catch (e) {
+          console.warn('[AnalyzeLive] Falha ao buscar punter_analyses pré-live:', (e as Error)?.message);
+        }
+
         // 🎯 MERCADOS JÁ APROVADOS NESTE JOGO — para Mycroft NÃO repetir e
         // procurar entradas COMPLEMENTARES (ex: já tem Over 0.5 HT → tentar Over 1.5/2.5 FT, BTTS, escanteios)
         let existingApprovedMarkets: Array<{ market: string; verdict: string; minute: number | null; created_at: string }> = [];
@@ -350,6 +415,7 @@ serve(async (req) => {
                 stats: enrichedStats,
                 bankroll: bankroll ?? 500,
                 existingApprovedMarkets,
+                punterPreliveAnalyses,
               },
             }),
           }

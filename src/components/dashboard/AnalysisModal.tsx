@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet, DollarSign } from 'lucide-react';
+import { X, Copy, Check, Ban, Clock, Target, Shield, BarChart3, BookOpen, AlertTriangle, Crosshair, Flag, Scale, ArrowUpRight, Wallet, DollarSign, Pencil } from 'lucide-react';
 import OddsComparator from './OddsComparator';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
+import AdminStatsEditorModal from './AdminStatsEditorModal';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export interface AdditionalMarket {
   market: string;
@@ -71,7 +73,9 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const { recordAction } = useSignalHistory();
+  const { isAdmin } = useAdmin();
   const [placing, setPlacing] = useState(false);
+  const [adminEditOpen, setAdminEditOpen] = useState(false);
 
   const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
   const recommendedStake = bankrollProps?.recommendedStake ?? 0;
@@ -190,13 +194,14 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
     show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
   };
 
-  // Only show stat rows if there are non-zero values
+  // Stats: mostra se tiver valor não-zero. Para admin, sempre mostra (mesmo zerado) para permitir edição.
   const hasRealStats = stats && Object.values(stats).some(v => typeof v === 'number' && v > 0);
-  const statRows = hasRealStats ? [
-    { label: 'Ataques perigosos', home: stats!.attacks_home ?? '-', away: stats!.attacks_away ?? '-' },
-    { label: 'xG', home: stats!.xG_home ?? '-', away: stats!.xG_away ?? '-' },
-    { label: 'Posse', home: stats!.possession_home != null ? `${stats!.possession_home}%` : '-', away: stats!.possession_away != null ? `${stats!.possession_away}%` : '-' },
-    { label: 'Chutes ao gol', home: stats!.shots_home ?? '-', away: stats!.shots_away ?? '-' },
+  const showStatsBlock = hasRealStats || isAdmin;
+  const statRows = showStatsBlock ? [
+    { label: 'Ataques perigosos', home: stats?.attacks_home ?? '-', away: stats?.attacks_away ?? '-' },
+    { label: 'xG', home: stats?.xG_home ?? '-', away: stats?.xG_away ?? '-' },
+    { label: 'Posse', home: stats?.possession_home != null ? `${stats!.possession_home}%` : '-', away: stats?.possession_away != null ? `${stats!.possession_away}%` : '-' },
+    { label: 'Chutes ao gol', home: stats?.shots_home ?? '-', away: stats?.shots_away ?? '-' },
   ] : [];
 
   const riskItems = risk ? [
@@ -344,9 +349,20 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
           {/* Stats */}
           {statRows.length > 0 && (
             <motion.div variants={fadeUp} className="space-y-3">
-              <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4" /> Situação do Jogo
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4" /> Situação do Jogo
+                </h3>
+                {isAdmin && match.matchId && (
+                  <button
+                    type="button"
+                    onClick={() => setAdminEditOpen(true)}
+                    className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" /> Editar (admin)
+                  </button>
+                )}
+              </div>
               <div className="luxury-card p-4">
                 <div className="grid grid-cols-3 gap-2 text-center text-sm">
                   <p className="font-bold text-foreground">{match.home}</p>
@@ -592,6 +608,16 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
             )}
           </motion.div>
         </>
+      )}
+      {isAdmin && match?.matchId && (
+        <AdminStatsEditorModal
+          isOpen={adminEditOpen}
+          onClose={() => setAdminEditOpen(false)}
+          matchId={match.matchId}
+          homeTeam={match.home}
+          awayTeam={match.away}
+          currentStats={stats as any}
+        />
       )}
     </AnimatePresence>
   );

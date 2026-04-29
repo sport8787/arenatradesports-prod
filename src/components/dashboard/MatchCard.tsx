@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info } from 'lucide-react';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
@@ -8,6 +8,8 @@ import { formatMatchPeriod } from '@/lib/matchPeriod';
 import FavoriteButton from './FavoriteButton';
 import { computeCriteria as computeCriteriaShared, getCriteriaSummary } from '@/lib/matchCriteria';
 import CriteriaDetailModal from './CriteriaDetailModal';
+import AdminStatsEditorModal from './AdminStatsEditorModal';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export interface MatchStats {
   possession_home?: number;
@@ -157,6 +159,8 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
+  const [adminEditOpen, setAdminEditOpen] = useState(false);
+  const { isAdmin } = useAdmin();
   const criteria = useMemo(() => computeCriteriaShared(match), [match]);
   const summary = useMemo(() => getCriteriaSummary(criteria), [criteria]);
   const criteriaMet = summary.greens;
@@ -237,6 +241,21 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                 <span className="flex items-center gap-1 text-[10px] font-orbitron uppercase font-bold px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground border border-destructive">
                   <ShieldAlert className="w-3 h-3" /> RED
                 </span>
+              )}
+              {isAdmin && match.status === 'live' && match.matchId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setAdminEditOpen(true); }}
+                      className="p-1 rounded hover:bg-amber-500/20 text-amber-400/70 hover:text-amber-400 transition-colors"
+                      aria-label="Editar stats (admin)"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">Editar stats (admin)</TooltipContent>
+                </Tooltip>
               )}
               <FavoriteButton
                 size="sm"
@@ -409,6 +428,16 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         </div>
       </motion.div>
       <CriteriaDetailModal match={match} open={criteriaModalOpen} onOpenChange={setCriteriaModalOpen} />
+      {isAdmin && match.matchId && (
+        <AdminStatsEditorModal
+          isOpen={adminEditOpen}
+          onClose={() => setAdminEditOpen(false)}
+          matchId={match.matchId}
+          homeTeam={match.home}
+          awayTeam={match.away}
+          currentStats={match.stats as any}
+        />
+      )}
     </TooltipProvider>
   );
 }

@@ -412,6 +412,24 @@ Momentum (últimos 10min, +home/-away): ${s.momentum?.avg_last_10min != null ? `
 ${s.xg_unavailable ? '🚨 ATENÇÃO: xG INDISPONÍVEL nesta partida (não significa que é zero — significa que a fonte falhou). NÃO use o critério de xG na análise. Baseie-se em: ataques perigosos, chutes (totais e no gol), posse, big chances e momentum. NÃO mencione "xG zerado" na tese — em vez disso diga "xG não disponível, análise baseada em outros indicadores".' : (s.xg_estimated ? '🌐 xG ESTIMADO via Flashscore (sintético, baseado em chutes). Use como referência, mas reduza confiança em ~10pp e priorize chutes/ataques/posse na tese.' : (s.sofascore_event_id || s.source_enriched === 'sofascore' ? '✅ Dados enriquecidos via SofaScore (xG e Big Chances confiáveis — use-os com peso máximo)' : '⚠️ Apenas API-Football (sem xG SofaScore — seja mais conservador)'))}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
+${Array.isArray((match as any).punterPreliveAnalyses) && (match as any).punterPreliveAnalyses.length > 0 ? `
+═══════════════════════════════════════
+📊 ANÁLISE PRÉ-LIVE DO MYCROFT PUNTER (mesmo jogo, contexto informativo)
+═══════════════════════════════════════
+${(match as any).punterPreliveAnalyses.map((p: any, i: number) => {
+  const prob = p.estimated_probability != null ? ` | prob=${(Number(p.estimated_probability) <= 1 ? Number(p.estimated_probability) * 100 : Number(p.estimated_probability)).toFixed(0)}%` : '';
+  const conf = p.confidence != null ? ` | conf=${p.confidence}%` : '';
+  const odd = p.odd != null ? ` @ ${Number(p.odd).toFixed(2)}` : '';
+  const tese = p.thesis ? `\n   Tese: "${String(p.thesis).slice(0, 280)}"` : '';
+  return `${i + 1}. [${p.verdict}] ${p.market}${odd}${conf}${prob}${tese}`;
+}).join('\n')}
+
+📌 COMO USAR: Esta é a leitura PRÉ-jogo do Mycroft Punter. Use como CONTEXTO INFORMATIVO:
+• Se o Punter aprovou um mercado coerente com sua leitura live → reforça confiança.
+• Se o Punter explicitamente AGUARDOU/REPROVOU um mercado que você está prestes a aprovar (ex: Punter disse "ataque pouco produtivo, poucos gols" e você quer Over 2.5) → seja MAIS RIGOROSO. Exija evidência live forte (xG combinado ≥1.2, 3+ chutes no gol, dilúvio claro). Em dúvida, AGUARDAR.
+• A leitura ao vivo SEMPRE tem prioridade sobre o pré-live, mas usar o contexto evita Reds previsíveis.
+• NÃO mencione "Punter disse X" na tese final ao usuário — apenas use internamente para calibrar.
+` : ''}
 ${Array.isArray((match as any).existingApprovedMarkets) && (match as any).existingApprovedMarkets.length > 0 ? `
 ═══════════════════════════════════════
 🎯 MERCADOS JÁ APROVADOS NESTE JOGO (NÃO REPETIR)
