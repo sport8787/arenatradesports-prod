@@ -330,7 +330,7 @@ export default function ArenaTraderSports() {
               </div>
             )}
             <WhatsAppSupportButton />
-            <LiveCronToggle />
+            {isAdmin && <LiveCronToggle />}
             {/* View toggle */}
             <div className="flex items-center border border-border rounded-lg overflow-hidden">
               <button
