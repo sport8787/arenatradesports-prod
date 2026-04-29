@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { shadowCompare } from '../_shared/mycroft-rules-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
