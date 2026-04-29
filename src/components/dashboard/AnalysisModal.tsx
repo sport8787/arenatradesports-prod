@@ -349,9 +349,20 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
           {/* Stats */}
           {statRows.length > 0 && (
             <motion.div variants={fadeUp} className="space-y-3">
-              <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4" /> Situação do Jogo
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4" /> Situação do Jogo
+                </h3>
+                {isAdmin && match.matchId && (
+                  <button
+                    type="button"
+                    onClick={() => setAdminEditOpen(true)}
+                    className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" /> Editar (admin)
+                  </button>
+                )}
+              </div>
               <div className="luxury-card p-4">
                 <div className="grid grid-cols-3 gap-2 text-center text-sm">
                   <p className="font-bold text-foreground">{match.home}</p>
