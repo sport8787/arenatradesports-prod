@@ -34,7 +34,22 @@ function getReanalysisInterval(status: string, minute: number): number {
   if (status === 'labareda' || status === 'LABAREDA') {
     return 1 * MIN; // Always 1 min for LABAREDA
   }
+  // Jogo já APROVADO: ainda assim revisitamos a cada 3 min para tentar mercados
+  // COMPLEMENTARES (ex: aprovou Over 0.5 HT, depois pode aprovar Over 1.5 FT).
+  if (status === 'approved_extra' || status === 'APPROVED_EXTRA') {
+    if (minute < 60) return 3 * MIN;
+    return 2 * MIN;
+  }
   return 5 * MIN; // default
+}
+
+// Normaliza mercado para chave de comparação (evita duplicados óbvios)
+function normalizeMarketKey(m: string): string {
+  return String(m || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 serve(async (req) => {
@@ -80,17 +95,16 @@ serve(async (req) => {
       return true;
     }).slice(0, 5);
 
-    // Re-analyze ALL non-APROVADO matches with tiered intervals
-    // Statuses eligible for reanalysis: aguardar, jogo_morto, cuidado, labareda
-    const REANALYSIS_STATUSES = ['aguardar', 'jogo_morto', 'cuidado', 'labareda'];
-    
+    // Re-analyze ALL matches (incluindo APROVADOS) com tiered intervals.
+    // Para jogos APROVADOS, o objetivo é buscar MERCADOS COMPLEMENTARES
+    // (ex: aprovou Over 0.5 HT — pode aprovar Over 1.5 FT depois).
     const { data: matchesForReanalysis, error: matchError2 } = await supabase
       .from('live_matches')
-      .select('*, mycroft_analyses!inner(id, verdict, plan_name, created_at)')
+      .select('*, mycroft_analyses!inner(id, verdict, plan_name, market, created_at)')
       .eq('status', 'live')
       .in('mycroft_status', ['aguardar', 'jogo_morto', 'cuidado', 'labareda', 'done'])
       .order('minute', { ascending: false })
-      .limit(20);
+      .limit(30);
 
     const now = Date.now();
     const reAnalyzable = (matchesForReanalysis || []).filter((m: any) => {
@@ -104,32 +118,44 @@ serve(async (req) => {
       const isUnder25Active = verdict === 'APROVADO' && planName === 'PLANO UNDER 2.5 EARLY';
       const isDominanteActive = verdict === 'APROVADO' && planName === 'PLANO BACK AO DOMINANTE';
       const isMonitoredActive = isUnder25Active || isDominanteActive;
-
-      // Demais APROVADOS não são reanalisados (signal already emitted)
-      if ((verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL') && !isMonitoredActive) return false;
+      const isApproved = verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL';
 
       // Determine effective status for interval calculation
-      const effectiveStatus = isMonitoredActive ? 'labareda' : (verdict || m.mycroft_status || 'aguardar');
+      let effectiveStatus: string;
+      if (isMonitoredActive) effectiveStatus = 'labareda';
+      else if (isApproved) effectiveStatus = 'approved_extra'; // busca mercados COMPLEMENTARES
+      else effectiveStatus = (verdict || m.mycroft_status || 'aguardar');
+
       const interval = getReanalysisInterval(effectiveStatus, min);
 
       // For early minutes, also check special context
       if (min < 10 && !hasSpecialEarlyContext(m)) return false;
 
+      // Não reanalisar jogos APROVADOS após o min 85 (janela de novos mercados encerrada)
+      if (isApproved && !isMonitoredActive && min > 85) return false;
+
       if (elapsed > interval) {
-        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${isMonitoredActive ? ` [${planName}-MONITOR]` : ''}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
+        const tag = isMonitoredActive ? `[${planName}-MONITOR]` : (isApproved ? '[BUSCA-EXTRA]' : '');
+        console.log(`[AnalyzeLive] 🔄 Re-analyze ${m.home_team} vs ${m.away_team} (${min}', status=${effectiveStatus}${tag}, elapsed=${Math.round(elapsed/1000)}s, interval=${Math.round(interval/1000)}s)`);
         return true;
       }
       return false;
-    }).slice(0, 5);
+    }).slice(0, 8);
 
     if (reAnalyzable.length > 0) {
       console.log(`[AnalyzeLive] 🔄 ${reAnalyzable.length} matches eligible for re-analysis`);
       for (const m of reAnalyzable) {
-        await supabase.from('live_matches').update({
-          mycroft_analysis_id: null,
-          mycroft_status: 'pending',
-          updated_at: new Date().toISOString(),
-        }).eq('match_id', m.match_id);
+        const verdict = m.mycroft_analyses?.verdict || '';
+        const isApproved = verdict === 'APROVADO' || verdict === 'APROVADO_SITUACIONAL';
+        // Para APROVADOS, NÃO resetar o vínculo (mantém sinal entregue visível).
+        // Para outros, reseta para que a nova análise vire a "atual".
+        if (!isApproved) {
+          await supabase.from('live_matches').update({
+            mycroft_analysis_id: null,
+            mycroft_status: 'pending',
+            updated_at: new Date().toISOString(),
+          }).eq('match_id', m.match_id);
+        }
       }
     }
 
@@ -280,6 +306,29 @@ serve(async (req) => {
           console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore=false, flashscore=false) — Mycroft será avisado`);
         }
 
+        // 🎯 MERCADOS JÁ APROVADOS NESTE JOGO — para Mycroft NÃO repetir e
+        // procurar entradas COMPLEMENTARES (ex: já tem Over 0.5 HT → tentar Over 1.5/2.5 FT, BTTS, escanteios)
+        let existingApprovedMarkets: Array<{ market: string; verdict: string; minute: number | null; created_at: string }> = [];
+        try {
+          const { data: priorApproved } = await supabase
+            .from('mycroft_analyses')
+            .select('market, verdict, approved_at_minute, created_at')
+            .eq('match_id', match.match_id)
+            .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
+            .order('created_at', { ascending: true });
+          existingApprovedMarkets = (priorApproved || []).map((r: any) => ({
+            market: r.market,
+            verdict: r.verdict,
+            minute: r.approved_at_minute,
+            created_at: r.created_at,
+          }));
+          if (existingApprovedMarkets.length > 0) {
+            console.log(`[AnalyzeLive] 🎯 ${match.home_team} vs ${match.away_team} já tem ${existingApprovedMarkets.length} mercado(s) aprovado(s): ${existingApprovedMarkets.map(e => e.market).join(' | ')}`);
+          }
+        } catch (e) {
+          console.warn('[AnalyzeLive] Falha ao buscar mercados já aprovados:', (e as Error)?.message);
+        }
+
         const analysisRes = await fetch(
           `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
           {
@@ -300,6 +349,7 @@ serve(async (req) => {
                 match_id: match.match_id,
                 stats: enrichedStats,
                 bankroll: bankroll ?? 500,
+                existingApprovedMarkets,
               },
             }),
           }
@@ -355,6 +405,21 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ========== GUARD ANTI-DUPLICIDADE DE MERCADO ==========
+        // Se o Mycroft retornou um mercado JÁ aprovado neste jogo, descarta como AGUARDAR
+        // (evita reenviar o mesmo sinal). Reanálises devem produzir mercados COMPLEMENTARES.
+        if (activeVerdicts.includes(analysis.verdict) && existingApprovedMarkets.length > 0) {
+          const newKey = normalizeMarketKey(analysis.market);
+          const dupHit = existingApprovedMarkets.find(e => normalizeMarketKey(e.market) === newKey);
+          if (dupHit) {
+            console.log(`[AnalyzeLive] 🔁 DUPLICATA bloqueada: "${analysis.market}" já aprovado em ${dupHit.created_at}`);
+            analysis.verdict = 'AGUARDAR';
+            analysis.thesis = `[DUPLICATA] Mercado "${analysis.market}" já foi aprovado anteriormente neste jogo. Reanálise busca mercados COMPLEMENTARES. ` + (analysis.thesis || '');
+            analysis.plan_name = null;
+          }
+        }
+        // ====================================================================
+
         // Save analysis
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
@@ -389,15 +454,25 @@ serve(async (req) => {
             'CUIDADO': 'cuidado',
           };
           const statusToSet = verdictToStatus[analysis.verdict] || 'aguardar';
-          
-          await supabase
-            .from('live_matches')
-            .update({
-              mycroft_analysis_id: analysisRow.id,
-              mycroft_status: statusToSet,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('match_id', match.match_id);
+          const hadPriorApproved = existingApprovedMarkets.length > 0;
+          const isNewApproved = activeVerdicts.includes(analysis.verdict);
+
+          // Se já existia mercado aprovado e a nova análise NÃO trouxe novo APROVADO,
+          // preservamos o vínculo original (não sobrescrevemos com AGUARDAR/JOGO_MORTO).
+          // Se trouxe um novo APROVADO complementar, mantemos o original mas a nova
+          // análise fica registrada em mycroft_analyses (UI lista por match_id).
+          if (hadPriorApproved && !isNewApproved) {
+            console.log(`[AnalyzeLive] 🛡️ Preservando vínculo original (${match.home_team} vs ${match.away_team}) — reanálise não trouxe novo APROVADO`);
+          } else {
+            await supabase
+              .from('live_matches')
+              .update({
+                mycroft_analysis_id: analysisRow.id,
+                mycroft_status: statusToSet,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('match_id', match.match_id);
+          }
 
           analyzedCount++;
           results.push({
