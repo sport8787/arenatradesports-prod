@@ -693,6 +693,10 @@ export default function PunterPage() {
       setError('Você precisa estar logado para analisar jogos');
       return;
     }
+    if (!isAdmin) {
+      toast.error('🔒 Análise de Mercado é exclusiva para administradores');
+      return;
+    }
 
     // Análise de mercado é exclusiva para admin — sem cobrança de NT.
     refetchProfile();
@@ -856,8 +860,8 @@ export default function PunterPage() {
         const remaining = data?.remaining_games || 0;
         const execTime = data?.execution_time_s || 0;
         let msg = savedOnly > 0
-          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`
-          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`;
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (OpenAI)`
+          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (OpenAI)`;
         if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
@@ -873,7 +877,7 @@ export default function PunterPage() {
       }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
-      setError(err.message || 'Erro ao conectar com Mycroft Punter');
+      setError(err.message || 'Erro ao conectar com Mycroft Punter (OpenAI)');
       // 🔊 Play alert audio on error
       playHorusTrigger('alerta');
     } finally {
@@ -1305,13 +1309,22 @@ export default function PunterPage() {
             </div>
 
             {isAdmin && (
-              <GoldButton onClick={analyzeGames} disabled={loading} className="w-full font-mono text-xs tracking-wider">
-                {loading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
-                ) : (
-                  <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
-                )}
-              </GoldButton>
+              <div className="space-y-1" title="Exclusivo Admin · Sem custo NT · Powered by OpenAI">
+                <GoldButton
+                  onClick={analyzeGames}
+                  disabled={loading}
+                  className="w-full font-mono text-xs tracking-wider"
+                >
+                  {loading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> SCANNING...</>
+                  ) : (
+                    <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR MERCADO</>
+                  )}
+                </GoldButton>
+                <p className="text-[10px] font-mono text-muted-foreground text-center">
+                  🔒 Exclusivo Admin · Sem custo NT · OpenAI
+                </p>
+              </div>
             )}
 
             <Button
