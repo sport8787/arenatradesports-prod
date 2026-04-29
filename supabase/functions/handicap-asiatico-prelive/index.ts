@@ -489,6 +489,8 @@ async function salvarSinal(s: any) {
     });
   } catch (e) { console.warn('[shadowMode] HA prelive falhou:', (e as Error).message); }
 }
+
+async function notificarTelegram(s: any) {
   if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT) return;
   const hora = new Date(s.matchDate).toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
   const msg = `🎯 *HANDICAP ASIÁTICO* (Cat ${s.categoria})\n━━━━━━━━━━━━━━━━━━\n⚽ *${s.homeTeam}* x *${s.awayTeam}*\n🏆 ${s.leagueName}\n🕐 ${hora} BRT\n\n📌 *Linha:* HA ${s.linhaRecomendada} ao *${s.teamAlvo}*\n💹 *Odd HA:* ${s.oddHA.toFixed(2)}\n🎯 *Confiança:* ${s.scoreHA}% — ${s.statusHA}\n\n⚖️ ${s.liquidacao}\n\n🏦 *Executar na Betfair Exchange ou Betano*`;
