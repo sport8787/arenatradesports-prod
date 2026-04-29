@@ -90,6 +90,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'f
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   
   const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
