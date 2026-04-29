@@ -504,7 +504,14 @@ Deno.serve(async (req) => {
 
     const aprovados = resultados.filter((s) => ['SINAL_FORTE', 'SINAL_BOM'].includes(s.statusHA));
     const top = aprovados.sort((a, b) => b.scoreHA - a.scoreHA).slice(0, 4);
-    for (const s of top) await notificarTelegram(s);
+    // 🔒 Envio de sinais de Handicap Asiático ao Telegram desativado temporariamente
+    // (em validação — feature exclusiva de admin no painel). Reativar removendo o early-return abaixo.
+    const AH_TELEGRAM_ENABLED = false;
+    if (AH_TELEGRAM_ENABLED) {
+      for (const s of top) await notificarTelegram(s);
+    } else {
+      console.log(`[HA] 🔇 Telegram desativado — ${top.length} sinais TOP não enviados (apenas salvos no DB)`);
+    }
 
     return new Response(JSON.stringify({
       success: true,
