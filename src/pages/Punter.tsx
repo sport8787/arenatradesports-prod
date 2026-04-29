@@ -860,8 +860,8 @@ export default function PunterPage() {
         const remaining = data?.remaining_games || 0;
         const execTime = data?.execution_time_s || 0;
         let msg = savedOnly > 0
-          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (OpenAI)`
-          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (OpenAI)`;
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (Gemini)`
+          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (Gemini)`;
         if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
@@ -877,7 +877,7 @@ export default function PunterPage() {
       }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
-      setError(err.message || 'Erro ao conectar com Mycroft Punter (OpenAI)');
+      setError(err.message || 'Erro ao conectar com Mycroft Punter (Gemini)');
       // 🔊 Play alert audio on error
       playHorusTrigger('alerta');
     } finally {
@@ -1309,7 +1309,7 @@ export default function PunterPage() {
             </div>
 
             {isAdmin && (
-              <div className="space-y-1" title="Exclusivo Admin · Sem custo NT · Powered by OpenAI">
+              <div className="space-y-1" title="Exclusivo Admin · Sem custo NT · Powered by Gemini">
                 <GoldButton
                   onClick={analyzeGames}
                   disabled={loading}
@@ -1322,7 +1322,7 @@ export default function PunterPage() {
                   )}
                 </GoldButton>
                 <p className="text-[10px] font-mono text-muted-foreground text-center">
-                  🔒 Exclusivo Admin · Sem custo NT · OpenAI
+                  🔒 Exclusivo Admin · Sem custo NT · Gemini
                 </p>
               </div>
             )}
