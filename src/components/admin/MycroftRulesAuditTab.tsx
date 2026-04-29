@@ -107,9 +107,17 @@ export function MycroftRulesAuditTab() {
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Auditoria de alterações</CardTitle>
-          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={exportCSV} disabled={filtered.length === 0}>
+              <FileText className="h-4 w-4 mr-1" />CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportJSON} disabled={filtered.length === 0}>
+              <FileJson className="h-4 w-4 mr-1" />JSON
+            </Button>
+            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />Atualizar
+            </Button>
+          </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
           <Select value={filterTable} onValueChange={setFilterTable}>
