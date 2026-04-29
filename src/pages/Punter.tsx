@@ -1415,6 +1415,7 @@ export default function PunterPage() {
               )}
             </Button>
 
+            {isAdmin && (
             <Button
               onClick={async () => {
                 if (haLoading) return;
