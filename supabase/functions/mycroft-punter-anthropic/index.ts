@@ -1379,12 +1379,28 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "api_predictions_agree": true | false | null
 }
 
-IMPORTANTE:
+IMPORTANTE — REGRAS DE APROVAÇÃO (LEIA COM ATENÇÃO):
 - Use EXATAMENTE "APROVADO" ou "VETADO" no verdict
 - Edge ≥ 2% com Confiança ≥ 58% = APROVAR (Tier 3 mínimo)
-- META DE APROVAÇÃO: 50-70% dos jogos
+- Edge ≥ 4% com Confiança ≥ 65% = Tier 2
+- Edge ≥ 6% com Confiança ≥ 72% = Tier 1
+- META DE APROVAÇÃO: 50-70% dos jogos analisados
 - NÃO invente motivos extras de veto
-- Se há edge ≥ 2% e EV positivo, APROVE no tier correspondente
+
+🚫 VETOS PROIBIDOS (NUNCA use estes motivos para vetar):
+1. "Não há bookmakers soft / apenas Pinnacle/Bet365" — IGNORE essa exigência. Use as odds disponíveis (mesmo que apenas 1-2 casas) como referência de mercado. Pinnacle e Bet365 já são suficientes para calcular edge.
+2. "Faltam dados / dados insuficientes" para ligas major (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Champions League, Brasileirão, Libertadores) — essas ligas SEMPRE têm contexto público suficiente para análise quantitativa via odds + H2H + standings.
+3. "Sem H2H recente" / "sem lesões reportadas" — são desejáveis mas NÃO bloqueiam aprovação se odds + standings + season stats existirem.
+4. "Imprevisibilidade do futebol" / "variância alta" — isso é inerente ao esporte, não é motivo de veto.
+
+✅ APROVE quando:
+- Há edge ≥ 2% calculado vs odds reais (mesmo com apenas 1 bookmaker)
+- E confiança ≥ 58% sustentada por pelo menos 2 dos seguintes: standings, season stats, H2H, predictions, momento atual
+
+⛔ VETE APENAS quando:
+- Edge < 2% OU EV negativo OU confiança < 58%
+- OU NIVEL_3 com zero stats E zero standings E zero H2H (dados realmente vazios)
+- OU contradição grave entre análise e odds (ex: você projeta 70% home win mas odd home está em 4.0)
 
 ANALISE AGORA E RETORNE APENAS O JSON:`
 
