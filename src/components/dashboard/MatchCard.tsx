@@ -242,6 +242,21 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                   <ShieldAlert className="w-3 h-3" /> RED
                 </span>
               )}
+              {isAdmin && match.status === 'live' && match.matchId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setAdminEditOpen(true); }}
+                      className="p-1 rounded hover:bg-amber-500/20 text-amber-400/70 hover:text-amber-400 transition-colors"
+                      aria-label="Editar stats (admin)"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">Editar stats (admin)</TooltipContent>
+                </Tooltip>
+              )}
               <FavoriteButton
                 size="sm"
                 keys={[match.matchId, match.home, match.away]}
