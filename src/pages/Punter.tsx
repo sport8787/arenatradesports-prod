@@ -860,8 +860,8 @@ export default function PunterPage() {
         const remaining = data?.remaining_games || 0;
         const execTime = data?.execution_time_s || 0;
         let msg = savedOnly > 0
-          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`
-          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (${aiProvider === 'anthropic' ? 'Claude' : 'Gemini'})`;
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (OpenAI)`
+          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (OpenAI)`;
         if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
