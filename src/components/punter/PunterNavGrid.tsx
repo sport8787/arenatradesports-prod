@@ -13,7 +13,7 @@ import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import NavCard from '@/components/punter/NavCard';
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
+  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/80 mb-3 px-1">
     {children}
   </p>
 );
