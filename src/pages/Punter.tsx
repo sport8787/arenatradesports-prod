@@ -1305,12 +1305,10 @@ export default function PunterPage() {
             </div>
 
             {isAdmin && (
-              <div className="space-y-1">
+              <div className="space-y-1" title="Exclusivo Admin · Sem custo NT · Powered by OpenAI">
                 <GoldButton
                   onClick={analyzeGames}
                   disabled={loading}
-                  title="Exclusivo Admin · Sem custo NT · Powered by OpenAI"
-                  aria-label="Analisar mercado — exclusivo admin, sem custo de NT"
                   className="w-full font-mono text-xs tracking-wider"
                 >
                   {loading ? (
