@@ -159,6 +159,8 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
+  const [adminEditOpen, setAdminEditOpen] = useState(false);
+  const { isAdmin } = useAdmin();
   const criteria = useMemo(() => computeCriteriaShared(match), [match]);
   const summary = useMemo(() => getCriteriaSummary(criteria), [criteria]);
   const criteriaMet = summary.greens;
