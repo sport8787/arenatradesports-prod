@@ -22,6 +22,7 @@ import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection'
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
+import { useAdmin } from '@/hooks/useAdmin';
 import ActivePositions from '@/components/dashboard/ActivePositions';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
@@ -89,6 +90,7 @@ type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'f
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   
   const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
@@ -328,7 +330,7 @@ export default function ArenaTraderSports() {
               </div>
             )}
             <WhatsAppSupportButton />
-            <LiveCronToggle />
+            {isAdmin && <LiveCronToggle />}
             {/* View toggle */}
             <div className="flex items-center border border-border rounded-lg overflow-hidden">
               <button
