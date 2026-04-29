@@ -22,6 +22,7 @@ export interface EditableMatchStats {
   big_chances_away?: number | null;
   corners_home?: number | null;
   corners_away?: number | null;
+  odd_manual?: number | null;
 }
 
 interface AdminStatsEditorModalProps {
@@ -33,7 +34,7 @@ interface AdminStatsEditorModalProps {
   currentStats?: EditableMatchStats | null;
 }
 
-const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number }> = [
+const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number; solo?: boolean }> = [
   { key: 'xG_home', label: 'xG', team: 'home', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'xG_away', label: 'xG', team: 'away', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'possession_home', label: 'Posse %', team: 'home', group: 'Posse de bola', max: 100 },
@@ -50,6 +51,7 @@ const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home'
   { key: 'big_chances_away', label: 'Big Chances', team: 'away', group: 'Big Chances' },
   { key: 'corners_home', label: 'Escanteios', team: 'home', group: 'Escanteios' },
   { key: 'corners_away', label: 'Escanteios', team: 'away', group: 'Escanteios' },
+  { key: 'odd_manual', label: 'Odd da entrada (manual)', team: 'home', group: 'Odd manual', step: 0.01, max: 1000, solo: true },
 ];
 
 export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTeam, awayTeam, currentStats }: AdminStatsEditorModalProps) {
@@ -153,9 +155,15 @@ export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTe
                     <h3 className="text-xs font-orbitron uppercase tracking-wider text-muted-foreground">{group}</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {fields.map(f => (
-                        <div key={f.key as string}>
+                        <div key={f.key as string} className={f.solo ? 'col-span-2' : ''}>
                           <label className="block text-[10px] text-muted-foreground mb-1">
-                            <span className="font-bold">{f.team === 'home' ? homeTeam : awayTeam}</span> · {f.label}
+                            {f.solo ? (
+                              <span className="font-bold">{f.label}</span>
+                            ) : (
+                              <>
+                                <span className="font-bold">{f.team === 'home' ? homeTeam : awayTeam}</span> · {f.label}
+                              </>
+                            )}
                           </label>
                           <input
                             type="number"
