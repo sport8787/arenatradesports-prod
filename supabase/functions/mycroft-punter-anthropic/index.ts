@@ -1334,16 +1334,14 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       if (!analysisText) throw new Error('AI não retornou análise válida')
 
-      // Clean and extract JSON
+      // Clean and extract JSON (com recuperação de JSON truncado)
       const cleanJson = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) {
-        console.error(`[Mycroft Punter] Resposta sem JSON (tentativa ${attempt + 1}):`, cleanJson.substring(0, 200))
+      const analysis = parseJsonRobust(cleanJson)
+      if (!analysis) {
+        console.error(`[Mycroft Punter] Resposta sem JSON parseável (tentativa ${attempt + 1}):`, cleanJson.substring(0, 300))
         if (attempt < maxRetries - 1) continue
         throw new Error('Falha ao parsear análise - sem JSON na resposta')
       }
-
-      const analysis = JSON.parse(jsonMatch[0])
 
       // Normalize verdict
       if (analysis.verdict && analysis.verdict.startsWith('APROVADO')) {
