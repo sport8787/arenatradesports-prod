@@ -412,6 +412,22 @@ Momentum (últimos 10min, +home/-away): ${s.momentum?.avg_last_10min != null ? `
 ${s.xg_unavailable ? '🚨 ATENÇÃO: xG INDISPONÍVEL nesta partida (não significa que é zero — significa que a fonte falhou). NÃO use o critério de xG na análise. Baseie-se em: ataques perigosos, chutes (totais e no gol), posse, big chances e momentum. NÃO mencione "xG zerado" na tese — em vez disso diga "xG não disponível, análise baseada em outros indicadores".' : (s.xg_estimated ? '🌐 xG ESTIMADO via Flashscore (sintético, baseado em chutes). Use como referência, mas reduza confiança em ~10pp e priorize chutes/ataques/posse na tese.' : (s.sofascore_event_id || s.source_enriched === 'sofascore' ? '✅ Dados enriquecidos via SofaScore (xG e Big Chances confiáveis — use-os com peso máximo)' : '⚠️ Apenas API-Football (sem xG SofaScore — seja mais conservador)'))}
 
 Banca do trader: R$ ${match.bankroll ?? 500}
+${Array.isArray((match as any).existingApprovedMarkets) && (match as any).existingApprovedMarkets.length > 0 ? `
+═══════════════════════════════════════
+🎯 MERCADOS JÁ APROVADOS NESTE JOGO (NÃO REPETIR)
+═══════════════════════════════════════
+${(match as any).existingApprovedMarkets.map((e: any, i: number) => `${i + 1}. ${e.market} (${e.verdict}${e.minute != null ? ` @ min ${e.minute}` : ''})`).join('\n')}
+
+REGRA OBRIGATÓRIA — MÚLTIPLAS ENTRADAS NO MESMO JOGO:
+• NÃO repita nenhum dos mercados acima — eles já foram entregues ao usuário.
+• Você PODE e DEVE buscar mercados COMPLEMENTARES se o jogo continua com valor.
+  Exemplos:
+   - Já tem "Over 0.5 HT" → pode aprovar "Over 1.5 FT", "Over 2.5 FT", "BTTS Sim", "Over 8.5 escanteios FT".
+   - Já tem "Over 2.5 FT" → pode aprovar "Over 3.5 FT", "Over 5.5 FT" se houver dilúvio.
+   - Já tem "BTTS Sim" → pode aprovar "Over X.5 FT" se a goleada se desenhou.
+• NUNCA aprove um mercado CONFLITANTE com algo já aprovado (ex: Under 2.5 se já tem Over 2.5).
+• Para aprovar mercado complementar, exija critérios PLENOS (não relaxe). Se não houver, retorne AGUARDAR.
+` : ''}
 `.trim();
 }
 
