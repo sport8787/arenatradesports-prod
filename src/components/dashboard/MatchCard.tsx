@@ -428,6 +428,16 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         </div>
       </motion.div>
       <CriteriaDetailModal match={match} open={criteriaModalOpen} onOpenChange={setCriteriaModalOpen} />
+      {isAdmin && match.matchId && (
+        <AdminStatsEditorModal
+          isOpen={adminEditOpen}
+          onClose={() => setAdminEditOpen(false)}
+          matchId={match.matchId}
+          homeTeam={match.home}
+          awayTeam={match.away}
+          currentStats={match.stats as any}
+        />
+      )}
     </TooltipProvider>
   );
 }
