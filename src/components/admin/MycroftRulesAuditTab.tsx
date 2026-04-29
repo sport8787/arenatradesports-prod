@@ -65,6 +65,43 @@ export function MycroftRulesAuditTab() {
     );
   });
 
+  const downloadFile = (filename: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportJSON = () => {
+    if (filtered.length === 0) { toast.warning("Nada para exportar."); return; }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadFile(`mycroft-audit-${stamp}.json`, JSON.stringify(filtered, null, 2), "application/json");
+    toast.success(`Exportado ${filtered.length} registros (JSON)`);
+  };
+
+  const exportCSV = () => {
+    if (filtered.length === 0) { toast.warning("Nada para exportar."); return; }
+    const headers = ["created_at","table_name","operation","modo","record_id","changed_by_email","rule_or_key","changed_fields","diff_json","old_data_json","new_data_json"];
+    const escape = (v: any) => {
+      const s = v == null ? "" : typeof v === "string" ? v : JSON.stringify(v);
+      return `"${s.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+    };
+    const rows = filtered.map((e) => [
+      e.created_at, e.table_name, e.operation, e.modo ?? "",
+      e.record_id, e.changed_by_email ?? "",
+      e.new_data?.name ?? e.old_data?.name ?? e.new_data?.key ?? e.old_data?.key ?? "",
+      (e.changed_fields ?? []).join("|"),
+      e.diff, e.old_data, e.new_data,
+    ].map(escape).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadFile(`mycroft-audit-${stamp}.csv`, "\uFEFF" + csv, "text/csv;charset=utf-8");
+    toast.success(`Exportado ${filtered.length} registros (CSV)`);
+  };
+
   return (
     <Card>
       <CardHeader>
