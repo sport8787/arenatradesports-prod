@@ -877,7 +877,7 @@ export default function PunterPage() {
       }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
-      setError(err.message || 'Erro ao conectar com Mycroft Punter');
+      setError(err.message || 'Erro ao conectar com Mycroft Punter (OpenAI)');
       // 🔊 Play alert audio on error
       playHorusTrigger('alerta');
     } finally {
