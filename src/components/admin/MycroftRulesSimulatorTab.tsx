@@ -364,6 +364,50 @@ export function MycroftRulesSimulatorTab() {
                 </div>
               )}
 
+              {/* RANKING DE REGRAS DIVERGENTES */}
+              {result.rule_ranking && result.rule_ranking.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Regras que mais contribuíram para divergências</h4>
+                  <p className="text-xs text-muted-foreground mb-2">Ordenado por nº de casos divergentes em que a regra disparou. Use para identificar quais ajustar primeiro.</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Regra</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Condição</TableHead>
+                        <TableHead className="text-right">Hits</TableHead>
+                        <TableHead className="text-right">Em divergência</TableHead>
+                        <TableHead className="text-right">% impacto</TableHead>
+                        <TableHead className="text-right">→ APROVADO</TableHead>
+                        <TableHead className="text-right">← APROVADO</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.rule_ranking.map((r) => (
+                        <TableRow key={r.rule}>
+                          <TableCell className="text-xs font-medium">{r.rule}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.category === "veto" ? "destructive" : "secondary"} className="text-[10px]">
+                              {r.category === "veto" ? "VETO" : `+${r.points ?? 0}pts`}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono">{r.field} {r.op} {r.value}</TableCell>
+                          <TableCell className="text-right text-xs">{r.hits_total}</TableCell>
+                          <TableCell className="text-right text-xs font-bold">{r.hits_div}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="outline" className={r.impacto_pct > 50 ? "bg-destructive/15 text-destructive border-destructive/30" : r.impacto_pct > 25 ? "bg-yellow-500/15 text-yellow-500 border-yellow-500/30" : ""}>
+                              {r.impacto_pct}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-green-500">+{r.flips_to_aprovado}</TableCell>
+                          <TableCell className="text-right text-xs text-destructive">−{r.flips_from_aprovado}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
               <div>
                 <h4 className="text-sm font-semibold mb-2">Amostras (primeiros 30)</h4>
                 <Table>
