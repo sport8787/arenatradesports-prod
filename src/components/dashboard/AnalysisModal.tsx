@@ -73,7 +73,9 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const { recordAction } = useSignalHistory();
+  const { isAdmin } = useAdmin();
   const [placing, setPlacing] = useState(false);
+  const [adminEditOpen, setAdminEditOpen] = useState(false);
 
   const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
   const recommendedStake = bankrollProps?.recommendedStake ?? 0;
