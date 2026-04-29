@@ -454,15 +454,25 @@ serve(async (req) => {
             'CUIDADO': 'cuidado',
           };
           const statusToSet = verdictToStatus[analysis.verdict] || 'aguardar';
-          
-          await supabase
-            .from('live_matches')
-            .update({
-              mycroft_analysis_id: analysisRow.id,
-              mycroft_status: statusToSet,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('match_id', match.match_id);
+          const hadPriorApproved = existingApprovedMarkets.length > 0;
+          const isNewApproved = activeVerdicts.includes(analysis.verdict);
+
+          // Se já existia mercado aprovado e a nova análise NÃO trouxe novo APROVADO,
+          // preservamos o vínculo original (não sobrescrevemos com AGUARDAR/JOGO_MORTO).
+          // Se trouxe um novo APROVADO complementar, mantemos o original mas a nova
+          // análise fica registrada em mycroft_analyses (UI lista por match_id).
+          if (hadPriorApproved && !isNewApproved) {
+            console.log(`[AnalyzeLive] 🛡️ Preservando vínculo original (${match.home_team} vs ${match.away_team}) — reanálise não trouxe novo APROVADO`);
+          } else {
+            await supabase
+              .from('live_matches')
+              .update({
+                mycroft_analysis_id: analysisRow.id,
+                mycroft_status: statusToSet,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('match_id', match.match_id);
+          }
 
           analyzedCount++;
           results.push({
