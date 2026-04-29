@@ -22,6 +22,7 @@ export interface EditableMatchStats {
   big_chances_away?: number | null;
   corners_home?: number | null;
   corners_away?: number | null;
+  odd_manual?: number | null;
 }
 
 interface AdminStatsEditorModalProps {
