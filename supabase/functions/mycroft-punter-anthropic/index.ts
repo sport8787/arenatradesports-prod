@@ -1009,9 +1009,72 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
   return data.choices?.[0]?.message?.content || ''
 }
 
-// ═══════════════════════════════════════════════
-// SHERLOCK — Indicadores avançados (CV, médias casa/fora)
-// ═══════════════════════════════════════════════
+/**
+ * Parser tolerante: extrai e tenta reparar JSON truncado vindo da IA.
+ * 1) Tenta JSON.parse direto.
+ * 2) Localiza o primeiro `{` e tenta JSON.parse do trecho até o último `}` válido.
+ * 3) Se ainda truncado, balanceia chaves/colchetes/aspas pendentes e tenta parsear.
+ */
+function parseJsonRobust(raw: string): any | null {
+  if (!raw) return null
+  // 1) parse direto
+  try { return JSON.parse(raw) } catch {}
+
+  const start = raw.indexOf('{')
+  if (start === -1) return null
+  const sliced = raw.slice(start)
+
+  // 2) tentar do { até o último } presente
+  const lastBrace = sliced.lastIndexOf('}')
+  if (lastBrace > 0) {
+    try { return JSON.parse(sliced.slice(0, lastBrace + 1)) } catch {}
+  }
+
+  // 3) balanceamento — fecha strings, arrays e objetos em aberto
+  let inString = false
+  let escape = false
+  let braces = 0
+  let brackets = 0
+  let lastSafe = -1 // último índice onde podemos cortar sem ficar dentro de string
+  for (let i = 0; i < sliced.length; i++) {
+    const c = sliced[i]
+    if (escape) { escape = false; continue }
+    if (c === '\\') { escape = true; continue }
+    if (c === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (c === '{') braces++
+    else if (c === '}') braces--
+    else if (c === '[') brackets++
+    else if (c === ']') brackets--
+    if (!inString && (c === ',' || c === '}' || c === ']')) lastSafe = i
+  }
+
+  // remove vírgula final pendente para não quebrar
+  let candidate = sliced
+  if (lastSafe !== -1 && (inString || braces > 0 || brackets > 0)) {
+    candidate = sliced.slice(0, lastSafe + 1).replace(/,\s*$/, '')
+    // recontar pendências sobre o candidato truncado
+    inString = false; escape = false; braces = 0; brackets = 0
+    for (let i = 0; i < candidate.length; i++) {
+      const c = candidate[i]
+      if (escape) { escape = false; continue }
+      if (c === '\\') { escape = true; continue }
+      if (c === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (c === '{') braces++
+      else if (c === '}') braces--
+      else if (c === '[') brackets++
+      else if (c === ']') brackets--
+    }
+  }
+  if (inString) candidate += '"'
+  while (brackets-- > 0) candidate += ']'
+  while (braces-- > 0) candidate += '}'
+
+  try { return JSON.parse(candidate) } catch (e) {
+    return null
+  }
+}
 
 interface TeamAdvancedStats {
   team_id: number
