@@ -100,6 +100,29 @@ export function MycroftRulesSimulatorTab() {
   const [mercadoFilter, setMercadoFilter] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
+  const [rulesSourceMode, setRulesSourceMode] = useState<"current" | "history_at" | "history_versions">("current");
+  const [historyAt, setHistoryAt] = useState<string>(""); // datetime-local
+  const [historyOptions, setHistoryOptions] = useState<HistoryOption[]>([]);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+
+  const loadHistoryOptions = async (m: Modo) => {
+    const { data } = await supabase
+      .from("mycroft_rules_history" as any)
+      .select("id,created_at,changed_by_email,operation,new_data,old_data")
+      .eq("table_name", "mycroft_rules")
+      .eq("modo", m)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setHistoryOptions(((data ?? []) as any[]).map((h) => ({
+      id: h.id,
+      created_at: h.created_at,
+      changed_by_email: h.changed_by_email,
+      operation: h.operation,
+      rule_name: h.new_data?.name ?? h.old_data?.name ?? "—",
+    })));
+  };
+
+  useEffect(() => { loadHistoryOptions(modo); setSelectedHistoryIds([]); }, [modo]);
 
   const loadThresholds = async () => {
     const { data } = await supabase.from("mycroft_alert_thresholds" as any).select("*");
