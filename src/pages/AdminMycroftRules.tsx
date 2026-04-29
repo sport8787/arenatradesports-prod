@@ -73,6 +73,26 @@ export default function AdminMycroftRules() {
   const [config, setConfig] = useState<ConfigState>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [shadowReport, setShadowReport] = useState<any[]>([]);
+  const [globalAlerts, setGlobalAlerts] = useState<Array<{ modo: string; pct: number; samples: number; threshold: number }>>([]);
+
+  async function loadGlobalAlerts() {
+    const list: Array<{ modo: string; pct: number; samples: number; threshold: number }> = [];
+    const { data: ths } = await supabase.from("mycroft_alert_thresholds" as any).select("*").eq("active", true);
+    for (const t of (ths ?? []) as any[]) {
+      const since = new Date(Date.now() - t.window_hours * 3600_000).toISOString();
+      const { data: rows } = await supabase
+        .from("analises_comparativas" as any)
+        .select("verdicto_atual,verdicto_novo")
+        .eq("modo", t.modo).gte("created_at", since).limit(2000);
+      const arr = (rows ?? []) as any[];
+      if (arr.length < t.min_samples) continue;
+      const div = arr.filter((r) => (r.verdicto_atual === "APROVADO") !== (r.verdicto_novo === "APROVADO")).length;
+      const pct = (100 * div) / arr.length;
+      if (pct > t.divergence_threshold_pct) list.push({ modo: t.modo, pct: +pct.toFixed(1), samples: arr.length, threshold: t.divergence_threshold_pct });
+    }
+    setGlobalAlerts(list);
+  }
+  useEffect(() => { if (isAdmin) loadGlobalAlerts(); }, [isAdmin]);
 
   useEffect(() => {
     if (!adminLoading && isAdmin) loadAll();
