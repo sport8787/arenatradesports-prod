@@ -24,9 +24,10 @@ interface Row {
   commence_time: string;
   final_score?: string | null;
   isPlanoFavorito?: boolean;
+  void_reason?: string | null;
 }
 
-type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'todos';
+type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export default function PunterLiquidacoesPage() {
       // Sinais Punter unificados
       const { data: sigs } = await supabase
         .from('punter_sinais')
-        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
+        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
         .gte('commence_time', since)
         .order('commence_time', { ascending: false })
         .limit(500);
@@ -90,6 +91,7 @@ export default function PunterLiquidacoesPage() {
           commence_time: s.commence_time,
           final_score: (s.final_score_home != null && s.final_score_away != null) ? `${s.final_score_home}-${s.final_score_away}` : null,
           isPlanoFavorito: isPF,
+          void_reason: s.void_reason || null,
         };
       });
 
@@ -181,6 +183,7 @@ export default function PunterLiquidacoesPage() {
     if (tab === 'futuros') return isFuture(r);
     if (tab === 'green') return isGreen(r);
     if (tab === 'red') return isRed(r);
+    if (tab === 'void') return isVoid(r);
     return true;
   });
 
@@ -189,8 +192,13 @@ export default function PunterLiquidacoesPage() {
     pendentes: rows.filter(isPending).length,
     green: rows.filter(isGreen).length,
     red: rows.filter(isRed).length,
+    void: rows.filter(isVoid).length,
     futuros: rows.filter(isFuture).length,
   };
+
+  // Win rate exclui VOID (não conta nem como vitória nem como derrota)
+  const decided = counts.green + counts.red;
+  const winRate = decided > 0 ? (counts.green / decided) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -221,14 +229,25 @@ export default function PunterLiquidacoesPage() {
           <p className="font-mono text-xs text-muted-foreground mt-1">
             Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
             Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
-            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span> ou
+            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span>,
+            <span className="text-slate-300"> VOID</span> ou
             <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
             Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-mono">
+            <span className="text-emerald-400">✅ {counts.green} GREEN</span>
+            <span className="text-rose-400">❌ {counts.red} RED</span>
+            <span className="text-slate-300">⚪ {counts.void} VOID</span>
+            <span className="text-amber-300">⏳ {counts.pendentes} pendentes</span>
+            <span className="ml-auto text-foreground">
+              Win Rate: <strong>{winRate.toFixed(1)}%</strong>
+              <span className="text-muted-foreground"> ({counts.green}/{decided} — VOID excluído)</span>
+            </span>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="pendentes" className="gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Pendentes ({counts.pendentes})
             </TabsTrigger>
@@ -240,6 +259,9 @@ export default function PunterLiquidacoesPage() {
             </TabsTrigger>
             <TabsTrigger value="red" className="gap-1.5">
               <XCircle className="w-3.5 h-3.5" /> Reds ({counts.red})
+            </TabsTrigger>
+            <TabsTrigger value="void" className="gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" /> Void ({counts.void})
             </TabsTrigger>
             <TabsTrigger value="todos">Todos ({counts.todos})</TabsTrigger>
           </TabsList>
@@ -289,8 +311,11 @@ export default function PunterLiquidacoesPage() {
                             <XCircle className="w-3.5 h-3.5" /> RED
                           </Badge>
                         )}
-                        {(r.result === 'void' || r.result === 'VOID') && (
-                          <Badge className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1">
+                        {isVoid(r) && (
+                          <Badge
+                            className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1"
+                            title={r.void_reason || 'Sinal anulado: resultado não pôde ser determinado'}
+                          >
                             <AlertTriangle className="w-3.5 h-3.5" /> VOID
                           </Badge>
                         )}
