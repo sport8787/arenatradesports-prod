@@ -229,14 +229,25 @@ export default function PunterLiquidacoesPage() {
           <p className="font-mono text-xs text-muted-foreground mt-1">
             Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
             Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
-            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span> ou
+            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span>,
+            <span className="text-slate-300"> VOID</span> ou
             <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
             Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-mono">
+            <span className="text-emerald-400">✅ {counts.green} GREEN</span>
+            <span className="text-rose-400">❌ {counts.red} RED</span>
+            <span className="text-slate-300">⚪ {counts.void} VOID</span>
+            <span className="text-amber-300">⏳ {counts.pendentes} pendentes</span>
+            <span className="ml-auto text-foreground">
+              Win Rate: <strong>{winRate.toFixed(1)}%</strong>
+              <span className="text-muted-foreground"> ({counts.green}/{decided} — VOID excluído)</span>
+            </span>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="pendentes" className="gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Pendentes ({counts.pendentes})
             </TabsTrigger>
@@ -248,6 +259,9 @@ export default function PunterLiquidacoesPage() {
             </TabsTrigger>
             <TabsTrigger value="red" className="gap-1.5">
               <XCircle className="w-3.5 h-3.5" /> Reds ({counts.red})
+            </TabsTrigger>
+            <TabsTrigger value="void" className="gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" /> Void ({counts.void})
             </TabsTrigger>
             <TabsTrigger value="todos">Todos ({counts.todos})</TabsTrigger>
           </TabsList>
