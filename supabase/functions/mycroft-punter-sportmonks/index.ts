@@ -36,17 +36,38 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
   return u.toString();
 }
 
+// Normaliza nomes para a busca Sportmonks (remove sufixos comuns BR/AR/UR e prefixos como "CA", "SC", "FC")
+function normalizeTeamName(name: string): string[] {
+  const variants = new Set<string>();
+  variants.add(name);
+  // remove sufixo de UF brasileira (-SP, -RJ, -MG, -BA, -RS, -PR, -PE, -CE, -GO, -DF...)
+  let v = name.replace(/\s*[-/]\s*(SP|RJ|MG|BA|RS|PR|PE|CE|GO|DF|ES|SC|MT|MS|PA|PB|RN|AL|MA|PI|TO|AM|RO|AC|RR|AP|SE)\b/i, "").trim();
+  variants.add(v);
+  // remove sufixos de cidade (Asunción, Montevideo, Guayaquil, Quito, La Paz, etc)
+  v = v.replace(/\s+(Asunción|Asuncion|Montevideo|Guayaquil|Quito|La Paz|Bogotá|Medellín|Medellin|Cali|Lima|Buenos Aires|Santiago|Caracas)$/i, "").trim();
+  variants.add(v);
+  // remove prefixos comuns (CA, SC, FC, CD, CR, EC, AA, SE, AD, RB, CF)
+  v = v.replace(/^(CA|SC|FC|CD|CR|EC|AA|SE|AD|RB|CF|SD|UD|CS|AS|US|FK|SK|HC|GD)\s+/i, "").trim();
+  variants.add(v);
+  // primeira palavra (last resort, p/ "Vasco da Gama" -> "Vasco")
+  const first = v.split(/\s+/)[0];
+  if (first.length >= 4) variants.add(first);
+  return Array.from(variants).filter(Boolean);
+}
+
 async function smSearchTeam(name: string): Promise<{ id: number; name: string } | null> {
   if (!SM_TOKEN) return null;
-  try {
-    const url = smUrl(`/football/teams/search/${encodeURIComponent(name)}`);
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const j = await r.json();
-    const t = j.data?.[0];
-    if (!t) return null;
-    return { id: t.id, name: t.name };
-  } catch { return null; }
+  for (const variant of normalizeTeamName(name)) {
+    try {
+      const url = smUrl(`/football/teams/search/${encodeURIComponent(variant)}`);
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      const t = j.data?.[0];
+      if (t) return { id: t.id, name: t.name };
+    } catch { /* try next */ }
+  }
+  return null;
 }
 
 async function smLastFixtures(teamId: number, n = 8): Promise<any[]> {
