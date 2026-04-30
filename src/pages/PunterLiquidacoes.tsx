@@ -160,9 +160,20 @@ export default function PunterLiquidacoesPage() {
     }
   };
 
-  const isPending = (r: Row) => !r.result;
+  const now = Date.now();
+  const isFinished = (r: Row) => {
+    const t = new Date(r.commence_time).getTime();
+    // Considera jogo terminado ~2h30 após o kickoff
+    return !isNaN(t) && t + 2.5 * 60 * 60 * 1000 < now;
+  };
   const isGreen = (r: Row) => r.result === 'green' || r.result === 'GREEN';
   const isRed = (r: Row) => r.result === 'red' || r.result === 'RED';
+  const isVoid = (r: Row) => r.result === 'void' || r.result === 'VOID';
+  const isResolved = (r: Row) => isGreen(r) || isRed(r) || isVoid(r);
+  // Pendente = sinal sem resultado ainda (jogo já terminado mas não foi liquidado)
+  const isPending = (r: Row) => !isResolved(r) && isFinished(r);
+  // Futuro = sinal de jogo que ainda não terminou
+  const isFuture = (r: Row) => !isResolved(r) && !isFinished(r);
 
   const filtered = rows.filter(r => {
     if (tab === 'todos') return true;
@@ -177,6 +188,7 @@ export default function PunterLiquidacoesPage() {
     pendentes: rows.filter(isPending).length,
     green: rows.filter(isGreen).length,
     red: rows.filter(isRed).length,
+    futuros: rows.filter(isFuture).length,
   };
 
   return (
@@ -206,7 +218,10 @@ export default function PunterLiquidacoesPage() {
         <div className="rounded-lg border border-border bg-card/50 p-4">
           <h2 className="text-lg font-bold text-foreground">Sinais Punter (últimos 14 dias)</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            Inclui Punter (1X2, Over/Under, BTTS, AH, escanteios), Plano Favorito e Eventos Raros (LAY).
+            Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
+            Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
+            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span> ou
+            <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
             Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
           </p>
         </div>
@@ -276,8 +291,13 @@ export default function PunterLiquidacoesPage() {
                           </Badge>
                         )}
                         {isPending(r) && (
-                          <Badge variant="outline" className="gap-1">
-                            <Clock className="w-3.5 h-3.5" /> {r.status === 'awaiting_stake' ? 'Aguardando stake' : 'Pendente'}
+                          <Badge variant="outline" className="gap-1 border-amber-400/40 text-amber-300">
+                            <Clock className="w-3.5 h-3.5" /> Pendente liquidação
+                          </Badge>
+                        )}
+                        {isFuture(r) && (
+                          <Badge variant="outline" className="gap-1 text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" /> Aguardando jogo
                           </Badge>
                         )}
                         {r.profit_loss != null && (
