@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
         ok: true,
         processed: total,
         approved,
+        skipped,
         errors: errors.slice(0, 10),
         ms: Date.now() - startedAt,
       }),
