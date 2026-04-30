@@ -48,6 +48,8 @@ export interface Match {
   finalScoreAway?: number | null;
   confidence?: number | null;
   alerts?: string[] | null;
+  approvalOdd?: number | null;
+  oddsLive?: { home?: number | null; draw?: number | null; away?: number | null; bookmaker?: string | null } | null;
 }
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
