@@ -263,6 +263,9 @@ export default function AdminDashboard() {
               </Card>
             </section>
 
+            {/* Sequência de e-mails de onboarding */}
+            <EmailSequenceReport />
+
             {/* Seção 4 — Feed */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Atividade recente</h2>
