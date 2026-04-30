@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Service role can manage punter unified signals" ON public.punter_sinais;
