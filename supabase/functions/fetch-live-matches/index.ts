@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
+import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
+
+// Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
+//               'api-football' (default) = comportamento legado
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
 
 // Hard wall-clock budget for the entire invocation. Anything not started by
 // this point gets enqueued to mycroft_analysis_queue for the background worker.
