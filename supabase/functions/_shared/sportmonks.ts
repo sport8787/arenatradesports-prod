@@ -138,7 +138,7 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
 export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;periods;inplayOdds",
+    include: "scores;participants;state;league;statistics;periods;inplayodds",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
