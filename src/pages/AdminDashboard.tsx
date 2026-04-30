@@ -267,6 +267,9 @@ export default function AdminDashboard() {
             {/* Sequência de e-mails de onboarding */}
             <EmailSequenceReport />
 
+            {/* A/B Live Provider (Sportmonks vs API-Football) */}
+            <LiveProviderCompare />
+
             {/* Seção 4 — Feed */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Atividade recente</h2>
