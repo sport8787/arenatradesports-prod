@@ -38,19 +38,36 @@ Deno.serve(async (req) => {
 
     let approved = 0;
     let total = 0;
+    let skipped = 0;
     const errors: string[] = [];
+
+    // Mesma janela escalonada da análise primária (API-Football tradição):
+    // 0–10' → 5min · 10–25' → 5min · 25'+ → 1min
+    const getReanalysisIntervalMs = (minute: number): number => {
+      if (minute < 25) return 5 * 60_000;
+      return 1 * 60_000;
+    };
 
     for (const m of liveMatches) {
       total++;
       try {
-        // Evita reanalisar shadow muito recente (< 90s) para o mesmo match
+        const minute = m.minute ?? 0;
+        const intervalMs = getReanalysisIntervalMs(minute);
+
+        // Pula se a última análise shadow desse match foi feita dentro da janela
         const { data: recent } = await sb
           .from("mycroft_analyses_shadow_af")
           .select("id, created_at")
           .eq("match_id", m.match_id)
-          .gt("created_at", new Date(Date.now() - 90_000).toISOString())
+          .order("created_at", { ascending: false })
           .limit(1);
-        if (recent && recent.length > 0) continue;
+        if (recent && recent.length > 0) {
+          const lastMs = Date.now() - new Date(recent[0].created_at).getTime();
+          if (lastMs < intervalMs) {
+            skipped++;
+            continue;
+          }
+        }
 
         const res = await fetch(`${SUPABASE_URL}/functions/v1/mycroft-sports-analysis`, {
           method: "POST",
