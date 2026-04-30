@@ -127,7 +127,11 @@ export const useAuth = () => {
       // Disparo imediato do e-mail D1 de boas-vindas (fire-and-forget)
       // Cron diário às 08:00 BRT cobre casos onde este invoke falhar.
       supabase.functions.invoke('email-d1-boasvindas', {
-        body: { user_id: data.user.id, immediate: true },
+        body: {
+          user_id: data.user.id,
+          email: data.user.email ?? email,
+          full_name: username,
+        },
       }).catch((e) =>
         console.warn('D1 welcome email trigger failed:', e)
       );
