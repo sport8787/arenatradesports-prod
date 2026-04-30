@@ -485,8 +485,18 @@ export default function ArenaTraderSports() {
                 <FlaskConical className="w-3 h-3" />
                 Simulado
               </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
+                  <FlaskConical className="w-3 h-3" />
+                  Sinais Aprovados (API-Football)
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
+
+          {statusFilter === 'aprovados_af' && isAdmin && (
+            <ShadowAfApprovedTab />
+          )}
 
           {/* Simulation Panel - shown when "Simulado" tab is active */}
           {statusFilter === 'simulado' && (
