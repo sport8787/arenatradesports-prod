@@ -229,7 +229,7 @@ serve(async (req) => {
     sb
       .from("eventos_raros_sinais")
       .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
-      .is("resultado", null)
+      .or("resultado.is.null,resultado.eq.PENDENTE,resultado.eq.pendente")
       .order("created_at", { ascending: true })
       .limit(200)
   ]);
