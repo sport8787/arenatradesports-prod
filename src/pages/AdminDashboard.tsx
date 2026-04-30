@@ -13,6 +13,7 @@ import ApprovalSnapshotViolations from '@/components/admin/ApprovalSnapshotViola
 import PunterCalibration from '@/components/admin/PunterCalibration';
 import PunterPromptSimulator from '@/components/admin/PunterPromptSimulator';
 import EmailSequenceReport from '@/components/admin/EmailSequenceReport';
+import LiveProviderCompare from '@/components/admin/LiveProviderCompare';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
