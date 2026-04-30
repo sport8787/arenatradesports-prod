@@ -10,6 +10,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
 import { RequireSubscription } from "@/components/RequireSubscription";
+import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
@@ -64,6 +65,7 @@ const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
 const AdminEdgeFunctionsStatus = React.lazy(() => import("./pages/AdminEdgeFunctionsStatus"));
 const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFunctionErrors"));
+const AdminAssinaturas = React.lazy(() => import("./pages/AdminAssinaturas"));
 
 const queryClient = new QueryClient();
 
@@ -118,21 +120,21 @@ const App = () => {
                 <Route path="/historico" element={<RequireSubscription><Historico /></RequireSubscription>} />
                 <Route path="/apostas" element={<RequireSubscription><BetHistory /></RequireSubscription>} />
                 <Route path="/minhas-apostas" element={<RequireSubscription><MinhasApostas /></RequireSubscription>} />
-                <Route path="/punter" element={<RequireSubscription><Punter /></RequireSubscription>} />
-                <Route path="/punter/widgets" element={<RequireSubscription><PunterWidgets /></RequireSubscription>} />
-                <Route path="/punter/analytics" element={<RequireSubscription><PunterAnalytics /></RequireSubscription>} />
-                <Route path="/punter/config" element={<RequireSubscription><PunterConfig /></RequireSubscription>} />
-                <Route path="/punter/import" element={<RequireSubscription><PunterImport /></RequireSubscription>} />
-                <Route path="/punter/betfair-real" element={<RequireSubscription><PunterBetfairReal /></RequireSubscription>} />
-                <Route path="/punter/multiplas" element={<RequireSubscription><MultiBetOptimizer /></RequireSubscription>} />
-                <Route path="/punter/funcoes" element={<RequireSubscription><PunterFunctions /></RequireSubscription>} />
-                <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
-                <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
-                <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
-                <Route path="/punter/liquidacoes" element={<RequireSubscription><PunterLiquidacoes /></RequireSubscription>} />
-                <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
-                <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
-                <Route path="/punter/auditoria" element={<RequireSubscription><PunterAuditoria /></RequireSubscription>} />
+                <Route path="/punter" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><Punter /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/widgets" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterWidgets /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/analytics" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAnalytics /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/config" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterConfig /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/import" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterImport /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/betfair-real" element={<RequireSubscription><RequireArena arena="banca_real" arenaLabel="Banca Real"><PunterBetfairReal /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/multiplas" element={<RequireSubscription><RequireArena arena="multiplas" arenaLabel="Gerador de Múltiplas"><MultiBetOptimizer /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/funcoes" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterFunctions /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/banca-virtual" element={<RequireSubscription><RequireArena arena="banca_virtual" arenaLabel="Banca Virtual"><PunterBancaVirtual /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/analise-manual" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAnaliseManual /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/aprovadas" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAprovadas /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/liquidacoes" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterLiquidacoes /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/comunidade" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterComunidade /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/menu" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterMenu /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/auditoria" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAuditoria /></RequireArena></RequireSubscription>} />
                 <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
                 <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
                 <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
@@ -146,6 +148,7 @@ const App = () => {
                 <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
                 <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
+                <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>
