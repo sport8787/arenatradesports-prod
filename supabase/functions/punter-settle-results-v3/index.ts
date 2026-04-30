@@ -1,10 +1,10 @@
 // =============================================================================
 // MYCROFT PUNTER — Liquidação Automática v3
-// Liquida punter_signals (pending/awaiting_stake) usando punter_analyses para
-// recuperar home/away/league. 3 camadas: API-Football (nome+data ±1d) → The Odds API.
-// Mercados: 1X2, Over/Under, BTTS, Dupla Chance, AH (-1.0 a +1.5 incl. .25/.75),
-// vitória pelo nome do time, escanteios Over/Under.
-// Resultado salvo conforme constraint do BD: GREEN/RED (e green/red em punter_signals).
+// Liquida sinais unificados do Arena Punter em public.punter_sinais,
+// além de Plano Favorito e Eventos Raros. 3 camadas: API-Football
+// (nome+data ±1d) → The Odds API. Mercados: 1X2, Over/Under, BTTS,
+// Dupla Chance, AH (-1.0 a +1.5 incl. .25/.75), vitória pelo nome do time,
+// escanteios Over/Under.
 // =============================================================================
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -208,21 +208,32 @@ serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
   const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-  // Busca punter_signals pendentes (incluindo awaiting_stake) já com analise vinculada
-  const { data: pending, error } = await sb
-    .from("punter_signals")
-    .select(`
-      id, match_id, market, odd, stake_percentage, stake_amount, status, commence_time, match_date,
-      analysis_id,
-      punter_analyses!inner ( id, home_team, away_team, league, commence_time )
-    `)
-    .in("status", ["pending", "awaiting_stake"])
-    .is("result", null)
-    .lt("commence_time", cutoff)
-    .order("commence_time", { ascending: true })
-    .limit(200);
+  const [{ data: pending, error }, { data: favoritoPending, error: favoritoError }, { data: rarosPending, error: rarosError }] = await Promise.all([
+    sb
+      .from("punter_sinais")
+      .select("id, legacy_signal_id, match_id, home_team, away_team, league, market, odd, stake_percentage, stake_amount, status, commence_time, match_date")
+      .in("status", ["pending", "awaiting_stake", "stake_calculated", "confirmed"])
+      .is("resultado", null)
+      .eq("dismissed", false)
+      .lt("commence_time", cutoff)
+      .order("commence_time", { ascending: true })
+      .limit(200),
+    sb
+      .from("sinais_favorito_prelive")
+      .select("id, fixture_id, home_team, away_team, league_name, match_date, favorito, fav_odd, score_vitoria, score_over15, score_over25, resultado_vitoria, resultado_over15, resultado_over25")
+      .or("resultado_vitoria.is.null,resultado_over15.is.null,resultado_over25.is.null")
+      .lt("match_date", cutoff)
+      .order("match_date", { ascending: true })
+      .limit(200),
+    sb
+      .from("eventos_raros_sinais")
+      .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
+      .is("resultado", null)
+      .order("created_at", { ascending: true })
+      .limit(200)
+  ]);
 
-  if (error) {
+  if (error || favoritoError || rarosError) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
@@ -231,10 +242,9 @@ serve(async (req) => {
   const results: any[] = [];
 
   for (const s of items) {
-    const a = s.punter_analyses;
-    const home = a?.home_team || "";
-    const away = a?.away_team || "";
-    const startIso = s.commence_time || a?.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
+    const home = s.home_team || "";
+    const away = s.away_team || "";
+    const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
       // 1) API-Football
@@ -263,7 +273,7 @@ serve(async (req) => {
       if (!res) {
         unsupported++;
         // salva placar mesmo sem liquidar
-        await sb.from("punter_signals").update({
+        await sb.from("punter_sinais").update({
           score_home: fx.goalsHome, score_away: fx.goalsAway, updated_at: new Date().toISOString(),
         }).eq("id", s.id);
         results.push({ id: s.id, status: "market_unsupported", market: s.market, score: `${fx.goalsHome}-${fx.goalsAway}` });
@@ -274,32 +284,21 @@ serve(async (req) => {
       const profit = calcPnl(res, stake, Number(s.odd));
       const dbR = dbResult(res);
 
-      // Atualiza punter_signals
-      await sb.from("punter_signals").update({
-        result: dbR,
+      await sb.from("punter_sinais").update({
+        resultado: dbR,
         status: "settled",
-        score_home: fx.goalsHome,
-        score_away: fx.goalsAway,
+        final_score_home: fx.goalsHome,
+        final_score_away: fx.goalsAway,
         profit_loss: Number(profit.toFixed(2)),
         resulted_at: new Date().toISOString(),
+        settled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", s.id);
-
-      // Atualiza punter_analyses (constraint aceita GREEN/RED/VOID)
-      if (s.analysis_id) {
-        await sb.from("punter_analyses").update({
-          result: dbR.toUpperCase(),
-          final_score_home: fx.goalsHome,
-          final_score_away: fx.goalsAway,
-          settled_at: new Date().toISOString(),
-          profit_loss: Number(profit.toFixed(4)),
-        }).eq("id", s.analysis_id).is("result", null);
-      }
 
       // Cascata virtual_bets_punter
       try {
         const { data: vbp } = await sb.from("virtual_bets_punter")
-          .select("id, stake, odd").eq("signal_id", s.id).eq("status", "pending");
+          .select("id, stake, odd").in("signal_id", [s.id, s.legacy_signal_id].filter(Boolean)).eq("status", "pending");
         for (const b of (vbp || [])) {
           const bp = calcPnl(res, Number(b.stake) || 0, Number(b.odd) || Number(s.odd));
           await sb.from("virtual_bets_punter").update({
@@ -312,11 +311,110 @@ serve(async (req) => {
       settled++;
       results.push({
         id: s.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`,
-        market: s.market, result: res, fonte, pnl: profit,
+        market: s.market, result: res, fonte, pnl: profit, source: "punter_sinais",
       });
     } catch (e) {
       console.error("err signal", s.id, e);
       results.push({ id: s.id, status: "error", error: String(e) });
+    }
+  }
+
+  for (const s of (favoritoPending || []) as any[]) {
+    const home = s.home_team || "";
+    const away = s.away_team || "";
+    const startIso = s.match_date || new Date().toISOString();
+
+    try {
+      let fx: FixtureResult | null = null;
+      let fonte = "api-football";
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) fx = af.fx;
+      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+
+      if (!fx) {
+        notFound++;
+        results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "sinais_favorito_prelive" });
+        continue;
+      }
+
+      const favorito = String(s.favorito || "");
+      const mercadoVitoria = favorito && normalizeTeamName(favorito) === normalizeTeamName(home) ? "casa" : "fora";
+      const updates: Record<string, string> = {};
+
+      if (s.resultado_vitoria == null) updates.resultado_vitoria = dbResult(calcularResultado(mercadoVitoria, home, away, fx) || "VOID").toUpperCase();
+      if (s.resultado_over15 == null) updates.resultado_over15 = dbResult(calcularResultado("over 1.5", home, away, fx) || "VOID").toUpperCase();
+      if (s.resultado_over25 == null) updates.resultado_over25 = dbResult(calcularResultado("over 2.5", home, away, fx) || "VOID").toUpperCase();
+
+      await sb.from("sinais_favorito_prelive").update({
+        ...updates,
+        gols_ft: fx.goalsHome + fx.goalsAway,
+        fav_venceu: favorito ? normalizeTeamName(favorito) === normalizeTeamName(home) ? fx.goalsHome > fx.goalsAway : fx.goalsAway > fx.goalsHome : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", s.id);
+
+      settled++;
+      results.push({ id: s.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, source: "sinais_favorito_prelive", updates, fonte });
+    } catch (e) {
+      console.error("err favorito", s.id, e);
+      results.push({ id: s.id, status: "error", error: String(e), source: "sinais_favorito_prelive" });
+    }
+  }
+
+  if ((rarosPending || []).length) {
+    const candidatoIds = Array.from(new Set((rarosPending || []).map((r: any) => r.candidato_id).filter(Boolean)));
+    let candidatosMap = new Map<string, any>();
+    if (candidatoIds.length) {
+      const { data: candidatos } = await sb
+        .from("eventos_raros_candidatos")
+        .select("id, home_team, away_team, league_name, match_date")
+        .in("id", candidatoIds);
+      candidatosMap = new Map((candidatos || []).map((c: any) => [c.id, c]));
+    }
+
+    for (const s of (rarosPending || []) as any[]) {
+      const c = candidatosMap.get(s.candidato_id);
+      const home = c?.home_team || "";
+      const away = c?.away_team || "";
+      const startIso = c?.match_date || s.created_at || new Date().toISOString();
+
+      try {
+        let fx: FixtureResult | null = null;
+        let fonte = "api-football";
+        const af = await buscarPorNomeEData(home, away, startIso);
+        if (af) fx = af.fx;
+        if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+        if (!fx) {
+          notFound++;
+          results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "eventos_raros_sinais" });
+          continue;
+        }
+
+        const resultadoRaro = /lay_2x2/i.test(s.placar_alvo || "")
+          ? (fx.goalsHome === 2 && fx.goalsAway === 2 ? "RED" : "GREEN")
+          : /lay_goleada/i.test(s.placar_alvo || "")
+            ? (Math.abs(fx.goalsHome - fx.goalsAway) >= 3 ? "RED" : "GREEN")
+            : null;
+
+        if (!resultadoRaro) {
+          unsupported++;
+          results.push({ id: s.id, status: "market_unsupported", market: s.placar_alvo, source: "eventos_raros_sinais" });
+          continue;
+        }
+
+        await sb.from("eventos_raros_sinais").update({
+          resultado: resultadoRaro,
+          status: "ENCERRADO",
+          placar_saida: `${fx.goalsHome}x${fx.goalsAway}`,
+          motivo_saida: "Liquidação automática",
+          updated_at: new Date().toISOString(),
+        }).eq("id", s.id);
+
+        settled++;
+        results.push({ id: s.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, source: "eventos_raros_sinais", result: resultadoRaro, fonte });
+      } catch (e) {
+        console.error("err raro", s.id, e);
+        results.push({ id: s.id, status: "error", error: String(e), source: "eventos_raros_sinais" });
+      }
     }
   }
 
