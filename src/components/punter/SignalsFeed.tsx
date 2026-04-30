@@ -84,7 +84,7 @@ export default function SignalsFeed() {
         commenceMs != null &&
         commenceMs <= nowMs &&
         commenceMs >= nowMs - 3 * 60 * 60 * 1000 && // janela de 3h
-        !a.result &&
+        !a.resultado &&
         !a.settled_at;
       if (isLive) {
         list.push({
@@ -101,7 +101,7 @@ export default function SignalsFeed() {
         });
       }
       // Card de resultado se já liquidado
-      if (a.result === 'won' || a.result === 'green') {
+      if (a.resultado === 'won' || a.resultado === 'green') {
         list.push({
           id: `result-${a.id}`,
           kind: 'GREEN',
@@ -113,7 +113,7 @@ export default function SignalsFeed() {
           confidence: a.confidence,
           profit_loss: a.profit_loss,
         });
-      } else if (a.result === 'lost' || a.result === 'red') {
+      } else if (a.resultado === 'lost' || a.resultado === 'red') {
         list.push({
           id: `result-${a.id}`,
           kind: 'RED',
