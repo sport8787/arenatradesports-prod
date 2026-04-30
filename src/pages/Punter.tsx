@@ -975,6 +975,7 @@ export default function PunterPage() {
                 liga: game.sport_key,
                 season: 2025,
                 commence_time: game.commence_time,
+                data_source: 'sportmonks',
               }),
             }
           );
@@ -1407,7 +1408,7 @@ export default function PunterPage() {
                 setHaLoading(true);
                 toast.info('🎯 Buscando oportunidades em Handicap Asiático... (pode levar até 2 min)');
                 try {
-                  const { data, error } = await supabase.functions.invoke('handicap-asiatico-prelive', { body: {} });
+                  const { data, error } = await supabase.functions.invoke('handicap-asiatico-prelive', { body: { data_source: 'sportmonks' } });
                   if (error) throw error;
                   if (data?.success) {
                     const aprov = data.aprovados ?? 0;

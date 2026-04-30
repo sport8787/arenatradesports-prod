@@ -80,7 +80,7 @@ export default function PlanoFavoritoPanel() {
     });
     try {
       const { data, error } = await supabase.functions.invoke('plano-favorito-prelive', {
-        body: {},
+        body: { data_source: 'sportmonks' },
       });
       if (error) throw error;
       toast.success(`Análise concluída — ${data?.aprovados ?? 0} aprovados`, {
