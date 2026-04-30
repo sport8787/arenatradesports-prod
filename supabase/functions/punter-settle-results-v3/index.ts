@@ -313,6 +313,7 @@ serve(async (req) => {
         resulted_at: new Date().toISOString(),
         settled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        fonte_liquidacao: fonte,
       }).eq("id", s.id);
 
       // Cascata virtual_bets_punter
