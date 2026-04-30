@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,55 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Loader2, RefreshCw, FlaskConical, Play, BarChart3, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
+import MatchCardWithEntries from '@/components/dashboard/MatchCardWithEntries';
+import type { Match } from '@/components/dashboard/MatchCard';
+
+const getChampionshipColor = (name: string): Match['championshipColor'] => {
+  const lower = (name || '').toLowerCase();
+  if (lower.includes('copa')) return 'yellow';
+  if (lower.includes('champions') || lower.includes('liga')) return 'blue';
+  if (lower.includes('brasileir')) return 'green';
+  return 'red';
+};
+
+function shadowSignalToMatch(s: ShadowSignal, m?: MatchInfo, lmExtra?: any): Match {
+  const stats = lmExtra?.stats || s.stats_snapshot?.stats || {};
+  return {
+    id: s.id,
+    championship: m?.championship || '—',
+    championshipColor: getChampionshipColor(m?.championship || ''),
+    home: m?.home_team || 'Casa',
+    away: m?.away_team || 'Fora',
+    homeLogo: lmExtra?.home_logo || '⚽',
+    awayLogo: lmExtra?.away_logo || '⚽',
+    scoreHome: s.final_score_home ?? m?.score_home ?? 0,
+    scoreAway: s.final_score_away ?? m?.score_away ?? 0,
+    minute: m?.minute ?? s.approved_at_minute ?? 0,
+    period: '',
+    status: (s.result ? 'finished' : 'live') as Match['status'],
+    mycroftStatus: (s.verdict as Match['mycroftStatus']) || 'APROVADO',
+    matchId: s.match_id,
+    stats: {
+      possession_home: stats.possession_home,
+      possession_away: stats.possession_away,
+      attacks_home: stats.attacks_home ?? stats.dangerous_attacks_home,
+      attacks_away: stats.attacks_away ?? stats.dangerous_attacks_away,
+      shots_home: stats.shots_on_target_home ?? stats.shots_home,
+      shots_away: stats.shots_on_target_away ?? stats.shots_away,
+      corners_home: stats.corners_home,
+      corners_away: stats.corners_away,
+      xG_home: stats.xG_home,
+      xG_away: stats.xG_away,
+    },
+    planName: s.plan_name,
+    market: s.market,
+    signalResult: (s.result === 'green' || s.result === 'red') ? s.result : null,
+    finalScoreHome: s.final_score_home ?? null,
+    finalScoreAway: s.final_score_away ?? null,
+    confidence: s.confidence ?? null,
+    alerts: null,
+  };
+}
 
 interface ShadowSignal {
   id: string;
