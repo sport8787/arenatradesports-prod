@@ -170,15 +170,24 @@ function StatsDiffModal({ open, onClose, sm, af, signal }: any) {
 }
 
 export default function ShadowAfApprovedTab() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [period, setPeriod] = useState<Period>('since');
   const [signals, setSignals] = useState<ShadowSignal[]>([]);
   const [matches, setMatches] = useState<Record<string, MatchInfo>>({});
+  const [lmExtras, setLmExtras] = useState<Record<string, any>>({});
   const [primary, setPrimary] = useState<Record<string, PrimarySignal[]>>({});
   const [metrics, setMetrics] = useState<MetricsRow[]>([]);
   const [divergences, setDivergences] = useState<DivergenceRow[]>([]);
   const [diffSignal, setDiffSignal] = useState<ShadowSignal | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUserId(data?.session?.user?.id);
+    });
+  }, []);
 
   const loadAggregates = async (p: Period) => {
     const since = periodToSince(p);
