@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +9,7 @@ const corsHeaders = {
 };
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
 const LIGAS_PERMITIDAS: Record<number, string> = {
