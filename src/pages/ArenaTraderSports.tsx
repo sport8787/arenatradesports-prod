@@ -22,6 +22,7 @@ import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection'
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
+import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
 import { useAdmin } from '@/hooks/useAdmin';
 import ActivePositions from '@/components/dashboard/ActivePositions';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
@@ -332,6 +333,7 @@ export default function ArenaTraderSports() {
             )}
             <WhatsAppSupportButton />
             {isAdmin && <LiveCronToggle />}
+            {isAdmin && <ShadowAfCronToggle />}
             {/* View toggle */}
             <div className="flex items-center border border-border rounded-lg overflow-hidden">
               <button
@@ -353,14 +355,6 @@ export default function ArenaTraderSports() {
         {/* Action buttons row - scrollable */}
         <div className="container mx-auto px-4 pb-3">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            <GoldButton size="sm" onClick={handleAnalyzeCorners} disabled={isAnalyzingCorners} variant="outline">
-              <CornerDownRight className={cn("w-4 h-4 mr-1", isAnalyzingCorners && "animate-spin")} />
-              Escanteios
-            </GoldButton>
-            <GoldButton size="sm" onClick={handleSettleBets} disabled={isSettling} variant="outline">
-              <CheckCircle2 className={cn("w-4 h-4 mr-1", isSettling && "animate-spin")} />
-              Liquidar
-            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
               <Brain className="w-4 h-4 mr-1" />
               Chat com Mycroft
@@ -373,25 +367,9 @@ export default function ArenaTraderSports() {
               <Sparkles className="w-4 h-4 mr-1" />
               Eventos Raros
             </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/historico')}>
-              <BarChart3 className="w-4 h-4 mr-1" />
-              Histórico
-            </GoldButton>
             <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
               <TrendingUp className="w-4 h-4 mr-1" />
               Performance
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/historico')}>
-              <Wallet className="w-4 h-4 mr-1" />
-              Meus Trades
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/ranking-mensal')}>
-              <Trophy className="w-4 h-4 mr-1" />
-              Ranking
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/modo-treino')}>
-              <Dumbbell className="w-4 h-4 mr-1" />
-              Treino
             </GoldButton>
           </div>
         </div>
