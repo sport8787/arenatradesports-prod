@@ -55,6 +55,8 @@ function shadowSignalToMatch(s: ShadowSignal, m?: MatchInfo, lmExtra?: any): Mat
     finalScoreAway: s.final_score_away ?? null,
     confidence: s.confidence ?? null,
     alerts: null,
+    approvalOdd: s.odd ?? null,
+    oddsLive: lmExtra?.odds_live ?? null,
   };
 }
 
