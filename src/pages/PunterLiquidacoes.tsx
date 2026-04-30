@@ -183,6 +183,7 @@ export default function PunterLiquidacoesPage() {
     if (tab === 'futuros') return isFuture(r);
     if (tab === 'green') return isGreen(r);
     if (tab === 'red') return isRed(r);
+    if (tab === 'void') return isVoid(r);
     return true;
   });
 
@@ -191,8 +192,13 @@ export default function PunterLiquidacoesPage() {
     pendentes: rows.filter(isPending).length,
     green: rows.filter(isGreen).length,
     red: rows.filter(isRed).length,
+    void: rows.filter(isVoid).length,
     futuros: rows.filter(isFuture).length,
   };
+
+  // Win rate exclui VOID (não conta nem como vitória nem como derrota)
+  const decided = counts.green + counts.red;
+  const winRate = decided > 0 ? (counts.green / decided) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background">
