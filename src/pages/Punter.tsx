@@ -979,17 +979,17 @@ export default function PunterPage() {
           const stakePerc = r.veredicto.stake_percentage || 2;
           const thesis = `${r.veredicto.plano_ativado}: ${r.veredicto.thesis}`;
 
-          // Dedup: remove old corners analysis+signal for same match+market
-          await supabase.from('punter_signals').delete().eq('match_id', mid).eq('market', market);
-          await supabase.from('punter_analyses').delete().eq('match_id', mid).eq('market', market);
+          // Dedup: remove old corners signal for same match+market (tabela unificada)
+          await supabase.from('punter_sinais').delete().eq('match_id', mid).eq('market', market);
 
-          // Insert into punter_analyses
-          const { data: row, error: insertErr } = await supabase.from('punter_analyses').insert({
+          // Insert into punter_sinais (tabela unificada — sem split entre analyses/signals)
+          const { error: insertErr } = await supabase.from('punter_sinais').insert({
             match_id: mid,
             home_team: r.mandante,
             away_team: r.visitante,
             league: r.liga || 'Escanteios',
             commence_time: commenceTime,
+            match_date: matchDate,
             market,
             bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
             odd,
@@ -1002,27 +1002,12 @@ export default function PunterPage() {
             verdict: 'APROVADO',
             stake_percentage: stakePerc,
             analyzed_by: 'mycroft-corners-punter',
-          } as any).select().single();
+            status: 'stake_calculated',
+            stake_confirmed: false,
+          } as any);
 
           if (insertErr) {
-            console.error('[Corners] Insert punter_analyses error:', insertErr);
-          }
-
-          if (row) {
-            // Insert into punter_signals
-            await supabase.from('punter_signals').insert({
-              analysis_id: row.id,
-              match_id: mid,
-              market,
-              bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
-              odd,
-              value_percentage: edge,
-              stake_percentage: stakePerc,
-              status: 'stake_calculated',
-              match_date: matchDate,
-              commence_time: commenceTime,
-              stake_confirmed: false,
-            } as any);
+            console.error('[Corners] Insert punter_sinais error:', insertErr);
           }
 
           cornersSignals.push({
