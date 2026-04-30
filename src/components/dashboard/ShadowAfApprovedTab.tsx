@@ -404,54 +404,46 @@ export default function ShadowAfApprovedTab() {
             Nenhum sinal shadow no período. Clique em <strong>Rodar agora</strong> para disparar análise paralela.
           </div>
         ) : (
-          <div className="space-y-2 max-h-[600px] overflow-y-auto">
-            {enriched.map((s) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {enriched.map((s, i) => {
               const m = matches[s.match_id];
-              const resBadge = s.result === 'green' ? <Badge className="bg-success">GREEN</Badge>
-                : s.result === 'red' ? <Badge variant="destructive">RED</Badge>
-                : <Badge variant="secondary">pendente</Badge>;
-              const primRes = s.primarySignal?.result;
-              const primResBadge = !s.primarySignal ? null
-                : primRes === 'green' ? <Badge className="bg-success/70 ml-1">SM:GREEN</Badge>
-                : primRes === 'red' ? <Badge variant="destructive" className="ml-1">SM:RED</Badge>
-                : <Badge variant="outline" className="ml-1">SM:pend</Badge>;
-              return (
-                <div
-                  key={s.id}
-                  className={`border rounded p-3 text-sm ${
-                    !s.matchedInPrimary ? 'border-amber-500/60 bg-amber-500/5' : 'border-border'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="font-medium">
-                      {m ? `${m.home_team} ${s.final_score_home ?? m.score_home ?? 0}-${s.final_score_away ?? m.score_away ?? 0} ${m.away_team}` : s.match_id}
-                      {m?.minute != null && <span className="text-xs text-muted-foreground ml-2">({m.minute}')</span>}
-                    </div>
-                    <div className="flex gap-1 items-center flex-wrap">
-                      <Badge variant={s.verdict === 'APROVADO' ? 'default' : 'secondary'}>{s.verdict}</Badge>
-                      {resBadge}
-                      {primResBadge}
-                      {!s.matchedInPrimary && (
-                        <Badge variant="outline" className="border-amber-500 text-amber-600">
-                          {s.sameMatchAnyPrimary ? 'mercado divergente' : 'só AF'}
-                        </Badge>
-                      )}
-                      {s.matchedInPrimary && (
-                        <Badge variant="outline" className="border-success text-success">confirmado</Badge>
-                      )}
-                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setDiffSignal(s)} title="Ver diff de stats">
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="text-xs mt-1 text-muted-foreground">
-                    <strong>{s.market}</strong> @ {s.odd ?? '-'} · conf {s.confidence ?? 0}%
-                    {s.plan_name ? ` · ${s.plan_name}` : ''}
-                    {m?.championship ? ` · ${m.championship}` : ''}
-                  </div>
-                  {s.thesis && (
-                    <div className="text-xs mt-1 text-foreground/80 line-clamp-2">{s.thesis}</div>
+              const match = shadowSignalToMatch(s, m, lmExtras[s.match_id]);
+              const badgeRow = (
+                <div className="absolute top-2 right-2 z-10 flex flex-wrap gap-1 justify-end max-w-[60%]">
+                  {s.result === 'green' && <Badge className="bg-success text-[10px]">GREEN</Badge>}
+                  {s.result === 'red' && <Badge variant="destructive" className="text-[10px]">RED</Badge>}
+                  {!s.result && <Badge variant="secondary" className="text-[10px]">pendente</Badge>}
+                  {s.primarySignal?.result === 'green' && <Badge className="bg-success/70 text-[10px]">SM:GREEN</Badge>}
+                  {s.primarySignal?.result === 'red' && <Badge variant="destructive" className="text-[10px]">SM:RED</Badge>}
+                  {!s.matchedInPrimary && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">
+                      {s.sameMatchAnyPrimary ? 'mercado divergente' : 'só AF'}
+                    </Badge>
                   )}
+                  {s.matchedInPrimary && (
+                    <Badge variant="outline" className="border-success text-success text-[10px]">confirmado</Badge>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 bg-background/80"
+                    onClick={(e) => { e.stopPropagation(); setDiffSignal(s); }}
+                    title="Ver diff de stats"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </div>
+              );
+              return (
+                <div key={s.id} className="relative">
+                  {badgeRow}
+                  <MatchCardWithEntries
+                    match={match}
+                    index={i}
+                    userId={currentUserId}
+                    bankrollBalance={500}
+                    onAnalysisClick={(matchId) => navigate(`/arena-trader-sports/jogo/${matchId}`)}
+                  />
                 </div>
               );
             })}
