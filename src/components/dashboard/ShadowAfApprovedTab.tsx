@@ -219,14 +219,14 @@ export default function ShadowAfApprovedTab() {
       const ids = Array.from(new Set(list.map((s) => s.match_id)));
       if (ids.length > 0) {
         const [{ data: lm }, { data: prim }] = await Promise.all([
-          supabase.from('live_matches').select('match_id, home_team, away_team, championship, minute, score_home, score_away, home_logo, away_logo, stats').in('match_id', ids),
+          supabase.from('live_matches').select('match_id, home_team, away_team, championship, minute, score_home, score_away, home_logo, away_logo, stats, odds_live').in('match_id', ids),
           supabase.from('mycroft_analyses').select('id, match_id, market, verdict, result, stats_snapshot').in('match_id', ids).in('verdict', APPROVED),
         ]);
         const map: Record<string, MatchInfo> = {};
         const extras: Record<string, any> = {};
         (lm || []).forEach((m: any) => {
           map[m.match_id] = m;
-          extras[m.match_id] = { home_logo: m.home_logo, away_logo: m.away_logo, stats: m.stats };
+          extras[m.match_id] = { home_logo: m.home_logo, away_logo: m.away_logo, stats: m.stats, odds_live: m.odds_live };
         });
         setMatches(map);
         setLmExtras(extras);
