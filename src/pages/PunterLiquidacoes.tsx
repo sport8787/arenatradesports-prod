@@ -11,26 +11,26 @@ import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { translateMarket } from '@/utils/marketTranslator';
 import { cn } from '@/lib/utils';
 
-interface SignalRow {
+interface Row {
   id: string;
-  source: 'punter' | 'eventos_raros';
+  source: 'punter_signal' | 'eventos_raros';
   match: string;
   league: string | null;
   market: string;
   odd: number | null;
-  verdict: string | null;
-  result: string | null;
+  status: string | null;
+  result: string | null; // 'green' | 'red' | 'void' | null
   profit_loss: number | null;
   commence_time: string;
   final_score?: string | null;
   isPlanoFavorito?: boolean;
 }
 
-type Tab = 'todos' | 'pendentes' | 'green' | 'red';
+type Tab = 'pendentes' | 'green' | 'red' | 'todos';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<SignalRow[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [tab, setTab] = useState<Tab>('pendentes');
@@ -38,26 +38,28 @@ export default function PunterLiquidacoesPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Punter (incluindo Plano Favorito que vive em punter_analyses com analyzed_by/thesis específico)
-      const { data: punter } = await supabase
-        .from('punter_analyses')
-        .select('id, home_team, away_team, league, market, odd, verdict, result, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
-        .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
-        .gte('commence_time', sevenDaysAgo)
+      // Sinais Punter (com análise vinculada para nomes/league/Plano Favorito)
+      const { data: sigs } = await supabase
+        .from('punter_signals')
+        .select(`
+          id, match_id, market, odd, status, result, profit_loss,
+          commence_time, score_home, score_away,
+          punter_analyses ( home_team, away_team, league, analyzed_by, thesis, verdict )
+        `)
+        .gte('commence_time', since)
         .order('commence_time', { ascending: false })
         .limit(500);
 
-      // Eventos raros (sinais)
+      // Eventos Raros
       const { data: raros } = await supabase
         .from('eventos_raros_sinais')
-        .select('id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, profit_loss, created_at')
-        .gte('created_at', sevenDaysAgo)
+        .select('id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, profit_loss, status, created_at')
+        .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(200);
 
-      // Buscar candidatos para nomear partidas dos eventos raros
       let candidatos: Record<string, any> = {};
       if (raros && raros.length) {
         const ids = Array.from(new Set(raros.map((r: any) => r.candidato_id).filter(Boolean)));
@@ -70,26 +72,28 @@ export default function PunterLiquidacoesPage() {
         }
       }
 
-      const punterRows: SignalRow[] = (punter || []).map((p: any) => {
-        const isPF = (p.analyzed_by || '').includes('plano-favorito') || /plano\s*favorito/i.test(p.thesis || '');
+      const sigRows: Row[] = (sigs || []).map((s: any) => {
+        const a = s.punter_analyses;
+        const isPF = (a?.analyzed_by || '').includes('plano-favorito') || /plano\s*favorito/i.test(a?.thesis || '');
         return {
-          id: p.id,
-          source: 'punter',
-          match: `${p.home_team} vs ${p.away_team}`,
-          league: p.league,
-          market: p.market,
-          odd: Number(p.odd) || null,
-          verdict: p.verdict,
-          result: p.result,
-          profit_loss: p.profit_loss,
-          commence_time: p.commence_time,
-          final_score: (p.final_score_home != null && p.final_score_away != null) ? `${p.final_score_home}-${p.final_score_away}` : null,
+          id: s.id,
+          source: 'punter_signal',
+          match: a ? `${a.home_team} vs ${a.away_team}` : (s.match_id || '—'),
+          league: a?.league || null,
+          market: s.market,
+          odd: Number(s.odd) || null,
+          status: s.status,
+          result: s.result,
+          profit_loss: s.profit_loss,
+          commence_time: s.commence_time,
+          final_score: (s.score_home != null && s.score_away != null) ? `${s.score_home}-${s.score_away}` : null,
           isPlanoFavorito: isPF,
         };
       });
 
-      const rarosRows: SignalRow[] = (raros || []).map((r: any) => {
+      const rarosRows: Row[] = (raros || []).map((r: any) => {
         const c = candidatos[r.candidato_id] || {};
+        const result = r.resultado ? String(r.resultado).toLowerCase() : null;
         return {
           id: r.id,
           source: 'eventos_raros',
@@ -97,14 +101,14 @@ export default function PunterLiquidacoesPage() {
           league: c.league_name || 'Eventos Raros',
           market: c.placar_alvo || r.placar_alvo || 'LAY',
           odd: Number(r.odd_entrada) || null,
-          verdict: 'EVENTO_RARO',
-          result: r.resultado,
+          status: r.status,
+          result,
           profit_loss: r.profit_loss,
           commence_time: c.match_date || r.created_at,
         };
       });
 
-      const all = [...punterRows, ...rarosRows].sort(
+      const all = [...sigRows, ...rarosRows].sort(
         (a, b) => new Date(b.commence_time).getTime() - new Date(a.commence_time).getTime()
       );
       setRows(all);
@@ -123,7 +127,7 @@ export default function PunterLiquidacoesPage() {
       const { data, error } = await supabase.functions.invoke('punter-settle-results-v3', { body: {} });
       if (error) throw error;
       toast.success('Verificação concluída', {
-        description: `Checados: ${data.checked} | Liquidados: ${data.settled} | Não encontrados: ${data.not_found}`,
+        description: `Checados: ${data.checked} | Liquidados: ${data.settled} | Não encontrados: ${data.not_found} | Mercados não suportados: ${data.unsupported}`,
       });
       await fetchAll();
     } catch (e: any) {
@@ -133,19 +137,23 @@ export default function PunterLiquidacoesPage() {
     }
   };
 
+  const isPending = (r: Row) => !r.result;
+  const isGreen = (r: Row) => r.result === 'green' || r.result === 'GREEN';
+  const isRed = (r: Row) => r.result === 'red' || r.result === 'RED';
+
   const filtered = rows.filter(r => {
     if (tab === 'todos') return true;
-    if (tab === 'pendentes') return !r.result;
-    if (tab === 'green') return r.result === 'GREEN';
-    if (tab === 'red') return r.result === 'RED';
+    if (tab === 'pendentes') return isPending(r);
+    if (tab === 'green') return isGreen(r);
+    if (tab === 'red') return isRed(r);
     return true;
   });
 
   const counts = {
     todos: rows.length,
-    pendentes: rows.filter(r => !r.result).length,
-    green: rows.filter(r => r.result === 'GREEN').length,
-    red: rows.filter(r => r.result === 'RED').length,
+    pendentes: rows.filter(isPending).length,
+    green: rows.filter(isGreen).length,
+    red: rows.filter(isRed).length,
   };
 
   return (
@@ -162,12 +170,7 @@ export default function PunterLiquidacoesPage() {
           <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1">
             VERIFICAR APOSTAS LIQUIDADAS
           </h1>
-          <Button
-            size="sm"
-            onClick={runSettlement}
-            disabled={running}
-            className="gap-2"
-          >
+          <Button size="sm" onClick={runSettlement} disabled={running} className="gap-2">
             {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Hammer className="w-4 h-4" />}
             {running ? 'Verificando...' : 'Verificar agora'}
           </Button>
@@ -178,9 +181,9 @@ export default function PunterLiquidacoesPage() {
         <PunterBreadcrumb items={[{ label: 'Liquidações' }]} />
 
         <div className="rounded-lg border border-border bg-card/50 p-4">
-          <h2 className="text-lg font-bold text-foreground">Sinais aprovados (últimos 7 dias)</h2>
+          <h2 className="text-lg font-bold text-foreground">Sinais Punter (últimos 14 dias)</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            Inclui Punter, Plano Favorito, Eventos Raros (LAY) e demais mercados (1X2, Over/Under, BTTS, AH, escanteios).
+            Inclui Punter (1X2, Over/Under, BTTS, AH, escanteios), Plano Favorito e Eventos Raros (LAY).
             Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
           </p>
         </div>
@@ -204,9 +207,7 @@ export default function PunterLiquidacoesPage() {
               {loading ? (
                 <div className="p-6 text-center font-mono text-xs text-muted-foreground">Carregando…</div>
               ) : filtered.length === 0 ? (
-                <div className="p-6 text-center font-mono text-xs text-muted-foreground">
-                  Nenhum sinal nesta categoria.
-                </div>
+                <div className="p-6 text-center font-mono text-xs text-muted-foreground">Nenhum sinal nesta categoria.</div>
               ) : (
                 <ul className="divide-y divide-border">
                   {filtered.map((r) => (
@@ -214,7 +215,7 @@ export default function PunterLiquidacoesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
                           <Badge variant="outline" className="text-[9px] uppercase font-mono">
-                            {r.source === 'eventos_raros' ? 'Evento Raro' : (r.verdict || 'Punter')}
+                            {r.source === 'eventos_raros' ? 'Evento Raro' : 'Punter'}
                           </Badge>
                           {r.isPlanoFavorito && (
                             <Badge className="text-[9px] uppercase font-mono bg-amber-500/20 text-amber-300 border-amber-400/40 gap-1">
@@ -236,24 +237,24 @@ export default function PunterLiquidacoesPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                        {r.result === 'GREEN' && (
+                        {isGreen(r) && (
                           <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/40 gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" /> GREEN
                           </Badge>
                         )}
-                        {r.result === 'RED' && (
+                        {isRed(r) && (
                           <Badge className="bg-rose-500/20 text-rose-300 border-rose-400/40 gap-1">
                             <XCircle className="w-3.5 h-3.5" /> RED
                           </Badge>
                         )}
-                        {r.result === 'VOID' && (
+                        {(r.result === 'void' || r.result === 'VOID') && (
                           <Badge className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1">
                             <AlertTriangle className="w-3.5 h-3.5" /> VOID
                           </Badge>
                         )}
-                        {!r.result && (
+                        {isPending(r) && (
                           <Badge variant="outline" className="gap-1">
-                            <Clock className="w-3.5 h-3.5" /> Pendente
+                            <Clock className="w-3.5 h-3.5" /> {r.status === 'awaiting_stake' ? 'Aguardando stake' : 'Pendente'}
                           </Badge>
                         )}
                         {r.profit_loss != null && (
@@ -261,7 +262,7 @@ export default function PunterLiquidacoesPage() {
                             'font-mono text-xs font-bold',
                             r.profit_loss > 0 ? 'text-emerald-400' : r.profit_loss < 0 ? 'text-rose-400' : 'text-muted-foreground'
                           )}>
-                            {r.profit_loss > 0 ? '+' : ''}{Number(r.profit_loss).toFixed(2)}u
+                            {r.profit_loss > 0 ? '+' : ''}{Number(r.profit_loss).toFixed(2)}
                           </span>
                         )}
                       </div>
