@@ -155,12 +155,20 @@ async function getRecentFixtures(teamId: number, last = 10): Promise<FixtureResu
 }
 
 async function getH2H(homeId: number, awayId: number, last = 5): Promise<FixtureResult[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    // Sportmonks Pro Advanced não expõe H2H direto; retorna vazio (score H2H neutro)
+    return []
+  }
   try {
     return await afFetch('/fixtures/headtohead', { h2h: `${homeId}-${awayId}`, last }) as FixtureResult[]
   } catch { return [] }
 }
 
 async function getUpcomingFixtures(): Promise<any[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const ligasAF = Array.from(LIGAS_PERMITIDAS)
+    return await getUpcomingFixturesSM(ligasAF, 36)
+  }
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
   const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
