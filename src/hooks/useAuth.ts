@@ -129,15 +129,25 @@ export const useAuth = () => {
   }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, username: string) => {
+    // Validação client-side dos campos antes de qualquer chamada externa
+    const parsed = signUpSchema.safeParse({ email, password, username });
+    if (!parsed.success) {
+      const first = parsed.error.errors[0];
+      const error = new Error(first?.message ?? 'Dados de cadastro inválidos');
+      console.warn('[signUp] validação falhou:', parsed.error.flatten());
+      return { data: null, error };
+    }
+
+    const { email: cleanEmail, password: cleanPassword, username: cleanUsername } = parsed.data;
     const redirectUrl = `${window.location.origin}/punter`;
-    
+
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { username }
-      }
+        data: { username: cleanUsername },
+      },
     });
 
     // Decrement promo slot on successful signup (fire-and-forget)
@@ -146,17 +156,29 @@ export const useAuth = () => {
         console.warn('promo slot decrement failed:', e)
       );
 
-      // Disparo imediato do e-mail D1 de boas-vindas (fire-and-forget)
-      // Cron diário às 08:00 BRT cobre casos onde este invoke falhar.
-      supabase.functions.invoke('email-d1-boasvindas', {
-        body: {
-          user_id: data.user.id,
-          email: data.user.email ?? email,
-          full_name: username,
-        },
-      }).catch((e) =>
-        console.warn('D1 welcome email trigger failed:', e)
-      );
+      // Disparo imediato do e-mail D1 de boas-vindas (fire-and-forget).
+      // Garantimos que email e full_name vão preenchidos e validados;
+      // o cron diário às 08:00 BRT cobre eventuais falhas deste invoke.
+      const welcomeEmail = data.user.email ?? cleanEmail;
+      const welcomeName = cleanUsername;
+
+      if (!data.user.id || !welcomeEmail || !welcomeName) {
+        console.warn('[signUp] payload D1 incompleto, abortando trigger', {
+          hasId: !!data.user.id,
+          hasEmail: !!welcomeEmail,
+          hasName: !!welcomeName,
+        });
+      } else {
+        supabase.functions
+          .invoke('email-d1-boasvindas', {
+            body: {
+              user_id: data.user.id,
+              email: welcomeEmail,
+              full_name: welcomeName,
+            },
+          })
+          .catch((e) => console.warn('D1 welcome email trigger failed:', e));
+      }
     }
 
     return { data, error };
