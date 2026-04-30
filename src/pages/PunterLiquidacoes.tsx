@@ -26,7 +26,7 @@ interface Row {
   isPlanoFavorito?: boolean;
 }
 
-type Tab = 'pendentes' | 'green' | 'red' | 'todos';
+type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'todos';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
