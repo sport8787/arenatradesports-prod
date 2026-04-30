@@ -26,6 +26,12 @@ let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
 // BUSCAR TEAM ID POR NOME (API-Football /teams)
 // ════════════════════════════════════════════════════
 async function buscarTeamIdPorNome(teamName: string): Promise<{ id: number; name: string } | null> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const r = await smSearchTeam(teamName);
+    if (r) console.log(`[Corners-SM] Team found: "${teamName}" → SM ID ${r.id} (${r.name})`);
+    else console.warn(`[Corners-SM] Team not found: "${teamName}"`);
+    return r;
+  }
   try {
     const url = `${BASE_URL}/teams?search=${encodeURIComponent(teamName)}`;
     const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
@@ -49,6 +55,9 @@ async function buscarTeamIdPorNome(teamName: string): Promise<{ id: number; name
 // BUSCAR FIXTURES RECENTES DO TIME
 // ════════════════════════════════════════════════════
 async function buscarFixturesRecentes(teamId: number, season: number, limit: number = 8) {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getRecentFixturesSM(teamId, limit);
+  }
   const url = `${BASE_URL}/fixtures?team=${teamId}&season=${season}&last=${limit}&status=FT`;
   const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
   const data = await res.json();
@@ -59,6 +68,9 @@ async function buscarFixturesRecentes(teamId: number, season: number, limit: num
 // BUSCAR ESTATÍSTICAS DE UM FIXTURE (Corner Kicks)
 // ════════════════════════════════════════════════════
 async function buscarEstatisticasFixture(fixtureId: number, teamId: number): Promise<number> {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getCornersForFixtureSM(fixtureId, teamId);
+  }
   try {
     const url = `${BASE_URL}/fixtures/statistics?fixture=${fixtureId}&team=${teamId}`;
     const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
