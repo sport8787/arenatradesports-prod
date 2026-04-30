@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, FlaskConical, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
 
 interface ShadowSignal {
   id: string;
