@@ -536,7 +536,13 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   try {
-    if (!API_FOOTBALL_KEY) {
+    // Lê data_source do body (default api-football)
+    let body: any = {};
+    try { body = await req.json(); } catch { /* sem body */ }
+    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football';
+    console.log(`[HA] data_source=${DATA_SOURCE}`);
+
+    if (DATA_SOURCE === 'api-football' && !API_FOOTBALL_KEY) {
       return new Response(JSON.stringify({ success: false, error: 'API_FOOTBALL_KEY não configurada' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
