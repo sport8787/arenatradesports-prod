@@ -138,7 +138,7 @@ export default function SignalsFeed() {
 
     const channel = supabase
       .channel('punter-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_analyses' }, () => fetchFeed())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_sinais' }, () => fetchFeed())
       .subscribe();
 
     // Atualização periódica (30s) para refrescar a aba AO VIVO conforme jogos começam/terminam
