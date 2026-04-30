@@ -402,7 +402,34 @@ serve(async (req) => {
     const statsResults = await runWithConcurrency(
       liveFixtures,
       STATS_CONCURRENCY,
-      (f: any) => fetchFixtureStats(f.fixture.id, apiKey, supabase),
+      async (f: any) => {
+        // Sportmonks: aproveita stats já vindas no payload (_raw) ou faz refetch via liveProvider
+        if (f._source === 'sportmonks') {
+          const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, af_id: String(f.fixture.id) });
+          if (r.stats) {
+            // Adapta para shape FixtureStats interno desta edge
+            return {
+              attacks_home: r.stats.attacks_home,
+              attacks_away: r.stats.attacks_away,
+              dangerous_attacks_home: r.stats.attacks_home,
+              dangerous_attacks_away: r.stats.attacks_away,
+              possession_home: r.stats.possession_home,
+              possession_away: r.stats.possession_away,
+              shots_home: r.stats.shots_on_target_home,
+              shots_away: r.stats.shots_on_target_away,
+              shots_total_home: r.stats.shots_total_home,
+              shots_total_away: r.stats.shots_total_away,
+              shots_on_target_home: r.stats.shots_on_target_home,
+              shots_on_target_away: r.stats.shots_on_target_away,
+              xG_home: r.stats.xG_home ?? 0,
+              xG_away: r.stats.xG_away ?? 0,
+              _source: r.source,
+            } as any;
+          }
+          // Sportmonks falhou — cai no caminho legado (API-Football)
+        }
+        return fetchFixtureStats(f.fixture.id, apiKey, supabase);
+      },
     );
     const statsMap = new Map<string, FixtureStats | null>();
     liveFixtures.forEach((f: any, i: number) => {
