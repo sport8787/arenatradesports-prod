@@ -212,47 +212,137 @@ export function extractNormalizedStats(smFixture: any): NormalizedStats {
   return extractStats(smFixture);
 }
 
-// Extrai odds 1X2 (Fulltime Result) do payload inplayOdds da Sportmonks.
-// Sportmonks v3: market_id=1 = Fulltime Result. Cada entrada traz {label, value, bookmaker_id, market_id}.
-// Estratégia: prioriza Bet365 (bookmaker_id=2); fallback para mediana das casas disponíveis.
+// Bookmakers conhecidos (id Sportmonks). Quanto menor a margem (overround),
+// melhor a odd para o apostador. Betano e Superbet costumam pagar acima da média
+// quando disponíveis no plano contratado.
+const BOOKMAKER_NAMES: Record<number, string> = {
+  2: "bet365",
+  9: "betfair",
+  20: "pinnacle",
+  // Quando o plano expandir, basta acrescentar IDs aqui:
+  // 271: "betano", 999: "superbet", etc. (descobrir via /odds/bookmakers)
+};
+
+// Ordem de preferência por NOME (case-insensitive). A função procura o id
+// correspondente nas odds disponíveis — se não achar, cai para o próximo.
+const BOOKMAKER_PREFERENCE = [
+  "betano",
+  "superbet",
+  "pinnacle",   // margem ~2-3%, melhor referência matemática
+  "bet365",     // muito líquida, base sólida
+  "betfair",    // exchange (back)
+];
+
+interface OddRow {
+  market_id?: number;
+  marketId?: number;
+  bookmaker_id?: number;
+  bookmakerId?: number;
+  label?: string;
+  name?: string;
+  value?: string | number;
+  market_description?: string;
+  suspended?: boolean;
+  stopped?: boolean;
+}
+
+// Normaliza label para "1" | "X" | "2"
+function normalizeOutcome(o: OddRow): "1" | "X" | "2" | null {
+  const raw = String(o.label ?? o.name ?? "").trim().toLowerCase();
+  if (raw === "1" || raw === "home") return "1";
+  if (raw === "x" || raw === "draw") return "X";
+  if (raw === "2" || raw === "away") return "2";
+  return null;
+}
+
+// Para cada outcome (1/X/2), escolhe o MAIOR valor disponível seguindo a
+// preferência de bookmaker. Se a casa preferida não tem aquele outcome
+// (ou está suspended/stopped), tenta a próxima da lista. Como último recurso,
+// usa qualquer casa restante (melhor odd entre as válidas).
+function pickBestForOutcome(
+  ft: OddRow[],
+  outcome: "1" | "X" | "2",
+): { value: number; bookmakerId: number; bookmakerName: string } | null {
+  const pool = ft.filter((o) => {
+    if (o.suspended || o.stopped) return false;
+    return normalizeOutcome(o) === outcome;
+  });
+  if (pool.length === 0) return null;
+
+  const validVal = (o: OddRow): number => {
+    const v = Number(o.value);
+    return Number.isFinite(v) && v > 1 ? v : NaN;
+  };
+
+  // Tenta cada casa preferida em ordem
+  for (const prefName of BOOKMAKER_PREFERENCE) {
+    const matches = pool.filter((o) => {
+      const id = o.bookmaker_id ?? o.bookmakerId ?? -1;
+      return (BOOKMAKER_NAMES[id] || "").toLowerCase() === prefName;
+    });
+    const valid = matches.map(validVal).filter((v) => !isNaN(v));
+    if (valid.length > 0) {
+      // Dentro da mesma casa, pega o maior (raramente mais de um)
+      return {
+        value: Number(Math.max(...valid).toFixed(2)),
+        bookmakerId: matches[0].bookmaker_id ?? matches[0].bookmakerId ?? -1,
+        bookmakerName: prefName,
+      };
+    }
+  }
+
+  // Fallback: qualquer casa válida — pega a MAIOR odd (melhor para o apostador)
+  let bestVal = -1;
+  let bestRow: OddRow | null = null;
+  for (const o of pool) {
+    const v = validVal(o);
+    if (!isNaN(v) && v > bestVal) {
+      bestVal = v;
+      bestRow = o;
+    }
+  }
+  if (!bestRow) return null;
+  const id = bestRow.bookmaker_id ?? bestRow.bookmakerId ?? -1;
+  return {
+    value: Number(bestVal.toFixed(2)),
+    bookmakerId: id,
+    bookmakerName: BOOKMAKER_NAMES[id] || `bm_${id}`,
+  };
+}
+
+// Extrai odds 1X2 (Fulltime Result) do payload inplayodds da Sportmonks.
+// Cada outcome (1/X/2) é resolvido independentemente: se a casa preferida
+// não cobrir aquele outcome, cai para a próxima casa da lista de preferência.
 export function extractOdds1X2(smFixture: any): OddsLive1X2 | null {
-  const odds = smFixture?.inplayodds || smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
+  const odds: OddRow[] = smFixture?.inplayodds || smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
   if (!Array.isArray(odds) || odds.length === 0) return null;
 
-  // Filtra somente Fulltime Result (1X2)
-  const ft = odds.filter((o: any) => {
-    const mid = o?.market_id ?? o?.marketId;
-    const mname = String(o?.market_description || o?.market?.name || o?.market_name || "").toLowerCase();
+  // Filtra Fulltime Result (1X2)
+  const ft = odds.filter((o) => {
+    const mid = o.market_id ?? o.marketId;
+    const mname = String(o.market_description || "").toLowerCase();
     return mid === 1 || mname.includes("fulltime result") || mname.includes("match winner") || mname === "1x2";
   });
   if (ft.length === 0) return null;
 
-  // Tenta Bet365 (bookmaker_id=2)
-  const bet365 = ft.filter((o: any) => (o.bookmaker_id ?? o.bookmakerId) === 2);
-  const pool = bet365.length >= 3 ? bet365 : ft;
+  const home = pickBestForOutcome(ft, "1");
+  const draw = pickBestForOutcome(ft, "X");
+  const away = pickBestForOutcome(ft, "2");
+  if (!home && !draw && !away) return null;
 
-  const pick = (label: string): number | null => {
-    const matches = pool.filter((o: any) => {
-      const l = String(o?.label || o?.name || "").toLowerCase();
-      return l === label.toLowerCase() || (label === "Home" && l === "1") || (label === "Draw" && (l === "x" || l === "draw")) || (label === "Away" && l === "2");
-    });
-    if (matches.length === 0) return null;
-    const vals = matches.map((m: any) => Number(m.value)).filter((v: number) => Number.isFinite(v) && v > 1);
-    if (vals.length === 0) return null;
-    vals.sort((a, b) => a - b);
-    // mediana
-    const mid = Math.floor(vals.length / 2);
-    return Number((vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2).toFixed(2));
-  };
-
-  const home = pick("Home");
-  const draw = pick("Draw");
-  const away = pick("Away");
-  if (home == null && draw == null && away == null) return null;
+  // Bookmaker reportado: o mais frequente entre os 3 outcomes (informativo)
+  const tally: Record<string, number> = {};
+  for (const p of [home, draw, away]) {
+    if (!p) continue;
+    tally[p.bookmakerName] = (tally[p.bookmakerName] || 0) + 1;
+  }
+  const dominantBm = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return {
-    home, draw, away,
-    bookmaker: bet365.length >= 3 ? "bet365" : "median",
+    home: home?.value ?? null,
+    draw: draw?.value ?? null,
+    away: away?.value ?? null,
+    bookmaker: dominantBm,
     updated_at: new Date().toISOString(),
   };
 }
