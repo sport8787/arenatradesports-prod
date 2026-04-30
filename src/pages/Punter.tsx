@@ -423,7 +423,7 @@ export default function PunterPage() {
     const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
     const { data: savedAnalyses } = await supabase
-      .from('punter_analyses')
+      .from('punter_sinais' as any)
       .select('*')
       .eq('verdict', 'APROVADO')
       .gt('commence_time', inPlayCutoffIso)
