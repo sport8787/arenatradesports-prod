@@ -120,8 +120,10 @@ function findStat(stats: any[], type: string): string | null {
 }
 
 async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['stats'] | null> {
-  // Tenta Sportmonks primeiro se feature flag estiver ativa
-  const primary = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
+  // force_provider (vindo no body da request) tem prioridade absoluta sobre a env LIVE_PROVIDER_PRIMARY.
+  // Usado pelo modo SHADOW (analyze-live-shadow-af) para forçar AF e comparar com Sportmonks.
+  const forced = (globalThis as any).__forceProvider as string | undefined;
+  const primary = (forced || Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
   if (primary === "sportmonks") {
     try {
       const { getFixtureStats } = await import("../_shared/liveProvider.ts");
