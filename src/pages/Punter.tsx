@@ -91,6 +91,7 @@ export default function PunterPage() {
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
   const [totalApproved, setTotalApproved] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
