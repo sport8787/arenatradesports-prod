@@ -1446,6 +1446,16 @@ export default function PunterPage() {
           </CardContent>
         </Card>
 
+        {/* Schema validation error — bloqueia render quando punter_sinais está com shape inválido */}
+        {schemaError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Erro de schema:</strong> {schemaError}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Error */}
         {error && (
           <Alert variant="destructive">
