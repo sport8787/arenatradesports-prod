@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
         const a = await res.json();
         if (!a?.verdict) continue;
 
+        const _isApprovedAf = ["APROVADO","APROVADO_SITUACIONAL","LABAREDA"].includes(a.verdict);
         await sb.from("mycroft_analyses_shadow_af").insert({
           match_id: m.match_id,
           verdict: a.verdict,
@@ -116,6 +117,7 @@ Deno.serve(async (req) => {
           approved_at_minute: m.minute ?? null,
           approved_at_score_home: m.score_home ?? null,
           approved_at_score_away: m.score_away ?? null,
+          stats_snapshot: _isApprovedAf ? { provider: 'api-football', minute: m.minute ?? 0, score_home: m.score_home ?? 0, score_away: m.score_away ?? 0, stats: m.stats || {} } : null,
         });
 
         if (["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"].includes(a.verdict)) {
