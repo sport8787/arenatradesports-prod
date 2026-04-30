@@ -94,9 +94,17 @@ Deno.serve(async (req) => {
         userId: u.user_id,
       });
       if (r.ok) {
-        await registrarEnvio(u.user_id, u.email, "D1", r.id);
+        await registrarEnvio(u.user_id, u.email, "D1", r.id, "sent");
         enviados++;
       } else {
+        await registrarEnvio(
+          u.user_id,
+          u.email,
+          "D1",
+          undefined,
+          "failed",
+          typeof r.error === "string" ? r.error : JSON.stringify(r.error ?? {}).slice(0, 500),
+        );
         erros++;
       }
       await new Promise(r => setTimeout(r, 150));
