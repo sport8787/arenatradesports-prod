@@ -218,7 +218,10 @@ export default function PunterLiquidacoesPage() {
         <div className="rounded-lg border border-border bg-card/50 p-4">
           <h2 className="text-lg font-bold text-foreground">Sinais Punter (últimos 14 dias)</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            Inclui Punter (1X2, Over/Under, BTTS, AH, escanteios), Plano Favorito e Eventos Raros (LAY).
+            Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
+            Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
+            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span> ou
+            <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
             Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
           </p>
         </div>
