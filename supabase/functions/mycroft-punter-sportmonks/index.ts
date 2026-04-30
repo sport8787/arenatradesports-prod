@@ -76,7 +76,7 @@ async function smLastFixtures(teamId: number, n = 8): Promise<any[]> {
     const today = new Date().toISOString().slice(0, 10);
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
     const url = smUrl(`/football/fixtures/between/${sixMonthsAgo}/${today}/${teamId}`, {
-      include: "scores;participants;state",
+      include: "scores;participants;state;periods",
       per_page: "50",
     });
     const r = await fetch(url);
