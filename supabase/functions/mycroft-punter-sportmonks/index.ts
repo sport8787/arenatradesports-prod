@@ -152,31 +152,49 @@ function summarizeTeam(name: string, teamId: number, fixtures: any[]): TeamSumma
 // ──────────────────────────────────────────────
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY missing");
-  const r = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GEMINI_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        max_completion_tokens: 1500,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    },
-  );
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Gemini ${r.status}: ${t.slice(0, 200)}`);
+  const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"];
+  let lastErr = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const model = models[Math.min(attempt, models.length - 1)];
+    try {
+      const r = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GEMINI_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            max_completion_tokens: 1500,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        },
+      );
+      if (r.ok) {
+        const j = await r.json();
+        return j.choices?.[0]?.message?.content || "";
+      }
+      const t = await r.text();
+      lastErr = `Gemini ${r.status} (${model}): ${t.slice(0, 200)}`;
+      // 503/429 → retry com backoff e modelo menor
+      if (r.status === 503 || r.status === 429) {
+        await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(lastErr);
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      if (attempt === 2) throw new Error(lastErr);
+      await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+    }
   }
-  const j = await r.json();
-  return j.choices?.[0]?.message?.content || "";
+  throw new Error(lastErr || "Gemini failed");
 }
 
 function parseJsonRobust(raw: string): any | null {
