@@ -1458,41 +1458,39 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
 
-      // Save analysis to DB
-      const { data: analysisRow } = await supabaseClient.from('punter_analyses').insert({
-        match_id: matchId,
-        home_team: game.home_team,
-        away_team: game.away_team,
-        league: game.sport_title || 'Unknown',
-        commence_time: game.commence_time,
-        market: analysis.market || 'N/A',
-        bookmaker: analysis.bookmaker || 'N/A',
-        odd: analysis.odd || 0,
-        fair_odd: analysis.fair_odd,
-        implied_probability: analysis.implied_probability,
-        estimated_probability: analysis.estimated_probability,
-        value_percentage: analysis.value_percentage,
-        verdict: analysis.verdict,
-        confidence: analysis.confidence,
-        stake_percentage: analysis.stake_percentage,
-        thesis: analysis.thesis,
-        analysis: analysis.analysis,
-        risk_factors: analysis.risk_factors,
-        analyzed_by: 'anthropic',
-      }).select().maybeSingle()
+      if (analysis.verdict === 'APROVADO') {
+        const commenceDate = game.commence_time ? new Date(game.commence_time) : new Date()
+        const matchDate = commenceDate.toISOString().split('T')[0]
+        const hoje = new Date().toISOString().split('T')[0]
+        const isHoje = matchDate === hoje
 
-      // If approved, create signal
-      if (analysis.verdict === 'APROVADO' && analysisRow) {
-        await supabaseClient.from('punter_signals').insert({
-          analysis_id: analysisRow.id,
+        await supabaseClient.from('punter_sinais').upsert({
           match_id: matchId,
-          market: analysis.market,
-          bookmaker: analysis.bookmaker,
-          odd: analysis.odd,
+          home_team: game.home_team,
+          away_team: game.away_team,
+          league: game.sport_title || 'Unknown',
+          commence_time: game.commence_time,
+          match_date: matchDate,
+          market: analysis.market || 'N/A',
+          bookmaker: analysis.bookmaker || 'N/A',
+          odd: analysis.odd || 0,
+          fair_odd: analysis.fair_odd,
+          implied_probability: analysis.implied_probability,
+          estimated_probability: analysis.estimated_probability,
           value_percentage: analysis.value_percentage,
-          stake_percentage: analysis.stake_percentage,
-          status: 'pending',
-        })
+          verdict: analysis.verdict,
+          confidence: analysis.confidence,
+          stake_percentage: isHoje ? analysis.stake_percentage : null,
+          stake_percentage_original: analysis.stake_percentage,
+          thesis: analysis.thesis,
+          analysis: analysis.analysis,
+          risk_factors: analysis.risk_factors,
+          analyzed_by: 'anthropic',
+          status: isHoje ? 'pending' : 'awaiting_stake',
+          stake_confirmed: isHoje,
+          dismissed: false,
+          resultado: null,
+        }, { onConflict: 'match_id,market', ignoreDuplicates: false })
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
 

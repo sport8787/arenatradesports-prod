@@ -3727,6 +3727,162 @@ export type Database = {
           },
         ]
       }
+      punter_sinais: {
+        Row: {
+          analysis: string | null
+          analyzed_by: string | null
+          away_team: string
+          bankroll_at_recalc: number | null
+          bookmaker: string | null
+          commence_time: string
+          confidence: number | null
+          created_at: string
+          dismissed: boolean
+          dismissed_at: string | null
+          email_sent_at: string | null
+          estimated_probability: number | null
+          fair_odd: number | null
+          final_score_away: number | null
+          final_score_home: number | null
+          green_telegram_sent_at: string | null
+          home_team: string
+          id: string
+          implied_probability: number | null
+          last_settle_attempt_at: string | null
+          league: string | null
+          legacy_analysis_id: string | null
+          legacy_signal_id: string | null
+          market: string
+          match_date: string | null
+          match_id: string
+          odd: number | null
+          profit_loss: number | null
+          red_card_away: boolean | null
+          red_card_home: boolean | null
+          resultado: string | null
+          resulted_at: string | null
+          risk_factors: string | null
+          sent_green_to_telegram: boolean
+          sent_to_email: boolean
+          sent_to_telegram: boolean
+          settle_attempts: number
+          settled_at: string | null
+          stake_amount: number | null
+          stake_confirmed: boolean
+          stake_percentage: number | null
+          stake_percentage_original: number | null
+          stake_recalculated_at: string | null
+          status: string
+          telegram_sent_at: string | null
+          thesis: string | null
+          updated_at: string
+          value_percentage: number | null
+          verdict: string | null
+        }
+        Insert: {
+          analysis?: string | null
+          analyzed_by?: string | null
+          away_team: string
+          bankroll_at_recalc?: number | null
+          bookmaker?: string | null
+          commence_time: string
+          confidence?: number | null
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          email_sent_at?: string | null
+          estimated_probability?: number | null
+          fair_odd?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          green_telegram_sent_at?: string | null
+          home_team: string
+          id?: string
+          implied_probability?: number | null
+          last_settle_attempt_at?: string | null
+          league?: string | null
+          legacy_analysis_id?: string | null
+          legacy_signal_id?: string | null
+          market: string
+          match_date?: string | null
+          match_id: string
+          odd?: number | null
+          profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
+          resultado?: string | null
+          resulted_at?: string | null
+          risk_factors?: string | null
+          sent_green_to_telegram?: boolean
+          sent_to_email?: boolean
+          sent_to_telegram?: boolean
+          settle_attempts?: number
+          settled_at?: string | null
+          stake_amount?: number | null
+          stake_confirmed?: boolean
+          stake_percentage?: number | null
+          stake_percentage_original?: number | null
+          stake_recalculated_at?: string | null
+          status?: string
+          telegram_sent_at?: string | null
+          thesis?: string | null
+          updated_at?: string
+          value_percentage?: number | null
+          verdict?: string | null
+        }
+        Update: {
+          analysis?: string | null
+          analyzed_by?: string | null
+          away_team?: string
+          bankroll_at_recalc?: number | null
+          bookmaker?: string | null
+          commence_time?: string
+          confidence?: number | null
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          email_sent_at?: string | null
+          estimated_probability?: number | null
+          fair_odd?: number | null
+          final_score_away?: number | null
+          final_score_home?: number | null
+          green_telegram_sent_at?: string | null
+          home_team?: string
+          id?: string
+          implied_probability?: number | null
+          last_settle_attempt_at?: string | null
+          league?: string | null
+          legacy_analysis_id?: string | null
+          legacy_signal_id?: string | null
+          market?: string
+          match_date?: string | null
+          match_id?: string
+          odd?: number | null
+          profit_loss?: number | null
+          red_card_away?: boolean | null
+          red_card_home?: boolean | null
+          resultado?: string | null
+          resulted_at?: string | null
+          risk_factors?: string | null
+          sent_green_to_telegram?: boolean
+          sent_to_email?: boolean
+          sent_to_telegram?: boolean
+          settle_attempts?: number
+          settled_at?: string | null
+          stake_amount?: number | null
+          stake_confirmed?: boolean
+          stake_percentage?: number | null
+          stake_percentage_original?: number | null
+          stake_recalculated_at?: string | null
+          status?: string
+          telegram_sent_at?: string | null
+          thesis?: string | null
+          updated_at?: string
+          value_percentage?: number | null
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
