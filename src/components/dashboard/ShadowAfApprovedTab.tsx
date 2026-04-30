@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, FlaskConical, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
 
 interface ShadowSignal {
   id: string;
@@ -131,7 +132,8 @@ export default function ShadowAfApprovedTab() {
             <FlaskConical className="h-4 w-4 text-amber-500" />
             Sinais Aprovados — API-Football <Badge variant="outline" className="ml-2">SHADOW · ADMIN</Badge>
           </span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <ShadowAfCronToggle />
             <Button size="sm" variant="outline" onClick={runShadow} disabled={running}>
               {running ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
               Rodar agora
