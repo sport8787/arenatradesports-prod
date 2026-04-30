@@ -265,18 +265,38 @@ serve(async (req) => {
 
       if (!fx) {
         notFound++;
-        results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}` });
+        // Marca como VOID para não ficar pendente para sempre
+        await sb.from("punter_sinais").update({
+          resultado: "void",
+          status: "settled",
+          profit_loss: 0,
+          settled_at: new Date().toISOString(),
+          resulted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          fonte_liquidacao: "nao_encontrado",
+          void_reason: "Jogo não encontrado em API-Football nem The Odds API",
+        }).eq("id", s.id);
+        results.push({ id: s.id, status: "void_not_found", match: `${home} x ${away}` });
         continue;
       }
 
       const res = calcularResultado(s.market, home, away, fx);
       if (!res) {
         unsupported++;
-        // salva placar mesmo sem liquidar
+        // Mercado não suportado → marca VOID definitivo
         await sb.from("punter_sinais").update({
-          score_home: fx.goalsHome, score_away: fx.goalsAway, updated_at: new Date().toISOString(),
+          resultado: "void",
+          status: "settled",
+          profit_loss: 0,
+          score_home: fx.goalsHome, score_away: fx.goalsAway,
+          final_score_home: fx.goalsHome, final_score_away: fx.goalsAway,
+          settled_at: new Date().toISOString(),
+          resulted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          fonte_liquidacao: fonte,
+          void_reason: `Mercado não suportado pela liquidação automática: ${s.market}`,
         }).eq("id", s.id);
-        results.push({ id: s.id, status: "market_unsupported", market: s.market, score: `${fx.goalsHome}-${fx.goalsAway}` });
+        results.push({ id: s.id, status: "void_unsupported", market: s.market, score: `${fx.goalsHome}-${fx.goalsAway}` });
         continue;
       }
 
