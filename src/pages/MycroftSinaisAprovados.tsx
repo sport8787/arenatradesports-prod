@@ -52,9 +52,16 @@ function formatDate(iso: string) {
   });
 }
 
+interface AggregateStats {
+  greens: number;
+  reds: number;
+  pnlUnits: number;
+}
+
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
+  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ResultFilter>('all');
 
@@ -64,6 +71,30 @@ export default function MycroftSinaisAprovados() {
     async function load() {
       // Buscar análises aprovadas dos últimos 30 dias
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      // 1) Agregados REAIS (sem limite de 300) para os cards
+      const baseFilter = (q: any) =>
+        q.in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA']).gte('created_at', since);
+
+      const [{ count: greensCount }, { count: redsCount }, { data: settledRows }] = await Promise.all([
+        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'green'),
+        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'red'),
+        baseFilter(supabase.from('mycroft_analyses').select('odd, result')).in('result', ['green', 'red']),
+      ]);
+
+      let pnlUnits = 0;
+      for (const r of settledRows ?? []) {
+        const odd = Number((r as any).odd) || 0;
+        if (!odd) continue;
+        if ((r as any).result === 'green') pnlUnits += odd - 1;
+        else if ((r as any).result === 'red') pnlUnits -= 1;
+      }
+
+      if (mounted) {
+        setAggStats({ greens: greensCount ?? 0, reds: redsCount ?? 0, pnlUnits });
+      }
+
+      // 2) Lista paginada (mantém limite p/ não estourar memória)
       const { data: analyses, error } = await supabase
         .from('mycroft_analyses')
         .select('id, match_id, market, verdict, odd, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, created_at')
@@ -132,24 +163,13 @@ export default function MycroftSinaisAprovados() {
   }, [signals, filter]);
 
   const stats = useMemo(() => {
-    const total = signals.length;
-    const greens = signals.filter((s) => s.result === 'green').length;
-    const reds = signals.filter((s) => s.result === 'red').length;
-    const pending = signals.filter((s) => !s.result).length;
+    const greens = aggStats.greens;
+    const reds = aggStats.reds;
     const settled = greens + reds;
     const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-
-    // ROI estimado (1u por sinal)
-    let pnlUnits = 0;
-    for (const s of signals) {
-      if (!s.odd) continue;
-      if (s.result === 'green') pnlUnits += s.odd - 1;
-      else if (s.result === 'red') pnlUnits -= 1;
-    }
-    const roi = settled > 0 ? (pnlUnits / settled) * 100 : 0;
-
-    return { total, greens, reds, pending, winRate, roi, pnlUnits };
-  }, [signals]);
+    const roi = settled > 0 ? (aggStats.pnlUnits / settled) * 100 : 0;
+    return { greens, reds, winRate, roi };
+  }, [aggStats]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -174,11 +194,9 @@ export default function MycroftSinaisAprovados() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <StatCard icon={<Target className="w-4 h-4" />} label="Total" value={stats.total} color="text-foreground" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
           <StatCard icon={<XCircle className="w-4 h-4" />} label="RED" value={stats.reds} color="text-destructive" />
-          <StatCard icon={<Clock className="w-4 h-4" />} label="Pendentes" value={stats.pending} color="text-warning" />
           <StatCard
             icon={<TrendingUp className="w-4 h-4" />}
             label="Win Rate"
