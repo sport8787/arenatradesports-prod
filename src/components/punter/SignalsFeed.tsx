@@ -55,8 +55,8 @@ export default function SignalsFeed() {
     const sinceIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const { data: aprovados } = await supabase
-      .from('punter_analyses')
-      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, result, settled_at, profit_loss, commence_time')
+      .from('punter_sinais' as any)
+      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, resultado, settled_at, profit_loss, commence_time')
       .eq('verdict', 'APROVADO')
       .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
