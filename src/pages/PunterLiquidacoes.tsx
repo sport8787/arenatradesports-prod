@@ -91,6 +91,7 @@ export default function PunterLiquidacoesPage() {
           commence_time: s.commence_time,
           final_score: (s.final_score_home != null && s.final_score_away != null) ? `${s.final_score_home}-${s.final_score_away}` : null,
           isPlanoFavorito: isPF,
+          void_reason: s.void_reason || null,
         };
       });
 
