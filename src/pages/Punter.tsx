@@ -51,6 +51,10 @@ import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
 import { translateMarket } from '@/utils/marketTranslator';
 import PlanoFavoritoPanel from '@/components/punter/PlanoFavoritoPanel';
+import {
+  validatePunterSinaisRows,
+  buildPunterSinaisErrorMessage,
+} from '@/lib/validatePunterSinais';
 
 interface PunterSignal {
   analysis_id?: string; // ID do registro em punter_sinais (tabela unificada) para lookup confiável
@@ -91,6 +95,7 @@ export default function PunterPage() {
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
   const [totalApproved, setTotalApproved] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
@@ -419,13 +424,39 @@ export default function PunterPage() {
     // Janela: jogos futuros + jogos que começaram há menos de 3h (ainda em andamento, não liquidados)
     const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
-    const { data: savedAnalyses } = await supabase
+    const { data: savedAnalyses, error: fetchErr } = await supabase
       .from('punter_sinais')
       .select('*')
       .eq('verdict', 'APROVADO')
       .gt('commence_time', inPlayCutoffIso)
       .order('created_at', { ascending: false })
       .limit(100);
+
+    if (fetchErr) {
+      console.error('[Punter] Erro ao carregar punter_sinais:', fetchErr);
+      setSchemaError(
+        `Falha ao consultar a tabela "punter_sinais": ${fetchErr.message}. ` +
+        `Verifique se a tabela existe e está acessível.`
+      );
+      return [];
+    }
+
+    // Valida shape antes de renderizar — schema desatualizado quebra a UI silenciosamente
+    const validation = validatePunterSinaisRows(savedAnalyses);
+    if (!validation.valid) {
+      const msg = buildPunterSinaisErrorMessage(validation);
+      console.error('[Punter] Schema inválido em punter_sinais:', validation);
+      setSchemaError(msg);
+      return [];
+    }
+    if (validation.missingExpected.length > 0) {
+      console.warn(
+        '[Punter] Campos opcionais ausentes em punter_sinais:',
+        validation.missingExpected
+      );
+    }
+    // Limpa erro de schema anterior se passou
+    setSchemaError(null);
 
     const dbDedupMap = new Map<string, any>();
     for (const a of savedAnalyses || []) {
@@ -1414,6 +1445,16 @@ export default function PunterPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Schema validation error — bloqueia render quando punter_sinais está com shape inválido */}
+        {schemaError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Erro de schema:</strong> {schemaError}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Error */}
         {error && (
