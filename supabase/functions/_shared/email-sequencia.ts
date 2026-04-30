@@ -155,14 +155,21 @@ export async function registrarEnvio(
   email: string,
   sequencia: Sequencia,
   resendId?: string,
+  status: "sent" | "failed" | "skipped" = "sent",
+  errorMessage?: string,
 ) {
-  await supabase.from("email_sequencia_log").insert({
-    user_id: userId,
-    email,
-    sequencia,
-    resend_id: resendId,
-    enviado_em: new Date().toISOString(),
-  });
+  await supabase.from("email_sequencia_log").upsert(
+    {
+      user_id: userId,
+      email,
+      sequencia,
+      resend_id: resendId,
+      status,
+      error_message: errorMessage ?? null,
+      enviado_em: new Date().toISOString(),
+    },
+    { onConflict: "user_id,sequencia" },
+  );
 }
 
 // Resumo de resultados reais do sistema (greens/reds dos últimos N dias).

@@ -1812,9 +1812,11 @@ export type Database = {
           clicado: boolean
           email: string
           enviado_em: string
+          error_message: string | null
           id: string
           resend_id: string | null
           sequencia: string
+          status: string
           user_id: string
         }
         Insert: {
@@ -1822,9 +1824,11 @@ export type Database = {
           clicado?: boolean
           email: string
           enviado_em?: string
+          error_message?: string | null
           id?: string
           resend_id?: string | null
           sequencia: string
+          status?: string
           user_id: string
         }
         Update: {
@@ -1832,9 +1836,11 @@ export type Database = {
           clicado?: boolean
           email?: string
           enviado_em?: string
+          error_message?: string | null
           id?: string
           resend_id?: string | null
           sequencia?: string
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -6400,6 +6406,26 @@ export type Database = {
           expirado: string | null
           user_id: string | null
           username: string | null
+        }
+        Relationships: []
+      }
+      v_email_status_por_usuario: {
+        Row: {
+          d1_enviado_em: string | null
+          d1_erro: string | null
+          d1_status: string | null
+          d3_enviado_em: string | null
+          d3_status: string | null
+          d5_enviado_em: string | null
+          d5_status: string | null
+          d7_enviado_em: string | null
+          d7_status: string | null
+          email: string | null
+          expirado_enviado_em: string | null
+          expirado_status: string | null
+          total_enviados: number | null
+          total_falhas: number | null
+          user_id: string | null
         }
         Relationships: []
       }
