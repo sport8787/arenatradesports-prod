@@ -55,8 +55,8 @@ export default function SignalsFeed() {
     const sinceIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const { data: aprovados } = await supabase
-      .from('punter_analyses')
-      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, result, settled_at, profit_loss, commence_time')
+      .from('punter_sinais')
+      .select('id, created_at, league, home_team, away_team, market, odd, confidence, verdict, resultado, settled_at, profit_loss, commence_time')
       .eq('verdict', 'APROVADO')
       .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
@@ -84,7 +84,7 @@ export default function SignalsFeed() {
         commenceMs != null &&
         commenceMs <= nowMs &&
         commenceMs >= nowMs - 3 * 60 * 60 * 1000 && // janela de 3h
-        !a.result &&
+        !a.resultado &&
         !a.settled_at;
       if (isLive) {
         list.push({
@@ -101,7 +101,7 @@ export default function SignalsFeed() {
         });
       }
       // Card de resultado se já liquidado
-      if (a.result === 'won' || a.result === 'green') {
+      if (a.resultado === 'won' || a.resultado === 'green') {
         list.push({
           id: `result-${a.id}`,
           kind: 'GREEN',
@@ -113,7 +113,7 @@ export default function SignalsFeed() {
           confidence: a.confidence,
           profit_loss: a.profit_loss,
         });
-      } else if (a.result === 'lost' || a.result === 'red') {
+      } else if (a.resultado === 'lost' || a.resultado === 'red') {
         list.push({
           id: `result-${a.id}`,
           kind: 'RED',
@@ -138,7 +138,7 @@ export default function SignalsFeed() {
 
     const channel = supabase
       .channel('punter-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_analyses' }, () => fetchFeed())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'punter_sinais' }, () => fetchFeed())
       .subscribe();
 
     // Atualização periódica (30s) para refrescar a aba AO VIVO conforme jogos começam/terminam

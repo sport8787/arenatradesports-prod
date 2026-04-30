@@ -53,7 +53,7 @@ import { translateMarket } from '@/utils/marketTranslator';
 import PlanoFavoritoPanel from '@/components/punter/PlanoFavoritoPanel';
 
 interface PunterSignal {
-  analysis_id?: string; // ID from punter_analyses for reliable signal lookup
+  analysis_id?: string; // ID do registro em punter_sinais (tabela unificada) para lookup confiável
   match: {
     home_team: string;
     away_team: string;
@@ -187,13 +187,13 @@ export default function PunterPage() {
       if (!horusRes.error && horusRes.data) setPendingBets(horusRes.data);
       if (!manualRes.error && manualRes.data) setManualPendingBets(manualRes.data);
 
-      // Load future signals (awaiting_stake + stake_calculated)
+      // Load future signals (awaiting_stake + stake_calculated) — punter_sinais é tabela unificada
       const { data: futureData } = await supabase
-        .from('punter_signals')
-        .select('*, punter_analyses!punter_signals_analysis_id_fkey(home_team, away_team, league, market, thesis, confidence, stake_percentage)')
+        .from('punter_sinais')
+        .select('*')
         .in('status', ['awaiting_stake', 'stake_calculated'])
         .eq('dismissed', false)
-        .order('match_date', { ascending: true });
+        .order('commence_time', { ascending: true });
       if (futureData) setFutureSignals(futureData);
 
       // Auto-load saved approved signals from DB (from automated cron or previous analyses)
@@ -339,9 +339,7 @@ export default function PunterPage() {
   const confirmFutureSignal = async (signal: any) => {
     if (!user || !bankroll) return;
 
-    const analysis = signal.punter_analyses;
-    if (!analysis) return;
-
+    // punter_sinais é unificada — dados do match estão no próprio registro
     const stakePercent = signal.stake_percentage || signal.stake_percentage_original || 3;
     const stakeAmount = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
 
@@ -350,7 +348,7 @@ export default function PunterPage() {
       return;
     }
 
-    const matchName = `${analysis.home_team} vs ${analysis.away_team}`;
+    const matchName = `${signal.home_team} vs ${signal.away_team}`;
     const matchId = (signal.match_id || '').replace(/\+00:00/g, 'Z');
 
     // Place the bet
@@ -364,9 +362,8 @@ export default function PunterPage() {
         odd: signal.odd,
         stake: stakeAmount,
         status: 'pending',
-        thesis: analysis.thesis || null,
+        thesis: signal.thesis || null,
         commence_time: signal.commence_time || null,
-        analysis_id: signal.analysis_id,
         signal_id: signal.id,
       } as any);
 
@@ -387,7 +384,7 @@ export default function PunterPage() {
 
     // Update signal status
     await supabase
-      .from('punter_signals')
+      .from('punter_sinais')
       .update({ status: 'confirmed', stake_confirmed: true, stake_amount: stakeAmount } as any)
       .eq('id', signal.id);
 
@@ -407,7 +404,7 @@ export default function PunterPage() {
   // Dismiss a future signal
   const dismissFutureSignal = async (signal: any) => {
     await supabase
-      .from('punter_signals')
+      .from('punter_sinais')
       .update({ dismissed: true, dismissed_at: new Date().toISOString(), status: 'dismissed' } as any)
       .eq('id', signal.id);
 
@@ -423,7 +420,7 @@ export default function PunterPage() {
     const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
     const { data: savedAnalyses } = await supabase
-      .from('punter_analyses')
+      .from('punter_sinais')
       .select('*')
       .eq('verdict', 'APROVADO')
       .gt('commence_time', inPlayCutoffIso)
@@ -502,17 +499,17 @@ export default function PunterPage() {
     const rawMatchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
     const matchId = rawMatchId.replace(/\+00:00/g, 'Z');
     
-    // For fresh analysis signals, skip the punter_signals lookup (signal already approved by AI)
+    // For fresh analysis signals, skip the punter_sinais lookup (signal already approved by AI)
     let canonicalMatchId = matchId;
     
     if (!skipSignalCheck) {
-      // Use analysis_id FK for reliable signal lookup
+      // punter_sinais (unificada) — busca por id (que é o analysis_id retornado pelo fetchSavedSignals)
       let confirmedSignal: any = null;
       if (signal.analysis_id) {
         const { data } = await supabase
-          .from('punter_signals')
+          .from('punter_sinais')
           .select('id, stake_confirmed, match_id')
-          .eq('analysis_id', signal.analysis_id)
+          .or(`id.eq.${signal.analysis_id},legacy_analysis_id.eq.${signal.analysis_id},legacy_signal_id.eq.${signal.analysis_id}`)
           .eq('stake_confirmed', true)
           .maybeSingle();
         confirmedSignal = data;
@@ -521,7 +518,7 @@ export default function PunterPage() {
       // Fallback: try by home/away team match
       if (!confirmedSignal) {
         const { data } = await supabase
-          .from('punter_signals')
+          .from('punter_sinais')
           .select('id, stake_confirmed, match_id')
           .eq('stake_confirmed', true)
           .eq('status', 'pending')
@@ -982,17 +979,17 @@ export default function PunterPage() {
           const stakePerc = r.veredicto.stake_percentage || 2;
           const thesis = `${r.veredicto.plano_ativado}: ${r.veredicto.thesis}`;
 
-          // Dedup: remove old corners analysis+signal for same match+market
-          await supabase.from('punter_signals').delete().eq('match_id', mid).eq('market', market);
-          await supabase.from('punter_analyses').delete().eq('match_id', mid).eq('market', market);
+          // Dedup: remove old corners signal for same match+market (tabela unificada)
+          await supabase.from('punter_sinais').delete().eq('match_id', mid).eq('market', market);
 
-          // Insert into punter_analyses
-          const { data: row, error: insertErr } = await supabase.from('punter_analyses').insert({
+          // Insert into punter_sinais (tabela unificada — sem split entre analyses/signals)
+          const { error: insertErr } = await supabase.from('punter_sinais').insert({
             match_id: mid,
             home_team: r.mandante,
             away_team: r.visitante,
             league: r.liga || 'Escanteios',
             commence_time: commenceTime,
+            match_date: matchDate,
             market,
             bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
             odd,
@@ -1005,27 +1002,12 @@ export default function PunterPage() {
             verdict: 'APROVADO',
             stake_percentage: stakePerc,
             analyzed_by: 'mycroft-corners-punter',
-          } as any).select().single();
+            status: 'stake_calculated',
+            stake_confirmed: false,
+          } as any);
 
           if (insertErr) {
-            console.error('[Corners] Insert punter_analyses error:', insertErr);
-          }
-
-          if (row) {
-            // Insert into punter_signals
-            await supabase.from('punter_signals').insert({
-              analysis_id: row.id,
-              match_id: mid,
-              market,
-              bookmaker: r.veredicto.bookmaker || 'Mycroft Corners',
-              odd,
-              value_percentage: edge,
-              stake_percentage: stakePerc,
-              status: 'stake_calculated',
-              match_date: matchDate,
-              commence_time: commenceTime,
-              stake_confirmed: false,
-            } as any);
+            console.error('[Corners] Insert punter_sinais error:', insertErr);
           }
 
           cornersSignals.push({
