@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.email-expirado-reativacao]
 verify_jwt = false
+
+[functions.kiwify-webhook]
+verify_jwt = false
