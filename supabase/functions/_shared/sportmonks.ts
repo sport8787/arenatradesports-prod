@@ -315,6 +315,128 @@ function pickBestForOutcome(
 // Extrai odds 1X2 (Fulltime Result) do payload inplayodds da Sportmonks.
 // Cada outcome (1/X/2) é resolvido independentemente: se a casa preferida
 // não cobrir aquele outcome, cai para a próxima casa da lista de preferência.
+// =============================================================================
+// SETTLEMENT — Busca fixture finalizado por data + nomes dos times.
+// Usa /football/fixtures/date/{YYYY-MM-DD} (plano Pro Advanced) e tenta
+// offsets ±1d. Útil para liquidação pré-live do Arena Punter.
+// =============================================================================
+export interface SmSettlementFixture {
+  smId: number;
+  homeTeam: string;
+  awayTeam: string;
+  goalsHome: number;
+  goalsAway: number;
+  status: string;          // "FT" | "HT" | etc (mapeado)
+  cornersHome?: number;
+  cornersAway?: number;
+}
+
+function smNormalize(n: string): string {
+  return (n || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(fc|sc|cf|rc|ac|ss|ssc|sv|vfb|vfl|rb|bsc|afc|fk|sk|nk|rsc|ec|ad|cd|club|deportivo|sporting|sport|de|do|da|the)\b/gi, " ")
+    .replace(/[^a-z0-9\s]/g, "").trim().replace(/\s+/g, " ");
+}
+function smTeamsMatch(a: string, b: string): boolean {
+  const na = smNormalize(a), nb = smNormalize(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 4 && nb.includes(na)) return true;
+  if (nb.length >= 4 && na.includes(nb)) return true;
+  const wa = na.split(/\s+/), wb = nb.split(/\s+/);
+  return wa[0] === wb[0] && wa.filter((w) => wb.includes(w) && w.length > 2).length > 0;
+}
+
+async function smFetchFixturesByDate(dateYmd: string): Promise<any[]> {
+  if (!TOKEN) return [];
+  const url = smUrl(`/football/fixtures/date/${dateYmd}`, {
+    include: "scores;participants;state;statistics",
+    per_page: "100",
+  });
+  try {
+    const res = await resilientFetch(url, { breakerKey: "sportmonks", timeoutMs: 12_000, retries: 1 });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch {
+    return [];
+  }
+}
+
+function smParseFixture(f: any): SmSettlementFixture | null {
+  const participants = f.participants || [];
+  const home = participants.find((p: any) => p.meta?.location === "home") || participants[0];
+  const away = participants.find((p: any) => p.meta?.location === "away") || participants[1];
+  if (!home || !away) return null;
+  const scores = f.scores || [];
+  // CURRENT (placar atual / final se FT)
+  let gh: number | null = null, ga: number | null = null;
+  for (const s of scores) {
+    const desc = String(s.description || "").toUpperCase();
+    if (desc !== "CURRENT") continue;
+    if (s.score?.participant === "home") gh = s.score.goals;
+    if (s.score?.participant === "away") ga = s.score.goals;
+  }
+  if (gh === null || ga === null) {
+    // fallback "FT" description
+    for (const s of scores) {
+      const desc = String(s.description || "").toUpperCase();
+      if (desc !== "FT" && desc !== "2ND_HALF") continue;
+      if (s.score?.participant === "home" && gh === null) gh = s.score.goals;
+      if (s.score?.participant === "away" && ga === null) ga = s.score.goals;
+    }
+  }
+  if (gh === null || ga === null) return null;
+  const stateName = f.state?.short_name || f.state?.name || "";
+  const status = mapStateToShort(stateName).short;
+
+  // Corners (statistics inline)
+  let ch = 0, ca = 0, hasCorners = false;
+  const stats = f.statistics || [];
+  for (const s of stats) {
+    if (s.type_id !== 34) continue; // 34 = corners
+    hasCorners = true;
+    const isHome = s.participant_id === home.id;
+    const v = Number(s.data?.value ?? 0);
+    if (isHome) ch = v; else ca = v;
+  }
+
+  return {
+    smId: f.id,
+    homeTeam: home.name || "",
+    awayTeam: away.name || "",
+    goalsHome: gh,
+    goalsAway: ga,
+    status,
+    cornersHome: hasCorners ? ch : undefined,
+    cornersAway: hasCorners ? ca : undefined,
+  };
+}
+
+export async function findFixtureByTeamsAndDate(
+  homeTeam: string,
+  awayTeam: string,
+  isoDate: string,
+): Promise<SmSettlementFixture | null> {
+  if (!TOKEN) return null;
+  const baseDate = new Date(isoDate);
+  if (isNaN(baseDate.getTime())) return null;
+  for (const offset of [0, -1, 1]) {
+    const d = new Date(baseDate);
+    d.setUTCDate(d.getUTCDate() + offset);
+    const ymd = d.toISOString().slice(0, 10);
+    const fixtures = await smFetchFixturesByDate(ymd);
+    for (const f of fixtures) {
+      const parsed = smParseFixture(f);
+      if (!parsed) continue;
+      if (parsed.status !== "FT") continue; // só finalizados
+      if (smTeamsMatch(parsed.homeTeam, homeTeam) && smTeamsMatch(parsed.awayTeam, awayTeam)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
 export function extractOdds1X2(smFixture: any): OddsLive1X2 | null {
   const odds: OddRow[] = smFixture?.inplayodds || smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
   if (!Array.isArray(odds) || odds.length === 0) return null;
