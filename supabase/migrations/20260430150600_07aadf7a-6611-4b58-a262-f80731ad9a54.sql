@@ -1,0 +1,28 @@
+INSERT INTO public.league_id_map (api_football_id, sportmonks_id, name) VALUES
+(39, 8, 'Premier League'),
+(40, 9, 'Championship'),
+(140, 564, 'La Liga'),
+(135, 384, 'Serie A'),
+(136, 387, 'Serie B Italia'),
+(78, 82, 'Bundesliga'),
+(79, 109, 'Bundesliga 2'),
+(61, 301, 'Ligue 1'),
+(94, 462, 'Primeira Liga'),
+(88, 72, 'Eredivisie'),
+(144, 208, 'Pro League Belgica'),
+(197, 271, 'Super League Grecia'),
+(203, 600, 'Super Lig Turquia'),
+(2, 2, 'Champions League'),
+(3, 5, 'Europa League'),
+(848, 2286, 'Conference League'),
+(13, 11, 'Libertadores'),
+(11, 13, 'Sul-Americana'),
+(71, 648, 'Brasileirao Serie A'),
+(72, 651, 'Brasileirao Serie B'),
+(73, 654, 'Brasileirao Serie C'),
+(75, 657, 'Copa do Brasil'),
+(128, 636, 'Liga Profesional Argentina'),
+(253, 779, 'MLS')
+ON CONFLICT (api_football_id) DO UPDATE
+  SET sportmonks_id = EXCLUDED.sportmonks_id,
+      name = EXCLUDED.name;
