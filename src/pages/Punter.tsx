@@ -503,13 +503,13 @@ export default function PunterPage() {
     let canonicalMatchId = matchId;
     
     if (!skipSignalCheck) {
-      // Use analysis_id FK for reliable signal lookup
+      // punter_sinais (unificada) — busca por id (que é o analysis_id retornado pelo fetchSavedSignals)
       let confirmedSignal: any = null;
       if (signal.analysis_id) {
         const { data } = await supabase
-          .from('punter_signals')
+          .from('punter_sinais')
           .select('id, stake_confirmed, match_id')
-          .eq('analysis_id', signal.analysis_id)
+          .or(`id.eq.${signal.analysis_id},legacy_analysis_id.eq.${signal.analysis_id},legacy_signal_id.eq.${signal.analysis_id}`)
           .eq('stake_confirmed', true)
           .maybeSingle();
         confirmedSignal = data;
@@ -518,7 +518,7 @@ export default function PunterPage() {
       // Fallback: try by home/away team match
       if (!confirmedSignal) {
         const { data } = await supabase
-          .from('punter_signals')
+          .from('punter_sinais')
           .select('id, stake_confirmed, match_id')
           .eq('stake_confirmed', true)
           .eq('status', 'pending')
