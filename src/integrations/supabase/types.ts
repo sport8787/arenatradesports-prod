@@ -2339,6 +2339,7 @@ export type Database = {
           minute: number | null
           mycroft_analysis_id: string | null
           mycroft_status: string | null
+          odds_live: Json | null
           period: string | null
           score_away: number | null
           score_home: number | null
@@ -2358,6 +2359,7 @@ export type Database = {
           minute?: number | null
           mycroft_analysis_id?: string | null
           mycroft_status?: string | null
+          odds_live?: Json | null
           period?: string | null
           score_away?: number | null
           score_home?: number | null
@@ -2377,6 +2379,7 @@ export type Database = {
           minute?: number | null
           mycroft_analysis_id?: string | null
           mycroft_status?: string | null
+          odds_live?: Json | null
           period?: string | null
           score_away?: number | null
           score_home?: number | null

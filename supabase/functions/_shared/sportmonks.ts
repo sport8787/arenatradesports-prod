@@ -44,6 +44,14 @@ export interface NormalizedStats {
   source: "sportmonks" | "api-football";
 }
 
+export interface OddsLive1X2 {
+  home: number | null;
+  draw: number | null;
+  away: number | null;
+  bookmaker?: string | null;
+  updated_at: string;
+}
+
 function smUrl(path: string, params: Record<string, string> = {}): string {
   const u = new URL(BASE + path);
   u.searchParams.set("api_token", TOKEN);
@@ -130,7 +138,7 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
 export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;periods",
+    include: "scores;participants;state;league;statistics;periods;inplayOdds",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
@@ -202,4 +210,49 @@ export function normalizeFixture(smFixture: any, leagueMap: Map<number, number>)
 
 export function extractNormalizedStats(smFixture: any): NormalizedStats {
   return extractStats(smFixture);
+}
+
+// Extrai odds 1X2 (Fulltime Result) do payload inplayOdds da Sportmonks.
+// Sportmonks v3: market_id=1 = Fulltime Result. Cada entrada traz {label, value, bookmaker_id, market_id}.
+// Estratégia: prioriza Bet365 (bookmaker_id=2); fallback para mediana das casas disponíveis.
+export function extractOdds1X2(smFixture: any): OddsLive1X2 | null {
+  const odds = smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
+  if (!Array.isArray(odds) || odds.length === 0) return null;
+
+  // Filtra somente Fulltime Result (1X2)
+  const ft = odds.filter((o: any) => {
+    const mid = o?.market_id ?? o?.marketId;
+    const mname = String(o?.market_description || o?.market?.name || o?.market_name || "").toLowerCase();
+    return mid === 1 || mname.includes("fulltime result") || mname.includes("match winner") || mname === "1x2";
+  });
+  if (ft.length === 0) return null;
+
+  // Tenta Bet365 (bookmaker_id=2)
+  const bet365 = ft.filter((o: any) => (o.bookmaker_id ?? o.bookmakerId) === 2);
+  const pool = bet365.length >= 3 ? bet365 : ft;
+
+  const pick = (label: string): number | null => {
+    const matches = pool.filter((o: any) => {
+      const l = String(o?.label || o?.name || "").toLowerCase();
+      return l === label.toLowerCase() || (label === "Home" && l === "1") || (label === "Draw" && (l === "x" || l === "draw")) || (label === "Away" && l === "2");
+    });
+    if (matches.length === 0) return null;
+    const vals = matches.map((m: any) => Number(m.value)).filter((v: number) => Number.isFinite(v) && v > 1);
+    if (vals.length === 0) return null;
+    vals.sort((a, b) => a - b);
+    // mediana
+    const mid = Math.floor(vals.length / 2);
+    return Number((vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2).toFixed(2));
+  };
+
+  const home = pick("Home");
+  const draw = pick("Draw");
+  const away = pick("Away");
+  if (home == null && draw == null && away == null) return null;
+
+  return {
+    home, draw, away,
+    bookmaker: bet365.length >= 3 ? "bet365" : "median",
+    updated_at: new Date().toISOString(),
+  };
 }

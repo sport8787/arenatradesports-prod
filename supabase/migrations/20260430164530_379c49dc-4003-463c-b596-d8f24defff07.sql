@@ -1,0 +1,1 @@
+ALTER TABLE public.live_matches ADD COLUMN IF NOT EXISTS odds_live jsonb;

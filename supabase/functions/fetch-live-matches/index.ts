@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
+import { extractOdds1X2 } from "../_shared/sportmonks.ts";
 
 // Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
 //               'api-football' (default) = comportamento legado
@@ -473,6 +474,16 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
+      // Odds 1X2 ao vivo (Sportmonks)
+      let oddsLive: any = null;
+      if (fixture._source === 'sportmonks' && fixture._raw && lifecycleStatus === 'live') {
+        try {
+          oddsLive = extractOdds1X2(fixture._raw);
+        } catch (e) {
+          console.warn(`[FetchLive] odds extract fail ${fixtureId}: ${(e as Error)?.message}`);
+        }
+      }
+
       const stats = lifecycleStatus === 'live' ? statsMap.get(fixtureId) ?? null : null;
       const existing = existingMap.get(fixtureId);
 
@@ -480,6 +491,7 @@ serve(async (req) => {
         ...matchData,
         stats: stats || { attacks_home: 0, attacks_away: 0, possession_home: 0, possession_away: 0, shots_home: 0, shots_away: 0 },
       };
+      if (oddsLive) upsertData.odds_live = oddsLive;
       if (existing) {
         upsertData.mycroft_status = existing.mycroft_status;
         upsertData.mycroft_analysis_id = existing.mycroft_analysis_id;

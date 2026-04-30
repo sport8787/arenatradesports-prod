@@ -85,6 +85,8 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     finalScoreAway: lm.mycroft_analysis?.final_score_away ?? null,
     confidence: lm.mycroft_analysis?.confidence ?? null,
     alerts: lm.mycroft_analysis?.alerts ?? null,
+    approvalOdd: lm.mycroft_analysis?.odd ?? null,
+    oddsLive: (lm as any).odds_live ?? null,
   };
 };
 
