@@ -123,6 +123,7 @@ export default function PunterPage() {
   const [cornersLoading, setCornersLoading] = useState(false);
   const [cornersResults, setCornersResults] = useState<any[]>([]);
   const [haLoading, setHaLoading] = useState(false);
+  const [smLoading, setSmLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     const isNew = sessionStorage.getItem('showOpening') === 'true';
     const completed = localStorage.getItem('onboarding_completed') === 'true';
@@ -1336,6 +1337,52 @@ export default function PunterPage() {
                 </GoldButton>
                 <p className="text-[10px] font-mono text-muted-foreground text-center">
                   🔒 Exclusivo Admin · Sem custo NT · Gemini
+                </p>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="space-y-1" title="Exclusivo Admin · Análise via Sportmonks Pro (alternativa)">
+                <Button
+                  onClick={async () => {
+                    if (smLoading) return;
+                    setSmLoading(true);
+                    toast.info('🔍 Analisando via Sportmonks... (pode levar 1-2 min)');
+                    try {
+                      const { data, error } = await supabase.functions.invoke('mycroft-punter-sportmonks', { body: {} });
+                      if (error) throw error;
+                      if (data?.success) {
+                        const ap = data.approved ?? 0;
+                        const tot = data.analyzed ?? 0;
+                        const ve = data.vetoed ?? 0;
+                        if (ap > 0) {
+                          toast.success(`✅ Sportmonks: ${ap} aprovados · ${ve} vetados (${tot} jogos)`);
+                          // Sinais aprovados aparecerão no próximo refresh do cache
+                        } else {
+                          toast.info(`Sportmonks: 0 aprovados · ${ve} vetados (${tot} jogos)`);
+                        }
+                      } else {
+                        toast.error(data?.error || 'Falha na análise Sportmonks');
+                      }
+                    } catch (e: any) {
+                      console.error('Sportmonks analysis error', e);
+                      toast.error(e?.message || 'Erro ao analisar via Sportmonks');
+                    } finally {
+                      setSmLoading(false);
+                    }
+                  }}
+                  disabled={smLoading || loading}
+                  variant="outline"
+                  className="w-full font-mono text-xs tracking-wider border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                >
+                  {smLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO SPORTMONKS...</>
+                  ) : (
+                    <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR (SPORTMONKS)</>
+                  )}
+                </Button>
+                <p className="text-[10px] font-mono text-muted-foreground text-center">
+                  🔒 Admin · Fonte alternativa · Sportmonks Pro
                 </p>
               </div>
             )}
