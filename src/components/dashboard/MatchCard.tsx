@@ -291,6 +291,36 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           )}
 
+          {/* Odds 1X2 ao vivo (Sportmonks) */}
+          {match.status === 'live' && match.oddsLive && (match.oddsLive.home || match.oddsLive.draw || match.oddsLive.away) && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['home', 'draw', 'away'] as const).map((k) => {
+                const labels = { home: '1', draw: 'X', away: '2' };
+                const val = match.oddsLive?.[k];
+                return (
+                  <div
+                    key={k}
+                    className="flex flex-col items-center justify-center rounded-md border border-border/60 bg-muted/30 px-2 py-1"
+                    title={`Odd ${labels[k]} ao vivo`}
+                  >
+                    <span className="text-[9px] text-muted-foreground font-orbitron uppercase tracking-wider">{labels[k]}</span>
+                    <span className="text-xs font-bold tabular-nums text-foreground">
+                      {val != null ? Number(val).toFixed(2) : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Odd da entrada quando o sinal foi aprovado */}
+          {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA' || match.mycroftStatus === 'opportunity') && match.approvalOdd != null && (
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-success/10 border border-success/30">
+              <span className="text-[10px] text-success font-orbitron uppercase tracking-wider">Odd entrada</span>
+              <span className="text-sm font-bold tabular-nums text-success">{Number(match.approvalOdd).toFixed(2)}</span>
+            </div>
+          )}
+
           {/* Divider */}
           <div className="h-px bg-border/50" />
 
