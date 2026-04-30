@@ -163,24 +163,13 @@ export default function MycroftSinaisAprovados() {
   }, [signals, filter]);
 
   const stats = useMemo(() => {
-    const total = signals.length;
-    const greens = signals.filter((s) => s.result === 'green').length;
-    const reds = signals.filter((s) => s.result === 'red').length;
-    const pending = signals.filter((s) => !s.result).length;
+    const greens = aggStats.greens;
+    const reds = aggStats.reds;
     const settled = greens + reds;
     const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-
-    // ROI estimado (1u por sinal)
-    let pnlUnits = 0;
-    for (const s of signals) {
-      if (!s.odd) continue;
-      if (s.result === 'green') pnlUnits += s.odd - 1;
-      else if (s.result === 'red') pnlUnits -= 1;
-    }
-    const roi = settled > 0 ? (pnlUnits / settled) * 100 : 0;
-
-    return { total, greens, reds, pending, winRate, roi, pnlUnits };
-  }, [signals]);
+    const roi = settled > 0 ? (aggStats.pnlUnits / settled) * 100 : 0;
+    return { greens, reds, winRate, roi };
+  }, [aggStats]);
 
   return (
     <div className="min-h-screen bg-background">
