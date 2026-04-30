@@ -1806,6 +1806,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sequencia_log: {
+        Row: {
+          aberto: boolean
+          clicado: boolean
+          email: string
+          enviado_em: string
+          id: string
+          resend_id: string | null
+          sequencia: string
+          user_id: string
+        }
+        Insert: {
+          aberto?: boolean
+          clicado?: boolean
+          email: string
+          enviado_em?: string
+          id?: string
+          resend_id?: string | null
+          sequencia: string
+          user_id: string
+        }
+        Update: {
+          aberto?: boolean
+          clicado?: boolean
+          email?: string
+          enviado_em?: string
+          id?: string
+          resend_id?: string | null
+          sequencia?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       eventos_raros_candidatos: {
         Row: {
           arenas: string[] | null
@@ -6353,6 +6386,20 @@ export type Database = {
           relevance_score?: number | null
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      v_email_sequencia_status: {
+        Row: {
+          assinante: boolean | null
+          cadastro: string | null
+          d1: string | null
+          d3: string | null
+          d5: string | null
+          d7: string | null
+          expirado: string | null
+          user_id: string | null
+          username: string | null
         }
         Relationships: []
       }

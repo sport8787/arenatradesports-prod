@@ -95,3 +95,18 @@ verify_jwt = false
 
 [functions.reconcile-shadow-results]
 verify_jwt = false
+
+[functions.email-d1-boasvindas]
+verify_jwt = false
+
+[functions.email-d3-engajamento]
+verify_jwt = false
+
+[functions.email-d5-urgencia]
+verify_jwt = false
+
+[functions.email-d7-ultimo-dia]
+verify_jwt = false
+
+[functions.email-expirado-reativacao]
+verify_jwt = false
