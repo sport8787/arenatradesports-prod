@@ -4,6 +4,11 @@
 // ISOLADO: prompt próprio, lógica própria, sem dependência de IDs externos
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  smSearchTeam,
+  getRecentFixturesSM,
+  getCornersForFixtureSM,
+} from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +18,9 @@ const corsHeaders = {
 const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const BASE_URL = "https://v3.football.api-sports.io";
+
+// Fonte de dados ativa (set per-request)
+let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
 
 // ════════════════════════════════════════════════════
 // BUSCAR TEAM ID POR NOME (API-Football /teams)
