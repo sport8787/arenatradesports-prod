@@ -12,6 +12,7 @@ import EdgeFunctionAlerts from '@/components/admin/EdgeFunctionAlerts';
 import ApprovalSnapshotViolations from '@/components/admin/ApprovalSnapshotViolations';
 import PunterCalibration from '@/components/admin/PunterCalibration';
 import PunterPromptSimulator from '@/components/admin/PunterPromptSimulator';
+import EmailSequenceReport from '@/components/admin/EmailSequenceReport';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
