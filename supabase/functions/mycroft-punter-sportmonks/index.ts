@@ -583,14 +583,16 @@ serve(async (req) => {
         const r = await fetch(
           `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals,btts,totals_h1&oddsFormat=decimal`,
         );
-        if (!r.ok) continue;
+        if (!r.ok) { console.warn(`[sm-punter] odds ${league} HTTP ${r.status}`); continue; }
         const arr = await r.json();
+        let added = 0, total = arr.length;
         for (const g of arr) {
           const t = new Date(g.commence_time).getTime();
           if (t < now || t > horizon) continue;
-          games.push(g);
+          games.push(g); added++;
         }
-      } catch {}
+        console.log(`[sm-punter] ${league}: ${added}/${total} dentro da janela`);
+      } catch (e) { console.warn(`[sm-punter] err ${league}`, (e as Error).message); }
       if (games.length >= MAX_GAMES) break;
     }
 
