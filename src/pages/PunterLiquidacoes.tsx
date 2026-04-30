@@ -178,6 +178,7 @@ export default function PunterLiquidacoesPage() {
   const filtered = rows.filter(r => {
     if (tab === 'todos') return true;
     if (tab === 'pendentes') return isPending(r);
+    if (tab === 'futuros') return isFuture(r);
     if (tab === 'green') return isGreen(r);
     if (tab === 'red') return isRed(r);
     return true;
