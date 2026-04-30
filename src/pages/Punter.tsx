@@ -424,13 +424,39 @@ export default function PunterPage() {
     // Janela: jogos futuros + jogos que começaram há menos de 3h (ainda em andamento, não liquidados)
     const inPlayCutoffIso = new Date(nowTs - 3 * 60 * 60 * 1000).toISOString();
 
-    const { data: savedAnalyses } = await supabase
+    const { data: savedAnalyses, error: fetchErr } = await supabase
       .from('punter_sinais')
       .select('*')
       .eq('verdict', 'APROVADO')
       .gt('commence_time', inPlayCutoffIso)
       .order('created_at', { ascending: false })
       .limit(100);
+
+    if (fetchErr) {
+      console.error('[Punter] Erro ao carregar punter_sinais:', fetchErr);
+      setSchemaError(
+        `Falha ao consultar a tabela "punter_sinais": ${fetchErr.message}. ` +
+        `Verifique se a tabela existe e está acessível.`
+      );
+      return [];
+    }
+
+    // Valida shape antes de renderizar — schema desatualizado quebra a UI silenciosamente
+    const validation = validatePunterSinaisRows(savedAnalyses);
+    if (!validation.valid) {
+      const msg = buildPunterSinaisErrorMessage(validation);
+      console.error('[Punter] Schema inválido em punter_sinais:', validation);
+      setSchemaError(msg);
+      return [];
+    }
+    if (validation.missingExpected.length > 0) {
+      console.warn(
+        '[Punter] Campos opcionais ausentes em punter_sinais:',
+        validation.missingExpected
+      );
+    }
+    // Limpa erro de schema anterior se passou
+    setSchemaError(null);
 
     const dbDedupMap = new Map<string, any>();
     for (const a of savedAnalyses || []) {
