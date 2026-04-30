@@ -6,6 +6,14 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts';
+import {
+  getUpcomingFixturesSM,
+  getRecentFixturesSM,
+  getTeamStatsSM,
+} from '../_shared/sportmonks-af-adapter.ts';
+
+// Fonte de dados ativa (set per-request)
+let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
