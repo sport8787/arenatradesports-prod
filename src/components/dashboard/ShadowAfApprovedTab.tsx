@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,55 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Loader2, RefreshCw, FlaskConical, Play, BarChart3, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
+import MatchCardWithEntries from '@/components/dashboard/MatchCardWithEntries';
+import type { Match } from '@/components/dashboard/MatchCard';
+
+const getChampionshipColor = (name: string): Match['championshipColor'] => {
+  const lower = (name || '').toLowerCase();
+  if (lower.includes('copa')) return 'yellow';
+  if (lower.includes('champions') || lower.includes('liga')) return 'blue';
+  if (lower.includes('brasileir')) return 'green';
+  return 'red';
+};
+
+function shadowSignalToMatch(s: ShadowSignal, m?: MatchInfo, lmExtra?: any): Match {
+  const stats = lmExtra?.stats || s.stats_snapshot?.stats || {};
+  return {
+    id: s.id,
+    championship: m?.championship || '—',
+    championshipColor: getChampionshipColor(m?.championship || ''),
+    home: m?.home_team || 'Casa',
+    away: m?.away_team || 'Fora',
+    homeLogo: lmExtra?.home_logo || '⚽',
+    awayLogo: lmExtra?.away_logo || '⚽',
+    scoreHome: s.final_score_home ?? m?.score_home ?? 0,
+    scoreAway: s.final_score_away ?? m?.score_away ?? 0,
+    minute: m?.minute ?? s.approved_at_minute ?? 0,
+    period: '',
+    status: (s.result ? 'finished' : 'live') as Match['status'],
+    mycroftStatus: (s.verdict as Match['mycroftStatus']) || 'APROVADO',
+    matchId: s.match_id,
+    stats: {
+      possession_home: stats.possession_home,
+      possession_away: stats.possession_away,
+      attacks_home: stats.attacks_home ?? stats.dangerous_attacks_home,
+      attacks_away: stats.attacks_away ?? stats.dangerous_attacks_away,
+      shots_home: stats.shots_on_target_home ?? stats.shots_home,
+      shots_away: stats.shots_on_target_away ?? stats.shots_away,
+      corners_home: stats.corners_home,
+      corners_away: stats.corners_away,
+      xG_home: stats.xG_home,
+      xG_away: stats.xG_away,
+    },
+    planName: s.plan_name,
+    market: s.market,
+    signalResult: (s.result === 'green' || s.result === 'red') ? s.result : null,
+    finalScoreHome: s.final_score_home ?? null,
+    finalScoreAway: s.final_score_away ?? null,
+    confidence: s.confidence ?? null,
+    alerts: null,
+  };
+}
 
 interface ShadowSignal {
   id: string;
@@ -120,15 +170,24 @@ function StatsDiffModal({ open, onClose, sm, af, signal }: any) {
 }
 
 export default function ShadowAfApprovedTab() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [period, setPeriod] = useState<Period>('since');
   const [signals, setSignals] = useState<ShadowSignal[]>([]);
   const [matches, setMatches] = useState<Record<string, MatchInfo>>({});
+  const [lmExtras, setLmExtras] = useState<Record<string, any>>({});
   const [primary, setPrimary] = useState<Record<string, PrimarySignal[]>>({});
   const [metrics, setMetrics] = useState<MetricsRow[]>([]);
   const [divergences, setDivergences] = useState<DivergenceRow[]>([]);
   const [diffSignal, setDiffSignal] = useState<ShadowSignal | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUserId(data?.session?.user?.id);
+    });
+  }, []);
 
   const loadAggregates = async (p: Period) => {
     const since = periodToSince(p);
@@ -158,12 +217,17 @@ export default function ShadowAfApprovedTab() {
       const ids = Array.from(new Set(list.map((s) => s.match_id)));
       if (ids.length > 0) {
         const [{ data: lm }, { data: prim }] = await Promise.all([
-          supabase.from('live_matches').select('match_id, home_team, away_team, championship, minute, score_home, score_away').in('match_id', ids),
+          supabase.from('live_matches').select('match_id, home_team, away_team, championship, minute, score_home, score_away, home_logo, away_logo, stats').in('match_id', ids),
           supabase.from('mycroft_analyses').select('id, match_id, market, verdict, result, stats_snapshot').in('match_id', ids).in('verdict', APPROVED),
         ]);
         const map: Record<string, MatchInfo> = {};
-        (lm || []).forEach((m: any) => { map[m.match_id] = m; });
+        const extras: Record<string, any> = {};
+        (lm || []).forEach((m: any) => {
+          map[m.match_id] = m;
+          extras[m.match_id] = { home_logo: m.home_logo, away_logo: m.away_logo, stats: m.stats };
+        });
         setMatches(map);
+        setLmExtras(extras);
 
         const pmap: Record<string, PrimarySignal[]> = {};
         (prim || []).forEach((p: any) => {
@@ -173,6 +237,7 @@ export default function ShadowAfApprovedTab() {
         setPrimary(pmap);
       } else {
         setMatches({});
+        setLmExtras({});
         setPrimary({});
       }
 
@@ -339,54 +404,46 @@ export default function ShadowAfApprovedTab() {
             Nenhum sinal shadow no período. Clique em <strong>Rodar agora</strong> para disparar análise paralela.
           </div>
         ) : (
-          <div className="space-y-2 max-h-[600px] overflow-y-auto">
-            {enriched.map((s) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {enriched.map((s, i) => {
               const m = matches[s.match_id];
-              const resBadge = s.result === 'green' ? <Badge className="bg-success">GREEN</Badge>
-                : s.result === 'red' ? <Badge variant="destructive">RED</Badge>
-                : <Badge variant="secondary">pendente</Badge>;
-              const primRes = s.primarySignal?.result;
-              const primResBadge = !s.primarySignal ? null
-                : primRes === 'green' ? <Badge className="bg-success/70 ml-1">SM:GREEN</Badge>
-                : primRes === 'red' ? <Badge variant="destructive" className="ml-1">SM:RED</Badge>
-                : <Badge variant="outline" className="ml-1">SM:pend</Badge>;
-              return (
-                <div
-                  key={s.id}
-                  className={`border rounded p-3 text-sm ${
-                    !s.matchedInPrimary ? 'border-amber-500/60 bg-amber-500/5' : 'border-border'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="font-medium">
-                      {m ? `${m.home_team} ${s.final_score_home ?? m.score_home ?? 0}-${s.final_score_away ?? m.score_away ?? 0} ${m.away_team}` : s.match_id}
-                      {m?.minute != null && <span className="text-xs text-muted-foreground ml-2">({m.minute}')</span>}
-                    </div>
-                    <div className="flex gap-1 items-center flex-wrap">
-                      <Badge variant={s.verdict === 'APROVADO' ? 'default' : 'secondary'}>{s.verdict}</Badge>
-                      {resBadge}
-                      {primResBadge}
-                      {!s.matchedInPrimary && (
-                        <Badge variant="outline" className="border-amber-500 text-amber-600">
-                          {s.sameMatchAnyPrimary ? 'mercado divergente' : 'só AF'}
-                        </Badge>
-                      )}
-                      {s.matchedInPrimary && (
-                        <Badge variant="outline" className="border-success text-success">confirmado</Badge>
-                      )}
-                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setDiffSignal(s)} title="Ver diff de stats">
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="text-xs mt-1 text-muted-foreground">
-                    <strong>{s.market}</strong> @ {s.odd ?? '-'} · conf {s.confidence ?? 0}%
-                    {s.plan_name ? ` · ${s.plan_name}` : ''}
-                    {m?.championship ? ` · ${m.championship}` : ''}
-                  </div>
-                  {s.thesis && (
-                    <div className="text-xs mt-1 text-foreground/80 line-clamp-2">{s.thesis}</div>
+              const match = shadowSignalToMatch(s, m, lmExtras[s.match_id]);
+              const badgeRow = (
+                <div className="absolute top-2 right-2 z-10 flex flex-wrap gap-1 justify-end max-w-[60%]">
+                  {s.result === 'green' && <Badge className="bg-success text-[10px]">GREEN</Badge>}
+                  {s.result === 'red' && <Badge variant="destructive" className="text-[10px]">RED</Badge>}
+                  {!s.result && <Badge variant="secondary" className="text-[10px]">pendente</Badge>}
+                  {s.primarySignal?.result === 'green' && <Badge className="bg-success/70 text-[10px]">SM:GREEN</Badge>}
+                  {s.primarySignal?.result === 'red' && <Badge variant="destructive" className="text-[10px]">SM:RED</Badge>}
+                  {!s.matchedInPrimary && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">
+                      {s.sameMatchAnyPrimary ? 'mercado divergente' : 'só AF'}
+                    </Badge>
                   )}
+                  {s.matchedInPrimary && (
+                    <Badge variant="outline" className="border-success text-success text-[10px]">confirmado</Badge>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 bg-background/80"
+                    onClick={(e) => { e.stopPropagation(); setDiffSignal(s); }}
+                    title="Ver diff de stats"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </div>
+              );
+              return (
+                <div key={s.id} className="relative">
+                  {badgeRow}
+                  <MatchCardWithEntries
+                    match={match}
+                    index={i}
+                    userId={currentUserId}
+                    bankrollBalance={500}
+                    onAnalysisClick={(matchId) => navigate(`/arena-trader-sports/jogo/${matchId}`)}
+                  />
                 </div>
               );
             })}
