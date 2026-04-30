@@ -1,7 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { identifyUser, resetAnalytics, track } from '@/lib/analytics';
+
+// Schema de validação para signup — garante payloads consistentes
+// para a Auth do Supabase E para a edge function email-d1-boasvindas.
+const signUpSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, { message: 'E-mail é obrigatório' })
+    .max(255, { message: 'E-mail muito longo' })
+    .email({ message: 'E-mail inválido' }),
+  password: z
+    .string()
+    .min(6, { message: 'Senha deve ter ao menos 6 caracteres' })
+    .max(72, { message: 'Senha muito longa (máx. 72)' }),
+  username: z
+    .string()
+    .trim()
+    .min(2, { message: 'Nome deve ter ao menos 2 caracteres' })
+    .max(60, { message: 'Nome muito longo (máx. 60)' }),
+});
 
 export interface Profile {
   id: string;
