@@ -8,6 +8,7 @@
 // =============================================================================
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -247,20 +248,33 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // 1) API-Football
+      // 1) Sportmonks (primário — plano Pro Advanced, melhor cobertura)
       let fx: FixtureResult | null = null;
-      let fonte = "api-football";
+      let fonte = "sportmonks";
       let fixtureId: number | undefined;
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
+      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+      if (sm) {
+        fx = {
+          homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
+          goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
+          status: sm.status,
+          cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
+        };
+      }
 
-      // 2) Se mercado de escanteios e temos fixtureId, busca corners
-      if (fx && fixtureId && /escante|corner/i.test(s.market)) {
+      // 2) API-Football (fallback)
+      if (!fx) {
+        const af = await buscarPorNomeEData(home, away, startIso);
+        if (af) { fx = af.fx; fixtureId = af.fixtureId; fonte = "api-football"; }
+      }
+
+      // 3) Se mercado de escanteios e ainda não temos corners (apenas via AF), busca
+      if (fx && fixtureId && fx.cornersHome == null && /escante|corner/i.test(s.market)) {
         const c = await fetchCorners(fixtureId);
         if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
       }
 
-      // 3) Fallback Odds API
+      // 4) Fallback The Odds API
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
@@ -347,9 +361,15 @@ serve(async (req) => {
 
     try {
       let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) fx = af.fx;
+      let fonte = "sportmonks";
+      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+      if (sm) {
+        fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+      }
+      if (!fx) {
+        const af = await buscarPorNomeEData(home, away, startIso);
+        if (af) { fx = af.fx; fonte = "api-football"; }
+      }
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
@@ -400,9 +420,15 @@ serve(async (req) => {
 
       try {
         let fx: FixtureResult | null = null;
-        let fonte = "api-football";
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) fx = af.fx;
+        let fonte = "sportmonks";
+        const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+        if (sm) {
+          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+        }
+        if (!fx) {
+          const af = await buscarPorNomeEData(home, away, startIso);
+          if (af) { fx = af.fx; fonte = "api-football"; }
+        }
         if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
         if (!fx) {
           notFound++;
