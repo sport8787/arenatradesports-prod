@@ -1327,7 +1327,7 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
           if (isConflict) {
             if (myScore > existScore) {
               // New signal is better — remove old one
-              await sb.from('punter_signals').delete().eq('match_id', mid).eq('market', existing.market)
+              await sb.from('punter_sinais').delete().eq('match_id', mid).eq('market', existing.market)
               await sb.from('punter_analyses').delete().eq('id', existing.id)
               console.log(`[Mycroft Punter] 🔄 Conflito resolvido: ${a.market} (score ${myScore.toFixed(0)}) substituiu ${existing.market} (score ${existScore.toFixed(0)})`)
             } else {
@@ -1350,8 +1350,8 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
       console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
-      // Dedup: remove old analysis+signal for same match+market before inserting
-      await sb.from('punter_signals').delete().eq('match_id',mid).eq('market',a.market||'N/A')
+      // Dedup: remove old unified signal for same match+market before inserting
+      await sb.from('punter_sinais').delete().eq('match_id',mid).eq('market',a.market||'N/A')
       await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',a.market||'N/A')
 
       const {data:row} = await sb.from('punter_analyses').insert({
@@ -1371,21 +1371,28 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
         if (isHoje) {
           // Jogo é hoje — fluxo imediato (stake calculado agora)
-          await sb.from('punter_signals').insert({
-            analysis_id:row.id, match_id:mid, market:a.market, bookmaker:a.bookmaker, odd:a.odd,
-            value_percentage:a.value_percentage, stake_percentage:a.stake_percentage,
-            status:'pending', stake_confirmed:true, match_date:matchDate,
-            commence_time:game.commence_time
+          await sb.from('punter_sinais').insert({
+            legacy_analysis_id: row.id, match_id:mid, home_team:game.home_team, away_team:game.away_team,
+            league:game.sport_title||'Unknown', market:a.market, bookmaker:a.bookmaker, odd:a.odd,
+            fair_odd:a.fair_odd, implied_probability:a.implied_probability, estimated_probability:a.estimated_probability,
+            value_percentage:a.value_percentage, verdict:a.verdict, confidence:a.confidence,
+            stake_percentage:a.stake_percentage, stake_percentage_original:a.stake_percentage,
+            thesis:a.thesis, analysis:a.analysis, risk_factors:a.risk_factors, analyzed_by:'gemini',
+            status:'pending', stake_confirmed:true, match_date:matchDate, commence_time:game.commence_time,
+            dismissed:false, resultado:null
           })
           console.log(`[Mycroft Punter] ✅ Sinal HOJE registrado — stake ${a.stake_percentage}%`)
         } else {
           // Jogo futuro — aprovação sem stake (será recalculado no dia do jogo)
-          await sb.from('punter_signals').insert({
-            analysis_id:row.id, match_id:mid, market:a.market, bookmaker:a.bookmaker, odd:a.odd,
-            value_percentage:a.value_percentage, stake_percentage:null,
-            stake_percentage_original:a.stake_percentage,
-            status:'awaiting_stake', stake_confirmed:false, match_date:matchDate,
-            commence_time:game.commence_time
+          await sb.from('punter_sinais').insert({
+            legacy_analysis_id: row.id, match_id:mid, home_team:game.home_team, away_team:game.away_team,
+            league:game.sport_title||'Unknown', market:a.market, bookmaker:a.bookmaker, odd:a.odd,
+            fair_odd:a.fair_odd, implied_probability:a.implied_probability, estimated_probability:a.estimated_probability,
+            value_percentage:a.value_percentage, verdict:a.verdict, confidence:a.confidence,
+            stake_percentage:null, stake_percentage_original:a.stake_percentage,
+            thesis:a.thesis, analysis:a.analysis, risk_factors:a.risk_factors, analyzed_by:'gemini',
+            status:'awaiting_stake', stake_confirmed:false, match_date:matchDate, commence_time:game.commence_time,
+            dismissed:false, resultado:null
           })
           const diasRestantes = Math.ceil((commenceDate.getTime() - Date.now()) / (1000*60*60*24))
           console.log(`[Mycroft Punter] ⏳ Sinal FUTURO registrado (${matchDate}, ${diasRestantes}d) — stake será recalculado`)
