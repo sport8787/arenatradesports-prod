@@ -228,9 +228,12 @@ export default function PunterLiquidacoesPage() {
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
             <TabsTrigger value="pendentes" className="gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Pendentes ({counts.pendentes})
+            </TabsTrigger>
+            <TabsTrigger value="futuros" className="gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Futuros ({counts.futuros})
             </TabsTrigger>
             <TabsTrigger value="green" className="gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5" /> Greens ({counts.green})
