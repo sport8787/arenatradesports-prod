@@ -432,6 +432,49 @@ serve(async (req) => {
             dismissed: false,
             resultado: null,
           }, { onConflict: "match_id,market", ignoreDuplicates: false });
+
+          // === TELEGRAM (Pré Live) — usa telegram-send-dedupe (evita duplicatas) ===
+          try {
+            const horaBR = new Date(g.commence_time).toLocaleString("pt-BR", {
+              timeZone: "America/Recife", day: "2-digit", month: "2-digit",
+              hour: "2-digit", minute: "2-digit",
+            });
+            const conf = Number(an.confidence) || 0;
+            const edge = Number(an.value_percentage) || 0;
+            const tier = conf >= 75 ? "⚡ FORTE" : conf >= 65 ? "✅ BOM" : "🎯 MODERADO";
+            const stake = Number(an.stake_percentage) || 0;
+            const tgText = [
+              `🎯 <b>SINAL PUNTER PRÉ-LIVE</b> ${tier}`,
+              `━━━━━━━━━━━━━━━━━━`,
+              `⚽ <b>${g.home_team}</b> x <b>${g.away_team}</b>`,
+              `🏆 ${g.sport_title || "?"}`,
+              `🕐 ${horaBR} BRT`,
+              ``,
+              `📌 <b>Mercado:</b> ${an.market || "?"}`,
+              `💹 <b>Odd:</b> ${(Number(an.odd) || 0).toFixed(2)} (${an.bookmaker || "?"})`,
+              `🎯 <b>Confiança:</b> ${conf}% | <b>Edge:</b> +${edge.toFixed(1)}%`,
+              stake > 0 ? `💰 <b>Stake:</b> ${stake.toFixed(1)}% banca` : "",
+              ``,
+              an.thesis ? `🧠 ${String(an.thesis).slice(0, 280)}` : "",
+              ``,
+              `<i>Análise Mycroft via Sportmonks</i>`,
+            ].filter(Boolean).join("\n");
+
+            await sb.functions.invoke("telegram-send-dedupe", {
+              body: {
+                text: tgText,
+                match_id: matchId,
+                market: an.market || "N/A",
+                verdict: "APROVADO",
+                channel: "punter-prelive",
+                source: "mycroft-punter-sportmonks",
+                parse_mode: "HTML",
+                enabled: true, // força envio mesmo se TELEGRAM_ENABLED não estiver setado
+              },
+            });
+          } catch (tgErr) {
+            console.error("[sm-punter] telegram err:", tgErr instanceof Error ? tgErr.message : tgErr);
+          }
         } else {
           vetoed++;
         }
