@@ -216,7 +216,7 @@ export function extractNormalizedStats(smFixture: any): NormalizedStats {
 // Sportmonks v3: market_id=1 = Fulltime Result. Cada entrada traz {label, value, bookmaker_id, market_id}.
 // Estratégia: prioriza Bet365 (bookmaker_id=2); fallback para mediana das casas disponíveis.
 export function extractOdds1X2(smFixture: any): OddsLive1X2 | null {
-  const odds = smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
+  const odds = smFixture?.inplayodds || smFixture?.inplayOdds || smFixture?.inplay_odds || smFixture?.odds || [];
   if (!Array.isArray(odds) || odds.length === 0) return null;
 
   // Filtra somente Fulltime Result (1X2)
