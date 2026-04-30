@@ -581,7 +581,7 @@ serve(async (req) => {
     for (const league of sports) {
       try {
         const r = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals&oddsFormat=decimal`,
+          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals,btts,totals_h1&oddsFormat=decimal`,
         );
         if (!r.ok) continue;
         const arr = await r.json();
