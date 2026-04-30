@@ -65,6 +65,7 @@ const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
 const AdminEdgeFunctionsStatus = React.lazy(() => import("./pages/AdminEdgeFunctionsStatus"));
 const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFunctionErrors"));
+const AdminAssinaturas = React.lazy(() => import("./pages/AdminAssinaturas"));
 
 const queryClient = new QueryClient();
 
@@ -147,6 +148,7 @@ const App = () => {
                 <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
                 <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
+                <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>
