@@ -19,7 +19,7 @@ const ALLOWED_NUMERIC_KEYS = new Set([
   'big_chances_home', 'big_chances_away',
   'corners_home', 'corners_away',
   'fouls_home', 'fouls_away',
-  'odd_manual',
+  'odd_manual', 'odd_home', 'odd_draw', 'odd_away',
 ]);
 
 function sanitizeStats(input: unknown): Record<string, number> {

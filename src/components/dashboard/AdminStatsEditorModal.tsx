@@ -22,7 +22,9 @@ export interface EditableMatchStats {
   big_chances_away?: number | null;
   corners_home?: number | null;
   corners_away?: number | null;
-  odd_manual?: number | null;
+  odd_home?: number | null;
+  odd_draw?: number | null;
+  odd_away?: number | null;
 }
 
 interface AdminStatsEditorModalProps {
@@ -34,7 +36,7 @@ interface AdminStatsEditorModalProps {
   currentStats?: EditableMatchStats | null;
 }
 
-const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number; solo?: boolean }> = [
+const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home' | 'away'; group: string; step?: number; max?: number; solo?: boolean; noTeamLabel?: boolean }> = [
   { key: 'xG_home', label: 'xG', team: 'home', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'xG_away', label: 'xG', team: 'away', group: 'xG (Expected Goals)', step: 0.01, max: 10 },
   { key: 'possession_home', label: 'Posse %', team: 'home', group: 'Posse de bola', max: 100 },
@@ -51,7 +53,9 @@ const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home'
   { key: 'big_chances_away', label: 'Big Chances', team: 'away', group: 'Big Chances' },
   { key: 'corners_home', label: 'Escanteios', team: 'home', group: 'Escanteios' },
   { key: 'corners_away', label: 'Escanteios', team: 'away', group: 'Escanteios' },
-  { key: 'odd_manual', label: 'Odd da entrada (manual)', team: 'home', group: 'Odd manual', step: 0.01, max: 1000, solo: true },
+  { key: 'odd_home', label: `Odd Casa (1)`, team: 'home', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000, noTeamLabel: true },
+  { key: 'odd_draw', label: 'Odd Empate (X)', team: 'home', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000, noTeamLabel: true },
+  { key: 'odd_away', label: 'Odd Visitante (2)', team: 'away', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000, noTeamLabel: true },
 ];
 
 export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTeam, awayTeam, currentStats }: AdminStatsEditorModalProps) {
@@ -160,7 +164,7 @@ export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTe
                       {fields.map(f => (
                         <div key={f.key as string} className={f.solo ? 'col-span-2' : ''}>
                           <label className="block text-[10px] text-muted-foreground mb-1">
-                            {f.solo ? (
+                            {f.solo || f.noTeamLabel ? (
                               <span className="font-bold">{f.label}</span>
                             ) : (
                               <>
