@@ -22,7 +22,9 @@ export interface EditableMatchStats {
   big_chances_away?: number | null;
   corners_home?: number | null;
   corners_away?: number | null;
-  odd_manual?: number | null;
+  odd_home?: number | null;
+  odd_draw?: number | null;
+  odd_away?: number | null;
 }
 
 interface AdminStatsEditorModalProps {
@@ -51,7 +53,9 @@ const FIELDS: Array<{ key: keyof EditableMatchStats; label: string; team: 'home'
   { key: 'big_chances_away', label: 'Big Chances', team: 'away', group: 'Big Chances' },
   { key: 'corners_home', label: 'Escanteios', team: 'home', group: 'Escanteios' },
   { key: 'corners_away', label: 'Escanteios', team: 'away', group: 'Escanteios' },
-  { key: 'odd_manual', label: 'Odd da entrada (manual)', team: 'home', group: 'Odd manual', step: 0.01, max: 1000, solo: true },
+  { key: 'odd_home', label: 'Odd Casa (1)', team: 'home', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000 },
+  { key: 'odd_draw', label: 'Odd Empate (X)', team: 'home', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000 },
+  { key: 'odd_away', label: 'Odd Visitante (2)', team: 'away', group: 'Odds 1X2 (manual)', step: 0.01, max: 1000 },
 ];
 
 export default function AdminStatsEditorModal({ isOpen, onClose, matchId, homeTeam, awayTeam, currentStats }: AdminStatsEditorModalProps) {
