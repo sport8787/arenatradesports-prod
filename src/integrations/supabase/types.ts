@@ -4048,6 +4048,54 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          customer_email: string | null
+          event_type: string
+          external_order_id: string | null
+          id: string
+          plan_resolved: string | null
+          process_error: string | null
+          processed: boolean
+          product_name: string | null
+          provider: string
+          raw_payload: Json
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          customer_email?: string | null
+          event_type: string
+          external_order_id?: string | null
+          id?: string
+          plan_resolved?: string | null
+          process_error?: string | null
+          processed?: boolean
+          product_name?: string | null
+          provider: string
+          raw_payload: Json
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          customer_email?: string | null
+          event_type?: string
+          external_order_id?: string | null
+          id?: string
+          plan_resolved?: string | null
+          process_error?: string | null
+          processed?: boolean
+          product_name?: string | null
+          provider?: string
+          raw_payload?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -5683,9 +5731,14 @@ export type Database = {
       }
       user_subscriptions: {
         Row: {
+          allowed_arenas: string[] | null
           created_at: string | null
+          external_order_id: string | null
           id: string
           is_active: boolean | null
+          notes: string | null
+          payment_amount: number | null
+          payment_provider: string | null
           plan: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -5697,9 +5750,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          allowed_arenas?: string[] | null
           created_at?: string | null
+          external_order_id?: string | null
           id?: string
           is_active?: boolean | null
+          notes?: string | null
+          payment_amount?: number | null
+          payment_provider?: string | null
           plan?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -5711,9 +5769,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          allowed_arenas?: string[] | null
           created_at?: string | null
+          external_order_id?: string | null
           id?: string
           is_active?: boolean | null
+          notes?: string | null
+          payment_amount?: number | null
+          payment_provider?: string | null
           plan?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
