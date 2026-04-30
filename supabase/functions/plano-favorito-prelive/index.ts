@@ -936,6 +936,12 @@ Deno.serve(async (req) => {
   console.log('[PLANO FAVORITO] Iniciando análise pré-live...')
 
   try {
+    // Lê data_source do body (default api-football)
+    let body: any = {}
+    try { body = await req.json() } catch { /* sem body */ }
+    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
+    console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE}`)
+
     // Verifica autenticação + role admin (quando chamado pelo frontend)
     const authHeader = req.headers.get('Authorization') ?? ''
     if (authHeader.startsWith('Bearer ')) {
@@ -959,7 +965,7 @@ Deno.serve(async (req) => {
     }
 
     const fixtures = await getUpcomingFixtures()
-    console.log(`[PLANO FAVORITO] ${fixtures.length} jogos nas próximas 24h`)
+    console.log(`[PLANO FAVORITO] ${fixtures.length} jogos nas próximas 24h (fonte=${DATA_SOURCE})`)
 
     const resultados: Analise[] = []
     let sinaísEmitidos = 0
