@@ -27,6 +27,7 @@ import ActivePositions from '@/components/dashboard/ActivePositions';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
+import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 
