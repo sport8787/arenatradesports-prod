@@ -92,6 +92,34 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
+  // Refetch quando a aba volta ao foco ou quando a janela ganha visibilidade
+  // (cobre o caso: admin ativou plano em outra aba/painel e o usuário volta aqui).
+  useEffect(() => {
+    if (!user) return;
+    const onFocus = () => fetchSubscription();
+    const onVisibility = () => { if (document.visibilityState === 'visible') fetchSubscription(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user, fetchSubscription]);
+
+  // Realtime: se a subscription do usuário for atualizada (admin grant, webhook Kiwify), refaz fetch automaticamente.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`user_subscription_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_subscriptions', filter: `user_id=eq.${user.id}` },
+        () => fetchSubscription()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchSubscription]);
+
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaidActive =
