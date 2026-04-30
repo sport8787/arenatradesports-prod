@@ -572,7 +572,7 @@ serve(async (req) => {
       "soccer_france_ligue_one",
       "soccer_argentina_primera_division",
     ];
-    const hours_ahead = body.hours_ahead || 36;
+    const hours_ahead = body.hours_ahead || 72;
 
     // 1) Coleta jogos
     const now = Date.now();
