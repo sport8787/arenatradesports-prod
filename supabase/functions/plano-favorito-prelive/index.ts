@@ -7,11 +7,19 @@
 // =============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  getUpcomingFixturesSM,
+  getRecentFixturesSM,
+  getTeamStatsSM,
+} from '../_shared/sportmonks-af-adapter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Fonte de dados ativa: 'api-football' (default) ou 'sportmonks' (admin opt-in)
+let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football'
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -127,6 +135,10 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number): Promise<TeamStats | null> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const r = await getTeamStatsSM(teamId, 20)
+    return r as unknown as TeamStats
+  }
   try {
     const r = await afFetch('/teams/statistics', { team: teamId, league: leagueId, season })
     return r as TeamStats
@@ -134,18 +146,29 @@ async function getTeamStats(teamId: number, leagueId: number, season: number): P
 }
 
 async function getRecentFixtures(teamId: number, last = 10): Promise<FixtureResult[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getRecentFixturesSM(teamId, last) as unknown as FixtureResult[]
+  }
   try {
     return await afFetch('/fixtures', { team: teamId, last }) as FixtureResult[]
   } catch { return [] }
 }
 
 async function getH2H(homeId: number, awayId: number, last = 5): Promise<FixtureResult[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    // Sportmonks Pro Advanced não expõe H2H direto; retorna vazio (score H2H neutro)
+    return []
+  }
   try {
     return await afFetch('/fixtures/headtohead', { h2h: `${homeId}-${awayId}`, last }) as FixtureResult[]
   } catch { return [] }
 }
 
 async function getUpcomingFixtures(): Promise<any[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const ligasAF = Array.from(LIGAS_PERMITIDAS)
+    return await getUpcomingFixturesSM(ligasAF, 36)
+  }
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
   const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
@@ -913,6 +936,12 @@ Deno.serve(async (req) => {
   console.log('[PLANO FAVORITO] Iniciando análise pré-live...')
 
   try {
+    // Lê data_source do body (default api-football)
+    let body: any = {}
+    try { body = await req.json() } catch { /* sem body */ }
+    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
+    console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE}`)
+
     // Verifica autenticação + role admin (quando chamado pelo frontend)
     const authHeader = req.headers.get('Authorization') ?? ''
     if (authHeader.startsWith('Bearer ')) {
@@ -936,7 +965,7 @@ Deno.serve(async (req) => {
     }
 
     const fixtures = await getUpcomingFixtures()
-    console.log(`[PLANO FAVORITO] ${fixtures.length} jogos nas próximas 24h`)
+    console.log(`[PLANO FAVORITO] ${fixtures.length} jogos nas próximas 24h (fonte=${DATA_SOURCE})`)
 
     const resultados: Analise[] = []
     let sinaísEmitidos = 0

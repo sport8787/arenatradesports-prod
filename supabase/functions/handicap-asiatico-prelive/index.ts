@@ -6,6 +6,14 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts';
+import {
+  getUpcomingFixturesSM,
+  getRecentFixturesSM,
+  getTeamStatsSM,
+} from '../_shared/sportmonks-af-adapter.ts';
+
+// Fonte de dados ativa (set per-request)
+let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +54,16 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 }
 
 async function getUpcoming(): Promise<any[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const ligasAF = Array.from(LIGAS_PERMITIDAS);
+    const sm = await getUpcomingFixturesSM(ligasAF, 25);
+    // Adapta shape SM (já no shape AF) ao consumido aqui (f.fixture / f.league / f.teams)
+    return sm.map((f) => ({
+      fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
+      league: { id: f.league.id, name: f.league.name, season: f.league.season },
+      teams: f.teams,
+    }));
+  }
   const now = new Date();
   const from = now.toISOString().split('T')[0];
   const to = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
@@ -73,10 +91,16 @@ async function getUpcoming(): Promise<any[]> {
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number) {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getTeamStatsSM(teamId, 20);
+  }
   try { return await afFetch('/teams/statistics', { team: teamId, league: leagueId, season }); } catch { return null; }
 }
 
 async function getRecentFixtures(teamId: number, last = 12): Promise<any[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getRecentFixturesSM(teamId, last);
+  }
   try { return await afFetch('/fixtures', { team: teamId, last }); } catch { return []; }
 }
 
