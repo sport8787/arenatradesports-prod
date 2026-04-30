@@ -323,29 +323,39 @@ serve(async (req) => {
     const tStartRun = performance.now();
     const isOverBudget = () => performance.now() - tStartRun > RUN_BUDGET_MS;
 
-    // 1. Fetch all live matches
-    console.log('[FetchLive] Fetching all live matches from API-Football...');
-    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-      headers: { 'x-apisports-key': apiKey },
-      retries: 3,
-      timeoutMs: 12_000,
-      breakerKey: 'api-football',
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[FetchLive] API-Football error ${res.status}:`, errText);
-      return new Response(
-        JSON.stringify({ error: `API-Football error: ${res.status}` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 1. Fetch all live matches — provedor controlado por env (Sportmonks primário ou API-Football)
+    let allFixtures: any[] = [];
+    let providerUsed: string = "api-football";
+    let providerFallbackReason: string | undefined;
+    if (LIVE_PROVIDER_PRIMARY === "sportmonks") {
+      const lr = await getLiveMatches();
+      allFixtures = lr.fixtures;
+      providerUsed = lr.source;
+      providerFallbackReason = lr.fallback_reason;
+      console.log(`[FetchLive] provider=${providerUsed} count=${allFixtures.length}${providerFallbackReason ? ` fallback=${providerFallbackReason}` : ''}`);
+    } else {
+      console.log('[FetchLive] Fetching all live matches from API-Football (legacy mode)...');
+      const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+        headers: { 'x-apisports-key': apiKey },
+        retries: 3,
+        timeoutMs: 12_000,
+        breakerKey: 'api-football',
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[FetchLive] API-Football error ${res.status}:`, errText);
+        return new Response(
+          JSON.stringify({ error: `API-Football error: ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const rawText = await res.text();
+      console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
+      const data = JSON.parse(rawText);
+      allFixtures = data.response || [];
+      providerUsed = "api-football";
     }
-
-    const rawText = await res.text();
-    console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
-    const data = JSON.parse(rawText);
-    const allFixtures = data.response || [];
-    console.log(`[FetchLive] Found ${allFixtures.length} total live matches`);
+    console.log(`[FetchLive] Found ${allFixtures.length} total live matches via ${providerUsed}`);
 
     // 1b. Filtrar apenas ligas permitidas
     const fixtures = allFixtures.filter((f: any) => {
