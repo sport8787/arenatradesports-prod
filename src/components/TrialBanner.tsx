@@ -1,14 +1,81 @@
 import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
-import { Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Clock, Sparkles, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-export function TrialBanner() {
-  const { isTrialActive, isTrialExpired, daysLeft, isPaid, loading } = useSubscription();
+const PLAN_LABEL: Record<string, string> = {
+  starter: 'STARTER',
+  base: 'BASE',
+  premium: 'PREMIUM',
+  trial: 'TRIAL',
+};
 
-  if (loading || isPaid) return null;
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+export function TrialBanner() {
+  const {
+    subscription,
+    isTrialActive,
+    isTrialExpired,
+    daysLeft,
+    isPaid,
+    loading,
+  } = useSubscription();
+
+  if (loading) return null;
+
+  // ───────────── Plano PAGO ativo (Kiwify ou ativação manual) ─────────────
+  if (isPaid && subscription) {
+    const plan = PLAN_LABEL[subscription.plan] || subscription.plan.toUpperCase();
+    const endsAt = formatDateBR(subscription.subscription_ends_at);
+    const isEndingSoon = daysLeft > 0 && daysLeft <= 7;
+
+    const bgClass = isEndingSoon
+      ? 'bg-yellow-500/10 border-yellow-500/40'
+      : 'bg-emerald-500/10 border-emerald-500/40';
+    const textClass = isEndingSoon ? 'text-yellow-400' : 'text-emerald-400';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          'w-full border-b px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm font-medium z-50',
+          bgClass,
+        )}
+      >
+        <CheckCircle2 className={cn('w-4 h-4 shrink-0', textClass)} />
+        <span className={textClass}>
+          ✅ Plano <strong>{plan}</strong> ativo — válido até{' '}
+          <strong>{endsAt}</strong>
+          {daysLeft > 0 && (
+            <> ({daysLeft} {daysLeft === 1 ? 'dia restante' : 'dias restantes'})</>
+          )}
+        </span>
+        {isEndingSoon && (
+          <Link to="/oferta-especial">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-current">
+              <Sparkles className="w-3 h-3" />
+              Renovar
+            </Button>
+          </Link>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ───────────── Trial ativo / expirado ─────────────
   if (!isTrialActive && !isTrialExpired) return null;
 
   const isUrgent = daysLeft <= 2;
@@ -25,8 +92,6 @@ export function TrialBanner() {
     : isWarning
     ? 'text-yellow-400'
     : 'text-blue-400';
-
-  const iconClass = textClass;
 
   const urgencyText = isTrialExpired
     ? '🚫 Trial expirado'
@@ -47,13 +112,13 @@ export function TrialBanner() {
       className={cn(
         'w-full border-b px-4 py-2 flex items-center justify-center gap-3 text-sm font-medium z-50',
         bgClass,
-        isUrgent && 'animate-pulse'
+        isUrgent && 'animate-pulse',
       )}
     >
       {isTrialExpired || isUrgent ? (
-        <AlertTriangle className={cn('w-4 h-4 shrink-0', iconClass)} />
+        <AlertTriangle className={cn('w-4 h-4 shrink-0', textClass)} />
       ) : (
-        <Clock className={cn('w-4 h-4 shrink-0', iconClass)} />
+        <Clock className={cn('w-4 h-4 shrink-0', textClass)} />
       )}
 
       <span className={textClass}>
@@ -66,7 +131,7 @@ export function TrialBanner() {
           variant={isUrgent || isTrialExpired ? 'default' : 'outline'}
           className={cn(
             'h-7 text-xs gap-1',
-            !(isUrgent || isTrialExpired) && 'border-current'
+            !(isUrgent || isTrialExpired) && 'border-current',
           )}
         >
           <Sparkles className="w-3 h-3" />
@@ -76,3 +141,4 @@ export function TrialBanner() {
     </motion.div>
   );
 }
+
