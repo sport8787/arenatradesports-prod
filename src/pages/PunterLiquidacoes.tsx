@@ -24,9 +24,10 @@ interface Row {
   commence_time: string;
   final_score?: string | null;
   isPlanoFavorito?: boolean;
+  void_reason?: string | null;
 }
 
-type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'todos';
+type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
