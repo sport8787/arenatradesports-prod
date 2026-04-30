@@ -120,6 +120,34 @@ function findStat(stats: any[], type: string): string | null {
 }
 
 async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['stats'] | null> {
+  // Tenta Sportmonks primeiro se feature flag estiver ativa
+  const primary = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
+  if (primary === "sportmonks") {
+    try {
+      const { getFixtureStats } = await import("../_shared/liveProvider.ts");
+      const r = await getFixtureStats(fixtureId);
+      if (r.stats) {
+        return {
+          attacks_home: r.stats.attacks_home,
+          attacks_away: r.stats.attacks_away,
+          dangerous_attacks_home: r.stats.attacks_home,
+          dangerous_attacks_away: r.stats.attacks_away,
+          possession_home: r.stats.possession_home,
+          possession_away: r.stats.possession_away,
+          shots_home: r.stats.shots_on_target_home,
+          shots_away: r.stats.shots_on_target_away,
+          shots_total_home: r.stats.shots_total_home,
+          shots_total_away: r.stats.shots_total_away,
+          shots_on_target_home: r.stats.shots_on_target_home,
+          shots_on_target_away: r.stats.shots_on_target_away,
+          xG_home: r.stats.xG_home ?? 0,
+          xG_away: r.stats.xG_away ?? 0,
+        };
+      }
+    } catch (e) {
+      console.warn(`[mycroft-sports] sportmonks stats fail for ${fixtureId}: ${(e as Error).message} — fallback AF`);
+    }
+  }
   const apiKey = Deno.env.get('API_FOOTBALL_KEY');
   if (!apiKey) return null;
   try {
