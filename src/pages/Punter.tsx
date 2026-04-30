@@ -1357,7 +1357,7 @@ export default function PunterPage() {
                         const ve = data.vetoed ?? 0;
                         if (ap > 0) {
                           toast.success(`✅ Sportmonks: ${ap} aprovados · ${ve} vetados (${tot} jogos)`);
-                          setTimeout(() => loadCachedGames(), 800);
+                          // Sinais aprovados aparecerão no próximo refresh do cache
                         } else {
                           toast.info(`Sportmonks: 0 aprovados · ${ve} vetados (${tot} jogos)`);
                         }
