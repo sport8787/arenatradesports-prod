@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
+import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -183,6 +184,51 @@ serve(async (req) => {
         // SofaScore tem xG real, big chances, tackles, momentum. Fazemos merge.
         let enrichedStats = { ...(match.stats || {}) };
         let sofascoreFound = false;
+        let sportmonksFound = false;
+
+        // 🟢 FONTE PRIMÁRIA: SPORTMONKS LIVE — xG/shots/possession nativos e confiáveis
+        // SofaScore/Flashscore caem como fallback se Sportmonks não encontrar o jogo.
+        try {
+          const sm = await getLiveStatsSM(match.home_team, match.away_team);
+          if (sm?.found) {
+            sportmonksFound = true;
+            const num = (v: any) => (v == null || isNaN(Number(v))) ? null : Number(v);
+            const prefer = (smVal: any, apiVal: any) => {
+              const s = num(smVal); const a = num(apiVal);
+              if (s == null || s === 0) return apiVal ?? null;
+              if (a == null || a === 0) return s;
+              return Math.max(s, a);
+            };
+            enrichedStats = {
+              ...enrichedStats,
+              xG_home: prefer(sm.xg_home, enrichedStats.xG_home ?? enrichedStats.xg_home),
+              xG_away: prefer(sm.xg_away, enrichedStats.xG_away ?? enrichedStats.xg_away),
+              xg_home: prefer(sm.xg_home, enrichedStats.xg_home ?? enrichedStats.xG_home),
+              xg_away: prefer(sm.xg_away, enrichedStats.xg_away ?? enrichedStats.xG_away),
+              possession_home: prefer(sm.possession_home, enrichedStats.possession_home),
+              possession_away: prefer(sm.possession_away, enrichedStats.possession_away),
+              shots_total_home: prefer(sm.shots_total_home, enrichedStats.shots_total_home),
+              shots_total_away: prefer(sm.shots_total_away, enrichedStats.shots_total_away),
+              shots_on_target_home: prefer(sm.shots_on_target_home, enrichedStats.shots_on_target_home),
+              shots_on_target_away: prefer(sm.shots_on_target_away, enrichedStats.shots_on_target_away),
+              shots_home: prefer(sm.shots_on_target_home, enrichedStats.shots_home),
+              shots_away: prefer(sm.shots_on_target_away, enrichedStats.shots_away),
+              corners_home: prefer(sm.corners_home, enrichedStats.corners_home),
+              corners_away: prefer(sm.corners_away, enrichedStats.corners_away),
+              dangerous_attacks_home: prefer(sm.dangerous_attacks_home, enrichedStats.dangerous_attacks_home),
+              dangerous_attacks_away: prefer(sm.dangerous_attacks_away, enrichedStats.dangerous_attacks_away),
+              big_chances_home: num(sm.big_chances_home),
+              big_chances_away: num(sm.big_chances_away),
+              source_enriched: 'sportmonks',
+            };
+            console.log(`[AnalyzeLive] 🟢 Sportmonks enriched ${match.home_team} vs ${match.away_team}: xG ${enrichedStats.xG_home}-${enrichedStats.xG_away}, shots ${enrichedStats.shots_total_home}-${enrichedStats.shots_total_away}, corners ${enrichedStats.corners_home}-${enrichedStats.corners_away}`);
+          } else {
+            console.log(`[AnalyzeLive] ℹ️ Sportmonks no inplay match for ${match.home_team} vs ${match.away_team}`);
+          }
+        } catch (smErr) {
+          console.warn(`[AnalyzeLive] Sportmonks live enrichment failed:`, smErr instanceof Error ? smErr.message : smErr);
+        }
+
         try {
           const sofaRes = await fetch(`${supabaseUrl}/functions/v1/sofascore-live-stats`, {
             method: 'POST',
@@ -302,9 +348,9 @@ serve(async (req) => {
         const _xgA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
         const _shotsTotal = Number((enrichedStats as any).shots_total_home ?? (enrichedStats as any).shots_home ?? 0)
                           + Number((enrichedStats as any).shots_total_away ?? (enrichedStats as any).shots_away ?? 0);
-        if (!sofascoreFound && !flashscoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
+        if (!sportmonksFound && !sofascoreFound && !flashscoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
           (enrichedStats as any).xg_unavailable = true;
-          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sofascore=false, flashscore=false) — Mycroft será avisado`);
+          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sportmonks=false, sofascore=false, flashscore=false) — Mycroft será avisado`);
         }
 
         // 🛠️ ADMIN OVERRIDE: estatísticas editadas manualmente por admin têm prioridade sobre tudo
