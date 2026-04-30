@@ -436,11 +436,14 @@ serve(async (req) => {
           continue;
         }
 
-        const resultadoRaro = /lay_2x2/i.test(s.placar_alvo || "")
-          ? (fx.goalsHome === 2 && fx.goalsAway === 2 ? "RED" : "GREEN")
-          : /lay_goleada/i.test(s.placar_alvo || "")
-            ? (Math.abs(fx.goalsHome - fx.goalsAway) >= 3 ? "RED" : "GREEN")
-            : null;
+        // LAY = perde se o placar exato/condição alvo acontecer
+        const gh = fx.goalsHome, ga = fx.goalsAway;
+        const alvo = String(s.placar_alvo || "").toLowerCase();
+        let resultadoRaro: "GREEN" | "RED" | null = null;
+        if (/lay_2x2/.test(alvo))         resultadoRaro = (gh === 2 && ga === 2) ? "RED" : "GREEN";
+        else if (/lay_1x3/.test(alvo))    resultadoRaro = (gh === 1 && ga === 3) ? "RED" : "GREEN";
+        else if (/lay_3x1/.test(alvo))    resultadoRaro = (gh === 3 && ga === 1) ? "RED" : "GREEN";
+        else if (/lay_goleada/.test(alvo))resultadoRaro = (Math.abs(gh - ga) >= 3) ? "RED" : "GREEN";
 
         if (!resultadoRaro) {
           unsupported++;
