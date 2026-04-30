@@ -51,6 +51,10 @@ import { useCachedOdds, CachedGame } from '@/hooks/useCachedOdds';
 import { useAdmin } from '@/hooks/useAdmin';
 import { translateMarket } from '@/utils/marketTranslator';
 import PlanoFavoritoPanel from '@/components/punter/PlanoFavoritoPanel';
+import {
+  validatePunterSinaisRows,
+  buildPunterSinaisErrorMessage,
+} from '@/lib/validatePunterSinais';
 
 interface PunterSignal {
   analysis_id?: string; // ID do registro em punter_sinais (tabela unificada) para lookup confiável
