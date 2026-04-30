@@ -1,5 +1,14 @@
 // Envio pontual do e-mail "trial expirando + 50% OFF" para um destinatário específico (teste manual).
-import { corsHeaders, RESEND_API_KEY, FROM_EMAIL, REPLY_TO, ASSINAR_URL, SITE_URL } from "../_shared/email-sequencia.ts";
+// Registra o resultado em email_sequencia_log com sequencia='D5' (status sent/failed).
+import {
+  corsHeaders,
+  RESEND_API_KEY,
+  FROM_EMAIL,
+  REPLY_TO,
+  ASSINAR_URL,
+  SITE_URL,
+  supabase,
+} from "../_shared/email-sequencia.ts";
 
 function html(nome: string): string {
   const primeiro = (nome || "Trader").split(" ")[0];
@@ -9,7 +18,7 @@ function html(nome: string): string {
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 <tr><td style="background:linear-gradient(135deg,#7f1d1d,#991b1b);border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;">
 <div style="font-size:36px;margin-bottom:8px;">⏳</div>
-<h1 style="color:#fff;font-size:22px;margin:0 0 6px;">Faltam 2 dias</h1>
+<h1 style="color:#fff;font-size:22px;margin:0 0 6px;">Faltam poucos dias</h1>
 <p style="color:#fca5a5;font-size:14px;margin:0;">Seu trial do Oráculo Mycroft expira em breve</p>
 </td></tr>
 <tr><td style="background:#fff;padding:40px;">
@@ -45,33 +54,101 @@ function html(nome: string): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { email, full_name } = await req.json();
-    if (!email) {
-      return new Response(JSON.stringify({ error: "email obrigatório" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const body = await req.json().catch(() => ({}));
+    const email: string | undefined = body?.email;
+    const full_name: string = body?.full_name || body?.nome || "Trader";
+    const user_id: string = body?.user_id || "00000000-0000-0000-0000-000000000001";
+    const sequencia: "D5" = "D5";
+
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return new Response(JSON.stringify({ ok: false, error: "email inválido (obrigatório)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const nome = full_name || "Trader";
-    const primeiro = nome.split(" ")[0];
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [email],
-        reply_to: REPLY_TO,
-        subject: `⏳ ${primeiro}, seu trial do Oráculo Mycroft está expirando — 50% OFF`,
-        html: html(nome),
+
+    const primeiro = full_name.split(" ")[0];
+    console.log(`[trial-urgencia-test] enviando para ${email} (${full_name})`);
+
+    let resendOk = false;
+    let resendStatus = 0;
+    let resendId: string | undefined;
+    let resendBody: any = null;
+    let errorMessage: string | undefined;
+
+    try {
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: [email],
+          reply_to: REPLY_TO,
+          subject: `⏳ ${primeiro}, seu trial do Oráculo Mycroft está expirando — 50% OFF`,
+          html: html(full_name),
+          tags: [
+            { name: "sequencia", value: sequencia },
+            { name: "modo", value: "teste-pontual" },
+          ],
+        }),
+      });
+      resendStatus = r.status;
+      resendOk = r.ok;
+      const txt = await r.text();
+      try {
+        resendBody = JSON.parse(txt);
+      } catch {
+        resendBody = txt;
+      }
+      if (resendOk) {
+        resendId = resendBody?.id;
+      } else {
+        errorMessage = typeof resendBody === "string"
+          ? resendBody
+          : (resendBody?.message || JSON.stringify(resendBody));
+      }
+    } catch (e) {
+      errorMessage = `exceção fetch Resend: ${String(e)}`;
+      console.error(errorMessage);
+    }
+
+    // Registra status no log (sent/failed). Usa upsert para não duplicar por user_id+sequencia.
+    const status = resendOk ? "sent" : "failed";
+    const { error: logErr } = await supabase.from("email_sequencia_log").upsert(
+      {
+        user_id,
+        email,
+        sequencia,
+        resend_id: resendId ?? null,
+        status,
+        error_message: errorMessage ?? null,
+        enviado_em: new Date().toISOString(),
+      },
+      { onConflict: "user_id,sequencia" },
+    );
+    if (logErr) console.error("[trial-urgencia-test] erro ao gravar log:", logErr);
+
+    return new Response(
+      JSON.stringify({
+        ok: resendOk,
+        status,
+        resend_status: resendStatus,
+        resend_id: resendId,
+        resend_body: resendBody,
+        log_error: logErr?.message,
       }),
-    });
-    const body = await r.text();
-    return new Response(JSON.stringify({ ok: r.ok, status: r.status, body }), {
-      status: r.ok ? 200 : 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      {
+        status: resendOk ? 200 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
