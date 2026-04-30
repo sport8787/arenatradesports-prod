@@ -2661,6 +2661,7 @@ export type Database = {
           risk_management: Json | null
           settle_reason: string | null
           settled_at: string | null
+          stats_snapshot: Json | null
           thesis: string
           verdict: string
         }
@@ -2685,6 +2686,7 @@ export type Database = {
           risk_management?: Json | null
           settle_reason?: string | null
           settled_at?: string | null
+          stats_snapshot?: Json | null
           thesis: string
           verdict: string
         }
@@ -2709,6 +2711,7 @@ export type Database = {
           risk_management?: Json | null
           settle_reason?: string | null
           settled_at?: string | null
+          stats_snapshot?: Json | null
           thesis?: string
           verdict?: string
         }
@@ -2722,6 +2725,8 @@ export type Database = {
           approved_at_score_home: number | null
           confidence: number | null
           created_at: string
+          final_score_away: number | null
+          final_score_home: number | null
           fundamentation: Json | null
           id: string
           market: string | null
@@ -2729,7 +2734,11 @@ export type Database = {
           odd: number | null
           plan_name: string | null
           provider: string
+          result: string | null
           risk_management: Json | null
+          settle_reason: string | null
+          settled_at: string | null
+          stats_snapshot: Json | null
           thesis: string | null
           verdict: string
         }
@@ -2740,6 +2749,8 @@ export type Database = {
           approved_at_score_home?: number | null
           confidence?: number | null
           created_at?: string
+          final_score_away?: number | null
+          final_score_home?: number | null
           fundamentation?: Json | null
           id?: string
           market?: string | null
@@ -2747,7 +2758,11 @@ export type Database = {
           odd?: number | null
           plan_name?: string | null
           provider?: string
+          result?: string | null
           risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
+          stats_snapshot?: Json | null
           thesis?: string | null
           verdict: string
         }
@@ -2758,6 +2773,8 @@ export type Database = {
           approved_at_score_home?: number | null
           confidence?: number | null
           created_at?: string
+          final_score_away?: number | null
+          final_score_home?: number | null
           fundamentation?: Json | null
           id?: string
           market?: string | null
@@ -2765,7 +2782,11 @@ export type Database = {
           odd?: number | null
           plan_name?: string | null
           provider?: string
+          result?: string | null
           risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
+          stats_snapshot?: Json | null
           thesis?: string | null
           verdict?: string
         }
@@ -6589,6 +6610,25 @@ export type Database = {
       cleanup_mycroft_analysis_queue: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
+      compare_providers_divergences: {
+        Args: { p_since: string }
+        Returns: {
+          divergencia: string
+          total: number
+        }[]
+      }
+      compare_providers_metrics: {
+        Args: { p_since: string }
+        Returns: {
+          greens: number
+          liquidados: number
+          pendentes: number
+          provider: string
+          reds: number
+          total_approvados: number
+          win_rate: number
+        }[]
+      }
       decrement_promo_slot: {
         Args: {
           p_event_type?: string
@@ -6660,6 +6700,15 @@ export type Database = {
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string
+          p_reason?: string
+          p_score_away: number
+          p_score_home: number
+        }
+        Returns: string
+      }
+      settle_mycroft_shadow_af: {
+        Args: {
+          p_id: string
           p_reason?: string
           p_score_away: number
           p_score_home: number
