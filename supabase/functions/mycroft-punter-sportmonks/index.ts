@@ -1,0 +1,426 @@
+// mycroft-punter-sportmonks
+// Análise PRÉ-LIVE do Punter usando dados Sportmonks (Pro Advanced) + Gemini.
+// Diferenças vs mycroft-punter-anthropic:
+//   - Stats vêm de Sportmonks (cobre times sul-americanos / 2ª divisão melhor que API-Football).
+//   - SEM Sherlock pós-IA (que vetava por "dados insuficientes" da API-Football).
+//   - Prompt menos restritivo (edge >= 2%, prob >= 35% para 1X2).
+//   - Salva analyzed_by = "sportmonks" para distinguir do motor automático.
+// Disparo: botão admin manual em /punter/menu.
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ODDS_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
+const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") || "";
+const SM_BASE = "https://api.sportmonks.com/v3";
+
+const TIME_GUARD_MS = 100_000;
+const MAX_GAMES = 25;
+
+// ──────────────────────────────────────────────
+// Sportmonks helpers
+// ──────────────────────────────────────────────
+function smUrl(path: string, params: Record<string, string> = {}): string {
+  const u = new URL(SM_BASE + path);
+  u.searchParams.set("api_token", SM_TOKEN);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  return u.toString();
+}
+
+async function smSearchTeam(name: string): Promise<{ id: number; name: string } | null> {
+  if (!SM_TOKEN) return null;
+  try {
+    const url = smUrl(`/football/teams/search/${encodeURIComponent(name)}`);
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const t = j.data?.[0];
+    if (!t) return null;
+    return { id: t.id, name: t.name };
+  } catch { return null; }
+}
+
+async function smLastFixtures(teamId: number, n = 8): Promise<any[]> {
+  if (!SM_TOKEN) return [];
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const sixMonthsAgo = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
+    const url = smUrl(`/football/fixtures/between/${sixMonthsAgo}/${today}/${teamId}`, {
+      include: "scores;participants;state",
+      per_page: "50",
+    });
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    const j = await r.json();
+    const list = (j.data || []).filter((f: any) => {
+      const s = (f.state?.short_name || f.state?.name || "").toUpperCase();
+      return s.includes("FT") || s.includes("FIN") || s.includes("END");
+    });
+    return list.slice(-n);
+  } catch { return []; }
+}
+
+interface TeamSummary {
+  name: string;
+  sample: number;
+  played: number;
+  goals_for: number;
+  goals_against: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  btts_pct: number;
+  over25_pct: number;
+  over15_pct: number;
+  avg_total: number;
+  recent_form: string; // "WWLDW"
+}
+
+function summarizeTeam(name: string, teamId: number, fixtures: any[]): TeamSummary {
+  let gf = 0, ga = 0, w = 0, d = 0, l = 0, btts = 0, o25 = 0, o15 = 0;
+  const form: string[] = [];
+  for (const f of fixtures) {
+    const parts = f.participants || [];
+    const home = parts.find((p: any) => p.meta?.location === "home") || parts[0];
+    const away = parts.find((p: any) => p.meta?.location === "away") || parts[1];
+    const isHome = home?.id === teamId;
+    let gh: number | null = null, gA: number | null = null;
+    for (const s of (f.scores || [])) {
+      if ((s.description || "").toUpperCase() !== "CURRENT") continue;
+      if (s.score?.participant === "home") gh = s.score.goals;
+      if (s.score?.participant === "away") gA = s.score.goals;
+    }
+    if (gh === null || gA === null) continue;
+    const myGoals = isHome ? gh : gA;
+    const oppGoals = isHome ? gA : gh;
+    gf += myGoals; ga += oppGoals;
+    if (myGoals > oppGoals) { w++; form.push("W"); }
+    else if (myGoals < oppGoals) { l++; form.push("L"); }
+    else { d++; form.push("D"); }
+    if (gh > 0 && gA > 0) btts++;
+    if (gh + gA > 2.5) o25++;
+    if (gh + gA > 1.5) o15++;
+  }
+  const played = w + d + l;
+  return {
+    name,
+    sample: played,
+    played,
+    goals_for: gf,
+    goals_against: ga,
+    wins: w, draws: d, losses: l,
+    btts_pct: played > 0 ? Math.round(btts / played * 100) : 0,
+    over25_pct: played > 0 ? Math.round(o25 / played * 100) : 0,
+    over15_pct: played > 0 ? Math.round(o15 / played * 100) : 0,
+    avg_total: played > 0 ? Number(((gf + ga) / played).toFixed(2)) : 0,
+    recent_form: form.slice(-5).join(""),
+  };
+}
+
+// ──────────────────────────────────────────────
+// Gemini call
+// ──────────────────────────────────────────────
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY missing");
+  const r = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GEMINI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gemini-2.5-flash",
+        max_completion_tokens: 1500,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    },
+  );
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`Gemini ${r.status}: ${t.slice(0, 200)}`);
+  }
+  const j = await r.json();
+  return j.choices?.[0]?.message?.content || "";
+}
+
+function parseJsonRobust(raw: string): any | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch {}
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try { return JSON.parse(raw.slice(start, end + 1)); } catch {}
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────
+// Build prompt
+// ──────────────────────────────────────────────
+function buildPrompt(game: any, home: TeamSummary, away: TeamSummary): { sys: string; user: string } {
+  const oddsBlock = (game.bookmakers || []).slice(0, 3).map((b: any) => {
+    const h2h = b.markets?.find((m: any) => m.key === "h2h");
+    const tot = b.markets?.find((m: any) => m.key === "totals");
+    const lines: string[] = [`${b.title}:`];
+    if (h2h) {
+      for (const o of h2h.outcomes || []) lines.push(`  ${o.name}: ${o.price}`);
+    }
+    if (tot) {
+      for (const o of tot.outcomes || []) lines.push(`  ${o.name} ${o.point}: ${o.price}`);
+    }
+    return lines.join("\n");
+  }).join("\n\n");
+
+  const sys = `Você é um analista quantitativo de futebol especializado em value betting.
+Receberá dados estatísticos REAIS do Sportmonks (últimos jogos de cada time) e odds de mercado.
+Sua tarefa: identificar se HÁ EDGE >= 2% em algum mercado e aprovar o sinal.
+SEJA AGRESSIVO NA APROVAÇÃO. A meta é 50-70% de aprovação.
+NUNCA vete por "dados insuficientes" se houver pelo menos 3 jogos de amostra para cada time.
+Responda APENAS com JSON válido.`;
+
+  const user = `JOGO: ${game.home_team} vs ${game.away_team}
+LIGA: ${game.sport_title || "?"}
+DATA: ${game.commence_time}
+
+═══ ESTATÍSTICAS SPORTMONKS (últimos jogos) ═══
+${home.name}: ${home.recent_form} | ${home.played} jogos | ${home.wins}V ${home.draws}E ${home.losses}D
+  Gols pró/contra: ${home.goals_for}/${home.goals_against} | Média total/jogo: ${home.avg_total}
+  Over 2.5: ${home.over25_pct}% | Over 1.5: ${home.over15_pct}% | BTTS: ${home.btts_pct}%
+
+${away.name}: ${away.recent_form} | ${away.played} jogos | ${away.wins}V ${away.draws}E ${away.losses}D
+  Gols pró/contra: ${away.goals_for}/${away.goals_against} | Média total/jogo: ${away.avg_total}
+  Over 2.5: ${away.over25_pct}% | Over 1.5: ${away.over15_pct}% | BTTS: ${away.btts_pct}%
+
+═══ ODDS DE MERCADO ═══
+${oddsBlock || "Sem odds disponíveis"}
+
+═══ INSTRUÇÕES ═══
+1. Compare a probabilidade implícita (1/odd) com a probabilidade estimada pelos dados.
+2. Edge = (prob_estimada * odd) - 1. Aprove se >= 2%.
+3. Mercados aceitos: Casa, Empate, Fora, Over 1.5, Under 1.5, Over 2.5, Under 2.5, Over 3.5, Under 3.5, BTTS Sim, BTTS Não.
+4. NÃO VETE por: "dados insuficientes" (se há >=3 jogos), "apenas Pinnacle", "imprevisibilidade".
+5. APENAS VETE se: edge < 2% em TODOS os mercados, OU contradição grave (ex: você projeta 70% home win mas odd home 4.0).
+
+Retorne APENAS JSON neste formato:
+{
+  "verdict": "APROVADO" | "VETADO",
+  "market": "Casa" | "Over 2.5" | etc,
+  "bookmaker": "nome",
+  "odd": 2.10,
+  "fair_odd": 1.85,
+  "implied_probability": 47.6,
+  "estimated_probability": 54.1,
+  "value_percentage": 13.5,
+  "confidence": 70,
+  "stake_percentage": 3,
+  "thesis": "Resumo do edge",
+  "analysis": "Cálculo: prob X% × odd Y = Z% edge",
+  "risk_factors": "Riscos"
+}`;
+  return { sys, user };
+}
+
+// ──────────────────────────────────────────────
+// MAIN
+// ──────────────────────────────────────────────
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const startedAt = Date.now();
+  const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  try {
+    if (!ODDS_KEY) throw new Error("THE_ODDS_API_KEY missing");
+    if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
+    if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY missing");
+
+    const body = await req.json().catch(() => ({}));
+    const sports: string[] = body.sports || [
+      "soccer_brazil_campeonato",
+      "soccer_brazil_serie_b",
+      "soccer_conmebol_copa_libertadores",
+      "soccer_conmebol_copa_sudamericana",
+      "soccer_uefa_champs_league",
+      "soccer_uefa_europa_league",
+      "soccer_epl",
+      "soccer_spain_la_liga",
+      "soccer_italy_serie_a",
+      "soccer_germany_bundesliga",
+      "soccer_france_ligue_one",
+      "soccer_argentina_primera_division",
+    ];
+    const hours_ahead = body.hours_ahead || 36;
+
+    // 1) Coleta jogos
+    const now = Date.now();
+    const horizon = now + hours_ahead * 3_600_000;
+    const games: any[] = [];
+    for (const league of sports) {
+      try {
+        const r = await fetch(
+          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals&oddsFormat=decimal`,
+        );
+        if (!r.ok) continue;
+        const arr = await r.json();
+        for (const g of arr) {
+          const t = new Date(g.commence_time).getTime();
+          if (t < now || t > horizon) continue;
+          games.push(g);
+        }
+      } catch {}
+      if (games.length >= MAX_GAMES) break;
+    }
+
+    console.log(`[sm-punter] ${games.length} jogos para análise`);
+
+    let approved = 0, vetoed = 0, errors = 0;
+    const results: any[] = [];
+
+    for (const g of games.slice(0, MAX_GAMES)) {
+      if (Date.now() - startedAt > TIME_GUARD_MS) {
+        console.warn("[sm-punter] time guard hit");
+        break;
+      }
+      try {
+        const matchId = g.id;
+        // Skip se já analisado por sportmonks recentemente
+        const { data: existing } = await sb
+          .from("punter_analyses")
+          .select("id")
+          .eq("match_id", matchId)
+          .eq("analyzed_by", "sportmonks")
+          .gte("created_at", new Date(Date.now() - 6 * 3600_000).toISOString())
+          .limit(1);
+        if (existing && existing.length > 0) {
+          console.log(`[sm-punter] skip ${g.home_team} (já analisado)`);
+          continue;
+        }
+
+        const [thome, taway] = await Promise.all([
+          smSearchTeam(g.home_team),
+          smSearchTeam(g.away_team),
+        ]);
+        if (!thome || !taway) {
+          console.log(`[sm-punter] sem team-id para ${g.home_team} / ${g.away_team}`);
+          continue;
+        }
+
+        const [fxH, fxA] = await Promise.all([
+          smLastFixtures(thome.id, 8),
+          smLastFixtures(taway.id, 8),
+        ]);
+        const sumH = summarizeTeam(thome.name, thome.id, fxH);
+        const sumA = summarizeTeam(taway.name, taway.id, fxA);
+
+        if (sumH.played < 3 || sumA.played < 3) {
+          console.log(`[sm-punter] amostra insuficiente ${sumH.played}/${sumA.played}`);
+          continue;
+        }
+
+        const { sys, user } = buildPrompt(g, sumH, sumA);
+        const txt = await callGemini(sys, user);
+        const an = parseJsonRobust(txt);
+        if (!an) { errors++; continue; }
+
+        const verdict = String(an.verdict || "VETADO").toUpperCase();
+        const isApproved = verdict.startsWith("APROVADO");
+
+        await sb.from("punter_analyses").upsert({
+          match_id: matchId,
+          home_team: g.home_team,
+          away_team: g.away_team,
+          league: g.sport_title || "?",
+          commence_time: g.commence_time,
+          market: an.market || "N/A",
+          bookmaker: an.bookmaker || "N/A",
+          odd: Number(an.odd) || 0,
+          fair_odd: Number(an.fair_odd) || null,
+          implied_probability: Number(an.implied_probability) || null,
+          estimated_probability: Number(an.estimated_probability) || null,
+          value_percentage: Number(an.value_percentage) || 0,
+          verdict: isApproved ? "APROVADO" : "VETADO",
+          confidence: Number(an.confidence) || 0,
+          stake_percentage: Number(an.stake_percentage) || 0,
+          thesis: an.thesis || "",
+          analysis: an.analysis || "",
+          risk_factors: an.risk_factors || "",
+          analyzed_by: "sportmonks",
+        }, { onConflict: "match_id,market", ignoreDuplicates: false });
+
+        if (isApproved) {
+          approved++;
+          // Persiste sinal (mesma tabela usada pelo automático)
+          const matchDate = g.commence_time?.split("T")[0];
+          const isHoje = matchDate === new Date().toISOString().split("T")[0];
+          await sb.from("punter_sinais").upsert({
+            match_id: matchId,
+            home_team: g.home_team,
+            away_team: g.away_team,
+            league: g.sport_title || "?",
+            commence_time: g.commence_time,
+            match_date: matchDate,
+            market: an.market || "N/A",
+            bookmaker: an.bookmaker || "N/A",
+            odd: Number(an.odd) || 0,
+            fair_odd: Number(an.fair_odd) || null,
+            implied_probability: Number(an.implied_probability) || null,
+            estimated_probability: Number(an.estimated_probability) || null,
+            value_percentage: Number(an.value_percentage) || 0,
+            verdict: "APROVADO",
+            confidence: Number(an.confidence) || 0,
+            stake_percentage: isHoje ? Number(an.stake_percentage) || 0 : null,
+            stake_percentage_original: Number(an.stake_percentage) || 0,
+            thesis: an.thesis || "",
+            analysis: an.analysis || "",
+            risk_factors: an.risk_factors || "",
+            analyzed_by: "sportmonks",
+            status: isHoje ? "pending" : "awaiting_stake",
+            stake_confirmed: isHoje,
+            dismissed: false,
+            resultado: null,
+          }, { onConflict: "match_id,market", ignoreDuplicates: false });
+        } else {
+          vetoed++;
+        }
+        results.push({ game: `${g.home_team} vs ${g.away_team}`, verdict, market: an.market, edge: an.value_percentage });
+        console.log(`[sm-punter] ${g.home_team} vs ${g.away_team}: ${verdict} | ${an.market} | edge ${an.value_percentage}%`);
+      } catch (err) {
+        errors++;
+        console.error(`[sm-punter] erro em ${g.home_team}:`, err instanceof Error ? err.message : err);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        analyzed: games.length,
+        approved,
+        vetoed,
+        errors,
+        elapsed_ms: Date.now() - startedAt,
+        results,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err: any) {
+    console.error("[sm-punter] fatal:", err);
+    return new Response(
+      JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
