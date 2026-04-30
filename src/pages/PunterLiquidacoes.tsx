@@ -311,8 +311,11 @@ export default function PunterLiquidacoesPage() {
                             <XCircle className="w-3.5 h-3.5" /> RED
                           </Badge>
                         )}
-                        {(r.result === 'void' || r.result === 'VOID') && (
-                          <Badge className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1">
+                        {isVoid(r) && (
+                          <Badge
+                            className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1"
+                            title={r.void_reason || 'Sinal anulado: resultado não pôde ser determinado'}
+                          >
                             <AlertTriangle className="w-3.5 h-3.5" /> VOID
                           </Badge>
                         )}
