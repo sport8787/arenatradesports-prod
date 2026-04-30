@@ -331,7 +331,6 @@ export default function LiveMatchDetail() {
             .maybeSingle();
           if (sh) {
             shadowRow = sh as any;
-            shadowRow = sh;
             matchKey = matchKey || sh.match_id;
             analysisRow = {
               id: sh.id,
