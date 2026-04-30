@@ -229,7 +229,7 @@ serve(async (req) => {
     sb
       .from("eventos_raros_sinais")
       .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
-      .is("resultado", null)
+      .or("resultado.is.null,resultado.eq.PENDENTE,resultado.eq.pendente")
       .order("created_at", { ascending: true })
       .limit(200)
   ]);
@@ -436,11 +436,14 @@ serve(async (req) => {
           continue;
         }
 
-        const resultadoRaro = /lay_2x2/i.test(s.placar_alvo || "")
-          ? (fx.goalsHome === 2 && fx.goalsAway === 2 ? "RED" : "GREEN")
-          : /lay_goleada/i.test(s.placar_alvo || "")
-            ? (Math.abs(fx.goalsHome - fx.goalsAway) >= 3 ? "RED" : "GREEN")
-            : null;
+        // LAY = perde se o placar exato/condição alvo acontecer
+        const gh = fx.goalsHome, ga = fx.goalsAway;
+        const alvo = String(s.placar_alvo || "").toLowerCase();
+        let resultadoRaro: "GREEN" | "RED" | null = null;
+        if (/lay_2x2/.test(alvo))         resultadoRaro = (gh === 2 && ga === 2) ? "RED" : "GREEN";
+        else if (/lay_1x3/.test(alvo))    resultadoRaro = (gh === 1 && ga === 3) ? "RED" : "GREEN";
+        else if (/lay_3x1/.test(alvo))    resultadoRaro = (gh === 3 && ga === 1) ? "RED" : "GREEN";
+        else if (/lay_goleada/.test(alvo))resultadoRaro = (Math.abs(gh - ga) >= 3) ? "RED" : "GREEN";
 
         if (!resultadoRaro) {
           unsupported++;
@@ -448,11 +451,16 @@ serve(async (req) => {
           continue;
         }
 
+        // PnL simulado: LAY com 1u de liability. GREEN = +1, RED = -(odd-1)
+        const oddLay = Number(s.odd_entrada) || 2;
+        const pl = resultadoRaro === "GREEN" ? 1 : -(oddLay - 1);
+
         await sb.from("eventos_raros_sinais").update({
           resultado: resultadoRaro,
           status: "ENCERRADO",
           placar_saida: `${fx.goalsHome}x${fx.goalsAway}`,
           motivo_saida: "Liquidação automática",
+          profit_loss: Number(pl.toFixed(2)),
           updated_at: new Date().toISOString(),
         }).eq("id", s.id);
 
