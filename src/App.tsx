@@ -47,6 +47,7 @@ const PunterFunctions = React.lazy(() => import("./pages/PunterFunctions"));
 const PunterBancaVirtual = React.lazy(() => import("./pages/PunterBancaVirtual"));
 const PunterAnaliseManual = React.lazy(() => import("./pages/PunterAnaliseManual"));
 const PunterAprovadas = React.lazy(() => import("./pages/PunterAprovadas"));
+const PunterLiquidacoes = React.lazy(() => import("./pages/PunterLiquidacoes"));
 const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
 const PunterMenu = React.lazy(() => import("./pages/PunterMenu"));
 const PunterAuditoria = React.lazy(() => import("./pages/PunterAuditoria"));
@@ -128,6 +129,7 @@ const App = () => {
                 <Route path="/punter/banca-virtual" element={<RequireSubscription><PunterBancaVirtual /></RequireSubscription>} />
                 <Route path="/punter/analise-manual" element={<RequireSubscription><PunterAnaliseManual /></RequireSubscription>} />
                 <Route path="/punter/aprovadas" element={<RequireSubscription><PunterAprovadas /></RequireSubscription>} />
+                <Route path="/punter/liquidacoes" element={<RequireSubscription><PunterLiquidacoes /></RequireSubscription>} />
                 <Route path="/punter/comunidade" element={<RequireSubscription><PunterComunidade /></RequireSubscription>} />
                 <Route path="/punter/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
                 <Route path="/punter/auditoria" element={<RequireSubscription><PunterAuditoria /></RequireSubscription>} />
