@@ -44,6 +44,14 @@ export interface NormalizedStats {
   source: "sportmonks" | "api-football";
 }
 
+export interface OddsLive1X2 {
+  home: number | null;
+  draw: number | null;
+  away: number | null;
+  bookmaker?: string | null;
+  updated_at: string;
+}
+
 function smUrl(path: string, params: Record<string, string> = {}): string {
   const u = new URL(BASE + path);
   u.searchParams.set("api_token", TOKEN);
@@ -130,7 +138,7 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
 export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;periods",
+    include: "scores;participants;state;league;statistics;periods;inplayOdds",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
