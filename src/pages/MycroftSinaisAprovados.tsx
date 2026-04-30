@@ -52,9 +52,16 @@ function formatDate(iso: string) {
   });
 }
 
+interface AggregateStats {
+  greens: number;
+  reds: number;
+  pnlUnits: number;
+}
+
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
+  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ResultFilter>('all');
 
@@ -64,6 +71,30 @@ export default function MycroftSinaisAprovados() {
     async function load() {
       // Buscar análises aprovadas dos últimos 30 dias
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      // 1) Agregados REAIS (sem limite de 300) para os cards
+      const baseFilter = (q: any) =>
+        q.in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA']).gte('created_at', since);
+
+      const [{ count: greensCount }, { count: redsCount }, { data: settledRows }] = await Promise.all([
+        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'green'),
+        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'red'),
+        baseFilter(supabase.from('mycroft_analyses').select('odd, result')).in('result', ['green', 'red']),
+      ]);
+
+      let pnlUnits = 0;
+      for (const r of settledRows ?? []) {
+        const odd = Number((r as any).odd) || 0;
+        if (!odd) continue;
+        if ((r as any).result === 'green') pnlUnits += odd - 1;
+        else if ((r as any).result === 'red') pnlUnits -= 1;
+      }
+
+      if (mounted) {
+        setAggStats({ greens: greensCount ?? 0, reds: redsCount ?? 0, pnlUnits });
+      }
+
+      // 2) Lista paginada (mantém limite p/ não estourar memória)
       const { data: analyses, error } = await supabase
         .from('mycroft_analyses')
         .select('id, match_id, market, verdict, odd, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, created_at')
