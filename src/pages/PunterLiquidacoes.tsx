@@ -160,9 +160,20 @@ export default function PunterLiquidacoesPage() {
     }
   };
 
-  const isPending = (r: Row) => !r.result;
+  const now = Date.now();
+  const isFinished = (r: Row) => {
+    const t = new Date(r.commence_time).getTime();
+    // Considera jogo terminado ~2h30 após o kickoff
+    return !isNaN(t) && t + 2.5 * 60 * 60 * 1000 < now;
+  };
   const isGreen = (r: Row) => r.result === 'green' || r.result === 'GREEN';
   const isRed = (r: Row) => r.result === 'red' || r.result === 'RED';
+  const isVoid = (r: Row) => r.result === 'void' || r.result === 'VOID';
+  const isResolved = (r: Row) => isGreen(r) || isRed(r) || isVoid(r);
+  // Pendente = sinal sem resultado ainda (jogo já terminado mas não foi liquidado)
+  const isPending = (r: Row) => !isResolved(r) && isFinished(r);
+  // Futuro = sinal de jogo que ainda não terminou
+  const isFuture = (r: Row) => !isResolved(r) && !isFinished(r);
 
   const filtered = rows.filter(r => {
     if (tab === 'todos') return true;
@@ -177,6 +188,7 @@ export default function PunterLiquidacoesPage() {
     pendentes: rows.filter(isPending).length,
     green: rows.filter(isGreen).length,
     red: rows.filter(isRed).length,
+    futuros: rows.filter(isFuture).length,
   };
 
   return (
