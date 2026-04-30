@@ -324,12 +324,13 @@ export default function LiveMatchDetail() {
         // 4) Se ainda não achou, tenta em mycroft_analyses_shadow_af (cards "Sinais Aprovados (API Football)")
         let shadowRow: any = null;
         if (!analysisRow) {
-          const { data: sh } = await supabase
-            .from('mycroft_analyses_shadow_af' as any)
+          const { data: sh } = await (supabase as any)
+            .from('mycroft_analyses_shadow_af')
             .select('*')
             .eq('id', id)
             .maybeSingle();
           if (sh) {
+            shadowRow = sh as any;
             shadowRow = sh;
             matchKey = matchKey || sh.match_id;
             analysisRow = {
