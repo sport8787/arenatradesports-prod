@@ -339,9 +339,7 @@ export default function PunterPage() {
   const confirmFutureSignal = async (signal: any) => {
     if (!user || !bankroll) return;
 
-    const analysis = signal.punter_analyses;
-    if (!analysis) return;
-
+    // punter_sinais é unificada — dados do match estão no próprio registro
     const stakePercent = signal.stake_percentage || signal.stake_percentage_original || 3;
     const stakeAmount = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
 
@@ -350,7 +348,7 @@ export default function PunterPage() {
       return;
     }
 
-    const matchName = `${analysis.home_team} vs ${analysis.away_team}`;
+    const matchName = `${signal.home_team} vs ${signal.away_team}`;
     const matchId = (signal.match_id || '').replace(/\+00:00/g, 'Z');
 
     // Place the bet
@@ -364,9 +362,8 @@ export default function PunterPage() {
         odd: signal.odd,
         stake: stakeAmount,
         status: 'pending',
-        thesis: analysis.thesis || null,
+        thesis: signal.thesis || null,
         commence_time: signal.commence_time || null,
-        analysis_id: signal.analysis_id,
         signal_id: signal.id,
       } as any);
 
@@ -387,7 +384,7 @@ export default function PunterPage() {
 
     // Update signal status
     await supabase
-      .from('punter_signals')
+      .from('punter_sinais')
       .update({ status: 'confirmed', stake_confirmed: true, stake_amount: stakeAmount } as any)
       .eq('id', signal.id);
 
@@ -407,7 +404,7 @@ export default function PunterPage() {
   // Dismiss a future signal
   const dismissFutureSignal = async (signal: any) => {
     await supabase
-      .from('punter_signals')
+      .from('punter_sinais')
       .update({ dismissed: true, dismissed_at: new Date().toISOString(), status: 'dismissed' } as any)
       .eq('id', signal.id);
 
