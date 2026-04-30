@@ -76,7 +76,7 @@ async function smLastFixtures(teamId: number, n = 8): Promise<any[]> {
     const today = new Date().toISOString().slice(0, 10);
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
     const url = smUrl(`/football/fixtures/between/${sixMonthsAgo}/${today}/${teamId}`, {
-      include: "scores;participants;state",
+      include: "scores;participants;state;periods",
       per_page: "50",
     });
     const r = await fetch(url);
@@ -275,6 +275,276 @@ Retorne APENAS JSON neste formato:
 }
 
 // ──────────────────────────────────────────────
+// HT/BTTS extension (v3.4) — heurística baseada em últimos jogos
+// ──────────────────────────────────────────────
+interface HtBttsSummary {
+  over05HT_rate: number;
+  zero_zero_ht_rate: number;
+  btts_rate: number;
+  avg_goals_scored: number;
+  avg_goals_conceded: number;
+  sample: number;
+}
+
+function extractHTGoals(fixture: any): { home: number; away: number } | null {
+  const periods = fixture.periods || [];
+  const ht = periods.find((p: any) => p.type_id === 1);
+  if (!ht) return null;
+  const gh = ht.goals?.home ?? ht.score_home ?? null;
+  const ga = ht.goals?.away ?? ht.score_away ?? null;
+  if (gh === null || ga === null) return null;
+  return { home: Number(gh) || 0, away: Number(ga) || 0 };
+}
+
+function summarizeHtBtts(teamId: number, fixtures: any[]): HtBttsSummary {
+  let o05 = 0, zz = 0, btts = 0, gf = 0, ga = 0, n = 0, htSample = 0;
+  for (const f of fixtures) {
+    const parts = f.participants || [];
+    const home = parts.find((p: any) => p.meta?.location === "home") || parts[0];
+    const isHome = home?.id === teamId;
+    let gh: number | null = null, gA: number | null = null;
+    for (const s of (f.scores || [])) {
+      if ((s.description || "").toUpperCase() !== "CURRENT") continue;
+      if (s.score?.participant === "home") gh = s.score.goals;
+      if (s.score?.participant === "away") gA = s.score.goals;
+    }
+    if (gh === null || gA === null) continue;
+    n++;
+    gf += isHome ? gh : gA;
+    ga += isHome ? gA : gh;
+    if (gh > 0 && gA > 0) btts++;
+    const ht = extractHTGoals(f);
+    if (ht) {
+      htSample++;
+      const total = ht.home + ht.away;
+      if (total > 0) o05++;
+      if (total === 0) zz++;
+    }
+  }
+  const denomHT = htSample || 1;
+  const denom = n || 1;
+  return {
+    over05HT_rate: Math.round((o05 / denomHT) * 100),
+    zero_zero_ht_rate: Math.round((zz / denomHT) * 100),
+    btts_rate: Math.round((btts / denom) * 100),
+    avg_goals_scored: Number((gf / denom).toFixed(2)),
+    avg_goals_conceded: Number((ga / denom).toFixed(2)),
+    sample: n,
+  };
+}
+
+async function fetchH2HSummary(homeId: number, awayId: number): Promise<{ over05HT_rate: number; btts_rate: number; total: number }> {
+  if (!SM_TOKEN) return { over05HT_rate: 0, btts_rate: 0, total: 0 };
+  try {
+    const url = smUrl(`/football/fixtures/head2head/${homeId}/${awayId}`, {
+      include: "scores;periods;state",
+    });
+    const r = await fetch(url);
+    if (!r.ok) return { over05HT_rate: 0, btts_rate: 0, total: 0 };
+    const j = await r.json();
+    const list = (j.data || []).filter((f: any) => {
+      const s = (f.state?.short_name || "").toUpperCase();
+      return ["FT", "AET", "PEN"].includes(s);
+    }).slice(0, 8);
+    let o05 = 0, btts = 0, htSample = 0;
+    for (const f of list) {
+      const ht = extractHTGoals(f);
+      if (ht) { htSample++; if (ht.home + ht.away > 0) o05++; }
+      let gh: number | null = null, ga: number | null = null;
+      for (const s of (f.scores || [])) {
+        if ((s.description || "").toUpperCase() !== "CURRENT") continue;
+        if (s.score?.participant === "home") gh = s.score.goals;
+        if (s.score?.participant === "away") ga = s.score.goals;
+      }
+      if (gh !== null && ga !== null && gh > 0 && ga > 0) btts++;
+    }
+    const n = list.length || 1;
+    return {
+      over05HT_rate: htSample > 0 ? Math.round((o05 / htSample) * 100) : 0,
+      btts_rate: Math.round((btts / n) * 100),
+      total: list.length,
+    };
+  } catch {
+    return { over05HT_rate: 0, btts_rate: 0, total: 0 };
+  }
+}
+
+function calcScoreOver05HT(h: HtBttsSummary, a: HtBttsSummary, h2h: { over05HT_rate: number; total: number }): { score: number; ind: Record<string, number> } {
+  let s = 35;
+  const rateMedia = (h.over05HT_rate + a.over05HT_rate) / 2;
+  const ind: Record<string, number> = {
+    over05HT_rate_home: h.over05HT_rate,
+    over05HT_rate_away: a.over05HT_rate,
+    over05HT_rate_media: Math.round(rateMedia),
+  };
+  if (rateMedia >= 80) s += 28;
+  else if (rateMedia >= 70) s += 20;
+  else if (rateMedia >= 60) s += 12;
+  else if (rateMedia >= 50) s += 5;
+  else if (rateMedia < 40) s -= 15;
+
+  const zeroMedia = (h.zero_zero_ht_rate + a.zero_zero_ht_rate) / 2;
+  ind.zero_zero_ht_rate_media = Math.round(zeroMedia);
+  if (zeroMedia >= 60) s -= 18;
+  else if (zeroMedia >= 50) s -= 10;
+
+  const avgGols = h.avg_goals_scored + a.avg_goals_scored;
+  ind.avg_gols_total = Number(avgGols.toFixed(2));
+  if (avgGols >= 3.0) s += 8;
+  else if (avgGols >= 2.2) s += 4;
+  else if (avgGols < 1.5) s -= 8;
+
+  ind.h2h_over05HT_rate = h2h.over05HT_rate;
+  if (h2h.over05HT_rate >= 70 && h2h.total >= 3) s += 10;
+  else if (h2h.over05HT_rate >= 50) s += 5;
+  else if (h2h.over05HT_rate <= 20 && h2h.total >= 3) s -= 8;
+
+  return { score: Math.max(0, Math.min(100, Math.round(s))), ind };
+}
+
+function calcScoreBTTS(h: HtBttsSummary, a: HtBttsSummary, h2h: { btts_rate: number; total: number }): { score: number; ind: Record<string, number> } {
+  let s = 35;
+  const bttsMedia = (h.btts_rate + a.btts_rate) / 2;
+  const ind: Record<string, number> = {
+    btts_rate_home: h.btts_rate,
+    btts_rate_away: a.btts_rate,
+    btts_rate_media: Math.round(bttsMedia),
+  };
+  if (bttsMedia >= 75) s += 28;
+  else if (bttsMedia >= 65) s += 20;
+  else if (bttsMedia >= 55) s += 12;
+  else if (bttsMedia >= 45) s += 4;
+  else if (bttsMedia < 35) s -= 15;
+
+  if (h.avg_goals_scored >= 1.5 && a.avg_goals_scored >= 1.2) s += 14;
+  else if (h.avg_goals_scored >= 1.2 && a.avg_goals_scored >= 1.0) s += 7;
+  else if (h.avg_goals_scored < 0.8 || a.avg_goals_scored < 0.8) s -= 12;
+
+  if (h.avg_goals_conceded >= 1.3 && a.avg_goals_conceded >= 1.3) s += 12;
+  else if (h.avg_goals_conceded >= 1.0 && a.avg_goals_conceded >= 1.0) s += 6;
+  else if (h.avg_goals_conceded < 0.6 || a.avg_goals_conceded < 0.6) s -= 10;
+
+  ind.h2h_btts_rate = h2h.btts_rate;
+  if (h2h.btts_rate >= 70 && h2h.total >= 3) s += 12;
+  else if (h2h.btts_rate >= 50) s += 6;
+  else if (h2h.btts_rate <= 20 && h2h.total >= 3) s -= 10;
+
+  return { score: Math.max(0, Math.min(100, Math.round(s))), ind };
+}
+
+// Extrai odd Over 0.5 HT (totals 0.5 first half) e BTTS Yes do payload The Odds API.
+// Fallback: usa "totals" 0.5 (FT) — improvável de existir, mas tenta.
+function extractHtBttsOdds(game: any): { oddOver05HT: number | null; oddBtts: number | null; bm: string } {
+  let oddOver05HT: number | null = null;
+  let oddBtts: number | null = null;
+  let bm = "?";
+  for (const b of (game.bookmakers || [])) {
+    for (const m of (b.markets || [])) {
+      const key = String(m.key || "").toLowerCase();
+      // Over 0.5 HT — chaves comuns: totals_h1, alternate_totals_h1
+      if (oddOver05HT === null && (key === "totals_h1" || key === "alternate_totals_h1")) {
+        const o = (m.outcomes || []).find((x: any) =>
+          String(x.name).toLowerCase() === "over" && Number(x.point) === 0.5
+        );
+        if (o?.price) { oddOver05HT = Number(o.price); bm = b.title || bm; }
+      }
+      // BTTS — chave "btts" (sim/yes)
+      if (oddBtts === null && (key === "btts" || key === "both_teams_to_score")) {
+        const o = (m.outcomes || []).find((x: any) =>
+          ["yes", "sim"].includes(String(x.name).toLowerCase())
+        );
+        if (o?.price) { oddBtts = Number(o.price); bm = b.title || bm; }
+      }
+    }
+    if (oddOver05HT && oddBtts) break;
+  }
+  return { oddOver05HT, oddBtts, bm };
+}
+
+async function persistHtBttsSignal(
+  sb: any,
+  game: any,
+  matchId: string,
+  market: "Over 0.5 HT" | "BTTS Sim",
+  score: number,
+  odd: number,
+  ind: Record<string, number>,
+  bookmaker: string,
+) {
+  const probEst = Math.min(0.95, score / 100);
+  const fairOdd = 1 / probEst;
+  const edgePct = ((odd - fairOdd) / fairOdd) * 100;
+  if (edgePct < 5) {
+    console.log(`[sm-punter htbtts] ${market} edge ${edgePct.toFixed(1)}% < 5% — skip`);
+    return false;
+  }
+  const confidence = Math.min(95, score);
+  const stake = score >= 80 ? 4 : score >= 70 ? 3 : 2.5;
+  const matchDate = game.commence_time?.split("T")[0];
+  const isHoje = matchDate === new Date().toISOString().split("T")[0];
+
+  const thesis = `${market}: rate médio ${
+    market === "Over 0.5 HT" ? ind.over05HT_rate_media : ind.btts_rate_media
+  }% (casa/fora) | H2H ${
+    market === "Over 0.5 HT" ? ind.h2h_over05HT_rate : ind.h2h_btts_rate
+  }% | Edge +${edgePct.toFixed(1)}%`;
+
+  await sb.from("punter_analyses").upsert({
+    match_id: matchId,
+    home_team: game.home_team,
+    away_team: game.away_team,
+    league: game.sport_title || "?",
+    commence_time: game.commence_time,
+    market,
+    bookmaker,
+    odd,
+    fair_odd: Number(fairOdd.toFixed(2)),
+    implied_probability: Number((100 / odd).toFixed(1)),
+    estimated_probability: Number((probEst * 100).toFixed(1)),
+    value_percentage: Number(edgePct.toFixed(1)),
+    verdict: "APROVADO",
+    confidence,
+    stake_percentage: stake,
+    thesis,
+    analysis: `Score heurístico ${score}/100. Indicadores: ${JSON.stringify(ind)}`,
+    risk_factors: market === "Over 0.5 HT" && ind.zero_zero_ht_rate_media >= 40
+      ? `Taxa de 0x0 no HT ${ind.zero_zero_ht_rate_media}% — risco moderado`
+      : "",
+    analyzed_by: "sportmonks-htbtts",
+  }, { onConflict: "match_id,market", ignoreDuplicates: false });
+
+  await sb.from("punter_sinais").upsert({
+    match_id: matchId,
+    home_team: game.home_team,
+    away_team: game.away_team,
+    league: game.sport_title || "?",
+    commence_time: game.commence_time,
+    match_date: matchDate,
+    market,
+    bookmaker,
+    odd,
+    fair_odd: Number(fairOdd.toFixed(2)),
+    implied_probability: Number((100 / odd).toFixed(1)),
+    estimated_probability: Number((probEst * 100).toFixed(1)),
+    value_percentage: Number(edgePct.toFixed(1)),
+    verdict: "APROVADO",
+    confidence,
+    stake_percentage: isHoje ? stake : null,
+    stake_percentage_original: stake,
+    thesis,
+    analysis: `Score ${score}/100`,
+    risk_factors: "",
+    analyzed_by: "sportmonks-htbtts",
+    status: isHoje ? "pending" : "awaiting_stake",
+    stake_confirmed: isHoje,
+    dismissed: false,
+    resultado: null,
+  }, { onConflict: "match_id,market", ignoreDuplicates: false });
+
+  return true;
+}
+
+// ──────────────────────────────────────────────
 // MAIN
 // ──────────────────────────────────────────────
 serve(async (req) => {
@@ -311,7 +581,7 @@ serve(async (req) => {
     for (const league of sports) {
       try {
         const r = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals&oddsFormat=decimal`,
+          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=h2h,totals,btts,totals_h1&oddsFormat=decimal`,
         );
         if (!r.ok) continue;
         const arr = await r.json();
@@ -480,6 +750,29 @@ serve(async (req) => {
         }
         results.push({ game: `${g.home_team} vs ${g.away_team}`, verdict, market: an.market, edge: an.value_percentage });
         console.log(`[sm-punter] ${g.home_team} vs ${g.away_team}: ${verdict} | ${an.market} | edge ${an.value_percentage}%`);
+
+        // ── EXTENSÃO HT/BTTS (v3.4) — heurística estatística + odds The Odds API ──
+        try {
+          const hSum = summarizeHtBtts(thome.id, fxH);
+          const aSum = summarizeHtBtts(taway.id, fxA);
+          if (hSum.sample >= 3 && aSum.sample >= 3) {
+            const h2h = await fetchH2HSummary(thome.id, taway.id);
+            const { score: scoreHT, ind: indHT } = calcScoreOver05HT(hSum, aSum, h2h);
+            const { score: scoreBTTS, ind: indBTTS } = calcScoreBTTS(hSum, aSum, h2h);
+            const { oddOver05HT, oddBtts, bm } = extractHtBttsOdds(g);
+
+            if (scoreHT >= 62 && oddOver05HT) {
+              const ok = await persistHtBttsSignal(sb, g, matchId, "Over 0.5 HT", scoreHT, oddOver05HT, indHT, bm);
+              if (ok) { approved++; console.log(`[sm-punter htbtts] APROVADO Over 0.5 HT score=${scoreHT} odd=${oddOver05HT}`); }
+            }
+            if (scoreBTTS >= 62 && oddBtts) {
+              const ok = await persistHtBttsSignal(sb, g, matchId, "BTTS Sim", scoreBTTS, oddBtts, indBTTS, bm);
+              if (ok) { approved++; console.log(`[sm-punter htbtts] APROVADO BTTS Sim score=${scoreBTTS} odd=${oddBtts}`); }
+            }
+          }
+        } catch (hbErr) {
+          console.error(`[sm-punter htbtts] erro em ${g.home_team}:`, hbErr instanceof Error ? hbErr.message : hbErr);
+        }
       } catch (err) {
         errors++;
         console.error(`[sm-punter] erro em ${g.home_team}:`, err instanceof Error ? err.message : err);
