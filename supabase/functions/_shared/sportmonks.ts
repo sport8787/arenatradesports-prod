@@ -223,14 +223,16 @@ const BOOKMAKER_NAMES: Record<number, string> = {
   // 271: "betano", 999: "superbet", etc. (descobrir via /odds/bookmakers)
 };
 
-// Ordem de preferência por NOME (case-insensitive). A função procura o id
-// correspondente nas odds disponíveis — se não achar, cai para o próximo.
+// Ordem de preferência por NOME (case-insensitive). Como o produto é trader
+// ao vivo e só Betfair oferece exchange (back/lay com liquidez real), ela é
+// SEMPRE a 1ª opção. Demais casas servem de fallback quando o mercado/outcome
+// não estiver disponível na exchange.
 const BOOKMAKER_PREFERENCE = [
+  "betfair",    // exchange — prioridade absoluta para trader ao vivo
+  "pinnacle",   // margem ~2-3%, melhor referência matemática
   "betano",
   "superbet",
-  "pinnacle",   // margem ~2-3%, melhor referência matemática
   "bet365",     // muito líquida, base sólida
-  "betfair",    // exchange (back)
 ];
 
 interface OddRow {
