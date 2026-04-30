@@ -751,7 +751,7 @@ export default function LiveMatchDetail() {
             </div>
           )}
 
-          {analysis?.approved_at_timestamp && (
+          {(analysis?.approved_at_timestamp || analysis?.approved_at_minute != null) && (
             <TooltipProvider delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -772,15 +772,17 @@ export default function LiveMatchDetail() {
                     Estes dados foram registrados no momento exato da aprovação e
                     não podem ser alterados.
                   </p>
-                  <p className="mt-1.5 text-muted-foreground">
-                    Aprovado em:{' '}
-                    <span className="font-mono">
-                      {new Date(analysis.approved_at_timestamp).toLocaleString('pt-BR', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit', second: '2-digit',
-                      })}
-                    </span>
-                  </p>
+                  {(analysis.approved_at_timestamp || analysis.created_at) && (
+                    <p className="mt-1.5 text-muted-foreground">
+                      Aprovado em:{' '}
+                      <span className="font-mono">
+                        {new Date(analysis.approved_at_timestamp || analysis.created_at).toLocaleString('pt-BR', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit', second: '2-digit',
+                        })}
+                      </span>
+                    </p>
+                  )}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
