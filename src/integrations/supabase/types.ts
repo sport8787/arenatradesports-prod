@@ -2272,6 +2272,33 @@ export type Database = {
         }
         Relationships: []
       }
+      league_id_map: {
+        Row: {
+          api_football_id: number
+          created_at: string
+          enabled: boolean
+          name: string
+          sportmonks_id: number
+          updated_at: string
+        }
+        Insert: {
+          api_football_id: number
+          created_at?: string
+          enabled?: boolean
+          name: string
+          sportmonks_id: number
+          updated_at?: string
+        }
+        Update: {
+          api_football_id?: number
+          created_at?: string
+          enabled?: boolean
+          name?: string
+          sportmonks_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       live_match_stats_overrides: {
         Row: {
           created_at: string

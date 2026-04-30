@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
+import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
+
+// Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
+//               'api-football' (default) = comportamento legado
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
 
 // Hard wall-clock budget for the entire invocation. Anything not started by
 // this point gets enqueued to mycroft_analysis_queue for the background worker.
@@ -318,29 +323,39 @@ serve(async (req) => {
     const tStartRun = performance.now();
     const isOverBudget = () => performance.now() - tStartRun > RUN_BUDGET_MS;
 
-    // 1. Fetch all live matches
-    console.log('[FetchLive] Fetching all live matches from API-Football...');
-    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-      headers: { 'x-apisports-key': apiKey },
-      retries: 3,
-      timeoutMs: 12_000,
-      breakerKey: 'api-football',
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[FetchLive] API-Football error ${res.status}:`, errText);
-      return new Response(
-        JSON.stringify({ error: `API-Football error: ${res.status}` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 1. Fetch all live matches — provedor controlado por env (Sportmonks primário ou API-Football)
+    let allFixtures: any[] = [];
+    let providerUsed: string = "api-football";
+    let providerFallbackReason: string | undefined;
+    if (LIVE_PROVIDER_PRIMARY === "sportmonks") {
+      const lr = await getLiveMatches();
+      allFixtures = lr.fixtures;
+      providerUsed = lr.source;
+      providerFallbackReason = lr.fallback_reason;
+      console.log(`[FetchLive] provider=${providerUsed} count=${allFixtures.length}${providerFallbackReason ? ` fallback=${providerFallbackReason}` : ''}`);
+    } else {
+      console.log('[FetchLive] Fetching all live matches from API-Football (legacy mode)...');
+      const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+        headers: { 'x-apisports-key': apiKey },
+        retries: 3,
+        timeoutMs: 12_000,
+        breakerKey: 'api-football',
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[FetchLive] API-Football error ${res.status}:`, errText);
+        return new Response(
+          JSON.stringify({ error: `API-Football error: ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const rawText = await res.text();
+      console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
+      const data = JSON.parse(rawText);
+      allFixtures = data.response || [];
+      providerUsed = "api-football";
     }
-
-    const rawText = await res.text();
-    console.log(`[FetchLive] Raw API response (first 500 chars):`, rawText.substring(0, 500));
-    const data = JSON.parse(rawText);
-    const allFixtures = data.response || [];
-    console.log(`[FetchLive] Found ${allFixtures.length} total live matches`);
+    console.log(`[FetchLive] Found ${allFixtures.length} total live matches via ${providerUsed}`);
 
     // 1b. Filtrar apenas ligas permitidas
     const fixtures = allFixtures.filter((f: any) => {
@@ -387,7 +402,34 @@ serve(async (req) => {
     const statsResults = await runWithConcurrency(
       liveFixtures,
       STATS_CONCURRENCY,
-      (f: any) => fetchFixtureStats(f.fixture.id, apiKey, supabase),
+      async (f: any) => {
+        // Sportmonks: aproveita stats já vindas no payload (_raw) ou faz refetch via liveProvider
+        if (f._source === 'sportmonks') {
+          const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, af_id: String(f.fixture.id) });
+          if (r.stats) {
+            // Adapta para shape FixtureStats interno desta edge
+            return {
+              attacks_home: r.stats.attacks_home,
+              attacks_away: r.stats.attacks_away,
+              dangerous_attacks_home: r.stats.attacks_home,
+              dangerous_attacks_away: r.stats.attacks_away,
+              possession_home: r.stats.possession_home,
+              possession_away: r.stats.possession_away,
+              shots_home: r.stats.shots_on_target_home,
+              shots_away: r.stats.shots_on_target_away,
+              shots_total_home: r.stats.shots_total_home,
+              shots_total_away: r.stats.shots_total_away,
+              shots_on_target_home: r.stats.shots_on_target_home,
+              shots_on_target_away: r.stats.shots_on_target_away,
+              xG_home: r.stats.xG_home ?? 0,
+              xG_away: r.stats.xG_away ?? 0,
+              _source: r.source,
+            } as any;
+          }
+          // Sportmonks falhou — cai no caminho legado (API-Football)
+        }
+        return fetchFixtureStats(f.fixture.id, apiKey, supabase);
+      },
     );
     const statsMap = new Map<string, FixtureStats | null>();
     liveFixtures.forEach((f: any, i: number) => {

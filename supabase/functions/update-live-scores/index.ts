@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +9,7 @@ const corsHeaders = {
 };
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
 const LIGAS_PERMITIDAS: Record<number, string> = {
@@ -133,22 +135,29 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
-    // 1. Fetch all live fixtures (1 API call)
-    console.log('[LiveScores] Fetching live fixtures...');
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-
-    if (!res.ok) {
-      console.error(`[LiveScores] API error: ${res.status}`);
-      return new Response(
-        JSON.stringify({ error: `API error: ${res.status}` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 1. Fetch all live fixtures — provedor controlado por env
+    let allFixtures: any[] = [];
+    let providerUsed = "api-football";
+    if (LIVE_PROVIDER_PRIMARY === "sportmonks") {
+      const lr = await getLiveMatches();
+      allFixtures = lr.fixtures;
+      providerUsed = lr.source;
+      console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
+    } else {
+      console.log('[LiveScores] Fetching live fixtures (legacy mode)...');
+      const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+        headers: { 'x-apisports-key': apiKey },
+      });
+      if (!res.ok) {
+        console.error(`[LiveScores] API error: ${res.status}`);
+        return new Response(
+          JSON.stringify({ error: `API error: ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const data = await res.json();
+      allFixtures = data.response || [];
     }
-
-    const data = await res.json();
-    const allFixtures = data.response || [];
     
     // Filtrar apenas ligas permitidas
     const fixtures = allFixtures.filter((f: any) => {
@@ -235,13 +244,20 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats (API-Football) only for matches that still need analysis
+        // Fetch full stats — Sportmonks (já no _raw) ou API-Football
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
-          const stats = await fetchFixtureStats(fixtureId, apiKey);
+          let stats: any = null;
+          if (fixture._source === 'sportmonks') {
+            const r = await getFixtureStats({ sm_id: fixture.fixture.sm_id, raw: fixture._raw, af_id: fixtureId });
+            stats = r.stats ? { ...r.stats } : null;
+          }
+          if (!stats) {
+            stats = await fetchFixtureStats(fixtureId, apiKey);
+          }
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
-            console.log(`[LiveScores] Stats fetched for ${fixtureId}: Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
+            console.log(`[LiveScores] Stats fetched for ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
           }
         }
 
