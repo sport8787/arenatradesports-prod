@@ -194,11 +194,9 @@ export default function MycroftSinaisAprovados() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <StatCard icon={<Target className="w-4 h-4" />} label="Total" value={stats.total} color="text-foreground" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
           <StatCard icon={<XCircle className="w-4 h-4" />} label="RED" value={stats.reds} color="text-destructive" />
-          <StatCard icon={<Clock className="w-4 h-4" />} label="Pendentes" value={stats.pending} color="text-warning" />
           <StatCard
             icon={<TrendingUp className="w-4 h-4" />}
             label="Win Rate"
