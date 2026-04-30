@@ -135,22 +135,29 @@ serve(async (req) => {
 
     const supabase = getSupabaseAdmin();
 
-    // 1. Fetch all live fixtures (1 API call)
-    console.log('[LiveScores] Fetching live fixtures...');
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-
-    if (!res.ok) {
-      console.error(`[LiveScores] API error: ${res.status}`);
-      return new Response(
-        JSON.stringify({ error: `API error: ${res.status}` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 1. Fetch all live fixtures — provedor controlado por env
+    let allFixtures: any[] = [];
+    let providerUsed = "api-football";
+    if (LIVE_PROVIDER_PRIMARY === "sportmonks") {
+      const lr = await getLiveMatches();
+      allFixtures = lr.fixtures;
+      providerUsed = lr.source;
+      console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
+    } else {
+      console.log('[LiveScores] Fetching live fixtures (legacy mode)...');
+      const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
+        headers: { 'x-apisports-key': apiKey },
+      });
+      if (!res.ok) {
+        console.error(`[LiveScores] API error: ${res.status}`);
+        return new Response(
+          JSON.stringify({ error: `API error: ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const data = await res.json();
+      allFixtures = data.response || [];
     }
-
-    const data = await res.json();
-    const allFixtures = data.response || [];
     
     // Filtrar apenas ligas permitidas
     const fixtures = allFixtures.filter((f: any) => {
