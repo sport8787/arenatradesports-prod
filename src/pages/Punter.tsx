@@ -53,7 +53,7 @@ import { translateMarket } from '@/utils/marketTranslator';
 import PlanoFavoritoPanel from '@/components/punter/PlanoFavoritoPanel';
 
 interface PunterSignal {
-  analysis_id?: string; // ID from punter_analyses for reliable signal lookup
+  analysis_id?: string; // ID do registro em punter_sinais (tabela unificada) para lookup confiável
   match: {
     home_team: string;
     away_team: string;
