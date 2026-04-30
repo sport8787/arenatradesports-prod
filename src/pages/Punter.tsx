@@ -499,7 +499,7 @@ export default function PunterPage() {
     const rawMatchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
     const matchId = rawMatchId.replace(/\+00:00/g, 'Z');
     
-    // For fresh analysis signals, skip the punter_signals lookup (signal already approved by AI)
+    // For fresh analysis signals, skip the punter_sinais lookup (signal already approved by AI)
     let canonicalMatchId = matchId;
     
     if (!skipSignalCheck) {
