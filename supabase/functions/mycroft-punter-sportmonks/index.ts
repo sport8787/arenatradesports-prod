@@ -750,6 +750,29 @@ serve(async (req) => {
         }
         results.push({ game: `${g.home_team} vs ${g.away_team}`, verdict, market: an.market, edge: an.value_percentage });
         console.log(`[sm-punter] ${g.home_team} vs ${g.away_team}: ${verdict} | ${an.market} | edge ${an.value_percentage}%`);
+
+        // ── EXTENSÃO HT/BTTS (v3.4) — heurística estatística + odds The Odds API ──
+        try {
+          const hSum = summarizeHtBtts(thome.id, fxH);
+          const aSum = summarizeHtBtts(taway.id, fxA);
+          if (hSum.sample >= 3 && aSum.sample >= 3) {
+            const h2h = await fetchH2HSummary(thome.id, taway.id);
+            const { score: scoreHT, ind: indHT } = calcScoreOver05HT(hSum, aSum, h2h);
+            const { score: scoreBTTS, ind: indBTTS } = calcScoreBTTS(hSum, aSum, h2h);
+            const { oddOver05HT, oddBtts, bm } = extractHtBttsOdds(g);
+
+            if (scoreHT >= 62 && oddOver05HT) {
+              const ok = await persistHtBttsSignal(sb, g, matchId, "Over 0.5 HT", scoreHT, oddOver05HT, indHT, bm);
+              if (ok) { approved++; console.log(`[sm-punter htbtts] APROVADO Over 0.5 HT score=${scoreHT} odd=${oddOver05HT}`); }
+            }
+            if (scoreBTTS >= 62 && oddBtts) {
+              const ok = await persistHtBttsSignal(sb, g, matchId, "BTTS Sim", scoreBTTS, oddBtts, indBTTS, bm);
+              if (ok) { approved++; console.log(`[sm-punter htbtts] APROVADO BTTS Sim score=${scoreBTTS} odd=${oddBtts}`); }
+            }
+          }
+        } catch (hbErr) {
+          console.error(`[sm-punter htbtts] erro em ${g.home_team}:`, hbErr instanceof Error ? hbErr.message : hbErr);
+        }
       } catch (err) {
         errors++;
         console.error(`[sm-punter] erro em ${g.home_team}:`, err instanceof Error ? err.message : err);
