@@ -102,6 +102,37 @@ Deno.serve(async (req) => {
         if (!a?.verdict) continue;
 
         const _isApprovedAf = ["APROVADO","APROVADO_SITUACIONAL","LABAREDA"].includes(a.verdict);
+
+        // Deduplicação por (match_id, mercado normalizado): se já existe
+        // um sinal APROVADO/SITUACIONAL/LABAREDA para o mesmo mercado neste
+        // jogo, pula o insert para evitar entradas repetidas na aba Shadow AF.
+        if (_isApprovedAf) {
+          const normMarket = String(a.market || "")
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/\b(total|gols?|goals?)\b/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+          const { data: existing } = await sb
+            .from("mycroft_analyses_shadow_af")
+            .select("id, market, verdict")
+            .eq("match_id", m.match_id)
+            .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"]);
+          const dup = (existing || []).find((row: any) => {
+            const n = String(row.market || "")
+              .toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+              .replace(/\b(total|gols?|goals?)\b/g, "")
+              .replace(/\s+/g, " ")
+              .trim();
+            return n === normMarket;
+          });
+          if (dup) {
+            skipped++;
+            continue;
+          }
+        }
+
         await sb.from("mycroft_analyses_shadow_af").insert({
           match_id: m.match_id,
           verdict: a.verdict,
