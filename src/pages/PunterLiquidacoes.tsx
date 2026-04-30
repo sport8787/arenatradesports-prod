@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 
 interface Row {
   id: string;
-  source: 'punter_signal' | 'eventos_raros';
+  source: 'punter_signal' | 'plano_favorito' | 'eventos_raros';
   match: string;
   league: string | null;
   market: string;
@@ -40,17 +40,20 @@ export default function PunterLiquidacoesPage() {
     try {
       const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Sinais Punter (com análise vinculada para nomes/league/Plano Favorito)
+      // Sinais Punter unificados
       const { data: sigs } = await supabase
-        .from('punter_signals')
-        .select(`
-          id, match_id, market, odd, status, result, profit_loss,
-          commence_time, score_home, score_away,
-          punter_analyses ( home_team, away_team, league, analyzed_by, thesis, verdict )
-        `)
+        .from('punter_sinais')
+        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
         .gte('commence_time', since)
         .order('commence_time', { ascending: false })
         .limit(500);
+
+      const { data: favoritos } = await supabase
+        .from('sinais_favorito_prelive')
+        .select('id, home_team, away_team, league_name, match_date, favorito, fav_odd, resultado_vitoria, resultado_over15, resultado_over25')
+        .gte('match_date', since)
+        .order('match_date', { ascending: false })
+        .limit(200);
 
       // Eventos Raros
       const { data: raros } = await supabase
@@ -73,22 +76,42 @@ export default function PunterLiquidacoesPage() {
       }
 
       const sigRows: Row[] = (sigs || []).map((s: any) => {
-        const a = s.punter_analyses;
-        const isPF = (a?.analyzed_by || '').includes('plano-favorito') || /plano\s*favorito/i.test(a?.thesis || '');
+        const isPF = (s?.analyzed_by || '').includes('plano-favorito') || /plano\s*favorito/i.test(s?.thesis || '');
         return {
           id: s.id,
           source: 'punter_signal',
-          match: a ? `${a.home_team} vs ${a.away_team}` : (s.match_id || '—'),
-          league: a?.league || null,
+          match: s.home_team && s.away_team ? `${s.home_team} vs ${s.away_team}` : (s.match_id || '—'),
+          league: s.league || null,
           market: s.market,
           odd: Number(s.odd) || null,
           status: s.status,
-          result: s.result,
+          result: s.resultado,
           profit_loss: s.profit_loss,
           commence_time: s.commence_time,
-          final_score: (s.score_home != null && s.score_away != null) ? `${s.score_home}-${s.score_away}` : null,
+          final_score: (s.final_score_home != null && s.final_score_away != null) ? `${s.final_score_home}-${s.final_score_away}` : null,
           isPlanoFavorito: isPF,
         };
+      });
+
+      const favoritosRows: Row[] = (favoritos || []).flatMap((f: any) => {
+        const match = f.home_team && f.away_team ? `${f.home_team} vs ${f.away_team}` : '—';
+        const base = {
+          id: f.id,
+          source: 'plano_favorito' as const,
+          match,
+          league: f.league_name || 'Plano Favorito',
+          odd: Number(f.fav_odd) || null,
+          status: null,
+          profit_loss: null,
+          commence_time: f.match_date,
+          isPlanoFavorito: true,
+        };
+
+        return [
+          { ...base, id: `${f.id}-vitoria`, market: `Vitória do Favorito (${f.favorito || 'Favorito'})`, result: f.resultado_vitoria || null },
+          { ...base, id: `${f.id}-over15`, market: 'Over 1.5 FT', result: f.resultado_over15 || null },
+          { ...base, id: `${f.id}-over25`, market: 'Over 2.5 FT', result: f.resultado_over25 || null },
+        ];
       });
 
       const rarosRows: Row[] = (raros || []).map((r: any) => {
@@ -108,7 +131,7 @@ export default function PunterLiquidacoesPage() {
         };
       });
 
-      const all = [...sigRows, ...rarosRows].sort(
+      const all = [...sigRows, ...favoritosRows, ...rarosRows].sort(
         (a, b) => new Date(b.commence_time).getTime() - new Date(a.commence_time).getTime()
       );
       setRows(all);
@@ -215,7 +238,7 @@ export default function PunterLiquidacoesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap mb-1">
                           <Badge variant="outline" className="text-[9px] uppercase font-mono">
-                            {r.source === 'eventos_raros' ? 'Evento Raro' : 'Punter'}
+                            {r.source === 'eventos_raros' ? 'Evento Raro' : r.source === 'plano_favorito' ? 'Plano Favorito' : 'Punter'}
                           </Badge>
                           {r.isPlanoFavorito && (
                             <Badge className="text-[9px] uppercase font-mono bg-amber-500/20 text-amber-300 border-amber-400/40 gap-1">
