@@ -135,6 +135,10 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number): Promise<TeamStats | null> {
+  if (DATA_SOURCE === 'sportmonks') {
+    const r = await getTeamStatsSM(teamId, 20)
+    return r as unknown as TeamStats
+  }
   try {
     const r = await afFetch('/teams/statistics', { team: teamId, league: leagueId, season })
     return r as TeamStats
@@ -142,6 +146,9 @@ async function getTeamStats(teamId: number, leagueId: number, season: number): P
 }
 
 async function getRecentFixtures(teamId: number, last = 10): Promise<FixtureResult[]> {
+  if (DATA_SOURCE === 'sportmonks') {
+    return await getRecentFixturesSM(teamId, last) as unknown as FixtureResult[]
+  }
   try {
     return await afFetch('/fixtures', { team: teamId, last }) as FixtureResult[]
   } catch { return [] }
