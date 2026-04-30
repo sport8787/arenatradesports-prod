@@ -7,11 +7,19 @@
 // =============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  getUpcomingFixturesSM,
+  getRecentFixturesSM,
+  getTeamStatsSM,
+} from '../_shared/sportmonks-af-adapter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Fonte de dados ativa: 'api-football' (default) ou 'sportmonks' (admin opt-in)
+let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football'
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
