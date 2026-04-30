@@ -120,8 +120,10 @@ function findStat(stats: any[], type: string): string | null {
 }
 
 async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['stats'] | null> {
-  // Tenta Sportmonks primeiro se feature flag estiver ativa
-  const primary = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
+  // force_provider (vindo no body da request) tem prioridade absoluta sobre a env LIVE_PROVIDER_PRIMARY.
+  // Usado pelo modo SHADOW (analyze-live-shadow-af) para forçar AF e comparar com Sportmonks.
+  const forced = (globalThis as any).__forceProvider as string | undefined;
+  const primary = (forced || Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
   if (primary === "sportmonks") {
     try {
       const { getFixtureStats } = await import("../_shared/liveProvider.ts");
@@ -489,8 +491,15 @@ serve(async (req) => {
     const AI_MODEL = 'gemini-2.5-flash';
     if (!AI_KEY) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    const body = await req.json() as { match: MatchData & Record<string, unknown> };
+    const body = await req.json() as { match: MatchData & Record<string, unknown>; force_provider?: string };
     const match = body?.match;
+    // Modo SHADOW: força um provider específico de stats (ignora env LIVE_PROVIDER_PRIMARY)
+    if (body?.force_provider) {
+      (globalThis as any).__forceProvider = String(body.force_provider).toLowerCase();
+      console.log(`[MycroftSports] 🔬 SHADOW mode — force_provider=${(globalThis as any).__forceProvider}`);
+    } else {
+      (globalThis as any).__forceProvider = undefined;
+    }
     if (!match) return new Response(JSON.stringify({ error: 'Match data required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     // Validação estrita: aceitar apenas scoreHome/scoreAway (camelCase). Rejeita score_home/score_away.

@@ -27,6 +27,7 @@ import ActivePositions from '@/components/dashboard/ActivePositions';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
+import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 
@@ -86,7 +87,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
@@ -484,8 +485,18 @@ export default function ArenaTraderSports() {
                 <FlaskConical className="w-3 h-3" />
                 Simulado
               </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
+                  <FlaskConical className="w-3 h-3" />
+                  Sinais Aprovados (API-Football)
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
+
+          {statusFilter === 'aprovados_af' && isAdmin && (
+            <ShadowAfApprovedTab />
+          )}
 
           {/* Simulation Panel - shown when "Simulado" tab is active */}
           {statusFilter === 'simulado' && (

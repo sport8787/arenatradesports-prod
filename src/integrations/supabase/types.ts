@@ -2714,6 +2714,63 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_analyses_shadow_af: {
+        Row: {
+          alerts: Json | null
+          approved_at_minute: number | null
+          approved_at_score_away: number | null
+          approved_at_score_home: number | null
+          confidence: number | null
+          created_at: string
+          fundamentation: Json | null
+          id: string
+          market: string | null
+          match_id: string
+          odd: number | null
+          plan_name: string | null
+          provider: string
+          risk_management: Json | null
+          thesis: string | null
+          verdict: string
+        }
+        Insert: {
+          alerts?: Json | null
+          approved_at_minute?: number | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          confidence?: number | null
+          created_at?: string
+          fundamentation?: Json | null
+          id?: string
+          market?: string | null
+          match_id: string
+          odd?: number | null
+          plan_name?: string | null
+          provider?: string
+          risk_management?: Json | null
+          thesis?: string | null
+          verdict: string
+        }
+        Update: {
+          alerts?: Json | null
+          approved_at_minute?: number | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          confidence?: number | null
+          created_at?: string
+          fundamentation?: Json | null
+          id?: string
+          market?: string | null
+          match_id?: string
+          odd?: number | null
+          plan_name?: string | null
+          provider?: string
+          risk_management?: Json | null
+          thesis?: string | null
+          verdict?: string
+        }
+        Relationships: []
+      }
       mycroft_analysis_queue: {
         Row: {
           attempts: number
