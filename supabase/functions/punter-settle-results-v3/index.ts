@@ -451,11 +451,16 @@ serve(async (req) => {
           continue;
         }
 
+        // PnL simulado: LAY com 1u de liability. GREEN = +1, RED = -(odd-1)
+        const oddLay = Number(s.odd_entrada) || 2;
+        const pl = resultadoRaro === "GREEN" ? 1 : -(oddLay - 1);
+
         await sb.from("eventos_raros_sinais").update({
           resultado: resultadoRaro,
           status: "ENCERRADO",
           placar_saida: `${fx.goalsHome}x${fx.goalsAway}`,
           motivo_saida: "Liquidação automática",
+          profit_loss: Number(pl.toFixed(2)),
           updated_at: new Date().toISOString(),
         }).eq("id", s.id);
 
