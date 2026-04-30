@@ -291,8 +291,13 @@ export default function PunterLiquidacoesPage() {
                           </Badge>
                         )}
                         {isPending(r) && (
-                          <Badge variant="outline" className="gap-1">
-                            <Clock className="w-3.5 h-3.5" /> {r.status === 'awaiting_stake' ? 'Aguardando stake' : 'Pendente'}
+                          <Badge variant="outline" className="gap-1 border-amber-400/40 text-amber-300">
+                            <Clock className="w-3.5 h-3.5" /> Pendente liquidação
+                          </Badge>
+                        )}
+                        {isFuture(r) && (
+                          <Badge variant="outline" className="gap-1 text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" /> Aguardando jogo
                           </Badge>
                         )}
                         {r.profit_loss != null && (
