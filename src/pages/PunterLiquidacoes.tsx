@@ -64,7 +64,7 @@ export default function PunterLiquidacoesPage() {
         if (ids.length) {
           const { data: cands } = await supabase
             .from('eventos_raros_candidatos')
-            .select('id, home_team, away_team, league, mercado, commence_time')
+            .select('id, home_team, away_team, league_name, placar_alvo, match_date')
             .in('id', ids);
           for (const c of cands || []) candidatos[c.id] = c;
         }
@@ -94,13 +94,13 @@ export default function PunterLiquidacoesPage() {
           id: r.id,
           source: 'eventos_raros',
           match: c.home_team && c.away_team ? `${c.home_team} vs ${c.away_team}` : (r.match_id || '—'),
-          league: c.league || 'Eventos Raros',
-          market: c.mercado || r.placar_alvo || 'LAY',
+          league: c.league_name || 'Eventos Raros',
+          market: c.placar_alvo || r.placar_alvo || 'LAY',
           odd: Number(r.odd_entrada) || null,
           verdict: 'EVENTO_RARO',
           result: r.resultado,
           profit_loss: r.profit_loss,
-          commence_time: c.commence_time || r.created_at,
+          commence_time: c.match_date || r.created_at,
         };
       });
 
