@@ -244,13 +244,20 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats (API-Football) only for matches that still need analysis
+        // Fetch full stats — Sportmonks (já no _raw) ou API-Football
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
-          const stats = await fetchFixtureStats(fixtureId, apiKey);
+          let stats: any = null;
+          if (fixture._source === 'sportmonks') {
+            const r = await getFixtureStats({ sm_id: fixture.fixture.sm_id, raw: fixture._raw, af_id: fixtureId });
+            stats = r.stats ? { ...r.stats } : null;
+          }
+          if (!stats) {
+            stats = await fetchFixtureStats(fixtureId, apiKey);
+          }
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
-            console.log(`[LiveScores] Stats fetched for ${fixtureId}: Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
+            console.log(`[LiveScores] Stats fetched for ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
           }
         }
 
