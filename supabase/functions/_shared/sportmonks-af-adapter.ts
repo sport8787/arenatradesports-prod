@@ -324,3 +324,117 @@ export async function getCornersForFixtureSM(fixtureId: number, teamId: number):
     return 0;
   }
 }
+
+// =============================================================================
+// 6) LIVE STATS por nome de time — usado pelo analyze-live-matches
+// Busca o fixture LIVE pelos nomes dos times e retorna xG/shots/possession/corners
+// no formato consumido pelo enrichedStats. Retorna null se não encontrado.
+// =============================================================================
+// Type IDs Sportmonks (statistics):
+//   5118 = Expected Goals (xG)
+//   34   = Corners
+//   41   = Shots Total
+//   42   = Shots On Target (Shots on goal)
+//   43   = Shots Off Target
+//   45   = Ball Possession %
+//   44   = Fouls
+//   84   = Yellow Cards
+//   83   = Red Cards
+//   80   = Passes
+//   58   = Attacks
+//   59   = Dangerous Attacks
+//   86   = Big Chances Created
+// =============================================================================
+
+interface SMLiveStats {
+  found: boolean;
+  source: "sportmonks";
+  xg_home: number;
+  xg_away: number;
+  shots_total_home: number;
+  shots_total_away: number;
+  shots_on_target_home: number;
+  shots_on_target_away: number;
+  possession_home: number;
+  possession_away: number;
+  corners_home: number;
+  corners_away: number;
+  dangerous_attacks_home: number;
+  dangerous_attacks_away: number;
+  big_chances_home: number;
+  big_chances_away: number;
+}
+
+function _normName(s: string): string {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(fc|cf|sc|ac|cd|club|de|do|da)\b/g, " ")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function _readStat(stats: any[], typeId: number, participantId: number): number {
+  const row = stats.find(
+    (s: any) => Number(s.type_id) === typeId && Number(s.participant_id) === participantId
+  );
+  const v = Number(row?.data?.value ?? 0);
+  return Number.isFinite(v) ? v : 0;
+}
+
+export async function getLiveStatsSM(homeName: string, awayName: string): Promise<SMLiveStats | null> {
+  if (!TOKEN) return null;
+  try {
+    const url = smUrl("/football/livescores/inplay", {
+      include: "participants;statistics",
+      per_page: "100",
+    });
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const fixtures = j.data || [];
+    const nh = _normName(homeName);
+    const na = _normName(awayName);
+
+    // Match by name (both teams must align)
+    const fix = fixtures.find((f: any) => {
+      const parts = f.participants || [];
+      const h = parts.find((p: any) => p.meta?.location === "home") || parts[0];
+      const a = parts.find((p: any) => p.meta?.location === "away") || parts[1];
+      const phn = _normName(h?.name || "");
+      const pan = _normName(a?.name || "");
+      const homeOk = phn.includes(nh) || nh.includes(phn);
+      const awayOk = pan.includes(na) || na.includes(pan);
+      return homeOk && awayOk;
+    });
+    if (!fix) return null;
+
+    const parts = fix.participants || [];
+    const home = parts.find((p: any) => p.meta?.location === "home") || parts[0];
+    const away = parts.find((p: any) => p.meta?.location === "away") || parts[1];
+    if (!home || !away) return null;
+    const stats = fix.statistics || [];
+
+    return {
+      found: true,
+      source: "sportmonks",
+      xg_home: _readStat(stats, 5118, home.id),
+      xg_away: _readStat(stats, 5118, away.id),
+      shots_total_home: _readStat(stats, 41, home.id),
+      shots_total_away: _readStat(stats, 41, away.id),
+      shots_on_target_home: _readStat(stats, 42, home.id),
+      shots_on_target_away: _readStat(stats, 42, away.id),
+      possession_home: _readStat(stats, 45, home.id),
+      possession_away: _readStat(stats, 45, away.id),
+      corners_home: _readStat(stats, 34, home.id),
+      corners_away: _readStat(stats, 34, away.id),
+      dangerous_attacks_home: _readStat(stats, 59, home.id),
+      dangerous_attacks_away: _readStat(stats, 59, away.id),
+      big_chances_home: _readStat(stats, 86, home.id),
+      big_chances_away: _readStat(stats, 86, away.id),
+    };
+  } catch {
+    return null;
+  }
+}
