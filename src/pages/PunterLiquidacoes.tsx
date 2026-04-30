@@ -44,7 +44,7 @@ export default function PunterLiquidacoesPage() {
       // Sinais Punter unificados
       const { data: sigs } = await supabase
         .from('punter_sinais')
-        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
+        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
         .gte('commence_time', since)
         .order('commence_time', { ascending: false })
         .limit(500);
