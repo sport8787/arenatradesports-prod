@@ -3744,6 +3744,7 @@ export type Database = {
           fair_odd: number | null
           final_score_away: number | null
           final_score_home: number | null
+          fonte_liquidacao: string | null
           green_telegram_sent_at: string | null
           home_team: string
           id: string
@@ -3778,6 +3779,7 @@ export type Database = {
           updated_at: string
           value_percentage: number | null
           verdict: string | null
+          void_reason: string | null
         }
         Insert: {
           analysis?: string | null
@@ -3795,6 +3797,7 @@ export type Database = {
           fair_odd?: number | null
           final_score_away?: number | null
           final_score_home?: number | null
+          fonte_liquidacao?: string | null
           green_telegram_sent_at?: string | null
           home_team: string
           id?: string
@@ -3829,6 +3832,7 @@ export type Database = {
           updated_at?: string
           value_percentage?: number | null
           verdict?: string | null
+          void_reason?: string | null
         }
         Update: {
           analysis?: string | null
@@ -3846,6 +3850,7 @@ export type Database = {
           fair_odd?: number | null
           final_score_away?: number | null
           final_score_home?: number | null
+          fonte_liquidacao?: string | null
           green_telegram_sent_at?: string | null
           home_team?: string
           id?: string
@@ -3880,6 +3885,7 @@ export type Database = {
           updated_at?: string
           value_percentage?: number | null
           verdict?: string | null
+          void_reason?: string | null
         }
         Relationships: []
       }
