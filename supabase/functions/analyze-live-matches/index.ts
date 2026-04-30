@@ -487,7 +487,8 @@ serve(async (req) => {
         }
         // ====================================================================
 
-        // Save analysis
+        // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
+        const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
           .insert({
@@ -501,6 +502,7 @@ serve(async (req) => {
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
             fundamentation: analysis.fundamentation ?? { stats: enrichedStats },
+            stats_snapshot: _isApprovedSm ? { provider: 'sportmonks', minute: match.minute ?? 0, score_home: match.score_home ?? 0, score_away: match.score_away ?? 0, stats: enrichedStats } : null,
           })
           .select('id')
           .single();
