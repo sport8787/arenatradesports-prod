@@ -420,9 +420,15 @@ serve(async (req) => {
 
       try {
         let fx: FixtureResult | null = null;
-        let fonte = "api-football";
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) fx = af.fx;
+        let fonte = "sportmonks";
+        const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+        if (sm) {
+          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+        }
+        if (!fx) {
+          const af = await buscarPorNomeEData(home, away, startIso);
+          if (af) { fx = af.fx; fonte = "api-football"; }
+        }
         if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
         if (!fx) {
           notFound++;
