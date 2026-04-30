@@ -86,7 +86,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
