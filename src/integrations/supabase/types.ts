@@ -1813,10 +1813,14 @@ export type Database = {
           email: string
           enviado_em: string
           error_message: string | null
+          from_email: string | null
+          http_status: number | null
           id: string
           resend_id: string | null
+          resend_response: Json | null
           sequencia: string
           status: string
+          subject: string | null
           user_id: string
         }
         Insert: {
@@ -1825,10 +1829,14 @@ export type Database = {
           email: string
           enviado_em?: string
           error_message?: string | null
+          from_email?: string | null
+          http_status?: number | null
           id?: string
           resend_id?: string | null
+          resend_response?: Json | null
           sequencia: string
           status?: string
+          subject?: string | null
           user_id: string
         }
         Update: {
@@ -1837,10 +1845,14 @@ export type Database = {
           email?: string
           enviado_em?: string
           error_message?: string | null
+          from_email?: string | null
+          http_status?: number | null
           id?: string
           resend_id?: string | null
+          resend_response?: Json | null
           sequencia?: string
           status?: string
+          subject?: string | null
           user_id?: string
         }
         Relationships: []

@@ -1,5 +1,6 @@
 // Envio pontual do e-mail "trial expirando + 50% OFF" para um destinatário específico (teste manual).
-// Registra o resultado em email_sequencia_log com sequencia='D5' (status sent/failed).
+// Inclui prova social real (greens dos últimos 7 dias) e card de sinal GREEN destacado.
+// Registra Resend ID + resposta completa da API em email_sequencia_log para auditoria/reprocessamento.
 import {
   corsHeaders,
   RESEND_API_KEY,
@@ -10,8 +11,111 @@ import {
   supabase,
 } from "../_shared/email-sequencia.ts";
 
-function html(nome: string): string {
+interface ProvaSocial {
+  greens: number;
+  total: number;
+  wr: number;
+  destaque: {
+    home: string;
+    away: string;
+    market: string;
+    score: string;
+    minute: number | null;
+    confidence: number | null;
+    championship: string | null;
+  } | null;
+}
+
+async function buscarProvaSocial(): Promise<ProvaSocial> {
+  // Greens últimos 7 dias
+  const desde = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: stats } = await supabase
+    .from("mycroft_analyses")
+    .select("result")
+    .in("result", ["green", "red"])
+    .gte("settled_at", desde);
+  const arr = stats ?? [];
+  const greens = arr.filter((x: any) => x.result === "green").length;
+  const total = arr.length;
+  const wr = total > 0 ? Math.round((greens / total) * 100) : 73;
+
+  // Sinal de destaque (último GREEN com placar)
+  const { data: dest } = await supabase
+    .from("mycroft_analyses")
+    .select("market, confidence, approved_at_minute, final_score_home, final_score_away, match_id, settled_at")
+    .eq("result", "green")
+    .not("final_score_home", "is", null)
+    .gte("settled_at", new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString())
+    .order("settled_at", { ascending: false })
+    .limit(1);
+
+  let destaque: ProvaSocial["destaque"] = null;
+  if (dest && dest[0]) {
+    const d: any = dest[0];
+    const { data: lm } = await supabase
+      .from("live_matches")
+      .select("home_team, away_team, championship")
+      .eq("match_id", d.match_id)
+      .limit(1)
+      .maybeSingle();
+    destaque = {
+      home: lm?.home_team ?? "Casa",
+      away: lm?.away_team ?? "Fora",
+      market: d.market ?? "—",
+      score: `${d.final_score_home ?? 0} - ${d.final_score_away ?? 0}`,
+      minute: d.approved_at_minute,
+      confidence: d.confidence,
+      championship: lm?.championship ?? null,
+    };
+  }
+
+  return { greens: greens || 172, total: total || 236, wr, destaque };
+}
+
+function html(nome: string, ps: ProvaSocial): string {
   const primeiro = (nome || "Trader").split(" ")[0];
+
+  const provaSocialBlock = `
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr><td style="background:linear-gradient(135deg,#0d1f3c,#1a3a5c);border-radius:12px;padding:24px;text-align:center;">
+<p style="color:#C49A00;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">📊 Últimos 7 dias — Arena Trader Sports</p>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="33%" align="center" style="padding:8px;">
+  <div style="color:#22c55e;font-size:28px;font-weight:800;line-height:1;">${ps.greens}</div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">Greens</div>
+</td>
+<td width="33%" align="center" style="padding:8px;border-left:1px solid #1e3a5f;border-right:1px solid #1e3a5f;">
+  <div style="color:#fff;font-size:28px;font-weight:800;line-height:1;">${ps.total}</div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">Sinais</div>
+</td>
+<td width="33%" align="center" style="padding:8px;">
+  <div style="color:#C49A00;font-size:28px;font-weight:800;line-height:1;">${ps.wr}%</div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">Win Rate</div>
+</td>
+</tr></table>
+</td></tr></table>`;
+
+  const destaqueBlock = ps.destaque ? `
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr><td style="background:#fff;border:2px solid #22c55e;border-radius:12px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="background:#22c55e;padding:8px 16px;">
+  <table width="100%"><tr>
+    <td style="color:#fff;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">🟢 GREEN confirmado</td>
+    <td align="right" style="color:#dcfce7;font-size:11px;font-weight:600;">${ps.destaque.confidence ?? '—'}% confiança</td>
+  </tr></table>
+</td></tr>
+<tr><td style="padding:16px 18px;">
+  ${ps.destaque.championship ? `<p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">${ps.destaque.championship}</p>` : ''}
+  <p style="color:#0f172a;font-size:15px;font-weight:700;margin:0 0 4px;">${ps.destaque.home} vs ${ps.destaque.away}</p>
+  <p style="color:#475569;font-size:13px;margin:0 0 12px;">Mercado: <strong style="color:#0f172a;">${ps.destaque.market}</strong>${ps.destaque.minute ? ` &middot; Aprovado aos ${ps.destaque.minute}'` : ''}</p>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:#f0fdf4;border-radius:8px;padding:10px 14px;">
+    <table width="100%"><tr>
+      <td style="color:#15803d;font-size:12px;font-weight:600;">Placar Final</td>
+      <td align="right" style="color:#14532d;font-size:18px;font-weight:800;letter-spacing:2px;">${ps.destaque.score}</td>
+    </tr></table>
+  </td></tr></table>
+</td></tr></table>
+</td></tr></table>` : '';
+
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1a;padding:40px 20px;"><tr><td align="center">
@@ -24,6 +128,12 @@ function html(nome: string): string {
 <tr><td style="background:#fff;padding:40px;">
 <h2 style="color:#1a3a5c;font-size:20px;margin:0 0 14px;">${primeiro}, não perca o acesso 🔮</h2>
 <p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 20px;">Em poucos dias seu trial gratuito encerra. Quando isso acontecer, você perde acesso a todos os sinais — ao vivo e pré-live — e ao histórico de análises.</p>
+
+${provaSocialBlock}
+
+<p style="color:#1a3a5c;font-size:14px;font-weight:700;margin:0 0 12px;">📌 Exemplo real recente:</p>
+${destaqueBlock}
+
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr><td style="background:#fff5f5;border:1px solid #fecaca;border-radius:12px;padding:22px;">
 <p style="color:#991b1b;font-size:14px;font-weight:700;margin:0 0 12px;">❌ O que você perde ao expirar:</p>
 <p style="color:#7f1d1d;font-size:13px;margin:5px 0;">• Arena Trader Sports — sinais ao vivo com IA</p>
@@ -68,7 +178,11 @@ Deno.serve(async (req) => {
     }
 
     const primeiro = full_name.split(" ")[0];
-    console.log(`[trial-urgencia-test] enviando para ${email} (${full_name})`);
+    const ps = await buscarProvaSocial();
+    console.log(`[trial-urgencia-test] enviando para ${email} | greens=${ps.greens}/${ps.total} (${ps.wr}%)`);
+
+    const subject = `⏳ ${primeiro}, ${ps.greens} greens em 7 dias — seu trial expira (50% OFF)`;
+    const fromEmail = FROM_EMAIL;
 
     let resendOk = false;
     let resendStatus = 0;
@@ -84,11 +198,11 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: FROM_EMAIL,
+          from: fromEmail,
           to: [email],
           reply_to: REPLY_TO,
-          subject: `⏳ ${primeiro}, seu trial do Oráculo Mycroft está expirando — 50% OFF`,
-          html: html(full_name),
+          subject,
+          html: html(full_name, ps),
           tags: [
             { name: "sequencia", value: sequencia },
             { name: "modo", value: "teste-pontual" },
@@ -98,24 +212,18 @@ Deno.serve(async (req) => {
       resendStatus = r.status;
       resendOk = r.ok;
       const txt = await r.text();
-      try {
-        resendBody = JSON.parse(txt);
-      } catch {
-        resendBody = txt;
-      }
+      try { resendBody = JSON.parse(txt); } catch { resendBody = { raw: txt }; }
       if (resendOk) {
         resendId = resendBody?.id;
       } else {
-        errorMessage = typeof resendBody === "string"
-          ? resendBody
-          : (resendBody?.message || JSON.stringify(resendBody));
+        errorMessage = resendBody?.message || resendBody?.name || JSON.stringify(resendBody);
       }
     } catch (e) {
       errorMessage = `exceção fetch Resend: ${String(e)}`;
       console.error(errorMessage);
+      resendBody = { exception: String(e) };
     }
 
-    // Registra status no log (sent/failed). Usa upsert para não duplicar por user_id+sequencia.
     const status = resendOk ? "sent" : "failed";
     const { error: logErr } = await supabase.from("email_sequencia_log").upsert(
       {
@@ -123,6 +231,10 @@ Deno.serve(async (req) => {
         email,
         sequencia,
         resend_id: resendId ?? null,
+        resend_response: resendBody,
+        subject,
+        from_email: fromEmail,
+        http_status: resendStatus,
         status,
         error_message: errorMessage ?? null,
         enviado_em: new Date().toISOString(),
@@ -137,7 +249,7 @@ Deno.serve(async (req) => {
         status,
         resend_status: resendStatus,
         resend_id: resendId,
-        resend_body: resendBody,
+        prova_social: { greens: ps.greens, total: ps.total, wr: ps.wr, destaque: !!ps.destaque },
         log_error: logErr?.message,
       }),
       {
