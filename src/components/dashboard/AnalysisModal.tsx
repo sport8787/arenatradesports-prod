@@ -82,14 +82,14 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
   const recommendedStake = bankrollProps?.recommendedStake ?? 0;
 
-  if (!match) return null;
-
   // Live pressure chart (only fetches when modal is open and match is live)
-  const isLive = match.status === 'live';
+  const isLive = match?.status === 'live';
   const { data: pressureData, loading: pressureLoading, error: pressureError } = useMatchPressure(
-    isOpen && isLive ? { home: match.home, away: match.away } : { home: '', away: '' },
+    isOpen && isLive && match ? { home: match.home, away: match.away } : { home: '', away: '' },
     30000,
   );
+
+  if (!match) return null;
 
   const vc = analysis ? verdictConfig[analysis.verdict] || verdictConfig['AGUARDAR'] : null;
 
