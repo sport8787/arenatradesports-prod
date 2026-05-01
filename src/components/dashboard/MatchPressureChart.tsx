@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Loader2, AlertTriangle } from "lucide-react";
@@ -102,20 +102,21 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
     );
   }
 
+  const HOME_COLOR = "hsl(217 91% 60%)"; // azul vibrante (estilo concorrente)
+  const AWAY_COLOR = "hsl(25 95% 55%)";  // laranja vibrante
+
+  const goalEvents = showEvents ? data.events.filter((e) => e.type === "goal") : [];
+  const redEvents = showEvents ? data.events.filter((e) => e.type === "red") : [];
+
   return (
     <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: showAxis ? 16 : 0 }}>
-          <defs>
-            <linearGradient id="pressureHome" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.7} />
-              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
-            </linearGradient>
-            <linearGradient id="pressureAway" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.7} />
-              <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.05} />
-            </linearGradient>
-          </defs>
+        <BarChart
+          data={series}
+          margin={{ top: 14, right: 8, left: 0, bottom: showAxis ? 16 : 4 }}
+          barCategoryGap={0}
+          barGap={0}
+        >
           {showAxis && (
             <XAxis
               dataKey="minute"
@@ -125,19 +126,37 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
             />
           )}
           <YAxis hide domain={[-100, 100]} />
-          <ReferenceLine y={0} stroke="hsl(var(--border))" strokeDasharray="2 2" />
-          <ReferenceLine x={45} stroke="hsl(var(--border))" strokeDasharray="2 2" />
+          <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1} />
+          <ReferenceLine
+            x={45}
+            stroke="hsl(var(--muted-foreground))"
+            strokeDasharray="2 3"
+            label={showAxis ? { value: "45'", position: "insideBottom", fill: "hsl(var(--muted-foreground))", fontSize: 10 } : undefined}
+          />
 
-          {/* Marcadores de eventos: gols (linhas verticais com label) */}
-          {showEvents && data.events.map((ev, i) => (
+          {/* Gols: bolinha sobre o eixo zero */}
+          {goalEvents.map((ev, i) => (
             <ReferenceLine
-              key={`${ev.minute}-${i}`}
+              key={`g-${ev.minute}-${i}`}
               x={ev.minute}
-              stroke={ev.type === "goal" ? "hsl(var(--primary))" : "hsl(var(--destructive))"}
-              strokeWidth={1.5}
-              strokeDasharray={ev.type === "goal" ? "0" : "3 3"}
+              stroke="transparent"
               label={{
-                value: ev.type === "goal" ? "⚽" : "🟥",
+                value: "⚽",
+                position: "center",
+                fill: "hsl(var(--foreground))",
+                fontSize: 14,
+              }}
+            />
+          ))}
+          {redEvents.map((ev, i) => (
+            <ReferenceLine
+              key={`r-${ev.minute}-${i}`}
+              x={ev.minute}
+              stroke="hsl(var(--destructive))"
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              label={{
+                value: "🟥",
                 position: "top",
                 fill: "hsl(var(--foreground))",
                 fontSize: 12,
@@ -145,24 +164,19 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
             />
           ))}
 
-          <Area
-            type="monotone"
-            dataKey="home"
-            stroke="hsl(var(--primary))"
-            strokeWidth={1.5}
-            fill="url(#pressureHome)"
-            isAnimationActive={false}
-          />
-          <Area
-            type="monotone"
-            dataKey="awayNeg"
-            stroke="hsl(var(--destructive))"
-            strokeWidth={1.5}
-            fill="url(#pressureAway)"
-            isAnimationActive={false}
-          />
+          <Bar dataKey="home" stackId="press" isAnimationActive={false}>
+            {series.map((_, i) => (
+              <Cell key={`h-${i}`} fill={HOME_COLOR} />
+            ))}
+          </Bar>
+          <Bar dataKey="awayNeg" stackId="press" isAnimationActive={false}>
+            {series.map((_, i) => (
+              <Cell key={`a-${i}`} fill={AWAY_COLOR} />
+            ))}
+          </Bar>
 
           <Tooltip
+            cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               const home = payload.find((p) => p.dataKey === "home")?.value as number;
@@ -173,12 +187,12 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
                     {String(label)}'
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-sm bg-primary" />
+                    <span className="w-2 h-2 rounded-sm" style={{ background: HOME_COLOR }} />
                     <span className="text-foreground">{data.header.home.name}</span>
                     <span className="ml-auto font-bold">{Math.round(home)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-sm bg-destructive" />
+                    <span className="w-2 h-2 rounded-sm" style={{ background: AWAY_COLOR }} />
                     <span className="text-foreground">{data.header.away.name}</span>
                     <span className="ml-auto font-bold">{Math.round(away)}</span>
                   </div>
@@ -186,7 +200,7 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
               );
             }}
           />
-        </AreaChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
