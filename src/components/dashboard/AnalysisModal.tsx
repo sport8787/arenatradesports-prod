@@ -10,6 +10,8 @@ import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
 import AdminStatsEditorModal from './AdminStatsEditorModal';
 import { useAdmin } from '@/hooks/useAdmin';
+import { MatchPressureChart, PressureFallback, useMatchPressure, FormDots } from './MatchPressureChart';
+import { Activity } from 'lucide-react';
 
 export interface AdditionalMarket {
   market: string;
