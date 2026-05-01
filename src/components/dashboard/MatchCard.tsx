@@ -285,18 +285,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           </div>
 
-          {/* Botão Gráfico de Pressão (apenas live) */}
-          {match.status === 'live' && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setPressureOpen(true); }}
-              className="w-full flex items-center justify-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground hover:text-primary hover:bg-primary/10 border border-border/50 hover:border-primary/40 transition-colors"
-              aria-label="Ver gráfico de pressão"
-            >
-              <Activity className="w-3 h-3" />
-              Gráfico de Pressão
-            </button>
-          )}
+          {/* Gráfico de Pressão agora é exibido dentro do modal "Ver Análise Completa" */}
 
           {/* Bet Placed Badge */}
           {match.hasBet && (
