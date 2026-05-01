@@ -55,7 +55,29 @@ function formatDate(iso: string) {
 interface AggregateStats {
   greens: number;
   reds: number;
-  pnlUnits: number;
+  pnlUnits: number;   // soma de profits em unidades (stake = 1u)
+  stakeUnits: number; // soma de stakes em unidades (apenas sinais com odd válida)
+  validSignals: number;
+}
+
+// Fallback genérico por padrão de mercado (usado quando não há média histórica do próprio mercado)
+function fallbackOddByMarket(market: string | null | undefined): number | null {
+  if (!market) return null;
+  const m = market.toLowerCase();
+  if (m.includes('over 0.5 ht') || m.includes('back over 0.5 ht')) return 1.45;
+  if (m.includes('over 0.5')) return 1.30;
+  if (m.includes('over 1.5 ht')) return 2.40;
+  if (m.includes('over 1.5')) return 1.75;
+  if (m.includes('over 2.5')) return 2.00;
+  if (m.includes('over 3.5')) return 2.80;
+  if (m.includes('over 4.5')) return 4.00;
+  if (m.includes('over 5.5')) return 6.00;
+  if (m.includes('under 2.5')) return 1.85;
+  if (m.includes('under 3.5')) return 1.40;
+  if (m.includes('under 1.5')) return 2.50;
+  if (m.includes('btts') || m.includes('ambas marcam')) return 1.80;
+  if (m.includes('próximo gol') || m.includes('proximo gol') || m.includes('gols restantes')) return 1.70;
+  return 1.85; // genérico conservador
 }
 
 export default function MycroftSinaisAprovados() {
