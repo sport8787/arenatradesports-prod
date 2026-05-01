@@ -4,6 +4,7 @@ import { Send, Brain, ChevronDown, ChevronUp, Loader2, MessageSquare, Lock, Arro
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAdmin } from '@/hooks/useAdmin';
 import { Link } from 'react-router-dom';
 
 interface MatchContext {
