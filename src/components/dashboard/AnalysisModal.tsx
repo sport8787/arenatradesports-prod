@@ -84,6 +84,13 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
 
   if (!match) return null;
 
+  // Live pressure chart (only fetches when modal is open and match is live)
+  const isLive = match.status === 'live';
+  const { data: pressureData, loading: pressureLoading, error: pressureError } = useMatchPressure(
+    isOpen && isLive ? { home: match.home, away: match.away } : { home: '', away: '' },
+    30000,
+  );
+
   const vc = analysis ? verdictConfig[analysis.verdict] || verdictConfig['AGUARDAR'] : null;
 
   // risk_management can be JSON object or plain text
