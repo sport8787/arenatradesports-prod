@@ -54,22 +54,8 @@ export default function PunterBancaVirtualPage() {
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const [{ data: horus }, { data: manual }] = await Promise.all([
-        supabase
-          .from('virtual_bets_punter')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending'),
-        supabase
-          .from('virtual_bets_manual')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending'),
-      ]);
-      setPendingBets(horus || []);
-      setManualPendingBets(manual || []);
-    })();
+    reloadPending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const isLoading = bankrollLoading || manualLoading;
