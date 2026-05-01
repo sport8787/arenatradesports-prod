@@ -148,6 +148,9 @@ export default function AdminDashboard() {
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/admin/auditoria-sinais">⚖️ Auditoria de Sinais</a>
+          </Button>
         </div>
 
         {error && (
