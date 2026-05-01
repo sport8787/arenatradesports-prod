@@ -7,6 +7,9 @@ import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
 import { useNavigate } from 'react-router-dom';
 import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
+import MycroftChatGate from '@/components/mycroft/MycroftChatGate';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -28,6 +31,10 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const { isPaid, subscription } = useSubscription();
+  const { isAdmin } = useAdmin();
+  const canUseChat = isAdmin || (isPaid && subscription?.plan === 'premium');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -343,6 +350,15 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
           </div>
         </div>
 
+        {!canUseChat ? (
+          <div className="p-4">
+            <MycroftChatGate variant="panel" title="Chat com Mycroft Sports é Premium">
+              <></>
+            </MycroftChatGate>
+          </div>
+        ) : (
+        <>
+
         {/* Knowledge Base Manager */}
         <div className="px-4 py-2 border-b border-[#FFD700]/10">
           <button
@@ -489,6 +505,8 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
             <Send className="w-4 h-4" />
           </button>
         </div>
+        </>
+        )}
       </div>
     </motion.div>
   );
