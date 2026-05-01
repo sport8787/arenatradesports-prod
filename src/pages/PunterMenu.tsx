@@ -29,8 +29,40 @@ export default function PunterMenuPage() {
     return () => clearTimeout(t);
   }, [playOnce]);
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">
+    <div className="relative min-h-screen bg-background overflow-hidden">
+      {/* Olho do Mycroft no fundo + partículas flutuantes */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <HeroParticles />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative w-[min(80vw,640px)] h-[min(80vw,640px)] opacity-[0.07]">
+            {/* Glow externo */}
+            <div
+              className="absolute inset-0 rounded-full blur-3xl"
+              style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.6), transparent 65%)' }}
+            />
+            {/* Eye SVG */}
+            <svg viewBox="0 0 200 200" className="relative w-full h-full text-primary" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M10 100 Q100 20 190 100 Q100 180 10 100 Z" />
+              <circle cx="100" cy="100" r="42" />
+              <circle cx="100" cy="100" r="22" fill="currentColor" fillOpacity="0.4" />
+              <circle cx="100" cy="100" r="8" fill="currentColor" />
+              {/* Raios */}
+              {Array.from({ length: 24 }).map((_, i) => {
+                const angle = (i * Math.PI * 2) / 24;
+                const x1 = 100 + Math.cos(angle) * 50;
+                const y1 = 100 + Math.sin(angle) * 50;
+                const x2 = 100 + Math.cos(angle) * 64;
+                const y2 = 100 + Math.sin(angle) * 64;
+                return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="1" />;
+              })}
+            </svg>
+          </div>
+        </div>
+        {/* Vinheta */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background" />
+      </div>
+
+      <header className="relative z-10 sticky top-0 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
             onClick={() => navigate('/punter')}
