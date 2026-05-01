@@ -55,13 +55,35 @@ function formatDate(iso: string) {
 interface AggregateStats {
   greens: number;
   reds: number;
-  pnlUnits: number;
+  pnlUnits: number;   // soma de profits em unidades (stake = 1u)
+  stakeUnits: number; // soma de stakes em unidades (apenas sinais com odd válida)
+  validSignals: number;
+}
+
+// Fallback genérico por padrão de mercado (usado quando não há média histórica do próprio mercado)
+function fallbackOddByMarket(market: string | null | undefined): number | null {
+  if (!market) return null;
+  const m = market.toLowerCase();
+  if (m.includes('over 0.5 ht') || m.includes('back over 0.5 ht')) return 1.45;
+  if (m.includes('over 0.5')) return 1.30;
+  if (m.includes('over 1.5 ht')) return 2.40;
+  if (m.includes('over 1.5')) return 1.75;
+  if (m.includes('over 2.5')) return 2.00;
+  if (m.includes('over 3.5')) return 2.80;
+  if (m.includes('over 4.5')) return 4.00;
+  if (m.includes('over 5.5')) return 6.00;
+  if (m.includes('under 2.5')) return 1.85;
+  if (m.includes('under 3.5')) return 1.40;
+  if (m.includes('under 1.5')) return 2.50;
+  if (m.includes('btts') || m.includes('ambas marcam')) return 1.80;
+  if (m.includes('próximo gol') || m.includes('proximo gol') || m.includes('gols restantes')) return 1.70;
+  return 1.85; // genérico conservador
 }
 
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
-  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0 });
+  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ResultFilter>('all');
 
@@ -79,19 +101,54 @@ export default function MycroftSinaisAprovados() {
       const [{ count: greensCount }, { count: redsCount }, { data: settledRows }] = await Promise.all([
         baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'green'),
         baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'red'),
-        baseFilter(supabase.from('mycroft_analyses').select('odd, result')).in('result', ['green', 'red']),
+        baseFilter(supabase.from('mycroft_analyses').select('odd, result, market')).in('result', ['green', 'red']),
       ]);
 
-      let pnlUnits = 0;
+      // 1.1) Média histórica de odd por mercado (entre sinais que TÊM odd) — usada como fallback
+      //      para sinais sem odd registrada do MESMO mercado.
+      const marketOddSum = new Map<string, { sum: number; n: number }>();
       for (const r of settledRows ?? []) {
-        const odd = Number((r as any).odd) || 0;
-        if (!odd) continue;
-        if ((r as any).result === 'green') pnlUnits += odd - 1;
-        else if ((r as any).result === 'red') pnlUnits -= 1;
+        const odd = Number((r as any).odd);
+        const market = String((r as any).market || '').trim();
+        if (!market || !Number.isFinite(odd) || odd <= 1) continue;
+        const cur = marketOddSum.get(market) ?? { sum: 0, n: 0 };
+        cur.sum += odd; cur.n += 1;
+        marketOddSum.set(market, cur);
+      }
+      const marketOddAvg = (market: string | null | undefined): number | null => {
+        if (!market) return null;
+        const e = marketOddSum.get(market);
+        if (!e || e.n === 0) return null;
+        return e.sum / e.n;
+      };
+
+      // 1.2) ROI correto: stake = 1u por sinal válido, profit = (odd-1) GREEN / -1 RED.
+      //      Sinais sem odd ganham fallback (média do próprio mercado → fallback genérico).
+      let pnlUnits = 0;
+      let stakeUnits = 0;
+      let validSignals = 0;
+      for (const r of settledRows ?? []) {
+        const result = (r as any).result as 'green' | 'red';
+        const market = (r as any).market as string | null;
+        let odd = Number((r as any).odd);
+        if (!Number.isFinite(odd) || odd <= 1) {
+          odd = marketOddAvg(market) ?? fallbackOddByMarket(market) ?? 0;
+        }
+        if (!Number.isFinite(odd) || odd <= 1) continue; // VOID/REEMBOLSO/sem fallback → ignora
+        stakeUnits += 1;
+        validSignals += 1;
+        if (result === 'green') pnlUnits += odd - 1;
+        else if (result === 'red') pnlUnits -= 1;
       }
 
       if (mounted) {
-        setAggStats({ greens: greensCount ?? 0, reds: redsCount ?? 0, pnlUnits });
+        setAggStats({
+          greens: greensCount ?? 0,
+          reds: redsCount ?? 0,
+          pnlUnits,
+          stakeUnits,
+          validSignals,
+        });
       }
 
       // 2) Lista paginada (mantém limite p/ não estourar memória)
@@ -167,7 +224,8 @@ export default function MycroftSinaisAprovados() {
     const reds = aggStats.reds;
     const settled = greens + reds;
     const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-    const roi = settled > 0 ? (aggStats.pnlUnits / settled) * 100 : 0;
+    // ROI = (lucro_total / aporte_total) * 100, considerando só sinais com odd válida (real ou fallback de mercado)
+    const roi = aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0;
     return { greens, reds, winRate, roi };
   }, [aggStats]);
 
