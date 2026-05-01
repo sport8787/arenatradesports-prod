@@ -102,17 +102,20 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  // Refetch quando a aba volta ao foco ou quando a janela ganha visibilidade
-  // (cobre o caso: admin ativou plano em outra aba/painel e o usuário volta aqui).
+  // Refetch APENAS quando a janela ganha foco após >5min (evita "recarregar" a cada alt-tab).
+  // Realtime via channel abaixo já cobre updates instantâneos quando o admin altera o plano.
   useEffect(() => {
     if (!user) return;
-    const onFocus = () => fetchSubscription();
-    const onVisibility = () => { if (document.visibilityState === 'visible') fetchSubscription(); };
+    let lastFetch = Date.now();
+    const onFocus = () => {
+      if (Date.now() - lastFetch > 5 * 60 * 1000) {
+        lastFetch = Date.now();
+        fetchSubscription();
+      }
+    };
     window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [user, fetchSubscription]);
 

@@ -71,7 +71,16 @@ const AdminAuditoriaSinais = React.lazy(() => import("./pages/AdminAuditoriaSina
 const AdminAuditoriaSinalDetalhe = React.lazy(() => import("./pages/AdminAuditoriaSinalDetalhe"));
 const AdminMycroftChatAccessLog = React.lazy(() => import("./pages/AdminMycroftChatAccessLog"));
 
-const queryClient = new QueryClient();
+// Defaults conservadores: NÃO refazer fetch ao trocar de aba (causava sensação de "recarregar")
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30_000,
+    },
+  },
+});
 
 // Expose cache stats globally for debugging
 if (typeof window !== 'undefined') {
