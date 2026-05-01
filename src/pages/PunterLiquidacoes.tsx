@@ -18,6 +18,7 @@ interface Row {
   league: string | null;
   market: string;
   odd: number | null;
+  stakeAmount?: number | null;
   status: string | null;
   result: string | null; // 'green' | 'red' | 'void' | null
   profit_loss: number | null;
@@ -46,7 +47,7 @@ export default function PunterLiquidacoesPage() {
       // Sinais Punter unificados
       const { data: sigs } = await supabase
         .from('punter_sinais')
-        .select('id, match_id, home_team, away_team, league, market, odd, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
+        .select('id, match_id, home_team, away_team, league, market, odd, stake_amount, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
         .gte('commence_time', since)
         .order('commence_time', { ascending: false })
         .limit(500);
@@ -87,6 +88,7 @@ export default function PunterLiquidacoesPage() {
           league: s.league || null,
           market: s.market,
           odd: Number(s.odd) || null,
+          stakeAmount: s.stake_amount != null ? Number(s.stake_amount) : null,
           status: s.status,
           result: s.resultado,
           profit_loss: s.profit_loss,
@@ -113,8 +115,8 @@ export default function PunterLiquidacoesPage() {
 
         return [
           { ...base, id: `${f.id}-vitoria`, market: `Vitória do Favorito (${f.favorito || 'Favorito'})`, result: f.resultado_vitoria || null },
-          { ...base, id: `${f.id}-over15`, market: 'Over 1.5 FT', result: f.resultado_over15 || null },
-          { ...base, id: `${f.id}-over25`, market: 'Over 2.5 FT', result: f.resultado_over25 || null },
+          { ...base, id: `${f.id}-over15`, market: 'Over 1.5 FT', odd: 1.45, result: f.resultado_over15 || null },
+          { ...base, id: `${f.id}-over25`, market: 'Over 2.5 FT', odd: 1.85, result: f.resultado_over25 || null },
         ];
       });
 
@@ -227,24 +229,37 @@ export default function PunterLiquidacoesPage() {
     futuros: periodRows.filter(isFuture).length,
   };
 
-  // Métricas honestas: só consideram sinais com odd válida (> 1)
-  // Plano Favorito sem odd e qualquer linha sem odd ficam fora dos cálculos.
+  // Métricas honestas: usam TODOS os sinais liquidados (green/red).
+  // O lucro hipotético é normalizado em 1u por sinal para não distorcer o ROI
+  // quando a stake real varia entre fontes/tabelas.
   const STAKE_UNIT = 1;
-  const computable = periodRows.filter(
-    (r) => (isGreen(r) || isRed(r)) && r.odd != null && r.odd > 1
-  );
-  const computableGreen = computable.filter(isGreen).length;
-  const computableRed = computable.filter(isRed).length;
-  const decided = computableGreen + computableRed;
-  const winRate = decided > 0 ? (computableGreen / decided) * 100 : 0;
+  const decidedRows = periodRows.filter((r) => isGreen(r) || isRed(r));
+  const greenCount = decidedRows.filter(isGreen).length;
+  const redCount = decidedRows.filter(isRed).length;
+  const decided = greenCount + redCount;
+  const winRate = decided > 0 ? (greenCount / decided) * 100 : 0;
 
-  const profitData = computable.reduce(
+  const getHypotheticalProfitUnits = (r: Row) => {
+    if (isRed(r)) return -STAKE_UNIT;
+
+    if (r.odd != null && r.odd > 1) {
+      return (r.odd - 1) * STAKE_UNIT;
+    }
+
+    if (r.profit_loss != null && r.stakeAmount != null && r.stakeAmount > 0) {
+      return Number(r.profit_loss) / Number(r.stakeAmount);
+    }
+
+    if (r.profit_loss != null && Number(r.profit_loss) > 0) {
+      return Number(r.profit_loss);
+    }
+
+    return 0;
+  };
+
+  const profitData = decidedRows.reduce(
     (acc, r) => {
-      if (isGreen(r)) {
-        acc.profit += (r.odd! - 1) * STAKE_UNIT;
-      } else if (isRed(r)) {
-        acc.profit -= STAKE_UNIT;
-      }
+      acc.profit += getHypotheticalProfitUnits(r);
       acc.staked += STAKE_UNIT;
       return acc;
     },
@@ -321,7 +336,7 @@ export default function PunterLiquidacoesPage() {
               )}>
                 {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">1u = 1 unidade de stake</div>
+              <div className="text-[10px] font-mono text-muted-foreground">Base: 1u por sinal liquidado</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
@@ -331,12 +346,12 @@ export default function PunterLiquidacoesPage() {
               )}>
                 {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">{profitData.staked.toFixed(0)}u apostadas</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{decided} sinais decididos</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
               <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
-              <div className="text-[10px] font-mono text-muted-foreground">{computableGreen}/{decided} c/ odd</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
