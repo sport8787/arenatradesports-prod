@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, LogOut, Eye } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
+import PunterMenuHeroStatus from '@/components/punter/PunterMenuHeroStatus';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { HeroParticles } from '@/components/landing/HeroParticles';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
@@ -97,6 +98,7 @@ export default function PunterMenuPage() {
             Todas as ferramentas, ajustes e canais oficiais do Oráculo Mycroft.
           </p>
         </div>
+        <PunterMenuHeroStatus />
         <PunterNavGrid />
       </main>
 

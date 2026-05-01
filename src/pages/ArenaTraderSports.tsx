@@ -32,14 +32,6 @@ import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 
-// Fallback mock data shown when no real data exists
-const mockMatches: Match[] = [
-  { id: '1', championship: 'Copa do Mundo 2026', championshipColor: 'yellow', home: 'Brasil', away: 'Argentina', homeLogo: '🇧🇷', awayLogo: '🇦🇷', scoreHome: 2, scoreAway: 1, minute: 34, period: '1º Tempo', status: 'live', mycroftStatus: 'APROVADO' },
-  { id: '2', championship: 'Champions League', championshipColor: 'blue', home: 'Real Madrid', away: 'Barcelona', homeLogo: '⚪', awayLogo: '🔴', scoreHome: 0, scoreAway: 0, minute: 23, period: '1º Tempo', status: 'live', mycroftStatus: 'AGUARDAR' },
-  { id: '3', championship: 'Brasileirão', championshipColor: 'green', home: 'Flamengo', away: 'Palmeiras', homeLogo: '🔴⚫', awayLogo: '🟢', scoreHome: 1, scoreAway: 1, minute: 67, period: '2º Tempo', status: 'live', mycroftStatus: 'JOGO_MORTO' },
-  { id: '4', championship: 'La Liga', championshipColor: 'red', home: 'Atlético Madrid', away: 'Sevilla', homeLogo: '🔴⚪', awayLogo: '⚪🔴', scoreHome: 0, scoreAway: 1, minute: 72, period: '2º Tempo', status: 'live', mycroftStatus: 'LABAREDA' },
-  { id: '5', championship: 'Europa League', championshipColor: 'blue', home: 'Braga', away: 'Ferencvaros', homeLogo: '🔴', awayLogo: '🟢', scoreHome: 2, scoreAway: 0, minute: 55, period: '2º Tempo', status: 'live', mycroftStatus: 'CUIDADO' },
-];
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
   const lower = name.toLowerCase();
