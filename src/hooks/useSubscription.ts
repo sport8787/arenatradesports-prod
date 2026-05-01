@@ -13,7 +13,7 @@ export type ArenaKey =
 export interface Subscription {
   id: string;
   user_id: string;
-  plan: 'trial' | 'starter' | 'base' | 'premium';
+  plan: 'trial' | 'starter' | 'basic' | 'base' | 'premium';
   trial_started_at: string | null;
   trial_ends_at: string | null;
   subscription_started_at: string | null;
@@ -32,6 +32,7 @@ export interface Subscription {
 const PLAN_DEFAULT_ARENAS: Record<string, ArenaKey[]> = {
   trial:   ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
   starter: ['arena_live'],
+  basic:   ['arena_punter'],
   base:    ['arena_live', 'arena_punter'],
   premium: ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
 };
@@ -132,7 +133,7 @@ export function useSubscription() {
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaidActive =
-    (subscription?.plan === 'starter' || subscription?.plan === 'base' || subscription?.plan === 'premium') &&
+    (subscription?.plan === 'starter' || subscription?.plan === 'basic' || subscription?.plan === 'base' || subscription?.plan === 'premium') &&
     !!subscription?.is_active &&
     (!subscription?.subscription_ends_at || new Date(subscription.subscription_ends_at) > new Date());
 

@@ -27,7 +27,7 @@ export default function AdminAssinaturas() {
 
   // Form state
   const [email, setEmail] = useState('');
-  const [plan, setPlan] = useState<'starter' | 'base' | 'premium' | 'trial'>('starter');
+  const [plan, setPlan] = useState<'starter' | 'basic' | 'base' | 'premium' | 'trial'>('starter');
   const [endsAt, setEndsAt] = useState('');
   const [arenas, setArenas] = useState<string[]>(['arena_live']);
   const [notes, setNotes] = useState('');
@@ -168,7 +168,8 @@ export default function AdminAssinaturas() {
               <select value={plan} onChange={(e) => setPlan(e.target.value as any)}
                 className="w-full bg-background border border-border rounded px-3 py-2 font-mono text-xs">
                 <option value="trial">Trial</option>
-                <option value="starter">Starter (Arena Live)</option>
+                <option value="starter">Starter (só Arena Live)</option>
+                <option value="basic">Basic (só Arena Punter)</option>
                 <option value="base">Base (Live + Punter)</option>
                 <option value="premium">Premium (Tudo)</option>
               </select>

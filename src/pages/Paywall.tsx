@@ -21,7 +21,7 @@ const PLANS = [
     planKey: 'starter' as const,
     price: '99,90',
     icon: TrendingUp,
-    description: 'Comece pela Arena Live',
+    description: 'Só Arena Live (ao vivo)',
     includes: [
       'Arena Live (Trader Sports ao vivo)',
       'Sinais Mycroft em tempo real',
@@ -39,13 +39,36 @@ const PLANS = [
     popular: false,
   },
   {
+    name: 'Basic',
+    planKey: 'basic' as const,
+    price: '99,90',
+    icon: Trophy,
+    description: 'Só Arena Punter (pré-jogo)',
+    includes: [
+      'Arena Punter (sinais pré-jogo)',
+      'Asset Score, Kelly e Sherlock',
+      'Telegram VIP Pré-Live',
+      'Liquidações com ROI 7d / 30d',
+      'Push de novos sinais aprovados',
+      'Suporte por email',
+    ],
+    excludes: [
+      'Arena Live (Trader Sports ao vivo)',
+      'Gerador de Múltiplas',
+      'Banca Virtual e Banca Real',
+      'Chat com o Mycroft em cada jogo',
+    ],
+    url: 'https://pay.kiwify.com.br/5lryTVK',
+    popular: false,
+  },
+  {
     name: 'Base',
     planKey: 'base' as const,
     price: '149,90',
     icon: Trophy,
     description: 'Live + Punter (mais escolhido)',
     includes: [
-      'Tudo do Starter +',
+      'Arena Live + Arena Punter (Starter + Basic juntos)',
       'Arena Punter (sinais pré-jogo)',
       'Asset Score, Kelly, Sherlock',
       'Telegram VIP Pré-Live',
@@ -144,7 +167,7 @@ export default function Paywall() {
         </div>
 
         {/* Plans */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             return (
