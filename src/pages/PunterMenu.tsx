@@ -98,6 +98,7 @@ export default function PunterMenuPage() {
             Todas as ferramentas, ajustes e canais oficiais do Oráculo Mycroft.
           </p>
         </div>
+        <PunterMenuHeroStatus />
         <PunterNavGrid />
       </main>
 
