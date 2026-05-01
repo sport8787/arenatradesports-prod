@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +104,7 @@ function detectInconsistencies(row: Omit<AuditRow, "inconsistencies">): string[]
 
 export default function AdminAuditoriaSinais() {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "inconsistent" | "green" | "red" | "pending">("inconsistent");
@@ -351,7 +352,8 @@ export default function AdminAuditoriaSinais() {
                     return (
                       <TableRow
                         key={`${r.source}-${r.id}`}
-                        className={bad ? "bg-destructive/10 hover:bg-destructive/15" : ""}
+                        onClick={() => navigate(`/admin/auditoria-sinais/${r.source}/${r.id}`)}
+                        className={`cursor-pointer ${bad ? "bg-destructive/10 hover:bg-destructive/15" : "hover:bg-muted/40"}`}
                       >
                         <TableCell className="text-xs whitespace-nowrap">
                           <div>{fmtDate(r.approved_at_timestamp)}</div>
