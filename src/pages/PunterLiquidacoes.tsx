@@ -115,8 +115,8 @@ export default function PunterLiquidacoesPage() {
 
         return [
           { ...base, id: `${f.id}-vitoria`, market: `Vitória do Favorito (${f.favorito || 'Favorito'})`, result: f.resultado_vitoria || null },
-          { ...base, id: `${f.id}-over15`, market: 'Over 1.5 FT', result: f.resultado_over15 || null },
-          { ...base, id: `${f.id}-over25`, market: 'Over 2.5 FT', result: f.resultado_over25 || null },
+          { ...base, id: `${f.id}-over15`, market: 'Over 1.5 FT', odd: 1.45, result: f.resultado_over15 || null },
+          { ...base, id: `${f.id}-over25`, market: 'Over 2.5 FT', odd: 1.85, result: f.resultado_over25 || null },
         ];
       });
 
