@@ -40,7 +40,7 @@ export default function LandingPage() {
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/punter/menu', { replace: true });
+      navigate('/menu', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 
