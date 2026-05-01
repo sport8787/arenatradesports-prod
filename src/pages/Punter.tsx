@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { getNextPunterAnalysisWindow, formatMinutesUntil } from '@/lib/punterSchedule';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
