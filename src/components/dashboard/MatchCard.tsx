@@ -485,6 +485,17 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           currentStats={match.stats as any}
         />
       )}
+      <MatchPressureModal
+        open={pressureOpen}
+        onOpenChange={setPressureOpen}
+        home={match.home}
+        away={match.away}
+        fallbackHomeLogo={match.homeLogo}
+        fallbackAwayLogo={match.awayLogo}
+        fallbackScoreHome={match.scoreHome}
+        fallbackScoreAway={match.scoreAway}
+        fallbackMinute={match.minute}
+      />
     </TooltipProvider>
   );
 }
