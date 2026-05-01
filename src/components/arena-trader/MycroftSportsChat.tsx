@@ -352,7 +352,7 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
 
         {!canUseChat ? (
           <div className="p-4">
-            <MycroftChatGate variant="panel" title="Chat com Mycroft Sports é Premium">
+            <MycroftChatGate variant="panel" source="sports" title="Chat com Mycroft Sports é Premium">
               <></>
             </MycroftChatGate>
           </div>

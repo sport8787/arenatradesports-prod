@@ -227,7 +227,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
             transition={{ duration: 0.2 }}
           >
             {!canUseChat ? (
-              <MycroftChatGate variant="inline" title="Chat com Mycroft Analyst é Premium">
+              <MycroftChatGate variant="inline" source="analyst" title="Chat com Mycroft Analyst é Premium">
                 <></>
               </MycroftChatGate>
             ) : (
