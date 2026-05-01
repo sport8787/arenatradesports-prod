@@ -28,6 +28,7 @@ interface Row {
 }
 
 type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
+type PeriodFilter = 'ontem' | '7d' | '30d' | '14d_all';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
@@ -35,11 +36,12 @@ export default function PunterLiquidacoesPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [tab, setTab] = useState<Tab>('pendentes');
+  const [period, setPeriod] = useState<PeriodFilter>('14d_all');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       // Sinais Punter unificados
       const { data: sigs } = await supabase
@@ -165,19 +167,48 @@ export default function PunterLiquidacoesPage() {
   const now = Date.now();
   const isFinished = (r: Row) => {
     const t = new Date(r.commence_time).getTime();
-    // Considera jogo terminado ~2h30 após o kickoff
     return !isNaN(t) && t + 2.5 * 60 * 60 * 1000 < now;
   };
   const isGreen = (r: Row) => r.result === 'green' || r.result === 'GREEN';
   const isRed = (r: Row) => r.result === 'red' || r.result === 'RED';
   const isVoid = (r: Row) => r.result === 'void' || r.result === 'VOID';
   const isResolved = (r: Row) => isGreen(r) || isRed(r) || isVoid(r);
-  // Pendente = sinal sem resultado ainda (jogo já terminado mas não foi liquidado)
-  const isPending = (r: Row) => !isResolved(r) && isFinished(r);
-  // Futuro = sinal de jogo que ainda não terminou
+  // Pendente "real" = jogo terminou há menos de 36h e ainda não foi liquidado
+  // (depois disso consideramos órfão e ocultamos da UI para não poluir)
+  const isPending = (r: Row) => {
+    if (isResolved(r)) return false;
+    const t = new Date(r.commence_time).getTime();
+    if (isNaN(t)) return false;
+    const finished = t + 2.5 * 60 * 60 * 1000 < now;
+    const tooOld = t + 36 * 60 * 60 * 1000 < now;
+    return finished && !tooOld;
+  };
   const isFuture = (r: Row) => !isResolved(r) && !isFinished(r);
 
-  const filtered = rows.filter(r => {
+  // Filtro por período (commence_time)
+  const { periodCutoff, periodEnd, periodLabel } = (() => {
+    const d = new Date();
+    if (period === 'ontem') {
+      const yesterday = new Date(d);
+      yesterday.setDate(d.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return { periodCutoff: yesterday.getTime(), periodEnd: today.getTime(), periodLabel: 'Ontem' };
+    }
+    if (period === '7d') return { periodCutoff: d.getTime() - 7 * 86400000, periodEnd: d.getTime() + 86400000, periodLabel: 'Últimos 7 dias' };
+    if (period === '30d') return { periodCutoff: d.getTime() - 30 * 86400000, periodEnd: d.getTime() + 86400000, periodLabel: 'Últimos 30 dias' };
+    return { periodCutoff: d.getTime() - 14 * 86400000, periodEnd: d.getTime() + 86400000, periodLabel: 'Últimos 14 dias' };
+  })();
+
+  const inPeriod = (r: Row) => {
+    const t = new Date(r.commence_time).getTime();
+    return !isNaN(t) && t >= periodCutoff && t <= periodEnd;
+  };
+
+  const periodRows = rows.filter(inPeriod);
+
+  const filtered = periodRows.filter(r => {
     if (tab === 'todos') return true;
     if (tab === 'pendentes') return isPending(r);
     if (tab === 'futuros') return isFuture(r);
@@ -188,17 +219,33 @@ export default function PunterLiquidacoesPage() {
   });
 
   const counts = {
-    todos: rows.length,
-    pendentes: rows.filter(isPending).length,
-    green: rows.filter(isGreen).length,
-    red: rows.filter(isRed).length,
-    void: rows.filter(isVoid).length,
-    futuros: rows.filter(isFuture).length,
+    todos: periodRows.length,
+    pendentes: periodRows.filter(isPending).length,
+    green: periodRows.filter(isGreen).length,
+    red: periodRows.filter(isRed).length,
+    void: periodRows.filter(isVoid).length,
+    futuros: periodRows.filter(isFuture).length,
   };
 
-  // Win rate exclui VOID (não conta nem como vitória nem como derrota)
   const decided = counts.green + counts.red;
   const winRate = decided > 0 ? (counts.green / decided) * 100 : 0;
+
+  // Lucro hipotético (1 unidade por sinal)
+  const STAKE_UNIT = 1;
+  const profitData = periodRows.reduce(
+    (acc, r) => {
+      if (isGreen(r) && r.odd && r.odd > 1) {
+        acc.profit += (r.odd - 1) * STAKE_UNIT;
+        acc.staked += STAKE_UNIT;
+      } else if (isRed(r)) {
+        acc.profit -= STAKE_UNIT;
+        acc.staked += STAKE_UNIT;
+      }
+      return acc;
+    },
+    { profit: 0, staked: 0 }
+  );
+  const roi = profitData.staked > 0 ? (profitData.profit / profitData.staked) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -224,25 +271,80 @@ export default function PunterLiquidacoesPage() {
       <main className="container mx-auto px-4 py-5 max-w-5xl space-y-5">
         <PunterBreadcrumb items={[{ label: 'Liquidações' }]} />
 
-        <div className="rounded-lg border border-border bg-card/50 p-4">
-          <h2 className="text-lg font-bold text-foreground">Sinais Punter (últimos 14 dias)</h2>
-          <p className="font-mono text-xs text-muted-foreground mt-1">
-            Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
-            Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
-            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span>,
-            <span className="text-slate-300"> VOID</span> ou
-            <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
-            Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-mono">
+        <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Sinais Punter — {periodLabel}</h2>
+              <p className="font-mono text-xs text-muted-foreground mt-1 max-w-2xl">
+                Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
+                Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
+                <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300"> RED</span>,
+                <span className="text-slate-300"> VOID</span> ou
+                <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
+              </p>
+            </div>
+            <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
+              {([
+                ['ontem', 'Ontem'],
+                ['7d', '7 dias'],
+                ['30d', '30 dias'],
+                ['14d_all', '14 dias'],
+              ] as [PeriodFilter, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriod(key)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-mono rounded transition-colors',
+                    period === key
+                      ? 'bg-primary text-primary-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Painel de lucro hipotético */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Lucro hipotético</div>
+              <div className={cn(
+                'font-mono text-xl font-bold',
+                profitData.profit > 0 ? 'text-emerald-400' : profitData.profit < 0 ? 'text-rose-400' : 'text-foreground'
+              )}>
+                {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">se seguisse todos (1u/sinal)</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
+              <div className={cn(
+                'font-mono text-xl font-bold',
+                roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-rose-400' : 'text-foreground'
+              )}>
+                {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">{profitData.staked.toFixed(0)}u apostadas</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
+              <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{counts.green}/{decided} (VOID excluído)</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
+              <div className="font-mono text-xl font-bold text-foreground">{decided + counts.void}</div>
+              <div className="text-[10px] font-mono text-muted-foreground">de {counts.todos} no período</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs font-mono pt-1">
             <span className="text-emerald-400">✅ {counts.green} GREEN</span>
             <span className="text-rose-400">❌ {counts.red} RED</span>
             <span className="text-slate-300">⚪ {counts.void} VOID</span>
             <span className="text-amber-300">⏳ {counts.pendentes} pendentes</span>
-            <span className="ml-auto text-foreground">
-              Win Rate: <strong>{winRate.toFixed(1)}%</strong>
-              <span className="text-muted-foreground"> ({counts.green}/{decided} — VOID excluído)</span>
-            </span>
           </div>
         </div>
 
