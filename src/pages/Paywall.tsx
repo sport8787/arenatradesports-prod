@@ -68,7 +68,7 @@ const PLANS = [
     icon: Trophy,
     description: 'Live + Punter (mais escolhido)',
     includes: [
-      'Tudo do Starter +',
+      'Arena Live + Arena Punter (Starter + Basic juntos)',
       'Arena Punter (sinais pré-jogo)',
       'Asset Score, Kelly, Sherlock',
       'Telegram VIP Pré-Live',
@@ -167,7 +167,7 @@ export default function Paywall() {
         </div>
 
         {/* Plans */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             return (
