@@ -68,6 +68,10 @@ export function RequireArena({ arena, arenaLabel, children }: RequireArenaProps)
           <br />
           Caso deseje usar essa função, faça upgrade.
         </p>
+        <p className="font-mono text-[10px] text-muted-foreground/70 leading-relaxed mb-4 italic">
+          Lembrete: durante o trial, todas as arenas ficam liberadas por cortesia. Após o trial,
+          o acesso passa a respeitar o plano contratado.
+        </p>
         <div className="flex gap-2 justify-center">
           <a
             href="/paywall"
