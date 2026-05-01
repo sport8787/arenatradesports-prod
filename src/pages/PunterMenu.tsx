@@ -26,7 +26,7 @@ export default function PunterMenuPage() {
   };
 
   useEffect(() => {
-    // Toca apresentação do Hórus na primeira visita ao /menu
+    // Toca apresentação do Hórus na primeira visita ao menu principal
     const t = setTimeout(() => playOnce('apresentacao_horus'), 600);
     return () => clearTimeout(t);
   }, [playOnce]);
@@ -67,9 +67,9 @@ export default function PunterMenuPage() {
       <header className="relative z-10 sticky top-0 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
-            onClick={() => navigate('/punter')}
+            onClick={() => navigate('/menu')}
             className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Voltar para Arena Punter"
+            aria-label="Voltar para o menu principal"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
