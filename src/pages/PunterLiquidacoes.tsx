@@ -321,7 +321,7 @@ export default function PunterLiquidacoesPage() {
               )}>
                 {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">se seguisse todos (1u/sinal)</div>
+              <div className="text-[10px] font-mono text-muted-foreground">1u = 1 unidade de stake</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
@@ -336,11 +336,11 @@ export default function PunterLiquidacoesPage() {
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
               <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
-              <div className="text-[10px] font-mono text-muted-foreground">{counts.green}/{decided} (VOID excluído)</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{computableGreen}/{decided} c/ odd</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
-              <div className="font-mono text-xl font-bold text-foreground">{decided + counts.void}</div>
+              <div className="font-mono text-xl font-bold text-foreground">{counts.green + counts.red + counts.void}</div>
               <div className="text-[10px] font-mono text-muted-foreground">de {counts.todos} no período</div>
             </div>
           </div>
