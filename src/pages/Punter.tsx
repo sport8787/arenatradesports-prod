@@ -120,6 +120,7 @@ export default function PunterPage() {
   const [showBacktest, setShowBacktest] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
+  const { isAdvanced } = usePunterViewMode();
   const [aiProvider, setAiProvider] = useState<'gemini' | 'anthropic'>('gemini');
   const [autoPlacedMatchIds, setAutoPlacedMatchIds] = useState<Set<string>>(new Set());
   const [placingHorusBets, setPlacingHorusBets] = useState(false);
