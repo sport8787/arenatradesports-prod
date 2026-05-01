@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info, Pencil, Activity } from 'lucide-react';
-import MatchPressureModal from './MatchPressureModal';
+import { Clock, ArrowRight, Loader2, Target, Check, ShieldAlert, Eye, Flame, AlertTriangle, Skull, Hourglass, Info, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
@@ -163,7 +162,7 @@ interface MatchCardProps {
 export default function MatchCard({ match, index, onAnalysisClick }: MatchCardProps) {
   const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
   const [adminEditOpen, setAdminEditOpen] = useState(false);
-  const [pressureOpen, setPressureOpen] = useState(false);
+  
   const { isAdmin } = useAdmin();
   const criteria = useMemo(() => computeCriteriaShared(match), [match]);
   const summary = useMemo(() => getCriteriaSummary(criteria), [criteria]);
@@ -285,18 +284,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           </div>
 
-          {/* Botão Gráfico de Pressão (apenas live) */}
-          {match.status === 'live' && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setPressureOpen(true); }}
-              className="w-full flex items-center justify-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground hover:text-primary hover:bg-primary/10 border border-border/50 hover:border-primary/40 transition-colors"
-              aria-label="Ver gráfico de pressão"
-            >
-              <Activity className="w-3 h-3" />
-              Gráfico de Pressão
-            </button>
-          )}
+          {/* Gráfico de Pressão agora é exibido dentro do modal "Ver Análise Completa" */}
 
           {/* Bet Placed Badge */}
           {match.hasBet && (
@@ -485,17 +473,6 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           currentStats={match.stats as any}
         />
       )}
-      <MatchPressureModal
-        open={pressureOpen}
-        onOpenChange={setPressureOpen}
-        home={match.home}
-        away={match.away}
-        fallbackHomeLogo={match.homeLogo}
-        fallbackAwayLogo={match.awayLogo}
-        fallbackScoreHome={match.scoreHome}
-        fallbackScoreAway={match.scoreAway}
-        fallbackMinute={match.minute}
-      />
     </TooltipProvider>
   );
 }

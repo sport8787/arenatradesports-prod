@@ -10,6 +10,8 @@ import { useSignalHistory } from '@/hooks/useSignalHistory';
 import type { Match } from '@/components/dashboard/MatchCard';
 import AdminStatsEditorModal from './AdminStatsEditorModal';
 import { useAdmin } from '@/hooks/useAdmin';
+import { MatchPressureChart, PressureFallback, useMatchPressure, FormDots } from './MatchPressureChart';
+import { Activity } from 'lucide-react';
 
 export interface AdditionalMarket {
   market: string;
@@ -79,6 +81,13 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
 
   const bankroll = bankrollProps ? { balance: bankrollProps.balance } : null;
   const recommendedStake = bankrollProps?.recommendedStake ?? 0;
+
+  // Live pressure chart (only fetches when modal is open and match is live)
+  const isLive = match?.status === 'live';
+  const { data: pressureData, loading: pressureLoading, error: pressureError } = useMatchPressure(
+    isOpen && isLive && match ? { home: match.home, away: match.away } : { home: '', away: '' },
+    30000,
+  );
 
   if (!match) return null;
 
@@ -229,6 +238,46 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
           ⏱️ {match.minute}' | {match.scoreHome}-{match.scoreAway}
         </p>
       </div>
+
+      {/* Live Pressure Chart (Sportmonks) */}
+      {isLive && (
+        <div className="rounded-xl border border-border/60 bg-card/40 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-orbitron uppercase tracking-wider text-muted-foreground">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              Gráfico de Pressão
+              {pressureData?.source === 'trends' && (
+                <span className="text-[9px] opacity-60 normal-case">(sintético)</span>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground/70">
+              Atualiza a cada 30s • Sportmonks
+            </span>
+          </div>
+
+          {pressureData && (
+            <div className="grid grid-cols-3 items-center gap-2 pb-1">
+              <div className="flex flex-col items-center gap-1 min-w-0">
+                <span className="text-[11px] font-semibold text-foreground truncate max-w-full">{pressureData.header.home.name}</span>
+                <FormDots form={pressureData.form.home} side="home" />
+              </div>
+              <div className="text-center text-[11px] font-orbitron text-primary">
+                {pressureData.header.minute > 0 ? `${pressureData.header.minute}'` : '—'}
+              </div>
+              <div className="flex flex-col items-center gap-1 min-w-0">
+                <span className="text-[11px] font-semibold text-foreground truncate max-w-full">{pressureData.header.away.name}</span>
+                <FormDots form={pressureData.form.away} side="away" />
+              </div>
+            </div>
+          )}
+
+          {pressureData ? (
+            <MatchPressureChart data={pressureData} height={200} />
+          ) : (
+            <PressureFallback loading={pressureLoading} error={pressureError} />
+          )}
+        </div>
+      )}
 
       {/* No analysis available */}
       {!analysis && (
