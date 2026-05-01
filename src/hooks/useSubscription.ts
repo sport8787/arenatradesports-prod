@@ -37,19 +37,28 @@ const PLAN_DEFAULT_ARENAS: Record<string, ArenaKey[]> = {
 };
 
 export function useSubscription() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [daysLeft, setDaysLeft] = useState(0);
 
   const fetchSubscription = useCallback(async () => {
+    // Enquanto o auth ainda está hidratando, NÃO marca loading=false:
+    // isso evita uma janela onde subscription=null e loading=false simultaneamente,
+    // o que faria RequireSubscription redirecionar pro /paywall mesmo para admins.
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
     if (!user) {
       setSubscription(null);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_subscriptions')
@@ -86,7 +95,7 @@ export function useSubscription() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     fetchSubscription();
@@ -147,7 +156,7 @@ export function useSubscription() {
 
   return {
     subscription,
-    loading: loading || adminLoading,
+    loading: loading || adminLoading || authLoading,
     daysLeft,
     isTrialActive,
     isTrialExpired,
