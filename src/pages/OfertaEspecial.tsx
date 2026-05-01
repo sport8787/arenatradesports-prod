@@ -1,63 +1,79 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft } from 'lucide-react';
+import { Check, X, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
 
+/**
+ * Mesma matriz do Paywall, com 50% OFF aplicado.
+ * Planos alinhados ao banco: starter / base / premium.
+ */
 const PLANS = [
   {
     name: 'Starter',
+    planKey: 'starter' as const,
     originalPrice: '99,90',
     price: '49,95',
     icon: TrendingUp,
-    description: 'Para começar a investir',
-    features: [
-      'Mycroft IA (Asset Score básico)',
-      'Até 50 posições/mês',
-      'Dashboard completo',
-      'Track record auditável',
+    description: 'Comece pela Arena Live',
+    includes: [
+      'Arena Live (Trader Sports ao vivo)',
+      'Sinais Mycroft em tempo real',
+      'Push e Telegram VIP ao vivo',
+      'Dashboard de jogos ao vivo',
       'Suporte por email',
+    ],
+    excludes: [
+      'Arena Punter (sinais pré-jogo)',
+      'Gerador de Múltiplas',
+      'Banca Virtual e Banca Real',
+      'Chat com o Mycroft em cada jogo',
     ],
     url: 'https://pay.kiwify.com.br/lcjBFYZ',
     popular: false,
   },
   {
-    name: 'Professional',
-    originalPrice: '199,90',
-    price: '99,95',
+    name: 'Base',
+    planKey: 'base' as const,
+    originalPrice: '149,90',
+    price: '74,95',
     icon: Trophy,
-    description: 'Mais popular',
-    features: [
+    description: 'Live + Punter (mais escolhido)',
+    includes: [
       'Tudo do Starter +',
-      'Hórus IA (proteção tilt)',
-      'Posições ilimitadas',
-      'Dual Bankroll',
-      'Sharp Money Detector',
-      'Garantia Dobro',
+      'Arena Punter (sinais pré-jogo)',
+      'Asset Score, Kelly, Sherlock',
+      'Telegram VIP Pré-Live',
+      'Liquidações com ROI 7d / 30d',
       'Suporte prioritário',
+    ],
+    excludes: [
+      'Gerador de Múltiplas',
+      'Banca Virtual e Banca Real',
+      'Chat com o Mycroft em cada jogo',
     ],
     url: 'https://pay.kiwify.com.br/stAtq0L',
     popular: true,
   },
   {
-    name: 'Enterprise',
-    originalPrice: '299,90',
-    price: '149,95',
+    name: 'Premium',
+    planKey: 'premium' as const,
+    originalPrice: '199,90',
+    price: '99,95',
     icon: Rocket,
-    description: 'Tudo liberado + Chat com Mycroft',
-    features: [
-      'Tudo do Professional +',
-      'Arena Trader Sports completa',
-      'Chat com Mycroft em cada jogo',
-      'API access completa',
-      'Auto-execution (bot)',
-      'Self Learning Engine',
+    description: 'Tudo liberado + Chat Mycroft',
+    includes: [
+      'Tudo do Base +',
+      'Gerador de Múltiplas (IA + Kelly)',
+      'Banca Virtual e Banca Real (Betfair)',
+      'Chat com o Mycroft em cada jogo',
+      'Eventos Raros (LAY Goleada, 2x2…)',
       'Suporte 24/7',
-      'Consultoria mensal',
     ],
+    excludes: [],
     url: 'https://pay.kiwify.com.br/cKhGSCD',
     popular: false,
   },
@@ -97,7 +113,7 @@ export default function OfertaEspecial() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-5xl space-y-8"
+        className="relative z-10 w-full max-w-6xl space-y-8"
       >
         <button
           onClick={() => navigate(-1)}
@@ -122,9 +138,22 @@ export default function OfertaEspecial() {
             Não Vá Embora Ainda. <span className="text-red-400">50% OFF</span> Pra Você Ficar.
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Sabemos que o trial acabou. Por isso, liberamos um desconto de <strong className="text-red-400">50%</strong> em
-            qualquer plano — só hoje, só pra você. Continue treinando, continue ganhando.
+            Sabemos que o trial acabou. Por isso, liberamos um desconto de{' '}
+            <strong className="text-red-400">50%</strong> em qualquer plano — só hoje, só pra você.
           </p>
+        </div>
+
+        {/* Trial cortesia */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div className="text-sm text-muted-foreground">
+            <p className="font-medium text-foreground mb-1">O que muda do trial para o plano pago</p>
+            <p>
+              Durante o trial você teve <strong className="text-foreground">todas as arenas
+              liberadas por cortesia</strong>. A partir de agora o acesso passa a respeitar o
+              plano que você escolher abaixo. Cada plano deixa explícito o que inclui e o que não inclui.
+            </p>
+          </div>
         </div>
 
         {/* Plans */}
@@ -134,13 +163,13 @@ export default function OfertaEspecial() {
             return (
               <Card
                 key={plan.name}
-                className={`bg-card/80 backdrop-blur relative ${
+                className={`bg-card/80 backdrop-blur relative flex flex-col ${
                   plan.popular ? 'border-primary/50 ring-2 ring-primary/30' : 'border-border/50'
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground shadow-lg">MAIS POPULAR</Badge>
+                    <Badge className="bg-primary text-primary-foreground shadow-lg">MAIS ESCOLHIDO</Badge>
                   </div>
                 )}
                 <div className="absolute -top-3 right-3">
@@ -153,7 +182,7 @@ export default function OfertaEspecial() {
                   </CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 flex-1">
                   <div className="space-y-1">
                     <div className="text-sm text-muted-foreground line-through">
                       De R$ {plan.originalPrice}/mês
@@ -163,14 +192,36 @@ export default function OfertaEspecial() {
                       <span className="text-muted-foreground text-sm">/mês</span>
                     </div>
                   </div>
-                  <ul className="space-y-2 text-sm">
-                    {plan.features.map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-muted-foreground">
-                        <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+
+                  <div>
+                    <p className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-2">
+                      Está incluso
+                    </p>
+                    <ul className="space-y-1.5 text-sm">
+                      {plan.includes.map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {plan.excludes.length > 0 && (
+                    <div>
+                      <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70 mb-2">
+                        Não está incluso
+                      </p>
+                      <ul className="space-y-1.5 text-sm">
+                        {plan.excludes.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-muted-foreground/60">
+                            <X className="w-4 h-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                            <span className="line-through decoration-muted-foreground/30">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <a
