@@ -227,20 +227,25 @@ export default function PunterLiquidacoesPage() {
     futuros: periodRows.filter(isFuture).length,
   };
 
-  const decided = counts.green + counts.red;
-  const winRate = decided > 0 ? (counts.green / decided) * 100 : 0;
-
-  // Lucro hipotético (1 unidade por sinal)
+  // Métricas honestas: só consideram sinais com odd válida (> 1)
+  // Plano Favorito sem odd e qualquer linha sem odd ficam fora dos cálculos.
   const STAKE_UNIT = 1;
-  const profitData = periodRows.reduce(
+  const computable = periodRows.filter(
+    (r) => (isGreen(r) || isRed(r)) && r.odd != null && r.odd > 1
+  );
+  const computableGreen = computable.filter(isGreen).length;
+  const computableRed = computable.filter(isRed).length;
+  const decided = computableGreen + computableRed;
+  const winRate = decided > 0 ? (computableGreen / decided) * 100 : 0;
+
+  const profitData = computable.reduce(
     (acc, r) => {
-      if (isGreen(r) && r.odd && r.odd > 1) {
-        acc.profit += (r.odd - 1) * STAKE_UNIT;
-        acc.staked += STAKE_UNIT;
+      if (isGreen(r)) {
+        acc.profit += (r.odd! - 1) * STAKE_UNIT;
       } else if (isRed(r)) {
         acc.profit -= STAKE_UNIT;
-        acc.staked += STAKE_UNIT;
       }
+      acc.staked += STAKE_UNIT;
       return acc;
     },
     { profit: 0, staked: 0 }
