@@ -39,14 +39,17 @@ const PLACAR_LABEL: Record<string, { label: string; emoji: string; color: string
 
 interface Props {
   arena: "punter" | "trader_sports";
+  /** Quando true, colapsa o painel a uma linha quando não há sinais ao vivo */
+  compactWhenIdle?: boolean;
 }
 
-export default function EventosRarosPanel({ arena }: Props) {
+export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Props) {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
   const [sinais, setSinais] = useState<Sinal[]>([]);
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(true);
   const [threshold, setThreshold] = useState(60);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
