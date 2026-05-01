@@ -7,6 +7,7 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function PunterBancaVirtualPage() {
   const navigate = useNavigate();
@@ -20,25 +21,41 @@ export default function PunterBancaVirtualPage() {
 
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
+  const [settling, setSettling] = useState(false);
+
+  const reloadPending = async () => {
+    if (!user) return;
+    const [{ data: horus }, { data: manual }] = await Promise.all([
+      supabase.from('virtual_bets_punter').select('*').eq('user_id', user.id).eq('status', 'pending'),
+      supabase.from('virtual_bets_manual').select('*').eq('user_id', user.id).eq('status', 'pending'),
+    ]);
+    setPendingBets(horus || []);
+    setManualPendingBets(manual || []);
+  };
+
+  const handleSettleAll = async () => {
+    if (settling) return;
+    setSettling(true);
+    const tId = toast.loading('Liquidando entradas pendentes (Hórus + Minha Banca)...');
+    try {
+      const { data, error } = await supabase.functions.invoke('settle-bets', { body: {} });
+      if (error) throw error;
+      toast.success('Liquidação concluída', {
+        id: tId,
+        description: `Apostas liquidadas: ${data?.settled ?? 0} | Sinais: ${data?.signals_settled ?? 0} | Ignoradas: ${data?.skipped ?? 0}`,
+      });
+      await reloadPending();
+    } catch (e: any) {
+      toast.error('Falha ao liquidar', { id: tId, description: e?.message || String(e) });
+    } finally {
+      setSettling(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const [{ data: horus }, { data: manual }] = await Promise.all([
-        supabase
-          .from('virtual_bets_punter')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending'),
-        supabase
-          .from('virtual_bets_manual')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending'),
-      ]);
-      setPendingBets(horus || []);
-      setManualPendingBets(manual || []);
-    })();
+    reloadPending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const isLoading = bankrollLoading || manualLoading;
@@ -79,7 +96,12 @@ export default function PunterBancaVirtualPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <QuickBtn icon={<Bot className="w-3.5 h-3.5" />} label="Posições Hórus" onClick={() => navigate('/punter?panel=horus-positions')} />
             <QuickBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Posições" onClick={() => navigate('/punter?panel=my-positions')} />
-            <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={() => navigate('/punter?panel=settle')} />
+            <QuickBtn
+              icon={settling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              label={settling ? 'Liquidando...' : 'Liquidar'}
+              onClick={handleSettleAll}
+              disabled={settling}
+            />
             <QuickBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => navigate('/punter?panel=backtest')} />
             <QuickBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => navigate('/punter?panel=rankings')} />
             <QuickBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => navigate('/punter?panel=certificate')} />
@@ -113,15 +135,18 @@ function QuickBtn({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border bg-card hover:bg-card/70 hover:border-primary/40 text-foreground transition-colors text-[11px] font-mono font-semibold"
+      disabled={disabled}
+      className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border bg-card hover:bg-card/70 hover:border-primary/40 text-foreground transition-colors text-[11px] font-mono font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {icon}
       <span className="truncate">{label}</span>
