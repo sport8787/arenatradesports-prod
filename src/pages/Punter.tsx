@@ -33,6 +33,8 @@ import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 
 import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
+import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
+import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -1204,6 +1206,7 @@ export default function PunterPage() {
           )}
 
           <div className="flex items-center gap-1.5">
+            <PunterViewModeToggle />
             <button
               onClick={() => navigate('/punter/menu')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-mono font-semibold"
@@ -1216,7 +1219,9 @@ export default function PunterPage() {
                 <HeaderBtn icon={<Bot className="w-3.5 h-3.5" />} label="Posições Hórus" onClick={openHistory} />
                 <HeaderBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Posições" onClick={openManualHistory} />
                 <HeaderBtn icon={settlingBets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={handleSettleBets} disabled={settlingBets} />
-                <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
+                {isAdvanced && (
+                  <HeaderBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => setShowBacktest(true)} />
+                )}
                 <HeaderBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => setShowRankings(true)} />
                 <HeaderBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => setShowCertificate(true)} />
                 <HeaderBtn icon={<Brain className="w-3.5 h-3.5" />} label="KB" onClick={() => setIsChatOpen(true)} />
@@ -1291,7 +1296,7 @@ export default function PunterPage() {
                   el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
-              <SettledBetsDebugPanel userId={user?.id} />
+              {isAdvanced && <SettledBetsDebugPanel userId={user?.id} />}
             </>
           );
         })()}
@@ -1659,15 +1664,17 @@ export default function PunterPage() {
                     horusBetDate={realBetDate}
                     kellyPercent={kellyPercent}
                   />
-                  <div className="flex justify-end px-1">
-                    <SherlockAnalyticButton
-                      homeTeam={signal.match.home_team}
-                      awayTeam={signal.match.away_team}
-                      market={signal.recommendation.market}
-                      planName={(signal.recommendation as any).plan_name ?? ''}
-                      analysisId={(signal as any).analysis_id ?? null}
-                    />
-                  </div>
+                  {isAdvanced && (
+                    <div className="flex justify-end px-1">
+                      <SherlockAnalyticButton
+                        homeTeam={signal.match.home_team}
+                        awayTeam={signal.match.away_team}
+                        market={signal.recommendation.market}
+                        planName={(signal.recommendation as any).plan_name ?? ''}
+                        analysisId={(signal as any).analysis_id ?? null}
+                      />
+                    </div>
+                  )}
                 </div>
               );
                   })}
