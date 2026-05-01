@@ -297,7 +297,27 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           </div>
 
-          {/* Gráfico de Pressão agora é exibido dentro do modal "Ver Análise Completa" */}
+          {/* Gráfico de Pressão embutido — destaque abaixo do placar */}
+          {showPressureChart && (
+            <div
+              className="rounded-lg bg-background/40 border border-border/60 p-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-[9px] font-orbitron uppercase tracking-wider text-muted-foreground">
+                  📊 Pressão Ao Vivo
+                </span>
+                {pressureData?.source === 'trends' && (
+                  <span className="text-[9px] text-muted-foreground/70 italic">sintético</span>
+                )}
+              </div>
+              {pressureData ? (
+                <MatchPressureChart data={pressureData} height={90} showAxis={false} showEvents />
+              ) : (
+                <PressureFallback loading={pressureLoading} error={pressureError} />
+              )}
+            </div>
+          )}
 
           {/* Bet Placed Badge */}
           {match.hasBet && (
