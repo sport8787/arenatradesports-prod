@@ -181,7 +181,7 @@ export default function OfertaEspecial() {
         </div>
 
         {/* Plans */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             return (
