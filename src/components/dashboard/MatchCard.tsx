@@ -10,6 +10,7 @@ import { computeCriteria as computeCriteriaShared, getCriteriaSummary } from '@/
 import CriteriaDetailModal from './CriteriaDetailModal';
 import AdminStatsEditorModal from './AdminStatsEditorModal';
 import { useAdmin } from '@/hooks/useAdmin';
+import { MatchPressureChart, PressureFallback, useMatchPressure } from './MatchPressureChart';
 
 export interface MatchStats {
   possession_home?: number;
