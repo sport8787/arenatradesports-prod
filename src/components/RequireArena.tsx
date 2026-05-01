@@ -80,7 +80,7 @@ export function RequireArena({ arena, arenaLabel, children }: RequireArenaProps)
             Fazer upgrade <ArrowUpRight className="w-3.5 h-3.5" />
           </a>
           <a
-            href="/punter/menu"
+            href="/menu"
             className="inline-flex items-center font-mono text-xs px-4 py-2 rounded-lg border border-border hover:bg-muted/30 transition-colors"
           >
             Voltar
