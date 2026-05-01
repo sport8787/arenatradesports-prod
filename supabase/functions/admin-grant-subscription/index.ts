@@ -9,6 +9,7 @@ const corsHeaders = {
 const PLAN_ARENAS: Record<string, string[]> = {
   trial:   ["arena_live", "arena_punter", "multiplas", "banca_virtual", "banca_real"],
   starter: ["arena_live"],
+  basic:   ["arena_punter"],
   base:    ["arena_live", "arena_punter"],
   premium: ["arena_live", "arena_punter", "multiplas", "banca_virtual", "banca_real"],
 };
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!["trial", "starter", "base", "premium"].includes(plan)) {
+    if (!["trial", "starter", "basic", "base", "premium"].includes(plan)) {
       return new Response(JSON.stringify({ error: "invalid_plan" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
