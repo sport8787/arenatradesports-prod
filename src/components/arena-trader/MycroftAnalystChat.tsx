@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp, BookOpen } from 'lucide-react';
+import { Send, Upload, Trash2, FileText, Brain, ChevronDown, ChevronUp, Loader2, FileUp, BookOpen, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
 import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
+import MycroftChatGate from '@/components/mycroft/MycroftChatGate';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface MarketData {
   asset?: string;
@@ -191,6 +194,7 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
           <span className="font-orbitron text-xs font-bold text-amber-400 uppercase tracking-wider">
             Mycroft Analyst
           </span>
+          {!canUseChat && <Lock className="w-3 h-3 text-amber-400/50" />}
           {kbFiles.length > 0 && (
             <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold">
               {kbFiles.length} docs
@@ -218,6 +222,12 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
+            {!canUseChat ? (
+              <MycroftChatGate variant="inline" title="Chat com Mycroft Analyst é Premium">
+                <></>
+              </MycroftChatGate>
+            ) : (
+              <>
             {/* Knowledge Base Manager */}
             <div className="px-4 py-2 border-t border-amber-900/20">
               <button
