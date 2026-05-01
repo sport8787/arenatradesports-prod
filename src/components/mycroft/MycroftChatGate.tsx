@@ -61,7 +61,7 @@ export default function MycroftChatGate({
     else if (!subscription) reason = 'free';
     else if (subscription.plan === 'trial' && daysLeft <= 0) reason = 'trial_expired';
     else if (subscription.plan === 'trial') reason = 'plan_insufficient';
-    else if (['starter', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
+    else if (['starter', 'basic', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
 
     logMycroftChatAttempt({
       source,

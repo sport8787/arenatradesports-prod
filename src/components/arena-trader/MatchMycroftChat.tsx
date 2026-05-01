@@ -81,7 +81,7 @@ export default function MatchMycroftChat({ matchContext }: Props) {
     let reason: 'free' | 'trial_expired' | 'plan_insufficient' | 'unknown' = 'unknown';
     if (!subscription) reason = 'free';
     else if (subscription.plan === 'trial' && daysLeft <= 0) reason = 'trial_expired';
-    else if (['trial', 'starter', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
+    else if (['trial', 'starter', 'basic', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
     logMycroftChatAttempt({
       source: 'match',
       reason,
