@@ -96,7 +96,12 @@ export default function PunterBancaVirtualPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <QuickBtn icon={<Bot className="w-3.5 h-3.5" />} label="Posições Hórus" onClick={() => navigate('/punter?panel=horus-positions')} />
             <QuickBtn icon={<User className="w-3.5 h-3.5" />} label="Minhas Posições" onClick={() => navigate('/punter?panel=my-positions')} />
-            <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Liquidar" onClick={() => navigate('/punter?panel=settle')} />
+            <QuickBtn
+              icon={settling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              label={settling ? 'Liquidando...' : 'Liquidar'}
+              onClick={handleSettleAll}
+              disabled={settling}
+            />
             <QuickBtn icon={<Activity className="w-3.5 h-3.5" />} label="Backtest" onClick={() => navigate('/punter?panel=backtest')} />
             <QuickBtn icon={<Trophy className="w-3.5 h-3.5" />} label="Ranking" onClick={() => navigate('/punter?panel=rankings')} />
             <QuickBtn icon={<Award className="w-3.5 h-3.5" />} label="Cert." onClick={() => navigate('/punter?panel=certificate')} />
