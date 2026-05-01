@@ -196,6 +196,18 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         : '';
   const isImminent = !eliminatoryFailed && criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
 
+  // Gráfico de pressão embutido — somente jogos ao vivo OU sinais aprovados
+  const showPressureChart =
+    match.status === 'live' ||
+    effectiveStatus === 'APROVADO' ||
+    effectiveStatus === 'APROVADO_SITUACIONAL' ||
+    effectiveStatus === 'LABAREDA' ||
+    effectiveStatus === 'opportunity';
+  const { data: pressureData, loading: pressureLoading, error: pressureError } = useMatchPressure(
+    showPressureChart ? { home: match.home, away: match.away } : { home: '', away: '' },
+    30000,
+  );
+
   return (
     <TooltipProvider delayDuration={200}>
       <motion.div
