@@ -11,23 +11,20 @@ interface Stats {
   loading: boolean;
 }
 
-const CACHE_KEY = 'menu-hero-status';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — fresh enough sem ficar piscando
+const CACHE_KEY = 'menu-hero-status-v2';
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
- * Faixa compacta no /menu mostrando o pulso recente do Punter:
- *  - Sinais APROVADOS para hoje (punter_analyses, commence_time = hoje)
- *  - ROI 7 dias (calculado em unidades, base 1u por sinal liquidado)
- *  - Green/Red 7 dias
+ * Faixa compacta no /menu — espelha a lógica da página /punter/liquidacoes
+ * (mesmas fontes: punter_sinais + sinais_favorito_prelive + eventos_raros_sinais)
+ * para que os números sejam idênticos.
  *
- * IMPORTANTE: ROI usa a odd registrada no sinal (referência exibida na aprovação).
- *   green: lucro = (odd - 1) por unidade apostada
- *   red:   lucro = -1 por unidade apostada
- * Quando a odd está ausente, tentamos derivar de profit_loss/stake_amount.
+ * Métricas (últimos 7 dias por commence_time):
+ *   - Sinais hoje: APROVADOS de punter_analyses cujo jogo começa hoje
+ *   - ROI 7d: lucro hipotético em unidades / total apostado (1u por sinal liquidado)
+ *   - G/R 7d: contagem de green/red entre sinais decididos
  */
 export default function PunterMenuHeroStatus() {
-  // Hidrata com snapshot do cache de sessão (se houver) — números aparecem
-  // instantaneamente ao voltar para a aba, sem piscar nem zerar.
   const cached = readCache<Omit<Stats, 'loading'>>(CACHE_KEY, CACHE_TTL_MS);
   const [stats, setStats] = useState<Stats>(
     cached
@@ -43,9 +40,11 @@ export default function PunterMenuHeroStatus() {
         startOfToday.setHours(0, 0, 0, 0);
         const endOfToday = new Date();
         endOfToday.setHours(23, 59, 59, 999);
-        const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const since7dDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const since7d = since7dDate.toISOString();
+        const periodEnd = Date.now() + 86400000;
 
-        // Sinais APROVADOS cujos jogos começam hoje (fonte de verdade: punter_analyses)
+        // Sinais APROVADOS para hoje
         const { count: countToday } = await supabase
           .from('punter_analyses')
           .select('id', { count: 'exact', head: true })
@@ -53,43 +52,99 @@ export default function PunterMenuHeroStatus() {
           .gte('commence_time', startOfToday.toISOString())
           .lte('commence_time', endOfToday.toISOString());
 
-        // Resolvidos nos últimos 7d para ROI/Win Rate
-        const { data: resolved } = await supabase
-          .from('punter_signals')
-          .select('result, profit_loss, stake_amount, odd')
-          .gte('resulted_at', since7d)
-          .in('result', ['green', 'red'])
-          .eq('dismissed', false);
+        // Mesmas 3 fontes da página /liquidações
+        const [{ data: sigs }, { data: favoritos }, { data: raros }] = await Promise.all([
+          supabase
+            .from('punter_sinais')
+            .select('odd, stake_amount, resultado, profit_loss, commence_time')
+            .gte('commence_time', since7d)
+            .limit(500),
+          supabase
+            .from('sinais_favorito_prelive')
+            .select('match_date, fav_odd, resultado_vitoria, resultado_over15, resultado_over25')
+            .gte('match_date', since7d)
+            .limit(200),
+          supabase
+            .from('eventos_raros_sinais')
+            .select('odd_entrada, resultado, profit_loss, status, created_at, candidato_id')
+            .gte('created_at', since7d)
+            .limit(200),
+        ]);
 
-        let totalUnits = 0; // somatório lucro/prejuízo em unidades
-        let totalStakeUnits = 0; // total apostado (1u por sinal)
+        const STAKE_UNIT = 1;
+        const norm = (v: any) => (v ? String(v).toLowerCase() : null);
+        const inPeriod = (iso: string | null) => {
+          if (!iso) return false;
+          const t = new Date(iso).getTime();
+          return !isNaN(t) && t >= since7dDate.getTime() && t <= periodEnd;
+        };
+
+        type Decided = { result: 'green' | 'red'; odd: number | null; profit: number | null; stake: number | null };
+        const decided: Decided[] = [];
+
+        // punter_sinais
+        for (const s of sigs || []) {
+          if (!inPeriod((s as any).commence_time)) continue;
+          const r = norm((s as any).resultado);
+          if (r !== 'green' && r !== 'red') continue;
+          decided.push({
+            result: r,
+            odd: (s as any).odd != null ? Number((s as any).odd) : null,
+            profit: (s as any).profit_loss != null ? Number((s as any).profit_loss) : null,
+            stake: (s as any).stake_amount != null ? Number((s as any).stake_amount) : null,
+          });
+        }
+
+        // plano favorito (3 mercados por linha)
+        for (const f of favoritos || []) {
+          if (!inPeriod((f as any).match_date)) continue;
+          const favOdd = (f as any).fav_odd != null ? Number((f as any).fav_odd) : null;
+          const items: Array<{ result: any; odd: number | null }> = [
+            { result: (f as any).resultado_vitoria, odd: favOdd },
+            { result: (f as any).resultado_over15, odd: 1.45 },
+            { result: (f as any).resultado_over25, odd: 1.85 },
+          ];
+          for (const it of items) {
+            const r = norm(it.result);
+            if (r !== 'green' && r !== 'red') continue;
+            decided.push({ result: r, odd: it.odd, profit: null, stake: null });
+          }
+        }
+
+        // eventos raros
+        for (const e of raros || []) {
+          if (!inPeriod((e as any).created_at)) continue;
+          const r = norm((e as any).resultado);
+          if (r !== 'green' && r !== 'red') continue;
+          decided.push({
+            result: r,
+            odd: (e as any).odd_entrada != null ? Number((e as any).odd_entrada) : null,
+            profit: (e as any).profit_loss != null ? Number((e as any).profit_loss) : null,
+            stake: null,
+          });
+        }
+
+        let totalProfit = 0;
+        let totalStaked = 0;
         let greens = 0;
         let reds = 0;
-        (resolved || []).forEach((r: any) => {
-          const isGreen = r.result === 'green';
-          const isRed = r.result === 'red';
-          if (!isGreen && !isRed) return;
-
-          totalStakeUnits += 1; // base 1u por sinal liquidado
-
-          if (isRed) {
-            totalUnits += -1;
+        for (const d of decided) {
+          totalStaked += STAKE_UNIT;
+          if (d.result === 'red') {
+            totalProfit += -STAKE_UNIT;
             reds += 1;
-            return;
-          }
-
-          // Green
-          greens += 1;
-          const odd = Number(r.odd);
-          if (odd && odd > 1) {
-            totalUnits += odd - 1;
-          } else if (r.profit_loss && r.stake_amount && Number(r.stake_amount) > 0) {
-            totalUnits += Number(r.profit_loss) / Number(r.stake_amount);
           } else {
-            totalUnits += 0;
+            greens += 1;
+            if (d.odd != null && d.odd > 1) {
+              totalProfit += (d.odd - 1) * STAKE_UNIT;
+            } else if (d.profit != null && d.stake != null && d.stake > 0) {
+              totalProfit += d.profit / d.stake;
+            } else if (d.profit != null && d.profit > 0) {
+              totalProfit += d.profit;
+            }
           }
-        });
-        const roi = totalStakeUnits > 0 ? (totalUnits / totalStakeUnits) * 100 : null;
+        }
+        const roi = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : null;
 
         const fresh: Omit<Stats, 'loading'> = {
           signalsToday: countToday || 0,
