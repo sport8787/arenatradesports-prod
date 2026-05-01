@@ -18,7 +18,7 @@ const PLANS = [
     originalPrice: '99,90',
     price: '49,95',
     icon: TrendingUp,
-    description: 'Comece pela Arena Live',
+    description: 'Só Arena Live (ao vivo)',
     includes: [
       'Arena Live (Trader Sports ao vivo)',
       'Sinais Mycroft em tempo real',
@@ -36,6 +36,30 @@ const PLANS = [
     popular: false,
   },
   {
+    name: 'Basic',
+    planKey: 'basic' as const,
+    originalPrice: '99,90',
+    price: '49,95',
+    icon: Trophy,
+    description: 'Só Arena Punter (pré-jogo)',
+    includes: [
+      'Arena Punter (sinais pré-jogo)',
+      'Asset Score, Kelly e Sherlock',
+      'Telegram VIP Pré-Live',
+      'Liquidações com ROI 7d / 30d',
+      'Push de novos sinais aprovados',
+      'Suporte por email',
+    ],
+    excludes: [
+      'Arena Live (Trader Sports ao vivo)',
+      'Gerador de Múltiplas',
+      'Banca Virtual e Banca Real',
+      'Chat com o Mycroft em cada jogo',
+    ],
+    url: 'https://pay.kiwify.com.br/lcjBFYZ',
+    popular: false,
+  },
+  {
     name: 'Base',
     planKey: 'base' as const,
     originalPrice: '149,90',
@@ -43,7 +67,7 @@ const PLANS = [
     icon: Trophy,
     description: 'Live + Punter (mais escolhido)',
     includes: [
-      'Tudo do Starter +',
+      'Arena Live + Arena Punter (Starter + Basic juntos)',
       'Arena Punter (sinais pré-jogo)',
       'Asset Score, Kelly, Sherlock',
       'Telegram VIP Pré-Live',
