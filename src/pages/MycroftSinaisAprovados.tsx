@@ -224,7 +224,8 @@ export default function MycroftSinaisAprovados() {
     const reds = aggStats.reds;
     const settled = greens + reds;
     const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-    const roi = settled > 0 ? (aggStats.pnlUnits / settled) * 100 : 0;
+    // ROI = (lucro_total / aporte_total) * 100, considerando só sinais com odd válida (real ou fallback de mercado)
+    const roi = aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0;
     return { greens, reds, winRate, roi };
   }, [aggStats]);
 
