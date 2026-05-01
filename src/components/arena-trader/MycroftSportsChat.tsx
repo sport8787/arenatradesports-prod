@@ -7,6 +7,9 @@ import ReactMarkdown from 'react-markdown';
 import { extractTextFromPdf } from '@/services/pdfExtractService';
 import { useNavigate } from 'react-router-dom';
 import HorusTTSPlayer from '@/components/chat/HorusTTSPlayer';
+import MycroftChatGate from '@/components/mycroft/MycroftChatGate';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -28,6 +31,10 @@ export default function MycroftSportsChat({ matchContext, isOpen, onClose }: Myc
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const { isPaid, subscription } = useSubscription();
+  const { isAdmin } = useAdmin();
+  const canUseChat = isAdmin || (isPaid && subscription?.plan === 'premium');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
