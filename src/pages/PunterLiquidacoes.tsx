@@ -271,25 +271,80 @@ export default function PunterLiquidacoesPage() {
       <main className="container mx-auto px-4 py-5 max-w-5xl space-y-5">
         <PunterBreadcrumb items={[{ label: 'Liquidações' }]} />
 
-        <div className="rounded-lg border border-border bg-card/50 p-4">
-          <h2 className="text-lg font-bold text-foreground">Sinais Punter (últimos 14 dias)</h2>
-          <p className="font-mono text-xs text-muted-foreground mt-1">
-            Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
-            Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
-            <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300">RED</span>,
-            <span className="text-slate-300"> VOID</span> ou
-            <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
-            Clique em <strong>Verificar agora</strong> para liquidar via API-Football + The Odds API.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-mono">
+        <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Sinais Punter — {periodLabel}</h2>
+              <p className="font-mono text-xs text-muted-foreground mt-1 max-w-2xl">
+                Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
+                Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
+                <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300"> RED</span>,
+                <span className="text-slate-300"> VOID</span> ou
+                <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
+              </p>
+            </div>
+            <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
+              {([
+                ['ontem', 'Ontem'],
+                ['7d', '7 dias'],
+                ['30d', '30 dias'],
+                ['14d_all', '14 dias'],
+              ] as [PeriodFilter, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriod(key)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-mono rounded transition-colors',
+                    period === key
+                      ? 'bg-primary text-primary-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Painel de lucro hipotético */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Lucro hipotético</div>
+              <div className={cn(
+                'font-mono text-xl font-bold',
+                profitData.profit > 0 ? 'text-emerald-400' : profitData.profit < 0 ? 'text-rose-400' : 'text-foreground'
+              )}>
+                {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">se seguisse todos (1u/sinal)</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
+              <div className={cn(
+                'font-mono text-xl font-bold',
+                roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-rose-400' : 'text-foreground'
+              )}>
+                {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">{profitData.staked.toFixed(0)}u apostadas</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
+              <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{counts.green}/{decided} (VOID excluído)</div>
+            </div>
+            <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
+              <div className="font-mono text-xl font-bold text-foreground">{decided + counts.void}</div>
+              <div className="text-[10px] font-mono text-muted-foreground">de {counts.todos} no período</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs font-mono pt-1">
             <span className="text-emerald-400">✅ {counts.green} GREEN</span>
             <span className="text-rose-400">❌ {counts.red} RED</span>
             <span className="text-slate-300">⚪ {counts.void} VOID</span>
             <span className="text-amber-300">⏳ {counts.pendentes} pendentes</span>
-            <span className="ml-auto text-foreground">
-              Win Rate: <strong>{winRate.toFixed(1)}%</strong>
-              <span className="text-muted-foreground"> ({counts.green}/{decided} — VOID excluído)</span>
-            </span>
           </div>
         </div>
 
