@@ -151,6 +151,9 @@ export default function AdminDashboard() {
           <Button asChild variant="outline" size="sm">
             <a href="/admin/auditoria-sinais">⚖️ Auditoria de Sinais</a>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/admin/mycroft-chat-access">🔒 Tentativas Chat Mycroft</a>
+          </Button>
         </div>
 
         {error && (
