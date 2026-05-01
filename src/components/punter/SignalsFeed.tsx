@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { translateMarket } from '@/utils/marketTranslator';
 import CopySignalActions from '@/components/signals/CopySignalActions';
+import PunterEmptyState from '@/components/punter/PunterEmptyState';
 
 const READ_KEY = 'punter_feed_read_v1';
 
@@ -221,9 +222,7 @@ export default function SignalsFeed() {
                 <Skeleton className="h-20 w-full" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Nenhum sinal nesta categoria.
-              </div>
+              <PunterEmptyState category={tab} />
             ) : (
               <ScrollArea className="h-[460px] pr-3">
                 <div className="space-y-2">

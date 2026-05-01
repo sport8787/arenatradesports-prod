@@ -11,6 +11,7 @@ import {
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import NavCard from '@/components/punter/NavCard';
+import { useSubscription, type ArenaKey } from '@/hooks/useSubscription';
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/80 mb-3 px-1">
@@ -25,6 +26,21 @@ interface Props {
 export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
   const navigate = useNavigate();
   const { pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
+  const { hasArena, subscription } = useSubscription();
+
+  // Helper: gera onClick que respeita o gate de arena.
+  // Se não tem acesso, manda para /paywall (com toast implícito do destino).
+  const arenaNav = (arena: ArenaKey, route: string) => () => {
+    if (!hasArena(arena)) {
+      navigate('/paywall');
+      return;
+    }
+    navigate(route);
+  };
+
+  const planLabel = (subscription?.plan || 'trial').toUpperCase();
+  const upgradeLabel = (arena: ArenaKey) =>
+    hasArena(arena) ? undefined : `Upgrade · plano ${planLabel}`;
 
   return (
     <div className="space-y-6">
@@ -34,31 +50,37 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
             primary
-            onClick={() => navigate('/punter')}
+            onClick={arenaNav('arena_punter', '/punter')}
             icon={<Search className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Arena Punter"
             description="Sinais pré-jogo do Mycroft com edge real"
+            locked={!hasArena('arena_punter')}
+            lockedLabel={upgradeLabel('arena_punter')}
           />
           <NavCard
             primary
-            onClick={() => navigate('/arena-trader-sports')}
+            onClick={arenaNav('arena_live', '/arena-trader-sports')}
             icon={<Activity className="w-4 h-4" />}
             iconBg="bg-destructive/15"
             iconColor="text-destructive"
             title="Arena Live"
             description="Análise ao vivo pelo Mycroft em tempo real"
             badge={{ label: 'Ao vivo', tone: 'live' }}
+            locked={!hasArena('arena_live')}
+            lockedLabel={upgradeLabel('arena_live')}
           />
           <NavCard
-            onClick={() => navigate('/punter/multiplas')}
+            onClick={arenaNav('multiplas', '/punter/multiplas')}
             icon={<MessagesSquare className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Gerador de Múltipla"
             description="Múltiplas otimizadas por IA e Kelly"
             badge={{ label: 'Beta', tone: 'beta' }}
+            locked={!hasArena('multiplas')}
+            lockedLabel={upgradeLabel('multiplas')}
           />
         </div>
       </section>
@@ -68,21 +90,25 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         <SectionLabel>Bancas e Suporte</SectionLabel>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
-            onClick={() => navigate('/punter/banca-virtual')}
+            onClick={arenaNav('banca_virtual', '/punter/banca-virtual')}
             icon={<Wallet className="w-4 h-4" />}
             iconBg="bg-warning/15"
             iconColor="text-warning"
             title="Banca Virtual"
             description="Defina seu capital e gestão de risco"
+            locked={!hasArena('banca_virtual')}
+            lockedLabel={upgradeLabel('banca_virtual')}
           />
           <NavCard
-            onClick={() => navigate('/punter/betfair-real')}
+            onClick={arenaNav('banca_real', '/punter/betfair-real')}
             icon={<ShieldCheck className="w-4 h-4" />}
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Banca Real"
             description="Apostas reais Betfair sincronizadas"
             badge={{ label: 'Novo', tone: 'exclusive' }}
+            locked={!hasArena('banca_real')}
+            lockedLabel={upgradeLabel('banca_real')}
           />
           <NavCard
             onClick={() => navigate('/punter/comunidade')}

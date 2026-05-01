@@ -144,6 +144,9 @@ export default function AdminDashboard() {
             <h1 className="text-2xl md:text-3xl font-bold">Painel do Administrador</h1>
             <p className="text-sm text-muted-foreground">Retenção e conversão · atualiza a cada 60s</p>
           </div>
+          <Button asChild size="sm" className="bg-primary text-primary-foreground">
+            <a href="/admin/hub">🧭 Hub Admin (todas as ferramentas)</a>
+          </Button>
           <Button onClick={fetchData} disabled={refreshing} variant="outline" size="sm">
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Atualizar

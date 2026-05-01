@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { getNextPunterAnalysisWindow, formatMinutesUntil } from '@/lib/punterSchedule';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Target, Loader2, BarChart3, Calendar, DollarSign, 
@@ -1681,8 +1682,12 @@ export default function PunterPage() {
           <div className="border border-dashed border-border rounded-lg p-8 text-center">
             <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
             <p className="font-mono text-sm text-foreground mb-1">Nenhum ativo aprovado</p>
-            <p className="font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-xs text-muted-foreground mb-3">
               {totalAnalyzed} mercados escaneados. Nenhum com edge ≥5%.
+            </p>
+            <p className="font-mono text-[11px] text-primary">
+              Próxima análise automática: <strong>{getNextPunterAnalysisWindow().label}</strong>
+              {' '}({formatMinutesUntil(getNextPunterAnalysisWindow().minutesUntil)})
             </p>
           </div>
         )}
