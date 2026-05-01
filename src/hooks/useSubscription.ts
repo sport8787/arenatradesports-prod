@@ -156,7 +156,7 @@ export function useSubscription() {
 
   return {
     subscription,
-    loading: loading || adminLoading,
+    loading: loading || adminLoading || authLoading,
     daysLeft,
     isTrialActive,
     isTrialExpired,
