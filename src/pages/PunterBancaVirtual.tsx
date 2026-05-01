@@ -33,20 +33,67 @@ export default function PunterBancaVirtualPage() {
     setManualPendingBets(manual || []);
   };
 
+  const isRetryableError = (err: any): boolean => {
+    const msg = (err?.message || String(err || '')).toLowerCase();
+    return (
+      msg.includes('cpu time') ||
+      msg.includes('timeout') ||
+      msg.includes('timed out') ||
+      msg.includes('time exceeded') ||
+      msg.includes('worker') ||
+      msg.includes('boot') ||
+      msg.includes('503') ||
+      msg.includes('504') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('networkerror')
+    );
+  };
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const invokeSettleWithRetry = async (tId: string | number) => {
+    const maxAttempts = 4; // 1 inicial + 3 retries
+    const baseDelay = 1500; // ms
+    let lastErr: any = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke('settle-bets', { body: { attempt } });
+        if (error) throw error;
+        return data;
+      } catch (e: any) {
+        lastErr = e;
+        const retryable = isRetryableError(e);
+        if (!retryable || attempt === maxAttempts) throw e;
+
+        // Backoff exponencial com jitter: 1.5s, 3s, 6s (+ até 500ms)
+        const delay = baseDelay * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500);
+        toast.loading(
+          `Tentativa ${attempt} falhou (${e?.message?.slice(0, 60) || 'timeout'}). Retentando em ${(delay / 1000).toFixed(1)}s...`,
+          { id: tId }
+        );
+        await sleep(delay);
+      }
+    }
+    throw lastErr;
+  };
+
   const handleSettleAll = async () => {
     if (settling) return;
     setSettling(true);
     const tId = toast.loading('Liquidando entradas pendentes (Hórus + Minha Banca)...');
     try {
-      const { data, error } = await supabase.functions.invoke('settle-bets', { body: {} });
-      if (error) throw error;
+      const data = await invokeSettleWithRetry(tId);
       toast.success('Liquidação concluída', {
         id: tId,
         description: `Apostas liquidadas: ${data?.settled ?? 0} | Sinais: ${data?.signals_settled ?? 0} | Ignoradas: ${data?.skipped ?? 0}`,
       });
       await reloadPending();
     } catch (e: any) {
-      toast.error('Falha ao liquidar', { id: tId, description: e?.message || String(e) });
+      toast.error('Falha ao liquidar após múltiplas tentativas', {
+        id: tId,
+        description: e?.message || String(e),
+      });
     } finally {
       setSettling(false);
     }
