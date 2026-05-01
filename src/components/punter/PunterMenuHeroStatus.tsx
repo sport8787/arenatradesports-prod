@@ -26,13 +26,14 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — fresh enough sem ficar piscando
  * Quando a odd está ausente, tentamos derivar de profit_loss/stake_amount.
  */
 export default function PunterMenuHeroStatus() {
-  const [stats, setStats] = useState<Stats>({
-    signalsToday: 0,
-    roi7d: null,
-    greens: 0,
-    reds: 0,
-    loading: true,
-  });
+  // Hidrata com snapshot do cache de sessão (se houver) — números aparecem
+  // instantaneamente ao voltar para a aba, sem piscar nem zerar.
+  const cached = readCache<Omit<Stats, 'loading'>>(CACHE_KEY, CACHE_TTL_MS);
+  const [stats, setStats] = useState<Stats>(
+    cached
+      ? { ...cached, loading: false }
+      : { signalsToday: 0, roi7d: null, greens: 0, reds: 0, loading: true }
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -83,24 +84,22 @@ export default function PunterMenuHeroStatus() {
           if (odd && odd > 1) {
             totalUnits += odd - 1;
           } else if (r.profit_loss && r.stake_amount && Number(r.stake_amount) > 0) {
-            // fallback: deriva ratio quando não temos odd
             totalUnits += Number(r.profit_loss) / Number(r.stake_amount);
           } else {
-            // sem dados suficientes: assume payout neutro ~ 0 (não inflar)
             totalUnits += 0;
           }
         });
         const roi = totalStakeUnits > 0 ? (totalUnits / totalStakeUnits) * 100 : null;
 
-        if (!cancelled) {
-          setStats({
-            signalsToday: countToday || 0,
-            roi7d: roi,
-            greens,
-            reds,
-            loading: false,
-          });
-        }
+        const fresh: Omit<Stats, 'loading'> = {
+          signalsToday: countToday || 0,
+          roi7d: roi,
+          greens,
+          reds,
+        };
+
+        if (!cancelled) setStats({ ...fresh, loading: false });
+        writeCache(CACHE_KEY, fresh);
       } catch (e) {
         if (!cancelled) setStats((s) => ({ ...s, loading: false }));
       }
