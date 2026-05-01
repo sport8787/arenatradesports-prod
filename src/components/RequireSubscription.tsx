@@ -11,10 +11,16 @@ interface RequireSubscriptionProps {
 
 export function RequireSubscription({ children }: RequireSubscriptionProps) {
   const { user, loading: authLoading } = useAuth();
-  const { hasAccess, loading } = useSubscription();
+  const { hasAccess, loading, subscription } = useSubscription();
   const location = useLocation();
 
-  if (authLoading || loading) {
+  // Mostra splash enquanto auth ou subscription/admin estão carregando.
+  // Também trata a janela em que o usuário já existe mas a subscription ainda
+  // não foi buscada (subscription === null e loading=false por uma fração de segundo)
+  // — sem isso, admins eram redirecionados para /paywall ao dar F5.
+  const stillResolving = authLoading || loading || (!!user && subscription === null && !hasAccess);
+
+  if (stillResolving) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div
