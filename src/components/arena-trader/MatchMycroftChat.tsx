@@ -219,16 +219,16 @@ export default function MatchMycroftChat({ matchContext }: Props) {
               <div className="p-6 text-center space-y-3 border-t border-amber-900/20">
                 <Lock className="w-8 h-8 text-amber-400/40 mx-auto" />
                 <p className="text-sm text-white/70">
-                  O <strong className="text-amber-400">Chat com Mycroft</strong> é exclusivo do plano <strong>Enterprise</strong>.
+                  O <strong className="text-amber-400">Chat com Mycroft</strong> é exclusivo do plano <strong>Premium</strong>.
                 </p>
                 <p className="text-xs text-white/40">
-                  Liberado para todos durante o trial de 7 dias.
+                  Debata cada partida com o oráculo — análise, números ao vivo e contexto completo.
                 </p>
                 <Link
                   to="/oferta-especial"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 text-sm hover:bg-amber-500/30 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 text-sm font-semibold hover:bg-amber-500/30 transition-colors"
                 >
-                  Liberar com 50% OFF
+                  Liberar Premium 50% OFF
                 </Link>
               </div>
             ) : (
