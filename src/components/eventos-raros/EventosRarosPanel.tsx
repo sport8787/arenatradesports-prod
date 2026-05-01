@@ -109,6 +109,76 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
   if (!enabled) return null;
 
   const sinaisAtivos = sinais.filter((s) => s.status === "ATIVO");
+  const preLiveCount = candidatos.length;
+  const ativosCount = sinaisAtivos.length;
+
+  // Modo compacto: quando 0 ativos, vira uma linha colapsável
+  if (compactWhenIdle && !loading && ativosCount === 0) {
+    return (
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <Card className="border-purple-500/30 bg-purple-500/5">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-purple-500/10 transition-colors rounded-lg"
+            >
+              <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
+              <span className="text-sm font-medium text-foreground">Eventos Raros</span>
+              <Badge variant="outline" className="text-[10px]">
+                0 ao vivo · {preLiveCount} pré-live
+              </Badge>
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                {preLiveCount > 0 ? "ver candidatos" : "sem candidatos"}
+                {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-3 pt-0">
+              <p className="text-xs text-muted-foreground">
+                Placares incomuns identificados pelo motor estatístico (LAY na Betfair Exchange).
+                Modo atual: <strong>simulado</strong> — execute manualmente quando o sinal disparar.
+              </p>
+              {preLiveCount === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  Nenhum candidato aprovado para hoje. O motor roda 2x ao dia (09:00 e 15:00 BRT).
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <Target className="h-3 w-3 inline mr-1" /> Pré-live · aguardando início
+                  </h4>
+                  {candidatos.slice(0, 8).map((c) => {
+                    const meta = PLACAR_LABEL[c.placar_alvo] ?? { label: c.placar_alvo, emoji: "🎯", color: "" };
+                    const data = new Date(c.match_date);
+                    return (
+                      <div key={c.id} className="rounded-md border border-border/50 bg-card/50 p-2 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium truncate">{c.home_team} vs {c.away_team}</span>
+                          <Badge variant="outline" className={cn("text-[10px] ml-2", meta.color)}>
+                            {meta.emoji} {meta.label}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between items-center mt-1 text-muted-foreground">
+                          <span className="truncate">{c.league_name}</span>
+                          <span className="flex items-center gap-2">
+                            <TrendingUp className="h-3 w-3" /> Score {Math.round(c.score_qualidade)}/100
+                            <span className="opacity-60">
+                              · {data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    );
+  }
 
   return (
     <Card className="border-purple-500/30 bg-purple-500/5">
@@ -117,7 +187,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
           <Sparkles className="h-4 w-4 text-purple-400" />
           Eventos Raros
           <Badge variant="outline" className="ml-auto text-[10px]">
-            {candidatos.length} candidatos · {sinaisAtivos.length} ativos
+            {ativosCount} ao vivo · {preLiveCount} pré-live
           </Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
@@ -162,7 +232,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
         {!loading && candidatos.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <Target className="h-3 w-3 inline mr-1" /> Aguardando entrada
+              <Target className="h-3 w-3 inline mr-1" /> Pré-live · aguardando início
             </h4>
             {candidatos.slice(0, 8).map((c) => {
               const meta = PLACAR_LABEL[c.placar_alvo] ?? { label: c.placar_alvo, emoji: "🎯", color: "" };
