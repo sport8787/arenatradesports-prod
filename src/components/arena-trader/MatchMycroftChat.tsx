@@ -67,10 +67,11 @@ export default function MatchMycroftChat({ matchContext }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScrollRef = useRef<number>(initial?.scrollTop ?? 0);
   const shouldAutoScrollRef = useRef<boolean>(true);
-  const { isTrialActive, isPaid, subscription } = useSubscription();
+  const { isPaid, subscription } = useSubscription();
+  const { isAdmin } = useAdmin();
 
-  // Liberado durante trial OU para Enterprise
-  const canUse = isTrialActive || (isPaid && subscription?.plan === 'premium');
+  // Liberado para Admin OU plano Premium pago. Trial / Starter / Base → bloqueado.
+  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
 
   // Threshold (px) para considerar "no fim"
   const BOTTOM_THRESHOLD = 60;
