@@ -202,11 +202,50 @@ Deno.serve(async (req) => {
 
     console.log(`[settle-bets] ${eligibleBets.length}/${allPending.length} bets eligible, ${pendingSignals.length} signals`);
 
-    // 3. Fetch completed game results — prefer API-Football (covers all leagues)
+    // 3. Determine which dates we actually need (only days where pending bets/signals occurred)
+    const datesNeeded = new Set<string>();
+    const allItems = [...eligibleBets, ...pendingSignals];
+    for (const item of allItems) {
+      const ref = item.commence_time || item.match_date || item.placed_at || item.created_at;
+      if (!ref) continue;
+      try {
+        const d = new Date(ref);
+        if (isNaN(d.getTime())) continue;
+        // Add the match date and the day before (covers TZ edge cases)
+        datesNeeded.add(d.toISOString().split('T')[0]);
+        const prev = new Date(d.getTime() - 24 * 60 * 60 * 1000);
+        datesNeeded.add(prev.toISOString().split('T')[0]);
+      } catch (_) { /* ignore */ }
+    }
+
+    // Cap to maximum 4 dates to avoid CPU timeout
+    const sortedDates = Array.from(datesNeeded).sort().slice(-4);
+    console.log(`[settle-bets] Fetching ${sortedDates.length} relevant dates: ${sortedDates.join(', ')}`);
+
+    // 3b. Fetch completed game results — prefer API-Football (covers all leagues)
     let completedGames: any[] = [];
 
-    if (apiFootballKey) {
-      completedGames = await fetchFinishedFixtures(apiFootballKey, 5);
+    if (apiFootballKey && sortedDates.length > 0) {
+      const fetchPromises = sortedDates.map(async (dateStr) => {
+        try {
+          const res = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${dateStr}&status=FT-AET-PEN`, {
+            headers: { 'x-apisports-key': apiFootballKey },
+          });
+          if (!res.ok) return [];
+          const data = await res.json();
+          const fixtures = data.response || [];
+          return fixtures.map((fix: any) => ({
+            home_team: fix.teams?.home?.name || '',
+            away_team: fix.teams?.away?.name || '',
+            score_home: fix.goals?.home ?? null,
+            score_away: fix.goals?.away ?? null,
+            commence_time: fix.fixture?.date || null,
+            league: fix.league?.name || '',
+          }));
+        } catch (_) { return []; }
+      });
+      const results = await Promise.all(fetchPromises);
+      completedGames = results.flat();
       console.log(`[settle-bets] ${completedGames.length} completed games from API-Football`);
     }
 
