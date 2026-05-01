@@ -28,6 +28,7 @@ interface Row {
 }
 
 type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
+type PeriodFilter = 'ontem' | '7d' | '30d' | '14d_all';
 
 export default function PunterLiquidacoesPage() {
   const navigate = useNavigate();
@@ -35,11 +36,12 @@ export default function PunterLiquidacoesPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [tab, setTab] = useState<Tab>('pendentes');
+  const [period, setPeriod] = useState<PeriodFilter>('14d_all');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       // Sinais Punter unificados
       const { data: sigs } = await supabase
