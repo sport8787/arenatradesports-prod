@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { readCache, writeCache } from '@/lib/sessionCache';
 
 interface Stats {
   signalsToday: number;
@@ -9,6 +10,9 @@ interface Stats {
   reds: number;
   loading: boolean;
 }
+
+const CACHE_KEY = 'menu-hero-status';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — fresh enough sem ficar piscando
 
 /**
  * Faixa compacta no /menu mostrando o pulso recente do Punter:
