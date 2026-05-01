@@ -239,6 +239,46 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
         </p>
       </div>
 
+      {/* Live Pressure Chart (Sportmonks) */}
+      {isLive && (
+        <div className="rounded-xl border border-border/60 bg-card/40 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-orbitron uppercase tracking-wider text-muted-foreground">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              Gráfico de Pressão
+              {pressureData?.source === 'trends' && (
+                <span className="text-[9px] opacity-60 normal-case">(sintético)</span>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground/70">
+              Atualiza a cada 30s • Sportmonks
+            </span>
+          </div>
+
+          {pressureData && (
+            <div className="grid grid-cols-3 items-center gap-2 pb-1">
+              <div className="flex flex-col items-center gap-1 min-w-0">
+                <span className="text-[11px] font-semibold text-foreground truncate max-w-full">{pressureData.header.home.name}</span>
+                <FormDots form={pressureData.form.home} side="home" />
+              </div>
+              <div className="text-center text-[11px] font-orbitron text-primary">
+                {pressureData.header.minute > 0 ? `${pressureData.header.minute}'` : '—'}
+              </div>
+              <div className="flex flex-col items-center gap-1 min-w-0">
+                <span className="text-[11px] font-semibold text-foreground truncate max-w-full">{pressureData.header.away.name}</span>
+                <FormDots form={pressureData.form.away} side="away" />
+              </div>
+            </div>
+          )}
+
+          {pressureData ? (
+            <MatchPressureChart data={pressureData} height={200} />
+          ) : (
+            <PressureFallback loading={pressureLoading} error={pressureError} />
+          )}
+        </div>
+      )}
+
       {/* No analysis available */}
       {!analysis && (
         <div className="flex flex-col items-center justify-center py-12 gap-4">
