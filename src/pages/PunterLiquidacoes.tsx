@@ -227,20 +227,25 @@ export default function PunterLiquidacoesPage() {
     futuros: periodRows.filter(isFuture).length,
   };
 
-  const decided = counts.green + counts.red;
-  const winRate = decided > 0 ? (counts.green / decided) * 100 : 0;
-
-  // Lucro hipotético (1 unidade por sinal)
+  // Métricas honestas: só consideram sinais com odd válida (> 1)
+  // Plano Favorito sem odd e qualquer linha sem odd ficam fora dos cálculos.
   const STAKE_UNIT = 1;
-  const profitData = periodRows.reduce(
+  const computable = periodRows.filter(
+    (r) => (isGreen(r) || isRed(r)) && r.odd != null && r.odd > 1
+  );
+  const computableGreen = computable.filter(isGreen).length;
+  const computableRed = computable.filter(isRed).length;
+  const decided = computableGreen + computableRed;
+  const winRate = decided > 0 ? (computableGreen / decided) * 100 : 0;
+
+  const profitData = computable.reduce(
     (acc, r) => {
-      if (isGreen(r) && r.odd && r.odd > 1) {
-        acc.profit += (r.odd - 1) * STAKE_UNIT;
-        acc.staked += STAKE_UNIT;
+      if (isGreen(r)) {
+        acc.profit += (r.odd! - 1) * STAKE_UNIT;
       } else if (isRed(r)) {
         acc.profit -= STAKE_UNIT;
-        acc.staked += STAKE_UNIT;
       }
+      acc.staked += STAKE_UNIT;
       return acc;
     },
     { profit: 0, staked: 0 }
@@ -316,7 +321,7 @@ export default function PunterLiquidacoesPage() {
               )}>
                 {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">se seguisse todos (1u/sinal)</div>
+              <div className="text-[10px] font-mono text-muted-foreground">1u = 1 unidade de stake</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
@@ -331,11 +336,11 @@ export default function PunterLiquidacoesPage() {
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
               <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
-              <div className="text-[10px] font-mono text-muted-foreground">{counts.green}/{decided} (VOID excluído)</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{computableGreen}/{decided} c/ odd</div>
             </div>
             <div className="rounded-md border border-border bg-background/40 p-3">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
-              <div className="font-mono text-xl font-bold text-foreground">{decided + counts.void}</div>
+              <div className="font-mono text-xl font-bold text-foreground">{counts.green + counts.red + counts.void}</div>
               <div className="text-[10px] font-mono text-muted-foreground">de {counts.todos} no período</div>
             </div>
           </div>
