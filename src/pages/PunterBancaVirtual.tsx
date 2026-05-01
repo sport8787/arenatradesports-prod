@@ -135,15 +135,18 @@ function QuickBtn({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border bg-card hover:bg-card/70 hover:border-primary/40 text-foreground transition-colors text-[11px] font-mono font-semibold"
+      disabled={disabled}
+      className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md border border-border bg-card hover:bg-card/70 hover:border-primary/40 text-foreground transition-colors text-[11px] font-mono font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {icon}
       <span className="truncate">{label}</span>
