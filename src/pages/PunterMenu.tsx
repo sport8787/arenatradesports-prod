@@ -89,12 +89,12 @@ export default function PunterMenuPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-5 max-w-5xl space-y-5">
+      <main className="relative z-10 container mx-auto px-4 py-5 max-w-5xl space-y-5">
         <PunterBreadcrumb items={[{ label: 'Funções' }]} />
         <div>
           <h2 className="text-xl font-bold text-foreground">Acesse rapidamente</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            Todas as ferramentas, ajustes e canais oficiais da Arena Punter.
+            Todas as ferramentas, ajustes e canais oficiais do Oráculo Mycroft.
           </p>
         </div>
         <PunterNavGrid />
