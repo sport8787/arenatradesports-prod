@@ -1313,7 +1313,7 @@ export default function PunterPage() {
 
         {/* Eventos Raros — placares incomuns identificados pelo motor estatístico */}
         <div id="eventos-raros" className="scroll-mt-20">
-          <EventosRarosPanel arena="punter" />
+          <EventosRarosPanel arena="punter" compactWhenIdle />
         </div>
 
         {/* Navigation Grid movido para /punter/menu */}
