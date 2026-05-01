@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import SignalsFeed from '@/components/punter/SignalsFeed';
-import { useIsAdmin } from '@/hooks/useAdmin';
+import { useAdmin } from '@/hooks/useAdmin';
 
 export default function PunterAprovadasPage() {
   const navigate = useNavigate();
