@@ -350,6 +350,15 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
           </div>
         </div>
 
+        {!canUseChat ? (
+          <div className="p-4">
+            <MycroftChatGate variant="panel" title="Chat com Mycroft Sports é Premium">
+              <></>
+            </MycroftChatGate>
+          </div>
+        ) : (
+        <>
+
         {/* Knowledge Base Manager */}
         <div className="px-4 py-2 border-b border-[#FFD700]/10">
           <button
@@ -496,6 +505,8 @@ Ao final, liste todas as regras criadas como um resumo organizado por categoria.
             <Send className="w-4 h-4" />
           </button>
         </div>
+        </>
+        )}
       </div>
     </motion.div>
   );
