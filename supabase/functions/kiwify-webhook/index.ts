@@ -11,12 +11,15 @@ const corsHeaders = {
 // Maps Kiwify product names/IDs to internal plans + arenas + duration (days)
 const PRODUCT_MAP: Record<
   string,
-  { plan: "starter" | "base" | "premium"; arenas: string[]; days: number }
+  { plan: "starter" | "basic" | "base" | "premium"; arenas: string[]; days: number }
 > = {
-  // Match by lowercase substring
+  // Match by lowercase substring — primeira chave que casa vence.
+  // ⚠️ "basic" precisa vir ANTES de "base" porque "basic".includes("base") seria falso, mas
+  //    queremos "basic" como match exato em vez de cair em substring genérica.
+  basic:   { plan: "basic",   arenas: ["arena_punter"], days: 30 },
   starter: { plan: "starter", arenas: ["arena_live"], days: 30 },
   base:    { plan: "base",    arenas: ["arena_live", "arena_punter"], days: 30 },
-  punter:  { plan: "base",    arenas: ["arena_live", "arena_punter"], days: 30 },
+  punter:  { plan: "basic",   arenas: ["arena_punter"], days: 30 },
   premium: { plan: "premium", arenas: ["arena_live", "arena_punter", "multiplas", "banca_virtual", "banca_real"], days: 30 },
   full:    { plan: "premium", arenas: ["arena_live", "arena_punter", "multiplas", "banca_virtual", "banca_real"], days: 30 },
 };
