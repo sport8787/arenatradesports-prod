@@ -10,7 +10,7 @@ import { useAdmin } from '@/hooks/useAdmin';
 
 export default function PunterAprovadasPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin } = useAdmin();
   const [running, setRunning] = useState(false);
 
   const runSportmonks = async () => {
