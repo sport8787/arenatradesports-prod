@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Link } from 'react-router-dom';
+import { logMycroftChatAttempt } from '@/services/mycroftChatAccessLog';
 
 interface MatchContext {
   match_id: string;
@@ -68,11 +69,31 @@ export default function MatchMycroftChat({ matchContext }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScrollRef = useRef<number>(initial?.scrollTop ?? 0);
   const shouldAutoScrollRef = useRef<boolean>(true);
-  const { isPaid, subscription } = useSubscription();
+  const { isPaid, subscription, daysLeft } = useSubscription();
   const { isAdmin } = useAdmin();
 
   // Liberado para Admin OU plano Premium pago. Trial / Starter / Base → bloqueado.
   const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
+
+  // Registra tentativa quando usuário sem permissão expande o chat de partida
+  useEffect(() => {
+    if (!expanded || canUse) return;
+    let reason: 'free' | 'trial_expired' | 'plan_insufficient' | 'unknown' = 'unknown';
+    if (!subscription) reason = 'free';
+    else if (subscription.plan === 'trial' && daysLeft <= 0) reason = 'trial_expired';
+    else if (['trial', 'starter', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
+    logMycroftChatAttempt({
+      source: 'match',
+      reason,
+      plan: subscription?.plan ?? null,
+      daysLeft: subscription ? daysLeft : null,
+      matchId: matchContext.match_id,
+      homeTeam: matchContext.home_team,
+      awayTeam: matchContext.away_team,
+      league: matchContext.league,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, canUse, matchContext.match_id]);
 
   // Threshold (px) para considerar "no fim"
   const BOTTOM_THRESHOLD = 60;

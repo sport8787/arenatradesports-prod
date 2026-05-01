@@ -1,7 +1,14 @@
+import { useEffect } from 'react';
 import { Lock, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  logMycroftChatAttempt,
+  type MycroftChatSource,
+  type MycroftChatBlockReason,
+} from '@/services/mycroftChatAccessLog';
 
 interface MycroftChatGateProps {
   /** Conteúdo do chat liberado quando o usuário tem acesso */
@@ -10,6 +17,15 @@ interface MycroftChatGateProps {
   variant?: 'panel' | 'inline';
   /** Mensagem opcional sobrescrevendo o padrão */
   title?: string;
+  /** Origem do chat para fins de telemetria/log */
+  source?: MycroftChatSource;
+  /** Contexto da partida (quando aplicável) para enriquecer o log */
+  matchContext?: {
+    matchId?: string;
+    homeTeam?: string;
+    awayTeam?: string;
+    league?: string;
+  };
 }
 
 /**
@@ -17,25 +33,56 @@ interface MycroftChatGateProps {
  * Liberado APENAS para: Admin OU plano Premium pago.
  * Trial / Starter / Base / Free → bloqueado com CTA de upgrade.
  *
+ * Quando bloqueado, registra uma tentativa em `mycroft_chat_access_attempts`
+ * (rate-limited 5min no client, 30s no servidor).
+ *
  * Regra registrada em mem://features/mycroft-chat/access-restriction
  */
 export default function MycroftChatGate({
   children,
   variant = 'panel',
   title,
+  source = 'other',
+  matchContext,
 }: MycroftChatGateProps) {
-  const { isPaid, subscription, loading } = useSubscription();
+  const { isPaid, subscription, loading, daysLeft } = useSubscription();
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { user } = useAuth();
 
-  if (loading || adminLoading) {
+  const ready = !loading && !adminLoading;
+  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
+
+  // Registra tentativa quando bloqueado e dados já hidrataram
+  useEffect(() => {
+    if (!ready || canUse) return;
+
+    let reason: MycroftChatBlockReason = 'unknown';
+    if (!user) reason = 'no_login';
+    else if (!subscription) reason = 'free';
+    else if (subscription.plan === 'trial' && daysLeft <= 0) reason = 'trial_expired';
+    else if (subscription.plan === 'trial') reason = 'plan_insufficient';
+    else if (['starter', 'base'].includes(subscription.plan)) reason = 'plan_insufficient';
+
+    logMycroftChatAttempt({
+      source,
+      reason,
+      plan: subscription?.plan ?? null,
+      daysLeft: subscription ? daysLeft : null,
+      matchId: matchContext?.matchId,
+      homeTeam: matchContext?.homeTeam,
+      awayTeam: matchContext?.awayTeam,
+      league: matchContext?.league,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, canUse, source, matchContext?.matchId]);
+
+  if (!ready) {
     return (
       <div className="p-6 text-center text-xs text-white/40">
         Verificando acesso...
       </div>
     );
   }
-
-  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
 
   if (canUse) return <>{children}</>;
 

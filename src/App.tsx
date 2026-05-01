@@ -68,6 +68,7 @@ const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFuncti
 const AdminAssinaturas = React.lazy(() => import("./pages/AdminAssinaturas"));
 const AdminAuditoriaSinais = React.lazy(() => import("./pages/AdminAuditoriaSinais"));
 const AdminAuditoriaSinalDetalhe = React.lazy(() => import("./pages/AdminAuditoriaSinalDetalhe"));
+const AdminMycroftChatAccessLog = React.lazy(() => import("./pages/AdminMycroftChatAccessLog"));
 
 const queryClient = new QueryClient();
 
@@ -153,6 +154,7 @@ const App = () => {
                 <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
                 <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />
+                <Route path="/admin/mycroft-chat-access" element={<AdminMycroftChatAccessLog />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>

@@ -2840,6 +2840,60 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_chat_access_attempts: {
+        Row: {
+          away_team: string | null
+          created_at: string
+          days_left: number | null
+          email: string | null
+          home_team: string | null
+          id: string
+          league: string | null
+          match_id: string | null
+          metadata: Json | null
+          plan: string | null
+          reason: string
+          route: string | null
+          source: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          away_team?: string | null
+          created_at?: string
+          days_left?: number | null
+          email?: string | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          match_id?: string | null
+          metadata?: Json | null
+          plan?: string | null
+          reason: string
+          route?: string | null
+          source: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          away_team?: string | null
+          created_at?: string
+          days_left?: number | null
+          email?: string | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          match_id?: string | null
+          metadata?: Json | null
+          plan?: string | null
+          reason?: string
+          route?: string | null
+          source?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       mycroft_chat_logs: {
         Row: {
           away_team: string | null
@@ -6743,6 +6797,22 @@ export type Database = {
       increment_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
+      }
+      log_mycroft_chat_attempt: {
+        Args: {
+          p_away_team?: string
+          p_days_left?: number
+          p_home_team?: string
+          p_league?: string
+          p_match_id?: string
+          p_metadata?: Json
+          p_plan?: string
+          p_reason: string
+          p_route?: string
+          p_source: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       normalize_match_id: { Args: { mid: string }; Returns: string }
       record_arena_session: {
