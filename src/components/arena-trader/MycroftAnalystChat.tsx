@@ -46,6 +46,10 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { isPaid, subscription } = useSubscription();
+  const { isAdmin } = useAdmin();
+  const canUseChat = isAdmin || (isPaid && subscription?.plan === 'premium');
+
   // Load KB file list
   useEffect(() => {
     loadKBFiles();
@@ -365,6 +369,8 @@ export default function MycroftAnalystChat({ marketData }: MycroftAnalystChatPro
                 <Send className="w-4 h-4" />
               </button>
             </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
