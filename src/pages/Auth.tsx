@@ -153,11 +153,23 @@ const Auth = () => {
           // PostHog: signup completo (com UTMs anexadas via super-properties)
           track.signUp('trial', storedRef || 'organic', 'email');
 
-          // Meta Pixel: Lead (signup concluído)
+          // Meta Pixel: Lead + CompleteRegistration + StartTrial (signup = trial 7d ativado)
           if (typeof window !== 'undefined' && (window as any).fbq) {
-            (window as any).fbq('track', 'Lead', {
+            const fbq = (window as any).fbq;
+            fbq('track', 'Lead', {
               content_name: 'signup_email',
               source: storedRef || 'organic',
+            });
+            fbq('track', 'CompleteRegistration', {
+              content_name: 'signup_email',
+              status: true,
+              source: storedRef || 'organic',
+            });
+            fbq('track', 'StartTrial', {
+              content_name: 'trial_7_dias',
+              currency: 'BRL',
+              value: 0,
+              predicted_ltv: 149.90,
             });
           }
 
