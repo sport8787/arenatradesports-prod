@@ -212,6 +212,100 @@ function formScore(fixtures: any[], teamId: number): number {
 }
 
 // =============================================================================
+// MYCROFT JURY — Gemini direto (v1beta)
+// =============================================================================
+
+interface MycroftVerdict {
+  verdict: 'APROVADO' | 'REPROVADO' | 'AGUARDAR';
+  confidence: number;          // 0-100
+  recommended_bet: string | null;
+  justificativa: string;       // pt-br, frio, dedutivo
+  fair_odd?: number | null;
+  edge_pct?: number | null;
+}
+
+async function mycroftJury(input: {
+  match: string;
+  league: string;
+  matchDate: string;
+  scoreDeterministico: number;
+  betSugerido: string | null;
+  details: any;
+}): Promise<MycroftVerdict> {
+  // Fallback determinístico se Gemini indisponível
+  const fallback = (): MycroftVerdict => ({
+    verdict: input.scoreDeterministico >= 30 ? 'APROVADO' : (input.scoreDeterministico >= 25 ? 'APROVADO' : 'REPROVADO'),
+    confidence: Math.min(95, 50 + input.scoreDeterministico),
+    recommended_bet: input.betSugerido,
+    justificativa: '⚠️ Veredito por fallback determinístico (Gemini indisponível).',
+  });
+
+  if (!GEMINI_API_KEY) return fallback();
+
+  const prompt = `Você é o Mycroft — analista frio, dedutivo, em pt-br. NÃO TORCE. CALCULA.
+Avalie esta oportunidade de Handicap Asiático PRÉ-LIVE com base nos inputs abaixo e devolva JSON puro.
+
+JOGO: ${input.match}
+LIGA: ${input.league}
+DATA: ${input.matchDate}
+
+📊 SCORE DETERMINÍSTICO: ${input.scoreDeterministico}/50
+🎯 SUGESTÃO MATEMÁTICA: ${input.betSugerido ?? 'NENHUMA'}
+
+DETALHES:
+${JSON.stringify(input.details, null, 2)}
+
+REGRAS DO MYCROFT:
+- APROVADO apenas se há valor real (edge ≥ 4%) e contexto coerente.
+- REPROVADO se odds não comportam stake (linhas extremas) ou inconsistência entre forma e ELO.
+- AGUARDAR se faltam dados confiáveis.
+- Confiança: 70-85 = sólido, 85-95 = excepcional. Acima disso só com edge claro.
+- Justificativa: máximo 4 linhas, técnica e direta.
+
+Responda APENAS com JSON neste formato:
+{
+  "verdict": "APROVADO" | "REPROVADO" | "AGUARDAR",
+  "confidence": <number 0-100>,
+  "recommended_bet": "<string ou null>",
+  "justificativa": "<string pt-br curta>",
+  "fair_odd": <number ou null>,
+  "edge_pct": <number ou null>
+}`;
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000);
+    const r = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+          responseMimeType: 'application/json',
+        },
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) {
+      console.warn('[HA-edge] Gemini status', r.status);
+      return fallback();
+    }
+    const data = await r.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as MycroftVerdict;
+    if (!parsed.verdict) return fallback();
+    return parsed;
+  } catch (e) {
+    console.warn('[HA-edge] Gemini erro', e);
+    return fallback();
+  }
+}
+
+// =============================================================================
 // CORE — analyzeMatch
 // =============================================================================
 
@@ -226,6 +320,7 @@ interface AnalyzeResult {
   score: number;
   bet: string | null;
   isValue: boolean;
+  mycroft: MycroftVerdict;
   details: {
     eloHome: number;
     eloAway: number;
