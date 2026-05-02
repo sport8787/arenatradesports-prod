@@ -485,14 +485,18 @@ async function getFixturesProximas48h(): Promise<any[]> {
     const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
     return startTs >= nowMs && startTs <= endMs;
   });
-  // Separa jogos com liga mapeada (têm odds AH disponíveis) dos demais.
-  // Os mapeados vêm primeiro, mas TODOS são analisados (até o limite).
+  // Apenas jogos com liga mapeada (única forma de ter odds AH reais)
   const comOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') !== null);
   const semOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') === null);
-  console.log(`[HA-edge] ${filtered.length} fixtures pré-live | ${comOdds.length} com odds AH mapeadas | ${semOdds.length} sem mapeamento de odds`);
-  // Limite global para não estourar tempo/edge (~80 jogos máx, prioriza com-odds)
-  const LIMIT = 80;
-  return [...comOdds, ...semOdds].slice(0, LIMIT);
+  console.log(`[HA-edge] ${filtered.length} pré-live | ${comOdds.length} com odds AH | ${semOdds.length} sem (descartados)`);
+  // Limite p/ caber no tempo da edge function (~150s). Prioriza jogos mais próximos.
+  const LIMIT = 30;
+  const sortedByTime = comOdds.sort((a: any, b: any) => {
+    const ta = new Date(a.starting_at.replace(' ', 'T') + 'Z').getTime();
+    const tb = new Date(b.starting_at.replace(' ', 'T') + 'Z').getTime();
+    return ta - tb;
+  });
+  return sortedByTime.slice(0, LIMIT);
 }
 
 // =============================================================================
