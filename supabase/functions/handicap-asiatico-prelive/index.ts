@@ -479,6 +479,39 @@ async function salvarSinal(s: any) {
       } else {
         await supabase.from('punter_analyses').insert(payload);
       }
+
+      // === ESPELHA também em punter_sinais (feed /punter) ===
+      try {
+        const sinaisPayload: any = {
+          match_id: matchIdStd,
+          home_team: s.homeTeam,
+          away_team: s.awayTeam,
+          league: s.leagueName,
+          commence_time: s.matchDate,
+          market: marketLabel,
+          bookmaker: 'handicap-asiatico-prelive',
+          odd: s.oddHA,
+          verdict: 'APROVADO',
+          confidence: Math.round(s.scoreHA),
+          thesis: `HA ${s.linhaRecomendada} no ${s.teamAlvo} | Cat ${s.categoria}`,
+          analysis: justificativa,
+          analyzed_by: 'handicap-asiatico',
+          status: 'pending',
+        };
+        const { data: existingSinal } = await supabase
+          .from('punter_sinais')
+          .select('id')
+          .eq('match_id', matchIdStd)
+          .eq('market', marketLabel)
+          .maybeSingle();
+        if (existingSinal) {
+          await supabase.from('punter_sinais').update(sinaisPayload).eq('id', existingSinal.id);
+        } else {
+          await supabase.from('punter_sinais').insert(sinaisPayload);
+        }
+      } catch (e) {
+        console.error('[HA] mirror punter_sinais err', e);
+      }
     } catch (e) {
       console.error('[HA] mirror punter_analyses err', e);
     }
