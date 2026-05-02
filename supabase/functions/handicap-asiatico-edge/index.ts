@@ -542,8 +542,8 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   try {
-    const fixtures = await getFixturesDoDia();
-    console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados`);
+    const fixtures = await getFixturesProximas48h();
+    console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados (janela 48h)`);
 
     const signals: AHSignal[] = [];
     const linhasAlvo: Array<{ linha: string; lado: 'home' | 'away' }> = [
