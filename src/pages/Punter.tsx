@@ -1415,7 +1415,7 @@ export default function PunterPage() {
                 setHaLoading(true);
                 toast.info('🎯 Buscando oportunidades em Handicap Asiático... (pode levar até 2 min)');
                 try {
-                  const { data, error } = await supabase.functions.invoke('handicap-asiatico-prelive', { body: { data_source: 'sportmonks' } });
+                  const { data, error } = await supabase.functions.invoke('handicap-asiatico-edge', { body: { trigger: 'manual' } });
                   if (error) throw error;
                   if (data?.success) {
                     const aprov = data.aprovados ?? 0;
