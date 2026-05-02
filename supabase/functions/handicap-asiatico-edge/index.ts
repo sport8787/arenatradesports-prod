@@ -485,14 +485,18 @@ async function getFixturesProximas48h(): Promise<any[]> {
     const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
     return startTs >= nowMs && startTs <= endMs;
   });
-  // Separa jogos com liga mapeada (têm odds AH disponíveis) dos demais.
-  // Os mapeados vêm primeiro, mas TODOS são analisados (até o limite).
+  // Apenas jogos com liga mapeada (única forma de ter odds AH reais)
   const comOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') !== null);
   const semOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') === null);
-  console.log(`[HA-edge] ${filtered.length} fixtures pré-live | ${comOdds.length} com odds AH mapeadas | ${semOdds.length} sem mapeamento de odds`);
-  // Limite global para não estourar tempo/edge (~80 jogos máx, prioriza com-odds)
-  const LIMIT = 80;
-  return [...comOdds, ...semOdds].slice(0, LIMIT);
+  console.log(`[HA-edge] ${filtered.length} pré-live | ${comOdds.length} com odds AH | ${semOdds.length} sem (descartados)`);
+  // Limite p/ caber no tempo da edge function (~150s). Prioriza jogos mais próximos.
+  const LIMIT = 30;
+  const sortedByTime = comOdds.sort((a: any, b: any) => {
+    const ta = new Date(a.starting_at.replace(' ', 'T') + 'Z').getTime();
+    const tb = new Date(b.starting_at.replace(' ', 'T') + 'Z').getTime();
+    return ta - tb;
+  });
+  return sortedByTime.slice(0, LIMIT);
 }
 
 // =============================================================================
@@ -609,69 +613,75 @@ Deno.serve(async (req) => {
       { linha: '+1.0', lado: 'away' },
     ];
 
-    for (const fixture of fixtures) {
-      const participants = fixture.participants ?? [];
-      const homeP = participants.find((p: any) => p.meta?.location === 'home');
-      const awayP = participants.find((p: any) => p.meta?.location === 'away');
-      if (!homeP || !awayP) continue;
+    // Processa fixtures em batches paralelos de 5 (cabe no time-budget da edge)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < fixtures.length; i += BATCH_SIZE) {
+      const batch = fixtures.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (fixture) => {
+        const participants = fixture.participants ?? [];
+        const homeP = participants.find((p: any) => p.meta?.location === 'home');
+        const awayP = participants.find((p: any) => p.meta?.location === 'away');
+        if (!homeP || !awayP) return;
 
-      const leagueName = fixture.league?.name ?? 'Liga';
-      const [homeStats, awayStats, oddsAH] = await Promise.all([
-        getTeamStats(homeP.id, homeP.name),
-        getTeamStats(awayP.id, awayP.name),
-        getOddsAH(homeP.name, awayP.name, leagueName),
-      ]);
+        const leagueName = fixture.league?.name ?? 'Liga';
+        const [homeStats, awayStats, oddsAH] = await Promise.all([
+          getTeamStats(homeP.id, homeP.name),
+          getTeamStats(awayP.id, awayP.name),
+          getOddsAH(homeP.name, awayP.name, leagueName),
+        ]);
 
-      for (const { linha, lado } of linhasAlvo) {
-        const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
-        if (an.status === 'DESCARTADO' || !an.oddBookmaker) continue;
+        for (const { linha, lado } of linhasAlvo) {
+          const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
+          if (an.status === 'DESCARTADO' || !an.oddBookmaker) continue;
+          // PRÉ-FILTRO: só chama Gemini se edge >= 3% (economiza tempo/quota)
+          if (an.edge < 3) continue;
 
-        const indicadores = {
-          home_xg_for: homeStats.avg_xg_for,
-          home_xg_against: homeStats.avg_xg_against,
-          home_form: homeStats.form_points,
-          home_games: homeStats.games,
-          away_xg_for: awayStats.avg_xg_for,
-          away_xg_against: awayStats.avg_xg_against,
-          away_form: awayStats.form_points,
-          away_games: awayStats.games,
-        };
+          const indicadores = {
+            home_xg_for: homeStats.avg_xg_for,
+            home_xg_against: homeStats.avg_xg_against,
+            home_form: homeStats.form_points,
+            home_games: homeStats.games,
+            away_xg_for: awayStats.avg_xg_for,
+            away_xg_against: awayStats.avg_xg_against,
+            away_form: awayStats.form_points,
+            away_games: awayStats.games,
+          };
 
-        const mycroft = await mycroftJury({
-          match: `${homeP.name} vs ${awayP.name}`,
-          league: leagueName,
-          matchDate: fixture.starting_at,
-          linha, lado,
-          edge: an.edge,
-          oddBookmaker: an.oddBookmaker,
-          oddJusta: an.oddJusta,
-          probReal: an.probReal,
-          score: an.score,
-          details: indicadores,
-        });
+          const mycroft = await mycroftJury({
+            match: `${homeP.name} vs ${awayP.name}`,
+            league: leagueName,
+            matchDate: fixture.starting_at,
+            linha, lado,
+            edge: an.edge,
+            oddBookmaker: an.oddBookmaker,
+            oddJusta: an.oddJusta,
+            probReal: an.probReal,
+            score: an.score,
+            details: indicadores,
+          });
 
-        if (mycroft.verdict !== 'APROVADO') continue;
+          if (mycroft.verdict !== 'APROVADO') continue;
 
-        signals.push({
-          fixtureId: fixture.id,
-          homeTeam: homeP.name,
-          awayTeam: awayP.name,
-          leagueName,
-          matchDate: fixture.starting_at,
-          linha, lado,
-          oddAH: an.oddBookmaker,
-          probReal: an.probReal,
-          oddJusta: an.oddJusta,
-          edge: an.edge,
-          score: an.score,
-          status: an.status,
-          stake: an.stake,
-          indicadores,
-          mycroft,
-        });
-      }
-
-      await new Promise((r) => setTimeout(r, 800));
+          signals.push({
+            fixtureId: fixture.id,
+            homeTeam: homeP.name,
+            awayTeam: awayP.name,
+            leagueName,
+            matchDate: fixture.starting_at,
+            linha, lado,
+            oddAH: an.oddBookmaker,
+            probReal: an.probReal,
+            oddJusta: an.oddJusta,
+            edge: an.edge,
+            score: an.score,
+            status: an.status,
+            stake: an.stake,
+            indicadores,
+            mycroft,
+          });
+        }
+      }));
+      console.log(`[HA-edge] batch ${i / BATCH_SIZE + 1} concluído (${Math.min(i + BATCH_SIZE, fixtures.length)}/${fixtures.length})`);
     }
 
     // Top 4 por score
