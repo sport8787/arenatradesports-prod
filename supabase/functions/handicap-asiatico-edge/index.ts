@@ -1,21 +1,15 @@
 // =============================================================================
-// HANDICAP ASIÁTICO — EDGE (PRÉ-LIVE) — MODELO DE SCORE SIMPLIFICADO
+// HANDICAP ASIÁTICO — EDGE (PRÉ-LIVE) — MYCROFT + GEMINI
 // -----------------------------------------------------------------------------
-// Lógica:
-//   - Inputs: odds AH (linhas -0.25/-0.5/+0.25...), prob. implícita,
-//             força relativa (ELO/win-rate), forma recente, movimento de mercado.
-//   - Score:
-//        eloDiff > 80   →  +10
-//        eloDiff > 150  →  +15  (acumula ⇒ +25 se muito superior)
-//        formHome > formAway → +10
-//        oddsAH home ∈ [1.80, 2.20] → +15
-//        marketMovement.homeDropping → +10
-//   - Decisão:
-//        score ≥ 30 → "AH -0.25 (HOME)"
-//        score ≥ 25 → "AH -0.5 (HOME)"
-//        isValue = score ≥ 25
-// Dados via Sportmonks (fallback API-Football quando ausente).
+// Pipeline:
+//   1. Coleta Sportmonks (forma + ELO proxy) + Odds (The Odds API / API-Football)
+//   2. Score determinístico (ELO + forma + odds + movimento de mercado)
+//   3. 🧠 Mycroft (Gemini direto v1beta) decide veredito final usando o score
+//      como UM dos inputs (não decisão final). Frio, dedutivo, em pt-br.
+//   4. Persiste apenas APROVADOS em punter_analyses, com confiança da IA.
+// Fallback: se Gemini indisponível, usa veredito determinístico do score.
 // =============================================================================
+
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
