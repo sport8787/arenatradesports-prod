@@ -288,6 +288,44 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { home, away, commence_time, fixtureId: providedId } = body || {};
 
+    // ─── Cache hit?
+    const cacheKey = providedId
+      ? `id:${providedId}`
+      : `${(home || "").toLowerCase()}|${(away || "").toLowerCase()}`;
+    const cached = responseCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return new Response(JSON.stringify({ ...cached.payload, cached: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Helper para responder vazio (sem dados) — usado em fixture-not-found e rate-limit
+    const emptyPayload = (reason: string) => ({
+      fixtureId: null,
+      source: "none" as const,
+      reason,
+      header: {
+        home: { id: 0, name: home || "", logo: "" },
+        away: { id: 0, name: away || "", logo: "" },
+        score: { home: 0, away: 0 },
+        state: "",
+        minute: 0,
+      },
+      timeline: [],
+      events: [],
+      form: { home: [], away: [] },
+    });
+
+    // Se a API estiver em cooldown, devolve vazio sem bater nela
+    if (Date.now() < rateLimitedUntil) {
+      const payload = emptyPayload("rate_limited");
+      // cache curtinho pra distribuir o alívio
+      responseCache.set(cacheKey, { expires: Date.now() + 30_000, payload });
+      return new Response(JSON.stringify(payload), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let fixtureId: number | null = providedId ?? null;
     if (!fixtureId) {
       if (!home || !away) {
@@ -297,28 +335,14 @@ serve(async (req) => {
       }
       fixtureId = await findFixture(home, away, commence_time);
       if (!fixtureId) {
-        // Não encontrado: devolve payload vazio com 200 para o frontend tratar como "sem dados"
-        return new Response(JSON.stringify({
-          fixtureId: null,
-          source: "none",
-          reason: "fixture_not_found",
-          header: {
-            home: { id: 0, name: home, logo: "" },
-            away: { id: 0, name: away, logo: "" },
-            score: { home: 0, away: 0 },
-            state: "",
-            minute: 0,
-          },
-          timeline: [],
-          events: [],
-          form: { home: [], away: [] },
-        }), {
+        const payload = emptyPayload("fixture_not_found");
+        responseCache.set(cacheKey, { expires: Date.now() + RESPONSE_TTL_MS, payload });
+        return new Response(JSON.stringify(payload), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // 1) Tenta com Pressure Index. Se 403/404 ou vazio, refaz só com trends.
     const includesPressure = "participants;scores;state;periods;events;pressure";
     const includesTrends = "participants;scores;state;periods;events;trends";
 
@@ -326,7 +350,7 @@ serve(async (req) => {
     let fixture: any = null;
 
     const r1 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesPressure }));
-    if (r1.ok) {
+    if (r1 && r1.ok) {
       const j1 = await r1.json();
       fixture = j1?.data;
       const homeIdProbe = (fixture?.participants || []).find((p: any) => p.meta?.location === "home")?.id;
@@ -334,12 +358,14 @@ serve(async (req) => {
       if (tl && tl.length > 0) usedSource = "pressure";
     }
 
-    // Se não veio Pressure Index, refaz com trends
     if (usedSource === "none") {
       const r2 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesTrends }));
-      if (!r2.ok) {
-        return new Response(JSON.stringify({ error: "Falha ao buscar fixture", status: r2.status }), {
-          status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (!r2 || !r2.ok) {
+        // Sem fixture detalhado → devolve vazio em vez de 502
+        const payload = emptyPayload(r2 ? `fixture_fetch_${r2.status}` : "rate_limited");
+        responseCache.set(cacheKey, { expires: Date.now() + 30_000, payload });
+        return new Response(JSON.stringify(payload), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const j2 = await r2.json();
@@ -361,23 +387,24 @@ serve(async (req) => {
 
     const events = extractEvents(fixture, homeId);
 
-    // forma recente em paralelo
     const [homeForm, awayForm] = await Promise.all([
       fetchForm(header.home.id),
       fetchForm(header.away.id),
     ]);
 
-    return new Response(
-      JSON.stringify({
-        fixtureId,
-        source: usedSource,
-        header,
-        timeline,
-        events,
-        form: { home: homeForm, away: awayForm },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const payload = {
+      fixtureId,
+      source: usedSource,
+      header,
+      timeline,
+      events,
+      form: { home: homeForm, away: awayForm },
+    };
+    responseCache.set(cacheKey, { expires: Date.now() + RESPONSE_TTL_MS, payload });
+
+    return new Response(JSON.stringify(payload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
