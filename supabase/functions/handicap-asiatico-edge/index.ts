@@ -522,6 +522,13 @@ Deno.serve(async (req) => {
         match: o.match,
         score: o.score,
         bet: o.bet,
+        mycroft: {
+          verdict: o.mycroft.verdict,
+          confidence: o.mycroft.confidence,
+          justificativa: o.mycroft.justificativa,
+          fair_odd: o.mycroft.fair_odd,
+          edge_pct: o.mycroft.edge_pct,
+        },
         details: {
           eloDiff: o.details.eloDiff,
           formHome: o.details.formHome,
