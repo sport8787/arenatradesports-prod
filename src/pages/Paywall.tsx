@@ -112,6 +112,16 @@ declare global {
 export default function Paywall() {
   useEffect(() => {
     track.paywallViewed('paywall');
+    // Meta Pixel: ViewContent (visualizou paywall = momento alta intenção)
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', 'ViewContent', {
+        content_name: 'paywall',
+        content_category: 'subscription',
+        content_type: 'product_group',
+        currency: 'BRL',
+        value: 149.90,
+      });
+    }
   }, []);
 
   const handlePlanClick = (plan: typeof PLANS[0]) => {
