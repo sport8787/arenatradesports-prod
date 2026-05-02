@@ -247,11 +247,11 @@ async function fetchForm(teamId: number, n = 5): Promise<("W" | "D" | "L")[]> {
   try {
     const to = new Date().toISOString().slice(0, 10);
     const from = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
-    const r = await fetch(smUrl(`/football/fixtures/between/${from}/${to}/${teamId}`, {
+    const r = await smFetch(smUrl(`/football/fixtures/between/${from}/${to}/${teamId}`, {
       include: "scores;participants;state",
       per_page: "30",
     }));
-    if (!r.ok) return [];
+    if (!r || !r.ok) return [];
     const j = await r.json();
     const finished = (j.data || []).filter((f: any) => {
       const s = (f.state?.short_name || "").toUpperCase();
