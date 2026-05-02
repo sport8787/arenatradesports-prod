@@ -25,19 +25,11 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
-import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
-import SignalsFeed from '@/components/punter/SignalsFeed';
-import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
 import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
-import TodayResultsCard from '@/components/punter/TodayResultsCard';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
-
-import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
 import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
 import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
-import NotificationSettings from '@/components/punter/NotificationSettings';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
@@ -1233,7 +1225,6 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
-        <PlanoFavoritoPanel />
         {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
         {(() => {
           const sortedByConfidence = [...signals].sort(
@@ -1262,32 +1253,6 @@ export default function PunterPage() {
             : null;
           return (
             <>
-              <EbookWelcomeCard />
-              {user && (
-                <Collapsible defaultOpen={false}>
-                  <Card className="border-border bg-card">
-                    <CollapsibleTrigger className="w-full">
-                      <div className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Bell className="w-4 h-4 text-primary" />
-                          <span className="font-mono text-xs font-semibold text-foreground tracking-wider uppercase">
-                            Configurações de Notificações
-                          </span>
-                          <Badge variant="outline" className="text-[9px] font-mono">
-                            Desativar alertas
-                          </Badge>
-                        </div>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-3 pb-3">
-                        <NotificationSettings userId={user.id} />
-                      </div>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
-              )}
               <PunterHeroBanner
                 userId={user?.id}
                 featuredSignal={featured}
@@ -1301,20 +1266,6 @@ export default function PunterPage() {
             </>
           );
         })()}
-
-        {/* Banca virtual movida para /punter/banca-virtual */}
-
-
-        {/* Daily Summary Widget */}
-        {user && <DailySummaryWidget userId={user.id} username={profile?.username} />}
-
-        {/* Feed de Sinais (APROVADO + GREEN/RED) */}
-        <SignalsFeed />
-
-        {/* Eventos Raros — placares incomuns identificados pelo motor estatístico */}
-        <div id="eventos-raros" className="scroll-mt-20">
-          <EventosRarosPanel arena="punter" compactWhenIdle />
-        </div>
 
         {/* Navigation Grid movido para /punter/menu */}
 
@@ -1519,11 +1470,8 @@ export default function PunterPage() {
           </Alert>
         )}
 
-        {/* Card Greens/Reds do dia (Hórus auto-bet) */}
-        <TodayResultsCard
-          todayFilterActive={todayOnlyFilter}
-          onToggleFilter={() => setTodayOnlyFilter(v => !v)}
-        />
+        {/* TodayResultsCard removido — disponível em /punter/feed-eventos */}
+
 
         {/* Portfolio Expected ROI Summary */}
         {signals.length > 0 && (
