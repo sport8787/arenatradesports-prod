@@ -158,20 +158,17 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
     const participants = f.participants ?? [];
     const isHome = participants.find((p: any) => p.id === teamId)?.meta?.location === 'home';
     const scores = f.scores ?? [];
-    const ftScore = scores.find((s: any) => s.description === 'CURRENT' || s.description === 'FT');
-    let gh = 0, ga = 0;
-    if (ftScore?.score) {
-      // SportMonks: score.goals = gols do "participant" desse score, score.participant ('home'/'away')
-      // Estrutura varia; melhor pegar dois objetos (home/away)
-      gh = parseInt(ftScore.score?.goals ?? 0) || 0;
-    }
-    // Fallback robusto: percorrer scores de FT
-    if (!ftScore) {
-      const homeS = scores.find((s: any) => (s.description === 'CURRENT' || s.description === 'FT') && s.score?.participant === 'home');
-      const awayS = scores.find((s: any) => (s.description === 'CURRENT' || s.description === 'FT') && s.score?.participant === 'away');
-      gh = parseInt(homeS?.score?.goals ?? 0) || 0;
-      ga = parseInt(awayS?.score?.goals ?? 0) || 0;
-    }
+    const homeS = scores.find((s: any) =>
+      (s.description === 'CURRENT' || s.description === 'FT') &&
+      (s.score?.participant === 'home' || s.participant === 'home' || s.type === 'home')
+    );
+    const awayS = scores.find((s: any) =>
+      (s.description === 'CURRENT' || s.description === 'FT') &&
+      (s.score?.participant === 'away' || s.participant === 'away' || s.type === 'away')
+    );
+    const altScores = scores.filter((s: any) => s.description === 'CURRENT' || s.description === 'FT');
+    let gh = parseInt(homeS?.score?.goals ?? altScores[0]?.score?.goals ?? 0) || 0;
+    let ga = parseInt(awayS?.score?.goals ?? altScores[1]?.score?.goals ?? 0) || 0;
 
     if (isHome) {
       totalGoalsScored += gh;
@@ -239,6 +236,13 @@ const ODDS_SPORT_MAP: Record<string, string> = {
   'sudamericana': 'soccer_conmebol_copa_sudamericana',
 };
 
+function formatHandicapLine(point: number): string {
+  const rounded = Math.round(point * 100) / 100;
+  const absFixed = Number.isInteger(rounded) ? Math.abs(rounded).toFixed(1) : Math.abs(rounded).toString();
+  if (rounded === 0) return '0.0';
+  return `${rounded > 0 ? '+' : '-'}${absFixed}`;
+}
+
 function mapLeagueToSportKey(leagueName: string): string | null {
   const ln = (leagueName || '').toLowerCase();
   for (const [k, v] of Object.entries(ODDS_SPORT_MAP)) {
@@ -271,7 +275,7 @@ async function getOddsAH(homeTeam: string, awayTeam: string, leagueName: string)
           // Normalizamos para a perspectiva HOME: ponto positivo do home = +N, negativo = -N
           const isHome = o.name === game.home_team;
           const point = isHome ? o.point : -o.point;
-          const key = point > 0 ? `+${point}` : `${point}`;
+          const key = formatHandicapLine(point);
           out.lines[key] = out.lines[key] || {};
           if (isHome && !out.lines[key].home) out.lines[key].home = o.price;
           if (!isHome && !out.lines[key].away) out.lines[key].away = o.price;
@@ -329,6 +333,7 @@ function analyzeAH(
   lado: 'home' | 'away',
 ): { probReal: number; oddJusta: number; edge: number; score: number; status: AHSignal['status']; stake: number; oddBookmaker: number | null } {
   const handicap = parseFloat(linha); // perspectiva HOME
+  const oddsLookupKey = formatHandicapLine(lado === 'home' ? handicap : -handicap);
 
   // xG esperado: ataque do A x defesa do B (média)
   const homeLambda = (homeStats.avg_xg_for + awayStats.avg_xg_against) / 2;
@@ -348,7 +353,7 @@ function analyzeAH(
   else probReal -= formDiff * 0.05;
   probReal = Math.min(0.95, Math.max(0.05, probReal));
 
-  const oddBookmaker = oddsAH.lines[linha]?.[lado] ?? null;
+  const oddBookmaker = oddsAH.lines[oddsLookupKey]?.[lado] ?? null;
   if (!oddBookmaker) {
     return { probReal, oddJusta: 1 / probReal, edge: -100, score: 0, status: 'DESCARTADO', stake: 0, oddBookmaker: null };
   }
