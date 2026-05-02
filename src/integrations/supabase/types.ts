@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ah_odds_snapshot: {
+        Row: {
+          away_odd: number | null
+          captured_at: string
+          fixture_id: string
+          home_odd: number | null
+          id: string
+        }
+        Insert: {
+          away_odd?: number | null
+          captured_at?: string
+          fixture_id: string
+          home_odd?: number | null
+          id?: string
+        }
+        Update: {
+          away_odd?: number | null
+          captured_at?: string
+          fixture_id?: string
+          home_odd?: number | null
+          id?: string
+        }
+        Relationships: []
+      }
       ai_response_cache: {
         Row: {
           cache_key: string
