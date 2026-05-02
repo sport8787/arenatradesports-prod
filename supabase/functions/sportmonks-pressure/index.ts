@@ -16,11 +16,30 @@ const corsHeaders = {
 const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") || "";
 const SM_BASE = "https://api.sportmonks.com/v3";
 
+// ─── Cache em memória (sobrevive enquanto a instância da edge estiver viva) ───
+type CacheEntry = { expires: number; payload: any };
+const responseCache = new Map<string, CacheEntry>();
+const RESPONSE_TTL_MS = 60_000; // 60s por par home|away
+
+// Backoff global quando o Sportmonks devolve 429
+let rateLimitedUntil = 0;
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60_000; // 5 min sem bater na API
+
 function smUrl(path: string, params: Record<string, string> = {}): string {
   const u = new URL(SM_BASE + path);
   u.searchParams.set("api_token", SM_TOKEN);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
   return u.toString();
+}
+
+async function smFetch(url: string): Promise<Response | null> {
+  if (Date.now() < rateLimitedUntil) return null;
+  const r = await fetch(url);
+  if (r.status === 429) {
+    rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+    console.warn(`[sportmonks-pressure] 429 — backoff até ${new Date(rateLimitedUntil).toISOString()}`);
+  }
+  return r;
 }
 
 function normalizeTeamName(name: string): string[] {
