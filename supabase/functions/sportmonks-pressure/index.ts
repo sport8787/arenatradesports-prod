@@ -16,11 +16,30 @@ const corsHeaders = {
 const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") || "";
 const SM_BASE = "https://api.sportmonks.com/v3";
 
+// ─── Cache em memória (sobrevive enquanto a instância da edge estiver viva) ───
+type CacheEntry = { expires: number; payload: any };
+const responseCache = new Map<string, CacheEntry>();
+const RESPONSE_TTL_MS = 60_000; // 60s por par home|away
+
+// Backoff global quando o Sportmonks devolve 429
+let rateLimitedUntil = 0;
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60_000; // 5 min sem bater na API
+
 function smUrl(path: string, params: Record<string, string> = {}): string {
   const u = new URL(SM_BASE + path);
   u.searchParams.set("api_token", SM_TOKEN);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
   return u.toString();
+}
+
+async function smFetch(url: string): Promise<Response | null> {
+  if (Date.now() < rateLimitedUntil) return null;
+  const r = await fetch(url);
+  if (r.status === 429) {
+    rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+    console.warn(`[sportmonks-pressure] 429 — backoff até ${new Date(rateLimitedUntil).toISOString()}`);
+  }
+  return r;
 }
 
 function normalizeTeamName(name: string): string[] {
@@ -36,32 +55,51 @@ function normalizeTeamName(name: string): string[] {
 async function searchTeamId(name: string): Promise<number | null> {
   for (const variant of normalizeTeamName(name)) {
     try {
-      const r = await fetch(smUrl(`/football/teams/search/${encodeURIComponent(variant)}`));
-      if (!r.ok) continue;
+      const url = smUrl(`/football/teams/search/${encodeURIComponent(variant)}`);
+      const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        console.warn(`[sportmonks-pressure] searchTeam "${variant}" -> HTTP ${r.status}: ${body.slice(0, 200)}`);
+        continue;
+      }
       const j = await r.json();
       const t = j.data?.[0];
-      if (t?.id) return t.id;
-    } catch { /* next */ }
+      if (t?.id) {
+        console.log(`[sportmonks-pressure] team "${variant}" -> id=${t.id} name="${t.name}"`);
+        return t.id;
+      }
+      console.log(`[sportmonks-pressure] team "${variant}" -> no results`);
+    } catch (e) {
+      console.warn(`[sportmonks-pressure] searchTeam "${variant}" exception: ${(e as Error).message}`);
+    }
   }
   return null;
 }
 
 async function findFixture(home: string, away: string, commenceTime?: string): Promise<number | null> {
   const homeId = await searchTeamId(home);
-  if (!homeId) return null;
+  if (!homeId) {
+    console.warn(`[sportmonks-pressure] homeId not found for "${home}"`);
+    return null;
+  }
   const center = commenceTime ? new Date(commenceTime) : new Date();
   const from = new Date(center.getTime() - 36 * 3600_000).toISOString().slice(0, 10);
   const to = new Date(center.getTime() + 36 * 3600_000).toISOString().slice(0, 10);
   try {
-    const r = await fetch(smUrl(`/football/fixtures/between/${from}/${to}/${homeId}`, {
+    const url = smUrl(`/football/fixtures/between/${from}/${to}/${homeId}`, {
       include: "participants",
       per_page: "30",
-    }));
-    if (!r.ok) return null;
+    });
+    const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      console.warn(`[sportmonks-pressure] fixtures between -> HTTP ${r.status}: ${body.slice(0, 200)}`);
+      return null;
+    }
     const j = await r.json();
     const awayNorm = away.toLowerCase();
     const list: any[] = j.data || [];
-    // procura fixture cujo participante visitante bate com `away`
+    console.log(`[sportmonks-pressure] fixtures between ${from}..${to} for ${homeId}: ${list.length} hits`);
     const match = list.find((f) => {
       const parts = f.participants || [];
       return parts.some((p: any) => {
@@ -70,7 +108,8 @@ async function findFixture(home: string, away: string, commenceTime?: string): P
       });
     });
     return match?.id ?? list[0]?.id ?? null;
-  } catch {
+  } catch (e) {
+    console.warn(`[sportmonks-pressure] findFixture exception: ${(e as Error).message}`);
     return null;
   }
 }
@@ -208,11 +247,11 @@ async function fetchForm(teamId: number, n = 5): Promise<("W" | "D" | "L")[]> {
   try {
     const to = new Date().toISOString().slice(0, 10);
     const from = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
-    const r = await fetch(smUrl(`/football/fixtures/between/${from}/${to}/${teamId}`, {
+    const r = await smFetch(smUrl(`/football/fixtures/between/${from}/${to}/${teamId}`, {
       include: "scores;participants;state",
       per_page: "30",
     }));
-    if (!r.ok) return [];
+    if (!r || !r.ok) return [];
     const j = await r.json();
     const finished = (j.data || []).filter((f: any) => {
       const s = (f.state?.short_name || "").toUpperCase();
@@ -249,6 +288,44 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { home, away, commence_time, fixtureId: providedId } = body || {};
 
+    // ─── Cache hit?
+    const cacheKey = providedId
+      ? `id:${providedId}`
+      : `${(home || "").toLowerCase()}|${(away || "").toLowerCase()}`;
+    const cached = responseCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return new Response(JSON.stringify({ ...cached.payload, cached: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Helper para responder vazio (sem dados) — usado em fixture-not-found e rate-limit
+    const emptyPayload = (reason: string) => ({
+      fixtureId: null,
+      source: "none" as const,
+      reason,
+      header: {
+        home: { id: 0, name: home || "", logo: "" },
+        away: { id: 0, name: away || "", logo: "" },
+        score: { home: 0, away: 0 },
+        state: "",
+        minute: 0,
+      },
+      timeline: [],
+      events: [],
+      form: { home: [], away: [] },
+    });
+
+    // Se a API estiver em cooldown, devolve vazio sem bater nela
+    if (Date.now() < rateLimitedUntil) {
+      const payload = emptyPayload("rate_limited");
+      // cache curtinho pra distribuir o alívio
+      responseCache.set(cacheKey, { expires: Date.now() + 30_000, payload });
+      return new Response(JSON.stringify(payload), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let fixtureId: number | null = providedId ?? null;
     if (!fixtureId) {
       if (!home || !away) {
@@ -258,36 +335,22 @@ serve(async (req) => {
       }
       fixtureId = await findFixture(home, away, commence_time);
       if (!fixtureId) {
-        // Não encontrado: devolve payload vazio com 200 para o frontend tratar como "sem dados"
-        return new Response(JSON.stringify({
-          fixtureId: null,
-          source: "none",
-          reason: "fixture_not_found",
-          header: {
-            home: { id: 0, name: home, logo: "" },
-            away: { id: 0, name: away, logo: "" },
-            score: { home: 0, away: 0 },
-            state: "",
-            minute: 0,
-          },
-          timeline: [],
-          events: [],
-          form: { home: [], away: [] },
-        }), {
+        const payload = emptyPayload("fixture_not_found");
+        responseCache.set(cacheKey, { expires: Date.now() + RESPONSE_TTL_MS, payload });
+        return new Response(JSON.stringify(payload), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // 1) Tenta com Pressure Index. Se 403/404 ou vazio, refaz só com trends.
     const includesPressure = "participants;scores;state;periods;events;pressure";
     const includesTrends = "participants;scores;state;periods;events;trends";
 
     let usedSource: "pressure" | "trends" | "none" = "none";
     let fixture: any = null;
 
-    const r1 = await fetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesPressure }));
-    if (r1.ok) {
+    const r1 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesPressure }));
+    if (r1 && r1.ok) {
       const j1 = await r1.json();
       fixture = j1?.data;
       const homeIdProbe = (fixture?.participants || []).find((p: any) => p.meta?.location === "home")?.id;
@@ -295,12 +358,14 @@ serve(async (req) => {
       if (tl && tl.length > 0) usedSource = "pressure";
     }
 
-    // Se não veio Pressure Index, refaz com trends
     if (usedSource === "none") {
-      const r2 = await fetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesTrends }));
-      if (!r2.ok) {
-        return new Response(JSON.stringify({ error: "Falha ao buscar fixture", status: r2.status }), {
-          status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const r2 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesTrends }));
+      if (!r2 || !r2.ok) {
+        // Sem fixture detalhado → devolve vazio em vez de 502
+        const payload = emptyPayload(r2 ? `fixture_fetch_${r2.status}` : "rate_limited");
+        responseCache.set(cacheKey, { expires: Date.now() + 30_000, payload });
+        return new Response(JSON.stringify(payload), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const j2 = await r2.json();
@@ -322,23 +387,24 @@ serve(async (req) => {
 
     const events = extractEvents(fixture, homeId);
 
-    // forma recente em paralelo
     const [homeForm, awayForm] = await Promise.all([
       fetchForm(header.home.id),
       fetchForm(header.away.id),
     ]);
 
-    return new Response(
-      JSON.stringify({
-        fixtureId,
-        source: usedSource,
-        header,
-        timeline,
-        events,
-        form: { home: homeForm, away: awayForm },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const payload = {
+      fixtureId,
+      source: usedSource,
+      header,
+      timeline,
+      events,
+      form: { home: homeForm, away: awayForm },
+    };
+    responseCache.set(cacheKey, { expires: Date.now() + RESPONSE_TTL_MS, payload });
+
+    return new Response(JSON.stringify(payload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

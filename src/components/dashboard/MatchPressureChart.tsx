@@ -26,7 +26,7 @@ export interface PressureData {
 
 interface FetchArgs { home: string; away: string; commenceTime?: string; fixtureId?: number; }
 
-export function useMatchPressure(args: FetchArgs, refreshMs = 30000) {
+export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
   const [data, setData] = useState<PressureData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
