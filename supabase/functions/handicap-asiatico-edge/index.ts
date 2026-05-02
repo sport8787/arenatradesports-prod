@@ -368,6 +368,23 @@ async function analyzeMatch(fixture: any): Promise<AnalyzeResult | null> {
   if (score >= 30) bet = 'AH -0.25 (HOME)';
   else if (score >= 25) bet = 'AH -0.5 (HOME)';
 
+  // 🧠 Camada Mycroft (Gemini) — decide veredito final usando score como input
+  const mycroft = await mycroftJury({
+    match: `${teams.home.name} vs ${teams.away.name}`,
+    league: league.name,
+    matchDate: fix.date,
+    scoreDeterministico: score,
+    betSugerido: bet,
+    details: {
+      eloHome, eloAway, eloDiff,
+      formHome, formAway,
+      oddsAH_home: homeAH,
+      oddsAH_away: oddsBlock.oddsAH.away,
+      homeMatchOdd: oddsBlock.homeMatchOdd,
+      marketMovement: oddsBlock.marketMovement,
+    },
+  });
+
   return {
     match: `${teams.home.name} vs ${teams.away.name}`,
     homeTeam: teams.home.name,
@@ -377,8 +394,9 @@ async function analyzeMatch(fixture: any): Promise<AnalyzeResult | null> {
     leagueName: league.name,
     matchDate: fix.date,
     score,
-    bet,
-    isValue: score >= 25,
+    bet: mycroft.recommended_bet ?? bet,
+    isValue: mycroft.verdict === 'APROVADO',
+    mycroft,
     details: {
       eloHome, eloAway, eloDiff,
       formHome, formAway,
