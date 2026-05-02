@@ -774,6 +774,31 @@ async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25
       console.error('[PLANO FAVORITO] mirror erro', e2)
     }
   }
+
+  // Mirror também para punter_sinais (tabela unificada lida pelo /punter)
+  try {
+    const sinaisPayload: any = {
+      match_id: matchIdStd,
+      league: analise.leagueName,
+      home_team: analise.homeTeam,
+      away_team: analise.awayTeam,
+      market: label,
+      odd: odd,
+      confidence: Math.min(100, Math.max(0, Math.round(score))),
+      verdict: 'APROVADO',
+      commence_time: analise.matchDate,
+      thesis: justificativa,
+      analysis: justificativa,
+      stake_percentage: status === 'SINAL_FORTE' ? 4 : 3,
+      analyzed_by: 'plano-favorito-prelive',
+      status: 'pending',
+    }
+    await supabase
+      .from('punter_sinais')
+      .upsert(sinaisPayload, { onConflict: 'match_id,market', ignoreDuplicates: false })
+  } catch (e) {
+    console.error('[PLANO FAVORITO] mirror punter_sinais erro', e)
+  }
 }
 
 async function mirrorToPunterAnalyses(analise: Analise) {
