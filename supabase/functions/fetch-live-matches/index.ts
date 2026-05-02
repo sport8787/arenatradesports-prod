@@ -58,84 +58,30 @@ async function runWithConcurrency<T, R>(
 }
 
 // Whitelist de ligas permitidas (league_id → nome)
+// REDUZIDA: apenas principais ligas para economizar quota da API
 const LIGAS_PERMITIDAS: Record<number, string> = {
-  // Europa — Top 5 + segundas divisões
+  // Europa — Top 5
   39:  "Premier League",
-  40:  "Championship (Inglaterra — 2ª divisão)",
-  41:  "League One (Inglaterra — 3ª divisão)",
   140: "La Liga",
-  141: "Segunda División (Espanha)",
   135: "Serie A",
-  136: "Serie B (Itália)",
   78:  "Bundesliga",
-  79:  "2. Bundesliga",
   61:  "Ligue 1",
-  62:  "Ligue 2 (França)",
-  // Europa — Primeiras divisões relevantes
+  // Portugal
   94:  "Primeira Liga (Portugal)",
-  88:  "Eredivisie",
-  89:  "Eerste Divisie (Holanda — 2ª divisão)",
-  144: "Pro League (Bélgica)",
-  197: "Super League (Grécia)",
-  203: "Süper Lig (Turquia)",
-  207: "Super Lig (Suíça)",
-  113: "Allsvenskan (Suécia)",
-  103: "Eliteserien (Noruega)",
-  119: "Superliga (Dinamarca)",
-  244: "Veikkausliiga (Finlândia)",
-  218: "Bundesliga (Áustria)",
-  332: "Ekstraklasa (Polônia)",
-  235: "Premiership (Escócia)",
-  271: "Prva HNL (Croácia)",
-  283: "Superliga (Sérvia)",
-  172: "Fortuna Liga (Eslováquia)",
-  345: "Chance Liga (Tchéquia)",
   // UEFA Competições
   2:   "Champions League",
   3:   "Europa League",
   848: "Conference League",
-  4:   "Euro Qualifiers",
-  // América do Sul
-  13:  "Libertadores",
-  11:  "Sul-Americana",
+  // Brasil
   71:  "Brasileirão Série A",
   72:  "Brasileirão Série B",
-  73:  "Brasileirão Série C",
   75:  "Copa Do Brasil",
-  76:  "Copa do Nordeste",
-  529: "Copa do Norte",
-  530: "Copa Verde",
-  531: "Copa Paulista",
-  532: "Copa Espírito Santo",
-  533: "Copa Rio",
-  128: "Liga Profesional Argentina",
-  238: "Argentine Primera División",
-  239: "Copa Argentina",
-  350: "Primera A (Colômbia)",
-  268: "Liga 1 (Peru)",
-  262: "Liga Pro (Equador)",
-  296: "Primera División (Uruguai)",
-  // América do Norte / Central
-  253: "MLS",
-  262: "Liga MX",
-  // Ásia
-  292: "K-League 1 (Coreia do Sul)",
-  98:  "J1 League (Japão)",
-  169: "Super League (China)",
-  // Oceania / África
-  188: "A-League (Austrália)",
-  233: "Premier Soccer League (África do Sul)",
+  // América do Sul — copas continentais
+  13:  "Libertadores",
+  11:  "Sul-Americana",
   // Mundo
   1:   "Copa do Mundo",
   15:  "Copa do Mundo — Qualificatórias",
-  10:  "Amistosos Internacionais (Seleções)",
-  32:  "Eliminatórias Copa do Mundo - Europa",
-  // Feminino — Principais ligas
-  746: "UEFA Women's Champions League",
-  766: "WSL (Inglaterra Feminino)",
-  770: "Frauen-Bundesliga (Alemanha Feminino)",
-  764: "NWSL (EUA Feminino)",
-  1382: "Brasileirão Feminino",
 };
 
 // IDs de ligas bloqueadas
