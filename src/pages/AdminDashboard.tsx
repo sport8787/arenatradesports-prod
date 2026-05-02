@@ -26,6 +26,8 @@ type User = {
   trial_ends_at: string | null;
   trial_days_left: number | null;
   status: string;
+  coupon_code: string | null;
+  coupon_partner: string | null;
 };
 
 type Data = {
@@ -238,6 +240,7 @@ export default function AdminDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Email</TableHead>
+                        <TableHead>Cupom</TableHead>
                         <TableHead>Cadastro</TableHead>
                         <TableHead>Último acesso</TableHead>
                         <TableHead>Trial (dias)</TableHead>
@@ -248,6 +251,17 @@ export default function AdminDashboard() {
                       {filteredUsers.map((u) => (
                         <TableRow key={u.id}>
                           <TableCell className="font-medium text-sm">{u.email || '—'}</TableCell>
+                          <TableCell className="text-sm">
+                            {u.coupon_code ? (
+                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                                {u.coupon_code}
+                              </Badge>
+                            ) : u.coupon_partner ? (
+                              <span className="text-xs text-muted-foreground">{u.coupon_partner}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{fmtDate(u.created_at)}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{fmtDate(u.last_sign_in_at)}</TableCell>
                           <TableCell className="text-sm">
@@ -262,7 +276,7 @@ export default function AdminDashboard() {
                       ))}
                       {filteredUsers.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                             Nenhum usuário encontrado.
                           </TableCell>
                         </TableRow>
