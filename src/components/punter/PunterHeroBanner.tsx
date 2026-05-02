@@ -375,6 +375,27 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
               Abrir
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/punter/feed-eventos')}
+            className="w-full border border-warning/40 bg-warning/10 hover:bg-warning/20 transition-colors p-3 group text-left flex items-center gap-3"
+          >
+            <div className="shrink-0 w-9 h-9 flex items-center justify-center border border-warning/50 bg-background">
+              <Bell className="w-4 h-4 text-warning" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-mono uppercase tracking-widest text-warning/80">
+                Feed & Eventos Raros
+              </p>
+              <p className="font-bold text-foreground text-sm leading-tight">
+                Ver Feed de Sinais e Eventos Raros
+              </p>
+            </div>
+            <span className="bg-warning text-background px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
+              Abrir
+            </span>
+          </button>
         </div>
       </div>
     </motion.div>
