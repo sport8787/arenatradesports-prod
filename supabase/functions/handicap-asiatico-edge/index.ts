@@ -181,14 +181,37 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
 const ODDS_SPORT_MAP: Record<string, string> = {
   // por nome de liga (case-insensitive, contains)
   'premier league': 'soccer_epl',
+  'championship': 'soccer_efl_champ',
   'la liga': 'soccer_spain_la_liga',
+  'segunda': 'soccer_spain_segunda_division',
   'serie a': 'soccer_italy_serie_a',
+  'serie b': 'soccer_italy_serie_b',
   'bundesliga': 'soccer_germany_bundesliga',
+  '2. bundesliga': 'soccer_germany_bundesliga2',
   'ligue 1': 'soccer_france_ligue_one',
+  'ligue 2': 'soccer_france_ligue_two',
   'brasileir': 'soccer_brazil_campeonato',
+  'série b': 'soccer_brazil_serie_b',
   'eredivisie': 'soccer_netherlands_eredivisie',
   'primeira liga': 'soccer_portugal_primeira_liga',
   'super lig': 'soccer_turkey_super_league',
+  'champions league': 'soccer_uefa_champs_league',
+  'europa league': 'soccer_uefa_europa_league',
+  'conference league': 'soccer_uefa_europa_conference_league',
+  'mls': 'soccer_usa_mls',
+  'liga mx': 'soccer_mexico_ligamx',
+  'primera división': 'soccer_argentina_primera_division',
+  'primera division': 'soccer_argentina_primera_division',
+  'a-league': 'soccer_australia_aleague',
+  'j league': 'soccer_japan_j_league',
+  'j1': 'soccer_japan_j_league',
+  'k league': 'soccer_korea_kleague1',
+  'belgian': 'soccer_belgium_first_div',
+  'jupiler': 'soccer_belgium_first_div',
+  'fa cup': 'soccer_fa_cup',
+  'efl cup': 'soccer_england_efl_cup',
+  'copa libertadores': 'soccer_conmebol_copa_libertadores',
+  'sudamericana': 'soccer_conmebol_copa_sudamericana',
 };
 
 function mapLeagueToSportKey(leagueName: string): string | null {
@@ -429,14 +452,20 @@ async function getFixturesProximas48h(): Promise<any[]> {
   if (!data || !Array.isArray(data)) return [];
   const nowMs = now.getTime();
   const endMs = end.getTime();
-  return data.filter((f: any) => {
+  const filtered = data.filter((f: any) => {
     const state = f.state?.short_name || f.state?.state || '';
     if (!['NS', 'not_started', 'scheduled'].includes(state)) return false;
-    const leagueName = f.league?.name || '';
-    if (mapLeagueToSportKey(leagueName) === null) return false;
     const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
     return startTs >= nowMs && startTs <= endMs;
   });
+  // Separa jogos com liga mapeada (têm odds AH disponíveis) dos demais.
+  // Os mapeados vêm primeiro, mas TODOS são analisados (até o limite).
+  const comOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') !== null);
+  const semOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') === null);
+  console.log(`[HA-edge] ${filtered.length} fixtures pré-live | ${comOdds.length} com odds AH mapeadas | ${semOdds.length} sem mapeamento de odds`);
+  // Limite global para não estourar tempo/edge (~80 jogos máx, prioriza com-odds)
+  const LIMIT = 80;
+  return [...comOdds, ...semOdds].slice(0, LIMIT);
 }
 
 // =============================================================================
