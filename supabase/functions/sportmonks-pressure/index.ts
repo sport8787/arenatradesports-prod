@@ -36,32 +36,51 @@ function normalizeTeamName(name: string): string[] {
 async function searchTeamId(name: string): Promise<number | null> {
   for (const variant of normalizeTeamName(name)) {
     try {
-      const r = await fetch(smUrl(`/football/teams/search/${encodeURIComponent(variant)}`));
-      if (!r.ok) continue;
+      const url = smUrl(`/football/teams/search/${encodeURIComponent(variant)}`);
+      const r = await fetch(url);
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        console.warn(`[sportmonks-pressure] searchTeam "${variant}" -> HTTP ${r.status}: ${body.slice(0, 200)}`);
+        continue;
+      }
       const j = await r.json();
       const t = j.data?.[0];
-      if (t?.id) return t.id;
-    } catch { /* next */ }
+      if (t?.id) {
+        console.log(`[sportmonks-pressure] team "${variant}" -> id=${t.id} name="${t.name}"`);
+        return t.id;
+      }
+      console.log(`[sportmonks-pressure] team "${variant}" -> no results`);
+    } catch (e) {
+      console.warn(`[sportmonks-pressure] searchTeam "${variant}" exception: ${(e as Error).message}`);
+    }
   }
   return null;
 }
 
 async function findFixture(home: string, away: string, commenceTime?: string): Promise<number | null> {
   const homeId = await searchTeamId(home);
-  if (!homeId) return null;
+  if (!homeId) {
+    console.warn(`[sportmonks-pressure] homeId not found for "${home}"`);
+    return null;
+  }
   const center = commenceTime ? new Date(commenceTime) : new Date();
   const from = new Date(center.getTime() - 36 * 3600_000).toISOString().slice(0, 10);
   const to = new Date(center.getTime() + 36 * 3600_000).toISOString().slice(0, 10);
   try {
-    const r = await fetch(smUrl(`/football/fixtures/between/${from}/${to}/${homeId}`, {
+    const url = smUrl(`/football/fixtures/between/${from}/${to}/${homeId}`, {
       include: "participants",
       per_page: "30",
-    }));
-    if (!r.ok) return null;
+    });
+    const r = await fetch(url);
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      console.warn(`[sportmonks-pressure] fixtures between -> HTTP ${r.status}: ${body.slice(0, 200)}`);
+      return null;
+    }
     const j = await r.json();
     const awayNorm = away.toLowerCase();
     const list: any[] = j.data || [];
-    // procura fixture cujo participante visitante bate com `away`
+    console.log(`[sportmonks-pressure] fixtures between ${from}..${to} for ${homeId}: ${list.length} hits`);
     const match = list.find((f) => {
       const parts = f.participants || [];
       return parts.some((p: any) => {
@@ -70,7 +89,8 @@ async function findFixture(home: string, away: string, commenceTime?: string): P
       });
     });
     return match?.id ?? list[0]?.id ?? null;
-  } catch {
+  } catch (e) {
+    console.warn(`[sportmonks-pressure] findFixture exception: ${(e as Error).message}`);
     return null;
   }
 }
