@@ -25,19 +25,7 @@ import { useManualBankroll } from '@/hooks/useManualBankroll';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
-import DailySummaryWidget from '@/components/punter/DailySummaryWidget';
-import SignalsFeed from '@/components/punter/SignalsFeed';
-import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
 import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
-import TodayResultsCard from '@/components/punter/TodayResultsCard';
-import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
-
-import EbookWelcomeCard from '@/components/punter/EbookWelcomeCard';
-import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
-import { usePunterViewMode } from '@/hooks/usePunterViewMode';
-import CopySignalActions from '@/components/signals/CopySignalActions';
-import NotificationSettings from '@/components/punter/NotificationSettings';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
