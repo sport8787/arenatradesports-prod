@@ -474,7 +474,7 @@ async function getFixturesProximas48h(): Promise<any[]> {
   const endStr = end.toISOString().split('T')[0];
   console.log(`[HA-edge] Buscando fixtures entre ${startStr} e ${endStr} (janela 48h, agora=${now.toISOString()})`);
   // Usa endpoint v3 /football/fixtures/between com paginação completa
-  const data = await smFetchAll(`/football/fixtures/between/${startStr}/${endStr}`, 'participants;league;state', 20);
+  const data = await smFetchAll(`/fixtures/between/${startStr}/${endStr}`, 'participants;league;state', 20);
   console.log(`[HA-edge] Sportmonks retornou ${data.length} fixtures totais (todas as páginas)`);
   if (!data.length) return [];
   const nowMs = now.getTime();
