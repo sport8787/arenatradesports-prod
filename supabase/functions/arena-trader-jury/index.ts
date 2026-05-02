@@ -74,22 +74,24 @@ Responda APENAS com JSON válido:
 {"voto": "CLARO" ou "BLEFE", "confianca": 0-100, "razao": "Uma frase curta (max 120 chars)"}`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Migrado para Gemini direto (compat OpenAI) — economiza créditos OpenAI/Anthropic
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini',
-        max_completion_tokens: 400,
+        model: 'gemini-2.5-flash',
+        max_tokens: 400,
+        temperature: 0.5,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`[TraderJury] ${profile} OpenAI error:`, errText);
+      console.error(`[TraderJury] ${profile} Gemini error:`, errText);
       throw new Error(`API error ${response.status}`);
     }
 
@@ -125,9 +127,9 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('OPENAI_API_KEY');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), 
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
