@@ -258,8 +258,23 @@ serve(async (req) => {
       }
       fixtureId = await findFixture(home, away, commence_time);
       if (!fixtureId) {
-        return new Response(JSON.stringify({ error: "Fixture Sportmonks não encontrado", home, away }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        // Não encontrado: devolve payload vazio com 200 para o frontend tratar como "sem dados"
+        return new Response(JSON.stringify({
+          fixtureId: null,
+          source: "none",
+          reason: "fixture_not_found",
+          header: {
+            home: { id: 0, name: home, logo: "" },
+            away: { id: 0, name: away, logo: "" },
+            score: { home: 0, away: 0 },
+            state: "",
+            minute: 0,
+          },
+          timeline: [],
+          events: [],
+          form: { home: [], away: [] },
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
