@@ -26,6 +26,10 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import GoldButton from '@/components/game/GoldButton';
 import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
+import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
+import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
+import { usePunterViewMode } from '@/hooks/usePunterViewMode';
+import CopySignalActions from '@/components/signals/CopySignalActions';
 import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
