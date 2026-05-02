@@ -34,7 +34,7 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
 
 async function smFetch(url: string): Promise<Response | null> {
   if (Date.now() < rateLimitedUntil) return null;
-  const r = await fetch(url);
+  const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
   if (r.status === 429) {
     rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
     console.warn(`[sportmonks-pressure] 429 — backoff até ${new Date(rateLimitedUntil).toISOString()}`);
@@ -56,7 +56,7 @@ async function searchTeamId(name: string): Promise<number | null> {
   for (const variant of normalizeTeamName(name)) {
     try {
       const url = smUrl(`/football/teams/search/${encodeURIComponent(variant)}`);
-      const r = await fetch(url);
+      const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         console.warn(`[sportmonks-pressure] searchTeam "${variant}" -> HTTP ${r.status}: ${body.slice(0, 200)}`);
@@ -90,7 +90,7 @@ async function findFixture(home: string, away: string, commenceTime?: string): P
       include: "participants",
       per_page: "30",
     });
-    const r = await fetch(url);
+    const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
     if (!r.ok) {
       const body = await r.text().catch(() => "");
       console.warn(`[sportmonks-pressure] fixtures between -> HTTP ${r.status}: ${body.slice(0, 200)}`);
@@ -325,7 +325,7 @@ serve(async (req) => {
     let usedSource: "pressure" | "trends" | "none" = "none";
     let fixture: any = null;
 
-    const r1 = await fetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesPressure }));
+    const r1 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesPressure }));
     if (r1.ok) {
       const j1 = await r1.json();
       fixture = j1?.data;
@@ -336,7 +336,7 @@ serve(async (req) => {
 
     // Se não veio Pressure Index, refaz com trends
     if (usedSource === "none") {
-      const r2 = await fetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesTrends }));
+      const r2 = await smFetch(smUrl(`/football/fixtures/${fixtureId}`, { include: includesTrends }));
       if (!r2.ok) {
         return new Response(JSON.stringify({ error: "Falha ao buscar fixture", status: r2.status }), {
           status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
