@@ -418,17 +418,19 @@ async function persistOpportunity(o: AnalyzeResult) {
   const matchIdStd = `ha-edge-${o.fixtureId}`;
   const marketLabel = o.bet;
   const odd = o.details.oddsAH_home ?? 1.95;
-  const confidence = Math.min(95, 50 + o.score); // 25→75, 35→85
+  const confidence = o.mycroft.confidence ?? Math.min(95, 50 + o.score);
 
   const justificativa =
+    `🧠 MYCROFT — ${o.mycroft.verdict} (${confidence}%)\n` +
+    `${o.mycroft.justificativa}\n\n` +
     `🎯 ${o.bet}\n` +
-    `📊 Score: ${o.score}\n\n` +
-    `📈 Força (ELO proxy):\n` +
-    `• Casa: ${o.details.eloHome} | Fora: ${o.details.eloAway} | Δ ${o.details.eloDiff}\n\n` +
-    `🏃 Forma (últ. 5 jogos):\n` +
-    `• Casa: ${o.details.formHome} pts | Fora: ${o.details.formAway} pts\n\n` +
+    `📊 Score determinístico: ${o.score}/50\n` +
+    (o.mycroft.fair_odd ? `⚖️ Fair odd: ${o.mycroft.fair_odd.toFixed(2)} | Edge: ${(o.mycroft.edge_pct ?? 0).toFixed(1)}%\n` : '') +
+    `\n📈 Força (ELO proxy):\n` +
+    `• Casa: ${o.details.eloHome} | Fora: ${o.details.eloAway} | Δ ${o.details.eloDiff}\n` +
+    `🏃 Forma (últ. 5): Casa ${o.details.formHome} pts | Fora ${o.details.formAway} pts\n` +
     `💹 Odds AH casa: ${o.details.oddsAH_home?.toFixed(2) ?? '—'}\n` +
-    `📉 Movimento mercado: ${o.details.marketMovement.homeDropping ? 'CASA caindo (smart money)' : 'estável'}`;
+    `📉 Mercado: ${o.details.marketMovement.homeDropping ? 'CASA caindo (smart money)' : 'estável'}`;
 
   try {
     const { data: existing } = await supabase
@@ -447,11 +449,11 @@ async function persistOpportunity(o: AnalyzeResult) {
       market: marketLabel,
       bookmaker: 'handicap-asiatico-edge',
       odd,
-      verdict: 'APROVADO',
+      verdict: o.mycroft.verdict,
       confidence,
-      thesis: `${o.bet} | Score ${o.score}`,
+      thesis: `${o.bet} | Mycroft ${o.mycroft.verdict} ${confidence}% | Score ${o.score}`,
       analysis: justificativa,
-      analyzed_by: 'handicap-asiatico-edge',
+      analyzed_by: 'mycroft-handicap-asiatico',
     };
 
     if (existing) {
