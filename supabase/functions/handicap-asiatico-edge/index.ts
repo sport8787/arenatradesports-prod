@@ -419,15 +419,23 @@ Responda APENAS com JSON puro neste formato:
 // FIXTURES DO DIA (SportMonks)
 // =============================================================================
 
-async function getFixturesDoDia(): Promise<any[]> {
-  const hoje = new Date().toISOString().split('T')[0];
-  const data = await smFetch(`/fixtures/date/${hoje}`, 'participants;league;state');
+async function getFixturesProximas48h(): Promise<any[]> {
+  const now = new Date();
+  const end = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+  const startStr = now.toISOString().split('T')[0];
+  const endStr = end.toISOString().split('T')[0];
+  console.log(`[HA-edge] Buscando fixtures entre ${startStr} e ${endStr} (janela 48h, agora=${now.toISOString()})`);
+  const data = await smFetch(`/fixtures/between/${startStr}/${endStr}`, 'participants;league;state');
   if (!data || !Array.isArray(data)) return [];
+  const nowMs = now.getTime();
+  const endMs = end.getTime();
   return data.filter((f: any) => {
-    const state = f.state?.short_name || '';
+    const state = f.state?.short_name || f.state?.state || '';
     if (!['NS', 'not_started', 'scheduled'].includes(state)) return false;
     const leagueName = f.league?.name || '';
-    return mapLeagueToSportKey(leagueName) !== null;
+    if (mapLeagueToSportKey(leagueName) === null) return false;
+    const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
+    return startTs >= nowMs && startTs <= endMs;
   });
 }
 
@@ -534,8 +542,8 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   try {
-    const fixtures = await getFixturesDoDia();
-    console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados`);
+    const fixtures = await getFixturesProximas48h();
+    console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados (janela 48h)`);
 
     const signals: AHSignal[] = [];
     const linhasAlvo: Array<{ linha: string; lado: 'home' | 'away' }> = [
