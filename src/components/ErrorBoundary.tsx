@@ -149,7 +149,26 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Caught error:', error);
     console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
-    
+
+    // Auto-recover from DOM mutation errors caused by browser extensions
+    // (Chrome auto-translate, Grammarly, LanguageTool, etc.) that wrap text
+    // nodes and conflict with React's reconciliation.
+    const msg = error?.message || '';
+    const isExtensionDomError =
+      msg.includes('removeChild') ||
+      msg.includes('insertBefore') ||
+      msg.includes('not a child of this node') ||
+      msg.includes('não é filho deste nó');
+
+    if (isExtensionDomError) {
+      console.warn('[ErrorBoundary] Extension-induced DOM error detected — auto-recovering.');
+      // Reset on next tick so React can re-render cleanly.
+      setTimeout(() => {
+        this.setState({ hasError: false, error: null, errorInfo: null });
+      }, 50);
+      return;
+    }
+
     this.setState({ error, errorInfo });
 
     // Log to console for debugging
