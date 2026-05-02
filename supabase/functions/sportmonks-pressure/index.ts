@@ -34,7 +34,7 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
 
 async function smFetch(url: string): Promise<Response | null> {
   if (Date.now() < rateLimitedUntil) return null;
-  const r = await smFetch(url); if (!r) { console.warn("[sportmonks-pressure] skipping due to global rate-limit cooldown"); return null; }
+  const r = await fetch(url);
   if (r.status === 429) {
     rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
     console.warn(`[sportmonks-pressure] 429 — backoff até ${new Date(rateLimitedUntil).toISOString()}`);
