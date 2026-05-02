@@ -80,6 +80,28 @@ interface AHSignal {
   mycroft: MycroftVerdict;
 }
 
+function parseMycroftVerdict(rawText: string): MycroftVerdict | null {
+  const fallbackJson = rawText.replace(/```json|```/g, '').trim();
+  const start = fallbackJson.indexOf('{');
+  const end = fallbackJson.lastIndexOf('}');
+  const candidate = start >= 0 && end > start ? fallbackJson.slice(start, end + 1) : fallbackJson;
+
+  try {
+    const parsed = JSON.parse(candidate) as Partial<MycroftVerdict>;
+    if (!parsed?.verdict) return null;
+    return {
+      verdict: parsed.verdict,
+      confidence: Number(parsed.confidence ?? 60),
+      recommended_bet: parsed.recommended_bet ?? null,
+      justificativa: String(parsed.justificativa ?? '').trim() || 'Sem justificativa retornada pelo modelo.',
+      fair_odd: parsed.fair_odd ?? null,
+      edge_pct: parsed.edge_pct ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // SPORTMONKS
 // =============================================================================
@@ -139,6 +161,7 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
   if (!fixtures || !Array.isArray(fixtures)) return defaultStats(teamId, teamName);
 
   let totalXgFor = 0, totalXgAgainst = 0, totalGoalsScored = 0, totalGoalsConceded = 0, formPoints = 0;
+  let xgSamples = 0;
   let gamesCount = 0;
 
   for (const f of fixtures) {
@@ -149,29 +172,32 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
 
     // xG
     const xgData = f.xGFixture ?? [];
-    const xgFor = parseFloat(xgData.find((x: any) => x.participant_id === teamId)?.data?.value ?? 0) || 0;
-    const xgAgainst = parseFloat(xgData.find((x: any) => x.participant_id !== teamId)?.data?.value ?? 0) || 0;
-    totalXgFor += xgFor;
-    totalXgAgainst += xgAgainst;
+    const xgForRaw = xgData.find((x: any) => x.participant_id === teamId)?.data?.value;
+    const xgAgainstRaw = xgData.find((x: any) => x.participant_id !== teamId)?.data?.value;
+    const xgFor = parseFloat(xgForRaw ?? NaN);
+    const xgAgainst = parseFloat(xgAgainstRaw ?? NaN);
+    const hasXg = Number.isFinite(xgFor) && Number.isFinite(xgAgainst) && (xgFor > 0 || xgAgainst > 0);
+    if (hasXg) {
+      totalXgFor += xgFor;
+      totalXgAgainst += xgAgainst;
+      xgSamples++;
+    }
 
     // Gols + lado (home/away)
     const participants = f.participants ?? [];
     const isHome = participants.find((p: any) => p.id === teamId)?.meta?.location === 'home';
     const scores = f.scores ?? [];
-    const ftScore = scores.find((s: any) => s.description === 'CURRENT' || s.description === 'FT');
-    let gh = 0, ga = 0;
-    if (ftScore?.score) {
-      // SportMonks: score.goals = gols do "participant" desse score, score.participant ('home'/'away')
-      // Estrutura varia; melhor pegar dois objetos (home/away)
-      gh = parseInt(ftScore.score?.goals ?? 0) || 0;
-    }
-    // Fallback robusto: percorrer scores de FT
-    if (!ftScore) {
-      const homeS = scores.find((s: any) => (s.description === 'CURRENT' || s.description === 'FT') && s.score?.participant === 'home');
-      const awayS = scores.find((s: any) => (s.description === 'CURRENT' || s.description === 'FT') && s.score?.participant === 'away');
-      gh = parseInt(homeS?.score?.goals ?? 0) || 0;
-      ga = parseInt(awayS?.score?.goals ?? 0) || 0;
-    }
+    const homeS = scores.find((s: any) =>
+      (s.description === 'CURRENT' || s.description === 'FT') &&
+      (s.score?.participant === 'home' || s.participant === 'home' || s.type === 'home')
+    );
+    const awayS = scores.find((s: any) =>
+      (s.description === 'CURRENT' || s.description === 'FT') &&
+      (s.score?.participant === 'away' || s.participant === 'away' || s.type === 'away')
+    );
+    const altScores = scores.filter((s: any) => s.description === 'CURRENT' || s.description === 'FT');
+    let gh = parseInt(homeS?.score?.goals ?? altScores[0]?.score?.goals ?? 0) || 0;
+    let ga = parseInt(awayS?.score?.goals ?? altScores[1]?.score?.goals ?? 0) || 0;
 
     if (isHome) {
       totalGoalsScored += gh;
@@ -188,12 +214,21 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
 
   if (gamesCount === 0) return defaultStats(teamId, teamName);
 
+  const avgGoalsScored = parseFloat((totalGoalsScored / gamesCount).toFixed(2));
+  const avgGoalsConceded = parseFloat((totalGoalsConceded / gamesCount).toFixed(2));
+  const avgXgFor = xgSamples > 0
+    ? parseFloat((totalXgFor / xgSamples).toFixed(3))
+    : Math.max(0.35, avgGoalsScored);
+  const avgXgAgainst = xgSamples > 0
+    ? parseFloat((totalXgAgainst / xgSamples).toFixed(3))
+    : Math.max(0.35, avgGoalsConceded);
+
   return {
     teamId, teamName,
-    avg_xg_for: parseFloat((totalXgFor / gamesCount).toFixed(3)),
-    avg_xg_against: parseFloat((totalXgAgainst / gamesCount).toFixed(3)),
-    avg_goals_scored: parseFloat((totalGoalsScored / gamesCount).toFixed(2)),
-    avg_goals_conceded: parseFloat((totalGoalsConceded / gamesCount).toFixed(2)),
+    avg_xg_for: avgXgFor,
+    avg_xg_against: avgXgAgainst,
+    avg_goals_scored: avgGoalsScored,
+    avg_goals_conceded: avgGoalsConceded,
     form_points: formPoints,
     games: gamesCount,
   };
@@ -239,6 +274,13 @@ const ODDS_SPORT_MAP: Record<string, string> = {
   'sudamericana': 'soccer_conmebol_copa_sudamericana',
 };
 
+function formatHandicapLine(point: number): string {
+  const rounded = Math.round(point * 100) / 100;
+  const absFixed = Number.isInteger(rounded) ? Math.abs(rounded).toFixed(1) : Math.abs(rounded).toString();
+  if (rounded === 0) return '0.0';
+  return `${rounded > 0 ? '+' : '-'}${absFixed}`;
+}
+
 function mapLeagueToSportKey(leagueName: string): string | null {
   const ln = (leagueName || '').toLowerCase();
   for (const [k, v] of Object.entries(ODDS_SPORT_MAP)) {
@@ -271,7 +313,7 @@ async function getOddsAH(homeTeam: string, awayTeam: string, leagueName: string)
           // Normalizamos para a perspectiva HOME: ponto positivo do home = +N, negativo = -N
           const isHome = o.name === game.home_team;
           const point = isHome ? o.point : -o.point;
-          const key = point > 0 ? `+${point}` : `${point}`;
+          const key = formatHandicapLine(point);
           out.lines[key] = out.lines[key] || {};
           if (isHome && !out.lines[key].home) out.lines[key].home = o.price;
           if (!isHome && !out.lines[key].away) out.lines[key].away = o.price;
@@ -329,10 +371,16 @@ function analyzeAH(
   lado: 'home' | 'away',
 ): { probReal: number; oddJusta: number; edge: number; score: number; status: AHSignal['status']; stake: number; oddBookmaker: number | null } {
   const handicap = parseFloat(linha); // perspectiva HOME
+  const oddsLookupKey = formatHandicapLine(lado === 'home' ? handicap : -handicap);
 
   // xG esperado: ataque do A x defesa do B (média)
-  const homeLambda = (homeStats.avg_xg_for + awayStats.avg_xg_against) / 2;
-  const awayLambda = (awayStats.avg_xg_for + homeStats.avg_xg_against) / 2;
+  const homeAttackBase = homeStats.avg_xg_for > 0 ? homeStats.avg_xg_for : homeStats.avg_goals_scored;
+  const awayDefenseBase = awayStats.avg_xg_against > 0 ? awayStats.avg_xg_against : awayStats.avg_goals_conceded;
+  const awayAttackBase = awayStats.avg_xg_for > 0 ? awayStats.avg_xg_for : awayStats.avg_goals_scored;
+  const homeDefenseBase = homeStats.avg_xg_against > 0 ? homeStats.avg_xg_against : homeStats.avg_goals_conceded;
+
+  const homeLambda = Math.max(0.35, ((homeAttackBase + awayDefenseBase) / 2) * 0.75 + ((homeStats.avg_goals_scored + awayStats.avg_goals_conceded) / 2) * 0.25);
+  const awayLambda = Math.max(0.35, ((awayAttackBase + homeDefenseBase) / 2) * 0.75 + ((awayStats.avg_goals_scored + homeStats.avg_goals_conceded) / 2) * 0.25);
 
   let probReal: number;
   if (lado === 'home') {
@@ -348,7 +396,7 @@ function analyzeAH(
   else probReal -= formDiff * 0.05;
   probReal = Math.min(0.95, Math.max(0.05, probReal));
 
-  const oddBookmaker = oddsAH.lines[linha]?.[lado] ?? null;
+  const oddBookmaker = oddsAH.lines[oddsLookupKey]?.[lado] ?? null;
   if (!oddBookmaker) {
     return { probReal, oddJusta: 1 / probReal, edge: -100, score: 0, status: 'DESCARTADO', stake: 0, oddBookmaker: null };
   }
@@ -453,9 +501,11 @@ Responda APENAS com JSON puro neste formato:
     }
     const data = await r.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleaned) as MycroftVerdict;
-    if (!parsed.verdict) return fallback();
+    const parsed = parseMycroftVerdict(text);
+    if (!parsed) {
+      console.warn('[HA-edge] Gemini JSON inválido, usando fallback');
+      return fallback();
+    }
     return parsed;
   } catch (e) {
     console.warn('[HA-edge] Gemini erro', e);
@@ -606,6 +656,15 @@ Deno.serve(async (req) => {
     console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados (janela 48h)`);
 
     const signals: AHSignal[] = [];
+    const diagnostics = {
+      linhas_testadas: 0,
+      linhas_com_odds: 0,
+      linhas_odds_faixa: 0,
+      linhas_edge_ge_3: 0,
+      gemini_chamado: 0,
+      veredictos: { APROVADO: 0, AGUARDAR: 0, REPROVADO: 0 },
+      top_edges: [] as Array<{ match: string; league: string; linha: string; lado: 'home' | 'away'; odd: number; edge: number; status: string }>,
+    };
     const linhasAlvo: Array<{ linha: string; lado: 'home' | 'away' }> = [
       { linha: '-0.5', lado: 'home' },
       { linha: '+0.5', lado: 'away' },
@@ -632,9 +691,24 @@ Deno.serve(async (req) => {
 
         for (const { linha, lado } of linhasAlvo) {
           const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
+          diagnostics.linhas_testadas += 1;
+          if (an.oddBookmaker) {
+            diagnostics.linhas_com_odds += 1;
+            if (an.oddBookmaker >= 1.7 && an.oddBookmaker <= 2.2) diagnostics.linhas_odds_faixa += 1;
+            diagnostics.top_edges.push({
+              match: `${homeP.name} vs ${awayP.name}`,
+              league: leagueName,
+              linha,
+              lado,
+              odd: an.oddBookmaker,
+              edge: Number(an.edge.toFixed(2)),
+              status: an.status,
+            });
+          }
           if (an.status === 'DESCARTADO' || !an.oddBookmaker) continue;
           // PRÉ-FILTRO: só chama Gemini se edge >= 3% (economiza tempo/quota)
           if (an.edge < 3) continue;
+          diagnostics.linhas_edge_ge_3 += 1;
 
           const indicadores = {
             home_xg_for: homeStats.avg_xg_for,
@@ -659,6 +733,8 @@ Deno.serve(async (req) => {
             score: an.score,
             details: indicadores,
           });
+          diagnostics.gemini_chamado += 1;
+          diagnostics.veredictos[mycroft.verdict] += 1;
 
           if (mycroft.verdict !== 'APROVADO') continue;
 
@@ -697,6 +773,12 @@ Deno.serve(async (req) => {
       sinais_aprovados: signals.length,
       notificados: sorted.length,
       duracao_segundos: ((Date.now() - start) / 1000).toFixed(1),
+      diagnostico: {
+        ...diagnostics,
+        top_edges: diagnostics.top_edges
+          .sort((a, b) => b.edge - a.edge)
+          .slice(0, 8),
+      },
       opportunities: sorted.map((s) => ({
         match: `${s.homeTeam} vs ${s.awayTeam}`,
         league: s.leagueName,
