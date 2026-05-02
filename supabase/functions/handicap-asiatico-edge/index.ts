@@ -80,6 +80,28 @@ interface AHSignal {
   mycroft: MycroftVerdict;
 }
 
+function parseMycroftVerdict(rawText: string): MycroftVerdict | null {
+  const fallbackJson = rawText.replace(/```json|```/g, '').trim();
+  const start = fallbackJson.indexOf('{');
+  const end = fallbackJson.lastIndexOf('}');
+  const candidate = start >= 0 && end > start ? fallbackJson.slice(start, end + 1) : fallbackJson;
+
+  try {
+    const parsed = JSON.parse(candidate) as Partial<MycroftVerdict>;
+    if (!parsed?.verdict) return null;
+    return {
+      verdict: parsed.verdict,
+      confidence: Number(parsed.confidence ?? 60),
+      recommended_bet: parsed.recommended_bet ?? null,
+      justificativa: String(parsed.justificativa ?? '').trim() || 'Sem justificativa retornada pelo modelo.',
+      fair_odd: parsed.fair_odd ?? null,
+      edge_pct: parsed.edge_pct ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // SPORTMONKS
 // =============================================================================
@@ -479,9 +501,11 @@ Responda APENAS com JSON puro neste formato:
     }
     const data = await r.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleaned) as MycroftVerdict;
-    if (!parsed.verdict) return fallback();
+    const parsed = parseMycroftVerdict(text);
+    if (!parsed) {
+      console.warn('[HA-edge] Gemini JSON inválido, usando fallback');
+      return fallback();
+    }
     return parsed;
   } catch (e) {
     console.warn('[HA-edge] Gemini erro', e);
