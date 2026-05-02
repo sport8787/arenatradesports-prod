@@ -86,13 +86,38 @@ interface AHSignal {
 
 async function smFetch(path: string, include = ''): Promise<any> {
   if (!SPORTMONKS_KEY) return null;
-  const url = `${SM_BASE}${path}?api_token=${SPORTMONKS_KEY}${include ? `&include=${include}` : ''}&per_page=20`;
+  const url = `${SM_BASE}${path}?api_token=${SPORTMONKS_KEY}${include ? `&include=${include}` : ''}&per_page=50`;
   try {
     const r = await fetch(url);
     if (!r.ok) return null;
     const d = await r.json();
     return d.data ?? null;
   } catch { return null; }
+}
+
+// Versão paginada: itera por todas as páginas usando pagination.has_more
+async function smFetchAll(path: string, include = '', maxPages = 20): Promise<any[]> {
+  if (!SPORTMONKS_KEY) return [];
+  const all: any[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${SM_BASE}${path}?api_token=${SPORTMONKS_KEY}${include ? `&include=${include}` : ''}&per_page=50&page=${page}`;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) {
+        console.warn(`[HA-edge] smFetchAll page=${page} status=${r.status}`);
+        break;
+      }
+      const d = await r.json();
+      const arr = Array.isArray(d?.data) ? d.data : [];
+      all.push(...arr);
+      const hasMore = d?.pagination?.has_more === true;
+      if (!hasMore || arr.length === 0) break;
+    } catch (e) {
+      console.warn(`[HA-edge] smFetchAll page=${page} erro:`, (e as any)?.message);
+      break;
+    }
+  }
+  return all;
 }
 
 function defaultStats(teamId: number, teamName: string): TeamStats {
@@ -448,8 +473,10 @@ async function getFixturesProximas48h(): Promise<any[]> {
   const startStr = now.toISOString().split('T')[0];
   const endStr = end.toISOString().split('T')[0];
   console.log(`[HA-edge] Buscando fixtures entre ${startStr} e ${endStr} (janela 48h, agora=${now.toISOString()})`);
-  const data = await smFetch(`/fixtures/between/${startStr}/${endStr}`, 'participants;league;state');
-  if (!data || !Array.isArray(data)) return [];
+  // Usa endpoint v3 /football/fixtures/between com paginação completa
+  const data = await smFetchAll(`/football/fixtures/between/${startStr}/${endStr}`, 'participants;league;state', 20);
+  console.log(`[HA-edge] Sportmonks retornou ${data.length} fixtures totais (todas as páginas)`);
+  if (!data.length) return [];
   const nowMs = now.getTime();
   const endMs = end.getTime();
   const filtered = data.filter((f: any) => {
