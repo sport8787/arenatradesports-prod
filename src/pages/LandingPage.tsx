@@ -739,7 +739,7 @@ const PRICING_PLANS = [
     features: ["Tudo do Professional +", "API access completa", "Auto-execution (bot)", "Portfolio Optimization", "Self Learning Engine", "Integração Fullbet", "Suporte 24/7", "Consultoria mensal"],
     cta: "FALAR COM VENDAS",
     popular: false,
-    url: "https://pay.kiwify.com.br/OAo5rId",
+    url: "https://wa.me/5581982221714?text=Ol%C3%A1%2C%20tenho%20interesse%20no%20plano%20Enterprise%20do%20Mycroft.",
   },
 ];
 
