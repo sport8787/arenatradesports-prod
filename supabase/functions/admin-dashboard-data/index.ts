@@ -52,6 +52,23 @@ Deno.serve(async (req) => {
     const { data: subs } = await admin.from('user_subscriptions').select('*');
     const subMap = new Map((subs || []).map((s: any) => [s.user_id, s]));
 
+    // Fetch promo redemptions (com nome do cupom)
+    const { data: redemptions } = await admin
+      .from('promo_redemptions')
+      .select('user_id, partner_name, referral_source, trial_days_granted, created_at, promo_codes(code)');
+    const redemptionMap = new Map(
+      (redemptions || []).map((r: any) => [
+        r.user_id,
+        {
+          coupon_code: r.promo_codes?.code || null,
+          partner_name: r.partner_name,
+          referral_source: r.referral_source,
+          trial_days_granted: r.trial_days_granted,
+          redeemed_at: r.created_at,
+        },
+      ])
+    );
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const threeDaysAgo = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -117,6 +134,7 @@ Deno.serve(async (req) => {
       else if (isActiveToday) status = 'Ativo hoje';
       else if (isActive3d) status = 'Ativo recente';
 
+      const promo = redemptionMap.get(u.id) || null;
       return {
         id: u.id,
         email: u.email,
@@ -126,6 +144,8 @@ Deno.serve(async (req) => {
         trial_ends_at: sub?.trial_ends_at || null,
         trial_days_left: trialDaysLeft,
         status,
+        coupon_code: promo?.coupon_code || null,
+        coupon_partner: promo?.partner_name || null,
       };
     });
 
