@@ -1478,11 +1478,8 @@ export default function PunterPage() {
           </Alert>
         )}
 
-        {/* Card Greens/Reds do dia (Hórus auto-bet) */}
-        <TodayResultsCard
-          todayFilterActive={todayOnlyFilter}
-          onToggleFilter={() => setTodayOnlyFilter(v => !v)}
-        />
+        {/* TodayResultsCard removido — disponível em /punter/feed-eventos */}
+
 
         {/* Portfolio Expected ROI Summary */}
         {signals.length > 0 && (
