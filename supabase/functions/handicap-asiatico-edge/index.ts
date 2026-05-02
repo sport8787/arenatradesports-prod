@@ -1,21 +1,15 @@
 // =============================================================================
-// HANDICAP ASIÁTICO — EDGE (PRÉ-LIVE) — MODELO DE SCORE SIMPLIFICADO
+// HANDICAP ASIÁTICO — EDGE (PRÉ-LIVE) — MYCROFT + GEMINI
 // -----------------------------------------------------------------------------
-// Lógica:
-//   - Inputs: odds AH (linhas -0.25/-0.5/+0.25...), prob. implícita,
-//             força relativa (ELO/win-rate), forma recente, movimento de mercado.
-//   - Score:
-//        eloDiff > 80   →  +10
-//        eloDiff > 150  →  +15  (acumula ⇒ +25 se muito superior)
-//        formHome > formAway → +10
-//        oddsAH home ∈ [1.80, 2.20] → +15
-//        marketMovement.homeDropping → +10
-//   - Decisão:
-//        score ≥ 30 → "AH -0.25 (HOME)"
-//        score ≥ 25 → "AH -0.5 (HOME)"
-//        isValue = score ≥ 25
-// Dados via Sportmonks (fallback API-Football quando ausente).
+// Pipeline:
+//   1. Coleta Sportmonks (forma + ELO proxy) + Odds (The Odds API / API-Football)
+//   2. Score determinístico (ELO + forma + odds + movimento de mercado)
+//   3. 🧠 Mycroft (Gemini direto v1beta) decide veredito final usando o score
+//      como UM dos inputs (não decisão final). Frio, dedutivo, em pt-br.
+//   4. Persiste apenas APROVADOS em punter_analyses, com confiança da IA.
+// Fallback: se Gemini indisponível, usa veredito determinístico do score.
 // =============================================================================
+
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
@@ -32,6 +26,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const API_FOOTBALL_KEY = Deno.env.get('API_FOOTBALL_KEY') || '';
 const ODDS_API_KEY = Deno.env.get('THE_ODDS_API_KEY') || Deno.env.get('ODDS_API_KEY') || '';
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
 const AF_BASE = 'https://v3.football.api-sports.io';
@@ -209,6 +206,100 @@ function formScore(fixtures: any[], teamId: number): number {
 }
 
 // =============================================================================
+// MYCROFT JURY — Gemini direto (v1beta)
+// =============================================================================
+
+interface MycroftVerdict {
+  verdict: 'APROVADO' | 'REPROVADO' | 'AGUARDAR';
+  confidence: number;          // 0-100
+  recommended_bet: string | null;
+  justificativa: string;       // pt-br, frio, dedutivo
+  fair_odd?: number | null;
+  edge_pct?: number | null;
+}
+
+async function mycroftJury(input: {
+  match: string;
+  league: string;
+  matchDate: string;
+  scoreDeterministico: number;
+  betSugerido: string | null;
+  details: any;
+}): Promise<MycroftVerdict> {
+  // Fallback determinístico se Gemini indisponível
+  const fallback = (): MycroftVerdict => ({
+    verdict: input.scoreDeterministico >= 30 ? 'APROVADO' : (input.scoreDeterministico >= 25 ? 'APROVADO' : 'REPROVADO'),
+    confidence: Math.min(95, 50 + input.scoreDeterministico),
+    recommended_bet: input.betSugerido,
+    justificativa: '⚠️ Veredito por fallback determinístico (Gemini indisponível).',
+  });
+
+  if (!GEMINI_API_KEY) return fallback();
+
+  const prompt = `Você é o Mycroft — analista frio, dedutivo, em pt-br. NÃO TORCE. CALCULA.
+Avalie esta oportunidade de Handicap Asiático PRÉ-LIVE com base nos inputs abaixo e devolva JSON puro.
+
+JOGO: ${input.match}
+LIGA: ${input.league}
+DATA: ${input.matchDate}
+
+📊 SCORE DETERMINÍSTICO: ${input.scoreDeterministico}/50
+🎯 SUGESTÃO MATEMÁTICA: ${input.betSugerido ?? 'NENHUMA'}
+
+DETALHES:
+${JSON.stringify(input.details, null, 2)}
+
+REGRAS DO MYCROFT:
+- APROVADO apenas se há valor real (edge ≥ 4%) e contexto coerente.
+- REPROVADO se odds não comportam stake (linhas extremas) ou inconsistência entre forma e ELO.
+- AGUARDAR se faltam dados confiáveis.
+- Confiança: 70-85 = sólido, 85-95 = excepcional. Acima disso só com edge claro.
+- Justificativa: máximo 4 linhas, técnica e direta.
+
+Responda APENAS com JSON neste formato:
+{
+  "verdict": "APROVADO" | "REPROVADO" | "AGUARDAR",
+  "confidence": <number 0-100>,
+  "recommended_bet": "<string ou null>",
+  "justificativa": "<string pt-br curta>",
+  "fair_odd": <number ou null>,
+  "edge_pct": <number ou null>
+}`;
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000);
+    const r = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+          responseMimeType: 'application/json',
+        },
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) {
+      console.warn('[HA-edge] Gemini status', r.status);
+      return fallback();
+    }
+    const data = await r.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as MycroftVerdict;
+    if (!parsed.verdict) return fallback();
+    return parsed;
+  } catch (e) {
+    console.warn('[HA-edge] Gemini erro', e);
+    return fallback();
+  }
+}
+
+// =============================================================================
 // CORE — analyzeMatch
 // =============================================================================
 
@@ -223,6 +314,7 @@ interface AnalyzeResult {
   score: number;
   bet: string | null;
   isValue: boolean;
+  mycroft: MycroftVerdict;
   details: {
     eloHome: number;
     eloAway: number;
@@ -270,6 +362,23 @@ async function analyzeMatch(fixture: any): Promise<AnalyzeResult | null> {
   if (score >= 30) bet = 'AH -0.25 (HOME)';
   else if (score >= 25) bet = 'AH -0.5 (HOME)';
 
+  // 🧠 Camada Mycroft (Gemini) — decide veredito final usando score como input
+  const mycroft = await mycroftJury({
+    match: `${teams.home.name} vs ${teams.away.name}`,
+    league: league.name,
+    matchDate: fix.date,
+    scoreDeterministico: score,
+    betSugerido: bet,
+    details: {
+      eloHome, eloAway, eloDiff,
+      formHome, formAway,
+      oddsAH_home: homeAH,
+      oddsAH_away: oddsBlock.oddsAH.away,
+      homeMatchOdd: oddsBlock.homeMatchOdd,
+      marketMovement: oddsBlock.marketMovement,
+    },
+  });
+
   return {
     match: `${teams.home.name} vs ${teams.away.name}`,
     homeTeam: teams.home.name,
@@ -279,8 +388,9 @@ async function analyzeMatch(fixture: any): Promise<AnalyzeResult | null> {
     leagueName: league.name,
     matchDate: fix.date,
     score,
-    bet,
-    isValue: score >= 25,
+    bet: mycroft.recommended_bet ?? bet,
+    isValue: mycroft.verdict === 'APROVADO',
+    mycroft,
     details: {
       eloHome, eloAway, eloDiff,
       formHome, formAway,
@@ -302,17 +412,19 @@ async function persistOpportunity(o: AnalyzeResult) {
   const matchIdStd = `ha-edge-${o.fixtureId}`;
   const marketLabel = o.bet;
   const odd = o.details.oddsAH_home ?? 1.95;
-  const confidence = Math.min(95, 50 + o.score); // 25→75, 35→85
+  const confidence = o.mycroft.confidence ?? Math.min(95, 50 + o.score);
 
   const justificativa =
+    `🧠 MYCROFT — ${o.mycroft.verdict} (${confidence}%)\n` +
+    `${o.mycroft.justificativa}\n\n` +
     `🎯 ${o.bet}\n` +
-    `📊 Score: ${o.score}\n\n` +
-    `📈 Força (ELO proxy):\n` +
-    `• Casa: ${o.details.eloHome} | Fora: ${o.details.eloAway} | Δ ${o.details.eloDiff}\n\n` +
-    `🏃 Forma (últ. 5 jogos):\n` +
-    `• Casa: ${o.details.formHome} pts | Fora: ${o.details.formAway} pts\n\n` +
+    `📊 Score determinístico: ${o.score}/50\n` +
+    (o.mycroft.fair_odd ? `⚖️ Fair odd: ${o.mycroft.fair_odd.toFixed(2)} | Edge: ${(o.mycroft.edge_pct ?? 0).toFixed(1)}%\n` : '') +
+    `\n📈 Força (ELO proxy):\n` +
+    `• Casa: ${o.details.eloHome} | Fora: ${o.details.eloAway} | Δ ${o.details.eloDiff}\n` +
+    `🏃 Forma (últ. 5): Casa ${o.details.formHome} pts | Fora ${o.details.formAway} pts\n` +
     `💹 Odds AH casa: ${o.details.oddsAH_home?.toFixed(2) ?? '—'}\n` +
-    `📉 Movimento mercado: ${o.details.marketMovement.homeDropping ? 'CASA caindo (smart money)' : 'estável'}`;
+    `📉 Mercado: ${o.details.marketMovement.homeDropping ? 'CASA caindo (smart money)' : 'estável'}`;
 
   try {
     const { data: existing } = await supabase
@@ -331,11 +443,11 @@ async function persistOpportunity(o: AnalyzeResult) {
       market: marketLabel,
       bookmaker: 'handicap-asiatico-edge',
       odd,
-      verdict: 'APROVADO',
+      verdict: o.mycroft.verdict,
       confidence,
-      thesis: `${o.bet} | Score ${o.score}`,
+      thesis: `${o.bet} | Mycroft ${o.mycroft.verdict} ${confidence}% | Score ${o.score}`,
       analysis: justificativa,
-      analyzed_by: 'handicap-asiatico-edge',
+      analyzed_by: 'mycroft-handicap-asiatico',
     };
 
     if (existing) {
@@ -404,6 +516,13 @@ Deno.serve(async (req) => {
         match: o.match,
         score: o.score,
         bet: o.bet,
+        mycroft: {
+          verdict: o.mycroft.verdict,
+          confidence: o.mycroft.confidence,
+          justificativa: o.mycroft.justificativa,
+          fair_odd: o.mycroft.fair_odd,
+          edge_pct: o.mycroft.edge_pct,
+        },
         details: {
           eloDiff: o.details.eloDiff,
           formHome: o.details.formHome,
