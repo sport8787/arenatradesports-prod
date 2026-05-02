@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function PunterBancaVirtualPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { bankroll, loading: bankrollLoading, updateInitialBalance } = useBankroll();
   const {
     bankroll: manualBankroll,
@@ -58,7 +58,12 @@ export default function PunterBancaVirtualPage() {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const { data, error } = await supabase.functions.invoke('settle-bets', { body: { attempt } });
+        const { data, error } = await supabase.functions.invoke('settle-bets', {
+          body: { attempt },
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+        });
         if (error) throw error;
         return data;
       } catch (e: any) {

@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
@@ -162,9 +162,30 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY');
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'missing_authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    const userId = user?.id ?? null;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'invalid_session' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!apiFootballKey && !oddsApiKey) {
       return new Response(JSON.stringify({ error: 'No API key configured (API_FOOTBALL_KEY or THE_ODDS_API_KEY)' }), {
@@ -174,11 +195,16 @@ Deno.serve(async (req) => {
     }
 
     // 1. Fetch all pending bets
+    const betsQuery = supabase.from('virtual_bets').select('*').eq('status', 'pending');
+    const punterQuery = supabase.from('virtual_bets_punter').select('*').eq('status', 'pending');
+    const manualQuery = supabase.from('virtual_bets_manual').select('*').eq('status', 'pending');
+    const signalsQuery = supabase.from('punter_signals').select('*').eq('status', 'pending');
+
     const [betsRes, punterRes, manualRes, signalsRes] = await Promise.all([
-      supabase.from('virtual_bets').select('*').eq('status', 'pending').neq('status', 'cashed_out'),
-      supabase.from('virtual_bets_punter').select('*').eq('status', 'pending'),
-      supabase.from('virtual_bets_manual').select('*').eq('status', 'pending'),
-      supabase.from('punter_signals').select('*').eq('status', 'pending'),
+      betsQuery.eq('user_id', userId),
+      punterQuery.eq('user_id', userId),
+      manualQuery.eq('user_id', userId),
+      signalsQuery.eq('user_id', userId),
     ]);
 
     const allPending = [
@@ -200,7 +226,7 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log(`[settle-bets] ${eligibleBets.length}/${allPending.length} bets eligible, ${pendingSignals.length} signals`);
+    console.log(`[settle-bets] scope=${userId ? `user:${userId}` : 'global'} ${eligibleBets.length}/${allPending.length} bets eligible, ${pendingSignals.length} signals`);
 
     // 3. Determine which dates we actually need (only days where pending bets/signals occurred)
     const datesNeeded = new Set<string>();

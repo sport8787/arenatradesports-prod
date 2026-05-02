@@ -18,7 +18,7 @@ export interface SportsBankroll {
 }
 
 export function useSportsBankroll() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [bankroll, setBankroll] = useState<SportsBankroll | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -177,13 +177,17 @@ export function useSportsBankroll() {
 
   const settleBets = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('settle-bets');
+      const { data, error } = await supabase.functions.invoke('settle-bets', {
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : undefined,
+      });
       if (error) throw error;
       return { success: true, data };
     } catch (e: any) {
       return { success: false, error: e.message };
     }
-  }, []);
+  }, [session?.access_token]);
 
   const updateInitialBalance = useCallback(async (newBalance: number) => {
     if (!user) return { success: false, error: 'Usuário não autenticado' };
