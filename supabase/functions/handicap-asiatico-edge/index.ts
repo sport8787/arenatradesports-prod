@@ -611,6 +611,15 @@ Deno.serve(async (req) => {
     console.log(`[HA-edge] ${fixtures.length} fixtures pré-live encontrados (janela 48h)`);
 
     const signals: AHSignal[] = [];
+    const diagnostics = {
+      linhas_testadas: 0,
+      linhas_com_odds: 0,
+      linhas_odds_faixa: 0,
+      linhas_edge_ge_3: 0,
+      gemini_chamado: 0,
+      veredictos: { APROVADO: 0, AGUARDAR: 0, REPROVADO: 0 },
+      top_edges: [] as Array<{ match: string; league: string; linha: string; lado: 'home' | 'away'; odd: number; edge: number; status: string }>,
+    };
     const linhasAlvo: Array<{ linha: string; lado: 'home' | 'away' }> = [
       { linha: '-0.5', lado: 'home' },
       { linha: '+0.5', lado: 'away' },
@@ -637,9 +646,24 @@ Deno.serve(async (req) => {
 
         for (const { linha, lado } of linhasAlvo) {
           const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
+          diagnostics.linhas_testadas += 1;
+          if (an.oddBookmaker) {
+            diagnostics.linhas_com_odds += 1;
+            if (an.oddBookmaker >= 1.7 && an.oddBookmaker <= 2.2) diagnostics.linhas_odds_faixa += 1;
+            diagnostics.top_edges.push({
+              match: `${homeP.name} vs ${awayP.name}`,
+              league: leagueName,
+              linha,
+              lado,
+              odd: an.oddBookmaker,
+              edge: Number(an.edge.toFixed(2)),
+              status: an.status,
+            });
+          }
           if (an.status === 'DESCARTADO' || !an.oddBookmaker) continue;
           // PRÉ-FILTRO: só chama Gemini se edge >= 3% (economiza tempo/quota)
           if (an.edge < 3) continue;
+          diagnostics.linhas_edge_ge_3 += 1;
 
           const indicadores = {
             home_xg_for: homeStats.avg_xg_for,
@@ -664,6 +688,8 @@ Deno.serve(async (req) => {
             score: an.score,
             details: indicadores,
           });
+          diagnostics.gemini_chamado += 1;
+          diagnostics.veredictos[mycroft.verdict] += 1;
 
           if (mycroft.verdict !== 'APROVADO') continue;
 
@@ -702,6 +728,12 @@ Deno.serve(async (req) => {
       sinais_aprovados: signals.length,
       notificados: sorted.length,
       duracao_segundos: ((Date.now() - start) / 1000).toFixed(1),
+      diagnostico: {
+        ...diagnostics,
+        top_edges: diagnostics.top_edges
+          .sort((a, b) => b.edge - a.edge)
+          .slice(0, 8),
+      },
       opportunities: sorted.map((s) => ({
         match: `${s.homeTeam} vs ${s.awayTeam}`,
         league: s.leagueName,
