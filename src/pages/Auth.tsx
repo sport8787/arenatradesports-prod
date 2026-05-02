@@ -153,6 +153,14 @@ const Auth = () => {
           // PostHog: signup completo (com UTMs anexadas via super-properties)
           track.signUp('trial', storedRef || 'organic', 'email');
 
+          // Meta Pixel: Lead (signup concluído)
+          if (typeof window !== 'undefined' && (window as any).fbq) {
+            (window as any).fbq('track', 'Lead', {
+              content_name: 'signup_email',
+              source: storedRef || 'organic',
+            });
+          }
+
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
           navigate('/menu');
@@ -165,6 +173,9 @@ const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'Lead', { content_name: 'signup_google' });
+    }
     const { error } = await signInWithGoogle();
     if (error) {
       toast({ title: 'Erro', description: 'Falha ao conectar com Google', variant: 'destructive' });
@@ -174,6 +185,9 @@ const Auth = () => {
 
   const handleAppleSignIn = async () => {
     setIsLoading(true);
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'Lead', { content_name: 'signup_apple' });
+    }
     const { error } = await signInWithApple();
     if (error) {
       toast({ title: 'Erro', description: 'Falha ao conectar com Apple', variant: 'destructive' });
