@@ -139,6 +139,7 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
   if (!fixtures || !Array.isArray(fixtures)) return defaultStats(teamId, teamName);
 
   let totalXgFor = 0, totalXgAgainst = 0, totalGoalsScored = 0, totalGoalsConceded = 0, formPoints = 0;
+  let xgSamples = 0;
   let gamesCount = 0;
 
   for (const f of fixtures) {
@@ -149,10 +150,16 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
 
     // xG
     const xgData = f.xGFixture ?? [];
-    const xgFor = parseFloat(xgData.find((x: any) => x.participant_id === teamId)?.data?.value ?? 0) || 0;
-    const xgAgainst = parseFloat(xgData.find((x: any) => x.participant_id !== teamId)?.data?.value ?? 0) || 0;
-    totalXgFor += xgFor;
-    totalXgAgainst += xgAgainst;
+    const xgForRaw = xgData.find((x: any) => x.participant_id === teamId)?.data?.value;
+    const xgAgainstRaw = xgData.find((x: any) => x.participant_id !== teamId)?.data?.value;
+    const xgFor = parseFloat(xgForRaw ?? NaN);
+    const xgAgainst = parseFloat(xgAgainstRaw ?? NaN);
+    const hasXg = Number.isFinite(xgFor) && Number.isFinite(xgAgainst) && (xgFor > 0 || xgAgainst > 0);
+    if (hasXg) {
+      totalXgFor += xgFor;
+      totalXgAgainst += xgAgainst;
+      xgSamples++;
+    }
 
     // Gols + lado (home/away)
     const participants = f.participants ?? [];
@@ -185,12 +192,21 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
 
   if (gamesCount === 0) return defaultStats(teamId, teamName);
 
+  const avgGoalsScored = parseFloat((totalGoalsScored / gamesCount).toFixed(2));
+  const avgGoalsConceded = parseFloat((totalGoalsConceded / gamesCount).toFixed(2));
+  const avgXgFor = xgSamples > 0
+    ? parseFloat((totalXgFor / xgSamples).toFixed(3))
+    : Math.max(0.35, avgGoalsScored);
+  const avgXgAgainst = xgSamples > 0
+    ? parseFloat((totalXgAgainst / xgSamples).toFixed(3))
+    : Math.max(0.35, avgGoalsConceded);
+
   return {
     teamId, teamName,
-    avg_xg_for: parseFloat((totalXgFor / gamesCount).toFixed(3)),
-    avg_xg_against: parseFloat((totalXgAgainst / gamesCount).toFixed(3)),
-    avg_goals_scored: parseFloat((totalGoalsScored / gamesCount).toFixed(2)),
-    avg_goals_conceded: parseFloat((totalGoalsConceded / gamesCount).toFixed(2)),
+    avg_xg_for: avgXgFor,
+    avg_xg_against: avgXgAgainst,
+    avg_goals_scored: avgGoalsScored,
+    avg_goals_conceded: avgGoalsConceded,
     form_points: formPoints,
     games: gamesCount,
   };
@@ -336,8 +352,13 @@ function analyzeAH(
   const oddsLookupKey = formatHandicapLine(lado === 'home' ? handicap : -handicap);
 
   // xG esperado: ataque do A x defesa do B (média)
-  const homeLambda = (homeStats.avg_xg_for + awayStats.avg_xg_against) / 2;
-  const awayLambda = (awayStats.avg_xg_for + homeStats.avg_xg_against) / 2;
+  const homeAttackBase = homeStats.avg_xg_for > 0 ? homeStats.avg_xg_for : homeStats.avg_goals_scored;
+  const awayDefenseBase = awayStats.avg_xg_against > 0 ? awayStats.avg_xg_against : awayStats.avg_goals_conceded;
+  const awayAttackBase = awayStats.avg_xg_for > 0 ? awayStats.avg_xg_for : awayStats.avg_goals_scored;
+  const homeDefenseBase = homeStats.avg_xg_against > 0 ? homeStats.avg_xg_against : homeStats.avg_goals_conceded;
+
+  const homeLambda = Math.max(0.35, ((homeAttackBase + awayDefenseBase) / 2) * 0.75 + ((homeStats.avg_goals_scored + awayStats.avg_goals_conceded) / 2) * 0.25);
+  const awayLambda = Math.max(0.35, ((awayAttackBase + homeDefenseBase) / 2) * 0.75 + ((awayStats.avg_goals_scored + homeStats.avg_goals_conceded) / 2) * 0.25);
 
   let probReal: number;
   if (lado === 'home') {
