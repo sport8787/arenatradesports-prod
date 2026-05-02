@@ -167,14 +167,24 @@ Deno.serve(async (req) => {
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let userId: string | null = null;
     const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'missing_authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-      const { data: { user } } = await userClient.auth.getUser();
-      userId = user?.id ?? null;
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    const userId = user?.id ?? null;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'invalid_session' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!apiFootballKey && !oddsApiKey) {
@@ -191,10 +201,10 @@ Deno.serve(async (req) => {
     const signalsQuery = supabase.from('punter_signals').select('*').eq('status', 'pending');
 
     const [betsRes, punterRes, manualRes, signalsRes] = await Promise.all([
-      (userId ? betsQuery.eq('user_id', userId) : betsQuery),
-      (userId ? punterQuery.eq('user_id', userId) : punterQuery),
-      (userId ? manualQuery.eq('user_id', userId) : manualQuery),
-      (userId ? signalsQuery.eq('user_id', userId) : signalsQuery),
+      betsQuery.eq('user_id', userId),
+      punterQuery.eq('user_id', userId),
+      manualQuery.eq('user_id', userId),
+      signalsQuery.eq('user_id', userId),
     ]);
 
     const allPending = [
