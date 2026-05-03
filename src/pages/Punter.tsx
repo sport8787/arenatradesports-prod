@@ -98,6 +98,23 @@ export default function PunterPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
+
+  // Marca passos do checklist conforme o usuário usa o produto
+  useEffect(() => {
+    if (signals.some(s => /APROVADO/i.test(s.recommendation?.verdict || ''))) {
+      markActivation('saw_first_signal');
+    }
+  }, [signals, markActivation]);
+  useEffect(() => {
+    if (bankroll && Number(bankroll.balance) > 0) {
+      markActivation('configured_bankroll');
+    }
+  }, [bankroll, markActivation]);
+  useEffect(() => {
+    if (pendingBets.length > 0 || manualPendingBets.length > 0) {
+      markActivation('placed_first_virtual_bet');
+    }
+  }, [pendingBets, manualPendingBets, markActivation]);
   const [todayOnlyFilter, setTodayOnlyFilter] = useState(() => searchParams.get('today') === '1');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>(() => {
     const c = searchParams.get('cat');
