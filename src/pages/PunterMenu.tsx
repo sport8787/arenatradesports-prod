@@ -4,6 +4,7 @@ import { ArrowLeft, LogOut, Eye } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import PunterMenuHeroStatus from '@/components/punter/PunterMenuHeroStatus';
+import ActivationChecklist from '@/components/punter/ActivationChecklist';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { HeroParticles } from '@/components/landing/HeroParticles';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
@@ -99,6 +100,7 @@ export default function PunterMenuPage() {
           </p>
         </div>
         <PunterMenuHeroStatus />
+        <ActivationChecklist />
         <PunterNavGrid />
       </main>
 
