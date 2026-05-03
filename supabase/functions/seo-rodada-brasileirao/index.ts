@@ -17,6 +17,26 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+
+async function generateSeoSummary(rodada: string, signals: any[]): Promise<string> {
+  if (!GEMINI_API_KEY || !signals.length) return "";
+  try {
+    const top = signals.slice(0, 8).map((s) => `${s.home_team} x ${s.away_team} - ${s.market} @${Number(s.odd ?? 0).toFixed(2)} (edge ${Number(s.value_percentage ?? 0).toFixed(1)}%)`).join("; ");
+    const prompt = `Você é um analista de apostas SEO. Escreva 2 parágrafos (máximo 180 palavras totais) sobre os palpites da ${rodada}ª rodada do Brasileirão 2026 analisados por IA.
+DENSIDADE DE KEYWORDS obrigatória — distribua naturalmente: "palpites Brasileirão 2026", "previsão de jogos de futebol", "análise de apostas com IA", "Oráculo Mycroft", "edge", "valor positivo", "${rodada}ª rodada".
+Estilo: jornalístico-técnico, sem floreio, sem bullet, sem emoji, sem repetir o título.
+Sinais detectados: ${top}.`;
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 500 } }),
+    });
+    if (!r.ok) { console.warn("[seo-summary] gemini fail", r.status); return ""; }
+    const j = await r.json();
+    return j?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+  } catch (e) { console.warn("[seo-summary] error", e); return ""; }
+}
 
 const escape = (s: string) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({
@@ -102,7 +122,7 @@ nav a{margin-right:1rem}
 <h1>Palpites Brasileirão 2026 — ${escape(rodada)}ª Rodada por IA</h1>
 <p class="muted">Atualizado em ${dateNow} · Análise por Oráculo Mycroft · ${totalSignals} sinais aprovados</p>
 
-<p>Confira os <strong>palpites da ${escape(rodada)}ª rodada do Brasileirão 2026</strong> aprovados pela IA Mycroft. Cada análise traz <strong>previsão de jogo de futebol</strong>, mercado recomendado, odd justa e edge percentual.</p>
+${aiSummary ? `<div class="summary">${aiSummary.split("\n").filter(Boolean).map((p) => `<p>${escape(p)}</p>`).join("")}</div>` : `<p>Confira os <strong>palpites da ${escape(rodada)}ª rodada do Brasileirão 2026</strong> aprovados pela IA Mycroft. Cada análise traz <strong>previsão de jogo de futebol</strong>, mercado recomendado, odd justa e edge percentual.</p>`}
 
 <h2>Sinais Aprovados</h2>
 ${totalSignals === 0
