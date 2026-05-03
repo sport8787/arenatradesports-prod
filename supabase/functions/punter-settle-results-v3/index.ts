@@ -277,24 +277,25 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // 1) Sportmonks (primário — plano Pro Advanced, melhor cobertura)
+      // 1) API-Football PRIMEIRO (cache por dia + cota separada da Sportmonks).
       let fx: FixtureResult | null = null;
-      let fonte = "sportmonks";
+      let fonte = "api-football";
       let fixtureId: number | undefined;
-      const sm = await findFixtureCached(home, away, startIso);
-      if (sm) {
-        fx = {
-          homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
-          goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
-          status: sm.status,
-          cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
-        };
-      }
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
 
-      // 2) API-Football (fallback)
+      // 2) Sportmonks como reforço (só se AF não achou). Economiza quota Sportmonks Pro.
       if (!fx) {
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) { fx = af.fx; fixtureId = af.fixtureId; fonte = "api-football"; }
+        const sm = await findFixtureCached(home, away, startIso);
+        if (sm) {
+          fx = {
+            homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
+            goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
+            status: sm.status,
+            cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
+          };
+          fonte = "sportmonks";
+        }
       }
 
       // 3) Se mercado de escanteios e ainda não temos corners (apenas via AF), busca
