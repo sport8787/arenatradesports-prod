@@ -5679,6 +5679,36 @@ export type Database = {
           },
         ]
       }
+      user_activation_checklist: {
+        Row: {
+          configured_bankroll: boolean
+          created_at: string
+          enabled_push: boolean
+          placed_first_virtual_bet: boolean
+          saw_first_signal: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          configured_bankroll?: boolean
+          created_at?: string
+          enabled_push?: boolean
+          placed_first_virtual_bet?: boolean
+          saw_first_signal?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          configured_bankroll?: boolean
+          created_at?: string
+          enabled_push?: boolean
+          placed_first_virtual_bet?: boolean
+          saw_first_signal?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_bankroll: {
         Row: {
           balance: number | null
