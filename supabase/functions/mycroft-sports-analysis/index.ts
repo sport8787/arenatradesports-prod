@@ -488,7 +488,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     const AI_KEY = GEMINI_API_KEY;
     const AI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    const AI_MODEL = 'gemini-2.5-flash';
+    // AI_MODEL agora é resolvido via cascata MODEL_FALLBACKS abaixo (mitigação de 429 RPM)
     if (!AI_KEY) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const body = await req.json() as { match: MatchData & Record<string, unknown>; force_provider?: string };
