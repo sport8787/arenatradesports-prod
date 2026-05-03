@@ -143,7 +143,7 @@ const smLookupCache = new Map<string, Awaited<ReturnType<typeof findFixtureByTea
 async function findFixtureCached(home: string, away: string, isoDate: string) {
   const key = `${normalizeTeamName(home)}|${normalizeTeamName(away)}|${isoDate.slice(0, 10)}`;
   if (smLookupCache.has(key)) return smLookupCache.get(key)!;
-  const r = await findFixtureCached(home, away, isoDate);
+  const r = await findFixtureByTeamsAndDate(home, away, isoDate);
   smLookupCache.set(key, r);
   return r;
 }
