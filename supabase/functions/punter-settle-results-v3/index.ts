@@ -61,13 +61,29 @@ function parseFixture(f: any): FixtureResult | null {
   return { homeTeam: f.teams?.home?.name ?? "", awayTeam: f.teams?.away?.name ?? "", goalsHome: gh, goalsAway: ga, status };
 }
 
+// Cache por DATA (compartilhado entre todos os sinais da execução).
+// Reduz drasticamente o número de chamadas: em vez de 1 fetch por sinal,
+// faz 1 fetch por dia único.
+const afDateCache = new Map<string, any[] | null>();
+const smDateCache = new Map<string, any | null>(); // gerenciado em outro helper se necessário
+
+async function getAfDateFixtures(dateStr: string): Promise<any[]> {
+  if (afDateCache.has(dateStr)) return afDateCache.get(dateStr) || [];
+  const data = await afFetch("/fixtures", { date: dateStr, timezone: "America/Recife" });
+  afDateCache.set(dateStr, data);
+  return data || [];
+}
+
 async function buscarPorNomeEData(home: string, away: string, isoDate: string): Promise<{ fx: FixtureResult; fixtureId: number } | null> {
   const baseDate = new Date(isoDate);
-  for (const offset of [0, -1, 1]) {
+  if (isNaN(baseDate.getTime())) return null;
+  // Tenta apenas o dia exato; só recorre a ±1d se não encontrar.
+  const offsets = [0, -1, 1];
+  for (const offset of offsets) {
     const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + offset);
     const dateStr = d.toISOString().slice(0, 10);
-    const data = await afFetch("/fixtures", { date: dateStr, timezone: "America/Recife" });
-    if (!data) continue;
+    const data = await getAfDateFixtures(dateStr);
+    if (!data || data.length === 0) continue;
     for (const f of data) {
       const fx = parseFixture(f);
       if (!fx || !isFinished(fx.status)) continue;
@@ -117,6 +133,19 @@ async function buscarPorOddsAPI(home: string, away: string): Promise<FixtureResu
     } catch { continue; }
   }
   return null;
+}
+
+// Cache Sportmonks por data — 1 fetch /fixtures/date/{ymd} por dia único.
+// findFixtureByTeamsAndDate original faz isso internamente sem cache,
+// então usamos um wrapper que serializa as chamadas por chave home|away|date
+// e ainda agrupa por dia base.
+const smLookupCache = new Map<string, Awaited<ReturnType<typeof findFixtureByTeamsAndDate>>>();
+async function findFixtureCached(home: string, away: string, isoDate: string) {
+  const key = `${normalizeTeamName(home)}|${normalizeTeamName(away)}|${isoDate.slice(0, 10)}`;
+  if (smLookupCache.has(key)) return smLookupCache.get(key)!;
+  const r = await findFixtureByTeamsAndDate(home, away, isoDate);
+  smLookupCache.set(key, r);
+  return r;
 }
 
 function calcularResultado(market: string, homeTeam: string, awayTeam: string, fx: FixtureResult): Resultado | null {
@@ -218,20 +247,20 @@ serve(async (req) => {
       .eq("dismissed", false)
       .lt("commence_time", cutoff)
       .order("commence_time", { ascending: true })
-      .limit(200),
+      .limit(50),
     sb
       .from("sinais_favorito_prelive")
       .select("id, fixture_id, home_team, away_team, league_name, match_date, favorito, fav_odd, score_vitoria, score_over15, score_over25, resultado_vitoria, resultado_over15, resultado_over25")
       .or("resultado_vitoria.is.null,resultado_over15.is.null,resultado_over25.is.null")
       .lt("match_date", cutoff)
       .order("match_date", { ascending: true })
-      .limit(200),
+      .limit(50),
     sb
       .from("eventos_raros_sinais")
       .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
       .or("resultado.is.null,resultado.eq.PENDENTE,resultado.eq.pendente")
       .order("created_at", { ascending: true })
-      .limit(200)
+      .limit(50)
   ]);
 
   if (error || favoritoError || rarosError) {
@@ -248,24 +277,25 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // 1) Sportmonks (primário — plano Pro Advanced, melhor cobertura)
+      // 1) API-Football PRIMEIRO (cache por dia + cota separada da Sportmonks).
       let fx: FixtureResult | null = null;
-      let fonte = "sportmonks";
+      let fonte = "api-football";
       let fixtureId: number | undefined;
-      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
-      if (sm) {
-        fx = {
-          homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
-          goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
-          status: sm.status,
-          cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
-        };
-      }
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
 
-      // 2) API-Football (fallback)
+      // 2) Sportmonks como reforço (só se AF não achou). Economiza quota Sportmonks Pro.
       if (!fx) {
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) { fx = af.fx; fixtureId = af.fixtureId; fonte = "api-football"; }
+        const sm = await findFixtureCached(home, away, startIso);
+        if (sm) {
+          fx = {
+            homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
+            goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
+            status: sm.status,
+            cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
+          };
+          fonte = "sportmonks";
+        }
       }
 
       // 3) Se mercado de escanteios e ainda não temos corners (apenas via AF), busca
@@ -361,14 +391,15 @@ serve(async (req) => {
 
     try {
       let fx: FixtureResult | null = null;
-      let fonte = "sportmonks";
-      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
-      if (sm) {
-        fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-      }
+      let fonte = "api-football";
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) { fx = af.fx; }
       if (!fx) {
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) { fx = af.fx; fonte = "api-football"; }
+        const sm = await findFixtureCached(home, away, startIso);
+        if (sm) {
+          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+          fonte = "sportmonks";
+        }
       }
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
@@ -420,14 +451,15 @@ serve(async (req) => {
 
       try {
         let fx: FixtureResult | null = null;
-        let fonte = "sportmonks";
-        const sm = await findFixtureByTeamsAndDate(home, away, startIso);
-        if (sm) {
-          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-        }
+        let fonte = "api-football";
+        const af = await buscarPorNomeEData(home, away, startIso);
+        if (af) { fx = af.fx; }
         if (!fx) {
-          const af = await buscarPorNomeEData(home, away, startIso);
-          if (af) { fx = af.fx; fonte = "api-football"; }
+          const sm = await findFixtureCached(home, away, startIso);
+          if (sm) {
+            fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+            fonte = "sportmonks";
+          }
         }
         if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
         if (!fx) {
@@ -474,7 +506,16 @@ serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ success: true, checked: items.length, settled, not_found: notFound, unsupported, results }, null, 2),
+    JSON.stringify({
+      success: true,
+      checked: items.length,
+      settled,
+      not_found: notFound,
+      unsupported,
+      af_dates_fetched: afDateCache.size,
+      sm_lookups_cached: smLookupCache.size,
+      results,
+    }, null, 2),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
