@@ -488,7 +488,7 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     const AI_KEY = GEMINI_API_KEY;
     const AI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    const AI_MODEL = 'gemini-2.5-flash';
+    // AI_MODEL agora é resolvido via cascata MODEL_FALLBACKS abaixo (mitigação de 429 RPM)
     if (!AI_KEY) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const body = await req.json() as { match: MatchData & Record<string, unknown>; force_provider?: string };
@@ -580,14 +580,12 @@ serve(async (req) => {
     // Build valid plan_name enum from loaded plans
     const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
-    const response = await fetch(AI_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${AI_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
+    // Cascata de modelos para mitigar 429 (rate limit por minuto): flash → flash-lite → flash (retry)
+    // Cada modelo tem RPM independente na Gemini API. flash-lite tem RPM mais alto e ainda atende qualidade aceitável.
+    const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
+    const buildBody = (model: string) => JSON.stringify({
+        model,
         messages: [
           { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
           { role: 'user', content: prompt },
@@ -633,15 +631,37 @@ serve(async (req) => {
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
         max_tokens: 4096,
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[MycroftSports] Gemini error ${response.status}:`, errorText);
-      if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    let response: Response | null = null;
+    let usedModel = MODEL_FALLBACKS[0];
+    for (let i = 0; i < MODEL_FALLBACKS.length; i++) {
+      const m = MODEL_FALLBACKS[i];
+      const r = await fetch(AI_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
+        body: buildBody(m),
+      });
+      if (r.ok) { response = r; usedModel = m; break; }
+      if (r.status === 429) {
+        const txt = await r.text().catch(() => '');
+        console.warn(`[MycroftSports] ⚠️ 429 em ${m} (tentativa ${i + 1}/${MODEL_FALLBACKS.length}) — fallback`, txt.substring(0, 120));
+        // pequeno backoff antes do próximo modelo
+        await new Promise(res => setTimeout(res, 400 + i * 600));
+        continue;
+      }
+      // Erro não-429 → propaga
+      const errorText = await r.text();
+      console.error(`[MycroftSports] Gemini error ${r.status} (${m}):`, errorText);
+      if (r.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `AI error: ${r.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!response) {
+      console.error('[MycroftSports] ❌ Todos os modelos Gemini retornaram 429 — quota/RPM saturados');
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded em todos os modelos Gemini', code: 'AI_QUOTA_EXHAUSTED' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (usedModel !== MODEL_FALLBACKS[0]) {
+      console.log(`[MycroftSports] ✅ Resposta obtida via fallback model=${usedModel}`);
     }
 
     const data = await response.json();
