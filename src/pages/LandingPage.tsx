@@ -598,10 +598,9 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold mb-4">Empresa</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition">Sobre Nós</a></li>
-                <li><a href="#" className="hover:text-white transition">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition">Carreiras</a></li>
-                <li><a href="#" className="hover:text-white transition">Contato</a></li>
+                <li><a href="/landing.html" className="hover:text-white transition">Sobre Nós</a></li>
+                <li><a href="/blog/" className="hover:text-white transition">Blog</a></li>
+                <li><a href="https://wa.me/5581997950345" className="hover:text-white transition">Contato</a></li>
               </ul>
             </div>
             <div>
