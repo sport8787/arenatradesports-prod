@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, TrendingUp, Eye } from 'lucide-react';
+import { Trophy, TrendingUp, Eye, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -14,6 +14,8 @@ interface Row {
   greens: number;
   reds: number;
   roi_pct: number;
+  plan?: string | null;
+  plan_active?: boolean | null;
 }
 
 /**
@@ -124,6 +126,23 @@ export default function LigaMycroftLeaderboard() {
                 >
                   {r.is_horus && <Eye className="h-3 w-3 text-primary shrink-0" />}
                   {isMe ? 'Você' : r.display_name}
+                  {r.plan_active && r.plan === 'premium' && (
+                    <span
+                      title="Assinante Premium · 2x BC"
+                      className="inline-flex items-center gap-0.5 rounded bg-gradient-to-r from-yellow-500/30 to-amber-500/30 border border-yellow-500/50 px-1 py-[1px] text-[9px] font-bold text-yellow-300 shrink-0"
+                    >
+                      <Crown className="h-2.5 w-2.5" />
+                      PREMIUM
+                    </span>
+                  )}
+                  {r.plan_active && r.plan === 'base' && (
+                    <span
+                      title="Plano Base · 1.5x BC"
+                      className="inline-flex items-center rounded bg-blue-500/20 border border-blue-500/40 px-1 py-[1px] text-[9px] font-bold text-blue-300 shrink-0"
+                    >
+                      BASE
+                    </span>
+                  )}
                 </span>
                 <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">
                   · {r.greens}G/{r.reds}R · {r.total_bets} aps

@@ -24,6 +24,7 @@ interface PrizeCard {
   description: string;
   category: 'giftcard' | 'subscription' | 'season';
   badge?: string;
+  premiumOnly?: boolean;
 }
 
 // Preços em BC são placeholders — economia interna será calibrada depois
@@ -64,6 +65,7 @@ const prizes: PrizeCard[] = [
     image: prizeGiftcard200,
     description: 'Vale-presente digital de R$ 200 (lojas parceiras)',
     category: 'giftcard',
+    premiumOnly: true,
   },
   {
     id: 5,
@@ -79,9 +81,12 @@ const prizes: PrizeCard[] = [
 
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
-  const { isPaid, isTrialActive, loading: subLoading } = useSubscription();
+  const { isPaid, isTrialActive, subscription, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
   const canRedeem = isPaid; // Trial acumula mas NÃO resgata
+  const currentPlan = subscription?.plan ?? 'free';
+  const planMultiplier = currentPlan === 'premium' ? 2.0 : currentPlan === 'base' ? 1.5 : 1.0;
+  const isPremium = currentPlan === 'premium' && !!subscription?.is_active;
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -215,6 +220,55 @@ export default function BlackMarket() {
           </motion.section>
         )}
 
+        {/* Multiplicador de BC por plano */}
+        {!subLoading && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-3xl mx-auto"
+          >
+            <div className="rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 via-fuchsia-500/10 to-pink-500/10 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Crown className="w-4 h-4 text-fuchsia-300" />
+                <h3 className="font-mono text-xs uppercase tracking-wider text-fuchsia-300 font-bold">
+                  Multiplicador de BC por plano
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className={`rounded-md p-2 border ${planMultiplier === 1.0 && !subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-muted-foreground uppercase">Free / Trial</p>
+                  <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                </div>
+                <div className={`rounded-md p-2 border ${(currentPlan === 'starter' || currentPlan === 'basic') && subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-muted-foreground uppercase">Starter / Basic</p>
+                  <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                </div>
+                <div className={`rounded-md p-2 border ${currentPlan === 'base' && subscription?.is_active ? 'border-blue-400/60 bg-blue-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-blue-300 uppercase">Base</p>
+                  <p className="font-mono font-bold text-sm text-blue-300">1.5x</p>
+                </div>
+                <div className={`rounded-md p-2 border ${isPremium ? 'border-yellow-400/60 bg-gradient-to-b from-yellow-500/15 to-amber-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-yellow-300 uppercase flex items-center justify-center gap-0.5">
+                    <Crown className="w-2.5 h-2.5" /> Premium
+                  </p>
+                  <p className="font-mono font-bold text-sm text-yellow-300">2.0x</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
+                Cada GREEN virtual rende{' '}
+                <span className="font-semibold text-foreground">+50 BC base + bônus por lucro</span>, multiplicado pelo seu plano.
+                {!isPremium && (
+                  <>
+                    {' '}Premium acumula <span className="text-yellow-300 font-semibold">2x mais BC</span>, tem acesso às{' '}
+                    <span className="text-yellow-300 font-semibold">2 arenas</span> e a{' '}
+                    <span className="text-yellow-300 font-semibold">prêmios exclusivos</span>.
+                  </>
+                )}
+              </p>
+            </div>
+          </motion.section>
+        )}
+
         {/* Troféu da Temporada */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -294,6 +348,12 @@ export default function BlackMarket() {
                       {prize.badge && (
                         <div className="bg-primary/90 text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded">
                           {prize.badge}
+                        </div>
+                      )}
+                      {prize.premiumOnly && (
+                        <div className="bg-gradient-to-r from-yellow-500 to-amber-500 text-background text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                          <Crown className="w-2.5 h-2.5" />
+                          PREMIUM ONLY
                         </div>
                       )}
                     </div>
