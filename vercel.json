@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/sitemap.xml" },
+    { "source": "/blog/brasileirao-2026/rodada-:n.html", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/brasileirao-2026/rodada-:n.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
