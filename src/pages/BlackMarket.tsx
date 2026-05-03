@@ -6,7 +6,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import BCLeaderboardWeekly from '@/components/punter/BCLeaderboardWeekly';
+import LigaMycroftLeaderboard from '@/components/punter/LigaMycroftLeaderboard';
 
 import prizeGiftcard50 from '@/assets/prize-giftcard-50.jpg';
 import prizeGiftcard100 from '@/assets/prize-giftcard-100.jpg';
@@ -116,7 +116,7 @@ export default function BlackMarket() {
           </Link>
 
           <h1 className="font-orbitron font-black text-xl md:text-2xl text-gold text-glow-gold">
-            LOJA BC
+            LIGA MYCROFT
           </h1>
 
           <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border min-w-[80px] justify-center">
@@ -160,12 +160,12 @@ export default function BlackMarket() {
 
           <div className="space-y-3">
             <h2 className="font-orbitron text-3xl md:text-4xl font-black text-foreground">
-              SUA VITRINE DE PRÊMIOS
+              LIGA MYCROFT
             </h2>
             <p className="text-lg md:text-xl text-gold max-w-xl mx-auto">
-              Acumule <span className="font-bold">BluffCoins</span> com apostas virtuais vencedoras
+              Ranking por <span className="font-bold">ROI%</span> · Prêmios reais · Troféu da temporada
               <br />
-              <span className="text-muted-foreground text-sm">e troque por vale-presentes, dias grátis ou upgrades.</span>
+              <span className="text-muted-foreground text-sm">Acumule BluffCoins com apostas virtuais vencedoras e troque por vale-presentes, dias grátis ou upgrade Premium.</span>
             </p>
           </div>
         </motion.section>
@@ -254,9 +254,9 @@ export default function BlackMarket() {
           </div>
         </motion.section>
 
-        {/* Leaderboard semanal de BC */}
+        {/* Ranking Liga Mycroft (ROI%) */}
         <section className="max-w-2xl mx-auto w-full">
-          <BCLeaderboardWeekly />
+          <LigaMycroftLeaderboard />
         </section>
 
         {/* Showcase Grid */}
