@@ -76,7 +76,10 @@ export default function LigaMycroftMiniRank() {
             Liga Mycroft · Top 3 ROI
           </span>
         </div>
-        <ChevronRight className="h-4 w-4 text-yellow-400/60 group-hover:text-yellow-400 group-hover:translate-x-0.5 transition" />
+        <span className="flex items-center gap-1 text-[10px] font-mono text-yellow-400 font-bold">
+          Ver ranking
+          <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition" />
+        </span>
       </div>
 
       <ol className="space-y-1">
