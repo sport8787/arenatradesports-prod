@@ -61,13 +61,29 @@ function parseFixture(f: any): FixtureResult | null {
   return { homeTeam: f.teams?.home?.name ?? "", awayTeam: f.teams?.away?.name ?? "", goalsHome: gh, goalsAway: ga, status };
 }
 
+// Cache por DATA (compartilhado entre todos os sinais da execução).
+// Reduz drasticamente o número de chamadas: em vez de 1 fetch por sinal,
+// faz 1 fetch por dia único.
+const afDateCache = new Map<string, any[] | null>();
+const smDateCache = new Map<string, any | null>(); // gerenciado em outro helper se necessário
+
+async function getAfDateFixtures(dateStr: string): Promise<any[]> {
+  if (afDateCache.has(dateStr)) return afDateCache.get(dateStr) || [];
+  const data = await afFetch("/fixtures", { date: dateStr, timezone: "America/Recife" });
+  afDateCache.set(dateStr, data);
+  return data || [];
+}
+
 async function buscarPorNomeEData(home: string, away: string, isoDate: string): Promise<{ fx: FixtureResult; fixtureId: number } | null> {
   const baseDate = new Date(isoDate);
-  for (const offset of [0, -1, 1]) {
+  if (isNaN(baseDate.getTime())) return null;
+  // Tenta apenas o dia exato; só recorre a ±1d se não encontrar.
+  const offsets = [0, -1, 1];
+  for (const offset of offsets) {
     const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + offset);
     const dateStr = d.toISOString().slice(0, 10);
-    const data = await afFetch("/fixtures", { date: dateStr, timezone: "America/Recife" });
-    if (!data) continue;
+    const data = await getAfDateFixtures(dateStr);
+    if (!data || data.length === 0) continue;
     for (const f of data) {
       const fx = parseFixture(f);
       if (!fx || !isFinished(fx.status)) continue;
