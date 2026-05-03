@@ -81,9 +81,12 @@ const prizes: PrizeCard[] = [
 
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
-  const { isPaid, isTrialActive, loading: subLoading } = useSubscription();
+  const { isPaid, isTrialActive, subscription, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
   const canRedeem = isPaid; // Trial acumula mas NÃO resgata
+  const currentPlan = subscription?.plan ?? 'free';
+  const planMultiplier = currentPlan === 'premium' ? 2.0 : currentPlan === 'base' ? 1.5 : 1.0;
+  const isPremium = currentPlan === 'premium' && !!subscription?.is_active;
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
