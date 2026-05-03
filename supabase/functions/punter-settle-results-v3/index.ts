@@ -143,7 +143,7 @@ const smLookupCache = new Map<string, Awaited<ReturnType<typeof findFixtureByTea
 async function findFixtureCached(home: string, away: string, isoDate: string) {
   const key = `${normalizeTeamName(home)}|${normalizeTeamName(away)}|${isoDate.slice(0, 10)}`;
   if (smLookupCache.has(key)) return smLookupCache.get(key)!;
-  const r = await findFixtureByTeamsAndDate(home, away, isoDate);
+  const r = await findFixtureCached(home, away, isoDate);
   smLookupCache.set(key, r);
   return r;
 }
@@ -281,7 +281,7 @@ serve(async (req) => {
       let fx: FixtureResult | null = null;
       let fonte = "sportmonks";
       let fixtureId: number | undefined;
-      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+      const sm = await findFixtureCached(home, away, startIso);
       if (sm) {
         fx = {
           homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
@@ -391,7 +391,7 @@ serve(async (req) => {
     try {
       let fx: FixtureResult | null = null;
       let fonte = "sportmonks";
-      const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+      const sm = await findFixtureCached(home, away, startIso);
       if (sm) {
         fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
       }
@@ -450,7 +450,7 @@ serve(async (req) => {
       try {
         let fx: FixtureResult | null = null;
         let fonte = "sportmonks";
-        const sm = await findFixtureByTeamsAndDate(home, away, startIso);
+        const sm = await findFixtureCached(home, away, startIso);
         if (sm) {
           fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
         }
