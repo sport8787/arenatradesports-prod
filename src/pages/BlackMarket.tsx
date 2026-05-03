@@ -5,6 +5,7 @@ import { useEconomy } from '@/hooks/useEconomy';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import BCLeaderboardWeekly from '@/components/punter/BCLeaderboardWeekly';
 
 import prizeGiftcard from '@/assets/prize-giftcard.jpg';
 import prizePix from '@/assets/prize-pix.jpg';
