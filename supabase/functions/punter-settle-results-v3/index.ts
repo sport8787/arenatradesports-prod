@@ -506,7 +506,16 @@ serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ success: true, checked: items.length, settled, not_found: notFound, unsupported, results }, null, 2),
+    JSON.stringify({
+      success: true,
+      checked: items.length,
+      settled,
+      not_found: notFound,
+      unsupported,
+      af_dates_fetched: afDateCache.size,
+      sm_lookups_cached: smLookupCache.size,
+      results,
+    }, null, 2),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
