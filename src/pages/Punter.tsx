@@ -89,23 +89,6 @@ export default function PunterPage() {
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
   const { markComplete: markActivation } = useActivationChecklist();
-
-  // Marca passos do checklist conforme o usuário usa o produto
-  useEffect(() => {
-    if (signals.some(s => /APROVADO/i.test(s.recommendation?.verdict || ''))) {
-      markActivation('saw_first_signal');
-    }
-  }, [signals, markActivation]);
-  useEffect(() => {
-    if (bankroll && Number(bankroll.balance) > 0) {
-      markActivation('configured_bankroll');
-    }
-  }, [bankroll, markActivation]);
-  useEffect(() => {
-    if (pendingBets.length > 0 || manualPendingBets.length > 0) {
-      markActivation('placed_first_virtual_bet');
-    }
-  }, [pendingBets, manualPendingBets, markActivation]);
   const [loading, setLoading] = useState(false);
   const [signals, setSignals] = useState<PunterSignal[]>([]);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
