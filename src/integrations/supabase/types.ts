@@ -2359,6 +2359,51 @@ export type Database = {
         }
         Relationships: []
       }
+      liga_mycroft_seed_users: {
+        Row: {
+          active: boolean
+          bc_earned: number
+          created_at: string
+          display_name: string
+          greens: number
+          id: string
+          is_horus: boolean
+          reds: number
+          total_bets: number
+          total_returned: number
+          total_staked: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bc_earned?: number
+          created_at?: string
+          display_name: string
+          greens?: number
+          id?: string
+          is_horus?: boolean
+          reds?: number
+          total_bets?: number
+          total_returned?: number
+          total_staked?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bc_earned?: number
+          created_at?: string
+          display_name?: string
+          greens?: number
+          id?: string
+          is_horus?: boolean
+          reds?: number
+          total_bets?: number
+          total_returned?: number
+          total_staked?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       live_match_stats_overrides: {
         Row: {
           created_at: string
@@ -6666,6 +6711,24 @@ export type Database = {
           rank: number | null
           user_id: string | null
           wins_week: number | null
+        }
+        Relationships: []
+      }
+      liga_mycroft_leaderboard: {
+        Row: {
+          display_name: string | null
+          greens: number | null
+          is_fake: boolean | null
+          is_horus: boolean | null
+          rank: number | null
+          reds: number | null
+          roi_pct: number | null
+          row_key: string | null
+          seed_id: string | null
+          total_bets: number | null
+          total_returned: number | null
+          total_staked: number | null
+          user_id: string | null
         }
         Relationships: []
       }
