@@ -135,7 +135,18 @@ async function buscarPorOddsAPI(home: string, away: string): Promise<FixtureResu
   return null;
 }
 
-function calcularResultado(market: string, homeTeam: string, awayTeam: string, fx: FixtureResult): Resultado | null {
+// Cache Sportmonks por data — 1 fetch /fixtures/date/{ymd} por dia único.
+// findFixtureByTeamsAndDate original faz isso internamente sem cache,
+// então usamos um wrapper que serializa as chamadas por chave home|away|date
+// e ainda agrupa por dia base.
+const smLookupCache = new Map<string, Awaited<ReturnType<typeof findFixtureByTeamsAndDate>>>();
+async function findFixtureCached(home: string, away: string, isoDate: string) {
+  const key = `${normalizeTeamName(home)}|${normalizeTeamName(away)}|${isoDate.slice(0, 10)}`;
+  if (smLookupCache.has(key)) return smLookupCache.get(key)!;
+  const r = await findFixtureByTeamsAndDate(home, away, isoDate);
+  smLookupCache.set(key, r);
+  return r;
+}
   const m = (market || "").toLowerCase().trim();
   const gh = fx.goalsHome, ga = fx.goalsAway, total = gh + ga;
   const ch = fx.cornersHome ?? 0, ca = fx.cornersAway ?? 0, totalCorners = ch + ca;
