@@ -247,20 +247,20 @@ serve(async (req) => {
       .eq("dismissed", false)
       .lt("commence_time", cutoff)
       .order("commence_time", { ascending: true })
-      .limit(200),
+      .limit(50),
     sb
       .from("sinais_favorito_prelive")
       .select("id, fixture_id, home_team, away_team, league_name, match_date, favorito, fav_odd, score_vitoria, score_over15, score_over25, resultado_vitoria, resultado_over15, resultado_over25")
       .or("resultado_vitoria.is.null,resultado_over15.is.null,resultado_over25.is.null")
       .lt("match_date", cutoff)
       .order("match_date", { ascending: true })
-      .limit(200),
+      .limit(50),
     sb
       .from("eventos_raros_sinais")
       .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
       .or("resultado.is.null,resultado.eq.PENDENTE,resultado.eq.pendente")
       .order("created_at", { ascending: true })
-      .limit(200)
+      .limit(50)
   ]);
 
   if (error || favoritoError || rarosError) {
