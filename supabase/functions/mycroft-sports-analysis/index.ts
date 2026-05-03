@@ -631,15 +631,37 @@ serve(async (req) => {
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
         max_tokens: 4096,
-      }),
-    });
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[MycroftSports] Gemini error ${response.status}:`, errorText);
-      if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      return new Response(JSON.stringify({ error: `AI error: ${response.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    let response: Response | null = null;
+    let usedModel = MODEL_FALLBACKS[0];
+    for (let i = 0; i < MODEL_FALLBACKS.length; i++) {
+      const m = MODEL_FALLBACKS[i];
+      const r = await fetch(AI_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
+        body: buildBody(m),
+      });
+      if (r.ok) { response = r; usedModel = m; break; }
+      if (r.status === 429) {
+        const txt = await r.text().catch(() => '');
+        console.warn(`[MycroftSports] ⚠️ 429 em ${m} (tentativa ${i + 1}/${MODEL_FALLBACKS.length}) — fallback`, txt.substring(0, 120));
+        // pequeno backoff antes do próximo modelo
+        await new Promise(res => setTimeout(res, 400 + i * 600));
+        continue;
+      }
+      // Erro não-429 → propaga
+      const errorText = await r.text();
+      console.error(`[MycroftSports] Gemini error ${r.status} (${m}):`, errorText);
+      if (r.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `AI error: ${r.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!response) {
+      console.error('[MycroftSports] ❌ Todos os modelos Gemini retornaram 429 — quota/RPM saturados');
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded em todos os modelos Gemini', code: 'AI_QUOTA_EXHAUSTED' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (usedModel !== MODEL_FALLBACKS[0]) {
+      console.log(`[MycroftSports] ✅ Resposta obtida via fallback model=${usedModel}`);
     }
 
     const data = await response.json();
