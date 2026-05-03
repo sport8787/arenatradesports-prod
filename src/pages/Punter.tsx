@@ -34,6 +34,8 @@ import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import OnboardingTour from '@/components/punter/OnboardingTour';
+import PushOptInBanner from '@/components/punter/PushOptInBanner';
+import YesterdayRecapBanner from '@/components/punter/YesterdayRecapBanner';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { getTierFromStake } from '@/lib/tierLabels';
@@ -1225,6 +1227,10 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Retenção: resumo de ontem + opt-in de push (somem após interação) */}
+        <YesterdayRecapBanner />
+        <PushOptInBanner />
+
         {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
         {(() => {
           const sortedByConfidence = [...signals].sort(
