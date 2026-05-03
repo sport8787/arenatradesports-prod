@@ -4514,6 +4514,45 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_rodadas_publicadas: {
+        Row: {
+          championship: string
+          from_date: string
+          id: number
+          public_url: string
+          published_at: string
+          rodada: number
+          signals_count: number
+          storage_path: string
+          to_date: string
+          updated_at: string
+        }
+        Insert: {
+          championship?: string
+          from_date: string
+          id?: number
+          public_url: string
+          published_at?: string
+          rodada: number
+          signals_count?: number
+          storage_path: string
+          to_date: string
+          updated_at?: string
+        }
+        Update: {
+          championship?: string
+          from_date?: string
+          id?: number
+          public_url?: string
+          published_at?: string
+          rodada?: number
+          signals_count?: number
+          storage_path?: string
+          to_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sharp_money_signals: {
         Row: {
           created_at: string | null
