@@ -16,7 +16,7 @@ interface Props {
  * Mostra o próximo jogo relevante e CTA pra ativar push.
  */
 export default function NextMatchEmptyState({ nextMatch }: Props) {
-  const { isSubscribed, isSupported, requestPush } = usePushNotifications();
+  const { enabled, isSupported, requestPush } = usePushNotifications();
 
   const handleEnablePush = async () => {
     const ok = await requestPush();
@@ -68,7 +68,7 @@ export default function NextMatchEmptyState({ nextMatch }: Props) {
         </p>
       )}
 
-      {isSupported && !isSubscribed && (
+      {isSupported && !enabled && (
         <div>
           <button
             onClick={handleEnablePush}

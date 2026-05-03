@@ -15,14 +15,14 @@ const DISMISS_HOURS = 24;
  * Também ouve o evento global `open_push_optin` (disparado pelo checklist).
  */
 export default function PushOptInBanner() {
-  const { isSubscribed, isSupported, requestPush } = usePushNotifications();
+  const { enabled, isSupported, requestPush } = usePushNotifications();
   const { markComplete } = useActivationChecklist();
   const [hidden, setHidden] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!isSupported) return;
-    if (isSubscribed) {
+    if (enabled) {
       // Garante que o checklist acompanhe quando o usuário já tem push
       markComplete('enabled_push');
       setHidden(true);
@@ -38,9 +38,9 @@ export default function PushOptInBanner() {
     const force = () => setHidden(false);
     window.addEventListener('open_push_optin', force);
     return () => window.removeEventListener('open_push_optin', force);
-  }, [isSubscribed, isSupported, markComplete]);
+  }, [enabled, isSupported, markComplete]);
 
-  if (!isSupported || isSubscribed || hidden) return null;
+  if (!isSupported || enabled || hidden) return null;
 
   const handleEnable = async () => {
     setBusy(true);
