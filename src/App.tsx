@@ -114,6 +114,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <TrialBanner />
+            <BCRewardToastsMount />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
