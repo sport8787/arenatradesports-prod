@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Activity,
   Send,
+  Coins,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
