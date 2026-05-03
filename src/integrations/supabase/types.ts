@@ -991,6 +991,8 @@ export type Database = {
           created_at: string
           id: string
           motivo: string | null
+          multiplier: number
+          plan_at_credit: string | null
           source: string
           total_bc: number
           user_id: string
@@ -1002,6 +1004,8 @@ export type Database = {
           created_at?: string
           id?: string
           motivo?: string | null
+          multiplier?: number
+          plan_at_credit?: string | null
           source: string
           total_bc?: number
           user_id: string
@@ -1013,6 +1017,8 @@ export type Database = {
           created_at?: string
           id?: string
           motivo?: string | null
+          multiplier?: number
+          plan_at_credit?: string | null
           source?: string
           total_bc?: number
           user_id?: string
@@ -6720,6 +6726,8 @@ export type Database = {
           greens: number | null
           is_fake: boolean | null
           is_horus: boolean | null
+          plan: string | null
+          plan_active: boolean | null
           rank: number | null
           reds: number | null
           roi_pct: number | null
