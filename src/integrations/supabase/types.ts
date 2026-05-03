@@ -6744,6 +6744,19 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_user_roi: {
+        Row: {
+          greens: number | null
+          pushes: number | null
+          reds: number | null
+          roi_pct: number | null
+          total_bets: number | null
+          total_returned: number | null
+          total_staked: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       next_games_to_check: {
         Row: {
           away_team: string | null
