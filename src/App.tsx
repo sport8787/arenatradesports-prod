@@ -155,6 +155,8 @@ const App = () => {
                 <Route path="/punter/comunidade" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterComunidade /></RequireArena></RequireSubscription>} />
                 <Route path="/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
                 <Route path="/punter/menu" element={<Navigate to="/menu" replace />} />
+                <Route path="/loja-bc" element={<RequireSubscription><BlackMarket /></RequireSubscription>} />
+                <Route path="/punter/loja-bc" element={<Navigate to="/loja-bc" replace />} />
                 <Route path="/punter/auditoria" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAuditoria /></RequireArena></RequireSubscription>} />
                 <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
                 <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
