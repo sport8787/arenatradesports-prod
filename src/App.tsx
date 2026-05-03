@@ -71,6 +71,8 @@ const AdminAssinaturas = React.lazy(() => import("./pages/AdminAssinaturas"));
 const AdminAuditoriaSinais = React.lazy(() => import("./pages/AdminAuditoriaSinais"));
 const AdminAuditoriaSinalDetalhe = React.lazy(() => import("./pages/AdminAuditoriaSinalDetalhe"));
 const AdminMycroftChatAccessLog = React.lazy(() => import("./pages/AdminMycroftChatAccessLog"));
+const PunterPerformancePorMercado = React.lazy(() => import("./pages/PunterPerformancePorMercado"));
+const TraderSportsPerformancePorMercado = React.lazy(() => import("./pages/TraderSportsPerformancePorMercado"));
 
 // Defaults conservadores: NÃO refazer fetch ao trocar de aba (causava sensação de "recarregar")
 const queryClient = new QueryClient({
@@ -147,6 +149,8 @@ const App = () => {
                 <Route path="/punter/aprovadas" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAprovadas /></RequireArena></RequireSubscription>} />
                <Route path="/punter/liquidacoes" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterLiquidacoes /></RequireArena></RequireSubscription>} />
                <Route path="/punter/feed-eventos" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterFeedEventos /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/performance-por-mercado" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterPerformancePorMercado /></RequireArena></RequireSubscription>} />
+                <Route path="/arena-trader-sports/performance-por-mercado" element={<RequireSubscription><TraderSportsPerformancePorMercado /></RequireSubscription>} />
                 <Route path="/punter/comunidade" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterComunidade /></RequireArena></RequireSubscription>} />
                 <Route path="/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
                 <Route path="/punter/menu" element={<Navigate to="/menu" replace />} />
