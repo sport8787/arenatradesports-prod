@@ -7,6 +7,7 @@ import PunterMenuHeroStatus from '@/components/punter/PunterMenuHeroStatus';
 import ActivationChecklist from '@/components/punter/ActivationChecklist';
 import BCRewardsBanner from '@/components/punter/BCRewardsBanner';
 import NextPrizeProgress from '@/components/punter/NextPrizeProgress';
+import LigaMycroftMiniRank from '@/components/punter/LigaMycroftMiniRank';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { HeroParticles } from '@/components/landing/HeroParticles';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
@@ -104,7 +105,10 @@ export default function PunterMenuPage() {
         <PunterMenuHeroStatus />
         <ActivationChecklist />
         <BCRewardsBanner />
-        <NextPrizeProgress />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <NextPrizeProgress />
+          <LigaMycroftMiniRank />
+        </div>
         <PunterNavGrid />
       </main>
 
