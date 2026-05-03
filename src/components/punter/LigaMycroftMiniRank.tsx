@@ -137,7 +137,7 @@ export default function LigaMycroftMiniRank() {
           )
         ) : (
           <span className="text-muted-foreground">
-            Faça <span className="text-foreground font-semibold">5 apostas virtuais</span> liquidadas para entrar no ranking.
+            Faça <span className="text-foreground font-semibold">5 operações</span> liquidadas (Punter ou Trader Ao Vivo) para entrar.
           </span>
         )}
       </div>
