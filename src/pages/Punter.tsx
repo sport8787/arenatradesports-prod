@@ -34,6 +34,9 @@ import SettledBetsDebugPanel from '@/components/punter/SettledBetsDebugPanel';
 
 import MycroftSportsChat from '@/components/arena-trader/MycroftSportsChat';
 import OnboardingTour from '@/components/punter/OnboardingTour';
+import PushOptInBanner from '@/components/punter/PushOptInBanner';
+import YesterdayRecapBanner from '@/components/punter/YesterdayRecapBanner';
+import { useActivationChecklist } from '@/hooks/useActivationChecklist';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
 import { calculateAssetScore, getGradeConfig, type AssetScore } from '@/lib/assetScore';
 import { getTierFromStake } from '@/lib/tierLabels';
@@ -85,6 +88,7 @@ export default function PunterPage() {
   const { isAdmin } = useAdmin();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
+  const { markComplete: markActivation } = useActivationChecklist();
   const [loading, setLoading] = useState(false);
   const [signals, setSignals] = useState<PunterSignal[]>([]);
   const [totalAnalyzed, setTotalAnalyzed] = useState(0);
@@ -94,6 +98,23 @@ export default function PunterPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [pendingBets, setPendingBets] = useState<any[]>([]);
   const [manualPendingBets, setManualPendingBets] = useState<any[]>([]);
+
+  // Marca passos do checklist conforme o usuário usa o produto
+  useEffect(() => {
+    if (signals.some(s => /APROVADO/i.test(s.recommendation?.verdict || ''))) {
+      markActivation('saw_first_signal');
+    }
+  }, [signals, markActivation]);
+  useEffect(() => {
+    if (bankroll && Number(bankroll.balance) > 0) {
+      markActivation('configured_bankroll');
+    }
+  }, [bankroll, markActivation]);
+  useEffect(() => {
+    if (pendingBets.length > 0 || manualPendingBets.length > 0) {
+      markActivation('placed_first_virtual_bet');
+    }
+  }, [pendingBets, manualPendingBets, markActivation]);
   const [todayOnlyFilter, setTodayOnlyFilter] = useState(() => searchParams.get('today') === '1');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>(() => {
     const c = searchParams.get('cat');
@@ -1225,6 +1246,10 @@ export default function PunterPage() {
       </header>
 
       <div className="container mx-auto px-4 py-5 space-y-5 max-w-5xl">
+        {/* Retenção: resumo de ontem + opt-in de push (somem após interação) */}
+        <YesterdayRecapBanner />
+        <PushOptInBanner />
+
         {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
         {(() => {
           const sortedByConfidence = [...signals].sort(
