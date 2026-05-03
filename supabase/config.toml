@@ -113,3 +113,5 @@ verify_jwt = false
 
 [functions.kiwify-webhook]
 verify_jwt = false
+[functions.seo-rodada-brasileirao]
+verify_jwt = false
