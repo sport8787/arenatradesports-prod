@@ -350,6 +350,12 @@ export default function BlackMarket() {
                           {prize.badge}
                         </div>
                       )}
+                      {prize.premiumOnly && (
+                        <div className="bg-gradient-to-r from-yellow-500 to-amber-500 text-background text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                          <Crown className="w-2.5 h-2.5" />
+                          PREMIUM ONLY
+                        </div>
+                      )}
                     </div>
 
                     {/* Image */}
