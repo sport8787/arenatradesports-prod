@@ -167,6 +167,37 @@ Deno.serve(async (req) => {
     // 4. Reconstrói sitemap
     const sitemapUrl = await rebuildSitemap(supabase);
 
+    // 5. Verifica se é rodada NOVA (não atualização) — só dispara push uma vez
+    const { data: existing } = await supabase
+      .from("seo_rodadas_publicadas")
+      .select("published_at, updated_at")
+      .eq("championship", CHAMPIONSHIP)
+      .eq("rodada", rodada)
+      .maybeSingle();
+    const isFirstPublish = existing && Math.abs(new Date(existing.published_at).getTime() - new Date(existing.updated_at).getTime()) < 5_000;
+
+    if (isFirstPublish && signalsCount > 0) {
+      try {
+        const pushUrl = `${SUPABASE_URL}/functions/v1/send-web-push`;
+        await fetch(pushUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+          body: JSON.stringify({
+            broadcast: true,
+            payload: {
+              title: `🏆 Palpites da ${rodada}ª rodada do Brasileirão`,
+              body: `${signalsCount} sinais aprovados pela IA. Confira agora os palpites com edge real.`,
+              url: `https://oraculo-mycroft.com/blog/brasileirao-2026/rodada-${rodada}.html`,
+              tag: `seo-rodada-${rodada}`,
+            },
+          }),
+        });
+        console.log(`[seo-publish-rodada] push enviado rodada=${rodada}`);
+      } catch (e) {
+        console.warn(`[seo-publish-rodada] push falhou:`, e);
+      }
+    }
+
     console.log(`[seo-publish-rodada] OK rodada=${rodada} signals=${signalsCount}`);
 
     return new Response(

@@ -24,6 +24,7 @@ import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
 import { useVturbTracking } from '@/hooks/useVturbTracking';
+import { getH1Variant, H1_VARIANTS } from '@/lib/landingAbTest';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export default function LandingPage() {
   const { decrementSlot } = usePromoSlots();
   const [shouldLoadVturb, setShouldLoadVturb] = useState(false);
   const [vturbFailed, setVturbFailed] = useState(false);
+  const [h1Variant] = useState(() => H1_VARIANTS[getH1Variant()]);
 
   // Track landing view (com UTMs anexadas) — uma vez por sessão
   useEffect(() => {
@@ -186,11 +188,11 @@ export default function LandingPage() {
               </div>
 
               <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                A IA QUE ENCONTRA
+                {h1Variant.line1}
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
-                  APOSTAS LUCRATIVAS
+                  {h1Variant.highlight}
                 </span>
-                ANTES DAS CASAS AJUSTAREM AS ODDS
+                {h1Variant.line3}
               </h2>
 
               {/* Dor explícita do usuário */}
