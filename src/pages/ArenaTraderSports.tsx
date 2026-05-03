@@ -29,6 +29,8 @@ import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
+import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
+import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 
@@ -374,6 +376,9 @@ export default function ArenaTraderSports() {
       </header>
 
       <div className="container mx-auto px-4 py-4 space-y-4">
+        {/* Push opt-in (some quando usuário ativa) */}
+        <PushOptInBanner />
+
         {/* Bankroll Widget */}
         {bankroll && !bankrollLoading && (
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
