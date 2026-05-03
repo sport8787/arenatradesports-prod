@@ -231,8 +231,7 @@ serve(async (req) => {
 
         // 🚫 SofaScore e Flashscore DESATIVADOS — fonte única: Sportmonks (live).
         // Decisão: evitar ruído/inconsistência. Se Sportmonks não tiver, mantém API-Football
-        // ou marca xg_unavailable abaixo.
-        const sofascoreFound = false;
+        // ou marca xg_unavailable abaixo. (sofascoreFound já foi declarado acima como `let`)
         const flashscoreFound = false;
 
         // 🚨 FLAG xG INDISPONÍVEL: SofaScore E Flashscore falharam + API-Football zerado
