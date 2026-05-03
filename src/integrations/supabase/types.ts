@@ -6702,6 +6702,34 @@ export type Database = {
         }
         Relationships: []
       }
+      v_performance_por_mercado_punter: {
+        Row: {
+          first_match_date: string | null
+          greens: number | null
+          last_match_date: string | null
+          last_settled_at: string | null
+          mercado: string | null
+          reds: number | null
+          roi_pct: number | null
+          total_sinais: number | null
+          win_rate_pct: number | null
+        }
+        Relationships: []
+      }
+      v_performance_por_mercado_trader: {
+        Row: {
+          first_match_date: string | null
+          greens: number | null
+          last_match_date: string | null
+          last_settled_at: string | null
+          mercado: string | null
+          reds: number | null
+          roi_pct: number | null
+          total_sinais: number | null
+          win_rate_pct: number | null
+        }
+        Relationships: []
+      }
       v_roi_plano_favorito: {
         Row: {
           greens_o15: number | null
@@ -6797,6 +6825,28 @@ export type Database = {
       generate_training_label: {
         Args: { p_recording_id: string }
         Returns: string
+      }
+      get_performance_punter: {
+        Args: { p_days?: number }
+        Returns: {
+          greens: number
+          mercado: string
+          reds: number
+          roi_pct: number
+          total_sinais: number
+          win_rate_pct: number
+        }[]
+      }
+      get_performance_trader: {
+        Args: { p_days?: number }
+        Returns: {
+          greens: number
+          mercado: string
+          reds: number
+          roi_pct: number
+          total_sinais: number
+          win_rate_pct: number
+        }[]
       }
       get_trader_balance: { Args: { p_user_id: string }; Returns: number }
       has_role: {
