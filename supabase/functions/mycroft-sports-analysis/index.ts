@@ -580,14 +580,12 @@ serve(async (req) => {
     // Build valid plan_name enum from loaded plans
     const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
-    const response = await fetch(AI_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${AI_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
+    // Cascata de modelos para mitigar 429 (rate limit por minuto): flash → flash-lite → flash (retry)
+    // Cada modelo tem RPM independente na Gemini API. flash-lite tem RPM mais alto e ainda atende qualidade aceitável.
+    const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
+    const buildBody = (model: string) => JSON.stringify({
+        model,
         messages: [
           { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
           { role: 'user', content: prompt },
