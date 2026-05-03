@@ -116,8 +116,8 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             icon={<Coins className="w-4 h-4" />}
             iconBg="bg-yellow-500/15"
             iconColor="text-yellow-400"
-            title="Loja BC"
-            description="Troque BluffCoins por PIX, GiftCard, PS5 e mais"
+            title="Liga Mycroft"
+            description="Ranking por ROI · Prêmios reais · Troféu da temporada"
             badge={{ label: 'Novo', tone: 'exclusive' }}
           />
         </div>

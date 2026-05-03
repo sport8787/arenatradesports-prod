@@ -41,14 +41,15 @@ export default function BCRewardsBanner() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground leading-tight">
-            Cada aposta virtual vencedora vira BluffCoins reais 🪙
+            Liga Mycroft: cada GREEN virtual vira BluffCoins reais 🏆
           </p>
           <p className="mt-1 text-xs text-muted-foreground leading-snug">
             Use a <span className="font-medium text-foreground">Banca Virtual</span> em paralelo
             com sua banca real — uma não anula a outra. A cada{' '}
-            <span className="font-medium text-emerald-400">GREEN</span> na banca virtual você
-            acumula <span className="font-medium text-yellow-400">+50 BC base + bônus pelo lucro</span>{' '}
-            (até 500 BC/aposta) para trocar por <span className="font-medium">PIX, GiftCard, PS5 e iPhone</span> na Loja BC.
+            <span className="font-medium text-emerald-400">GREEN</span> você acumula{' '}
+            <span className="font-medium text-yellow-400">+50 BC base + bônus pelo lucro</span>.
+            Troque por <span className="font-medium">vale-presentes, 30 dias grátis, upgrade Premium</span>{' '}
+            e dispute o <span className="font-medium text-yellow-400">troféu físico da temporada</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -64,7 +65,7 @@ export default function BCRewardsBanner() {
               className="inline-flex items-center gap-1.5 rounded-md bg-yellow-500/15 hover:bg-yellow-500/25 px-3 py-1.5 text-xs font-medium text-yellow-400 transition"
             >
               <Coins className="h-3.5 w-3.5" />
-              Loja BC
+              Liga Mycroft
               {bc !== null && (
                 <span className="ml-1 rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-mono">
                   {bc.toLocaleString('pt-BR')} BC
