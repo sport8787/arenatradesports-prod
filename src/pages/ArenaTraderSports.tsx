@@ -365,6 +365,10 @@ export default function ArenaTraderSports() {
               <TrendingUp className="w-4 h-4 mr-1" />
               Performance
             </GoldButton>
+            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance-por-mercado')}>
+              <TrendingUp className="w-4 h-4 mr-1" />
+              Por Mercado
+            </GoldButton>
           </div>
         </div>
       </header>
