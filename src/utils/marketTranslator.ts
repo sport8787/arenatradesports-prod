@@ -107,19 +107,64 @@ const REPLACERS: Replacer[] = [
     pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:cards|cartões|cartoes)\b/i,
     build: (m) => `Menos de ${m[1]} cartões (Under ${m[1]} Cards)`,
   },
-  // ── HT/FT (antes do Over/Under genérico) ──
+  // ── HT/FT prefixados (antes do Over/Under genérico) ──
   { pattern: /\bHT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no 1º tempo (HT Over ${m[1]})` },
   { pattern: /\bHT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no 1º tempo (HT Under ${m[1]})` },
   { pattern: /\bFT\s*Over\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Mais de ${m[1]} gols no jogo (FT Over ${m[1]})` },
   { pattern: /\bFT\s*Under\s*(\d+(?:\.\d+)?)\b/i, build: (m) => `Menos de ${m[1]} gols no jogo (FT Under ${m[1]})` },
-  // ── Over/Under genérico (gols) ──
+  // ── Over/Under com escopo temporal sufixado (Over 0.5 HT, Over 0.5 FT, Over 0.5 2T, etc.) ──
   {
-    pattern: /\bOver\s*(\d+(?:\.\d+)?)\b(?!\s*(?:cards|cartões|cartoes|corners|escanteios))/i,
-    build: (m) => `Mais de ${m[1]} gols (Over ${m[1]})`,
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT\b/i,
+    build: (m) => `Mais de ${m[1]} gols no 1º tempo (Over ${m[1]} HT)`,
   },
   {
-    pattern: /\bUnder\s*(\d+(?:\.\d+)?)\b(?!\s*(?:cards|cartões|cartoes|corners|escanteios))/i,
-    build: (m) => `Menos de ${m[1]} gols (Under ${m[1]})`,
+    pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT\b/i,
+    build: (m) => `Menos de ${m[1]} gols no 1º tempo (Under ${m[1]} HT)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:FT|Final)\b/i,
+    build: (m) => `Mais de ${m[1]} gols no jogo (Over ${m[1]} FT)`,
+  },
+  {
+    pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:FT|Final)\b/i,
+    build: (m) => `Menos de ${m[1]} gols no jogo (Under ${m[1]} FT)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:no\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)\b/i,
+    build: (m) => `Mais de ${m[1]} gols no 2º tempo (Over ${m[1]} 2T)`,
+  },
+  {
+    pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:no\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)\b/i,
+    build: (m) => `Menos de ${m[1]} gols no 2º tempo (Under ${m[1]} 2T)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?Pr[óo]ximo\s*Gol\b/i,
+    build: (m) => `Mais de ${m[1]} no próximo gol (Over ${m[1]} Próximo Gol)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?Restantes(?:\s*\(?Pr[óo]ximo\s*Gol\)?)?\b/i,
+    build: (m) => `Mais de ${m[1]} gols restantes (Over ${m[1]} Restantes)`,
+  },
+  {
+    pattern: /\bUnder\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?Restantes\b/i,
+    build: (m) => `Menos de ${m[1]} gols restantes (Under ${m[1]} Restantes)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:Total(?:\s*Gols)?|Gols\s*Total)\b/i,
+    build: (m) => `Mais de ${m[1]} gols totais (Over ${m[1]} Total)`,
+  },
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)\s*Gols\s*Asi[áa]ticos\b/i,
+    build: (m) => `Mais de ${m[1]} gols asiáticos (Over ${m[1]} Asiático)`,
+  },
+  // ── Over/Under genérico de gols (sem escopo → assume jogo todo / FT) ──
+  {
+    pattern: /\bOver\s*(\d+(?:\.\d+)?)(?:\s*Gols?)?\b(?!\s*(?:cards|cartões|cartoes|corners|escanteios|HT|FT|2T|Final|Restantes|Pr[óo]ximo|Total|Asi[áa]ticos|Segundo))/i,
+    build: (m) => `Mais de ${m[1]} gols FT (Over ${m[1]} FT)`,
+  },
+  {
+    pattern: /\bUnder\s*(\d+(?:\.\d+)?)(?:\s*Gols?)?\b(?!\s*(?:cards|cartões|cartoes|corners|escanteios|HT|FT|2T|Final|Restantes|Pr[óo]ximo|Total|Asi[áa]ticos|Segundo))/i,
+    build: (m) => `Menos de ${m[1]} gols FT (Under ${m[1]} FT)`,
   },
   // ── BTTS ──
   { pattern: /\bBTTS\s*Yes\b/i, build: () => 'Ambas Marcam Sim (BTTS Yes)' },
