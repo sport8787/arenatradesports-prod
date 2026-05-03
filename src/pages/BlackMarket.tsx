@@ -162,6 +162,11 @@ export default function BlackMarket() {
           </div>
         </motion.section>
 
+        {/* Leaderboard semanal de BC */}
+        <section className="max-w-2xl mx-auto w-full">
+          <BCLeaderboardWeekly />
+        </section>
+
         {/* Showcase Grid */}
         <section className="space-y-6">
           <h3 className="font-orbitron text-xl text-muted-foreground text-center">
