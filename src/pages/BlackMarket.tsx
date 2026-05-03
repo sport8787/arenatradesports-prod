@@ -24,6 +24,7 @@ interface PrizeCard {
   description: string;
   category: 'giftcard' | 'subscription' | 'season';
   badge?: string;
+  premiumOnly?: boolean;
 }
 
 // Preços em BC são placeholders — economia interna será calibrada depois
@@ -64,6 +65,7 @@ const prizes: PrizeCard[] = [
     image: prizeGiftcard200,
     description: 'Vale-presente digital de R$ 200 (lojas parceiras)',
     category: 'giftcard',
+    premiumOnly: true,
   },
   {
     id: 5,
