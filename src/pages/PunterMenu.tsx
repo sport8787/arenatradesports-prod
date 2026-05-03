@@ -102,6 +102,7 @@ export default function PunterMenuPage() {
         </div>
         <PunterMenuHeroStatus />
         <ActivationChecklist />
+        <BCRewardsBanner />
         <PunterNavGrid />
       </main>
 
