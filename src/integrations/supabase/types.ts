@@ -6795,6 +6795,19 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_user_roi: {
+        Row: {
+          greens: number | null
+          pushes: number | null
+          reds: number | null
+          roi_pct: number | null
+          total_bets: number | null
+          total_returned: number | null
+          total_staked: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_email_sequencia_status: {
         Row: {
           assinante: boolean | null
