@@ -36,6 +36,23 @@ serve(async (req) => {
       });
     }
 
+    // 🌙 Janela de silêncio: 02h-08h BR (05h-11h UTC)
+    // Período sem jogos relevantes do whitelist — economiza quota Sportmonks/API-Football.
+    // Bloqueio é server-side: independe do toggle LIVE ON do usuário (inclusive admin).
+    const utcHour = new Date().getUTCHours();
+    if (utcHour >= 5 && utcHour < 11) {
+      console.log(`[CronLive] 🌙 Janela de silêncio (UTC ${utcHour}h / BR ${(utcHour - 3 + 24) % 24}h) — pulando execução`);
+      return new Response(JSON.stringify({
+        skipped: true,
+        reason: 'quiet_hours',
+        window_utc: '05:00-11:00',
+        window_br: '02:00-08:00',
+        current_utc_hour: utcHour,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const currentMinute = new Date().getMinutes();
 
     console.log(`[CronLive] ▶️ Minuto ${currentMinute} — STATS x2 + ANÁLISE`);
