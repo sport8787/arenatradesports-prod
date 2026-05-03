@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Send, Flame, MessageCircle, Copy, Share2, Hammer, Bell } from 'lucide-react';
+import { Zap, Send, Flame, MessageCircle, Copy, Share2, Hammer, Bell, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
