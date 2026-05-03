@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
     const totalSignals = data?.length ?? 0;
     const canonical = `https://oraculo-mycroft.com/blog/brasileirao-2026/rodada-${rodada}.html`;
     const dateNow = new Date().toISOString().slice(0, 10);
+    const aiSummary = await generateSeoSummary(rodada, data ?? []);
 
     const html = `<!doctype html>
 <html lang="pt-BR">
@@ -114,6 +115,8 @@ table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.95rem}
 th,td{padding:.55rem;border:1px solid #e2e8f0;text-align:left}
 th{background:#f8fafc}
 .green{color:#166534;font-weight:600}
+.summary{background:#f8fafc;border-left:3px solid #0a1628;padding:1rem 1.25rem;margin:1.25rem 0;border-radius:4px}
+.summary p{margin:.5rem 0}
 nav a{margin-right:1rem}
 </style>
 </head>
