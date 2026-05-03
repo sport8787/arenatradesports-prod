@@ -14,6 +14,8 @@ interface Row {
   greens: number;
   reds: number;
   roi_pct: number;
+  plan?: string | null;
+  plan_active?: boolean | null;
 }
 
 /**
