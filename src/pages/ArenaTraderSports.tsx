@@ -418,16 +418,6 @@ export default function ArenaTraderSports() {
           </div>
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="proximos" className="gap-1.5">
-                Próximos Jogos
-                {scheduledGames.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
-                    {scheduledGames.length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="live">Ao Vivo</TabsTrigger>
               <TabsTrigger value="aprovados" className="gap-1.5">
                 Sinais Aprovados
                 {(() => {
@@ -447,6 +437,16 @@ export default function ArenaTraderSports() {
                   ) : null;
                 })()}
               </TabsTrigger>
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="proximos" className="gap-1.5">
+                Próximos
+                {scheduledGames.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                    {scheduledGames.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="live">Ao Vivo</TabsTrigger>
               <TabsTrigger value="scheduled" className="gap-1.5">
                 Pré-Live
                 {(() => {
@@ -461,15 +461,16 @@ export default function ArenaTraderSports() {
                   ) : null;
                 })()}
               </TabsTrigger>
-              <TabsTrigger value="finished">Finalizados</TabsTrigger>
-              <TabsTrigger value="simulado" className="gap-1">
+              {/* Em mobile (<md), Finalizados/Simulado ficam ocultos para reduzir scroll horizontal */}
+              <TabsTrigger value="finished" className="hidden md:inline-flex">Finalizados</TabsTrigger>
+              <TabsTrigger value="simulado" className="hidden md:inline-flex gap-1">
                 <FlaskConical className="w-3 h-3" />
                 Simulado
               </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
                   <FlaskConical className="w-3 h-3" />
-                  Sinais Aprovados (API-Football)
+                  Aprovados (AF)
                 </TabsTrigger>
               )}
             </TabsList>
@@ -571,15 +572,22 @@ export default function ArenaTraderSports() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center space-y-4"
           >
-            <span className="text-6xl">⚽</span>
-            <h2 className="font-orbitron text-xl text-foreground">Nenhum jogo ao vivo agora</h2>
-            <p className="text-muted-foreground text-sm">Próximos jogos começam em 2h30min</p>
-            <GoldButton size="sm" onClick={() => requestPush()}>
-              <Bell className="w-4 h-4 mr-1" />
-              Ativar Notificações
-            </GoldButton>
+            <NextMatchEmptyState
+              nextMatch={(() => {
+                const next = [...scheduledGames]
+                  .filter(g => new Date(g.match_datetime).getTime() > Date.now())
+                  .sort((a, b) => new Date(a.match_datetime).getTime() - new Date(b.match_datetime).getTime())[0];
+                return next
+                  ? {
+                      home: next.home_team,
+                      away: next.away_team,
+                      championship: (next as any).championship || (next as any).league || null,
+                      datetime: next.match_datetime,
+                    }
+                  : null;
+              })()}
+            />
           </motion.div>
         )}
       </main>
