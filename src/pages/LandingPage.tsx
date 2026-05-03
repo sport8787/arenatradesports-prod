@@ -600,7 +600,7 @@ export default function LandingPage() {
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="/landing.html" className="hover:text-white transition">Sobre Nós</a></li>
                 <li><a href="/blog/" className="hover:text-white transition">Blog</a></li>
-                <li><a href="https://wa.me/5581997950345" className="hover:text-white transition">Contato</a></li>
+                <li><a href="https://wa.me/5581982221714?text=Ol%C3%A1!%20Tenho%20uma%20d%C3%BAvida%20sobre%20o%20Or%C3%A1culo%20Mycroft" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">Contato</a></li>
               </ul>
             </div>
             <div>
