@@ -147,6 +147,8 @@ async function findFixtureCached(home: string, away: string, isoDate: string) {
   smLookupCache.set(key, r);
   return r;
 }
+
+function calcularResultado(market: string, homeTeam: string, awayTeam: string, fx: FixtureResult): Resultado | null {
   const m = (market || "").toLowerCase().trim();
   const gh = fx.goalsHome, ga = fx.goalsAway, total = gh + ga;
   const ch = fx.cornersHome ?? 0, ca = fx.cornersAway ?? 0, totalCorners = ch + ca;
