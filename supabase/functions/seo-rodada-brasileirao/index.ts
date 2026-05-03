@@ -40,8 +40,7 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase
       .from("punter_analyses")
       .select("home_team,away_team,league,commence_time,market,odd,fair_odd,value_percentage,verdict,confidence")
-      .ilike("league", "%Serie A%")
-      .or("league.ilike.%Brasileirão%,league.ilike.%Brazil%")
+      .or("league.ilike.%Brazil%,league.ilike.%Brasileir%")
       .gte("commence_time", `${from}T00:00:00Z`)
       .lte("commence_time", `${to}T23:59:59Z`)
       .in("verdict", ["APROVADO", "APROVADO SITUACIONAL", "LABAREDA"])
