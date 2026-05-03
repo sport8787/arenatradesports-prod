@@ -983,6 +983,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bc_rewards_log: {
+        Row: {
+          base_bc: number
+          bet_id: string
+          bonus_bc: number
+          created_at: string
+          id: string
+          motivo: string | null
+          source: string
+          total_bc: number
+          user_id: string
+        }
+        Insert: {
+          base_bc?: number
+          bet_id: string
+          bonus_bc?: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          source: string
+          total_bc?: number
+          user_id: string
+        }
+        Update: {
+          base_bc?: number
+          bet_id?: string
+          bonus_bc?: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          source?: string
+          total_bc?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       bet_correlations: {
         Row: {
           correlation_coefficient: number | null

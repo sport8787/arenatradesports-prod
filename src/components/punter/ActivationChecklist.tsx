@@ -35,7 +35,7 @@ const STEPS: Step[] = [
   {
     key: 'placed_first_virtual_bet',
     icon: <Zap className="w-4 h-4" />,
-    title: 'Fazer sua 1ª aposta virtual em um sinal',
+    title: 'Fazer sua 1ª aposta virtual (ganha BC se acertar)',
     cta: 'Ver sinais',
     onClick: (nav) => nav('/punter'),
   },

@@ -115,6 +115,34 @@ export default function PunterPage() {
       markActivation('placed_first_virtual_bet');
     }
   }, [pendingBets, manualPendingBets, markActivation]);
+
+  // 🔥 Auto-claim do bônus diário de streak (BC). 1x por dia por usuário.
+  useEffect(() => {
+    if (!user?.id) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `bc_streak_claimed_${user.id}_${today}`;
+    if (localStorage.getItem(key)) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('claim_daily_streak_bonus', { p_user_id: user.id });
+        if (error || !data) return;
+        const bonus = Number(data) || 0;
+        if (bonus > 0) {
+          localStorage.setItem(key, '1');
+          // toast leve avisando o ganho
+          import('sonner').then(({ toast }) => {
+            toast.success(`🪙 +${bonus} BC de streak diário! Volte amanhã para aumentar.`, {
+              duration: 5000,
+              action: {
+                label: 'Loja BC',
+                onClick: () => (window.location.href = '/loja-bc'),
+              },
+            });
+          });
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
   const [todayOnlyFilter, setTodayOnlyFilter] = useState(() => searchParams.get('today') === '1');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'A' | 'B' | 'C'>(() => {
     const c = searchParams.get('cat');

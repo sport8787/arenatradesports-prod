@@ -5,6 +5,7 @@ import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import PunterMenuHeroStatus from '@/components/punter/PunterMenuHeroStatus';
 import ActivationChecklist from '@/components/punter/ActivationChecklist';
+import BCRewardsBanner from '@/components/punter/BCRewardsBanner';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
 import { HeroParticles } from '@/components/landing/HeroParticles';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
@@ -101,6 +102,7 @@ export default function PunterMenuPage() {
         </div>
         <PunterMenuHeroStatus />
         <ActivationChecklist />
+        <BCRewardsBanner />
         <PunterNavGrid />
       </main>
 

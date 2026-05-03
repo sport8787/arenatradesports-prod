@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Activity,
   Send,
+  Coins,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
@@ -110,6 +111,22 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             locked={!hasArena('banca_real')}
             lockedLabel={upgradeLabel('banca_real')}
           />
+          <NavCard
+            onClick={() => navigate('/loja-bc')}
+            icon={<Coins className="w-4 h-4" />}
+            iconBg="bg-yellow-500/15"
+            iconColor="text-yellow-400"
+            title="Loja BC"
+            description="Troque BluffCoins por PIX, GiftCard, PS5 e mais"
+            badge={{ label: 'Novo', tone: 'exclusive' }}
+          />
+        </div>
+      </section>
+
+      {/* Suporte */}
+      <section>
+        <SectionLabel>Suporte</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NavCard
             onClick={() => navigate('/punter/comunidade')}
             icon={<Info className="w-4 h-4" />}
