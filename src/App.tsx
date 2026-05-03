@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
+import BCRewardToastsMount from "@/components/BCRewardToastsMount";
 import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
