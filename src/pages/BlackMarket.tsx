@@ -1,83 +1,87 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Coins, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Coins, Loader2, Trophy, Crown, Gift, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEconomy } from '@/hooks/useEconomy';
+import { useSubscription } from '@/hooks/useSubscription';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import BCLeaderboardWeekly from '@/components/punter/BCLeaderboardWeekly';
 
-import prizeGiftcard from '@/assets/prize-giftcard.jpg';
-import prizePix from '@/assets/prize-pix.jpg';
-import prizePix50 from '@/assets/prize-pix-50.jpg';
-import prizeMaleta from '@/assets/prize-maleta.jpg';
-import prizePs5 from '@/assets/prize-ps5.jpg';
-import prizeIphone from '@/assets/prize-iphone.jpg';
+import prizeGiftcard50 from '@/assets/prize-giftcard-50.jpg';
+import prizeGiftcard100 from '@/assets/prize-giftcard-100.jpg';
+import prizeGiftcard200 from '@/assets/prize-giftcard-200.jpg';
+import prizeSub30d from '@/assets/prize-sub-30d.jpg';
+import prizePremiumUpgrade from '@/assets/prize-premium-upgrade.jpg';
+import prizeTrophy from '@/assets/prize-trophy.jpg';
 
 interface PrizeCard {
   id: number;
   name: string;
   price: string;
-  priceValue: number;
+  priceValue: number; // valor de BC ainda a definir; placeholders ordenados por percepção de valor
   image: string;
   description: string;
+  category: 'giftcard' | 'subscription' | 'season';
+  badge?: string;
 }
 
-// Sorted from cheapest to most expensive
+// Preços em BC são placeholders — economia interna será calibrada depois
 const prizes: PrizeCard[] = [
   {
     id: 1,
-    name: 'PIX R$ 50',
-    price: '50k BC',
+    name: 'Vale-Presente R$ 50',
+    price: 'A definir',
     priceValue: 50000,
-    image: prizePix50,
-    description: 'Dinheiro direto na sua conta',
+    image: prizeGiftcard50,
+    description: 'Vale-presente digital de R$ 50 (lojas parceiras)',
+    category: 'giftcard',
   },
   {
     id: 2,
-    name: 'GiftCard R$ 500',
-    price: '100k BC',
-    priceValue: 100000,
-    image: prizeGiftcard,
-    description: 'Use em qualquer loja online',
+    name: '30 Dias de Assinatura Grátis',
+    price: 'A definir',
+    priceValue: 80000,
+    image: prizeSub30d,
+    description: 'Estende sua assinatura atual por 30 dias',
+    category: 'subscription',
+    badge: 'POPULAR',
   },
   {
     id: 3,
-    name: 'Pix de R$ 1.000',
-    price: '200k BC',
-    priceValue: 200000,
-    image: prizePix,
-    description: 'Dinheiro direto na sua conta',
+    name: 'Vale-Presente R$ 100',
+    price: 'A definir',
+    priceValue: 100000,
+    image: prizeGiftcard100,
+    description: 'Vale-presente digital de R$ 100 (lojas parceiras)',
+    category: 'giftcard',
   },
   {
     id: 4,
-    name: 'Maleta Física Oficial',
-    price: '500k BC',
-    priceValue: 500000,
-    image: prizeMaleta,
-    description: 'Edição limitada do jogo',
+    name: 'Vale-Presente R$ 200',
+    price: 'A definir',
+    priceValue: 200000,
+    image: prizeGiftcard200,
+    description: 'Vale-presente digital de R$ 200 (lojas parceiras)',
+    category: 'giftcard',
   },
   {
     id: 5,
-    name: 'PlayStation 5',
-    price: '800k BC',
-    priceValue: 800000,
-    image: prizePs5,
-    description: 'Console de última geração',
-  },
-  {
-    id: 6,
-    name: 'iPhone 16 Pro',
-    price: '1M BC',
-    priceValue: 1000000,
-    image: prizeIphone,
-    description: 'O smartphone mais avançado',
+    name: 'Upgrade para Premium (Tudo Liberado)',
+    price: 'A definir',
+    priceValue: 250000,
+    image: prizePremiumUpgrade,
+    description: 'Faz upgrade do seu plano atual para Premium por 30 dias',
+    category: 'subscription',
+    badge: 'TOP',
   },
 ];
 
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
+  const { isPaid, isTrialActive, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
+  const canRedeem = isPaid; // Trial acumula mas NÃO resgata
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -85,12 +89,15 @@ export default function BlackMarket() {
     return amount.toString();
   };
 
-  const getCoinsNeeded = (priceValue: number) => {
-    const needed = priceValue - userCoins;
-    return needed > 0 ? needed : 0;
-  };
-
   const handleRedeemClick = () => {
+    if (!canRedeem) {
+      toast({
+        title: '🔒 Resgate disponível só para assinantes',
+        description: 'Você acumula BC durante o Trial, mas só pode trocar por prêmios após assinar um plano.',
+        duration: 4500,
+      });
+      return;
+    }
     toast({
       title: '🔒 Cofre Bloqueado',
       description: 'Aguarde a abertura oficial da temporada.',
@@ -107,11 +114,11 @@ export default function BlackMarket() {
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Voltar</span>
           </Link>
-          
+
           <h1 className="font-orbitron font-black text-xl md:text-2xl text-gold text-glow-gold">
-            MERCADO NEGRO
+            LOJA BC
           </h1>
-          
+
           <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border min-w-[80px] justify-center">
             {loading ? (
               <div className="flex items-center gap-2">
@@ -126,7 +133,7 @@ export default function BlackMarket() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-12">
-        {/* Hero Section */}
+        {/* Hero */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -147,19 +154,103 @@ export default function BlackMarket() {
               className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-full"
             >
               <Lock className="w-3 h-3 inline mr-1" />
-              FECHADO
+              EM BREVE
             </motion.div>
           </motion.div>
 
           <div className="space-y-3">
             <h2 className="font-orbitron text-3xl md:text-4xl font-black text-foreground">
-              O COFRE AINDA ESTÁ FECHADO.
+              SUA VITRINE DE PRÊMIOS
             </h2>
-            <p className="text-lg md:text-xl text-gold max-w-lg mx-auto">
-              Em breve suas <span className="font-bold">BLUFFCOINS</span> valerão prêmios reais. 
+            <p className="text-lg md:text-xl text-gold max-w-xl mx-auto">
+              Acumule <span className="font-bold">BluffCoins</span> com apostas virtuais vencedoras
               <br />
-              <span className="text-muted-foreground">Continue acumulando.</span>
+              <span className="text-muted-foreground text-sm">e troque por vale-presentes, dias grátis ou upgrades.</span>
             </p>
+          </div>
+        </motion.section>
+
+        {/* Aviso de elegibilidade — Trial vs Assinante */}
+        {!subLoading && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-3xl mx-auto"
+          >
+            {canRedeem ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-start gap-3">
+                <div className="shrink-0 rounded-lg bg-emerald-500/20 p-2">
+                  <Gift className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-300">Você pode resgatar prêmios ✓</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Como assinante ativo, seus BC podem ser trocados por qualquer item desta vitrine assim que o cofre for aberto.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
+                <div className="shrink-0 rounded-lg bg-amber-500/20 p-2">
+                  <Lock className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-300">
+                    {isTrialActive ? 'Você está acumulando BC durante o Trial 🪙' : 'Resgate disponível só para assinantes'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Você pode <span className="text-foreground font-medium">acumular BluffCoins</span> normalmente, mas o{' '}
+                    <span className="text-foreground font-medium">resgate de prêmios é exclusivo para usuários assinantes</span>.
+                    Assine qualquer plano para liberar a troca quando o cofre abrir.
+                  </p>
+                  <Link
+                    to="/paywall"
+                    className="inline-flex items-center gap-1.5 mt-3 rounded-md bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 text-xs font-medium text-amber-300 transition"
+                  >
+                    Ver planos de assinatura
+                  </Link>
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+
+        {/* Troféu da Temporada */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-3xl mx-auto"
+        >
+          <div className="rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/15 via-amber-500/10 to-orange-500/10 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-0">
+              <div className="relative h-44 sm:h-full bg-black/40">
+                <img
+                  src={prizeTrophy}
+                  alt="Troféu personalizado da temporada"
+                  loading="lazy"
+                  width={768}
+                  height={512}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-5 flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-5 h-5 text-gold" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-gold">Prêmio de Temporada</span>
+                </div>
+                <h3 className="font-orbitron text-xl sm:text-2xl font-black text-foreground">
+                  Troféu Personalizado
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  O <span className="text-foreground font-semibold">1º colocado no ranking</span> ao final da temporada
+                  oficial recebe um <span className="text-gold font-semibold">troféu físico personalizado</span> com nome
+                  e a estatística da temporada gravados.
+                </p>
+                <p className="text-xs text-muted-foreground/80 mt-2 italic">
+                  Datas e duração da temporada serão anunciadas em breve.
+                </p>
+              </div>
+            </div>
           </div>
         </motion.section>
 
@@ -170,67 +261,80 @@ export default function BlackMarket() {
 
         {/* Showcase Grid */}
         <section className="space-y-6">
-          <h3 className="font-orbitron text-xl text-muted-foreground text-center">
-            VITRINE DE PRÊMIOS
-          </h3>
-          
+          <div className="text-center">
+            <h3 className="font-orbitron text-xl text-muted-foreground">VITRINE DE PRÊMIOS</h3>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Custo em BC será definido na abertura oficial da temporada.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {prizes.map((prize, index) => (
-              <motion.div
-                key={prize.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 0.7, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-                whileHover={{ opacity: 1, scale: 1.02 }}
-                className="relative group cursor-pointer"
-              >
-                <div className="rounded-xl bg-secondary/30 border border-border/50 overflow-hidden select-none transition-all duration-300 group-hover:border-gold/50 group-hover:shadow-lg group-hover:shadow-gold/10">
-                  {/* EM BREVE Badge */}
-                  <div className="absolute top-3 right-3 z-10 bg-gold/90 text-background text-xs font-bold px-2 py-1 rounded">
-                    EM BREVE
-                  </div>
-                  
-                  {/* Product Image */}
-                  <div className="w-full h-40 overflow-hidden relative">
-                    <img 
-                      src={prize.image} 
-                      alt={prize.name}
-                      className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0 group-hover:scale-110"
-                    />
-                    {/* Hover Overlay with Description */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">
-                      <p className="text-foreground/90 text-sm text-center font-medium">
-                        {prize.description}
+            {prizes.map((prize, index) => {
+              const Icon =
+                prize.category === 'subscription'
+                  ? prize.id === 5
+                    ? Crown
+                    : Calendar
+                  : Gift;
+              return (
+                <motion.div
+                  key={prize.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 0.85, y: 0 }}
+                  transition={{ delay: 0.05 * index }}
+                  whileHover={{ opacity: 1, scale: 1.02 }}
+                  className="relative group cursor-pointer"
+                >
+                  <div className="rounded-xl bg-secondary/30 border border-border/50 overflow-hidden select-none transition-all duration-300 group-hover:border-gold/50 group-hover:shadow-lg group-hover:shadow-gold/10">
+                    {/* Badge */}
+                    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+                      <div className="bg-gold/90 text-background text-xs font-bold px-2 py-1 rounded">
+                        EM BREVE
+                      </div>
+                      {prize.badge && (
+                        <div className="bg-primary/90 text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded">
+                          {prize.badge}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Image */}
+                    <div className="w-full h-40 overflow-hidden relative">
+                      <img
+                        src={prize.image}
+                        alt={prize.name}
+                        loading="lazy"
+                        width={768}
+                        height={512}
+                        className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">
+                        <p className="text-foreground/90 text-sm text-center font-medium">
+                          {prize.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-4 text-center transition-all duration-300">
+                      <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <Icon className="w-3.5 h-3.5 text-gold/70 group-hover:text-gold" />
+                        <h4 className="font-orbitron font-bold text-foreground/80 group-hover:text-foreground transition-colors text-sm">
+                          {prize.name}
+                        </h4>
+                      </div>
+                      <p className="text-gold/70 font-orbitron text-xs mt-1 group-hover:text-gold transition-colors">
+                        Custo: {prize.price}
                       </p>
                     </div>
                   </div>
-                  
-                  {/* Prize Info */}
-                  <div className="p-4 text-center transition-all duration-300">
-                    <h4 className="font-orbitron font-bold text-foreground/70 group-hover:text-foreground transition-colors">
-                      {prize.name}
-                    </h4>
-                    <p className="text-gold/70 font-orbitron text-sm mt-1 group-hover:text-gold transition-colors">
-                      {prize.price}
-                    </p>
-                    {/* Coins Needed Counter */}
-                    {getCoinsNeeded(prize.priceValue) > 0 ? (
-                      <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground/70 transition-colors">
-                        Faltam <span className="text-gold font-bold">{formatCoins(getCoinsNeeded(prize.priceValue))}</span> coins
-                      </p>
-                    ) : (
-                      <p className="text-xs text-cyan mt-2 font-bold">
-                        ✓ Saldo suficiente!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </section>
 
-      {/* How to Earn BC Button */}
+        {/* How to Earn BC */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -258,7 +362,7 @@ export default function BlackMarket() {
           </Link>
         </motion.section>
 
-        {/* Locked CTA Button */}
+        {/* Locked CTA */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -270,20 +374,22 @@ export default function BlackMarket() {
             className="
               w-full max-w-md mx-auto
               px-8 py-4 rounded-xl
-              bg-muted/50 
+              bg-muted/50
               border border-border
               text-muted-foreground
               font-orbitron font-bold text-lg
-              opacity-50 cursor-not-allowed
+              opacity-60 cursor-not-allowed
               flex items-center justify-center gap-3
-              transition-all hover:opacity-60
+              transition-all hover:opacity-80
             "
           >
             <Lock className="w-5 h-5" />
-            LIBERAR RESGATE
+            {canRedeem ? 'LIBERAR RESGATE' : 'RESGATE EXCLUSIVO ASSINANTES'}
           </button>
           <p className="text-xs text-muted-foreground mt-3">
-            O resgate será liberado quando a temporada oficial iniciar
+            {canRedeem
+              ? 'O resgate será liberado quando a temporada oficial iniciar.'
+              : 'Acumule BC agora e troque por prêmios após assinar um plano.'}
           </p>
         </motion.section>
       </main>
