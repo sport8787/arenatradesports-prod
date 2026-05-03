@@ -6659,6 +6659,16 @@ export type Database = {
       }
     }
     Views: {
+      bc_leaderboard_weekly: {
+        Row: {
+          bc_week: number | null
+          display_name: string | null
+          rank: number | null
+          user_id: string | null
+          wins_week: number | null
+        }
+        Relationships: []
+      }
       mycroft_cashout_accuracy: {
         Row: {
           accuracy_pct: number | null
