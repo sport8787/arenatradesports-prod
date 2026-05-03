@@ -132,6 +132,23 @@ export default function PunterBancaVirtualPage() {
       <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
         <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Configurar Banca Virtual' }]} />
 
+        {/* Aviso BC: cada GREEN virtual vira BluffCoins */}
+        <div className="rounded-lg border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-amber-500/5 px-4 py-3 flex items-start gap-3">
+          <span className="text-2xl leading-none">🪙</span>
+          <div className="flex-1 text-xs text-muted-foreground">
+            <p className="text-foreground font-medium mb-0.5">A banca virtual paga em BluffCoins (BC)</p>
+            <p>
+              Cada aposta virtual vencedora rende{' '}
+              <span className="text-yellow-400 font-medium">+50 BC base + bônus pelo lucro</span>{' '}
+              (até 500 BC/aposta). Acumule e troque por <span className="text-foreground">PIX, GiftCard, PS5 e iPhone</span> na{' '}
+              <button onClick={() => navigate('/loja-bc')} className="underline text-yellow-400 hover:text-yellow-300">
+                Loja BC
+              </button>
+              . Use em paralelo à sua banca real — uma não anula a outra.
+            </p>
+          </div>
+        </div>
+
         {/* Atalhos para ferramentas relacionadas */}
         <section>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
