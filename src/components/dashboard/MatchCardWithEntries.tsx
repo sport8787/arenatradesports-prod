@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import MatchCard, { type Match } from './MatchCard';
 import EntryRow from './EntryRow';
-import NewEntryModal, { type EntryFormData } from './NewEntryModal';
 import { useFixtureEntries } from '@/hooks/useFixtureEntries';
 import { cn } from '@/lib/utils';
-import { Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { estimateLiveOdd, extrairLinha, extrairTipo } from '@/lib/estimateLiveOdd';
+import { toast } from 'sonner';
 
 interface MatchCardWithEntriesProps {
   match: Match;
@@ -27,7 +29,6 @@ export default function MatchCardWithEntries({
 }: MatchCardWithEntriesProps) {
   const fixtureId = match.matchId || match.id;
 
-  // Pass match context for live P&L estimation
   const matchContext = {
     minute: match.minute,
     scoreHome: match.scoreHome,
@@ -37,24 +38,93 @@ export default function MatchCardWithEntries({
   const { entries, totalStakePct, gamePnL, addEntry, markGreen, markRed, markCashout } =
     useFixtureEntries(fixtureId, userId, matchContext);
 
-  const [showNewEntry, setShowNewEntry] = useState(false);
+  const [stakeStr, setStakeStr] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [cashoutEntry, setCashoutEntry] = useState<{ id: string; stakeValue: number; estimatedCashout: number | null } | null>(null);
   const [cashoutValue, setCashoutValue] = useState('');
 
-  const handleConfirmEntry = async (form: EntryFormData) => {
-    if (!userId) return;
-    const ok = await addEntry({
-      user_id: userId,
-      fixture_id: fixtureId,
-      fixture_label: `${match.home} vs ${match.away}`,
-      minute_entered: form.minute,
-      plano: form.plano,
-      market: form.market,
-      odd: form.odd,
-      stake_value: form.stakeValue,
-      stake_pct: form.stakePct,
-    });
-    if (ok) setShowNewEntry(false);
+  const inheritedMarket = match.market || null;
+  const inheritedPlano = match.planName || 'SITUACIONAL';
+  const oddPre = match.approvalOdd ?? undefined;
+
+  const handleConfirm = async () => {
+    if (!userId) {
+      toast.error('Faça login para apostar');
+      return;
+    }
+    if (!inheritedMarket) {
+      toast.error('Aguardando sinal aprovado para este jogo');
+      return;
+    }
+    const stakeValue = parseFloat(stakeStr.replace(',', '.'));
+    if (!stakeValue || stakeValue <= 0) {
+      toast.error('Informe um valor válido');
+      return;
+    }
+    if (bankrollBalance > 0 && stakeValue > bankrollBalance) {
+      toast.error('Valor acima do saldo da banca virtual');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // 1. Tenta odd real via Sportmonks
+      let odd: number | null = null;
+      let source = 'estimated';
+      try {
+        const { data } = await supabase.functions.invoke('fetch-sportmonks-live-odd', {
+          body: { fixture_id: match.matchId || match.id, market: inheritedMarket },
+        });
+        if (data?.odd && data.odd > 1.01) {
+          odd = Number(data.odd);
+          source = data.source || 'sportmonks_live';
+        }
+      } catch (_) { /* fallback below */ }
+
+      // 2. Fallback: estimador Poisson
+      if (!odd) {
+        const linha = extrairLinha(inheritedMarket);
+        const tipo = extrairTipo(inheritedMarket);
+        if (linha != null && tipo) {
+          odd = estimateLiveOdd({
+            oddPre,
+            linha,
+            minuto: match.minute,
+            golsAtuais: (match.scoreHome || 0) + (match.scoreAway || 0),
+            tipo,
+          });
+        } else {
+          odd = oddPre || 1.85;
+        }
+      }
+
+      const stakePct = bankrollBalance > 0
+        ? Math.min(8, Math.round((stakeValue / bankrollBalance) * 1000) / 10)
+        : 2;
+
+      const ok = await addEntry({
+        user_id: userId,
+        fixture_id: fixtureId,
+        fixture_label: `${match.home} vs ${match.away}`,
+        minute_entered: match.minute,
+        plano: inheritedPlano,
+        market: inheritedMarket,
+        odd,
+        stake_value: parseFloat(stakeValue.toFixed(2)),
+        stake_pct: stakePct,
+      });
+
+      if (ok) {
+        toast.success(
+          source === 'sportmonks_live'
+            ? `Entrada confirmada @ ${odd.toFixed(2)} (odd real Sportmonks)`
+            : `Entrada confirmada @ ${odd.toFixed(2)} (odd estimada)`,
+        );
+        setStakeStr('');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCashoutConfirm = async () => {
@@ -66,15 +136,19 @@ export default function MatchCardWithEntries({
 
   const hasEntries = entries.length > 0;
   const hasPendingEntries = entries.some(e => e.status === 'pending');
+  const canBet =
+    !!userId &&
+    match.status === 'live' &&
+    !!inheritedMarket &&
+    totalStakePct < 8;
 
   return (
     <div className="relative">
       <MatchCard match={match} index={index} onAnalysisClick={onAnalysisClick} />
 
-      {/* Entries Timeline - overlays below the card */}
+      {/* Entries list */}
       {hasEntries && (
         <div className="mx-0.5 -mt-1 rounded-b-xl border-2 border-t-0 border-border/50 bg-[hsl(0,0%,7%)] px-3 py-2 space-y-1.5">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-orbitron text-muted-foreground uppercase tracking-wider">
               {entries.length} {entries.length === 1 ? 'entrada' : 'entradas'}
@@ -92,7 +166,6 @@ export default function MatchCardWithEntries({
             </span>
           </div>
 
-          {/* Entry rows */}
           {entries.map((entry, i) => (
             <EntryRow
               key={entry.id}
@@ -107,41 +180,56 @@ export default function MatchCardWithEntries({
               }}
             />
           ))}
+        </div>
+      )}
 
-          {/* Add entry button */}
-          {totalStakePct < 8 && userId && (
-            <button
-              onClick={() => setShowNewEntry(true)}
-              className="w-full text-[11px] font-orbitron text-[hsl(45,93%,47%)] hover:text-[hsl(45,93%,57%)] py-1 flex items-center justify-center gap-1 transition-colors"
-            >
-              <Plus className="w-3 h-3" /> Registrar nova entrada
-            </button>
+      {/* Inline Betfair-style bet bar */}
+      {canBet && (
+        <div
+          className={cn(
+            'mx-0.5 -mt-1 rounded-b-xl border-2 border-t-0 border-border/50 bg-[hsl(0,0%,7%)] px-3 py-2',
+            !hasEntries && 'rounded-b-xl',
           )}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <div className="text-[9px] font-orbitron text-muted-foreground uppercase tracking-wider mb-0.5">
+                {inheritedMarket}
+              </div>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                inputMode="decimal"
+                placeholder="R$ 0,00"
+                value={stakeStr}
+                onChange={(e) => setStakeStr(e.target.value)}
+                disabled={submitting}
+                className="h-9 text-sm font-orbitron"
+              />
+            </div>
+            <Button
+              onClick={handleConfirm}
+              disabled={submitting || !stakeStr || parseFloat(stakeStr.replace(',', '.')) <= 0}
+              className="h-9 self-end font-orbitron text-[11px] uppercase tracking-wider bg-primary hover:bg-primary/90 px-3"
+            >
+              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirmar'}
+            </Button>
+          </div>
+          <div className="text-[9px] text-muted-foreground/70 mt-1 text-right">
+            Saldo: R$ {bankrollBalance.toFixed(2)} • Stake total no jogo: {totalStakePct.toFixed(1)}%
+          </div>
         </div>
       )}
 
-      {/* Add entry button when no entries yet - small subtle link */}
-      {!hasEntries && userId && match.status === 'live' && (
+      {/* Sem sinal aprovado ainda */}
+      {!canBet && match.status === 'live' && userId && !inheritedMarket && (
         <div className="mx-0.5 -mt-1 rounded-b-xl border-2 border-t-0 border-border/30 bg-[hsl(0,0%,7%)] px-3 py-1.5">
-          <button
-            onClick={() => setShowNewEntry(true)}
-            className="w-full text-[10px] font-orbitron text-muted-foreground hover:text-[hsl(45,93%,47%)] py-0.5 flex items-center justify-center gap-1 transition-colors"
-          >
-            <Plus className="w-3 h-3" /> Registrar entrada
-          </button>
+          <p className="text-[10px] text-center text-muted-foreground/70 font-orbitron uppercase tracking-wider">
+            Aguardando sinal do Mycroft
+          </p>
         </div>
       )}
-
-      {/* New Entry Modal */}
-      <NewEntryModal
-        open={showNewEntry}
-        onClose={() => setShowNewEntry(false)}
-        onConfirm={handleConfirmEntry}
-        fixtureLabel={`${match.home} vs ${match.away}`}
-        currentMinute={match.minute}
-        bankrollBalance={bankrollBalance}
-        currentStakePct={totalStakePct}
-      />
 
       {/* Cashout Modal */}
       <Dialog open={!!cashoutEntry} onOpenChange={(v) => !v && setCashoutEntry(null)}>
