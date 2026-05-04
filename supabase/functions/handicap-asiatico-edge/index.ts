@@ -251,8 +251,8 @@ function formatHandicapLine(point: number): string {
 
 function sideFromOddRow(row: SportmonksOddRow): 'home' | 'away' | null {
   const label = `${row.label || ''} ${row.name || ''}`.toLowerCase();
-  if (label.includes('home') || label.includes('1') || label.includes('casa')) return 'home';
-  if (label.includes('away') || label.includes('2') || label.includes('fora')) return 'away';
+  if (/(^|\s)(home|casa|mandante)(\s|$)/.test(label)) return 'home';
+  if (/(^|\s)(away|fora|visitante)(\s|$)/.test(label)) return 'away';
   return null;
 }
 
@@ -496,13 +496,10 @@ async function getFixturesProximas48h(): Promise<any[]> {
     const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
     return startTs >= nowMs && startTs <= endMs;
   });
-  // Apenas jogos com liga mapeada (única forma de ter odds AH reais)
-  const comOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') !== null);
-  const semOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') === null);
-  console.log(`[HA-edge] ${filtered.length} pré-live | ${comOdds.length} com odds AH | ${semOdds.length} sem (descartados)`);
+  console.log(`[HA-edge] ${filtered.length} fixtures pré-live elegíveis após filtro de janela/estado`);
   // Limite p/ caber no tempo da edge function (~150s). Prioriza jogos mais próximos.
   const LIMIT = 30;
-  const sortedByTime = comOdds.sort((a: any, b: any) => {
+  const sortedByTime = filtered.sort((a: any, b: any) => {
     const ta = new Date(a.starting_at.replace(' ', 'T') + 'Z').getTime();
     const tb = new Date(b.starting_at.replace(' ', 'T') + 'Z').getTime();
     return ta - tb;
@@ -538,7 +535,7 @@ async function persistSignal(s: AHSignal) {
     league: s.leagueName,
     commence_time: s.matchDate,
     market,
-    bookmaker: 'the_odds_api',
+    bookmaker: 'sportmonks',
     odd: s.oddAH,
     fair_odd: s.oddJusta,
     estimated_probability: s.probReal,
@@ -644,10 +641,10 @@ Deno.serve(async (req) => {
         if (!homeP || !awayP) return;
 
         const leagueName = fixture.league?.name ?? 'Liga';
-        const [homeStats, awayStats, oddsAH] = await Promise.all([
+          const [homeStats, awayStats, oddsAH] = await Promise.all([
           getTeamStats(homeP.id, homeP.name),
           getTeamStats(awayP.id, awayP.name),
-          getOddsAH(homeP.name, awayP.name, leagueName),
+            getOddsAH(fixture.id),
         ]);
 
         for (const { linha, lado } of linhasAlvo) {
