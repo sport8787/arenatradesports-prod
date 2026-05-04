@@ -14,6 +14,7 @@ import prizeGiftcard200 from '@/assets/prize-giftcard-200.jpg';
 import prizeSub30d from '@/assets/prize-sub-30d.jpg';
 import prizePremiumUpgrade from '@/assets/prize-premium-upgrade.jpg';
 import prizeTrophy from '@/assets/prize-trophy.jpg';
+import prizeCamisaTime from '@/assets/prize-camisa-time.jpg';
 
 interface PrizeCard {
   id: number;
@@ -76,6 +77,17 @@ const prizes: PrizeCard[] = [
     description: 'Faz upgrade do seu plano atual para Premium por 30 dias',
     category: 'subscription',
     badge: 'TOP',
+  },
+  {
+    id: 6,
+    name: 'Camisa Oficial do Seu Time do Coração',
+    price: 'A definir',
+    priceValue: 300000,
+    image: prizeCamisaTime,
+    description: 'Camisa oficial original do clube de futebol que você escolher (tamanho e modelo da temporada atual). Entrega em todo o Brasil.',
+    category: 'season',
+    badge: 'NOVO',
+    premiumOnly: true,
   },
 ];
 
