@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // Núcleo matemático adaptado da revisão do DeepSeek (corrigido):
 //   1. xG/forma reais via SportMonks (últimos 10 jogos finalizados de cada time)
-//   2. Odds AH reais via The Odds API (linhas -0.5 / +0.5 / -1.0 / +1.0)
+//   2. Odds AH reais via SportMonks pre-match odds (sem depender da The Odds API)
 //   3. Probabilidade de cobertura via Poisson de diferença (CORRIGIDO — sem o
 //      bug do operador-vírgula do código original)
 //   4. Edge real = oddBookmaker / oddJusta - 1
@@ -23,7 +23,6 @@ const corsHeaders = {
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SPORTMONKS_KEY   = Deno.env.get('SPORTMONKS_API_KEY') || '';
-const ODDS_API_KEY     = Deno.env.get('THE_ODDS_API_KEY') || Deno.env.get('ODDS_API_KEY') || '';
 const TELEGRAM_TOKEN   = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 const TELEGRAM_CHAT    = Deno.env.get('TELEGRAM_CHAT_ID') || '';
 const GEMINI_API_KEY   = Deno.env.get('GEMINI_API_KEY') || '';
@@ -50,6 +49,15 @@ interface TeamStats {
 
 interface OddsAH {
   lines: Record<string, { home?: number; away?: number }>;
+}
+
+interface SportmonksOddRow {
+  market_id?: number;
+  label?: string;
+  value?: string | number;
+  name?: string;
+  handicap?: string;
+  market_description?: string;
 }
 
 interface MycroftVerdict {
