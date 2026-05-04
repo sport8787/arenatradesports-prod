@@ -249,14 +249,27 @@ function formatHandicapLine(point: number): string {
   return `${rounded > 0 ? '+' : '-'}${absFixed}`;
 }
 
-function sideFromOddRow(row: SportmonksOddRow): 'home' | 'away' | null {
-  const label = `${row.label || ''} ${row.name || ''}`.toLowerCase();
-  if (/(^|\s)(home|casa|mandante)(\s|$)/.test(label)) return 'home';
-  if (/(^|\s)(away|fora|visitante)(\s|$)/.test(label)) return 'away';
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sideFromOddRow(row: SportmonksOddRow, homeTeam: string, awayTeam: string): 'home' | 'away' | null {
+  const label = normalizeText(`${row.label || ''} ${row.name || ''}`);
+  const home = normalizeText(homeTeam);
+  const away = normalizeText(awayTeam);
+
+  if (label.includes(home) || /(^|\s)(home|casa|mandante|1)(\s|$)/.test(label)) return 'home';
+  if (label.includes(away) || /(^|\s)(away|fora|visitante|2)(\s|$)/.test(label)) return 'away';
   return null;
 }
 
-async function getOddsAH(fixtureId: number): Promise<OddsAH> {
+async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string): Promise<OddsAH> {
   const out: OddsAH = { lines: {} };
   if (!SPORTMONKS_KEY) return out;
 
@@ -266,20 +279,13 @@ async function getOddsAH(fixtureId: number): Promise<OddsAH> {
 
     for (const row of data) {
       if (row.market_id !== 28) continue;
-      const side = sideFromOddRow(row);
+      const side = sideFromOddRow(row, homeTeam, awayTeam);
       const handicap = Number.parseFloat(String(row.handicap ?? ''));
       const price = Number.parseFloat(String(row.value ?? ''));
       if (!side || !Number.isFinite(handicap) || !Number.isFinite(price)) continue;
       const key = formatHandicapLine(handicap);
       out.lines[key] = out.lines[key] || {};
       if (!out.lines[key][side]) out.lines[key][side] = price;
-      if (side === 'home') {
-        const awayKey = formatHandicapLine(-handicap);
-        out.lines[awayKey] = out.lines[awayKey] || {};
-      } else {
-        const homeKey = formatHandicapLine(-handicap);
-        out.lines[homeKey] = out.lines[homeKey] || {};
-      }
     }
   } catch (e) {
     console.warn('[HA-edge] Sportmonks odds erro', e);
