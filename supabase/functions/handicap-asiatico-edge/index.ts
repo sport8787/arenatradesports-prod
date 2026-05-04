@@ -281,7 +281,9 @@ async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string):
     }
 
     for (const row of data) {
-      if (row.market_id !== 28) continue;
+      const marketDescription = String(row.market_description || '').toLowerCase();
+      const isAsianHandicap = marketDescription.includes('asian handicap') && !marketDescription.includes('first half') && !marketDescription.includes('corner');
+      if (!isAsianHandicap) continue;
       const side = sideFromOddRow(row, homeTeam, awayTeam);
       const handicap = Number.parseFloat(String(row.handicap ?? ''));
       const price = Number.parseFloat(String(row.value ?? ''));
