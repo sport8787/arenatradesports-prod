@@ -275,7 +275,10 @@ async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string):
 
   try {
     const data = await smFetch(`/odds/pre-match/fixtures/${fixtureId}`) as SportmonksOddRow[] | null;
-    if (!Array.isArray(data) || data.length === 0) return out;
+    if (!Array.isArray(data) || data.length === 0) {
+      console.log(`[HA-edge] fixture ${fixtureId} odds Sportmonks vazias`);
+      return out;
+    }
 
     for (const row of data) {
       if (row.market_id !== 28) continue;
@@ -286,6 +289,10 @@ async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string):
       const key = formatHandicapLine(handicap);
       out.lines[key] = out.lines[key] || {};
       if (!out.lines[key][side]) out.lines[key][side] = price;
+    }
+
+    if (Object.keys(out.lines).length === 0) {
+      console.log(`[HA-edge] fixture ${fixtureId} sample odds: ${JSON.stringify(data.slice(0, 8).map((row) => ({ market_id: row.market_id, label: row.label, name: row.name, handicap: row.handicap, value: row.value, market_description: row.market_description })))}`);
     }
   } catch (e) {
     console.warn('[HA-edge] Sportmonks odds erro', e);
