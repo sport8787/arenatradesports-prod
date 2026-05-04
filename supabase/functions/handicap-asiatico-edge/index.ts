@@ -650,8 +650,13 @@ Deno.serve(async (req) => {
           const [homeStats, awayStats, oddsAH] = await Promise.all([
           getTeamStats(homeP.id, homeP.name),
           getTeamStats(awayP.id, awayP.name),
-            getOddsAH(fixture.id),
+            getOddsAH(fixture.id, homeP.name, awayP.name),
         ]);
+
+          const linhasDisponiveis = Object.keys(oddsAH.lines);
+          if (linhasDisponiveis.length === 0) {
+            console.log(`[HA-edge] fixture ${fixture.id} sem linhas AH Sportmonks: ${homeP.name} vs ${awayP.name}`);
+          }
 
         for (const { linha, lado } of linhasAlvo) {
           const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
