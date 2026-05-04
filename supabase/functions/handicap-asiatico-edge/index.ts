@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // Núcleo matemático adaptado da revisão do DeepSeek (corrigido):
 //   1. xG/forma reais via SportMonks (últimos 10 jogos finalizados de cada time)
-//   2. Odds AH reais via The Odds API (linhas -0.5 / +0.5 / -1.0 / +1.0)
+//   2. Odds AH reais via SportMonks pre-match odds (sem depender da The Odds API)
 //   3. Probabilidade de cobertura via Poisson de diferença (CORRIGIDO — sem o
 //      bug do operador-vírgula do código original)
 //   4. Edge real = oddBookmaker / oddJusta - 1
@@ -23,7 +23,6 @@ const corsHeaders = {
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SPORTMONKS_KEY   = Deno.env.get('SPORTMONKS_API_KEY') || '';
-const ODDS_API_KEY     = Deno.env.get('THE_ODDS_API_KEY') || Deno.env.get('ODDS_API_KEY') || '';
 const TELEGRAM_TOKEN   = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 const TELEGRAM_CHAT    = Deno.env.get('TELEGRAM_CHAT_ID') || '';
 const GEMINI_API_KEY   = Deno.env.get('GEMINI_API_KEY') || '';
@@ -50,6 +49,15 @@ interface TeamStats {
 
 interface OddsAH {
   lines: Record<string, { home?: number; away?: number }>;
+}
+
+interface SportmonksOddRow {
+  market_id?: number;
+  label?: string;
+  value?: string | number;
+  name?: string;
+  handicap?: string;
+  market_description?: string;
 }
 
 interface MycroftVerdict {
@@ -234,46 +242,6 @@ async function getTeamStats(teamId: number, teamName: string): Promise<TeamStats
   };
 }
 
-// =============================================================================
-// THE ODDS API — Asian Handicap real
-// =============================================================================
-
-const ODDS_SPORT_MAP: Record<string, string> = {
-  // por nome de liga (case-insensitive, contains)
-  'premier league': 'soccer_epl',
-  'championship': 'soccer_efl_champ',
-  'la liga': 'soccer_spain_la_liga',
-  'segunda': 'soccer_spain_segunda_division',
-  'serie a': 'soccer_italy_serie_a',
-  'serie b': 'soccer_italy_serie_b',
-  'bundesliga': 'soccer_germany_bundesliga',
-  '2. bundesliga': 'soccer_germany_bundesliga2',
-  'ligue 1': 'soccer_france_ligue_one',
-  'ligue 2': 'soccer_france_ligue_two',
-  'brasileir': 'soccer_brazil_campeonato',
-  'série b': 'soccer_brazil_serie_b',
-  'eredivisie': 'soccer_netherlands_eredivisie',
-  'primeira liga': 'soccer_portugal_primeira_liga',
-  'super lig': 'soccer_turkey_super_league',
-  'champions league': 'soccer_uefa_champs_league',
-  'europa league': 'soccer_uefa_europa_league',
-  'conference league': 'soccer_uefa_europa_conference_league',
-  'mls': 'soccer_usa_mls',
-  'liga mx': 'soccer_mexico_ligamx',
-  'primera división': 'soccer_argentina_primera_division',
-  'primera division': 'soccer_argentina_primera_division',
-  'a-league': 'soccer_australia_aleague',
-  'j league': 'soccer_japan_j_league',
-  'j1': 'soccer_japan_j_league',
-  'k league': 'soccer_korea_kleague1',
-  'belgian': 'soccer_belgium_first_div',
-  'jupiler': 'soccer_belgium_first_div',
-  'fa cup': 'soccer_fa_cup',
-  'efl cup': 'soccer_england_efl_cup',
-  'copa libertadores': 'soccer_conmebol_copa_libertadores',
-  'sudamericana': 'soccer_conmebol_copa_sudamericana',
-};
-
 function formatHandicapLine(point: number): string {
   const rounded = Math.round(point * 100) / 100;
   const absFixed = Number.isInteger(rounded) ? Math.abs(rounded).toFixed(1) : Math.abs(rounded).toString();
@@ -281,47 +249,66 @@ function formatHandicapLine(point: number): string {
   return `${rounded > 0 ? '+' : '-'}${absFixed}`;
 }
 
-function mapLeagueToSportKey(leagueName: string): string | null {
-  const ln = (leagueName || '').toLowerCase();
-  for (const [k, v] of Object.entries(ODDS_SPORT_MAP)) {
-    if (ln.includes(k)) return v;
-  }
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sideFromOddRow(row: SportmonksOddRow, homeTeam: string, awayTeam: string): 'home' | 'away' | null {
+  const label = normalizeText(`${row.label || ''} ${row.name || ''}`);
+  const home = normalizeText(homeTeam);
+  const away = normalizeText(awayTeam);
+
+  if (label.includes(home) || /(^|\s)(home|casa|mandante|1)(\s|$)/.test(label)) return 'home';
+  if (label.includes(away) || /(^|\s)(away|fora|visitante|2)(\s|$)/.test(label)) return 'away';
   return null;
 }
 
-async function getOddsAH(homeTeam: string, awayTeam: string, leagueName: string): Promise<OddsAH> {
+async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string): Promise<OddsAH> {
   const out: OddsAH = { lines: {} };
-  const sportKey = mapLeagueToSportKey(leagueName);
-  if (!sportKey || !ODDS_API_KEY) return out;
+  if (!SPORTMONKS_KEY) return out;
 
   try {
-    const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY}&regions=eu&markets=spreads&oddsFormat=decimal`;
-    const r = await fetch(url);
-    if (!r.ok) return out;
-    const data = (await r.json()) as any[];
-    const game = (data || []).find((g: any) =>
-      g.home_team?.toLowerCase().includes(homeTeam.split(' ')[0].toLowerCase()) ||
-      g.away_team?.toLowerCase().includes(awayTeam.split(' ')[0].toLowerCase()),
-    );
-    if (!game) return out;
+    const data = await smFetch(`/odds/pre-match/fixtures/${fixtureId}`) as SportmonksOddRow[] | null;
+    if (!Array.isArray(data) || data.length === 0) {
+      console.log(`[HA-edge] fixture ${fixtureId} odds Sportmonks vazias`);
+      return out;
+    }
 
-    for (const bm of game.bookmakers || []) {
-      for (const mkt of bm.markets || []) {
-        if (mkt.key !== 'spreads') continue;
-        for (const o of mkt.outcomes || []) {
-          if (typeof o.point !== 'number') continue;
-          // Normalizamos para a perspectiva HOME: ponto positivo do home = +N, negativo = -N
-          const isHome = o.name === game.home_team;
-          const point = isHome ? o.point : -o.point;
-          const key = formatHandicapLine(point);
-          out.lines[key] = out.lines[key] || {};
-          if (isHome && !out.lines[key].home) out.lines[key].home = o.price;
-          if (!isHome && !out.lines[key].away) out.lines[key].away = o.price;
-        }
-      }
+    for (const row of data) {
+      const marketDescription = String(row.market_description || '').toLowerCase();
+      const isAsianHandicap = marketDescription.includes('asian handicap') && !marketDescription.includes('first half') && !marketDescription.includes('corner');
+      if (!isAsianHandicap) continue;
+      const side = sideFromOddRow(row, homeTeam, awayTeam);
+      const handicap = Number.parseFloat(String(row.handicap ?? ''));
+      const price = Number.parseFloat(String(row.value ?? ''));
+      if (!side || !Number.isFinite(handicap) || !Number.isFinite(price)) continue;
+      const key = formatHandicapLine(handicap);
+      out.lines[key] = out.lines[key] || {};
+      if (!out.lines[key][side]) out.lines[key][side] = price;
+    }
+
+    if (Object.keys(out.lines).length === 0) {
+      const handicapFamilies = data
+        .filter((row) => String(row.market_description || '').toLowerCase().includes('handicap'))
+        .slice(0, 20)
+        .map((row) => ({
+          market_id: row.market_id,
+          label: row.label,
+          name: row.name,
+          handicap: row.handicap,
+          value: row.value,
+          market_description: row.market_description,
+        }));
+      console.log(`[HA-edge] fixture ${fixtureId} handicap markets: ${JSON.stringify(handicapFamilies)}`);
     }
   } catch (e) {
-    console.warn('[HA-edge] Odds API erro', e);
+    console.warn('[HA-edge] Sportmonks odds erro', e);
   }
   return out;
 }
@@ -535,13 +522,10 @@ async function getFixturesProximas48h(): Promise<any[]> {
     const startTs = f.starting_at ? new Date(f.starting_at.replace(' ', 'T') + 'Z').getTime() : 0;
     return startTs >= nowMs && startTs <= endMs;
   });
-  // Apenas jogos com liga mapeada (única forma de ter odds AH reais)
-  const comOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') !== null);
-  const semOdds = filtered.filter((f: any) => mapLeagueToSportKey(f.league?.name || '') === null);
-  console.log(`[HA-edge] ${filtered.length} pré-live | ${comOdds.length} com odds AH | ${semOdds.length} sem (descartados)`);
+  console.log(`[HA-edge] ${filtered.length} fixtures pré-live elegíveis após filtro de janela/estado`);
   // Limite p/ caber no tempo da edge function (~150s). Prioriza jogos mais próximos.
   const LIMIT = 30;
-  const sortedByTime = comOdds.sort((a: any, b: any) => {
+  const sortedByTime = filtered.sort((a: any, b: any) => {
     const ta = new Date(a.starting_at.replace(' ', 'T') + 'Z').getTime();
     const tb = new Date(b.starting_at.replace(' ', 'T') + 'Z').getTime();
     return ta - tb;
@@ -577,7 +561,7 @@ async function persistSignal(s: AHSignal) {
     league: s.leagueName,
     commence_time: s.matchDate,
     market,
-    bookmaker: 'the_odds_api',
+    bookmaker: 'sportmonks',
     odd: s.oddAH,
     fair_odd: s.oddJusta,
     estimated_probability: s.probReal,
@@ -683,11 +667,16 @@ Deno.serve(async (req) => {
         if (!homeP || !awayP) return;
 
         const leagueName = fixture.league?.name ?? 'Liga';
-        const [homeStats, awayStats, oddsAH] = await Promise.all([
+          const [homeStats, awayStats, oddsAH] = await Promise.all([
           getTeamStats(homeP.id, homeP.name),
           getTeamStats(awayP.id, awayP.name),
-          getOddsAH(homeP.name, awayP.name, leagueName),
+            getOddsAH(fixture.id, homeP.name, awayP.name),
         ]);
+
+          const linhasDisponiveis = Object.keys(oddsAH.lines);
+          if (linhasDisponiveis.length === 0) {
+            console.log(`[HA-edge] fixture ${fixture.id} sem linhas AH Sportmonks: ${homeP.name} vs ${awayP.name}`);
+          }
 
         for (const { linha, lado } of linhasAlvo) {
           const an = analyzeAH(homeStats, awayStats, oddsAH, linha, lado);
