@@ -292,7 +292,18 @@ async function getOddsAH(fixtureId: number, homeTeam: string, awayTeam: string):
     }
 
     if (Object.keys(out.lines).length === 0) {
-      console.log(`[HA-edge] fixture ${fixtureId} sample odds: ${JSON.stringify(data.slice(0, 8).map((row) => ({ market_id: row.market_id, label: row.label, name: row.name, handicap: row.handicap, value: row.value, market_description: row.market_description })))}`);
+      const handicapFamilies = data
+        .filter((row) => String(row.market_description || '').toLowerCase().includes('handicap'))
+        .slice(0, 20)
+        .map((row) => ({
+          market_id: row.market_id,
+          label: row.label,
+          name: row.name,
+          handicap: row.handicap,
+          value: row.value,
+          market_description: row.market_description,
+        }));
+      console.log(`[HA-edge] fixture ${fixtureId} handicap markets: ${JSON.stringify(handicapFamilies)}`);
     }
   } catch (e) {
     console.warn('[HA-edge] Sportmonks odds erro', e);
