@@ -119,6 +119,10 @@ const App = () => {
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/blog" element={<Navigate to="/blog/index.html" replace />} />
+                <Route path="/blog/" element={<Navigate to="/blog/index.html" replace />} />
+                <Route path="/blog/brasileirao-2026" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
+                <Route path="/blog/brasileirao-2026/" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
                 <Route path="/lobby" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/trocar-senha" element={<ChangePassword />} />
