@@ -568,12 +568,15 @@ async function persistSignal(s: AHSignal) {
     implied_probability: s.oddAH ? 1 / s.oddAH : null,
     value_percentage: s.edge,
     verdict: s.mycroft.verdict,
-    confidence: s.mycroft.confidence,
+    confidence: Math.round(s.mycroft.confidence),
     stake_percentage: s.stake,
+    stake_percentage_original: s.stake,
     thesis: `${market} | Edge ${s.edge.toFixed(1)}% | Mycroft ${s.mycroft.confidence}%`,
     analysis: justificativa,
     analyzed_by: 'mycroft-handicap-asiatico',
-    status: 'pending',
+    status: 'awaiting_stake',
+    stake_confirmed: false,
+    dismissed: false,
   };
 
   try {
