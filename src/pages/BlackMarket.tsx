@@ -330,7 +330,7 @@ export default function BlackMarket() {
           <div className="text-center">
             <h3 className="font-orbitron text-xl text-muted-foreground">VITRINE DE PRÊMIOS</h3>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Custo em BC será definido na abertura oficial da temporada.
+              Tabela oficial de resgate — acumule BC e troque quando o cofre abrir.
             </p>
           </div>
 
