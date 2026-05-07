@@ -353,10 +353,10 @@ async function salvar(sb: any, g: Game, p: PlayerStats, sinal: Sinal) {
     analyzed_by: `${tier} - mycroft-players-punter`,
   };
 
-  const { error } = await sb.from("punter_analyses").upsert(row, {
-    onConflict: "match_id,market",
-    ignoreDuplicates: true,
-  });
+  const { error } = await sb.from("punter_sinais").upsert(
+    { ...row, status: "pending", dismissed: false },
+    { onConflict: "match_id,market", ignoreDuplicates: true },
+  );
   if (error) {
     console.error("[players] insert error:", error.message);
     return false;
