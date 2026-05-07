@@ -238,7 +238,7 @@ serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
   const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-  const [{ data: pending, error }, { data: favoritoPending, error: favoritoError }, { data: rarosPending, error: rarosError }] = await Promise.all([
+  const [{ data: pending, error }, { data: favoritoPending, error: favoritoError }, { data: rarosPending, error: rarosError }, { data: manualPending, error: manualError }] = await Promise.all([
     sb
       .from("punter_sinais")
       .select("id, legacy_signal_id, match_id, home_team, away_team, league, market, odd, stake_percentage, stake_amount, status, commence_time, match_date")
@@ -260,11 +260,19 @@ serve(async (req) => {
       .select("id, candidato_id, match_id, placar_alvo, odd_entrada, resultado, status, created_at")
       .or("resultado.is.null,resultado.eq.PENDENTE,resultado.eq.pendente")
       .order("created_at", { ascending: true })
-      .limit(50)
+      .limit(50),
+    sb
+      .from("virtual_bets_manual")
+      .select("id, user_id, match_id, match_name, market, odd, stake, status, commence_time, created_at")
+      .eq("status", "pending")
+      .is("result", null)
+      .lt("commence_time", cutoff)
+      .order("commence_time", { ascending: true })
+      .limit(100),
   ]);
 
-  if (error || favoritoError || rarosError) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (error || favoritoError || rarosError || manualError) {
+    return new Response(JSON.stringify({ error: (error || favoritoError || rarosError || manualError)?.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const items = (pending || []) as any[];
