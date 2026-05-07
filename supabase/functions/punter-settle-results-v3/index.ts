@@ -513,6 +513,66 @@ serve(async (req) => {
     }
   }
 
+  // ====== virtual_bets_manual (apostas do usuário em /minhas-apostas) ======
+  for (const b of (manualPending || []) as any[]) {
+    const parts = String(b.match_name || "").split(/\s+vs\s+/i);
+    const home = parts[0]?.trim() || "";
+    const away = parts[1]?.trim() || "";
+    const startIso = b.commence_time || b.created_at || new Date().toISOString();
+
+    if (!home || !away) {
+      results.push({ id: b.id, status: "manual_no_teams", source: "virtual_bets_manual" });
+      continue;
+    }
+
+    try {
+      let fx: FixtureResult | null = null;
+      let fonte = "api-football";
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) { fx = af.fx; }
+      if (!fx) {
+        const sm = await findFixtureCached(home, away, startIso);
+        if (sm) {
+          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
+          fonte = "sportmonks";
+        }
+      }
+      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+      if (!fx) {
+        notFound++;
+        results.push({ id: b.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "virtual_bets_manual" });
+        continue;
+      }
+
+      const res = calcularResultado(b.market, home, away, fx);
+      if (!res) {
+        unsupported++;
+        results.push({ id: b.id, status: "market_unsupported", market: b.market, source: "virtual_bets_manual" });
+        continue;
+      }
+
+      const stake = Number(b.stake) || 0;
+      const odd = Number(b.odd) || 0;
+      const pl = calcPnl(res, stake, odd);
+      const dbR = dbResult(res);
+
+      await sb.from("virtual_bets_manual").update({
+        status: "settled",
+        result: dbR,
+        profit_loss: Number(pl.toFixed(2)),
+        score_home: fx.goalsHome,
+        score_away: fx.goalsAway,
+        updated_at: new Date().toISOString(),
+      }).eq("id", b.id);
+
+      settled++;
+      results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: "virtual_bets_manual" });
+    } catch (e) {
+      console.error("err manual", b.id, e);
+      results.push({ id: b.id, status: "error", error: String(e), source: "virtual_bets_manual" });
+    }
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
