@@ -343,10 +343,10 @@ async function salvarSinal(sb: any, game: Game, sinal: any, tipo: string, p: Poi
     analyzed_by: `${tier} - mycroft-extra-markets (Sportmonks)`,
   };
 
-  const { error } = await sb.from("punter_analyses").upsert(row, {
-    onConflict: "match_id,market",
-    ignoreDuplicates: true,
-  });
+  const { error } = await sb.from("punter_sinais").upsert(
+    { ...row, status: "pending", dismissed: false },
+    { onConflict: "match_id,market", ignoreDuplicates: true },
+  );
   if (error) console.error("[extra-markets] insert error:", error.message);
 }
 
