@@ -67,6 +67,7 @@ const AdminHub = React.lazy(() => import("./pages/AdminHub"));
 const AdminFutoddsHealth = React.lazy(() => import("./pages/AdminFutoddsHealth"));
 const AdminMycroftRules = React.lazy(() => import("./pages/AdminMycroftRules"));
 const AdminCLVMonitor = React.lazy(() => import("./pages/AdminCLVMonitor"));
+const AdminMetricasConversao = React.lazy(() => import("./pages/AdminMetricasConversao"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
