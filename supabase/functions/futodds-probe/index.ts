@@ -126,31 +126,29 @@ Deno.serve(async (req) => {
     }, null, 2), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // Roda todos os endpoints (incluindo Betfair) em paralelo
+  // Bulk endpoints (sem parâmetro). Os endpoints de detalhe ficam em detail_probes.
   const endpoints = [
     "/matches-live",
     "/matches-live-full",
-    "/matches-live-detail",
-    "/matches-live-events",
     "/matches-ended",
     "/matches-upcoming",
-    "/matches-upcoming-detail",
     "/matches-cs",
     "/matches-betfair-upcoming",
     "/matches-betfair-live",
     "/matches-betfair-live-compact",
-    "/matches-betfair-live-markets",
   ];
 
   const probes = await Promise.all(endpoints.map((p) => call(workingBase!, p)));
 
-  // Detail endpoints: precisam game_id / event_id. Pegamos IDs reais e re-rodamos.
+  // Detail endpoints: precisam game_id / event_id. Pegamos IDs reais e chamamos com params.
   const liveProbe = probes[endpoints.indexOf("/matches-live")] as any;
   const compact = probes[endpoints.indexOf("/matches-betfair-live-compact")] as any;
+  const upcoming = probes[endpoints.indexOf("/matches-betfair-upcoming")] as any;
   const sampleGameId = liveProbe?.sample?.[0]?.id ?? liveProbe?.sample?.id;
   const sampleEvent =
     compact?.sample?.[0]?.event_id ?? compact?.sample?.event_id ??
     liveProbe?.sample?.[0]?.id_betfair ?? null;
+  const upcomingEvent = upcoming?.sample?.[0]?.event_id ?? upcoming?.sample?.event_id ?? null;
 
   const detailProbes: Record<string, any> = {};
   if (sampleGameId) {
@@ -160,6 +158,9 @@ Deno.serve(async (req) => {
   if (sampleEvent) {
     detailProbes["/matches-betfair-live-odds?event_id"] = await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) });
     detailProbes["/matches-betfair-live-markets?event_id"] = await call(workingBase!, "/matches-betfair-live-markets", { event_id: String(sampleEvent) });
+  }
+  if (upcomingEvent) {
+    detailProbes["/matches-upcoming-detail?event_id"] = await call(workingBase!, "/matches-upcoming-detail", { event_id: String(upcomingEvent) });
   }
 
   // Cobertura por liga (a partir de /matches-betfair-live)
