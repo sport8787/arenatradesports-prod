@@ -9,10 +9,11 @@ const corsHeaders = {
 
 const TOKEN = Deno.env.get("FUTODDS_API_KEY") ?? "";
 // Base URL conhecida (ajustar se Futodds publicar outra). A doc do site cita endpoints relativos.
+// Base URL oficial confirmada na documentação (PDFs Futodds_3/4/5).
 const BASE_CANDIDATES = [
+  "https://csv.futodds.com/functions/v1",
   "https://api.futodds.com/v1",
   "https://futodds.com/api",
-  "https://api.futodds.com",
 ];
 
 async function call(base: string, path: string, params: Record<string, string> = {}) {
