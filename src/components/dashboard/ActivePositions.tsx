@@ -273,6 +273,14 @@ export default function ActivePositions() {
                       </motion.div>
                     )}
 
+                    <a
+                      href="https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF"
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      className="flex items-center justify-center gap-2 w-full px-3 py-1.5 rounded-md bg-[#FFB80C] hover:bg-[#FFC93D] text-black font-orbitron font-bold text-[11px] uppercase tracking-wider transition-all shadow-[0_0_10px_rgba(255,184,12,0.2)]"
+                    >
+                      Gerenciar na Betfair →
+                    </a>
                     <p className="text-[10px] text-muted-foreground text-center pt-1 border-t border-border/50">
                       Aguardando liquidação automática pelo placar final
                     </p>
