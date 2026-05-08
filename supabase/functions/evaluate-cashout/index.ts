@@ -522,6 +522,86 @@ function evaluateFutoddsPressure(
   return null;
 }
 
+// ── Momentum Shift detection (last10 vs last20 Futodds) ──
+// Detecta "jogo virando" antes do gol: compara últimos 10min com a janela
+// anterior (10–20min). Se o lado adversário ao nosso bet ganhou >=40% de
+// momentum (dangerous_attacks + on_target*3 + corners*2 + attacks*0.3) e
+// agora supera o nosso lado → WARNING precoce.
+function evaluateMomentumShift(
+  pos: any,
+  matchState: any,
+): { triggered: boolean; severity: 'WARNING' | 'CRITICAL'; signalType: string; motivo: string; deltas?: any } | null {
+  const stats: any = matchState?.stats || {};
+  const market = String(pos.market || '').toLowerCase().trim();
+  const minute = matchState?.minute ?? 0;
+  if (minute < 20 || minute > 88) return null;
+
+  const last10 = stats.last10min_stats;
+  const last20 = stats.last20min_stats;
+  if (!last10 || !last20) return null;
+
+  const arr = (k: string, src: any) => Array.isArray(src?.[k]) ? src[k] : [0, 0];
+  const score = (w: any, side: 'home' | 'away') => {
+    const i = side === 'home' ? 0 : 1;
+    const da = Number(arr('dangerous_attacks', w)[i]) || 0;
+    const ot = Number(arr('on_target', w)[i]) || 0;
+    const co = Number(arr('corners', w)[i]) || 0;
+    const at = Number(arr('attacks', w)[i]) || 0;
+    return da * 1.5 + ot * 3 + co * 2 + at * 0.3;
+  };
+
+  const isBackHome = /^(casa|home|1|back\s*casa)$/.test(market) || market.includes('back casa');
+  const isBackAway = /^(fora|away|2|back\s*fora|back\s*visitante)$/.test(market) || market.includes('back fora');
+  if (!isBackHome && !isBackAway) return null;
+
+  const ourSide: 'home' | 'away' = isBackHome ? 'home' : 'away';
+  const advSide: 'home' | 'away' = isBackHome ? 'away' : 'home';
+
+  const scoreH = matchState?.scoreHome ?? 0;
+  const scoreA = matchState?.scoreAway ?? 0;
+  const scoreOur = isBackHome ? scoreH : scoreA;
+  const scoreAdv = isBackHome ? scoreA : scoreH;
+  if (scoreOur - scoreAdv >= 2) return null; // confortável
+
+  // janelas: last10 = m-10..m ; prev10 = (last20 − last10) ≈ m-20..m-10
+  const advL10 = score(last10, advSide);
+  const advL20 = score(last20, advSide);
+  const advPrev10 = Math.max(0, advL20 - advL10);
+  const ourL10 = score(last10, ourSide);
+  const ourL20 = score(last20, ourSide);
+  const ourPrev10 = Math.max(0, ourL20 - ourL10);
+
+  // ganho relativo do adversário (evita div/0 com base mínima)
+  const base = Math.max(advPrev10, 5);
+  const advGain = (advL10 - advPrev10) / base; // ex.: 0.4 = +40%
+  const ourGain = (ourL10 - ourPrev10) / Math.max(ourPrev10, 5);
+
+  // condições: adversário cresceu >=40% E agora supera nosso lado em momentum
+  const flipped = advL10 > ourL10 * 1.2; // adv >20% acima de nós em mom. atual
+  const big = advGain >= 0.4 && advGain - ourGain >= 0.3;
+  if (!flipped || !big) return null;
+
+  const motivoBase = `Adversário (${advSide}) +${(advGain * 100).toFixed(0)}% momentum últ.10min vs janela anterior — agora ${advL10.toFixed(0)} vs ${ourL10.toFixed(0)}.`;
+
+  // severidade CRITICAL se já estamos perdendo OU adv ganho >=70%
+  if (scoreOur < scoreAdv || advGain >= 0.7) {
+    return {
+      triggered: true,
+      severity: 'CRITICAL',
+      signalType: 'MOMENTUM_SHIFT_CRITICAL',
+      motivo: `🚨 SAIR AGORA — Jogo virando contra ${ourSide === 'home' ? 'mandante' : 'visitante'}. ${motivoBase}`,
+      deltas: { advL10, advPrev10, ourL10, ourPrev10, advGain, ourGain, scoreH, scoreA, minute },
+    };
+  }
+  return {
+    triggered: true,
+    severity: 'WARNING',
+    signalType: 'MOMENTUM_SHIFT_WARN',
+    motivo: `⚠️ ATENÇÃO — Jogo virando. ${motivoBase}`,
+    deltas: { advL10, advPrev10, ourL10, ourPrev10, advGain, ourGain, scoreH, scoreA, minute },
+  };
+}
+
 const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
 
 type MatchState = {
