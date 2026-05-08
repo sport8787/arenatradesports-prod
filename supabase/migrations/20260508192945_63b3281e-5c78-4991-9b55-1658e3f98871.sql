@@ -1,0 +1,1 @@
+UPDATE public.live_matches SET status = 'live', updated_at = now() WHERE status = 'finished' AND updated_at > now() - interval '20 minutes' AND minute < 90;
