@@ -108,6 +108,13 @@ const LINKS: AdminLink[] = [
     icon: <Brain className="h-4 w-4" />,
     group: 'Mycroft',
   },
+  {
+    to: '/admin/clv-monitor',
+    label: 'CLV Monitor (Punter)',
+    description: 'CLV vs Betfair, buckets de calibração e quarentenas ativas.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Mycroft',
+  },
 ];
 
 const groupOrder: AdminLink['group'][] = ['Usuários', 'Operação', 'Análise', 'Mycroft', 'Logs'];
