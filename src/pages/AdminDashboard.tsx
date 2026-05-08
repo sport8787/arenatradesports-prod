@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,7 +17,7 @@ import EmailSequenceReport from '@/components/admin/EmailSequenceReport';
 import LiveProviderCompare from '@/components/admin/LiveProviderCompare';
 import FutoddsProbe from '@/components/admin/FutoddsProbe';
 
-const ADMIN_EMAIL = 'pabloescobar@gmail.com';
+// Admin gating agora usa user_roles (has_role RPC) via useAdmin()
 
 type User = {
   id: string;
@@ -77,6 +78,7 @@ const feedLabel: Record<string, string> = {
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,12 +103,12 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return;
+    if (!user || !isAdmin) return;
     fetchData();
     const t = setInterval(fetchData, 60_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isAdmin]);
 
   const filteredUsers = useMemo(() => {
     if (!data) return [];
@@ -129,7 +131,7 @@ export default function AdminDashboard() {
     return list;
   }, [data, filter, search]);
 
-  if (authLoading) {
+  if (authLoading || adminLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -138,7 +140,7 @@ export default function AdminDashboard() {
   }
 
   if (!user) return <Navigate to="/auth?redirect=/admin" replace />;
-  if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+  if (!isAdmin) {
     return <Navigate to="/punter" replace />;
   }
 
