@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Check, X, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export interface TraderEntry {
   id: string;
@@ -19,6 +20,7 @@ export interface TraderEntry {
   notes: string | null;
   estimatedOdd?: number | null;
   estimatedCashout?: number | null;
+  odd_source?: string | null;
 }
 
 interface EntryRowProps {
