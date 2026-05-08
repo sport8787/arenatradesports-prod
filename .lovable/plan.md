@@ -1,137 +1,114 @@
 
-# Plano: Adoção da Futodds API
+# Plano revisado — Futodds como provedor primário ao vivo
 
-## 1. Análise comparativa
+## O que mudou após ler a documentação
 
-### Endpoints Futodds vs APIs atuais
+A API do Futodds é **muito mais completa** do que o painel inicial sugeria. Os endpoints reais incluem:
 
-| Necessidade hoje | Provedor atual | Endpoint Futodds equivalente | Substitui? |
-|---|---|---|---|
-| Lista jogos ao vivo | API-Football `/fixtures?live=all` + Sportmonks `livescores/inplay` | `GET /matches-live` | **Sim** (a validar volume de ligas) |
-| Stats live detalhadas (xG, chutes, posse, escanteios, ataques) | API-Football `/fixtures/statistics` + `/fixtures/events` | `GET /matches-live-detail` + `/matches-live-events` | **Sim** (a validar campos) |
-| Snapshot completo (stats + odds + lineups) | Múltiplas chamadas API-Football | `GET /matches-live-full` | **Sim** — reduz N chamadas |
-| Jogos encerrados (settlement) | API-Football `/fixtures?date=` + Sportmonks fallback | `GET /matches-ended` | **Sim** — substitui pipeline de liquidação |
-| Pré-live (jogos do dia + odds) | The Odds API `/sports/{key}/odds` | `GET /matches-upcoming` | **Parcial** — depende de cobertura de bookmakers e mercados |
-| Correct Score odds/probs | The Odds API + estimativa interna | `GET /matches-cs` | **Sim** — ganho real (CS é caro/limitado em outras APIs) |
-| Comparador multi-bookmaker (smart-odds-scanner, sharp money, RLM, steam) | The Odds API (10+ bookmakers) | A validar em `/matches-upcoming` e `/matches-live-full` | **Incerto** |
-| Liquidação por player props (anytime scorer, assists) | API-Football `/fixtures/events` | `/matches-live-events` (a validar nomes de jogadores) | **Provável sim** |
-| Cards/Cartões por jogador (mycroft-cards-punter) | API-Football events | `/matches-live-events` | **A validar** |
+**Pré-jogo / encerrados**
+- `GET /matches-upcoming` — agenda
+- `GET /matches-upcoming-detail` — detalhes completos
+- `GET /matches-ended` — resultados (liquidação)
+- `GET /matches-cs` — placares finais
 
-### Sportmonks — comparação direta
-A Sportmonks hoje serve para: (a) shadow A/B em `live-provider-compare`, (b) fallback de stats live. A Futodds **substitui as duas funções** se entregar:
-- xG live, posse, chutes (incluindo on/off target), escanteios, cartões, ataques perigosos
-- Status de partida com `minute` confiável
-Se entregar tudo isso, **descontinuamos Sportmonks** (economia + simplificação).
+**Ao vivo (genérico)**
+- `GET /matches-live` — listagem
+- `GET /matches-live-full` — completo + otimizado
+- `GET /matches-live-detail` — detalhes
+- `GET /matches-live-events` — eventos (gols, cartões…)
 
-### API-Football — substituição
-**NÃO** descontinuar imediatamente. Manter como **fallback** por 30 dias por causa de:
-- Cobertura comprovada de player events (gols, assistências, cartões) usada em settlement
-- `mycroft-extra-markets`, `mycroft-cards-punter`, `mycroft-players-punter` dependem de eventos detalhados
-- Histórico H2H, lineups confirmados, estatísticas de temporada (Level 1) — **provavelmente Futodds NÃO cobre isso** (foco é live + odds)
+**Ao vivo Betfair (o jogo virou)**
+- `GET /matches-betfair-upcoming` — pré-live com odds Betfair
+- `GET /matches-betfair-live` — placar + `pressure_indices` (home/away/total) + stats por janela `last5min/10/15/20min` + ataques, ataques perigosos, chutes no/fora gol, escanteios, posse
+- `GET /matches-betfair-live-compact` — lista enxuta para mapear `event_id`
+- `GET /matches-betfair-live-markets` — lista de mercados disponíveis
+- `GET /matches-betfair-live-odds` — **odds reais da Betfair Exchange (back e lay, preço + volume, last_price_traded, total_matched) por runner**
 
-### The Odds API — substituição
-**Provavelmente sim, mas validar.** Pontos críticos:
-- Smart Odds Scanner, Sharp Money Detector e Market Manipulation Detector exigem **múltiplos bookmakers por mercado** com snapshots temporais
-- Se Futodds expõe ≥5 bookmakers em `/matches-upcoming` com histórico de movimento, substitui
-- Caso contrário, manter The Odds API só para esses 3 detectores
+**Base URL:** `https://csv.futodds.com/functions/v1/`
+**Auth:** `Authorization: Bearer <FUTODDS_API_KEY>` (ou `X-API-Key`)
+**Plano Premium:** R$ 250/mês, 10 req/s, ilimitado, cache 30s Redis no lado deles.
 
-## 2. Impacto nos Jogos ao Vivo
+## Impacto direto nos problemas atuais
 
-### Onde entra Futodds
-- `_shared/liveProvider.ts` — adicionar provider `futodds` ao lado de `api_football` e `sportmonks`
-- `useLiveMatches`, `live-provider-compare` (admin A/B), `analyze-live`, `eventos-raros-live`
-- `mycroft-cards-punter`, `mycroft-players-punter`, `mycroft-extra-markets` — substituir busca de eventos
-- Pipelines de liquidação: `punter-settle-results-v3` ganha provider primário Futodds, fallback API-Football
-
-### Ganhos esperados
-- **Latência**: 1 chamada `/matches-live-full` vs 3-4 da API-Football
-- **Custo**: R$250/mês fixo vs API-Football (Ultra) + The Odds API + Sportmonks (≈ US$ 130-180/mês combinado)
-- **Mycroft Punter/Live**: probabilidades CS já calculadas em `/matches-cs` alimentam diretamente o motor Poisson Bivariada
-- **Reanálise** (windows 5min/1min) fica mais barata e rápida
-
-### Riscos
-- Cobertura de ligas pode ser menor que API-Football (que tem ~1100 ligas) — validar whitelist atual de 70+ ligas
-- Plano FREE só permite 100 req/dia → **obrigatório PREMIUM** (10 req/s, ilimitado)
-- Sem documentação pública de schema — depende do que retorna na prática
-- Player props (anytime scorer/assist) podem não ter granularidade suficiente para liquidação confiável
-
-## 3. Plano de implantação (4 fases)
-
-### Fase 0 — Discovery (1-2 dias, ANTES de assinar)
-1. Pedir ao usuário **acesso temporário** ou trial à API key PREMIUM
-2. Criar edge function `futodds-probe` (similar a `sportmonks-probe`) que chama todos os 7 endpoints e retorna schema bruto + amostras
-3. Validar campos críticos:
-   - xG em `/matches-live-detail`
-   - Lista de bookmakers em `/matches-upcoming`
-   - Eventos de jogador em `/matches-live-events` (gols, assistências, cartões)
-   - Cobertura de ligas Brasileirão, Libertadores, Premier League, La Liga, MLS, etc.
-4. **Decisão go/no-go** baseada no relatório de probe
-
-### Fase 1 — Integração shadow (3-4 dias)
-1. Adicionar `FUTODDS_API_KEY` aos secrets do Lovable Cloud
-2. Criar `supabase/functions/_shared/futoddsProvider.ts` com mappers para o formato canônico já usado em `liveProvider.ts`
-3. Estender `live-provider-compare` para incluir Futodds (3-way A/B: AF vs SM vs Futodds)
-4. Painel admin: aba "Shadow Futodds vs API-Football" (similar à `ShadowAfApprovedTab`) — comparar approval rate, divergência de stats, settlement agreement em 7 dias
-5. **Sem impacto em produção** nesta fase
-
-### Fase 2 — Promoção a primário live (2-3 dias)
-1. `LIVE_PROVIDER_PRIMARY=futodds` (env var) com fallback automático para API-Football
-2. Migrar `useLiveMatches` e `analyze-live` para consumir Futodds
-3. Migrar `punter-settle-results-v3` para usar `/matches-ended` como primária (API-Football vira fallback)
-4. Manter cron de reconciliação shadow rodando 7 dias
-5. Monitorar: edge function logs, settlement agreement, divergência xG
-
-### Fase 3 — Substituição The Odds API + Sportmonks (3-4 dias)
-1. Migrar `smart-odds-scanner`, `sharp-money-detector`, `market-manipulation-detector` para `/matches-upcoming` e `/matches-live-full` (se cobertura de bookmakers for adequada)
-2. Migrar consumidores de Sportmonks (`live-provider-compare`, fallback de stats) — depois **remover `SPORTMONKS_API_KEY`**
-3. Avaliar manter The Odds API só para `check-odds-quota` e mercados não cobertos
-4. Atualizar memory: nova entrada `mem://technical-decisions/external-apis/futodds-primary-provider`
-
-### Fase 4 — Otimização (contínuo)
-1. Cache em `cached_odds_games` alimentado por `/matches-upcoming` (substitui cron atual de The Odds)
-2. Reduzir frequência de polling: 1 chamada `/matches-live-full` a cada 60s cobre dashboard inteiro
-3. Endpoint `/matches-cs` alimenta diretamente o motor de LAY GOLEADA / Eventos Raros
-
-## 4. Recomendação de decisão
-
-**Assinar o PREMIUM (R$250/mês) condicionado ao resultado da Fase 0 (probe).**
-
-| Condição na probe | Ação |
+| Problema hoje | Como o Futodds resolve |
 |---|---|
-| Cobre ≥80% das ligas atuais + xG live + ≥5 bookmakers + eventos de jogador | Assinar e seguir Fase 1-3. Economia líquida estimada: R$ 400-600/mês |
-| Cobre live mas sem player events confiáveis | Assinar mesmo assim, manter API-Football só para `mycroft-players-punter` |
-| Cobertura de ligas <50% ou sem xG | **Não assinar** — manter stack atual |
+| Odd estimada (`estimateLiveOdd.ts`) com erro grande | Substituída por **odd real Betfair Exchange** (back/lay) com volume — fim das estimativas |
+| xG/SofaScore enrichment frágil para pressão | `pressure_indices` + janelas 5/10/15/20min nativos no `/matches-betfair-live` |
+| Sportmonks + API-Football fallback complexo | 1 provedor primário cobre placar, stats, pressão, eventos, odds |
+| The Odds API só para snapshots | `/matches-betfair-upcoming` e `/matches-upcoming-detail` cobrem pré-live |
+| Liquidação dependente de 2 fontes | `/matches-ended` + `/matches-cs` resolvem |
 
-## 5. Detalhes técnicos
+## Decisão estratégica
 
-### Arquivos novos
-- `supabase/functions/futodds-probe/index.ts` — discovery (Fase 0)
-- `supabase/functions/_shared/futoddsProvider.ts` — adapter
-- `src/components/admin/FutoddsCompare.tsx` — painel A/B (Fase 1)
+Conforme sua orientação: **Futodds passa a ser o provedor PADRÃO para tudo ao vivo agora**. API-Football e Sportmonks ficam como fallback de segurança por 30 dias e depois são desligados (se métricas confirmarem cobertura). The Odds API é desligada após Fase 2.
 
-### Arquivos a editar (Fase 2-3)
-- `supabase/functions/_shared/liveProvider.ts` — adicionar `futodds` como source
-- `supabase/functions/analyze-live/index.ts`
-- `supabase/functions/punter-settle-results-v3/index.ts`
-- `supabase/functions/mycroft-extra-markets/index.ts`
-- `supabase/functions/mycroft-players-punter/index.ts`
-- `supabase/functions/mycroft-cards-punter/index.ts`
-- `supabase/functions/smart-odds-scanner/index.ts`
-- `supabase/functions/sharp-money-detector/index.ts`
-- `supabase/functions/market-manipulation-detector/index.ts`
-- `src/hooks/useLiveMatches.ts`
+## Fases revisadas
 
-### Secrets necessárias
-- `FUTODDS_API_KEY` (Bearer token mostrado em `/api-keys`)
-- `LIVE_PROVIDER_PRIMARY` (env var: `futodds` | `api_football` | `sportmonks`)
+### Fase 1 — Provider Futodds + smoke test (1 dia)
+1. Criar `supabase/functions/_shared/futoddsProvider.ts` espelhando a API de `liveProvider.ts` (`getLiveMatches`, `getFixtureStats`).
+2. Atualizar `futodds-probe` para também testar `/matches-betfair-live`, `/matches-betfair-live-compact`, `/matches-betfair-live-odds` (já valida endpoints reais com base URL `csv.futodds.com`).
+3. Rodar probe via `/admin/dashboard` para confirmar:
+   - Cobertura de ligas brasileiras + europeias whitelistadas
+   - Quantos jogos `is_betfair=true` aparecem em horário típico
+   - Latência das 7 chamadas-chave
 
-### Migration
-Tabela `futodds_probe_log` para auditar Fase 0 + tabela `futodds_shadow_comparison` para Fase 1 (similar ao shadow Sportmonks-AF já existente).
+### Fase 2 — Promover Futodds a primário (2 dias)
+1. Setar `LIVE_PROVIDER_PRIMARY=futodds` (env).
+2. `liveProvider.ts`: ordem de tentativa passa a ser **Futodds → Sportmonks → API-Football** (mantém os 2 como fallback).
+3. Adapter no `futoddsProvider.ts` converte resposta Futodds para o shape "API-Football compatível" já consumido por `update-live-scores`, `analyze-live`, etc. (mapeia `pressure_indices`, `last5min_stats`, ataques, posse, escanteios, chutes).
+4. Migrar `useLiveMatches.ts` (frontend) para consumir os campos novos `pressure_indices` e `last5min_stats` via mesma view de DB.
+5. Gráfico de pressão (`MatchPressureChart`, `MatchPressureModal`) passa a usar `pressure_indices` real do Futodds em vez de derivar de ataques.
+6. Placar ao vivo (`live_matches.score_home/away/minute/period`) alimentado pelo Futodds em `update-live-scores`.
 
-## Resumo executivo
+### Fase 3 — Odds Betfair reais (2 dias)
+1. Criar edge `futodds-live-odds` que recebe `event_id` Betfair e retorna odds back/lay para Over 0.5/1.5/2.5/3.5, BTTS, MATCH_ODDS, AH.
+2. Substituir `estimateLiveOdd.ts` no `useLivePrices`/`OddsComparator`/`ActivePositions` por fetch das odds Betfair reais (cache 30s alinhado com Redis deles).
+3. Eventos Raros (LAY GOLEADA/2x2/1x3/3x1) passam a usar `back_odds`/`lay_odds` reais do `/matches-betfair-live-odds` em vez de estimativas.
+4. Cashout passa a comparar `entry_odd` salvo vs `last_price_traded` real → P&L exato.
 
-- **Sportmonks**: substituível 100%
-- **API-Football**: manter como fallback nos próximos 30 dias; possível remoção se Futodds cobrir player events
-- **The Odds API**: substituível se Futodds expuser ≥5 bookmakers com snapshots; senão manter
-- **Sequência crítica**: probe → shadow A/B → promoção gradual → desativação dos antigos
-- **Não assinar antes de validar a probe** — risco de cobertura insuficiente de ligas/xG
+### Fase 4 — Aposentar fontes redundantes (3 dias, gradual)
+1. **The Odds API** → desligar após confirmar `/matches-betfair-upcoming` cobre odds pré-live (manter `check-odds-quota` apenas para monitoramento).
+2. **Sportmonks** → manter shadow 14 dias, depois desligar `SPORTMONKS_API_KEY` se Futodds tiver ≥95% paridade.
+3. **API-Football** → permanece **somente como fallback** para ligas que o Futodds não cobre (ex: amistosos obscuros) e para `/fixtures/events` na liquidação Punter (até validar `/matches-live-events` + `/matches-ended`).
+4. **SofaScore enrichment** → manter por mais 14 dias e desligar se `pressure_indices` + janelas Futodds substituírem com qualidade igual ou superior.
+
+### Fase 5 — Otimização (contínua)
+- Cache local em `cached_odds_games` alimentado por `/matches-upcoming` (1 chamada / 60s).
+- Reduzir polling live de 30s → 15s (Premium permite 10 req/s).
+- Painel admin "Futodds Health" com latência, taxa de erro, ligas cobertas.
+
+## Arquivos a criar
+- `supabase/functions/_shared/futoddsProvider.ts` — adapter Futodds → shape compat
+- `supabase/functions/futodds-live-odds/index.ts` — proxy odds Betfair reais
+- `src/components/admin/FutoddsHealth.tsx` — painel de saúde
+
+## Arquivos a editar
+- `supabase/functions/_shared/liveProvider.ts` — adicionar Futodds como 1º provedor
+- `supabase/functions/update-live-scores/index.ts` — consumir `pressure_indices` + janelas
+- `supabase/functions/analyze-live/index.ts` — usar pressão real
+- `supabase/functions/punter-settle-results-v3/index.ts` — usar `/matches-ended`
+- `supabase/functions/futodds-probe/index.ts` — incluir endpoints Betfair
+- `src/lib/estimateLiveOdd.ts` — DEPRECAR (substituir por fetch Futodds odds)
+- `src/components/dashboard/OddsComparator.tsx` — odds reais Betfair
+- `src/components/dashboard/MatchPressureChart.tsx` + `MatchPressureModal.tsx` — `pressure_indices`
+- `src/components/dashboard/ActivePositions.tsx` — cashout com `last_price_traded`
+- `src/hooks/useLiveMatches.ts` — expor novos campos
+- `src/hooks/useLivePrices.ts` — fonte Betfair real
+
+## O que NÃO precisamos mais
+
+- **The Odds API** — substituída por `/matches-betfair-upcoming` + `/matches-betfair-live-odds`
+- **Sportmonks** — substituída por `/matches-live-full` + `/matches-betfair-live`
+- **SofaScore live enrichment** — substituído por `pressure_indices` + janelas nativas
+- **`estimateLiveOdd.ts`** — substituído por odds Betfair reais
+
+API-Football permanece **apenas como cinto de segurança** para ligas raras nos primeiros 30 dias.
+
+## Riscos e mitigações
+- **Cobertura Betfair < 100%**: nem todo jogo whitelistado terá `is_betfair=true`. Mitigação: para esses, usar `/matches-live-full` (sem odds Betfair, mas com stats) e cair em odd estimada apenas como último recurso.
+- **Cache 30s nas odds**: pode não ser ideal para cashout em janelas críticas. Mitigação: marcar timestamp da odd e exibir "atrasada Xs" no UI.
+- **Plano FREE atual (100 req/dia)**: não suporta produção. Necessário **assinar Premium R$250/mês ANTES da Fase 2**.
+
+## Próximo passo
+
+Você confirma esta direção e podemos começar pela **Fase 1**: rodar o probe ajustado (com base URL correta `csv.futodds.com` e endpoints Betfair) para mapear cobertura real antes de qualquer mudança no código de produção. Já com a `FUTODDS_API_KEY` que você cadastrou, rodo o probe e te trago o relatório de cobertura/latência para decidirmos se pulamos direto para Fase 2.
