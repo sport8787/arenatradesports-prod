@@ -4,6 +4,23 @@ import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
 import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
+import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
+
+// Cache de odds_live (Futodds /matches-live-full) por execução
+let _futoddsOddsCache: { ts: number; list: any[] } | null = null;
+async function getFutoddsOddsCached(maxAgeMs = 25_000): Promise<any[]> {
+  const now = Date.now();
+  if (_futoddsOddsCache && now - _futoddsOddsCache.ts < maxAgeMs) return _futoddsOddsCache.list;
+  try {
+    const list = await fetchFutoddsList("/matches-live-full", { ttlMs: 25_000 });
+    _futoddsOddsCache = { ts: now, list: list || [] };
+    return _futoddsOddsCache.list;
+  } catch (e) {
+    console.warn("[AnalyzeLive] futodds odds (live-full) fetch falhou:", (e as Error)?.message);
+    _futoddsOddsCache = { ts: now, list: [] };
+    return [];
+  }
+}
 
 // Cache de fixtures Futodds por execução (1 chamada por loop)
 let _futoddsLiveCache: { ts: number; fixtures: any[] } | null = null;
@@ -319,6 +336,39 @@ serve(async (req) => {
             _backfill("xg_away", (fds as any).xg_away);
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
+
+            // 💰 Persistir odds ao vivo (Futodds /matches-live-full → odds_live FLAT)
+            // shape do endpoint: { home, draw, away, over_25, over_15, btts_yes, ... }
+            try {
+              const oddsList = await getFutoddsOddsCached();
+              const h = _normTeam(match.home_team);
+              const a = _normTeam(match.away_team);
+              const fdOddMatch = oddsList.find((m: any) =>
+                _pairMatch(m.home_name || '', match.home_team) && _pairMatch(m.away_name || '', match.away_team)
+              ) || oddsList.find((m: any) => {
+                const mh = _normTeam(m.home_name || ''); const ma = _normTeam(m.away_name || '');
+                return (mh.includes(h) || h.includes(mh)) && (ma.includes(a) || a.includes(ma));
+              });
+              const ol = fdOddMatch?.odds_live || {};
+              const flat = {
+                home: Number(ol?.home) || null,
+                draw: Number(ol?.draw) || null,
+                away: Number(ol?.away) || null,
+                over25: Number(ol?.over_25) || null,
+                under25: Number(ol?.under_25) || null,
+                bookmaker: 'Futodds',
+                updated_at: new Date().toISOString(),
+              };
+              if (flat.home || flat.draw || flat.away || flat.over25) {
+                await supabase.from('live_matches').update({
+                  odds_live: flat,
+                  updated_at: new Date().toISOString(),
+                }).eq('match_id', match.match_id);
+                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
+              }
+            } catch (oddsErr) {
+              console.warn('[AnalyzeLive] odds_live persist failed:', (oddsErr as Error)?.message);
+            }
             console.log(`[AnalyzeLive] 🔵 Futodds backfill ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} | poss=${fds.possession_home}/${fds.possession_away} | shots=${fds.shots_total_home}/${fds.shots_total_away} | dAtk=${fds.dangerous_attacks_home}/${fds.dangerous_attacks_away} | corners=${fds.corners_home}/${fds.corners_away}`);
           }
         } catch (fdErr) {
