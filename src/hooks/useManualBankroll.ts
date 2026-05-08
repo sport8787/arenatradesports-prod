@@ -93,6 +93,17 @@ export function useManualBankroll() {
       return { success: false, error: 'Saldo insuficiente' };
     }
 
+    // Anti-trapaça: bloqueia aposta virtual em jogos que já começaram
+    if (params.commence_time) {
+      const kickoffMs = new Date(params.commence_time).getTime();
+      if (Number.isFinite(kickoffMs) && kickoffMs <= Date.now()) {
+        return {
+          success: false,
+          error: 'Jogo já começou — apostas virtuais só são aceitas antes do kickoff (regra anti-trapaça BC).',
+        };
+      }
+    }
+
     const { error: betError } = await supabase
       .from('virtual_bets_manual' as any)
       .insert({
