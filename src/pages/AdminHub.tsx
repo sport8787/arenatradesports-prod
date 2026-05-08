@@ -122,6 +122,13 @@ const LINKS: AdminLink[] = [
     icon: <Activity className="h-4 w-4" />,
     group: 'Mycroft',
   },
+  {
+    to: '/admin/trader-leagues',
+    label: 'Trader Sports — Ligas',
+    description: 'Gerenciar whitelist e tiers (A/B/C) das ligas analisadas pelo Trader.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Operação',
+  },
 ];
 
 const groupOrder: AdminLink['group'][] = ['Usuários', 'Operação', 'Análise', 'Mycroft', 'Logs'];

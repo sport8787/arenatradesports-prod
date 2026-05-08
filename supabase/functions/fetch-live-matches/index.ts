@@ -4,6 +4,7 @@ import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
+import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
 // Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
 //               'api-football' (default) = comportamento legado
@@ -57,34 +58,8 @@ async function runWithConcurrency<T, R>(
   return results;
 }
 
-// Whitelist de ligas permitidas (league_id → nome)
-// REDUZIDA: apenas principais ligas para economizar quota da API
-const LIGAS_PERMITIDAS: Record<number, string> = {
-  // Europa — Top 5
-  39:  "Premier League",
-  140: "La Liga",
-  135: "Serie A",
-  78:  "Bundesliga",
-  61:  "Ligue 1",
-  // Portugal
-  94:  "Primeira Liga (Portugal)",
-  // UEFA Competições
-  2:   "Champions League",
-  3:   "Europa League",
-  848: "Conference League",
-  // Brasil
-  71:  "Brasileirão Série A",
-  72:  "Brasileirão Série B",
-  75:  "Copa Do Brasil",
-  // América do Sul — copas continentais
-  13:  "Libertadores",
-  11:  "Sul-Americana",
-  // Mundo
-  1:   "Copa do Mundo",
-  15:  "Copa do Mundo — Qualificatórias",
-};
-
-// IDs de ligas bloqueadas
+// Whitelist de ligas: agora vem da tabela public.trader_leagues
+// (gerenciada via /admin/trader-leagues). Mantemos apenas IDs sempre bloqueados.
 const LIGAS_BLOQUEADAS: number[] = [
   667, // Amistosos clubes
 ];
@@ -304,10 +279,11 @@ serve(async (req) => {
     }
     console.log(`[FetchLive] Found ${allFixtures.length} total live matches via ${providerUsed}`);
 
-    // 1b. Filtrar apenas ligas permitidas
+    // 1b. Filtrar apenas ligas permitidas (registry dinâmico)
+    const allowedIds = await getAllowedLeagueIds();
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
-      return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
+      return typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId);
     });
 
     console.log(`[FetchLive] ✅ ${fixtures.length}/${allFixtures.length} jogos passaram no filtro de ligas`);

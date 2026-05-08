@@ -12,6 +12,11 @@ import {
   getRecentFixturesSM,
   getTeamStatsSM,
 } from '../_shared/sportmonks-af-adapter.ts'
+import {
+  getAllowedLeagueIds,
+  getOddsSportKeyMap,
+  getLeagueTier,
+} from '../_shared/leaguesRegistry.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,36 +37,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY)
 const AF_BASE  = 'https://v3.football.api-sports.io'
 
 // =============================================================================
-// LIGAS PERMITIDAS (campeonatos regulares — sem copas)
-// =============================================================================
-const LIGAS_PERMITIDAS = new Set([
-  71, 72,         // Brasileirão A e B
-  39, 40,         // Premier League, Championship
-  140,            // La Liga
-  135,            // Serie A
-  78, 79,         // Bundesliga 1 e 2
-  61,             // Ligue 1
-  94,             // Primeira Liga
-  203,            // Süper Lig
-  144,            // Jupiler Pro League
-  88,             // Eredivisie
-  179,            // Scottish Premiership
-  253,            // MLS
-  262,            // Liga MX
-  197,            // Super League Grécia
-  307,            // Saudi Pro League
-])
-
-// Mapeamento de ligas para odds API sport key
-const LIGAS_ODDS_API: Record<number, string> = {
-  39: 'soccer_epl',
-  140: 'soccer_spain_la_liga',
-  135: 'soccer_italy_serie_a',
-  78: 'soccer_germany_bundesliga',
-  61: 'soccer_france_ligue_one',
-  71: 'soccer_brazil_campeonato',
-  88: 'soccer_netherlands_eredivisie',
-  94: 'soccer_portugal_primeira_liga',
+// LIGAS PERMITIDAS — vêm do registry (tabela trader_leagues, tiers A+B)
+// Tier C (cauda longa) NÃO é processado pelo Plano Favorito (sem IA pré-live).
+let _allowedFavCache: { ts: number; ids: Set<number>; oddsMap: Record<number, string> } | null = null;
+async function getAllowedFav(): Promise<{ ids: Set<number>; oddsMap: Record<number, string> }> {
+  if (_allowedFavCache && Date.now() - _allowedFavCache.ts < 30 * 60 * 1000) return _allowedFavCache;
+  const [allIds, oddsMap] = await Promise.all([getAllowedLeagueIds(), getOddsSportKeyMap()])
+  const ab = new Set<number>()
+  for (const id of allIds) {
+    const t = await getLeagueTier(id)
+    if (t === 'A' || t === 'B') ab.add(id)
+  }
+  _allowedFavCache = { ts: Date.now(), ids: ab, oddsMap }
+  return _allowedFavCache
 }
 
 // =============================================================================
@@ -165,18 +153,18 @@ async function getH2H(homeId: number, awayId: number, last = 5): Promise<Fixture
 }
 
 async function getUpcomingFixtures(): Promise<any[]> {
+  const { ids: ALLOWED } = await getAllowedFav()
   if (DATA_SOURCE === 'sportmonks') {
-    const ligasAF = Array.from(LIGAS_PERMITIDAS)
+    const ligasAF = Array.from(ALLOWED)
     return await getUpcomingFixturesSM(ligasAF, 36)
   }
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
   const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
   const season = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1
-  // Brazilian leagues use the calendar year as season
   const seasonBR = now.getUTCFullYear()
 
-  const ligas = Array.from(LIGAS_PERMITIDAS)
+  const ligas = Array.from(ALLOWED)
   const all: any[] = []
 
   // Busca em paralelo (lotes de 4 para respeitar rate limit)
@@ -254,7 +242,8 @@ async function getOdds(
   leagueId: number,
   fixtureId: number,
 ): Promise<OddsMarket> {
-  const sportKey = LIGAS_ODDS_API[leagueId]
+  const { oddsMap } = await getAllowedFav()
+  const sportKey = oddsMap[leagueId]
 
   // Tenta The Odds API primeiro (se mapeada e chave configurada)
   if (sportKey && ODDS_API_KEY) {
@@ -872,7 +861,8 @@ _Oráculo Mycroft | Bluffer Entertainment_
 
 async function analisarJogo(fixture: any): Promise<Analise | null> {
   const { fixture: fix, league, teams } = fixture
-  if (!LIGAS_PERMITIDAS.has(league.id)) return null
+  const { ids: ALLOWED } = await getAllowedFav()
+  if (!ALLOWED.has(league.id)) return null
 
   // Busca odds
   const odds = await getOdds(teams.home.name, teams.away.name, league.id, fix.id)
