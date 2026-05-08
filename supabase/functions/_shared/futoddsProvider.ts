@@ -98,6 +98,8 @@ function toAfFixture(m: any): any {
       dangerous_attacks_away: Number(datkA) || 0,
       corners_home: Number(corH) || 0,
       corners_away: Number(corA) || 0,
+      xg_home: xgHome,
+      xg_away: xgAway,
       pressure_home: m.pressure_indices?.home ?? null,
       pressure_away: m.pressure_indices?.away ?? null,
       pressure_total: m.pressure_indices?.total ?? null,
