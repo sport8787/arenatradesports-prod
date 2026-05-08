@@ -82,7 +82,9 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
           p.market.toLowerCase().includes(targetKey) || 
           p.market.toLowerCase().includes('h2h')
         );
-        setOdds(filtered.length > 0 ? filtered.slice(0, 15) : parsed.slice(0, 15));
+        const finalList = filtered.length > 0 ? filtered.slice(0, 15) : parsed.slice(0, 15);
+        setOdds([...bfRow, ...finalList]);
+
       } else {
         // Fallback: check arena_odds table
         const { data: arenaOdds } = await supabase
