@@ -18,6 +18,8 @@ import FutoddsProbe from '@/components/admin/FutoddsProbe';
 type User = {
   id: string;
   email: string;
+  full_name: string | null;
+  username: string | null;
   created_at: string;
   last_sign_in_at: string | null;
   plan: string | null;
