@@ -7326,12 +7326,12 @@ export type Database = {
       refresh_arena_calibration: {
         Args: { p_arena: string; p_limit?: number }
         Returns: {
-          arena: string
-          delta: number
-          effective_min_confidence: number
-          hit_rate: number
-          roi: number
-          sample_size: number
+          out_arena: string
+          out_delta: number
+          out_effective_min_confidence: number
+          out_hit_rate: number
+          out_roi: number
+          out_sample_size: number
         }[]
       }
       relink_mycroft_analyses: {
