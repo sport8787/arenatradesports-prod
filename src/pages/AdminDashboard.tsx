@@ -38,6 +38,7 @@ type Data = {
     active3d: number;
     neverReturned: number;
     trialExpiringSoon: number;
+    trialExpired: number;
     paidActive: number;
   };
   conversion: {
@@ -51,12 +52,13 @@ type Data = {
   feed: { type: string; email: string; timestamp: string }[];
 };
 
-const FILTERS = ['Todos', 'Ativos hoje', 'Inativos', 'Trial expirando', 'Pagos'] as const;
+const FILTERS = ['Todos', 'Ativos hoje', 'Inativos', 'Trial expirando', 'Trial expirado', 'Pagos'] as const;
 type Filter = (typeof FILTERS)[number];
 
 const statusColor: Record<string, string> = {
   'Pago': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   'Trial expirando': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  'Trial expirado': 'bg-destructive/15 text-destructive border-destructive/40',
   'Ativo hoje': 'bg-primary/15 text-primary border-primary/30',
   'Ativo recente': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   'Inativo': 'bg-muted text-muted-foreground border-border',
