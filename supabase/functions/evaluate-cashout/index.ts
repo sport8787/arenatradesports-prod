@@ -1129,10 +1129,12 @@ Deno.serve(async (req) => {
         console.log(`[evaluate-cashout] ${pos.match_name} | @${entryOdd}→${oddAtual} | R$${cashoutValue} | ${saude} | signal=${sinal} | ${oddFonte}`);
 
         // Update position — Under 2.5 (u25) tem prioridade sobre a saúde genérica.
-        const finalSinal = (u25?.triggered ?? false) || (futoddsAlert?.triggered ?? false) || sinal;
+        const finalSinal = (u25?.triggered ?? false) || (futoddsAlert?.triggered ?? false) || (shiftAlert?.triggered ?? false) || sinal;
         const finalMotivo = u25?.triggered
           ? u25.motivo
-          : (futoddsAlert?.triggered ? futoddsAlert.motivo : (sinal ? motivo : null));
+          : (futoddsAlert?.triggered
+            ? futoddsAlert.motivo
+            : (shiftAlert?.triggered ? shiftAlert.motivo : (sinal ? motivo : null)));
         await supabase.from('virtual_bets').update({
           current_odd: oddAtual, cashout_value: cashoutValue, cashout_odd: oddAtual,
           odd_fonte: oddFonte,
