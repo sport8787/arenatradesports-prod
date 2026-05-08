@@ -694,15 +694,25 @@ serve(async (req) => {
     }
 
     // === GUARD TEMPORAL UNDER 2.5 ===
-    // Veta qualquer aprovação de Under 2.5 antes do minuto 10 — jogos só "esquentam" depois disso.
-    // Antes do min 10, ausência de ações ofensivas é o estado padrão (não viés confirmatório).
-    if (
-      analysis.verdict === 'APROVADO' &&
-      typeof analysis.market === 'string' &&
-      /under\s*2\.?5/i.test(analysis.market) &&
-      (match.minute ?? 0) < 10
-    ) {
-      const motivoVeto = `Under 2.5 aprovado prematuramente (min ${match.minute ?? 0} < 10). Jogo precisa de janela de confirmação até o min 10 antes de validar baixa atividade.`;
+    // Janela válida: 1º tempo, do minuto 10 até o minuto 20.
+    // Antes dos 10 min: jogo ainda está se acomodando (viés confirmatório).
+    // Depois dos 20 min ou no 2º tempo: o EV do Under 2.5 cai e a odd não compensa.
+    {
+      const _uMin = match.minute ?? 0;
+      const _uPeriod = String((match as any).period || '').toUpperCase();
+      const _isSecondHalfOrLater =
+        _uMin > 45 ||
+        _uPeriod.includes('SECOND') || _uPeriod.includes('2H') || _uPeriod === 'HT' ||
+        _uPeriod.includes('HALF_TIME') || _uPeriod.includes('HALFTIME') ||
+        _uPeriod.includes('EXTRA') || _uPeriod === 'FT' || _uPeriod.includes('FULL_TIME');
+      const _outOfWindow = _uMin < 10 || _uMin > 20 || _isSecondHalfOrLater;
+      if (
+        analysis.verdict === 'APROVADO' &&
+        typeof analysis.market === 'string' &&
+        /under\s*2\.?5/i.test(analysis.market) &&
+        _outOfWindow
+      ) {
+      const motivoVeto = `Under 2.5 fora da janela permitida (min ${_uMin}, period=${_uPeriod || 'n/d'}). Só é aprovado entre minuto 10 e 20 do 1º tempo.`;
       console.warn(`[MycroftSports] 🛑 VETO TEMPORAL: ${motivoVeto}`);
       try {
         await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
@@ -718,7 +728,8 @@ serve(async (req) => {
       } catch (e) { console.warn('[MycroftSports] Falha log veto temporal:', e); }
       analysis.verdict = 'AGUARDAR';
       analysis.plan_name = null;
-      analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado a partir do minuto 10 — aguardar janela de confirmação.`];
+      analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado entre o minuto 10 e o minuto 20 do 1º tempo.`];
+      }
     }
 
     // === VETO GLOBAL: BACK FAVORITO COM VALOR ===
@@ -947,7 +958,14 @@ serve(async (req) => {
       const u_xgTotal = (u_s.xG_home ?? u_s.xg_home ?? 0) + (u_s.xG_away ?? u_s.xg_away ?? 0);
       const u_underOdd = match.under_odd ?? 1.85;
 
-      const u_isEarly = u_min >= 10 && u_min <= 30;
+      const u_period = String((match as any).period || '').toUpperCase();
+      const u_isFirstHalf = !(
+        u_min > 45 ||
+        u_period.includes('SECOND') || u_period.includes('2H') || u_period === 'HT' ||
+        u_period.includes('HALF_TIME') || u_period.includes('HALFTIME') ||
+        u_period.includes('EXTRA') || u_period === 'FT' || u_period.includes('FULL_TIME')
+      );
+      const u_isEarly = u_min >= 10 && u_min <= 20 && u_isFirstHalf;
       const u_isScoreless = u_totalGoals === 0;
       const u_isDeadGame = u_dangerousTotal <= 4 && u_sotTotal <= 1 && u_xgTotal <= 0.3;
       // Evidência mínima: garante que stats não estão simplesmente zeradas por falha da API.
@@ -1079,7 +1097,9 @@ serve(async (req) => {
         const insideBoxOk = shotsInside >= 4;
         const defenseOk = oppShotsTotal <= 2 && oppShotsOn <= 1 && oppXg <= 0.2;
         const xgOk = xg >= 0.8 && xg > oppXg + 0.5;
-        const scoreOk = score >= oppScore;
+        // scoreOk removido — dominância estatística não depende mais do placar atual.
+        // O placar é tratado a jusante para escolher entre BACK ao dominante (empate)
+        // ou LAY ao vencedor (dominante perdendo).
 
         let criteriaMet = 0;
         if (possOk) criteriaMet++;
@@ -1088,7 +1108,7 @@ serve(async (req) => {
         if (defenseOk) criteriaMet++;
         if (xgOk) criteriaMet++;
 
-        return { ok: criteriaMet >= 4 && scoreOk && d_min >= 15, criteriaMet };
+        return { ok: criteriaMet >= 4 && d_min >= 15, criteriaMet };
       }
 
       const homeDom = isDominant('home');
@@ -1150,7 +1170,10 @@ serve(async (req) => {
         }
       }
 
-      // APROVAÇÃO server-side
+      // APROVAÇÃO server-side (rotas baseadas no placar):
+      //  - Empate (placar igual)         → BACK ao dominante (plano clássico)
+      //  - Dominante perdendo            → LAY ao time que está vencendo (PLANO LAY AO VENCEDOR)
+      //  - Dominante já vencendo          → NÃO aprovar (sem valor; odd já caiu)
       if (
         dominantTeam &&
         !d_priorActiveSignal &&
@@ -1158,47 +1181,108 @@ serve(async (req) => {
         analysis.verdict !== 'APROVADO_SITUACIONAL' &&
         analysis.plan_name !== 'CANCELAMENTO BACK AO DOMINANTE'
       ) {
-        const odd = dominantTeam === 'home' ? (match.odds?.home ?? 0) : (match.odds?.away ?? 0);
         const teamName = dominantTeam === 'home' ? match.home : match.away;
+        const oppName = dominantTeam === 'home' ? match.away : match.home;
         const dPoss = dominantTeam === 'home' ? possH : possA;
         const dShotsTotal = dominantTeam === 'home' ? shotsTotalH : shotsTotalA;
         const dShotsOn = dominantTeam === 'home' ? shotsOnH : shotsOnA;
         const dShotsInside = dominantTeam === 'home' ? shotsInsideH : shotsInsideA;
         const dXg = dominantTeam === 'home' ? xgHd : xgAd;
+        const dScore = dominantTeam === 'home' ? d_scoreH : d_scoreA;
+        const oppScore = dominantTeam === 'home' ? d_scoreA : d_scoreH;
 
-        if (odd >= 1.40 && odd <= 2.20) {
-          console.log(`[MycroftSports] 👑 OVERRIDE APROVADO: Back Dominante ${teamName} (odd ${odd}) — ${match.home} vs ${match.away} (${d_min}')`);
-          analysis.verdict = 'APROVADO';
-          analysis.plan_name = 'PLANO BACK AO DOMINANTE';
-          analysis.market = `Back ${teamName}`;
-          analysis.odd = odd;
-          analysis.confidence = 78;
-          analysis.thesis = `🔱 MYCROFT ATIVOU — PLANO BACK AO DOMINANTE. ${teamName} dominando: posse ${dPoss}%, ${dShotsTotal} finalizações (${dShotsOn} no alvo), ${dShotsInside} ataques perigosos, xG ${dXg.toFixed(2)}. Adversário sem reação. Odd ${odd} com valor.`;
-          analysis.risk_management = {
-            stake_percent: 4,
-            stake_value: (match.bankroll ?? 500) * 0.04,
-            entry: `${teamName} @ ${odd}`,
-            stop: 'Gol sofrido ou perda de dominância por 5 minutos',
-            target: `Vitória de ${teamName}`,
-            rr: `1:${(odd - 1).toFixed(1)}`,
-            ev: `+${Math.round((0.78 * odd - 1) * 100)}%`,
-          };
+        const isDraw = dScore === oppScore;
+        const dominantLosing = dScore < oppScore;
+        const dominantWinning = dScore > oppScore;
+
+        if (dominantWinning) {
           analysis.alerts = [
-            `✅ Time dominante: ${teamName}. Monitorar se mantém supremacia.`,
-            `⚠️ Se sofrer gol ou estatísticas se igualarem por 5 min, cancelar sinal.`,
+            ...(analysis.alerts || []),
+            `ℹ️ ${teamName} domina E já vence (${d_scoreH}x${d_scoreA}). Sem valor para BACK ao dominante — odd já caiu.`,
           ];
-          analysis.fundamentation = {
-            ...(analysis.fundamentation || {}),
-            override: 'server_side_back_dominante',
-            criteria_met: dominantTeam === 'home' ? homeDom.criteriaMet : awayDom.criteriaMet,
-            stats_snapshot: { possH, possA, shotsTotalH, shotsTotalA, shotsOnH, shotsOnA, shotsInsideH, shotsInsideA, xgH: xgHd, xgA: xgAd, minute: d_min },
-          };
-        } else if (odd > 0 && odd < 1.40) {
-          analysis.alerts = [...(analysis.alerts || []), `⚠️ Time dominante ${teamName} com odd ${odd} muito baixa (<1.40). Sem valor.`];
-        } else if (odd > 2.20) {
-          analysis.alerts = [...(analysis.alerts || []), `⚠️ Time dominante ${teamName} com odd ${odd} acima de 2.20. Aguardar.`];
-        } else if (odd === 0) {
-          analysis.alerts = [...(analysis.alerts || []), `ℹ️ Dominância detectada (${teamName}) mas odd Match Odds não disponível para validação.`];
+        } else if (isDraw) {
+          // ── ROTA 1: BACK AO DOMINANTE (apenas em empate)
+          const odd = dominantTeam === 'home' ? (match.odds?.home ?? 0) : (match.odds?.away ?? 0);
+          if (odd >= 1.40 && odd <= 2.20) {
+            console.log(`[MycroftSports] 👑 OVERRIDE APROVADO: Back Dominante ${teamName} (odd ${odd}, placar ${d_scoreH}x${d_scoreA}) — ${match.home} vs ${match.away} (${d_min}')`);
+            analysis.verdict = 'APROVADO';
+            analysis.plan_name = 'PLANO BACK AO DOMINANTE';
+            analysis.market = `Back ${teamName}`;
+            analysis.odd = odd;
+            analysis.confidence = 78;
+            analysis.thesis = `🔱 MYCROFT ATIVOU — PLANO BACK AO DOMINANTE. Placar ${d_scoreH}x${d_scoreA} aos ${d_min}'. ${teamName} dominando: posse ${dPoss}%, ${dShotsTotal} finalizações (${dShotsOn} no alvo), ${dShotsInside} ataques perigosos, xG ${dXg.toFixed(2)}. Adversário sem reação. Odd ${odd} com valor.`;
+            analysis.risk_management = {
+              stake_percent: 4,
+              stake_value: (match.bankroll ?? 500) * 0.04,
+              entry: `${teamName} @ ${odd}`,
+              stop: 'Gol sofrido ou perda de dominância por 5 minutos',
+              target: `Vitória de ${teamName}`,
+              rr: `1:${(odd - 1).toFixed(1)}`,
+              ev: `+${Math.round((0.78 * odd - 1) * 100)}%`,
+            };
+            analysis.alerts = [
+              `✅ Time dominante: ${teamName} (placar ${d_scoreH}x${d_scoreA}). Monitorar se mantém supremacia.`,
+              `⚠️ Se sofrer gol ou estatísticas se igualarem por 5 min, cancelar sinal.`,
+            ];
+            analysis.fundamentation = {
+              ...(analysis.fundamentation || {}),
+              override: 'server_side_back_dominante',
+              score_state: 'draw',
+              criteria_met: dominantTeam === 'home' ? homeDom.criteriaMet : awayDom.criteriaMet,
+              stats_snapshot: { possH, possA, shotsTotalH, shotsTotalA, shotsOnH, shotsOnA, shotsInsideH, shotsInsideA, xgH: xgHd, xgA: xgAd, minute: d_min, score: `${d_scoreH}x${d_scoreA}` },
+            };
+          } else if (odd > 0 && odd < 1.40) {
+            analysis.alerts = [...(analysis.alerts || []), `⚠️ ${teamName} (dominante, empate ${d_scoreH}x${d_scoreA}) com odd ${odd} muito baixa (<1.40). Sem valor.`];
+          } else if (odd > 2.20) {
+            analysis.alerts = [...(analysis.alerts || []), `⚠️ ${teamName} (dominante, empate ${d_scoreH}x${d_scoreA}) com odd ${odd} acima de 2.20. Aguardar.`];
+          } else if (odd === 0) {
+            analysis.alerts = [...(analysis.alerts || []), `ℹ️ Dominância detectada (${teamName}, empate) mas odd Match Odds não disponível.`];
+          }
+        } else if (dominantLosing) {
+          // ── ROTA 2: LAY AO VENCEDOR (dominante perdendo paradoxalmente)
+          // O time que está VENCENDO é o oponente do dominante. Apostamos contra ele (LAY).
+          const oppOdd = dominantTeam === 'home' ? (match.odds?.away ?? 0) : (match.odds?.home ?? 0);
+          // LAY tem valor quando a odd do vencedor não está absurdamente alta
+          // (oppOdd pequena = mercado já precificou vitória do "errado", prêmio bom no LAY).
+          if (oppOdd >= 1.50 && oppOdd <= 4.50) {
+            const layLiability = +(oppOdd - 1).toFixed(2);
+            console.log(`[MycroftSports] 🛡️ OVERRIDE APROVADO: LAY ao Vencedor ${oppName} (odd ${oppOdd}, placar ${d_scoreH}x${d_scoreA}, dominante=${teamName} perdendo) — ${match.home} vs ${match.away} (${d_min}')`);
+            analysis.verdict = 'APROVADO';
+            analysis.plan_name = 'PLANO LAY AO VENCEDOR';
+            analysis.market = `Lay ${oppName}`;
+            analysis.odd = oppOdd;
+            analysis.confidence = 74;
+            analysis.thesis = `🛡️ MYCROFT ATIVOU — PLANO LAY AO VENCEDOR. Paradoxo estatístico: ${teamName} domina (posse ${dPoss}%, ${dShotsTotal} finalizações, ${dShotsInside} ataques perigosos, xG ${dXg.toFixed(2)}) mas PERDE por ${d_scoreH}x${d_scoreA} aos ${d_min}'. Apostamos LAY em ${oppName} — mercado superprecificou a vantagem do placar e a regressão à média favorece reação do dominante.`;
+            analysis.risk_management = {
+              stake_percent: 3,
+              stake_value: (match.bankroll ?? 500) * 0.03,
+              entry: `LAY ${oppName} @ ${oppOdd} (liability ${layLiability}x stake)`,
+              stop: 'Segundo gol do time vencedor ou perda da pressão dominante por 5 min',
+              target: `Empate ou vitória de ${teamName}`,
+              rr: `1:${(1 / Math.max(0.01, oppOdd - 1)).toFixed(2)}`,
+              ev: `+${Math.round((0.74 - (1 / oppOdd)) * 100)}%`,
+            };
+            analysis.alerts = [
+              `🛡️ LAY em ${oppName} (placar ${d_scoreH}x${d_scoreA}, dominante=${teamName} reagindo).`,
+              `⚠️ Liability = ${layLiability}× stake. Sair se ${oppName} marcar segundo gol.`,
+              `⚠️ Sair também se ${teamName} perder a pressão por 5 minutos seguidos.`,
+            ];
+            analysis.fundamentation = {
+              ...(analysis.fundamentation || {}),
+              override: 'server_side_lay_ao_vencedor',
+              score_state: 'dominant_losing',
+              dominant_team: teamName,
+              losing_team_to_lay: oppName,
+              criteria_met: dominantTeam === 'home' ? homeDom.criteriaMet : awayDom.criteriaMet,
+              stats_snapshot: { possH, possA, shotsTotalH, shotsTotalA, shotsOnH, shotsOnA, shotsInsideH, shotsInsideA, xgH: xgHd, xgA: xgAd, minute: d_min, score: `${d_scoreH}x${d_scoreA}` },
+            };
+          } else if (oppOdd > 0 && oppOdd < 1.50) {
+            analysis.alerts = [...(analysis.alerts || []), `⚠️ ${oppName} vence ${d_scoreH}x${d_scoreA} mas odd ${oppOdd} < 1.50: liability muito baixo, sem valor para LAY.`];
+          } else if (oppOdd > 4.50) {
+            analysis.alerts = [...(analysis.alerts || []), `⚠️ ${oppName} vence mas odd ${oppOdd} > 4.50: liability alto demais. Aguardar.`];
+          } else if (oppOdd === 0) {
+            analysis.alerts = [...(analysis.alerts || []), `ℹ️ ${teamName} domina e perde, mas odd de ${oppName} indisponível para LAY.`];
+          }
         }
       }
     }
