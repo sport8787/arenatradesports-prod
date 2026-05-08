@@ -14,6 +14,8 @@ interface Snapshot {
   open_lay_odd: number | null;
   open_mid_odd: number | null;
   open_edge_pp: number | null;
+  close_mid_odd: number | null;
+  clv_pp: number | null;
   demoted_by_exchange: boolean | null;
   bookmaker_edge_pp: number | null;
 }
@@ -32,7 +34,7 @@ export default function ExchangeEdgeBadge({ matchId, market, className }: Props)
     (async () => {
       const { data } = await supabase
         .from('punter_clv_log')
-        .select('open_back_odd,open_lay_odd,open_mid_odd,open_edge_pp,demoted_by_exchange,bookmaker_edge_pp')
+        .select('open_back_odd,open_lay_odd,open_mid_odd,open_edge_pp,close_mid_odd,clv_pp,demoted_by_exchange,bookmaker_edge_pp')
         .eq('match_id', matchId)
         .eq('market', market)
         .maybeSingle();
@@ -50,13 +52,23 @@ export default function ExchangeEdgeBadge({ matchId, market, className }: Props)
       ? 'border-[hsl(142,71%,45%)]/40 bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,65%)]'
       : 'border-border bg-secondary/30 text-muted-foreground';
 
+  const clv = snap.clv_pp != null ? Number(snap.clv_pp) : null;
+  const clvTone = clv == null ? 'text-muted-foreground'
+    : clv > 0 ? 'text-[hsl(142,71%,65%)]'
+    : clv < 0 ? 'text-[hsl(0,84%,75%)]' : 'text-muted-foreground';
+
   return (
-    <div className={cn('rounded border px-2 py-1.5 flex items-center gap-2 text-[10px] font-mono', tone, className)}>
+    <div className={cn('rounded border px-2 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-mono', tone, className)}>
       {snap.demoted_by_exchange ? <ShieldAlert className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
       <span className="font-orbitron uppercase tracking-wider text-[9px]">Edge real (Exchange)</span>
       <span className="font-bold">{edge >= 0 ? '+' : ''}{edge.toFixed(1)}pp</span>
       <span className="opacity-70">· back {snap.open_back_odd?.toFixed(2) ?? '—'} / lay {snap.open_lay_odd?.toFixed(2) ?? '—'}</span>
-      {snap.demoted_by_exchange && <span className="ml-auto uppercase">Falso valor</span>}
+      {clv != null && (
+        <span className={cn('ml-auto font-bold uppercase tracking-wider text-[9px]', clvTone)}>
+          CLV {clv >= 0 ? '+' : ''}{clv.toFixed(1)}%
+        </span>
+      )}
+      {snap.demoted_by_exchange && clv == null && <span className="ml-auto uppercase">Falso valor</span>}
     </div>
   );
 }
