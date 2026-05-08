@@ -212,10 +212,10 @@ export default function AdminMetricasConversao() {
                 <h2 className="text-lg font-semibold">Usuários ({filteredUsers.length})</h2>
                 <div className="flex flex-wrap gap-2 items-center">
                   <Input
-                    placeholder="Buscar por email…"
+                    placeholder="Buscar por nome ou email…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-56 h-9"
+                    className="w-64 h-9"
                   />
                   {FILTERS.map((f) => (
                     <Button
