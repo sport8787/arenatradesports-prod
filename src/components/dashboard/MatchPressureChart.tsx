@@ -216,12 +216,14 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
             />
           ))}
 
-          <Bar dataKey="home" stackId="press" isAnimationActive={false}>
+          {/* Sem stackId: cada barra ancora no zero independentemente.
+              home (positivo) sobe; awayNeg (negativo) desce — gráfico espelhado. */}
+          <Bar dataKey="home" isAnimationActive={false}>
             {series.map((_, i) => (
               <Cell key={`h-${i}`} fill={HOME_COLOR} />
             ))}
           </Bar>
-          <Bar dataKey="awayNeg" stackId="press" isAnimationActive={false}>
+          <Bar dataKey="awayNeg" isAnimationActive={false}>
             {series.map((_, i) => (
               <Cell key={`a-${i}`} fill={AWAY_COLOR} />
             ))}
