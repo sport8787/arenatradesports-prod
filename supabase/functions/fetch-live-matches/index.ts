@@ -279,10 +279,11 @@ serve(async (req) => {
     }
     console.log(`[FetchLive] Found ${allFixtures.length} total live matches via ${providerUsed}`);
 
-    // 1b. Filtrar apenas ligas permitidas
+    // 1b. Filtrar apenas ligas permitidas (registry dinâmico)
+    const allowedIds = await getAllowedLeagueIds();
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
-      return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
+      return typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId);
     });
 
     console.log(`[FetchLive] ✅ ${fixtures.length}/${allFixtures.length} jogos passaram no filtro de ligas`);
