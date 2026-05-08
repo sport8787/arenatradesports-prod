@@ -14,6 +14,8 @@ interface Snapshot {
   open_lay_odd: number | null;
   open_mid_odd: number | null;
   open_edge_pp: number | null;
+  close_mid_odd: number | null;
+  clv_pp: number | null;
   demoted_by_exchange: boolean | null;
   bookmaker_edge_pp: number | null;
 }
@@ -32,7 +34,7 @@ export default function ExchangeEdgeBadge({ matchId, market, className }: Props)
     (async () => {
       const { data } = await supabase
         .from('punter_clv_log')
-        .select('open_back_odd,open_lay_odd,open_mid_odd,open_edge_pp,demoted_by_exchange,bookmaker_edge_pp')
+        .select('open_back_odd,open_lay_odd,open_mid_odd,open_edge_pp,close_mid_odd,clv_pp,demoted_by_exchange,bookmaker_edge_pp')
         .eq('match_id', matchId)
         .eq('market', market)
         .maybeSingle();
