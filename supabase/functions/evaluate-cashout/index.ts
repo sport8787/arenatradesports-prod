@@ -791,14 +791,15 @@ Deno.serve(async (req) => {
 
         // Determine current odd
         let oddAtual: number;
-        let oddFonte: 'real' | 'estimada';
+        let oddFonte: string;
         let confianca = 0;
         let fatores: any = null;
 
-        // Sempre tenta Futodds (real Betfair) primeiro; cai no estimador se não houver cobertura.
-        const oddReal = await buscarOddReal(pos);
+        // Phase 3: Betfair Exchange (last_price_traded) → Futodds odds_live → estimador.
+        const oddReal = await buscarOddRealDetalhe(pos);
         if (oddReal) {
-          oddAtual = oddReal; oddFonte = 'real'; confianca = 100;
+          oddAtual = oddReal.odd; oddFonte = oddReal.fonte;
+          confianca = oddReal.fonte === 'betfair_exchange' ? 100 : 95;
         } else {
           const est = estimarOdd(pos, statsCtx);
           oddAtual = est.odd; oddFonte = 'estimada'; confianca = est.confianca; fatores = est.fatores;
