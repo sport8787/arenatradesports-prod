@@ -37,36 +37,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY)
 const AF_BASE  = 'https://v3.football.api-sports.io'
 
 // =============================================================================
-// LIGAS PERMITIDAS (campeonatos regulares — sem copas)
-// =============================================================================
-const LIGAS_PERMITIDAS = new Set([
-  71, 72,         // Brasileirão A e B
-  39, 40,         // Premier League, Championship
-  140,            // La Liga
-  135,            // Serie A
-  78, 79,         // Bundesliga 1 e 2
-  61,             // Ligue 1
-  94,             // Primeira Liga
-  203,            // Süper Lig
-  144,            // Jupiler Pro League
-  88,             // Eredivisie
-  179,            // Scottish Premiership
-  253,            // MLS
-  262,            // Liga MX
-  197,            // Super League Grécia
-  307,            // Saudi Pro League
-])
-
-// Mapeamento de ligas para odds API sport key
-const LIGAS_ODDS_API: Record<number, string> = {
-  39: 'soccer_epl',
-  140: 'soccer_spain_la_liga',
-  135: 'soccer_italy_serie_a',
-  78: 'soccer_germany_bundesliga',
-  61: 'soccer_france_ligue_one',
-  71: 'soccer_brazil_campeonato',
-  88: 'soccer_netherlands_eredivisie',
-  94: 'soccer_portugal_primeira_liga',
+// LIGAS PERMITIDAS — vêm do registry (tabela trader_leagues, tiers A+B)
+// Tier C (cauda longa) NÃO é processado pelo Plano Favorito (sem IA pré-live).
+let _allowedFavCache: { ts: number; ids: Set<number>; oddsMap: Record<number, string> } | null = null;
+async function getAllowedFav(): Promise<{ ids: Set<number>; oddsMap: Record<number, string> }> {
+  if (_allowedFavCache && Date.now() - _allowedFavCache.ts < 30 * 60 * 1000) return _allowedFavCache;
+  const [allIds, oddsMap] = await Promise.all([getAllowedLeagueIds(), getOddsSportKeyMap()])
+  const ab = new Set<number>()
+  for (const id of allIds) {
+    const t = await getLeagueTier(id)
+    if (t === 'A' || t === 'B') ab.add(id)
+  }
+  _allowedFavCache = { ts: Date.now(), ids: ab, oddsMap }
+  return _allowedFavCache
 }
 
 // =============================================================================
