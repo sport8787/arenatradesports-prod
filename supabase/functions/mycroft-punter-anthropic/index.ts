@@ -1469,7 +1469,58 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.warn('[Mycroft Punter] calibrationFloor falhou:', (calErr as Error)?.message)
       }
 
-      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
+      // ─── EXCHANGE EDGE (Betfair via Futodds) ──────────────────────────
+      // Recalcula edge contra o preço justo da Exchange (sem margem).
+      // Se edge_exchange < 4% mesmo com APROVADO → rebaixa (foi falso valor de bookmaker).
+      // Em qualquer caso, persiste snapshot em punter_clv_log para CLV posterior.
+      let exchangeSnapshot: any = null
+      try {
+        const eventId = await resolveFutoddsEventId(supabaseClient, game.home_team, game.away_team, game.commence_time)
+        if (eventId && analysis.market) {
+          const quote = await getExchangeQuote(String(eventId), String(analysis.market))
+          if (quote && quote.mid_odd) {
+            const exEdge = computeExchangeEdgePP(Number(analysis.estimated_probability ?? 0), quote.mid_odd)
+            exchangeSnapshot = {
+              event_id: String(eventId),
+              back: quote.back_odd, lay: quote.lay_odd, mid: quote.mid_odd,
+              fair_prob: quote.fair_prob, edge_pp: exEdge,
+            }
+            const wasApproved = typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')
+            const demoted = wasApproved && (exEdge != null) && exEdge < 4
+            if (demoted) {
+              console.log(`[Exchange] 🚫 ${game.home_team} vs ${game.away_team}: edge_exchange ${exEdge?.toFixed(2)}pp < 4pp → rebaixado`)
+              analysis.verdict = 'VETADO'
+              analysis.veto_reason = `Edge real vs Betfair Exchange ${exEdge?.toFixed(1)}pp < 4pp (bookmaker margin distortion)`
+              analysis.exchange_demoted = true
+            }
+            analysis.exchange_back = quote.back_odd
+            analysis.exchange_lay = quote.lay_odd
+            analysis.exchange_mid = quote.mid_odd
+            analysis.exchange_edge_pp = exEdge
+            try {
+              await supabaseClient.from('punter_clv_log').upsert({
+                match_id: matchId, market: analysis.market,
+                futodds_event_id: String(eventId),
+                home_team: game.home_team, away_team: game.away_team,
+                commence_time: game.commence_time,
+                bookmaker_odd: analysis.odd ?? null,
+                bookmaker_edge_pp: analysis.value_percentage ?? null,
+                open_back_odd: quote.back_odd, open_lay_odd: quote.lay_odd, open_mid_odd: quote.mid_odd,
+                open_fair_prob: quote.fair_prob, open_edge_pp: exEdge,
+                estimated_probability: analysis.estimated_probability ?? null,
+                demoted_by_exchange: !!demoted,
+                exchange_source: 'futodds',
+              }, { onConflict: 'match_id,market', ignoreDuplicates: false })
+            } catch (logErr) {
+              console.warn('[Exchange] punter_clv_log upsert falhou:', (logErr as Error).message)
+            }
+          }
+        }
+      } catch (exErr) {
+        console.warn('[Exchange] check falhou:', (exErr as Error)?.message)
+      }
+
+      console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic${exchangeSnapshot ? ` | EX edge: ${exchangeSnapshot.edge_pp?.toFixed?.(2)}pp` : ''}`)
 
       if (analysis.verdict === 'APROVADO') {
         const commenceDate = game.commence_time ? new Date(game.commence_time) : new Date()
