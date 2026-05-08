@@ -85,17 +85,33 @@ function estimarOdd(bet: any, stats: any): { odd: number; fatores: any; confianc
 const FUTODDS_KEY = Deno.env.get('FUTODDS_API_KEY') || '';
 const FUTODDS_BASE = 'https://csv.futodds.com/functions/v1';
 
-/** Busca odd ao vivo: 1) Futodds /matches-live-full (Betfair odds_live), 2) Betfair Exchange direto. */
-async function buscarOddReal(bet: any): Promise<number | null> {
-  // 1) Futodds — funciona para 100% dos jogos cobertos pela API
+/** Busca odd ao vivo:
+ *   1) Betfair Exchange via Futodds /matches-betfair-live-odds (last_price_traded — Phase 3),
+ *   2) Futodds /matches-live-full (odds_live agregadas),
+ *   3) Betfair Exchange direto (legacy app key).
+ * Retorna { odd, fonte } onde fonte ∈ 'betfair_exchange' | 'futodds_live' | 'betfair_direct'.
+ */
+export interface OddRealResult { odd: number; fonte: string }
+
+async function buscarOddRealDetalhe(bet: any): Promise<OddRealResult | null> {
   if (FUTODDS_KEY && bet.match_name && bet.market) {
-    try {
-      const [home, away] = String(bet.match_name).split(/\s+vs\s+/i);
-      if (home && away) {
+    const [home, away] = String(bet.match_name).split(/\s+vs\s+/i);
+    if (home && away) {
+      // 1) Betfair Exchange real (last_price_traded) via /matches-betfair-live-odds
+      try {
+        const eventId = await resolveBetfairEventId(home.trim(), away.trim());
+        if (eventId) {
+          const odd = await fetchBetfairExchangeOdd(eventId, bet.market);
+          if (odd && odd > 1.01) return { odd, fonte: 'betfair_exchange' };
+        }
+      } catch (e) { console.warn('[cashout] betfair_exchange error:', (e as Error).message); }
+
+      // 2) Futodds odds_live agregadas
+      try {
         const odd = await fetchFutoddsOdd(home.trim(), away.trim(), bet.market);
-        if (odd && odd > 1.01) return odd;
-      }
-    } catch (e) { console.warn('[cashout] futodds_odd error:', (e as Error).message); }
+        if (odd && odd > 1.01) return { odd, fonte: 'futodds_live' };
+      } catch (e) { console.warn('[cashout] futodds_odd error:', (e as Error).message); }
+    }
   }
 
   // 2) Betfair Exchange direto (requer market_id+selection_id mapeados)
