@@ -490,23 +490,26 @@ export default function ArenaTraderSports() {
               </div>
             )}
             <WhatsAppSupportButton />
-            {isAdmin && <LiveCronToggle />}
-            {isAdmin && <ShadowAfCronToggle />}
+            <TraderViewModeToggle />
+            {isAdvanced && isAdmin && <LiveCronToggle />}
+            {isAdvanced && isAdmin && <ShadowAfCronToggle />}
             {/* View toggle */}
-            <div className="flex items-center border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <TableProperties className="w-4 h-4" />
-              </button>
-            </div>
+            {isAdvanced && (
+              <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <TableProperties className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
