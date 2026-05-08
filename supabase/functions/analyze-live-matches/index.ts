@@ -4,6 +4,23 @@ import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
 import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
+import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
+
+// Cache de odds_live (Futodds /matches-live-full) por execução
+let _futoddsOddsCache: { ts: number; list: any[] } | null = null;
+async function getFutoddsOddsCached(maxAgeMs = 25_000): Promise<any[]> {
+  const now = Date.now();
+  if (_futoddsOddsCache && now - _futoddsOddsCache.ts < maxAgeMs) return _futoddsOddsCache.list;
+  try {
+    const list = await fetchFutoddsList("/matches-live-full", { ttlMs: 25_000 });
+    _futoddsOddsCache = { ts: now, list: list || [] };
+    return _futoddsOddsCache.list;
+  } catch (e) {
+    console.warn("[AnalyzeLive] futodds odds (live-full) fetch falhou:", (e as Error)?.message);
+    _futoddsOddsCache = { ts: now, list: [] };
+    return [];
+  }
+}
 
 // Cache de fixtures Futodds por execução (1 chamada por loop)
 let _futoddsLiveCache: { ts: number; fixtures: any[] } | null = null;
