@@ -319,6 +319,31 @@ serve(async (req) => {
             _backfill("xg_away", (fds as any).xg_away);
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
+
+            // 💰 Persistir odds ao vivo (Futodds /matches-betfair-live → odds_live aggregate)
+            // para o card no front exibir Casa/Empate/Fora/Over 2.5 em tempo real.
+            try {
+              const rawOdds = fdFx?._raw?.odds_live ?? fdFx?._raw?.odds ?? null;
+              if (rawOdds && typeof rawOdds === 'object') {
+                const flat = {
+                  home: Number(rawOdds?.ft_result?.home) || null,
+                  draw: Number(rawOdds?.ft_result?.draw) || null,
+                  away: Number(rawOdds?.ft_result?.away) || null,
+                  over25: Number(rawOdds?.total_goals?.over_25) || null,
+                  under25: Number(rawOdds?.total_goals?.under_25) || null,
+                  bookmaker: 'Futodds',
+                  updated_at: new Date().toISOString(),
+                };
+                if (flat.home || flat.draw || flat.away || flat.over25) {
+                  await supabase.from('live_matches').update({
+                    odds_live: flat,
+                    updated_at: new Date().toISOString(),
+                  }).eq('match_id', match.match_id);
+                }
+              }
+            } catch (oddsErr) {
+              console.warn('[AnalyzeLive] odds_live persist failed:', (oddsErr as Error)?.message);
+            }
             console.log(`[AnalyzeLive] 🔵 Futodds backfill ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} | poss=${fds.possession_home}/${fds.possession_away} | shots=${fds.shots_total_home}/${fds.shots_total_away} | dAtk=${fds.dangerous_attacks_home}/${fds.dangerous_attacks_away} | corners=${fds.corners_home}/${fds.corners_away}`);
           }
         } catch (fdErr) {
