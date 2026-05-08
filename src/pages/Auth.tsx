@@ -120,7 +120,7 @@ const Auth = () => {
           navigate('/menu');
         }
       } else {
-        const { data, error } = await signUp(email, password, username);
+        const { data, error } = await signUp(email, password, username, fullName.trim());
         if (error) {
           if (error.message.includes('already registered')) {
             toast({ title: 'Erro', description: 'Este e-mail já está cadastrado', variant: 'destructive' });
