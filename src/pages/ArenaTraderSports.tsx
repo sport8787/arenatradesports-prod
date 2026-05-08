@@ -86,6 +86,38 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
 
 type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
+/**
+ * Normaliza um mercado para uma chave curta usada no filtro
+ * (ex: "Over 0.5 HT", "Under 2.5 FT", "BTTS Yes", "Corners Over 8.5").
+ */
+function normalizeMarketKey(raw?: string | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  let m: RegExpMatchArray | null;
+  if ((m = s.match(/Corners?\s*Over\s*(\d+(?:\.\d+)?)/i))) return `Corners Over ${m[1]}`;
+  if ((m = s.match(/Corners?\s*Under\s*(\d+(?:\.\d+)?)/i))) return `Corners Under ${m[1]}`;
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)\s*(?:corners|escanteios)/i))) return `Corners Over ${m[1]}`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)\s*(?:corners|escanteios)/i))) return `Corners Under ${m[1]}`;
+  if ((m = s.match(/Cards?\s*Over\s*(\d+(?:\.\d+)?)/i))) return `Cards Over ${m[1]}`;
+  if ((m = s.match(/Cards?\s*Under\s*(\d+(?:\.\d+)?)/i))) return `Cards Under ${m[1]}`;
+  if ((m = s.match(/(?:HT\s*Over|Over\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT)/i))) {
+    const num = m[1] ?? s.match(/HT\s*Over\s*(\d+(?:\.\d+)?)/i)?.[1];
+    if (num) return `Over ${num} HT`;
+  }
+  if ((m = s.match(/(?:HT\s*Under|Under\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT)/i))) {
+    const num = m[1] ?? s.match(/HT\s*Under\s*(\d+(?:\.\d+)?)/i)?.[1];
+    if (num) return `Under ${num} HT`;
+  }
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)/i))) return `Over ${m[1]} 2T`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)/i))) return `Under ${m[1]} 2T`;
+  if (/BTTS\s*Yes|^GG$/i.test(s)) return 'BTTS Yes';
+  if (/BTTS\s*No|^NG$/i.test(s)) return 'BTTS No';
+  if (/^BTTS$/i.test(s)) return 'BTTS';
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)/i))) return `Over ${m[1]} FT`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)/i))) return `Under ${m[1]} FT`;
+  return s;
+}
+
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
