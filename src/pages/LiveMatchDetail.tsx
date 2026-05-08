@@ -1035,7 +1035,22 @@ export default function LiveMatchDetail() {
                 </div>
               ) : (
                 <>
-                  <StatRow label="xG (Gols Esperados)" home={stats.xG_home ?? stats.xg_home ?? 0} away={stats.xG_away ?? stats.xg_away ?? 0} />
+                  <StatRow
+                    label={
+                      stats.xg_unavailable
+                        ? 'xG (indisponível — não considerado)'
+                        : stats.xg_estimated
+                        ? 'xG (estimado — peso reduzido)'
+                        : 'xG (Gols Esperados)'
+                    }
+                    home={stats.xG_home ?? stats.xg_home ?? 0}
+                    away={stats.xG_away ?? stats.xg_away ?? 0}
+                  />
+                  {stats.xg_unavailable && (
+                    <p className="text-[11px] text-amber-300/80 -mt-2 pl-1 leading-snug">
+                      ⚠️ Fonte não retornou xG. Mycroft ignorou este critério e reduziu a confiança em ~10pp.
+                    </p>
+                  )}
                   <StatRow label="Posse de Bola" home={stats.possession_home} away={stats.possession_away} suffix="%" />
                   <StatRow label="Ataques Perigosos" home={stats.dangerous_attacks_home ?? stats.attacks_home} away={stats.dangerous_attacks_away ?? stats.attacks_away} />
                   <StatRow label="Chutes" home={stats.shots_total_home ?? stats.shots_home} away={stats.shots_total_away ?? stats.shots_away} />
