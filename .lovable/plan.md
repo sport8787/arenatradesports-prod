@@ -60,11 +60,11 @@ Conforme sua orientação: **Futodds passa a ser o provedor PADRÃO para tudo ao
 5. Gráfico de pressão (`MatchPressureChart`, `MatchPressureModal`) passa a usar `pressure_indices` real do Futodds em vez de derivar de ataques.
 6. Placar ao vivo (`live_matches.score_home/away/minute/period`) alimentado pelo Futodds em `update-live-scores`.
 
-### Fase 3 — Odds Betfair reais (2 dias)
-1. Criar edge `futodds-live-odds` que recebe `event_id` Betfair e retorna odds back/lay para Over 0.5/1.5/2.5/3.5, BTTS, MATCH_ODDS, AH.
-2. Substituir `estimateLiveOdd.ts` no `useLivePrices`/`OddsComparator`/`ActivePositions` por fetch das odds Betfair reais (cache 30s alinhado com Redis deles).
-3. Eventos Raros (LAY GOLEADA/2x2/1x3/3x1) passam a usar `back_odds`/`lay_odds` reais do `/matches-betfair-live-odds` em vez de estimativas.
-4. Cashout passa a comparar `entry_odd` salvo vs `last_price_traded` real → P&L exato.
+### Fase 3 — Odds Betfair reais (CONCLUÍDA)
+1. ✅ Edge `futodds-live-odds` (plural) recebe `event_id` e devolve back/lay/last_price_traded por mercado.
+2. ✅ Cashout (`evaluate-cashout`) agora resolve `event_id` Betfair via `/matches-betfair-live-compact` (cache 60s) e busca `last_price_traded` em `/matches-betfair-live-odds` (cache 15s). Cadeia: **Betfair Exchange real → Futodds odds_live agregadas → estimador Poisson**. `odd_fonte` passa a registrar `betfair_exchange | futodds_live | estimada`.
+3. ✅ `OddsComparator.tsx` consulta Futodds e injeta a linha "Betfair Exchange (LIVE)" no topo da tabela, com refresh de 30s.
+4. ⏭️ Eventos Raros (LAY GOLEADA/2x2/1x3/3x1) — próximo: trocar estimativas pelas back/lay reais do `/matches-betfair-live-odds`.
 
 ### Fase 4 — Aposentar fontes redundantes (3 dias, gradual)
 1. **The Odds API** → desligar após confirmar `/matches-betfair-upcoming` cobre odds pré-live (manter `check-odds-quota` apenas para monitoramento).
