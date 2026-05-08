@@ -171,6 +171,14 @@ export default function ArenaTraderSports() {
   useEffect(() => {
     try { window.localStorage.setItem('arenaTraderSports.selectedRegions', JSON.stringify(selectedRegions)); } catch { /* ignore */ }
   }, [selectedRegions]);
+  // Modo Foco — Trader #7: esconde tudo que não for LABAREDA / APROVADO FORTE (conf >= 70)
+  const [focusMode, setFocusMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.localStorage.getItem('arenaTraderSports.focusMode') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.focusMode', focusMode ? '1' : '0'); } catch { /* ignore */ }
+  }, [focusMode]);
   const [marketFilters, setMarketFilters] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
