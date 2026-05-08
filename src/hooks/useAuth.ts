@@ -134,9 +134,9 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (email: string, password: string, username: string, fullName?: string) => {
     // Validação client-side dos campos antes de qualquer chamada externa
-    const parsed = signUpSchema.safeParse({ email, password, username });
+    const parsed = signUpSchema.safeParse({ email, password, username, fullName });
     if (!parsed.success) {
       const first = parsed.error.errors[0];
       const error = new Error(first?.message ?? 'Dados de cadastro inválidos');
@@ -144,7 +144,7 @@ export const useAuth = () => {
       return { data: null, error };
     }
 
-    const { email: cleanEmail, password: cleanPassword, username: cleanUsername } = parsed.data;
+    const { email: cleanEmail, password: cleanPassword, username: cleanUsername, fullName: cleanFullName } = parsed.data;
     const redirectUrl = `${window.location.origin}/punter`;
 
     const { data, error } = await supabase.auth.signUp({
@@ -152,7 +152,10 @@ export const useAuth = () => {
       password: cleanPassword,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { username: cleanUsername },
+        data: {
+          username: cleanUsername,
+          ...(cleanFullName ? { full_name: cleanFullName } : {}),
+        },
       },
     });
 
