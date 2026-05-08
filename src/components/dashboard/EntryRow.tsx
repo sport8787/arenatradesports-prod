@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Check, X, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export interface TraderEntry {
   id: string;
@@ -19,6 +20,7 @@ export interface TraderEntry {
   notes: string | null;
   estimatedOdd?: number | null;
   estimatedCashout?: number | null;
+  odd_source?: string | null;
 }
 
 interface EntryRowProps {
@@ -43,9 +45,22 @@ const pnlColors = {
   cashout: 'text-[hsl(217,91%,60%)]',
 };
 
+function getOddInfo(source?: string | null) {
+  const src = source || 'estimated';
+  if (src === 'betfair_exchange') {
+    return { fonte: 'Betfair LIVE', confianca: 'Alta' as const };
+  }
+  if (src === 'estimated' || src === 'estimada') {
+    return { fonte: 'Estimada', confianca: 'Baixa' as const };
+  }
+  return { fonte: 'Betfair LIVE', confianca: 'Média' as const };
+}
+
 export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkCashout }: EntryRowProps) {
   const isPending = entry.status === 'pending';
   const hasEstimate = isPending && entry.estimatedCashout != null && entry.estimatedOdd != null;
+
+  const info = getOddInfo(entry.odd_source);
 
   // For settled entries, show actual P&L
   const pnlDisplay =
@@ -84,7 +99,15 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
         </div>
         <div className="text-xs text-foreground font-medium truncate">{entry.market}</div>
         <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
-          <span>Odd {Number(entry.odd).toFixed(2)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help underline decoration-dotted underline-offset-2">Odd {Number(entry.odd).toFixed(2)}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-popover border border-border text-popover-foreground text-xs">
+              <div className="font-medium">{info.fonte}</div>
+              <div className="text-muted-foreground">Confiança: {info.confianca}</div>
+            </TooltipContent>
+          </Tooltip>
           {hasEstimate && (
             <>
               <span>→</span>
