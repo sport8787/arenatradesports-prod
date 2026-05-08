@@ -82,6 +82,11 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
     alerts: lm.mycroft_analysis?.alerts ?? null,
     approvalOdd: lm.mycroft_analysis?.odd ?? null,
     oddsLive: (lm as any).odds_live ?? null,
+    healthStats: s ? {
+      pressure_indices: s.pressure_indices ?? undefined,
+      last5min_stats: s.last5min_stats ?? undefined,
+      last10min_stats: s.last10min_stats ?? undefined,
+    } : null,
   };
 };
 
