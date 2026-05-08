@@ -114,7 +114,7 @@ async function buscarOddRealDetalhe(bet: any): Promise<OddRealResult | null> {
     }
   }
 
-  // 2) Betfair Exchange direto (requer market_id+selection_id mapeados)
+  // 3) Betfair Exchange direto (requer market_id+selection_id mapeados)
   if (!BETFAIR_APP_KEY || !BETFAIR_SESSION || !bet.betfair_market_id) return null;
   try {
     const r = await fetch('https://api.betfair.com/exchange/betting/rest/v1.0/listMarketBook/', {
@@ -123,8 +123,103 @@ async function buscarOddRealDetalhe(bet: any): Promise<OddRealResult | null> {
       body: JSON.stringify({ marketIds: [bet.betfair_market_id], priceProjection: { priceData: ['EX_BEST_OFFERS'] } }),
     });
     const data = await r.json();
-    return data?.[0]?.runners?.find((x: any) => x.selectionId === bet.betfair_selection_id)?.ex?.availableToBack?.[0]?.price || null;
+    const odd = data?.[0]?.runners?.find((x: any) => x.selectionId === bet.betfair_selection_id)?.ex?.availableToBack?.[0]?.price || null;
+    return odd ? { odd, fonte: 'betfair_direct' } : null;
   } catch { return null; }
+}
+
+// Compat: assinatura antiga usada no resto do código.
+async function buscarOddReal(bet: any): Promise<number | null> {
+  const r = await buscarOddRealDetalhe(bet);
+  return r?.odd ?? null;
+}
+
+// ═══════════════════════════════════════════════════
+// Phase 3 — Betfair Exchange real (last_price_traded)
+// Resolve event_id Betfair via /matches-betfair-live-compact (cache 60s)
+// e busca odds back/lay reais via /matches-betfair-live-odds (cache 15s).
+// ═══════════════════════════════════════════════════
+const BF_COMPACT_CACHE: { ts: number; data: any[] } = { ts: 0, data: [] };
+const BF_ODDS_CACHE = new Map<string, { ts: number; data: any }>();
+const _norm = (s: string) =>
+  String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+
+async function resolveBetfairEventId(home: string, away: string): Promise<string | null> {
+  const now = Date.now();
+  let list = BF_COMPACT_CACHE.data;
+  if (now - BF_COMPACT_CACHE.ts > 60_000 || list.length === 0) {
+    const r = await fetch(`${FUTODDS_BASE}/matches-betfair-live-compact`, {
+      headers: { Authorization: `Bearer ${FUTODDS_KEY}`, 'X-API-Key': FUTODDS_KEY, Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    list = Array.isArray(j?.data) ? j.data : [];
+    BF_COMPACT_CACHE.ts = now;
+    BF_COMPACT_CACHE.data = list;
+  }
+  const h = _norm(home), a = _norm(away);
+  const m = list.find((x: any) => _norm(x.home_name || x.home).includes(h) && _norm(x.away_name || x.away).includes(a))
+         || list.find((x: any) => h.includes(_norm(x.home_name || x.home)) && a.includes(_norm(x.away_name || x.away)));
+  return m?.event_id ? String(m.event_id) : null;
+}
+
+async function fetchBetfairExchangeOdd(eventId: string, market: string): Promise<number | null> {
+  const now = Date.now();
+  let entry = BF_ODDS_CACHE.get(eventId);
+  if (!entry || now - entry.ts > 15_000) {
+    const r = await fetch(`${FUTODDS_BASE}/matches-betfair-live-odds?event_id=${encodeURIComponent(eventId)}`, {
+      headers: { Authorization: `Bearer ${FUTODDS_KEY}`, 'X-API-Key': FUTODDS_KEY, Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    entry = { ts: now, data: j?.data ?? j };
+    BF_ODDS_CACHE.set(eventId, entry);
+  }
+  return pickBetfairExchangeOdd(entry.data, market);
+}
+
+/** Extrai odd back (last_price_traded → availableToBack[0].price) por mercado/runner. */
+function pickBetfairExchangeOdd(payload: any, market: string): number | null {
+  if (!payload) return null;
+  const markets: any[] = Array.isArray(payload?.markets) ? payload.markets
+    : Array.isArray(payload) ? payload : [];
+  if (markets.length === 0) return null;
+
+  const m = market.toLowerCase();
+  const isOver = /\bover\b/.test(m), isUnder = /\bunder\b/.test(m);
+  const lineMatch = m.match(/(\d+(?:\.\d+)?)/);
+  const line = lineMatch ? parseFloat(lineMatch[1]) : null;
+  const isBtts = /btts|ambas|both teams to score/.test(m);
+  const isHome = /casa|home/.test(m), isAway = /fora|away/.test(m), isDraw = /empate|draw/.test(m);
+
+  const findMarket = (predicate: (mk: any) => boolean) => markets.find(predicate);
+  const runnerOdd = (runner: any): number | null => {
+    if (!runner) return null;
+    const lpt = Number(runner.last_price_traded);
+    if (lpt && lpt > 1.01) return lpt;
+    const back = runner?.ex?.availableToBack?.[0]?.price ?? runner?.back?.[0]?.price;
+    return back && Number(back) > 1.01 ? Number(back) : null;
+  };
+
+  if (isOver || isUnder) {
+    const mk = findMarket((x: any) => /OVER_UNDER|TOTAL_GOALS/i.test(x?.market_type || x?.market_name || '') &&
+                                     (line ? String(x?.market_name || '').includes(String(line)) : true));
+    const runner = mk?.runners?.find((r: any) => new RegExp(isOver ? 'over' : 'under', 'i').test(r?.runner_name || r?.name || ''));
+    return runnerOdd(runner);
+  }
+  if (isBtts) {
+    const mk = findMarket((x: any) => /BTTS|BOTH_TEAMS_TO_SCORE/i.test(x?.market_type || x?.market_name || ''));
+    const want = /sim|yes/.test(m) ? /yes|sim/i : /no|n[ãa]o/i;
+    const runner = mk?.runners?.find((r: any) => want.test(r?.runner_name || r?.name || ''));
+    return runnerOdd(runner);
+  }
+  if (isHome || isAway || isDraw) {
+    const mk = findMarket((x: any) => /MATCH_ODDS|1X2|FT_RESULT/i.test(x?.market_type || x?.market_name || ''));
+    const want = isHome ? /home|casa|1\b/i : isAway ? /away|fora|2\b/i : /draw|empate|x\b/i;
+    const runner = mk?.runners?.find((r: any) => want.test(r?.runner_name || r?.name || r?.selection_name || ''));
+    return runnerOdd(runner);
+  }
+  return null;
 }
 
 const FUTODDS_LIVE_CACHE: { ts: number; data: any[] } = { ts: 0, data: [] };
