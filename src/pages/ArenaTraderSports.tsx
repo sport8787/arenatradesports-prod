@@ -307,6 +307,8 @@ export default function ArenaTraderSports() {
           if (!approvedStatuses.includes(m.mycroftStatus)) return false;
           // Excluir sinais de 1º tempo já expirados (após HT)
           if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
+          // Filtro por mercado (selecionado pelo usuário)
+          if (marketFilter !== 'all' && normalizeMarketKey(m.market) !== marketFilter) return false;
         } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
