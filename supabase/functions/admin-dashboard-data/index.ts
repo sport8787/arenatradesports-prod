@@ -178,6 +178,7 @@ Deno.serve(async (req) => {
       active3d,
       neverReturned,
       trialExpiringSoon,
+      trialExpired,
       paidActive,
     };
 
