@@ -127,15 +127,33 @@ export default function ArenaTraderSports() {
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
-  const [marketFilter, setMarketFilter] = useState<string>(() => {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
-    return window.localStorage.getItem('arenaTraderSports.marketFilter') || 'all';
+    const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
+    const valid: StatusFilter[] = ['all','proximos','live','aprovados','aprovados_af','scheduled','finished','simulado'];
+    return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
   });
   useEffect(() => {
-    try { window.localStorage.setItem('arenaTraderSports.marketFilter', marketFilter); } catch { /* ignore */ }
-  }, [marketFilter]);
+    try { window.localStorage.setItem('arenaTraderSports.statusFilter', statusFilter); } catch { /* ignore */ }
+  }, [statusFilter]);
+  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [marketFilters, setMarketFilters] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem('arenaTraderSports.marketFilters');
+      if (raw) return JSON.parse(raw);
+      // Migração do filtro antigo single-select
+      const legacy = window.localStorage.getItem('arenaTraderSports.marketFilter');
+      if (legacy && legacy !== 'all') return [legacy];
+    } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.marketFilters', JSON.stringify(marketFilters)); } catch { /* ignore */ }
+  }, [marketFilters]);
+  const toggleMarketFilter = (key: string) => {
+    setMarketFilters(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
+  };
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
