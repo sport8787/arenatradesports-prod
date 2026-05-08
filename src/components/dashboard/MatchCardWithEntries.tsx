@@ -160,6 +160,10 @@ export default function MatchCardWithEntries({
     <div className="relative">
       <MatchCard match={match} index={index} onAnalysisClick={onAnalysisClick} />
 
+      {/* Saúde do Sinal — só renderiza se tiver mercado aprovado e jogo ao vivo */}
+      {match.status === 'live' && inheritedMarket && (
+        <SignalHealthPanel market={inheritedMarket} stats={match.healthStats ?? null} />
+      )}
       {/* Entries list */}
       {hasEntries && (
         <div className="mx-0.5 -mt-1 rounded-b-xl border-2 border-t-0 border-border/50 bg-[hsl(0,0%,7%)] px-3 py-2 space-y-1.5">
