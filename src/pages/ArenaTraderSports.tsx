@@ -414,6 +414,13 @@ export default function ArenaTraderSports() {
         if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
         if (selectedRegions.length > 0 && !selectedRegions.includes(getRegionForChampionship(m.championship))) return false;
         if (onlyFavorites && !isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })) return false;
+        // Modo Foco — só LABAREDA / APROVADO FORTE (conf >= 70)
+        if (focusMode) {
+          const focusStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+          if (!focusStatuses.includes(m.mycroftStatus)) return false;
+          const conf = typeof m.confidence === 'number' ? m.confidence : 0;
+          if (conf < 70) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -423,7 +430,7 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, selectedRegions, allMatches, onlyFavorites, isMatchFavorite, marketFilters]);
+  }, [statusFilter, selectedChampionships, selectedRegions, allMatches, onlyFavorites, isMatchFavorite, marketFilters, focusMode]);
 
   // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
