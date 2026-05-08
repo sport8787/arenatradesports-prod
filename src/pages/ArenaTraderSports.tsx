@@ -129,7 +129,13 @@ export default function ArenaTraderSports() {
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
-  const [marketFilter, setMarketFilter] = useState<string>('all');
+  const [marketFilter, setMarketFilter] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return window.localStorage.getItem('arenaTraderSports.marketFilter') || 'all';
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.marketFilter', marketFilter); } catch { /* ignore */ }
+  }, [marketFilter]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
