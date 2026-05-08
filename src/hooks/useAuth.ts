@@ -35,6 +35,7 @@ export interface Profile {
   id: string;
   user_id: string;
   username: string;
+  full_name: string | null;
   bluff_coins: number;
   bc_balance: number;
   nt_balance: number;
