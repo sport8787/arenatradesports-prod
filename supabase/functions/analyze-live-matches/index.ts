@@ -262,6 +262,40 @@ serve(async (req) => {
           console.warn(`[AnalyzeLive] Sportmonks live enrichment failed:`, smErr instanceof Error ? smErr.message : smErr);
         }
 
+        // 🔵 ENRIQUECIMENTO FUTODDS — pressão real (pressure_indices) + janelas 5/10/15/20 min
+        // Adiciona campos consumidos pelo Mycroft sem sobrescrever Sportmonks.
+        try {
+          const fdList = await getFutoddsLiveCached();
+          const fdFx = findFutoddsFixture(match.home_team, match.away_team, fdList);
+          const fds = fdFx?._futodds_stats;
+          if (fds) {
+            (enrichedStats as any).pressure_indices = {
+              home: fds.pressure_home,
+              away: fds.pressure_away,
+              total: fds.pressure_total,
+            };
+            (enrichedStats as any).pressure_home = fds.pressure_home;
+            (enrichedStats as any).pressure_away = fds.pressure_away;
+            (enrichedStats as any).pressure_total = fds.pressure_total;
+            if (fds.last5min)  (enrichedStats as any).last5min_stats  = fds.last5min;
+            if (fds.last10min) (enrichedStats as any).last10min_stats = fds.last10min;
+            if (fds.last15min) (enrichedStats as any).last15min_stats = fds.last15min;
+            if (fds.last20min) (enrichedStats as any).last20min_stats = fds.last20min;
+            // Preenche dangerous_attacks se Sportmonks/AF não tinham
+            if (!(enrichedStats as any).dangerous_attacks_home && fds.dangerous_attacks_home) {
+              (enrichedStats as any).dangerous_attacks_home = fds.dangerous_attacks_home;
+            }
+            if (!(enrichedStats as any).dangerous_attacks_away && fds.dangerous_attacks_away) {
+              (enrichedStats as any).dangerous_attacks_away = fds.dangerous_attacks_away;
+            }
+            (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
+            (enrichedStats as any).source_pressure = "futodds";
+            console.log(`[AnalyzeLive] 🔵 Futodds pressão ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} (total=${fds.pressure_total})`);
+          }
+        } catch (fdErr) {
+          console.warn(`[AnalyzeLive] Futodds pressure enrichment failed:`, fdErr instanceof Error ? fdErr.message : fdErr);
+        }
+
         // 🚫 SofaScore e Flashscore DESATIVADOS — fonte única: Sportmonks (live).
         // Decisão: evitar ruído/inconsistência. Se Sportmonks não tiver, mantém API-Football
         // ou marca xg_unavailable abaixo. (sofascoreFound já foi declarado acima como `let`)
