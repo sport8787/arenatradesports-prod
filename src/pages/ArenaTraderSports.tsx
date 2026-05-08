@@ -771,6 +771,7 @@ export default function ArenaTraderSports() {
                 </button>
               ))}
             </div>
+            </>
           )}
 
         {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
