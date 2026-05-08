@@ -138,7 +138,7 @@ serve(async (req) => {
     // 1. Fetch all live fixtures — provedor controlado por env
     let allFixtures: any[] = [];
     let providerUsed = "api-football";
-    if (LIVE_PROVIDER_PRIMARY === "sportmonks") {
+    if (LIVE_PROVIDER_PRIMARY === "sportmonks" || LIVE_PROVIDER_PRIMARY === "futodds") {
       const lr = await getLiveMatches();
       allFixtures = lr.fixtures;
       providerUsed = lr.source;
