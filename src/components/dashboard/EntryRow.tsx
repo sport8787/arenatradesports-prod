@@ -45,6 +45,17 @@ const pnlColors = {
   cashout: 'text-[hsl(217,91%,60%)]',
 };
 
+function getOddInfo(source?: string | null) {
+  const src = source || 'estimated';
+  if (src === 'betfair_exchange') {
+    return { fonte: 'Betfair LIVE', confianca: 'Alta' as const };
+  }
+  if (src === 'estimated' || src === 'estimada') {
+    return { fonte: 'Estimada', confianca: 'Baixa' as const };
+  }
+  return { fonte: 'Betfair LIVE', confianca: 'Média' as const };
+}
+
 export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkCashout }: EntryRowProps) {
   const isPending = entry.status === 'pending';
   const hasEstimate = isPending && entry.estimatedCashout != null && entry.estimatedOdd != null;
