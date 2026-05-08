@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MatchCard, { type Match } from './MatchCard';
 import EntryRow from './EntryRow';
+import SignalHealthPanel from './SignalHealthPanel';
 import { useFixtureEntries } from '@/hooks/useFixtureEntries';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
