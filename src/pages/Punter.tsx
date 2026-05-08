@@ -28,6 +28,7 @@ import DualBankrollDashboard from '@/components/punter/DualBankrollDashboard';
 import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 import ExchangeEdgeBadge from '@/components/punter/ExchangeEdgeBadge';
+import SteamBadge from '@/components/punter/SteamBadge';
 import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
 import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
@@ -2085,11 +2086,15 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 <div className="text-foreground/80">Fair Odd: <span className="text-foreground">{signal.recommendation.fair_odd?.toFixed(2) || 'N/A'}</span></div>
                 <div className="text-success font-bold">Value: {signal.recommendation.value_percentage != null ? `+${signal.recommendation.value_percentage.toFixed(1)}%` : 'N/A'}</div>
               </div>
-              <ExchangeEdgeBadge
-                matchId={`${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').replace(/\+00:00/g, 'Z').toLowerCase()}
-                market={signal.recommendation.market}
-                className="mt-2"
-              />
+              {(() => {
+                const mid = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').replace(/\+00:00/g, 'Z').toLowerCase();
+                return (
+                  <>
+                    <ExchangeEdgeBadge matchId={mid} market={signal.recommendation.market} className="mt-2" />
+                    <SteamBadge matchId={mid} market={signal.recommendation.market} className="mt-1" />
+                  </>
+                );
+              })()}
             </motion.div>
           )}
         </div>
