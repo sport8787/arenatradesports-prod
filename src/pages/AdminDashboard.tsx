@@ -38,6 +38,7 @@ type Data = {
     active3d: number;
     neverReturned: number;
     trialExpiringSoon: number;
+    trialExpired: number;
     paidActive: number;
   };
   conversion: {
@@ -51,12 +52,13 @@ type Data = {
   feed: { type: string; email: string; timestamp: string }[];
 };
 
-const FILTERS = ['Todos', 'Ativos hoje', 'Inativos', 'Trial expirando', 'Pagos'] as const;
+const FILTERS = ['Todos', 'Ativos hoje', 'Inativos', 'Trial expirando', 'Trial expirado', 'Pagos'] as const;
 type Filter = (typeof FILTERS)[number];
 
 const statusColor: Record<string, string> = {
   'Pago': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   'Trial expirando': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  'Trial expirado': 'bg-destructive/15 text-destructive border-destructive/40',
   'Ativo hoje': 'bg-primary/15 text-primary border-primary/30',
   'Ativo recente': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   'Inativo': 'bg-muted text-muted-foreground border-border',
@@ -112,6 +114,7 @@ export default function AdminDashboard() {
     if (filter === 'Ativos hoje') list = list.filter((u) => u.status === 'Ativo hoje');
     else if (filter === 'Inativos') list = list.filter((u) => u.status === 'Inativo');
     else if (filter === 'Trial expirando') list = list.filter((u) => u.status === 'Trial expirando');
+    else if (filter === 'Trial expirado') list = list.filter((u) => u.status === 'Trial expirado');
     else if (filter === 'Pagos') list = list.filter((u) => u.status === 'Pago');
 
     if (search.trim()) {
@@ -190,12 +193,13 @@ export default function AdminDashboard() {
             {/* Seção 1 — Visão geral */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Visão geral</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
                 <StatCard icon={<Users className="w-4 h-4" />} label="Total" value={data.overview.total} />
                 <StatCard icon={<UserCheck className="w-4 h-4" />} label="Ativos hoje" value={data.overview.activeToday} />
                 <StatCard icon={<Activity className="w-4 h-4" />} label="Ativos 3 dias" value={data.overview.active3d} />
                 <StatCard icon={<UserX className="w-4 h-4" />} label="Nunca voltaram" value={data.overview.neverReturned} />
                 <StatCard icon={<Clock className="w-4 h-4" />} label="Trial expirando" value={data.overview.trialExpiringSoon} />
+                <StatCard icon={<UserX className="w-4 h-4" />} label="Trial expirado" value={data.overview.trialExpired} />
                 <StatCard icon={<CreditCard className="w-4 h-4" />} label="Pagos ativos" value={data.overview.paidActive} />
               </div>
             </section>

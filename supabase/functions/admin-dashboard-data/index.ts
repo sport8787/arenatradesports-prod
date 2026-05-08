@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     let active3d = 0;
     let neverReturned = 0;
     let trialExpiringSoon = 0;
+    let trialExpired = 0;
     let paidActive = 0;
     let trialActiveCount = 0;
 
@@ -101,14 +102,17 @@ Deno.serve(async (req) => {
       const isActive3d = lastSignIn && lastSignIn >= threeDaysAgo;
       const neverBack = !lastSignIn || Math.abs(lastSignIn.getTime() - createdAt.getTime()) < 60_000;
       const isTrialExpiring = trialDaysLeft !== null && trialDaysLeft >= 1 && trialDaysLeft <= 2;
-      const isPaid = sub?.plan === 'base' || sub?.plan === 'premium';
+      const isTrialExpired = sub?.plan === 'trial' && trialDaysLeft !== null && trialDaysLeft <= 0;
+      const isPaid = sub?.plan === 'base' || sub?.plan === 'premium' || sub?.plan === 'starter' || sub?.plan === 'basic';
+      const isPaidStillActive = isPaid && sub?.is_active === true && (!sub?.subscription_ends_at || new Date(sub.subscription_ends_at) > now);
       const isTrialActive = sub?.plan === 'trial' && (trialDaysLeft ?? 0) > 0;
 
       if (isActiveToday) activeToday++;
       if (isActive3d) active3d++;
       if (neverBack) neverReturned++;
       if (isTrialExpiring) trialExpiringSoon++;
-      if (isPaid) paidActive++;
+      if (isTrialExpired) trialExpired++;
+      if (isPaidStillActive) paidActive++;
       if (isTrialActive) trialActiveCount++;
 
       // D1 / D3 retention
@@ -128,8 +132,10 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Prioridade: Pago > Trial expirado (ACESSO BLOQUEADO) > Trial expirando > Ativo hoje > Ativo recente > Inativo
       let status = 'Inativo';
-      if (isPaid) status = 'Pago';
+      if (isPaidStillActive) status = 'Pago';
+      else if (isTrialExpired) status = 'Trial expirado';
       else if (isTrialExpiring) status = 'Trial expirando';
       else if (isActiveToday) status = 'Ativo hoje';
       else if (isActive3d) status = 'Ativo recente';
@@ -172,6 +178,7 @@ Deno.serve(async (req) => {
       active3d,
       neverReturned,
       trialExpiringSoon,
+      trialExpired,
       paidActive,
     };
 
