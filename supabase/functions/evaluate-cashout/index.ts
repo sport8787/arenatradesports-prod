@@ -401,6 +401,127 @@ function evaluateUnderPressure(
   };
 }
 
+// ═══════════════════════════════════════════════════
+// REGRA FUTODDS — PRESSÃO ADVERSA (Back Casa/Fora, Over)
+// Usa pressure_indices + last5min/last10min Futodds para detectar
+// inversão de momentum ou jogo morto que comprometam a entrada.
+// Prioridade: roda APÓS under25 e ANTES da saúde genérica.
+// ═══════════════════════════════════════════════════
+function evaluateFutoddsPressure(
+  pos: any,
+  matchState: any,
+): { triggered: boolean; severity: 'CRITICAL' | 'WARNING'; signalType: string; motivo: string; deltas?: any } | null {
+  const stats: any = matchState?.stats || {};
+  const market = String(pos.market || '').toLowerCase().trim();
+  const minute = matchState?.minute ?? 0;
+
+  // Só roda se temos dados Futodds (pressure_total/last5min/last10min)
+  const pH = Number(stats.pressure_home);
+  const pA = Number(stats.pressure_away);
+  const last5 = stats.last5min_stats;
+  const last10 = stats.last10min_stats;
+  if (!Number.isFinite(pH) && !Number.isFinite(pA) && !last5 && !last10) return null;
+
+  const scoreH = matchState?.scoreHome ?? 0;
+  const scoreA = matchState?.scoreAway ?? 0;
+  const arr = (k: string, src: any) => Array.isArray(src?.[k]) ? src[k] : [0, 0];
+
+  // ── BACK CASA / BACK FORA: pressão do lado contrário ──
+  const isBackHome = /^(casa|home|1|back\s*casa)$/.test(market) || market.includes('back casa');
+  const isBackAway = /^(fora|away|2|back\s*fora|back\s*visitante)$/.test(market) || market.includes('back fora');
+
+  if (isBackHome || isBackAway) {
+    const ourSide = isBackHome ? 'home' : 'away';
+    const advSide = isBackHome ? 'away' : 'home';
+    const pOur = isBackHome ? pH : pA;
+    const pAdv = isBackHome ? pA : pH;
+    const scoreOur = isBackHome ? scoreH : scoreA;
+    const scoreAdv = isBackHome ? scoreA : scoreH;
+
+    // Vencendo confortável? não emite alerta
+    if (scoreOur - scoreAdv >= 2) return null;
+
+    const reasons: string[] = [];
+    let critical = false;
+
+    // Critério 1: pressão adversária >= 65 com diferença >=15 (Futodds 0-100)
+    if (Number.isFinite(pAdv) && Number.isFinite(pOur) && pAdv >= 65 && (pAdv - pOur) >= 15) {
+      reasons.push(`Pressão adversária ${pAdv.toFixed(0)} vs ${pOur.toFixed(0)} (Δ${(pAdv - pOur).toFixed(0)})`);
+      if (pAdv >= 75) critical = true;
+    }
+
+    // Critério 2: ataques perigosos últimos 5min muito desfavoráveis (3:1+)
+    if (last5) {
+      const [daH, daA] = arr('dangerous_attacks', last5);
+      const daOur = isBackHome ? daH : daA;
+      const daAdv = isBackHome ? daA : daH;
+      if (daAdv >= 6 && daAdv >= daOur * 3) {
+        reasons.push(`DA últ.5min ${daAdv} vs ${daOur}`);
+        critical = true;
+      }
+    }
+
+    // Critério 3: já está empatando ou perdendo + pressão adversária moderada
+    if (scoreOur <= scoreAdv && Number.isFinite(pAdv) && pAdv >= 55 && (pAdv - pOur) >= 10) {
+      reasons.push(`Placar ${scoreH}x${scoreA} sob pressão`);
+    }
+
+    if (reasons.length === 0) return null;
+    if (critical) {
+      return {
+        triggered: true,
+        severity: 'CRITICAL',
+        signalType: 'BACK_PRESSURE_CRITICAL',
+        motivo: `🚨 SAIR AGORA — Inversão de momentum contra ${isBackHome ? 'mandante' : 'visitante'}. (${reasons.join(' • ')})`,
+        deltas: { pH, pA, ourSide, advSide, scoreH, scoreA, minute, reasons },
+      };
+    }
+    return {
+      triggered: true,
+      severity: 'WARNING',
+      signalType: 'BACK_PRESSURE_WARN',
+      motivo: `⚠️ ATENÇÃO — Pressão adversária crescente. (${reasons.join(' • ')})`,
+      deltas: { pH, pA, ourSide, advSide, scoreH, scoreA, minute, reasons },
+    };
+  }
+
+  // ── OVER X.5: detecta jogo morto (sem ataques nos últimos 10min) com tempo escorrendo ──
+  if (market.startsWith('over') && minute >= 60) {
+    const line = parseFloat(market.replace(/over\s*/, '')) || 2.5;
+    const golsAtuais = scoreH + scoreA;
+    const golsFaltam = Math.ceil(line) - golsAtuais;
+    if (golsFaltam <= 0) return null; // já bateu
+
+    if (last10) {
+      const [daH, daA] = arr('dangerous_attacks', last10);
+      const [shH, shA] = arr('on_target', last10);
+      const daTotal = (Number(daH) || 0) + (Number(daA) || 0);
+      const shTotal = (Number(shH) || 0) + (Number(shA) || 0);
+      const dead = daTotal < 4 && shTotal === 0;
+      if (dead && minute >= 75) {
+        return {
+          triggered: true,
+          severity: 'CRITICAL',
+          signalType: 'OVER_DEAD_GAME',
+          motivo: `🚨 SAIR AGORA — Jogo morto últ.10min (${daTotal} DA, ${shTotal} chutes a gol). Faltam ${golsFaltam} gol(s) para Over ${line} em ${90 - minute}min.`,
+          deltas: { daTotal, shTotal, minute, golsFaltam, line },
+        };
+      }
+      if (dead) {
+        return {
+          triggered: true,
+          severity: 'WARNING',
+          signalType: 'OVER_LOW_MOMENTUM',
+          motivo: `⚠️ ATENÇÃO — Momentum baixo últ.10min (${daTotal} DA). Over ${line} em risco.`,
+          deltas: { daTotal, shTotal, minute, golsFaltam, line },
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 const HT_MARKET_REGEX = /\b(ht|1t|1º\s*tempo|primeiro\s*tempo|first\s*half)\b/i;
 
 type MatchState = {
@@ -779,6 +900,49 @@ Deno.serve(async (req) => {
           // mantendo current_odd/cashout_value atualizados (sem sobrescrever motivo).
         }
 
+        // ═══ REGRA FUTODDS — Pressão adversa (Back Casa/Fora, Over) ═══
+        // Roda quando Under não disparou. Usa pressure_indices + last5/last10 Futodds.
+        let futoddsAlert: ReturnType<typeof evaluateFutoddsPressure> = null;
+        if (!u25?.triggered) {
+          futoddsAlert = evaluateFutoddsPressure(pos, liveMatch);
+          if (futoddsAlert?.triggered) {
+            const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
+            console.log(`[evaluate-cashout] 🛑 ${futoddsAlert.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${futoddsAlert.motivo}`);
+
+            await supabase.from('virtual_bets').update({
+              mycroft_cashout_signal: true,
+              mycroft_cashout_reason: futoddsAlert.motivo,
+              last_cashout_update: new Date().toISOString(),
+            }).eq('id', pos.id);
+
+            const { data: lastFutLog } = await supabase
+              .from('cashout_signals_log')
+              .select('id, signal_type, placar')
+              .eq('bet_id', pos.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const sameFut = lastFutLog
+              && lastFutLog.signal_type === futoddsAlert.signalType
+              && lastFutLog.placar === placar;
+
+            if (!sameFut) {
+              await supabase.from('cashout_signals_log').insert({
+                bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id,
+                match_name: pos.match_name, market: pos.market,
+                entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                cashout_value: pos.cashout_value ?? pos.stake, stake: pos.stake,
+                signal_type: futoddsAlert.signalType,
+                position_health: futoddsAlert.severity,
+                mycroft_reason: futoddsAlert.motivo,
+                fatores: futoddsAlert.deltas ?? null,
+                minuto, placar,
+              });
+            }
+          }
+        }
+
 
         // Build stats object for estimation
         const statsCtx = {
@@ -811,8 +975,10 @@ Deno.serve(async (req) => {
         console.log(`[evaluate-cashout] ${pos.match_name} | @${entryOdd}→${oddAtual} | R$${cashoutValue} | ${saude} | signal=${sinal} | ${oddFonte}`);
 
         // Update position — Under 2.5 (u25) tem prioridade sobre a saúde genérica.
-        const finalSinal = (u25?.triggered ?? false) || sinal;
-        const finalMotivo = u25?.triggered ? u25.motivo : (sinal ? motivo : null);
+        const finalSinal = (u25?.triggered ?? false) || (futoddsAlert?.triggered ?? false) || sinal;
+        const finalMotivo = u25?.triggered
+          ? u25.motivo
+          : (futoddsAlert?.triggered ? futoddsAlert.motivo : (sinal ? motivo : null));
         await supabase.from('virtual_bets').update({
           current_odd: oddAtual, cashout_value: cashoutValue, cashout_odd: oddAtual,
           odd_fonte: oddFonte,
