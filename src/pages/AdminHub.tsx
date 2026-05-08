@@ -58,6 +58,13 @@ const LINKS: AdminLink[] = [
     group: 'Operação',
   },
   {
+    to: '/admin/futodds-health',
+    label: 'Futodds Health',
+    description: 'Latência, taxa de erro e cobertura de ligas dos endpoints Futodds.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Operação',
+  },
+  {
     to: '/admin/settlement-log',
     label: 'Log de Liquidações',
     description: 'Histórico completo de settlements (skip, green, red, erros).',
