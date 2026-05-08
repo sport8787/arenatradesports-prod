@@ -129,6 +129,17 @@ serve(async (req) => {
 
     const { bankroll } = await req.json();
 
+    // Camada 2 — kill switch do validador IA borderline
+    let borderlineAIEnabled = true;
+    try {
+      const { data: kill } = await supabase
+        .from('cron_settings')
+        .select('is_enabled')
+        .eq('setting_key', 'borderline_ai_validator')
+        .maybeSingle();
+      borderlineAIEnabled = kill?.is_enabled ?? true;
+    } catch { /* default ON */ }
+
     // Helper: check if match has special early context
     const hasSpecialEarlyContext = (m: any): boolean => {
       const stats = m.stats || {};
