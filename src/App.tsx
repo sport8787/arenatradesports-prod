@@ -69,6 +69,7 @@ const AdminMycroftRules = React.lazy(() => import("./pages/AdminMycroftRules"));
 const AdminCLVMonitor = React.lazy(() => import("./pages/AdminCLVMonitor"));
 const AdminMetricasConversao = React.lazy(() => import("./pages/AdminMetricasConversao"));
 const AdminTraderLeagues = React.lazy(() => import("./pages/AdminTraderLeagues"));
+const AdminBorderlineAI = React.lazy(() => import("./pages/AdminBorderlineAI"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
@@ -189,6 +190,7 @@ const App = () => {
                 <Route path="/admin/clv-monitor" element={<AdminCLVMonitor />} />
                 <Route path="/admin/metricas-conversao" element={<AdminMetricasConversao />} />
                 <Route path="/admin/trader-leagues" element={<AdminTraderLeagues />} />
+                <Route path="/admin/borderline-ai" element={<AdminBorderlineAI />} />
                 <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
                 <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />

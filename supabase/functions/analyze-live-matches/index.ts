@@ -6,6 +6,7 @@ import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
 import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
 import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 import { getCalibrationFloor, applyCalibrationFloor } from "../_shared/calibrationFloor.ts";
+import { isBorderline, validateBorderline, ACTIVE_VERDICTS as BORDERLINE_ACTIVE } from "../_shared/borderlineAIValidator.ts";
 
 // Cache de odds_live (Futodds /matches-live-full) por execução
 let _futoddsOddsCache: { ts: number; list: any[] } | null = null;
@@ -127,6 +128,17 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const { bankroll } = await req.json();
+
+    // Camada 2 — kill switch do validador IA borderline
+    let borderlineAIEnabled = true;
+    try {
+      const { data: kill } = await supabase
+        .from('cron_settings')
+        .select('is_enabled')
+        .eq('setting_key', 'borderline_ai_validator')
+        .maybeSingle();
+      borderlineAIEnabled = kill?.is_enabled ?? true;
+    } catch { /* default ON */ }
 
     // Helper: check if match has special early context
     const hasSpecialEarlyContext = (m: any): boolean => {
@@ -609,6 +621,76 @@ serve(async (req) => {
         } catch (calErr) {
           console.warn('[AnalyzeLive] calibrationFloor falhou:', (calErr as Error)?.message);
         }
+
+        // ─── CAMADA 2: VALIDADOR IA BORDERLINE (confidence 55-65) ─────────
+        // Só dispara para sinais ATIVOS com confiança borderline e kill switch ON.
+        // CONFIRMA → mantém (com pequeno boost), VETA → rebaixa para AGUARDAR,
+        // ERROR/SKIP → mantém (fail-open). Tudo logado em borderline_ai_validations.
+        try {
+          if (borderlineAIEnabled && isBorderline(analysis.verdict, Number(analysis.confidence ?? 0))) {
+            const originalVerdict = analysis.verdict;
+            const originalConfidence = Number(analysis.confidence ?? 0);
+            const decision = await validateBorderline({
+              match_id: match.match_id,
+              home_team: match.home_team,
+              away_team: match.away_team,
+              league: (match as any).championship || (match as any).league || null,
+              minute: Number(match.minute ?? 0),
+              score_home: Number(match.score_home ?? 0),
+              score_away: Number(match.score_away ?? 0),
+              market: analysis.market || 'N/A',
+              verdict: originalVerdict,
+              confidence: originalConfidence,
+              thesis: analysis.thesis,
+              odd: analysis.odd,
+              stats: enrichedStats as any,
+            });
+
+            let finalVerdict = originalVerdict;
+            let finalConfidence = originalConfidence;
+            if (decision.decision === 'VETA') {
+              finalVerdict = 'AGUARDAR';
+              finalConfidence = Math.max(0, originalConfidence + decision.confidence_adjustment);
+              analysis.verdict = finalVerdict;
+              analysis.confidence = finalConfidence;
+              analysis.thesis = `[IA-VETO] ${decision.reason} | ` + (analysis.thesis || '');
+              console.log(`[AnalyzeLive] 🛑 IA-VETO ${match.home_team} vs ${match.away_team}: ${decision.reason}`);
+            } else if (decision.decision === 'CONFIRMA') {
+              finalConfidence = Math.min(100, originalConfidence + decision.confidence_adjustment);
+              analysis.confidence = finalConfidence;
+              console.log(`[AnalyzeLive] ✅ IA-CONFIRMA ${match.home_team} vs ${match.away_team} (+${decision.confidence_adjustment}pp)`);
+            }
+
+            await supabase.from('borderline_ai_validations').insert({
+              match_id: match.match_id,
+              home_team: match.home_team,
+              away_team: match.away_team,
+              league: (match as any).championship || null,
+              minute: Number(match.minute ?? 0),
+              market: analysis.market || 'N/A',
+              original_verdict: originalVerdict,
+              original_confidence: originalConfidence,
+              ai_decision: decision.decision,
+              ai_reason: decision.reason,
+              ai_confidence_adjustment: decision.confidence_adjustment,
+              final_verdict: finalVerdict,
+              final_confidence: finalConfidence,
+              ai_model: decision.model,
+              latency_ms: decision.latency_ms,
+              stats_snapshot: {
+                xg_home: (enrichedStats as any).xg_home ?? 0,
+                xg_away: (enrichedStats as any).xg_away ?? 0,
+                possession_home: (enrichedStats as any).possession_home ?? 0,
+                possession_away: (enrichedStats as any).possession_away ?? 0,
+                shots_total: (enrichedStats as any).shots_total ?? 0,
+                dangerous_attacks: (enrichedStats as any).dangerous_attacks_total ?? 0,
+              },
+            });
+          }
+        } catch (borderErr) {
+          console.warn('[AnalyzeLive] borderline AI validator falhou:', (borderErr as Error)?.message);
+        }
+        // ====================================================================
 
         // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
         const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
