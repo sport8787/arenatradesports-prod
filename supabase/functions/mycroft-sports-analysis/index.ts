@@ -728,7 +728,8 @@ serve(async (req) => {
       } catch (e) { console.warn('[MycroftSports] Falha log veto temporal:', e); }
       analysis.verdict = 'AGUARDAR';
       analysis.plan_name = null;
-      analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado a partir do minuto 10 — aguardar janela de confirmação.`];
+      analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado entre o minuto 10 e o minuto 20 do 1º tempo.`];
+      }
     }
 
     // === VETO GLOBAL: BACK FAVORITO COM VALOR ===
