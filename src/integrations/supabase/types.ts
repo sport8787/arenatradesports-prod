@@ -4090,6 +4090,87 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_clv_log: {
+        Row: {
+          away_team: string | null
+          bookmaker_edge_pp: number | null
+          bookmaker_odd: number | null
+          close_back_odd: number | null
+          close_captured_at: string | null
+          close_lay_odd: number | null
+          close_mid_odd: number | null
+          clv_pp: number | null
+          commence_time: string | null
+          created_at: string
+          demoted_by_exchange: boolean | null
+          estimated_probability: number | null
+          exchange_source: string | null
+          futodds_event_id: string | null
+          home_team: string | null
+          id: string
+          market: string
+          match_id: string
+          open_back_odd: number | null
+          open_captured_at: string
+          open_edge_pp: number | null
+          open_fair_prob: number | null
+          open_lay_odd: number | null
+          open_mid_odd: number | null
+        }
+        Insert: {
+          away_team?: string | null
+          bookmaker_edge_pp?: number | null
+          bookmaker_odd?: number | null
+          close_back_odd?: number | null
+          close_captured_at?: string | null
+          close_lay_odd?: number | null
+          close_mid_odd?: number | null
+          clv_pp?: number | null
+          commence_time?: string | null
+          created_at?: string
+          demoted_by_exchange?: boolean | null
+          estimated_probability?: number | null
+          exchange_source?: string | null
+          futodds_event_id?: string | null
+          home_team?: string | null
+          id?: string
+          market: string
+          match_id: string
+          open_back_odd?: number | null
+          open_captured_at?: string
+          open_edge_pp?: number | null
+          open_fair_prob?: number | null
+          open_lay_odd?: number | null
+          open_mid_odd?: number | null
+        }
+        Update: {
+          away_team?: string | null
+          bookmaker_edge_pp?: number | null
+          bookmaker_odd?: number | null
+          close_back_odd?: number | null
+          close_captured_at?: string | null
+          close_lay_odd?: number | null
+          close_mid_odd?: number | null
+          clv_pp?: number | null
+          commence_time?: string | null
+          created_at?: string
+          demoted_by_exchange?: boolean | null
+          estimated_probability?: number | null
+          exchange_source?: string | null
+          futodds_event_id?: string | null
+          home_team?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          open_back_odd?: number | null
+          open_captured_at?: string
+          open_edge_pp?: number | null
+          open_fair_prob?: number | null
+          open_lay_odd?: number | null
+          open_mid_odd?: number | null
+        }
+        Relationships: []
+      }
       punter_rankings: {
         Row: {
           best_streak: number
