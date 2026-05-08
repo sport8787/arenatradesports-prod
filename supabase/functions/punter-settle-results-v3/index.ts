@@ -352,6 +352,74 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
   return "void";
 }
 
+// ─── Resolver de fixture com prioridade Futodds (economia de cota AF) ──────
+// Ordem:
+//  1) Futodds /matches-ended (cota separada, suficiente para gols/escanteios quando expostos)
+//  2) API-Football (necessário para mercados de jogador/eventos via fixtureId)
+//  3) Sportmonks (reforço)
+//  4) The Odds API (fallback final)
+// AF é forçada quando o mercado precisa de eventos (jogador) ou de corners
+// e o Futodds não trouxe corners.
+function marketNeedsAfEvents(market: string): boolean {
+  return /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(market || "");
+}
+function marketIsCorners(market: string): boolean {
+  return /escante|corner/i.test(market || "");
+}
+async function resolveFixtureForSettlement(
+  home: string, away: string, startIso: string, market: string,
+): Promise<{ fx: FixtureResult | null; fixtureId?: number; fonte: string }> {
+  let fx: FixtureResult | null = null;
+  let fixtureId: number | undefined;
+  let fonte = "futodds-ended";
+
+  // 1) Futodds primeiro
+  try {
+    const fdEnd = await buscarPorFutoddsEnded(home, away, startIso);
+    if (fdEnd) fx = fdEnd;
+  } catch (_) { /* ignore */ }
+
+  // Se mercado de jogador → precisamos de fixtureId AF
+  // Se mercado de escanteios e Futodds não trouxe corners → tentar AF
+  const needsAf = marketNeedsAfEvents(market) || (fx && marketIsCorners(market) && fx.cornersHome == null);
+
+  if (!fx || needsAf) {
+    try {
+      const af = await buscarPorNomeEData(home, away, startIso);
+      if (af) {
+        if (!fx) { fx = af.fx; fonte = "api-football"; }
+        fixtureId = af.fixtureId;
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  // 2) Sportmonks reforço
+  if (!fx) {
+    try {
+      const sm = await findFixtureCached(home, away, startIso);
+      if (sm) {
+        fx = {
+          homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
+          goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
+          status: sm.status,
+          cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
+        };
+        fonte = "sportmonks";
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  // 3) The Odds API fallback final
+  if (!fx) {
+    try {
+      const oa = await buscarPorOddsAPI(home, away);
+      if (oa) { fx = oa; fonte = "the-odds-api"; }
+    } catch (_) { /* ignore */ }
+  }
+
+  return { fx, fixtureId, fonte };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -413,36 +481,17 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // 1) API-Football PRIMEIRO (cache por dia + cota separada da Sportmonks).
-      let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      let fixtureId: number | undefined;
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
+      // Resolver com prioridade Futodds → AF (só se necessário) → Sportmonks → Odds API
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, s.market);
+      let fx = resolved.fx;
+      const fixtureId = resolved.fixtureId;
+      let fonte = resolved.fonte;
 
-      // 2) Sportmonks como reforço (só se AF não achou). Economiza quota Sportmonks Pro.
-      if (!fx) {
-        const sm = await findFixtureCached(home, away, startIso);
-        if (sm) {
-          fx = {
-            homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
-            goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
-            status: sm.status,
-            cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
-          };
-          fonte = "sportmonks";
-        }
-      }
-
-      // 3) Se mercado de escanteios e ainda não temos corners (apenas via AF), busca
-      if (fx && fixtureId && fx.cornersHome == null && /escante|corner/i.test(s.market)) {
+      // Escanteios: se ainda não temos corners e temos fixtureId AF, busca via AF
+      if (fx && fixtureId && fx.cornersHome == null && marketIsCorners(s.market)) {
         const c = await fetchCorners(fixtureId);
         if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
       }
-
-      // 4) Fallback The Odds API
-      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
         notFound++;
@@ -532,19 +581,10 @@ serve(async (req) => {
     const startIso = s.match_date || new Date().toISOString();
 
     try {
-      let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; }
-      if (!fx) {
-        const sm = await findFixtureCached(home, away, startIso);
-        if (sm) {
-          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-          fonte = "sportmonks";
-        }
-      }
-      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+      // Favorito não tem mercado de jogador/escanteios — Futodds resolve direto
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, "favorito_pre");
+      let fx = resolved.fx;
+      let fonte = resolved.fonte;
 
       if (!fx) {
         notFound++;
@@ -593,19 +633,9 @@ serve(async (req) => {
       const startIso = c?.match_date || s.created_at || new Date().toISOString();
 
       try {
-        let fx: FixtureResult | null = null;
-        let fonte = "api-football";
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) { fx = af.fx; }
-        if (!fx) {
-          const sm = await findFixtureCached(home, away, startIso);
-          if (sm) {
-            fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-            fonte = "sportmonks";
-          }
-        }
-        if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+        const resolved = await resolveFixtureForSettlement(home, away, startIso, "eventos_raros_lay");
+        let fx = resolved.fx;
+        let fonte = resolved.fonte;
         if (!fx) {
           notFound++;
           results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "eventos_raros_sinais" });
@@ -662,20 +692,10 @@ serve(async (req) => {
     }
 
     try {
-      let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      let fixtureId: number | undefined;
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
-      if (!fx) {
-        const sm = await findFixtureCached(home, away, startIso);
-        if (sm) {
-          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-          fonte = "sportmonks";
-        }
-      }
-      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, b.market || "");
+      let fx = resolved.fx;
+      const fixtureId = resolved.fixtureId;
+      let fonte = resolved.fonte;
       if (!fx) {
         notFound++;
         // Marca como void para não ficar pendente para sempre se já passou >24h
