@@ -234,6 +234,7 @@ export default function AdminMetricasConversao() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Nome</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Cupom</TableHead>
                         <TableHead>Cadastro</TableHead>
@@ -245,6 +246,20 @@ export default function AdminMetricasConversao() {
                     <TableBody>
                       {filteredUsers.map((u) => (
                         <TableRow key={u.id}>
+                          <TableCell className="text-sm">
+                            {u.full_name ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium">{u.full_name}</span>
+                                {u.username && u.username !== 'Jogador' && (
+                                  <span className="text-xs text-muted-foreground">@{u.username}</span>
+                                )}
+                              </div>
+                            ) : u.username && u.username !== 'Jogador' ? (
+                              <span className="text-muted-foreground">@{u.username}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium text-sm">{u.email || '—'}</TableCell>
                           <TableCell className="text-sm">
                             {u.coupon_code ? (
