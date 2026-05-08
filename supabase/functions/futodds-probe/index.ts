@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     base: workingBase,
     baseProbe,
     probes: Object.fromEntries(endpoints.map((p, i) => [p, probes[i]])),
-    betfair_live_odds: betfairOddsProbe,
+    detail_probes: detailProbes,
     coverage: {
       betfair_live_count: betfairLive?.total_count ?? null,
       betfair_live_leagues_in_sample: Array.from(liveLeagues),
