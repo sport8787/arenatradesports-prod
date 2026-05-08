@@ -242,7 +242,8 @@ async function getOdds(
   leagueId: number,
   fixtureId: number,
 ): Promise<OddsMarket> {
-  const sportKey = LIGAS_ODDS_API[leagueId]
+  const { oddsMap } = await getAllowedFav()
+  const sportKey = oddsMap[leagueId]
 
   // Tenta The Odds API primeiro (se mapeada e chave configurada)
   if (sportKey && ODDS_API_KEY) {
