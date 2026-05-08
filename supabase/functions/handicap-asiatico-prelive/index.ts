@@ -11,6 +11,13 @@ import {
   getRecentFixturesSM,
   getTeamStatsSM,
 } from '../_shared/sportmonks-af-adapter.ts';
+import {
+  getAllowedLeagueIds,
+  getOddsSportKeyMap,
+  getLeagueTier,
+  maxGamesForTier,
+  type LeagueTier,
+} from '../_shared/leaguesRegistry.ts';
 
 // Fonte de dados ativa (set per-request)
 let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
