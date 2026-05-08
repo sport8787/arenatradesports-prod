@@ -717,7 +717,7 @@ export default function ArenaTraderSports() {
             <SimulationPanel onFetched={refetch} />
           )}
 
-          {statusFilter !== 'simulado' && (
+          {isAdvanced && statusFilter !== 'simulado' && (
             <>
               {/* Chips de Região (Brasil / Europa / Sul-América / Outros) — Trader #4 */}
               <div className="flex flex-wrap gap-2 items-center mb-2" role="group" aria-label="Regiões">
