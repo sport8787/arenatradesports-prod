@@ -900,6 +900,49 @@ Deno.serve(async (req) => {
           // mantendo current_odd/cashout_value atualizados (sem sobrescrever motivo).
         }
 
+        // ═══ REGRA FUTODDS — Pressão adversa (Back Casa/Fora, Over) ═══
+        // Roda quando Under não disparou. Usa pressure_indices + last5/last10 Futodds.
+        let futoddsAlert: ReturnType<typeof evaluateFutoddsPressure> = null;
+        if (!u25?.triggered) {
+          futoddsAlert = evaluateFutoddsPressure(pos, liveMatch);
+          if (futoddsAlert?.triggered) {
+            const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
+            console.log(`[evaluate-cashout] 🛑 ${futoddsAlert.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${futoddsAlert.motivo}`);
+
+            await supabase.from('virtual_bets').update({
+              mycroft_cashout_signal: true,
+              mycroft_cashout_reason: futoddsAlert.motivo,
+              last_cashout_update: new Date().toISOString(),
+            }).eq('id', pos.id);
+
+            const { data: lastFutLog } = await supabase
+              .from('cashout_signals_log')
+              .select('id, signal_type, placar')
+              .eq('bet_id', pos.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const sameFut = lastFutLog
+              && lastFutLog.signal_type === futoddsAlert.signalType
+              && lastFutLog.placar === placar;
+
+            if (!sameFut) {
+              await supabase.from('cashout_signals_log').insert({
+                bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id,
+                match_name: pos.match_name, market: pos.market,
+                entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                cashout_value: pos.cashout_value ?? pos.stake, stake: pos.stake,
+                signal_type: futoddsAlert.signalType,
+                position_health: futoddsAlert.severity,
+                mycroft_reason: futoddsAlert.motivo,
+                fatores: futoddsAlert.deltas ?? null,
+                minuto, placar,
+              });
+            }
+          }
+        }
+
 
         // Build stats object for estimation
         const statsCtx = {
