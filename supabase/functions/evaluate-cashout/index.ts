@@ -1045,6 +1045,59 @@ Deno.serve(async (req) => {
         }
 
 
+        // ═══ REGRA FUTODDS — Momentum Shift (jogo virando, last10 vs last20) ═══
+        let shiftAlert: ReturnType<typeof evaluateMomentumShift> = null;
+        if (!u25?.triggered && !futoddsAlert?.triggered) {
+          shiftAlert = evaluateMomentumShift(pos, liveMatch);
+          if (shiftAlert?.triggered) {
+            const placar = `${liveMatch.scoreHome ?? 0}-${liveMatch.scoreAway ?? 0}`;
+            console.log(`[evaluate-cashout] 🔄 ${shiftAlert.signalType} ${pos.match_name} ${placar} min ${minuto} :: ${shiftAlert.motivo}`);
+
+            await supabase.from('virtual_bets').update({
+              mycroft_cashout_signal: true,
+              mycroft_cashout_reason: shiftAlert.motivo,
+              last_cashout_update: new Date().toISOString(),
+            }).eq('id', pos.id);
+
+            const { data: lastShiftLog } = await supabase
+              .from('cashout_signals_log')
+              .select('id, signal_type, placar')
+              .eq('bet_id', pos.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            const sameShift = lastShiftLog
+              && lastShiftLog.signal_type === shiftAlert.signalType
+              && lastShiftLog.placar === placar;
+
+            if (!sameShift) {
+              await supabase.from('cashout_signals_log').insert({
+                bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id,
+                match_name: pos.match_name, market: pos.market,
+                entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                cashout_value: pos.cashout_value ?? pos.stake, stake: pos.stake,
+                signal_type: shiftAlert.signalType,
+                position_health: shiftAlert.severity,
+                mycroft_reason: shiftAlert.motivo,
+                fatores: shiftAlert.deltas ?? null,
+                minuto, placar,
+              });
+              if (shiftAlert.severity === 'CRITICAL') {
+                supabase.functions.invoke('cashout-telegram-alert', { body: {
+                  bet_id: pos.id, signal_type: shiftAlert.signalType,
+                  match_name: pos.match_name, market: pos.market,
+                  placar, minuto,
+                  entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                  cashout_value: pos.cashout_value ?? pos.stake,
+                  motivo: shiftAlert.motivo,
+                }}).catch((e) => console.warn('[evaluate-cashout] tg alert failed:', e?.message));
+              }
+            }
+          }
+        }
+
+
         // Build stats object for estimation
         const statsCtx = {
           minute: minuto, score_home: liveMatch.scoreHome ?? 0, score_away: liveMatch.scoreAway ?? 0,
