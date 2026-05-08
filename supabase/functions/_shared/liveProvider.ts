@@ -99,44 +99,63 @@ async function afFetchFixtureStats(fixtureId: string): Promise<NormalizedStats |
 
 export interface LiveResult {
   fixtures: any[];           // API-Football compatible shape
-  source: "sportmonks" | "api-football";
+  source: "futodds" | "sportmonks" | "api-football";
   fallback_reason?: string;
   count: number;
 }
 
+async function tryFutodds(): Promise<LiveResult> {
+  const r = await getFutoddsLive();
+  console.log(`[liveProvider] source=futodds count=${r.count}`);
+  return { fixtures: r.fixtures, source: "futodds", count: r.count };
+}
+
+async function trySportmonks(): Promise<LiveResult> {
+  const map = await getLeagueMap();
+  const { fixtures } = await fetchInplay();
+  const normalized = fixtures.map((f) => normalizeFixture(f, map));
+  const compat = normalized.map((n) => ({
+    fixture: {
+      id: n.fixture.id,
+      date: n.fixture.date,
+      status: { short: n.fixture.status.short, long: n.fixture.status.long, elapsed: n.fixture.status.elapsed },
+      sm_id: n.fixture.sm_id,
+    },
+    league: { id: n.league.id, name: n.league.name, sm_id: n.league.sm_id },
+    teams: n.teams,
+    goals: n.goals,
+    _source: "sportmonks",
+    _raw: fixtures.find((rf: any) => rf.id === n.fixture.sm_id),
+  }));
+  console.log(`[liveProvider] source=sportmonks count=${compat.length}`);
+  return { fixtures: compat, source: "sportmonks", count: compat.length };
+}
+
+async function tryApiFootball(reason: string): Promise<LiveResult> {
+  const fixtures = await afFetchLive();
+  const tagged = fixtures.map((f: any) => ({ ...f, _source: "api-football" }));
+  console.log(`[liveProvider] source=api-football count=${tagged.length} reason=${reason}`);
+  return { fixtures: tagged, source: "api-football", fallback_reason: reason, count: tagged.length };
+}
+
 export async function getLiveMatches(): Promise<LiveResult> {
-  // 1) Sportmonks primário
-  try {
-    const map = await getLeagueMap();
-    const { fixtures } = await fetchInplay();
-    const normalized = fixtures.map((f) => normalizeFixture(f, map));
-    // Converte para shape API-Football pra manter compat com edges existentes
-    const compat = normalized.map((n) => ({
-      fixture: {
-        id: n.fixture.id,
-        date: n.fixture.date,
-        status: { short: n.fixture.status.short, long: n.fixture.status.long, elapsed: n.fixture.status.elapsed },
-        sm_id: n.fixture.sm_id,
-      },
-      league: { id: n.league.id, name: n.league.name, sm_id: n.league.sm_id },
-      teams: n.teams,
-      goals: n.goals,
-      _source: "sportmonks",
-      _raw: fixtures.find((rf: any) => rf.id === n.fixture.sm_id), // mantém raw pra extrair stats
-    }));
-    console.log(`[liveProvider] source=sportmonks count=${compat.length}`);
-    return { fixtures: compat, source: "sportmonks", count: compat.length };
-  } catch (smErr) {
-    console.warn(`[liveProvider] FALLBACK to api-football reason=${(smErr as Error).message}`);
-    const fixtures = await afFetchLive();
-    const tagged = fixtures.map((f: any) => ({ ...f, _source: "api-football" }));
-    return {
-      fixtures: tagged,
-      source: "api-football",
-      fallback_reason: (smErr as Error).message,
-      count: tagged.length,
-    };
+  const order: Array<"futodds" | "sportmonks" | "api-football"> =
+    PRIMARY === "sportmonks" ? ["sportmonks", "futodds", "api-football"]
+    : PRIMARY === "api-football" ? ["api-football", "futodds", "sportmonks"]
+    : ["futodds", "sportmonks", "api-football"];
+
+  let lastErr = "no_provider";
+  for (const p of order) {
+    try {
+      if (p === "futodds") return await tryFutodds();
+      if (p === "sportmonks") return await trySportmonks();
+      return await tryApiFootball(lastErr);
+    } catch (e) {
+      lastErr = `${p}: ${(e as Error).message}`;
+      console.warn(`[liveProvider] ${p} failed → next. ${lastErr}`);
+    }
   }
+  throw new Error(`all_providers_failed: ${lastErr}`);
 }
 
 export interface StatsResult {
