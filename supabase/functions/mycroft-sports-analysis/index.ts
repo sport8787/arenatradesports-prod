@@ -694,15 +694,25 @@ serve(async (req) => {
     }
 
     // === GUARD TEMPORAL UNDER 2.5 ===
-    // Veta qualquer aprovação de Under 2.5 antes do minuto 10 — jogos só "esquentam" depois disso.
-    // Antes do min 10, ausência de ações ofensivas é o estado padrão (não viés confirmatório).
-    if (
-      analysis.verdict === 'APROVADO' &&
-      typeof analysis.market === 'string' &&
-      /under\s*2\.?5/i.test(analysis.market) &&
-      (match.minute ?? 0) < 10
-    ) {
-      const motivoVeto = `Under 2.5 aprovado prematuramente (min ${match.minute ?? 0} < 10). Jogo precisa de janela de confirmação até o min 10 antes de validar baixa atividade.`;
+    // Janela válida: 1º tempo, do minuto 10 até o minuto 20.
+    // Antes dos 10 min: jogo ainda está se acomodando (viés confirmatório).
+    // Depois dos 20 min ou no 2º tempo: o EV do Under 2.5 cai e a odd não compensa.
+    {
+      const _uMin = match.minute ?? 0;
+      const _uPeriod = String((match as any).period || '').toUpperCase();
+      const _isSecondHalfOrLater =
+        _uMin > 45 ||
+        _uPeriod.includes('SECOND') || _uPeriod.includes('2H') || _uPeriod === 'HT' ||
+        _uPeriod.includes('HALF_TIME') || _uPeriod.includes('HALFTIME') ||
+        _uPeriod.includes('EXTRA') || _uPeriod === 'FT' || _uPeriod.includes('FULL_TIME');
+      const _outOfWindow = _uMin < 10 || _uMin > 20 || _isSecondHalfOrLater;
+      if (
+        analysis.verdict === 'APROVADO' &&
+        typeof analysis.market === 'string' &&
+        /under\s*2\.?5/i.test(analysis.market) &&
+        _outOfWindow
+      ) {
+      const motivoVeto = `Under 2.5 fora da janela permitida (min ${_uMin}, period=${_uPeriod || 'n/d'}). Só é aprovado entre minuto 10 e 20 do 1º tempo.`;
       console.warn(`[MycroftSports] 🛑 VETO TEMPORAL: ${motivoVeto}`);
       try {
         await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
