@@ -160,28 +160,56 @@ serve(async (req) => {
     }
     
     // Filtrar apenas ligas permitidas
+    // ⚠️ Futodds usa league_id do BetsAPI (espaço diferente da API-Football).
+    // Quando o provider for futodds, filtramos por NOME da liga (whitelist).
+    const isFutodds = providerUsed === "futodds";
+    const allowedNames = Object.values(LIGAS_PERMITIDAS).map((n) => n.toLowerCase());
+    const matchesWhitelistByName = (name?: string) => {
+      if (!name) return false;
+      const lc = name.toLowerCase();
+      return allowedNames.some((n) => {
+        const base = n.split("(")[0].trim().split("—")[0].trim();
+        return base.length >= 4 && (lc.includes(base) || base.includes(lc));
+      });
+    };
+
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
+      const leagueName = f.league?.name;
+      if (isFutodds) {
+        // Para futodds: aceita por nome OU se houver match_id já vivo no DB (deixa o downstream decidir).
+        return matchesWhitelistByName(leagueName);
+      }
       return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
     });
-    console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas`);
+    console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas (provider=${providerUsed})`);
 
     if (fixtures.length === 0) {
-      const { data: staleLive } = await supabase
-        .from('live_matches')
-        .select('match_id')
-        .eq('status', 'live');
-
-      if (staleLive && staleLive.length > 0) {
-        await supabase
+      // 🛡️ Guarda anti-wipe: só marca como finished se o provider REALMENTE retornou 0 jogos ao vivo.
+      // Se allFixtures > 0, é só mismatch de filtro (ex: futodds com IDs diferentes) — não apagar dashboard.
+      if (allFixtures.length === 0) {
+        const { data: staleLive } = await supabase
           .from('live_matches')
-          .update({ status: 'finished', updated_at: new Date().toISOString() })
+          .select('match_id')
           .eq('status', 'live');
-        console.log(`[LiveScores] Marked ${staleLive.length} stale matches as finished`);
+
+        if (staleLive && staleLive.length > 0) {
+          await supabase
+            .from('live_matches')
+            .update({ status: 'finished', updated_at: new Date().toISOString() })
+            .eq('status', 'live');
+          console.log(`[LiveScores] Marked ${staleLive.length} stale matches as finished`);
+        }
+
+        return new Response(
+          JSON.stringify({ updated: 0, finished: staleLive?.length || 0, stats_fetched: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
+      console.log(`[LiveScores] ⚠️ filtro vazio mas provider retornou ${allFixtures.length} jogos — preservando dashboard.`);
       return new Response(
-        JSON.stringify({ updated: 0, finished: staleLive?.length || 0, stats_fetched: 0 }),
+        JSON.stringify({ updated: 0, finished: 0, stats_fetched: 0, note: "filter-empty-preserved" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
