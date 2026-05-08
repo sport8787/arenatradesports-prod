@@ -1,102 +1,77 @@
-# Plano — Qualidade dos Sinais AH Pré-Live (Arena Punter)
+## Objetivo
+Expandir o Trader Sports de ~17 ligas hoje no whitelist para **120-150**, sem estourar custo Gemini nem quota da API-Football, usando sistema de **tiers A/B/C**.
 
-Objetivo: elevar ROI dos sinais Asian Handicap pré-live atacando os 4 vetores de maior impacto, na ordem do maior retorno por menor esforço.
+## Diagnóstico atual
+- `fetch-live-matches/index.ts` tem whitelist hardcoded (`LIGAS_PERMITIDAS`) com 17 ligas top.
+- `handicap-asiatico-prelive/index.ts` e `plano-favorito-prelive/index.ts` têm seus próprios sets reduzidos (~18 ligas) e chamam Gemini por jogo.
+- `analyze-live-matches` (motor ao vivo) é **determinístico** — não chama IA. Então expandir cobertura ao vivo tem custo de quota API-Football, mas **zero custo Gemini**.
+- `arena-trader-jury` é chamado sob demanda (não em loop por jogo).
 
-## Visão geral das 4 frentes
+Conclusão: o custo Gemini concentra-se nas edges pré-live (HA, Plano Favorito). Live é "barato" do lado da IA.
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ #1 CLV TRACKER AH       → mata seleções com value negativo  │
-│ #2 DISPERSÃO ENTRE CASAS → flag de incerteza + fade outliers│
-│ #3 CALIBRAÇÃO POR BUCKET → corrige overconfidence em faixas │
-│ #4 SHERLOCK OBRIGATÓRIO  → AH ≥ 2.00 ou |hcap| ≥ 1.5        │
-└─────────────────────────────────────────────────────────────┘
+## Estratégia de tiers
+
+| Tier | Ligas | Live (analyze-live) | Pré-live (HA + Favorito) | Modelo Gemini |
+|------|-------|---------------------|---------------------------|---------------|
+| **A** | ~30 top (atual) | ✅ completo | ✅ análise completa | gemini-2.5-flash |
+| **B** | ~60 médio | ✅ completo | ✅ prompt enxuto + max 25 jogos | gemini-2.5-flash-lite |
+| **C** | ~40 cauda longa | ✅ completo | ❌ só Sherlock (estatística pura, sem IA) | — |
+
+Resultado: 3-5x mais cobertura, custo Gemini cresce ~30-40% (não 8x).
+
+## Implementação
+
+### 1. Migração — tabela `trader_leagues`
+```sql
+CREATE TABLE public.trader_leagues (
+  league_id integer PRIMARY KEY,
+  name text NOT NULL,
+  country text,
+  region text,             -- BRASIL|EUROPA|SUL_AMERICA|ASIA|NORTE_AMERICA|OUTROS
+  tier text NOT NULL,      -- 'A' | 'B' | 'C'
+  enabled boolean NOT NULL DEFAULT true,
+  odds_sport_key text,     -- mapping pro The Odds API (quando existir)
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.trader_leagues ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "trader_leagues readable by everyone" ON public.trader_leagues FOR SELECT USING (true);
+CREATE POLICY "trader_leagues admin write" ON public.trader_leagues FOR ALL USING (public.has_role(auth.uid(),'admin'));
 ```
+Seed inicial: as 17 ligas atuais como Tier A + ~60 Tier B (Brasileirão B/C, Argentina, Chile, Colômbia, México, MLS, Eredivisie, Belga, Turca, Grega, J-League, K-League, A-League, China, Saudi, Eredivisie 2, EFL Championship/L1/L2, Bundesliga 2, La Liga 2, Serie B Italiana, Ligue 2, FA Cup, Copa del Rey, Coppa Italia, DFB-Pokal, etc.) + ~40 Tier C (3ª/4ª divisões, Cyprus, Bulgaria, Romania, Croatia, Sérvia, Israel, Egito, África do Sul, etc.).
 
----
+### 2. Helper compartilhado — `_shared/leaguesRegistry.ts`
+- Cache em memória (TTL 30 min) das ligas habilitadas, indexado por id e por tier.
+- Funções: `getAllowedLeagueIds()`, `getLeagueTier(id)`, `getLeaguesByTier('A'|'B'|'C')`.
 
-## Frente 1 — CLV Tracker AH (maior impacto)
+### 3. `fetch-live-matches/index.ts`
+- Substituir `LIGAS_PERMITIDAS` constante por consulta ao registry (1x por execução, cacheado).
+- Bloqueio mantém `LIGAS_BLOQUEADAS` (amistosos).
 
-**O que faz:** mede quanto a odd da entrada AH bate o mercado no fechamento (Pinnacle/Futodds). CLV consistente positivo = edge real. CLV negativo = ilusão de lucro.
+### 4. `handicap-asiatico-prelive/index.ts`
+- Tier A+B somente (C nunca chega aqui).
+- Tier B usa `gemini-2.5-flash-lite` e prompt 50% menor (sem H2H detalhado, sem narrativa longa).
+- Limite de jogos: A=25, B=20.
 
-**Entrega:**
-- Tabela `punter_clv_log` (signal_id, market, entry_odd, closing_odd, clv_pct, league, handicap, captured_at).
-- Cron `punter-clv-capture` rodando 5min antes do kick-off de cada sinal AH aprovado, captura odd de fechamento via Futodds Exchange (fallback Pinnacle via The Odds API).
-- View materializada `punter_clv_30d` com CLV médio agrupado por: liga, faixa de handicap, faixa de odd.
-- **Quarentena automática:** se um bucket (liga × faixa) tiver ≥15 sinais nos últimos 30d com CLV médio < -1.5%, entra em `punter_quarantine` → engine bloqueia novos sinais AH naquele bucket por 14 dias.
-- Painel `/admin/clv-monitor` mostrando CLV por liga/handicap, com badge vermelho nos buckets em quarentena.
+### 5. `plano-favorito-prelive/index.ts`
+- Mesmo padrão: A+B only, modelo por tier.
 
----
+### 6. UI Admin — `/admin/trader-leagues` (opcional, mas útil)
+- Nova rota com tabela editável: enable/disable, mudar tier, filtrar por região.
+- Adicionar link no `AdminHub`.
 
-## Frente 2 — Dispersão de Odds entre Casas
+### 7. Memória atualizada
+Atualizar `mem://features/arena-trader-sports/league-filtering-system-v2` com a estrutura de tiers e tabela `trader_leagues`.
 
-**O que faz:** AH varia muito entre casas. Quando há grande divergência, é sinal de mercado incerto. Quando estamos pegando a pior odd, vetar.
+## Pontos técnicos a confirmar
+- IDs API-Football das ligas adicionais: vou usar a lista canônica conhecida + verificação contra `/leagues` da API.
+- Se uma liga não tiver `odds_sport_key`, o HA pula (já é o comportamento atual).
+- Sherlock (cauda longa) já roda sem IA na própria edge `mycroft-punter-analytic` — não precisa mudar nada lá.
 
-**Entrega:**
-- Função `compareAHOddsAcrossBooks(matchId, market)` em `_shared/oddsComparison.ts`: busca odds AH em Bet365, Pinnacle, Betfair Exchange, Superbet (via The Odds API) + Futodds.
-- Calcula `dispersion_pct = (max - min) / median`.
-- Integra no `mycroft-punter-anthropic` antes de aprovar:
-  - `dispersion > 7%` → flag `MERCADO_INCERTO`, reduz stake em 30%.
-  - Nossa odd no bottom 25% das casas → veto direto (`linha pior que mercado`).
-  - Nossa odd no top 25% → +3pp confidence (estamos pegando o melhor preço).
-- Campo novo em `punter_signals.market_dispersion` para auditoria.
+## Entregas
+1. Migração + seed das ligas (uma única ação `supabase--migration` para schema, depois `supabase--insert` para o seed).
+2. `_shared/leaguesRegistry.ts` (novo).
+3. Edits em `fetch-live-matches`, `handicap-asiatico-prelive`, `plano-favorito-prelive`.
+4. `/admin/trader-leagues` + entrada no `AdminHub`.
+5. Memória atualizada.
 
----
-
-## Frente 3 — Calibração por Bucket (AH × faixa de odd)
-
-**O que faz:** hoje `punter_calibration` é agregada. Sinais AH em faixa específica podem estar mal-calibrados sem aparecer na média geral.
-
-**Entrega:**
-- Migration: nova coluna `bucket_key` em `punter_calibration` no formato `{market}__{odd_bucket}` (ex: `AH__1.80-2.20`).
-- Recalcular Brier Score e accuracy por bucket no cron diário existente `punter-calibration-update`.
-- Engine consulta o bucket exato do sinal antes de aprovar:
-  - Se `accuracy_observed - accuracy_expected < -8pp` no bucket → -10pp na confidence final.
-  - Se bucket tem < 30 amostras → fallback para média do mercado AH inteiro.
-- Painel `/admin/punter-calibration` ganha tab "Por Bucket AH" com heatmap odd × handicap.
-
----
-
-## Frente 4 — Sherlock Obrigatório para AH de risco
-
-**O que faz:** Sherlock já existe como camada estatística avançada. Tornar obrigatório (não opcional) nos AH onde mais erramos historicamente.
-
-**Entrega:**
-- No `mycroft-punter-anthropic`, após gerar sinal AH, se `entry_odd ≥ 2.00 OU |handicap| ≥ 1.5`, chamar `mycroft-punter-analytic` (Sherlock) inline antes de persistir.
-- Se Sherlock retornar `veto = true` → sinal vai para `punter_vetoed_log` e NÃO é aprovado.
-- Se Sherlock retornar `confidence_adjustment < -10` → downgrade automático de tier (ex: ⚡FORTE → ✅BOM).
-- Badge visual "🔍 Sherlock validado" no card do Punter para sinais que passaram.
-
----
-
-## Detalhes técnicos
-
-**Arquivos novos/editados:**
-- `supabase/migrations/<ts>_clv_tracker.sql` — tabela `punter_clv_log`, view `punter_clv_30d`, tabela `punter_quarantine`.
-- `supabase/migrations/<ts>_calibration_bucket.sql` — coluna `bucket_key` em `punter_calibration` + índice.
-- `supabase/functions/punter-clv-capture/index.ts` — cron 1min, captura odds próximas ao kick-off.
-- `supabase/functions/_shared/oddsComparison.ts` — comparador multi-casa.
-- `supabase/functions/_shared/calibrationLookup.ts` — lookup de bucket com fallback.
-- `supabase/functions/mycroft-punter-anthropic/index.ts` — integra dispersão, calibração por bucket e chamada inline ao Sherlock para AH de risco.
-- `supabase/functions/punter-calibration-update/index.ts` — recalcula por bucket.
-- `src/pages/AdminPunterCalibration.tsx` — nova tab heatmap por bucket.
-- `src/pages/AdminCLVMonitor.tsx` — nova página com CLV e quarentena.
-- `src/components/punter/SherlockBadge.tsx` — badge visual.
-
-**Cron novos:**
-- `punter-clv-capture` a cada 1min (filtra apenas sinais AH com kick-off em ≤6min e CLV ainda não capturado).
-- `punter-quarantine-refresh` diário 04:00 UTC (recalcula buckets em quarentena).
-
-**Métricas de sucesso (revisão em 30 dias):**
-- ROI sinais AH pré-live: meta de +3pp vs baseline atual.
-- % de sinais AH com CLV positivo: meta ≥ 55%.
-- Redução de aprovações em ligas/buckets ruins: esperado -20 a -30% no volume AH (qualidade > quantidade).
-
-## Ordem de execução sugerida
-
-1. **Frente 3 (Calibração por Bucket)** — base estatística para tudo. ~1 sessão.
-2. **Frente 4 (Sherlock obrigatório)** — quick win, Sherlock já existe. ~1 sessão.
-3. **Frente 2 (Dispersão entre Casas)** — depende de teste de quota The Odds API. ~1 sessão.
-4. **Frente 1 (CLV Tracker)** — maior impacto mas requer 7-14 dias de coleta antes de ativar quarentena. Implementar primeiro como log-only, ativar quarentena depois. ~1-2 sessões.
-
-Aprova o plano nessa ordem? Se quiser cortar algo ou priorizar diferente, me diz.
+Aprovado o plano, começo pela migração da tabela.

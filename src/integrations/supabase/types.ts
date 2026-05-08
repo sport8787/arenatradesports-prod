@@ -5535,6 +5535,42 @@ export type Database = {
         }
         Relationships: []
       }
+      trader_leagues: {
+        Row: {
+          country: string | null
+          created_at: string
+          enabled: boolean
+          league_id: number
+          name: string
+          odds_sport_key: string | null
+          region: string
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          enabled?: boolean
+          league_id: number
+          name: string
+          odds_sport_key?: string | null
+          region?: string
+          tier?: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          enabled?: boolean
+          league_id?: number
+          name?: string
+          odds_sport_key?: string | null
+          region?: string
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trader_notifications_sent: {
         Row: {
           away_team: string | null
