@@ -41,12 +41,25 @@ type HALine = '-1.0' | '-0.75' | '-0.5' | '0.0' | '+0.5' | '+0.75' | '+1.0';
 type HAType = 'NEGATIVO' | 'POSITIVO' | 'DNB';
 type SignalStatus = 'SINAL_FORTE' | 'SINAL_BOM' | 'CUIDADO' | 'DESCARTADO';
 
-const LIGAS_PERMITIDAS = new Set([71, 72, 39, 40, 140, 135, 78, 79, 61, 94, 203, 144, 88, 179, 253, 262, 197, 307]);
-const LIGAS_ODDS_MAP: Record<number, string> = {
-  39: 'soccer_epl', 140: 'soccer_spain_la_liga', 135: 'soccer_italy_serie_a',
-  78: 'soccer_germany_bundesliga', 61: 'soccer_france_ligue_one',
-  71: 'soccer_brazil_campeonato', 88: 'soccer_netherlands_eredivisie', 94: 'soccer_portugal_primeira_liga',
-};
+// Whitelist e mapping de odds vêm dinamicamente do registry (tabela trader_leagues).
+// HA só processa Tier A e B (Tier C cauda longa fica fora).
+async function getAllowedHA(): Promise<{ ids: Set<number>; oddsMap: Record<number, string> }> {
+  const [rows, oddsMap] = await Promise.all([getAllowedLeagueIds(), getOddsSportKeyMap()]);
+  // Filtra só A/B
+  const ab = new Set<number>();
+  for (const id of rows) {
+    const tier = await getLeagueTier(id);
+    if (tier === 'A' || tier === 'B') ab.add(id);
+  }
+  return { ids: ab, oddsMap };
+}
+let _allowedCache: { ts: number; ids: Set<number>; oddsMap: Record<number, string> } | null = null;
+async function getCachedAllowedHA() {
+  if (_allowedCache && Date.now() - _allowedCache.ts < 30 * 60 * 1000) return _allowedCache;
+  const r = await getAllowedHA();
+  _allowedCache = { ts: Date.now(), ...r };
+  return _allowedCache;
+}
 
 // =============================================================================
 // HELPERS API-FOOTBALL
