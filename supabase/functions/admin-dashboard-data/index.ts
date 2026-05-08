@@ -151,9 +151,12 @@ Deno.serve(async (req) => {
       else if (isActive3d) status = 'Ativo recente';
 
       const promo = redemptionMap.get(u.id) || null;
+      const prof = profileMap.get(u.id) || null;
       return {
         id: u.id,
         email: u.email,
+        full_name: prof?.full_name || u.user_metadata?.full_name || u.user_metadata?.name || null,
+        username: prof?.username || null,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
         plan: sub?.plan || null,
