@@ -958,7 +958,14 @@ serve(async (req) => {
       const u_xgTotal = (u_s.xG_home ?? u_s.xg_home ?? 0) + (u_s.xG_away ?? u_s.xg_away ?? 0);
       const u_underOdd = match.under_odd ?? 1.85;
 
-      const u_isEarly = u_min >= 10 && u_min <= 30;
+      const u_period = String((match as any).period || '').toUpperCase();
+      const u_isFirstHalf = !(
+        u_min > 45 ||
+        u_period.includes('SECOND') || u_period.includes('2H') || u_period === 'HT' ||
+        u_period.includes('HALF_TIME') || u_period.includes('HALFTIME') ||
+        u_period.includes('EXTRA') || u_period === 'FT' || u_period.includes('FULL_TIME')
+      );
+      const u_isEarly = u_min >= 10 && u_min <= 20 && u_isFirstHalf;
       const u_isScoreless = u_totalGoals === 0;
       const u_isDeadGame = u_dangerousTotal <= 4 && u_sotTotal <= 1 && u_xgTotal <= 0.3;
       // Evidência mínima: garante que stats não estão simplesmente zeradas por falha da API.
