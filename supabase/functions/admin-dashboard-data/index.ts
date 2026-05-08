@@ -56,6 +56,12 @@ Deno.serve(async (req) => {
     const { data: subs } = await admin.from('user_subscriptions').select('*');
     const subMap = new Map((subs || []).map((s: any) => [s.user_id, s]));
 
+    // Fetch profiles (for full_name + username)
+    const { data: profilesRows } = await admin.from('profiles').select('user_id, username, full_name');
+    const profileMap = new Map(
+      (profilesRows || []).map((p: any) => [p.user_id, { username: p.username, full_name: p.full_name }])
+    );
+
     // Fetch promo redemptions (com nome do cupom)
     const { data: redemptions } = await admin
       .from('promo_redemptions')
