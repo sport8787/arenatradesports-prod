@@ -160,18 +160,27 @@ export async function getLiveMatches(): Promise<LiveResult> {
 
 export interface StatsResult {
   stats: NormalizedStats | null;
-  source: "sportmonks" | "api-football" | null;
+  source: "futodds" | "sportmonks" | "api-football" | null;
   fallback_reason?: string;
 }
 
 /**
  * fixtureRef pode ser:
  *  - string id "12345" (API-Football) — fallback usa direto
- *  - { sm_id: number, af_id?: string } — tenta Sportmonks primeiro
+ *  - { sm_id?, af_id?, raw?, futodds?: any } — tenta Futodds (raw) → Sportmonks → API-Football
  */
-export async function getFixtureStats(fixtureRef: string | { sm_id?: number; af_id?: string; raw?: any }): Promise<StatsResult> {
+export async function getFixtureStats(
+  fixtureRef: string | { sm_id?: number; af_id?: string; raw?: any; _source?: string },
+): Promise<StatsResult> {
+  // Futodds: raw vem do getFutoddsLive já normalizado em _futodds_stats no fixture inteiro,
+  // mas para chamadas via _raw aqui, tentamos extrair direto se _source=futodds
+  if (typeof fixtureRef === "object" && fixtureRef._source === "futodds" && (fixtureRef as any).raw) {
+    const stats = extractFutoddsStats({ _futodds_stats: (fixtureRef as any).raw._futodds_stats ?? null });
+    if (stats) return { stats, source: "futodds" };
+  }
+
   // Se já temos o objeto raw do Sportmonks (vindo de getLiveMatches), extrai direto
-  if (typeof fixtureRef === "object" && fixtureRef.raw) {
+  if (typeof fixtureRef === "object" && fixtureRef.raw && fixtureRef._source !== "futodds") {
     try {
       const stats = extractNormalizedStats(fixtureRef.raw);
       return { stats, source: "sportmonks" };
