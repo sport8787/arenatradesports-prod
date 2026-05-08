@@ -1,171 +1,137 @@
 
-# Diagnóstico de Engajamento — Arenas Punter & Live
+# Plano: Adoção da Futodds API
 
-## 1. O retrato real (dados de hoje)
+## 1. Análise comparativa
 
-Consultei o banco. Os números explicam por que apenas 5–7 usuários estão ativos:
+### Endpoints Futodds vs APIs atuais
 
-| Métrica | Valor | Leitura |
-|---|---|---|
-| Usuários totais | 143 | Base existe |
-| Ativos 24h | 5 | 3,5% |
-| Ativos 7d | 42 | 29% |
-| Retornaram alguma vez (>24h após cadastro) | 25 | **Apenas 17% voltaram um segundo dia** |
-| Usuários com push ativado | 4 | **3% — gargalo crítico** |
-| Sinais APROVADOS últimos 7d | 74 | Sistema funciona |
-| Apostas virtuais últimos 7d | **0** | **Ninguém testa os sinais — fricção total entre ver e agir** |
-| Trial expirando | (vários) | Conversão depende de hábito antes do D14 |
+| Necessidade hoje | Provedor atual | Endpoint Futodds equivalente | Substitui? |
+|---|---|---|---|
+| Lista jogos ao vivo | API-Football `/fixtures?live=all` + Sportmonks `livescores/inplay` | `GET /matches-live` | **Sim** (a validar volume de ligas) |
+| Stats live detalhadas (xG, chutes, posse, escanteios, ataques) | API-Football `/fixtures/statistics` + `/fixtures/events` | `GET /matches-live-detail` + `/matches-live-events` | **Sim** (a validar campos) |
+| Snapshot completo (stats + odds + lineups) | Múltiplas chamadas API-Football | `GET /matches-live-full` | **Sim** — reduz N chamadas |
+| Jogos encerrados (settlement) | API-Football `/fixtures?date=` + Sportmonks fallback | `GET /matches-ended` | **Sim** — substitui pipeline de liquidação |
+| Pré-live (jogos do dia + odds) | The Odds API `/sports/{key}/odds` | `GET /matches-upcoming` | **Parcial** — depende de cobertura de bookmakers e mercados |
+| Correct Score odds/probs | The Odds API + estimativa interna | `GET /matches-cs` | **Sim** — ganho real (CS é caro/limitado em outras APIs) |
+| Comparador multi-bookmaker (smart-odds-scanner, sharp money, RLM, steam) | The Odds API (10+ bookmakers) | A validar em `/matches-upcoming` e `/matches-live-full` | **Incerto** |
+| Liquidação por player props (anytime scorer, assists) | API-Football `/fixtures/events` | `/matches-live-events` (a validar nomes de jogadores) | **Provável sim** |
+| Cards/Cartões por jogador (mycroft-cards-punter) | API-Football events | `/matches-live-events` | **A validar** |
 
-**Conclusão central:** o produto está entregando sinais (74 em 7 dias), mas o usuário não fecha o loop "vejo sinal → aposto virtualmente → recebo resultado → volto amanhã". A retenção morre no D1 porque não há gancho de retorno automático nem prova de valor pessoal.
+### Sportmonks — comparação direta
+A Sportmonks hoje serve para: (a) shadow A/B em `live-provider-compare`, (b) fallback de stats live. A Futodds **substitui as duas funções** se entregar:
+- xG live, posse, chutes (incluindo on/off target), escanteios, cartões, ataques perigosos
+- Status de partida com `minute` confiável
+Se entregar tudo isso, **descontinuamos Sportmonks** (economia + simplificação).
 
-## 2. Diagnóstico UX por arena (perspectiva do usuário novo)
+### API-Football — substituição
+**NÃO** descontinuar imediatamente. Manter como **fallback** por 30 dias por causa de:
+- Cobertura comprovada de player events (gols, assistências, cartões) usada em settlement
+- `mycroft-extra-markets`, `mycroft-cards-punter`, `mycroft-players-punter` dependem de eventos detalhados
+- Histórico H2H, lineups confirmados, estatísticas de temporada (Level 1) — **provavelmente Futodds NÃO cobre isso** (foco é live + odds)
 
-### Arena Punter (`/punter`)
-**Pontos fortes já implementados:**
-- `OnboardingTour` de 4 passos (Brain → Target → Bankroll → Live)
-- `PunterMenuHeroStatus` mostra Sinais hoje / ROI 7d / G/R
-- Modo simples × avançado via `usePunterViewMode`
-- `PunterRankings`, `PerformanceCertificate`, `EbookWelcomeCard`
+### The Odds API — substituição
+**Provavelmente sim, mas validar.** Pontos críticos:
+- Smart Odds Scanner, Sharp Money Detector e Market Manipulation Detector exigem **múltiplos bookmakers por mercado** com snapshots temporais
+- Se Futodds expõe ≥5 bookmakers em `/matches-upcoming` com histórico de movimento, substitui
+- Caso contrário, manter The Odds API só para esses 3 detectores
 
-**Fricções residuais:**
-1. **Página de 2.313 linhas** — densidade visual alta para quem chega; muitos painéis condicionais (Backtest, Sherlock, Pattern Mining, Self Learning, Portfolio, Antilimiting…). Mesmo com modo simples, o primeiro impacto ainda é "painel de Bloomberg".
-2. **Sinais APROVADOS não convidam à ação** — 74 sinais em 7d e zero apostas virtuais significa que o caminho "Sinal aprovado → aposta virtual em 1 clique" não está óbvio (ou parece complexo).
-3. **Não há "Hoje você precisa ver isto"** — quando o usuário abre, vê listas e tabs. Falta um card único de destaque ("O melhor sinal de hoje, com base no seu plano: X com edge Y%").
-4. **Onboarding termina e some** — após o tour de 4 passos, não há checklist persistente ("✅ Vi um sinal · ⬜ Fiz minha 1ª aposta virtual · ⬜ Ativei push · ⬜ Vi resultado liquidado").
-5. **Sem prova social local** — o `PunterRankings` existe mas está atrás de um botão. O novo usuário não vê "outros 3 usuários acertaram esse sinal hoje".
+## 2. Impacto nos Jogos ao Vivo
 
-### Arena Live / Trader Sports (`/arena-trader-sports`)
-**Pontos fortes:**
-- Tabs claras (Todos / Próximos / Ao Vivo / Aprovados / Pré-Live / Finalizados / Simulado)
-- Badges com contagem de aprovados e pré-live em destaque
-- `BankrollWidget`, `ActivePositions`, indicador de última sincronização
-- `LiveCronToggle` para admin
+### Onde entra Futodds
+- `_shared/liveProvider.ts` — adicionar provider `futodds` ao lado de `api_football` e `sportmonks`
+- `useLiveMatches`, `live-provider-compare` (admin A/B), `analyze-live`, `eventos-raros-live`
+- `mycroft-cards-punter`, `mycroft-players-punter`, `mycroft-extra-markets` — substituir busca de eventos
+- Pipelines de liquidação: `punter-settle-results-v3` ganha provider primário Futodds, fallback API-Football
 
-**Fricções residuais:**
-1. **Excesso de tabs no topo (8 abas)** — em mobile (viewport atual 743×445) vira scroll horizontal. Usuário novo não sabe que "Aprovados" é o que importa.
-2. **Sem estado vazio educativo** — quando não há jogo ao vivo (boa parte do dia), a tela parece "quebrada". Não diz "Próximo jogo relevante começa às 16h, ative o push para ser avisado".
-3. **Quiet window 02h–08h BR sem aviso na UI** — usuário admin que liga "LIVE ON" nesse horário vai pensar que está com bug. Já está implementado no servidor, mas a UI não mostra "Modo silencioso ativo até 08h BR".
-4. **Chat com Mycroft escondido como botão pequeno** entre Sinais Aprovados, Eventos Raros, Performance — perde força como diferencial.
-5. **Sem "destaque do dia"** — mesmo problema do Punter: lista densa em vez de um card "JOGO DO DIA segundo o Mycroft".
+### Ganhos esperados
+- **Latência**: 1 chamada `/matches-live-full` vs 3-4 da API-Football
+- **Custo**: R$250/mês fixo vs API-Football (Ultra) + The Odds API + Sportmonks (≈ US$ 130-180/mês combinado)
+- **Mycroft Punter/Live**: probabilidades CS já calculadas em `/matches-cs` alimentam diretamente o motor Poisson Bivariada
+- **Reanálise** (windows 5min/1min) fica mais barata e rápida
 
-## 3. O que falta para o usuário voltar todo dia
+### Riscos
+- Cobertura de ligas pode ser menor que API-Football (que tem ~1100 ligas) — validar whitelist atual de 70+ ligas
+- Plano FREE só permite 100 req/dia → **obrigatório PREMIUM** (10 req/s, ilimitado)
+- Sem documentação pública de schema — depende do que retorna na prática
+- Player props (anytime scorer/assist) podem não ter granularidade suficiente para liquidação confiável
 
-Pensando como o usuário recém-cadastrado de 50% OFF que tem 14 dias de trial:
+## 3. Plano de implantação (4 fases)
 
-| Gancho de retorno | Existe hoje? | Impacto esperado |
-|---|---|---|
-| Push notification de sinal aprovado | Sim, mas só 4/143 ativaram | **Crítico** |
-| Email diário com resumo do dia anterior | Não | Alto |
-| Streak de dias consecutivos visível | Não | Alto |
-| Card "ontem o Mycroft acertou X de Y" ao logar | Parcial (faixa hero, mas sem call-to-action) | Médio |
-| Resumo pessoal "suas apostas virtuais essa semana" | Não (porque ninguém aposta) | Alto |
-| Onboarding-checklist persistente | Não | Alto |
-| Botão "Apostar virtual" em 1 clique no sinal | Existe mas escondido | **Crítico** |
+### Fase 0 — Discovery (1-2 dias, ANTES de assinar)
+1. Pedir ao usuário **acesso temporário** ou trial à API key PREMIUM
+2. Criar edge function `futodds-probe` (similar a `sportmonks-probe`) que chama todos os 7 endpoints e retorna schema bruto + amostras
+3. Validar campos críticos:
+   - xG em `/matches-live-detail`
+   - Lista de bookmakers em `/matches-upcoming`
+   - Eventos de jogador em `/matches-live-events` (gols, assistências, cartões)
+   - Cobertura de ligas Brasileirão, Libertadores, Premier League, La Liga, MLS, etc.
+4. **Decisão go/no-go** baseada no relatório de probe
 
-## 4. Plano de implementação — 3 ondas
+### Fase 1 — Integração shadow (3-4 dias)
+1. Adicionar `FUTODDS_API_KEY` aos secrets do Lovable Cloud
+2. Criar `supabase/functions/_shared/futoddsProvider.ts` com mappers para o formato canônico já usado em `liveProvider.ts`
+3. Estender `live-provider-compare` para incluir Futodds (3-way A/B: AF vs SM vs Futodds)
+4. Painel admin: aba "Shadow Futodds vs API-Football" (similar à `ShadowAfApprovedTab`) — comparar approval rate, divergência de stats, settlement agreement em 7 dias
+5. **Sem impacto em produção** nesta fase
 
-### Onda 1 — Quick wins de retenção (esta sessão)
-Tudo client-side / pequenas tabelas, sem mexer em IA:
+### Fase 2 — Promoção a primário live (2-3 dias)
+1. `LIVE_PROVIDER_PRIMARY=futodds` (env var) com fallback automático para API-Football
+2. Migrar `useLiveMatches` e `analyze-live` para consumir Futodds
+3. Migrar `punter-settle-results-v3` para usar `/matches-ended` como primária (API-Football vira fallback)
+4. Manter cron de reconciliação shadow rodando 7 dias
+5. Monitorar: edge function logs, settlement agreement, divergência xG
 
-1. **Push opt-in agressivo no primeiro login**
-   - Modal único após o `OnboardingTour` ("Receber alerta quando o Mycroft aprovar um sinal? — sim/depois") com track no PostHog.
-   - Banner persistente no topo do `/punter` enquanto não houver subscription, fechável por 24h via localStorage.
+### Fase 3 — Substituição The Odds API + Sportmonks (3-4 dias)
+1. Migrar `smart-odds-scanner`, `sharp-money-detector`, `market-manipulation-detector` para `/matches-upcoming` e `/matches-live-full` (se cobertura de bookmakers for adequada)
+2. Migrar consumidores de Sportmonks (`live-provider-compare`, fallback de stats) — depois **remover `SPORTMONKS_API_KEY`**
+3. Avaliar manter The Odds API só para `check-odds-quota` e mercados não cobertos
+4. Atualizar memory: nova entrada `mem://technical-decisions/external-apis/futodds-primary-provider`
 
-2. **Checklist de ativação no `/punter/menu`**
-   - Card abaixo do `PunterMenuHeroStatus`: "Comece em 4 passos" com persistência em `localStorage` (e opcionalmente em uma tabela `user_activation_checklist`).
-   - Itens: Ver primeiro sinal aprovado · Ativar push · Fazer 1ª aposta virtual · Configurar banca.
-   - Cada item completo dá um "+ check" verde e um micro-confete.
+### Fase 4 — Otimização (contínuo)
+1. Cache em `cached_odds_games` alimentado por `/matches-upcoming` (substitui cron atual de The Odds)
+2. Reduzir frequência de polling: 1 chamada `/matches-live-full` a cada 60s cobre dashboard inteiro
+3. Endpoint `/matches-cs` alimenta diretamente o motor de LAY GOLEADA / Eventos Raros
 
-3. **Card "Destaque de Hoje" no topo do `/punter` e `/arena-trader-sports`**
-   - Pega o sinal com maior `asset_score` do dia (ou maior edge), mostra hero card grande com:
-     `🏆 SINAL DO DIA · Liga · Time A vs Time B · Mercado · Odd · Edge %` + botão "Apostar virtual com 5%" em 1 clique.
-   - Some quando o jogo começa.
+## 4. Recomendação de decisão
 
-4. **Banner "Resumo de ontem"**
-   - No primeiro acesso do dia: "Ontem o Mycroft analisou X jogos · Aprovou Y · Acertou Z (W%)" — se ROI positivo, em verde com micro-confete.
-   - Persistir `last_summary_seen_date` em localStorage.
+**Assinar o PREMIUM (R$250/mês) condicionado ao resultado da Fase 0 (probe).**
 
-5. **Redução de tabs na Arena Live em mobile**
-   - Em viewport <768px, esconder "Simulado" e "Finalizados" atrás de um menu "Mais ▾", e mover "Aprovados" para a 2ª posição (default highlight).
+| Condição na probe | Ação |
+|---|---|
+| Cobre ≥80% das ligas atuais + xG live + ≥5 bookmakers + eventos de jogador | Assinar e seguir Fase 1-3. Economia líquida estimada: R$ 400-600/mês |
+| Cobre live mas sem player events confiáveis | Assinar mesmo assim, manter API-Football só para `mycroft-players-punter` |
+| Cobertura de ligas <50% ou sem xG | **Não assinar** — manter stack atual |
 
-6. **Estado vazio educativo na Arena Live**
-   - Quando não há jogos ao vivo: card grande "Próximo jogo relevante: [time] às [hora]. [Ativar push]" em vez de só "nenhum jogo".
+## 5. Detalhes técnicos
 
-7. **Aviso de quiet window 02h–08h BR**
-   - No `LiveCronToggle`, mostrar badge "🌙 Modo silencioso ativo (02h–08h BR)" quando dentro da janela, para evitar suporte/confusão.
+### Arquivos novos
+- `supabase/functions/futodds-probe/index.ts` — discovery (Fase 0)
+- `supabase/functions/_shared/futoddsProvider.ts` — adapter
+- `src/components/admin/FutoddsCompare.tsx` — painel A/B (Fase 1)
 
-### Onda 2 — Email + streak (próxima sessão)
-Requer cron + edge function nova:
+### Arquivos a editar (Fase 2-3)
+- `supabase/functions/_shared/liveProvider.ts` — adicionar `futodds` como source
+- `supabase/functions/analyze-live/index.ts`
+- `supabase/functions/punter-settle-results-v3/index.ts`
+- `supabase/functions/mycroft-extra-markets/index.ts`
+- `supabase/functions/mycroft-players-punter/index.ts`
+- `supabase/functions/mycroft-cards-punter/index.ts`
+- `supabase/functions/smart-odds-scanner/index.ts`
+- `supabase/functions/sharp-money-detector/index.ts`
+- `supabase/functions/market-manipulation-detector/index.ts`
+- `src/hooks/useLiveMatches.ts`
 
-8. **Email diário de resumo (07h BR)**
-   - Edge function `daily-recap-email` enviada para usuários com `daily_recap_enabled=true` (default ON para trial).
-   - Conteúdo: "Ontem: X aprovados, Y acertos, ROI Z%. Hoje: N jogos no radar, primeiro às HH:MM. [Abrir Arena Punter]".
-   - Tabela `daily_recap_log` para idempotência.
+### Secrets necessárias
+- `FUTODDS_API_KEY` (Bearer token mostrado em `/api-keys`)
+- `LIVE_PROVIDER_PRIMARY` (env var: `futodds` | `api_football` | `sportmonks`)
 
-9. **Streak de dias consecutivos**
-   - Tabela `user_streaks(user_id, current_streak, best_streak, last_login_date)`.
-   - RPC `bump_streak()` chamado em todo login bem-sucedido.
-   - Badge no header do `/punter`: "🔥 5 dias seguidos".
+### Migration
+Tabela `futodds_probe_log` para auditar Fase 0 + tabela `futodds_shadow_comparison` para Fase 1 (similar ao shadow Sportmonks-AF já existente).
 
-10. **"Minhas apostas virtuais" em destaque**
-    - Após primeira aposta virtual, widget fixo mostrando "Suas apostas: X pendentes · Y green · Z red · ROI W%".
+## Resumo executivo
 
-### Onda 3 — Otimizações opcionais
-11. Notificação push 30min antes do sinal aprovado começar.
-12. Compartilhar sinal/resultado em WhatsApp com card visual (já existe `CopySignalActions`, expandir).
-13. Gamificação leve: "Você está no top 20% da semana".
-
-## 5. Detalhes técnicos (para a implementação)
-
-**Tabelas novas (Onda 1+2):**
-```sql
--- Onda 1
-CREATE TABLE user_activation_checklist (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  saw_first_signal bool DEFAULT false,
-  enabled_push bool DEFAULT false,
-  placed_first_virtual_bet bool DEFAULT false,
-  configured_bankroll bool DEFAULT false,
-  updated_at timestamptz DEFAULT now()
-);
-ALTER TABLE user_activation_checklist ENABLE ROW LEVEL SECURITY;
--- policy: user manages only own row
-
--- Onda 2
-CREATE TABLE user_streaks (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  current_streak int DEFAULT 0,
-  best_streak int DEFAULT 0,
-  last_login_date date,
-  updated_at timestamptz DEFAULT now()
-);
--- + RPC bump_streak() SECURITY DEFINER
-```
-
-**Componentes novos:**
-- `src/components/punter/DailyHighlightCard.tsx` — hero do dia
-- `src/components/punter/ActivationChecklist.tsx` — 4 itens
-- `src/components/punter/PushOptInModal.tsx`
-- `src/components/punter/YesterdayRecapBanner.tsx`
-- `src/components/arena-trader/EmptyStateNextMatch.tsx`
-- `src/components/arena-trader/QuietWindowBadge.tsx`
-
-**Componentes editados:**
-- `src/pages/PunterMenu.tsx` — adicionar `ActivationChecklist` abaixo do hero status
-- `src/pages/Punter.tsx` — `DailyHighlightCard` + `YesterdayRecapBanner` no topo
-- `src/pages/ArenaTraderSports.tsx` — empty state + reordenação de tabs em mobile
-- `src/components/arena-trader/LiveCronToggle.tsx` — `QuietWindowBadge`
-
-**Tracking PostHog (extender `src/lib/analytics.ts`):**
-- `activation_step_completed`, `daily_highlight_clicked`, `push_optin_shown`, `push_optin_accepted`, `yesterday_recap_seen`, `streak_milestone`.
-
-## 6. O que NÃO vou mexer
-
-- Lógica de IA, prompts, edge functions de análise (já estão estáveis após o fix de hoje)
-- Sportmonks / API-Football (vamos só observar a quota)
-- Sistema de assinatura / paywall
-- Modo simples × avançado (já funciona)
-
-## 7. Pergunta antes de implementar
-
-A Onda 1 são 7 mudanças relativamente simples mas tocam várias telas. **Posso seguir com as 7 todas de uma vez na próxima mensagem (build mode)**, ou prefere que eu entregue por blocos (3+2+2)?
+- **Sportmonks**: substituível 100%
+- **API-Football**: manter como fallback nos próximos 30 dias; possível remoção se Futodds cobrir player events
+- **The Odds API**: substituível se Futodds expuser ≥5 bookmakers com snapshots; senão manter
+- **Sequência crítica**: probe → shadow A/B → promoção gradual → desativação dos antigos
+- **Não assinar antes de validar a probe** — risco de cobertura insuficiente de ligas/xG
