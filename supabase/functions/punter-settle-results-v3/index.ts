@@ -9,6 +9,57 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
+import { getFutoddsEnded } from "../_shared/futoddsProvider.ts";
+
+// Cache compartilhado por dia: 1 chamada Futodds /matches-ended por data.
+const fdEndedCache = new Map<string, any[]>();
+async function getFutoddsEndedByDate(dateStr: string): Promise<any[]> {
+  if (fdEndedCache.has(dateStr)) return fdEndedCache.get(dateStr)!;
+  try {
+    const data = await getFutoddsEnded({ date: dateStr });
+    fdEndedCache.set(dateStr, data || []);
+    return data || [];
+  } catch (e) {
+    console.warn("[settle-v3] futodds /matches-ended falhou:", (e as Error)?.message);
+    fdEndedCache.set(dateStr, []);
+    return [];
+  }
+}
+
+async function buscarPorFutoddsEnded(home: string, away: string, isoDate: string): Promise<FixtureResult | null> {
+  const baseDate = new Date(isoDate);
+  if (isNaN(baseDate.getTime())) return null;
+  for (const offset of [0, -1, 1]) {
+    const d = new Date(baseDate); d.setUTCDate(d.getUTCDate() + offset);
+    const dateStr = d.toISOString().slice(0, 10);
+    const list = await getFutoddsEndedByDate(dateStr);
+    for (const m of list) {
+      const fhome = m.home_name || m.home || "";
+      const faway = m.away_name || m.away || "";
+      if (!teamsMatch(fhome, home) || !teamsMatch(faway, away)) continue;
+      // scores: pode vir em "scores" ("2-1") ou home_goals/away_goals
+      let gh: number | null = null, ga: number | null = null;
+      if (typeof m.scores === "string" && m.scores.includes("-")) {
+        const [a, b] = m.scores.split("-");
+        gh = Number(a); ga = Number(b);
+      }
+      if (gh == null || isNaN(gh)) gh = Number(m.home_goals);
+      if (ga == null || isNaN(ga)) ga = Number(m.away_goals);
+      if (gh == null || isNaN(gh) || ga == null || isNaN(ga)) continue;
+      // corners se o provedor expuser
+      const ch = Number(m.home_corners ?? m.corners_home);
+      const ca = Number(m.away_corners ?? m.corners_away);
+      return {
+        homeTeam: fhome, awayTeam: faway,
+        goalsHome: gh, goalsAway: ga,
+        status: "FT",
+        cornersHome: isNaN(ch) ? undefined : ch,
+        cornersAway: isNaN(ca) ? undefined : ca,
+      };
+    }
+  }
+  return null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
