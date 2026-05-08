@@ -189,8 +189,7 @@ Deno.serve(async (req) => {
 
   detailProbes["_resolved_ids"] = { sampleGameId, sampleEvent, upcomingEvent };
 
-  // Cobertura por liga (a partir de /matches-betfair-live)
-  const betfairLive = probes[endpoints.indexOf("/matches-betfair-live")] as any;
+  // Cobertura por liga (a partir de /matches-betfair-live — `betfairLive` já declarado acima)
   const liveLeagues = new Set<number>();
   if (Array.isArray(betfairLive?.sample)) {
     for (const m of betfairLive.sample) {
