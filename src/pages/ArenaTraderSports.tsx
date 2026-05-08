@@ -404,6 +404,7 @@ export default function ArenaTraderSports() {
           if (effectiveStatus !== statusFilter) return false;
         }
         if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+        if (selectedRegions.length > 0 && !selectedRegions.includes(getRegionForChampionship(m.championship))) return false;
         if (onlyFavorites && !isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })) return false;
         return true;
       })
