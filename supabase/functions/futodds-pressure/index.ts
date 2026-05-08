@@ -2,13 +2,13 @@
 // Constrói minutos 0..N usando: stats acumulados, pressure_indices e janelas
 // last5min/last10min/last15min/last20min. Devolve PressureData compatível com
 // o frontend (mesmo shape do sportmonks-pressure).
+// Cache 30s compartilhado de /matches-betfair-live (ver _shared/futoddsCache.ts).
+import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
 
 interface Body {
   home?: string;
