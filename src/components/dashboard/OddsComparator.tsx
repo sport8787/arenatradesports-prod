@@ -95,14 +95,16 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
           .limit(15);
 
         if (arenaOdds && arenaOdds.length > 0) {
-          setOdds(arenaOdds.map(o => ({
+          setOdds([...bfRow, ...arenaOdds.map(o => ({
             bookmaker: o.bookmaker,
             market: o.market,
             odd: o.odd_current ?? o.odd_open ?? 0,
-            movement: o.movement_pct
+            movement: (o.movement_pct
               ? o.movement_pct > 0 ? 'up' : o.movement_pct < 0 ? 'down' : 'stable'
-              : 'stable',
-          })));
+              : 'stable') as 'up' | 'down' | 'stable',
+          }))]);
+        } else if (bfRow.length > 0) {
+          setOdds(bfRow);
         } else {
           setError('Odds não disponíveis para este jogo');
         }
