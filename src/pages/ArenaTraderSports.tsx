@@ -556,28 +556,33 @@ export default function ArenaTraderSports() {
             </TabsList>
           </Tabs>
 
-          {statusFilter === 'aprovados' && (
+          {statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Filtrar por mercado:</span>
-              <Select value={marketFilter} onValueChange={setMarketFilter}>
-                <SelectTrigger className="h-8 w-[240px] text-xs">
-                  <SelectValue placeholder="Todos os mercados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os mercados</SelectItem>
-                  {approvedMarketOptions.map(([key, count]) => (
-                    <SelectItem key={key} value={key}>
-                      {key} <span className="text-muted-foreground">({count})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {marketFilter !== 'all' && (
+              <span className="text-xs text-muted-foreground mr-1">Mercados:</span>
+              {approvedMarketOptions.map(([key, count]) => {
+                const active = marketFilters.includes(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleMarketFilter(key)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                      active
+                        ? 'border-success bg-success/15 text-success'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-success/50 hover:text-success'
+                    )}
+                    aria-pressed={active}
+                  >
+                    {key} <span className="opacity-70">({count})</span>
+                  </button>
+                );
+              })}
+              {marketFilters.length > 0 && (
                 <button
-                  onClick={() => setMarketFilter('all')}
-                  className="text-[11px] text-primary hover:underline"
+                  onClick={() => setMarketFilters([])}
+                  className="text-[11px] text-primary hover:underline ml-1"
                 >
-                  Limpar
+                  Limpar ({marketFilters.length})
                 </button>
               )}
             </div>
