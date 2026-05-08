@@ -21,8 +21,14 @@ const signUpSchema = z.object({
   username: z
     .string()
     .trim()
+    .min(2, { message: 'Nickname deve ter ao menos 2 caracteres' })
+    .max(60, { message: 'Nickname muito longo (máx. 60)' }),
+  fullName: z
+    .string()
+    .trim()
     .min(2, { message: 'Nome deve ter ao menos 2 caracteres' })
-    .max(60, { message: 'Nome muito longo (máx. 60)' }),
+    .max(120, { message: 'Nome muito longo (máx. 120)' })
+    .optional(),
 });
 
 export interface Profile {
