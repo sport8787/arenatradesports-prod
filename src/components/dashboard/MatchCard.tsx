@@ -51,6 +51,12 @@ export interface Match {
   alerts?: string[] | null;
   approvalOdd?: number | null;
   oddsLive?: { home?: number | null; draw?: number | null; away?: number | null; over25?: number | null; bookmaker?: string | null } | null;
+  /** Stats Futodds em tempo real para o painel "Saúde do Sinal". */
+  healthStats?: {
+    pressure_indices?: { home?: number; away?: number; total?: number };
+    last5min_stats?: any;
+    last10min_stats?: any;
+  } | null;
 }
 
 export const BETFAIR_REFERRAL_URL = 'https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF';
