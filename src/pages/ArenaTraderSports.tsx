@@ -35,6 +35,8 @@ import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
 import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
+import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
+import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
