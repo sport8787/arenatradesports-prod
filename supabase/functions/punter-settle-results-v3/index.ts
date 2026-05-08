@@ -692,20 +692,10 @@ serve(async (req) => {
     }
 
     try {
-      let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      let fixtureId: number | undefined;
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
-      if (!fx) {
-        const sm = await findFixtureCached(home, away, startIso);
-        if (sm) {
-          fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-          fonte = "sportmonks";
-        }
-      }
-      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, b.market || "");
+      let fx = resolved.fx;
+      const fixtureId = resolved.fixtureId;
+      let fonte = resolved.fonte;
       if (!fx) {
         notFound++;
         // Marca como void para não ficar pendente para sempre se já passou >24h
