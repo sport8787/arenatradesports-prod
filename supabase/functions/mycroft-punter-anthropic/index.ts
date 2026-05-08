@@ -1457,6 +1457,17 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.warn('[Sherlock] Falha não crítica ao aplicar indicadores avançados:', sherlockErr)
       }
 
+      // ─── CALIBRATION FLOOR (Punter) ────────────────────────────────────
+      try {
+        const floor = await getCalibrationFloor(supabaseClient, 'punter', 70)
+        const r = applyCalibrationFloor(analysis, floor)
+        if (r.demoted) {
+          console.log(`[Mycroft Punter] 🎚️  CALIBRAÇÃO rebaixou ${game.home_team} vs ${game.away_team} (conf ${analysis.confidence}% < ${floor}%)`)
+        }
+      } catch (calErr) {
+        console.warn('[Mycroft Punter] calibrationFloor falhou:', (calErr as Error)?.message)
+      }
+
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
 
       if (analysis.verdict === 'APROVADO') {
