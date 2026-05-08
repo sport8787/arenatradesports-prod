@@ -38,14 +38,37 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
 
     async function load() {
       try {
-        const { data: resp, error: err } = await supabase.functions.invoke("sportmonks-pressure", {
-          body: {
-            home: args.home,
-            away: args.away,
-            commence_time: args.commenceTime,
-            fixtureId: args.fixtureId,
-          },
-        });
+        // 1) Futodds (primário) — pressão real Betfair com janelas 5/10/15/20min
+        let resp: any = null;
+        let err: any = null;
+        try {
+          const fu = await supabase.functions.invoke("futodds-pressure", {
+            body: {
+              home: args.home,
+              away: args.away,
+              commence_time: args.commenceTime,
+              fixtureId: args.fixtureId,
+            },
+          });
+          if (!fu.error && fu.data && (fu.data as any).timeline?.length > 0) {
+            resp = fu.data;
+          }
+        } catch (_) { /* ignora, cai para Sportmonks */ }
+
+        // 2) Fallback Sportmonks
+        if (!resp) {
+          const sm = await supabase.functions.invoke("sportmonks-pressure", {
+            body: {
+              home: args.home,
+              away: args.away,
+              commence_time: args.commenceTime,
+              fixtureId: args.fixtureId,
+            },
+          });
+          err = sm.error;
+          resp = sm.data;
+        }
+
         if (!alive) return;
         if (err) throw err;
         if ((resp as any)?.error) throw new Error((resp as any).error);
