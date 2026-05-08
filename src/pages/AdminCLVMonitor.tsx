@@ -94,10 +94,10 @@ export default function AdminCLVMonitor() {
           .limit(50),
       ]);
 
-      const rows = (clv ?? []) as CLVRow[];
+      const rows = (clv ?? []) as unknown as CLVRow[];
       setClvRows(rows);
-      setBuckets((bk ?? []) as BucketRow[]);
-      setQuarantine((qr ?? []) as QuarantineRow[]);
+      setBuckets((bk ?? []) as unknown as BucketRow[]);
+      setQuarantine((qr ?? []) as unknown as QuarantineRow[]);
 
       if (rows.length > 0) {
         const valid = rows.filter((r) => r.clv_pp != null);
