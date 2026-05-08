@@ -14,6 +14,7 @@ import PunterCalibration from '@/components/admin/PunterCalibration';
 import PunterPromptSimulator from '@/components/admin/PunterPromptSimulator';
 import EmailSequenceReport from '@/components/admin/EmailSequenceReport';
 import LiveProviderCompare from '@/components/admin/LiveProviderCompare';
+import FutoddsProbe from '@/components/admin/FutoddsProbe';
 
 const ADMIN_EMAIL = 'pabloescobar@gmail.com';
 
@@ -292,6 +293,9 @@ export default function AdminDashboard() {
 
             {/* A/B Live Provider (Sportmonks vs API-Football) */}
             <LiveProviderCompare />
+
+            {/* Futodds Discovery (Fase 0) */}
+            <FutoddsProbe />
 
             {/* Seção 4 — Feed */}
             <section>
