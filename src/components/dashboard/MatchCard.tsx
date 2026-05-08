@@ -299,7 +299,44 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           </div>
 
-          {/* Gráfico de Pressão embutido — destaque abaixo do placar */}
+          {/* Odds (modelo Futodds): Casa | Empate | Fora | Over 2.5 */}
+          {match.status === 'live' && match.oddsLive && (match.oddsLive.home || match.oddsLive.draw || match.oddsLive.away || match.oddsLive.over25) && (
+            <div className="grid grid-cols-4 gap-1.5 rounded-lg bg-muted/20 border border-border/60 p-2">
+              {([
+                { k: 'home', label: 'Casa', cls: 'text-blue-400' },
+                { k: 'draw', label: 'Empate', cls: 'text-muted-foreground' },
+                { k: 'away', label: 'Fora', cls: 'text-red-400' },
+                { k: 'over25', label: 'Over 2.5', cls: 'text-emerald-400' },
+              ] as const).map((o) => {
+                const val = (match.oddsLive as any)?.[o.k];
+                return (
+                  <div key={o.k} className="flex flex-col items-center justify-center px-1 py-1">
+                    <span className="text-[9px] text-muted-foreground font-orbitron uppercase tracking-wider">{o.label}</span>
+                    <span className={cn('text-sm font-bold tabular-nums', o.cls)}>
+                      {val != null ? Number(val).toFixed(2) : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Botão único Betfair (modelo Futodds, somente Betfair) */}
+          {match.status === 'live' && (
+            <a
+              href={BETFAIR_REFERRAL_URL}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg bg-[#FFB80C] hover:bg-[#FFC93D] text-black font-orbitron font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(255,184,12,0.25)]"
+              aria-label="Abrir Betfair"
+            >
+              <ArrowRight className="w-4 h-4 -rotate-45" />
+              Betfair
+            </a>
+          )}
+
+          {/* Gráfico de Pressão embutido — agora abaixo das odds para não sobrepor o status */}
           {showPressureChart && (
             <div
               className="rounded-lg bg-background/40 border border-border/60 p-1.5"
@@ -314,40 +351,10 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                 )}
               </div>
               {pressureData ? (
-                <MatchPressureChart data={pressureData} height={90} showAxis={false} showEvents />
+                <MatchPressureChart data={pressureData} height={70} showAxis={false} showEvents />
               ) : (
                 <PressureFallback loading={pressureLoading} error={pressureError} />
               )}
-            </div>
-          )}
-
-          {/* Bet Placed Badge */}
-          {match.hasBet && (
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/30">
-              <Check className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] text-primary font-bold uppercase font-orbitron">APOSTA REALIZADA</span>
-            </div>
-          )}
-
-          {/* Odds 1X2 ao vivo */}
-          {match.status === 'live' && match.oddsLive && (match.oddsLive.home || match.oddsLive.draw || match.oddsLive.away) && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['home', 'draw', 'away'] as const).map((k) => {
-                const labels = { home: '1', draw: 'X', away: '2' };
-                const val = match.oddsLive?.[k];
-                return (
-                  <div
-                    key={k}
-                    className="flex flex-col items-center justify-center rounded-md border border-border/60 bg-muted/30 px-2 py-1"
-                    title={`Odd ${labels[k]} ao vivo`}
-                  >
-                    <span className="text-[9px] text-muted-foreground font-orbitron uppercase tracking-wider">{labels[k]}</span>
-                    <span className="text-xs font-bold tabular-nums text-foreground">
-                      {val != null ? Number(val).toFixed(2) : '—'}
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           )}
 
