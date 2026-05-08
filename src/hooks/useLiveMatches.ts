@@ -33,6 +33,23 @@ function isAllowedLeague(championship: string): boolean {
   return false;
 }
 
+export interface FutoddsPressureWindow {
+  pressure_home?: number;
+  pressure_away?: number;
+  attacks_home?: number;
+  attacks_away?: number;
+  dangerous_attacks_home?: number;
+  dangerous_attacks_away?: number;
+  shots_on_target_home?: number;
+  shots_on_target_away?: number;
+}
+
+export interface FutoddsPressureIndices {
+  home?: number;
+  away?: number;
+  total?: number;
+}
+
 export interface LiveMatch {
   id: string;
   match_id: string;
@@ -46,7 +63,16 @@ export interface LiveMatch {
   minute: number | null;
   period: string | null;
   status: string | null;
-  stats: any;
+  /** stats JSON. Pode incluir campos Futodds: pressure_indices, last5min_stats,
+   *  last10min_stats, last15min_stats, last20min_stats, dangerous_attacks_*, etc. */
+  stats: any & {
+    pressure_indices?: FutoddsPressureIndices;
+    last5min_stats?: FutoddsPressureWindow;
+    last10min_stats?: FutoddsPressureWindow;
+    last15min_stats?: FutoddsPressureWindow;
+    last20min_stats?: FutoddsPressureWindow;
+    futodds_event_id?: number | string;
+  };
   mycroft_status: string | null;
   mycroft_analysis_id: string | null;
   created_at: string;
