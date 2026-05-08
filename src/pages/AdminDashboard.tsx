@@ -131,7 +131,7 @@ export default function AdminDashboard() {
     return list;
   }, [data, filter, search]);
 
-  if (authLoading) {
+  if (authLoading || adminLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
   }
 
   if (!user) return <Navigate to="/auth?redirect=/admin" replace />;
-  if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+  if (!isAdmin) {
     return <Navigate to="/punter" replace />;
   }
 
