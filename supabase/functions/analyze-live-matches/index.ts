@@ -571,6 +571,18 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ─── CALIBRATION FLOOR (Trader) ───────────────────────────────────
+        // Rebaixa APROVADO* se confidence < limite calibrado das últimas 50.
+        try {
+          const floor = await getCalibrationFloor(supabase, 'trader_sports', 70);
+          const r = applyCalibrationFloor(analysis, floor);
+          if (r.demoted) {
+            console.log(`[AnalyzeLive] 🎚️  CALIBRAÇÃO rebaixou ${match.home_team} vs ${match.away_team} (conf ${analysis.confidence}% < ${floor}%)`);
+          }
+        } catch (calErr) {
+          console.warn('[AnalyzeLive] calibrationFloor falhou:', (calErr as Error)?.message);
+        }
+
         // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
         const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
         const { data: analysisRow, error: insertError } = await supabase
