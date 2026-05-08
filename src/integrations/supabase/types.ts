@@ -413,6 +413,48 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_calibration_state: {
+        Row: {
+          arena: string
+          base_min_confidence: number
+          delta: number
+          effective_min_confidence: number
+          greens: number
+          hit_rate: number
+          last_settled_at: string | null
+          reds: number
+          roi: number
+          sample_size: number
+          updated_at: string
+        }
+        Insert: {
+          arena: string
+          base_min_confidence?: number
+          delta?: number
+          effective_min_confidence?: number
+          greens?: number
+          hit_rate?: number
+          last_settled_at?: string | null
+          reds?: number
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+        }
+        Update: {
+          arena?: string
+          base_min_confidence?: number
+          delta?: number
+          effective_min_confidence?: number
+          greens?: number
+          hit_rate?: number
+          last_settled_at?: string | null
+          reds?: number
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       arena_matches: {
         Row: {
           away_team: string
@@ -7172,6 +7214,17 @@ export type Database = {
           win_rate: number
         }[]
       }
+      compute_arena_calibration: {
+        Args: { p_arena: string; p_limit?: number }
+        Returns: {
+          greens: number
+          hit_rate: number
+          last_settled_at: string
+          reds: number
+          roi: number
+          sample_size: number
+        }[]
+      }
       decrement_promo_slot: {
         Args: {
           p_event_type?: string
@@ -7269,6 +7322,17 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      refresh_arena_calibration: {
+        Args: { p_arena: string; p_limit?: number }
+        Returns: {
+          arena: string
+          delta: number
+          effective_min_confidence: number
+          hit_rate: number
+          roi: number
+          sample_size: number
+        }[]
       }
       relink_mycroft_analyses: {
         Args: never
