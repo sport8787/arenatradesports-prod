@@ -144,12 +144,22 @@ Deno.serve(async (req) => {
 
   const probes = await Promise.all(endpoints.map((p) => call(workingBase!, p)));
 
-  // Para /matches-betfair-live-odds precisamos de um event_id real → puxa do compact
-  let betfairOddsProbe: any = { skipped: "sem event_id disponível" };
+  // Detail endpoints: precisam game_id / event_id. Pegamos IDs reais e re-rodamos.
+  const liveProbe = probes[endpoints.indexOf("/matches-live")] as any;
   const compact = probes[endpoints.indexOf("/matches-betfair-live-compact")] as any;
-  const sampleEvent = compact?.sample?.[0]?.event_id ?? compact?.sample?.event_id;
+  const sampleGameId = liveProbe?.sample?.[0]?.id ?? liveProbe?.sample?.id;
+  const sampleEvent =
+    compact?.sample?.[0]?.event_id ?? compact?.sample?.event_id ??
+    liveProbe?.sample?.[0]?.id_betfair ?? null;
+
+  const detailProbes: Record<string, any> = {};
+  if (sampleGameId) {
+    detailProbes["/matches-live-detail?game_id"] = await call(workingBase!, "/matches-live-detail", { game_id: String(sampleGameId) });
+    detailProbes["/matches-live-events?game_id"] = await call(workingBase!, "/matches-live-events", { game_id: String(sampleGameId) });
+  }
   if (sampleEvent) {
-    betfairOddsProbe = await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) });
+    detailProbes["/matches-betfair-live-odds?event_id"] = await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) });
+    detailProbes["/matches-betfair-live-markets?event_id"] = await call(workingBase!, "/matches-betfair-live-markets", { event_id: String(sampleEvent) });
   }
 
   // Cobertura por liga (a partir de /matches-betfair-live)
