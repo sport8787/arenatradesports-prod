@@ -153,18 +153,18 @@ async function getH2H(homeId: number, awayId: number, last = 5): Promise<Fixture
 }
 
 async function getUpcomingFixtures(): Promise<any[]> {
+  const { ids: ALLOWED } = await getAllowedFav()
   if (DATA_SOURCE === 'sportmonks') {
-    const ligasAF = Array.from(LIGAS_PERMITIDAS)
+    const ligasAF = Array.from(ALLOWED)
     return await getUpcomingFixturesSM(ligasAF, 36)
   }
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
   const to   = new Date(now.getTime() + 36 * 3600 * 1000).toISOString().split('T')[0]
   const season = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1
-  // Brazilian leagues use the calendar year as season
   const seasonBR = now.getUTCFullYear()
 
-  const ligas = Array.from(LIGAS_PERMITIDAS)
+  const ligas = Array.from(ALLOWED)
   const all: any[] = []
 
   // Busca em paralelo (lotes de 4 para respeitar rate limit)
