@@ -178,6 +178,14 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
           </tbody>
         </table>
       </div>
+      <a
+        href="https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF"
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg bg-[#FFB80C] hover:bg-[#FFC93D] text-black font-orbitron font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(255,184,12,0.25)]"
+      >
+        Apostar na Betfair →
+      </a>
     </div>
   );
 }
