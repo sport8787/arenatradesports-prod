@@ -186,6 +186,7 @@ const App = () => {
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
                 <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
                 <Route path="/admin/clv-monitor" element={<AdminCLVMonitor />} />
+                <Route path="/admin/metricas-conversao" element={<AdminMetricasConversao />} />
                 <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
                 <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />
