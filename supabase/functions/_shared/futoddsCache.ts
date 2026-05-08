@@ -53,17 +53,53 @@ export async function fetchFutoddsCached(
   counters.set(`miss:${path}`, (counters.get(`miss:${path}`) ?? 0) + 1);
 
   const promise = (async () => {
-    const res = await fetch(cacheKey, {
-      headers: { Authorization: `Bearer ${key}`, "X-API-Key": key, Accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`futodds_http_${res.status}`);
-    const json = await res.json();
-    cache.set(cacheKey, { ts: Date.now(), data: json });
-    return json;
+    const t0 = Date.now();
+    let status = 0;
+    let errMsg: string | null = null;
+    let json: any = null;
+    try {
+      const res = await fetch(cacheKey, {
+        headers: { Authorization: `Bearer ${key}`, "X-API-Key": key, Accept: "application/json" },
+      });
+      status = res.status;
+      if (!res.ok) {
+        errMsg = `futodds_http_${res.status}`;
+        throw new Error(errMsg);
+      }
+      json = await res.json();
+      cache.set(cacheKey, { ts: Date.now(), data: json });
+      return json;
+    } catch (e) {
+      if (!errMsg) errMsg = (e as Error).message;
+      throw e;
+    } finally {
+      // Log de saúde best-effort. Não bloqueia a resposta.
+      const latency = Date.now() - t0;
+      const items = Array.isArray(json) ? json.length : Array.isArray(json?.data) ? json.data.length : 0;
+      logHealth({ endpoint: path, status_code: status, latency_ms: latency, ok: !errMsg, error: errMsg, items_count: items }).catch(() => {});
+    }
   })().finally(() => inflight.delete(cacheKey));
 
   inflight.set(cacheKey, promise);
   return promise;
+}
+
+async function logHealth(row: Record<string, unknown>): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const srv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !srv) return;
+    await fetch(`${url}/rest/v1/futodds_health_log`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: srv,
+        Authorization: `Bearer ${srv}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(row),
+    });
+  } catch { /* swallow */ }
 }
 
 /** Conveniência: lista do payload `{data: []}` da Futodds. */
