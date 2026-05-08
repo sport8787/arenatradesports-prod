@@ -7399,6 +7399,7 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
       }
+      expire_trials: { Args: never; Returns: number }
       generate_training_label: {
         Args: { p_recording_id: string }
         Returns: string
