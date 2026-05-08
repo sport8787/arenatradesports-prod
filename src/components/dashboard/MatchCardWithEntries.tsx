@@ -68,18 +68,36 @@ export default function MatchCardWithEntries({
 
     setSubmitting(true);
     try {
-      // 1. Tenta odd real via Sportmonks
+      // 1. Tenta odd real via Futodds (Betfair odds_live, primário)
       let odd: number | null = null;
       let source = 'estimated';
       try {
-        const { data } = await supabase.functions.invoke('fetch-sportmonks-live-odd', {
-          body: { fixture_id: match.matchId || match.id, market: inheritedMarket },
+        const { data } = await supabase.functions.invoke('futodds-live-odd', {
+          body: {
+            fixture_id: match.matchId || match.id,
+            home: match.home,
+            away: match.away,
+            market: inheritedMarket,
+          },
         });
         if (data?.odd && data.odd > 1.01) {
           odd = Number(data.odd);
-          source = data.source || 'sportmonks_live';
+          source = data.source || 'futodds_odds_live';
         }
-      } catch (_) { /* fallback below */ }
+      } catch (_) { /* fallback Sportmonks */ }
+
+      // 2. Fallback: odd ao vivo via Sportmonks
+      if (!odd) {
+        try {
+          const { data } = await supabase.functions.invoke('fetch-sportmonks-live-odd', {
+            body: { fixture_id: match.matchId || match.id, market: inheritedMarket },
+          });
+          if (data?.odd && data.odd > 1.01) {
+            odd = Number(data.odd);
+            source = data.source || 'sportmonks_live';
+          }
+        } catch (_) { /* fallback estimador abaixo */ }
+      }
 
       // 2. Fallback: estimador Poisson
       if (!odd) {
