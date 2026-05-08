@@ -556,17 +556,48 @@ export default function ArenaTraderSports() {
             </TabsList>
           </Tabs>
 
+          {(() => {
+            const anyActive =
+              statusFilter !== 'all' ||
+              marketFilters.length > 0 ||
+              selectedChampionships.length > 0 ||
+              onlyFavorites;
+            if (!anyActive) return null;
+            return (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setMarketFilters([]);
+                    setSelectedChampionships([]);
+                    setOnlyFavorites(false);
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Limpa status, mercados, campeonatos e favoritos"
+                >
+                  ✕ Limpar filtros
+                </button>
+              </div>
+            );
+          })()}
+
           {statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Filtrar por mercado"
+              onKeyDown={handleChipKeyDown}
+            >
               <span className="text-xs text-muted-foreground mr-1">Mercados:</span>
               {approvedMarketOptions.map(([key, count]) => {
                 const active = marketFilters.includes(key);
                 return (
                   <button
                     key={key}
+                    data-chip
                     onClick={() => toggleMarketFilter(key)}
                     className={cn(
-                      'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                      'px-3 py-1 rounded-full text-xs font-medium border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-success/60',
                       active
                         ? 'border-success bg-success/15 text-success'
                         : 'border-border bg-secondary/30 text-muted-foreground hover:border-success/50 hover:text-success'
@@ -598,19 +629,25 @@ export default function ArenaTraderSports() {
           )}
 
           {statusFilter !== 'simulado' && (
-            <div className="flex flex-wrap gap-2 items-center">
+            <div
+              className="flex flex-wrap gap-2 items-center"
+              role="group"
+              aria-label="Favoritos e campeonatos"
+              onKeyDown={handleChipKeyDown}
+            >
               <button
+                data-chip
                 onClick={() => setOnlyFavorites(v => !v)}
                 disabled={favoritesCount === 0 && !onlyFavorites}
                 className={cn(
-                  'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5',
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
                   onlyFavorites
                     ? 'border-primary bg-primary/15 text-primary'
                     : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/50 hover:text-primary',
                   favoritesCount === 0 && !onlyFavorites && 'opacity-50 cursor-not-allowed',
                 )}
                 aria-pressed={onlyFavorites}
-                title={favoritesCount === 0 ? 'Favorite jogos clicando na ⭐ no card' : 'Mostrar apenas favoritos'}
+                title={favoritesCount === 0 ? 'Favorite jogos clicando na ⭐ no card' : 'Mostrar apenas favoritos (Home/End para ir ao início/fim, ←/→ para navegar)'}
               >
                 <Star className={cn('w-3 h-3', onlyFavorites && 'fill-primary')} />
                 Favoritos
@@ -623,9 +660,10 @@ export default function ArenaTraderSports() {
               {championships.map(c => (
                 <button
                   key={c}
+                  data-chip
                   onClick={() => toggleChampionship(c)}
                   className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                    'px-3 py-1 rounded-full text-xs font-medium border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-success/60',
                     selectedChampionships.includes(c)
                       ? 'border-success bg-success/10 text-success'
                       : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground'
