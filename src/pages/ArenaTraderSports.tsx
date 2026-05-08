@@ -35,6 +35,8 @@ import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
 import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
+import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
+import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
@@ -141,6 +143,7 @@ function normalizeMarketKey(raw?: string | null): string | null {
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
+  const { isAdvanced } = useTraderViewMode();
   
   const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
@@ -487,51 +490,56 @@ export default function ArenaTraderSports() {
               </div>
             )}
             <WhatsAppSupportButton />
-            {isAdmin && <LiveCronToggle />}
-            {isAdmin && <ShadowAfCronToggle />}
+            <TraderViewModeToggle />
+            {isAdvanced && isAdmin && <LiveCronToggle />}
+            {isAdvanced && isAdmin && <ShadowAfCronToggle />}
             {/* View toggle */}
-            <div className="flex items-center border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <TableProperties className="w-4 h-4" />
-              </button>
-            </div>
+            {isAdvanced && (
+              <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={cn('p-1.5 transition-colors', viewMode === 'cards' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={cn('p-1.5 transition-colors', viewMode === 'table' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <TableProperties className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Action buttons row - scrollable */}
-        <div className="container mx-auto px-4 pb-3">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
-              <Brain className="w-4 h-4 mr-1" />
-              Chat com Mycroft
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
-              <CheckCircle2 className="w-4 h-4 mr-1" />
-              Sinais Aprovados
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
-              <Sparkles className="w-4 h-4 mr-1" />
-              Eventos Raros
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Performance
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance-por-mercado')}>
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Por Mercado
-            </GoldButton>
+        {isAdvanced && (
+          <div className="container mx-auto px-4 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+              <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
+                <Brain className="w-4 h-4 mr-1" />
+                Chat com Mycroft
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Sinais Aprovados
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Eventos Raros
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Performance
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance-por-mercado')}>
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Por Mercado
+              </GoldButton>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       <div className="container mx-auto px-4 py-4 space-y-4">
@@ -539,12 +547,12 @@ export default function ArenaTraderSports() {
         <PushOptInBanner />
 
         {/* Bankroll Widget */}
-        {bankroll && !bankrollLoading && (
+        {isAdvanced && bankroll && !bankrollLoading && (
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
         )}
 
         {/* Active Positions */}
-        <ActivePositions />
+        {isAdvanced && <ActivePositions />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
@@ -622,11 +630,13 @@ export default function ArenaTraderSports() {
               </TabsTrigger>
               {/* Em mobile (<md), Finalizados/Simulado ficam ocultos para reduzir scroll horizontal */}
               <TabsTrigger value="finished" className="hidden md:inline-flex">Finalizados</TabsTrigger>
-              <TabsTrigger value="simulado" className="hidden md:inline-flex gap-1">
-                <FlaskConical className="w-3 h-3" />
-                Simulado
-              </TabsTrigger>
-              {isAdmin && (
+              {isAdvanced && (
+                <TabsTrigger value="simulado" className="hidden md:inline-flex gap-1">
+                  <FlaskConical className="w-3 h-3" />
+                  Simulado
+                </TabsTrigger>
+              )}
+              {isAdvanced && isAdmin && (
                 <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
                   <FlaskConical className="w-3 h-3" />
                   Aprovados (AF)
@@ -660,7 +670,7 @@ export default function ArenaTraderSports() {
             );
           })()}
 
-          {statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
+          {isAdvanced && statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
             <div
               className="flex flex-wrap items-center gap-2"
               role="group"
@@ -707,7 +717,7 @@ export default function ArenaTraderSports() {
             <SimulationPanel onFetched={refetch} />
           )}
 
-          {statusFilter !== 'simulado' && (
+          {isAdvanced && statusFilter !== 'simulado' && (
             <>
               {/* Chips de Região (Brasil / Europa / Sul-América / Outros) — Trader #4 */}
               <div className="flex flex-wrap gap-2 items-center mb-2" role="group" aria-label="Regiões">
@@ -824,7 +834,7 @@ export default function ArenaTraderSports() {
 
       {/* Grid */}
       <main className="container mx-auto px-4 pb-8">
-        <CalibrationCard arena="trader_sports" />
+        {isAdvanced && <CalibrationCard arena="trader_sports" />}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
