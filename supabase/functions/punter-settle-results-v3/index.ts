@@ -409,7 +409,12 @@ serve(async (req) => {
         continue;
       }
 
-      const res = calcularResultado(s.market, home, away, fx);
+      let res = calcularResultado(s.market, home, away, fx);
+      // Mercados de jogador (Marcar / Dar Assistência) → fetch de eventos
+      if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(s.market)) {
+        const events = await fetchEvents(fixtureId);
+        res = resolvePlayerMarket(s.market, events);
+      }
       if (!res) {
         unsupported++;
         // Mercado não suportado → marca VOID definitivo
