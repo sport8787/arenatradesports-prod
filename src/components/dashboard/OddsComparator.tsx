@@ -25,12 +25,31 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
   useEffect(() => {
     if (!matchId) return;
     fetchOdds();
-  }, [matchId]);
+    // Phase 3: refresh real Betfair line every 30s
+    const id = setInterval(fetchOdds, 30_000);
+    return () => clearInterval(id);
+  }, [matchId, market]);
 
   const fetchOdds = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Phase 3: Betfair Exchange real (via futodds-live-odd → odds_live last_price_traded)
+      const bfRow: BookmakerOdd[] = [];
+      try {
+        const { data: bfData } = await supabase.functions.invoke('futodds-live-odd', {
+          body: { home: homeTeam, away: awayTeam, market: market || 'h2h' },
+        });
+        if (bfData?.odd && bfData.odd > 1.01) {
+          bfRow.push({
+            bookmaker: 'Betfair Exchange (LIVE)',
+            market: market || 'h2h',
+            odd: Number(bfData.odd),
+            movement: 'stable',
+          });
+        }
+      } catch { /* sem cobertura Betfair */ }
+
       // Try to get odds from cached_odds_games first
       const { data: cached } = await supabase
         .from('cached_odds_games')
