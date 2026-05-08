@@ -590,23 +590,24 @@ serve(async (req) => {
     }
   }
 
-  // ====== virtual_bets_manual (apostas do usuário em /minhas-apostas) ======
-  for (const b of (manualPending || []) as any[]) {
+  // ====== Helper compartilhado: liquida uma aposta de virtual_bets_{manual|punter} ======
+  async function settleVirtualBet(table: "virtual_bets_manual" | "virtual_bets_punter", b: any) {
     const parts = String(b.match_name || "").split(/\s+vs\s+/i);
     const home = parts[0]?.trim() || "";
     const away = parts[1]?.trim() || "";
     const startIso = b.commence_time || b.created_at || new Date().toISOString();
 
     if (!home || !away) {
-      results.push({ id: b.id, status: "manual_no_teams", source: "virtual_bets_manual" });
-      continue;
+      results.push({ id: b.id, status: "no_teams", source: table });
+      return;
     }
 
     try {
       let fx: FixtureResult | null = null;
       let fonte = "api-football";
+      let fixtureId: number | undefined;
       const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; }
+      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
       if (!fx) {
         const sm = await findFixtureCached(home, away, startIso);
         if (sm) {
@@ -617,15 +618,45 @@ serve(async (req) => {
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
       if (!fx) {
         notFound++;
-        results.push({ id: b.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "virtual_bets_manual" });
-        continue;
+        // Marca como void para não ficar pendente para sempre se já passou >24h
+        const ageHours = (Date.now() - new Date(startIso).getTime()) / 36e5;
+        if (ageHours > 24) {
+          await sb.from(table).update({
+            status: "settled", result: "void", profit_loss: 0,
+            updated_at: new Date().toISOString(),
+          }).eq("id", b.id);
+        }
+        results.push({ id: b.id, status: "fixture_not_found", match: `${home} x ${away}`, source: table, voided: ageHours > 24 });
+        return;
       }
 
-      const res = calcularResultado(b.market, home, away, fx);
+      // Mercado de escanteios sem corners ainda → busca via AF
+      if (fixtureId && fx.cornersHome == null && /escante|corner/i.test(b.market)) {
+        const c = await fetchCorners(fixtureId);
+        if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
+      }
+
+      let res = calcularResultado(b.market, home, away, fx);
+
+      // Mercado de jogador (Marcar / Dar Assistência) → busca eventos
+      if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(b.market)) {
+        const events = await fetchEvents(fixtureId);
+        res = resolvePlayerMarket(b.market, events);
+      }
+
       if (!res) {
         unsupported++;
-        results.push({ id: b.id, status: "market_unsupported", market: b.market, source: "virtual_bets_manual" });
-        continue;
+        // void após 24h para não ficar pendente eternamente
+        const ageHours = (Date.now() - new Date(startIso).getTime()) / 36e5;
+        if (ageHours > 24) {
+          await sb.from(table).update({
+            status: "settled", result: "void", profit_loss: 0,
+            score_home: fx.goalsHome, score_away: fx.goalsAway,
+            updated_at: new Date().toISOString(),
+          }).eq("id", b.id);
+        }
+        results.push({ id: b.id, status: "market_unsupported", market: b.market, source: table, voided: ageHours > 24 });
+        return;
       }
 
       const stake = Number(b.stake) || 0;
@@ -633,7 +664,7 @@ serve(async (req) => {
       const pl = calcPnl(res, stake, odd);
       const dbR = dbResult(res);
 
-      await sb.from("virtual_bets_manual").update({
+      await sb.from(table).update({
         status: "settled",
         result: dbR,
         profit_loss: Number(pl.toFixed(2)),
@@ -643,11 +674,18 @@ serve(async (req) => {
       }).eq("id", b.id);
 
       settled++;
-      results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: "virtual_bets_manual" });
+      results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: table });
     } catch (e) {
-      console.error("err manual", b.id, e);
-      results.push({ id: b.id, status: "error", error: String(e), source: "virtual_bets_manual" });
+      console.error("err bet", table, b.id, e);
+      results.push({ id: b.id, status: "error", error: String(e), source: table });
     }
+  }
+
+  for (const b of (manualPending || []) as any[]) {
+    await settleVirtualBet("virtual_bets_manual", b);
+  }
+  for (const b of (punterBetsPending || []) as any[]) {
+    await settleVirtualBet("virtual_bets_punter", b);
   }
 
   return new Response(
