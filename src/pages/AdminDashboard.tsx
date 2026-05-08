@@ -17,7 +17,7 @@ import EmailSequenceReport from '@/components/admin/EmailSequenceReport';
 import LiveProviderCompare from '@/components/admin/LiveProviderCompare';
 import FutoddsProbe from '@/components/admin/FutoddsProbe';
 
-const ADMIN_EMAIL = 'pabloescobar@gmail.com';
+// Admin gating agora usa user_roles (has_role RPC) via useAdmin()
 
 type User = {
   id: string;
