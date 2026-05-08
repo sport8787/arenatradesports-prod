@@ -64,6 +64,7 @@ const ArenaBlackjack = React.lazy(() => import("./pages/ArenaBlackjack"));
 const MycroftMemory = React.lazy(() => import("./pages/MycroftMemory"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const AdminHub = React.lazy(() => import("./pages/AdminHub"));
+const AdminFutoddsHealth = React.lazy(() => import("./pages/AdminFutoddsHealth"));
 const AdminMycroftRules = React.lazy(() => import("./pages/AdminMycroftRules"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
