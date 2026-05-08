@@ -239,7 +239,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
         </p>
       </div>
 
-      {/* Live Pressure Chart (Sportmonks) */}
+      {/* Live Pressure Chart */}
       {isLive && (
         <div className="rounded-xl border border-border/60 bg-card/40 p-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -251,7 +251,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
               )}
             </div>
             <span className="text-[10px] text-muted-foreground/70">
-              Atualiza a cada 30s • Sportmonks
+              Atualiza a cada 30s
             </span>
           </div>
 

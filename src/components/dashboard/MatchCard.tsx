@@ -327,7 +327,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           )}
 
-          {/* Odds 1X2 ao vivo (Sportmonks) */}
+          {/* Odds 1X2 ao vivo */}
           {match.status === 'live' && match.oddsLive && (match.oddsLive.home || match.oddsLive.draw || match.oddsLive.away) && (
             <div className="grid grid-cols-3 gap-1.5">
               {(['home', 'draw', 'away'] as const).map((k) => {

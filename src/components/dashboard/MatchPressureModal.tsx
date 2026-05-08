@@ -99,7 +99,7 @@ export default function MatchPressureModal({
         )}
 
         <div className="text-[10px] text-muted-foreground/60 text-center pt-1">
-          Atualiza a cada 30s • Fonte: Sportmonks {data?.source === "pressure" ? "Pressure Index" : "Trends"}
+          Atualiza a cada 30s
         </div>
       </DialogContent>
     </Dialog>
