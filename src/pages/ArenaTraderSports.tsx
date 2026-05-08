@@ -347,14 +347,25 @@ export default function ArenaTraderSports() {
         if (aPrio !== bPrio) return aPrio - bPrio;
         return b[1] - a[1];
       })
+      .filter(([name]) => selectedRegions.length === 0 || selectedRegions.includes(getRegionForChampionship(name)))
       .slice(0, 10)
       .map(([name]) => name);
+  }, [allMatches, selectedRegions]);
+
+  // Contagem por região (para badges nos chips)
+  const regionCounts = useMemo(() => {
+    const counts: Record<Region, number> = { BRASIL: 0, EUROPA: 0, SUL_AMERICA: 0, OUTROS: 0 };
+    allMatches.forEach(m => { counts[getRegionForChampionship(m.championship)]++; });
+    return counts;
   }, [allMatches]);
 
   const toggleChampionship = (c: string) => {
     setSelectedChampionships(prev =>
       prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
     );
+  };
+  const toggleRegion = (r: Region) => {
+    setSelectedRegions(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
 
   const handleViewAnalysis = (matchId: string) => {
