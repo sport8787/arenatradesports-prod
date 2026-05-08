@@ -571,6 +571,33 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ========== AUTO-VETO xG INDISPONÍVEL ==========
+        // Regras:
+        //  • LABAREDA NUNCA pode ser emitida sem xG → rebaixa para APROVADO_SITUACIONAL.
+        //  • Qualquer verdict ativo com xg_unavailable: degrada confidence em -10pp.
+        //  • Se confidence cair abaixo de 50 após penalização → AGUARDAR.
+        if ((enrichedStats as any).xg_unavailable === true && activeVerdicts.includes(analysis.verdict)) {
+          const before = Number(analysis.confidence ?? 0);
+          const after = Math.max(0, before - 10);
+          analysis.confidence = after;
+          const note = `[xG INDISPONÍVEL] -10pp aplicados (de ${before}% para ${after}%).`;
+          analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+          if (analysis.verdict === 'LABAREDA') {
+            console.log(`[AnalyzeLive] 🚫 LABAREDA bloqueada por xG indisponível → APROVADO_SITUACIONAL (${match.home_team} vs ${match.away_team})`);
+            analysis.verdict = 'APROVADO_SITUACIONAL';
+            analysis.thesis = `[xG INDISPONÍVEL] LABAREDA exige xG presente. Rebaixado para APROVADO_SITUACIONAL. ` + (analysis.thesis || '');
+          }
+          if (after < 50) {
+            console.log(`[AnalyzeLive] 🚫 xG indisponível + conf ${after}% < 50 → AGUARDAR`);
+            analysis.verdict = 'AGUARDAR';
+            analysis.thesis = `[xG INDISPONÍVEL] Confidence pós-penalidade ${after}% < 50%. ` + (analysis.thesis || '');
+            analysis.plan_name = null;
+          } else {
+            console.log(`[AnalyzeLive] ⚠️  xG indisponível: confidence ${before}→${after}%`);
+          }
+        }
+        // ====================================================================
+
         // ─── CALIBRATION FLOOR (Trader) ───────────────────────────────────
         // Rebaixa APROVADO* se confidence < limite calibrado das últimas 50.
         try {
