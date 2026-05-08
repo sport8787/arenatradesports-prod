@@ -274,16 +274,36 @@ export default function ActivePositions() {
                       </div>
                     )}
 
-                    {pos.mycroft_cashout_signal && pos.mycroft_cashout_reason && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                        className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/30 rounded-lg">
-                        <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-destructive">Atenção: posição em risco</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{pos.mycroft_cashout_reason}</p>
-                        </div>
-                      </motion.div>
-                    )}
+                    {pos.mycroft_cashout_signal && pos.mycroft_cashout_reason && (() => {
+                      const reasonText = pos.mycroft_cashout_reason!;
+                      const isCriticalAlert = /SAIR AGORA|🚨|⚠️ SAIR/i.test(reasonText);
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className={cn(
+                            'flex items-start gap-2 p-3 rounded-lg border-2',
+                            isCriticalAlert
+                              ? 'bg-destructive/20 border-destructive shadow-[0_0_24px_rgba(239,68,68,0.5)] animate-pulse'
+                              : 'bg-warning/15 border-warning/50',
+                          )}
+                        >
+                          <AlertTriangle className={cn(
+                            'w-5 h-5 flex-shrink-0 mt-0.5',
+                            isCriticalAlert ? 'text-destructive' : 'text-warning',
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              'text-xs font-black font-orbitron uppercase tracking-wider',
+                              isCriticalAlert ? 'text-destructive' : 'text-warning',
+                            )}>
+                              {isCriticalAlert ? '🚨 Feche a posição agora' : 'Atenção: posição em risco'}
+                            </p>
+                            <p className="text-xs text-foreground/90 mt-1 leading-snug">{reasonText}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    })()}
 
                     <a
                       href="https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF"
