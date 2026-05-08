@@ -68,7 +68,6 @@ export default function MatchCardWithEntries({
 
     setSubmitting(true);
     try {
-      // 1. Tenta odd real via Futodds (Betfair odds_live, primário)
       let odd: number | null = null;
       let source = 'estimated';
       try {
@@ -82,11 +81,10 @@ export default function MatchCardWithEntries({
         });
         if (data?.odd && data.odd > 1.01) {
           odd = Number(data.odd);
-          source = data.source || 'futodds_odds_live';
+          source = data.source || 'live';
         }
-      } catch (_) { /* fallback Sportmonks */ }
+      } catch (_) { /* fallback */ }
 
-      // 2. Fallback: odd ao vivo via Sportmonks
       if (!odd) {
         try {
           const { data } = await supabase.functions.invoke('fetch-sportmonks-live-odd', {
@@ -94,7 +92,7 @@ export default function MatchCardWithEntries({
           });
           if (data?.odd && data.odd > 1.01) {
             odd = Number(data.odd);
-            source = data.source || 'sportmonks_live';
+            source = data.source || 'live';
           }
         } catch (_) { /* fallback estimador abaixo */ }
       }
@@ -134,11 +132,7 @@ export default function MatchCardWithEntries({
       } as any);
 
       if (ok) {
-        toast.success(
-          source === 'sportmonks_live'
-            ? `Entrada confirmada @ ${odd.toFixed(2)} (odd real Sportmonks)`
-            : `Entrada confirmada @ ${odd.toFixed(2)} (odd estimada)`,
-        );
+        toast.success(`Entrada confirmada @ ${odd.toFixed(2)}`);
         setStakeStr('');
       }
     } finally {

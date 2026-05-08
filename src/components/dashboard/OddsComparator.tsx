@@ -34,7 +34,7 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
     setLoading(true);
     setError(null);
     try {
-      // Phase 3: Betfair Exchange real (via futodds-live-odd → odds_live last_price_traded)
+      // Betfair Exchange real
       const bfRow: BookmakerOdd[] = [];
       try {
         const { data: bfData } = await supabase.functions.invoke('futodds-live-odd', {

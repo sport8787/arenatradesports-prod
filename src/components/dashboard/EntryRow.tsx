@@ -24,7 +24,6 @@ export interface TraderEntry {
 
 const SOURCE_LABEL: Record<string, { label: string; cls: string }> = {
   betfair_exchange: { label: 'Betfair LIVE', cls: 'bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]' },
-  betfair_direct:   { label: 'Betfair API',  cls: 'bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]' },
   estimada:         { label: 'Estimada',     cls: 'bg-muted text-muted-foreground' },
 };
 
