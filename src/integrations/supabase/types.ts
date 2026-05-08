@@ -663,6 +663,7 @@ export type Database = {
           minute_entered: number
           notes: string | null
           odd: number
+          odd_source: string
           plano: string
           pnl: number | null
           result: string | null
@@ -680,6 +681,7 @@ export type Database = {
           minute_entered: number
           notes?: string | null
           odd: number
+          odd_source?: string
           plano: string
           pnl?: number | null
           result?: string | null
@@ -697,6 +699,7 @@ export type Database = {
           minute_entered?: number
           notes?: string | null
           odd?: number
+          odd_source?: string
           plano?: string
           pnl?: number | null
           result?: string | null
@@ -1583,6 +1586,74 @@ export type Database = {
           sport_key?: string
         }
         Relationships: []
+      }
+      cashout_history: {
+        Row: {
+          bet_id: string
+          cashout_value: number | null
+          confianca: number | null
+          created_at: string
+          current_odd: number
+          entry_odd: number | null
+          fatores: Json | null
+          fonte: string
+          id: string
+          market: string | null
+          match_id: string | null
+          minute: number | null
+          motivo: string | null
+          saude: string | null
+          score: string | null
+          signal: boolean | null
+          user_id: string
+        }
+        Insert: {
+          bet_id: string
+          cashout_value?: number | null
+          confianca?: number | null
+          created_at?: string
+          current_odd: number
+          entry_odd?: number | null
+          fatores?: Json | null
+          fonte: string
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          minute?: number | null
+          motivo?: string | null
+          saude?: string | null
+          score?: string | null
+          signal?: boolean | null
+          user_id: string
+        }
+        Update: {
+          bet_id?: string
+          cashout_value?: number | null
+          confianca?: number | null
+          created_at?: string
+          current_odd?: number
+          entry_odd?: number | null
+          fatores?: Json | null
+          fonte?: string
+          id?: string
+          market?: string | null
+          match_id?: string | null
+          minute?: number | null
+          motivo?: string | null
+          saude?: string | null
+          score?: string | null
+          signal?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_history_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "virtual_bets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cashout_signals_log: {
         Row: {
