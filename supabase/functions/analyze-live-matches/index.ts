@@ -337,26 +337,34 @@ serve(async (req) => {
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
 
-            // 💰 Persistir odds ao vivo (Futodds /matches-betfair-live → odds_live aggregate)
-            // para o card no front exibir Casa/Empate/Fora/Over 2.5 em tempo real.
+            // 💰 Persistir odds ao vivo (Futodds /matches-live-full → odds_live FLAT)
+            // shape do endpoint: { home, draw, away, over_25, over_15, btts_yes, ... }
             try {
-              const rawOdds = fdFx?._raw?.odds_live ?? fdFx?._raw?.odds ?? null;
-              if (rawOdds && typeof rawOdds === 'object') {
-                const flat = {
-                  home: Number(rawOdds?.ft_result?.home) || null,
-                  draw: Number(rawOdds?.ft_result?.draw) || null,
-                  away: Number(rawOdds?.ft_result?.away) || null,
-                  over25: Number(rawOdds?.total_goals?.over_25) || null,
-                  under25: Number(rawOdds?.total_goals?.under_25) || null,
-                  bookmaker: 'Futodds',
+              const oddsList = await getFutoddsOddsCached();
+              const h = _normTeam(match.home_team);
+              const a = _normTeam(match.away_team);
+              const fdOddMatch = oddsList.find((m: any) =>
+                _pairMatch(m.home_name || '', match.home_team) && _pairMatch(m.away_name || '', match.away_team)
+              ) || oddsList.find((m: any) => {
+                const mh = _normTeam(m.home_name || ''); const ma = _normTeam(m.away_name || '');
+                return (mh.includes(h) || h.includes(mh)) && (ma.includes(a) || a.includes(ma));
+              });
+              const ol = fdOddMatch?.odds_live || {};
+              const flat = {
+                home: Number(ol?.home) || null,
+                draw: Number(ol?.draw) || null,
+                away: Number(ol?.away) || null,
+                over25: Number(ol?.over_25) || null,
+                under25: Number(ol?.under_25) || null,
+                bookmaker: 'Futodds',
+                updated_at: new Date().toISOString(),
+              };
+              if (flat.home || flat.draw || flat.away || flat.over25) {
+                await supabase.from('live_matches').update({
+                  odds_live: flat,
                   updated_at: new Date().toISOString(),
-                };
-                if (flat.home || flat.draw || flat.away || flat.over25) {
-                  await supabase.from('live_matches').update({
-                    odds_live: flat,
-                    updated_at: new Date().toISOString(),
-                  }).eq('match_id', match.match_id);
-                }
+                }).eq('match_id', match.match_id);
+                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
               }
             } catch (oddsErr) {
               console.warn('[AnalyzeLive] odds_live persist failed:', (oddsErr as Error)?.message);
