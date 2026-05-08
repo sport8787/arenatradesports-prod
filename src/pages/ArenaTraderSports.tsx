@@ -143,6 +143,7 @@ function normalizeMarketKey(raw?: string | null): string | null {
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
+  const { isSimple, isAdvanced } = useTraderViewMode();
   
   const { matches: liveMatches, loading, refreshing, lastUpdated, refetch } = useLiveMatches();
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
