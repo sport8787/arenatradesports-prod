@@ -324,7 +324,24 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite]);
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilter]);
+
+  // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
+  const approvedMarketOptions = useMemo(() => {
+    const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+    const counts = new Map<string, number>();
+    allMatches.forEach(m => {
+      if (m.matchId?.startsWith('sim_')) return;
+      const eff = (m.status as string) === 'halftime' ? 'live' : m.status;
+      if (eff !== 'live') return;
+      if (!approvedStatuses.includes(m.mycroftStatus)) return;
+      if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return;
+      const key = normalizeMarketKey(m.market);
+      if (!key) return;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [allMatches]);
 
   const favoritesCount = useMemo(
     () => allMatches.filter(m => isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })).length,
