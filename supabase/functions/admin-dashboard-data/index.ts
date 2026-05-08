@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ADMIN_EMAIL = 'pabloescobar@gmail.com';
+// Admin gating é feito via tabela public.user_roles (role='admin'), nunca por e-mail hardcoded.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -28,12 +28,16 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    if (userData.user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    // Admin client (service role) — usado para validar role e para queries privilegiadas
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: isAdmin, error: roleErr } = await admin.rpc('has_role', {
+      _user_id: userData.user.id,
+      _role: 'admin',
+    });
+    if (roleErr || !isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Admin client
-    const admin = createClient(supabaseUrl, serviceKey);
 
     // Fetch all auth users (paginated)
     const allUsers: any[] = [];
