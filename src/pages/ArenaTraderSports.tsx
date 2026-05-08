@@ -741,6 +741,20 @@ export default function ArenaTraderSports() {
                     className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
                   >Limpar</button>
                 )}
+                {/* Modo Foco — Trader #7 */}
+                <button
+                  onClick={() => setFocusMode(v => !v)}
+                  className={cn(
+                    'ml-auto px-3 py-1 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning/60',
+                    focusMode
+                      ? 'border-warning bg-warning/15 text-warning shadow-[0_0_12px_hsl(var(--warning)/0.35)]'
+                      : 'border-border bg-secondary/30 text-muted-foreground hover:border-warning/50 hover:text-warning'
+                  )}
+                  aria-pressed={focusMode}
+                  title="Mostra apenas LABAREDA / APROVADO FORTE (confiança ≥ 70)"
+                >
+                  🎯 MODO FOCO {focusMode ? 'ON' : 'OFF'}
+                </button>
               </div>
             <div
               className="flex flex-wrap gap-2 items-center"
