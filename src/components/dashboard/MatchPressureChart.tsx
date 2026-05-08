@@ -26,7 +26,14 @@ export interface PressureData {
 
 interface FetchArgs { home: string; away: string; commenceTime?: string; fixtureId?: number; }
 
-export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
+// Cache em memória por chave (home::away::fixtureId) com TTL de 30s.
+// Evita chamar futodds-pressure múltiplas vezes para o mesmo jogo quando
+// vários cards/modais são montados em paralelo.
+const PRESSURE_CACHE = new Map<string, { ts: number; data: PressureData }>();
+const PRESSURE_INFLIGHT = new Map<string, Promise<PressureData | null>>();
+const PRESSURE_TTL_MS = 30_000;
+
+export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
   const [data, setData] = useState<PressureData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
