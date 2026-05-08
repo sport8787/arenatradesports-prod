@@ -18,6 +18,8 @@ import FutoddsProbe from '@/components/admin/FutoddsProbe';
 type User = {
   id: string;
   email: string;
+  full_name: string | null;
+  username: string | null;
   created_at: string;
   last_sign_in_at: string | null;
   plan: string | null;
@@ -117,7 +119,11 @@ export default function AdminMetricasConversao() {
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter((u) => u.email?.toLowerCase().includes(q));
+      list = list.filter((u) =>
+        u.email?.toLowerCase().includes(q) ||
+        u.full_name?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q)
+      );
     }
     list.sort((a, b) => {
       const ta = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
@@ -206,10 +212,10 @@ export default function AdminMetricasConversao() {
                 <h2 className="text-lg font-semibold">Usuários ({filteredUsers.length})</h2>
                 <div className="flex flex-wrap gap-2 items-center">
                   <Input
-                    placeholder="Buscar por email…"
+                    placeholder="Buscar por nome ou email…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-56 h-9"
+                    className="w-64 h-9"
                   />
                   {FILTERS.map((f) => (
                     <Button
@@ -228,6 +234,7 @@ export default function AdminMetricasConversao() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Nome</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Cupom</TableHead>
                         <TableHead>Cadastro</TableHead>
@@ -239,6 +246,20 @@ export default function AdminMetricasConversao() {
                     <TableBody>
                       {filteredUsers.map((u) => (
                         <TableRow key={u.id}>
+                          <TableCell className="text-sm">
+                            {u.full_name ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium">{u.full_name}</span>
+                                {u.username && u.username !== 'Jogador' && (
+                                  <span className="text-xs text-muted-foreground">@{u.username}</span>
+                                )}
+                              </div>
+                            ) : u.username && u.username !== 'Jogador' ? (
+                              <span className="text-muted-foreground">@{u.username}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium text-sm">{u.email || '—'}</TableCell>
                           <TableCell className="text-sm">
                             {u.coupon_code ? (

@@ -22,6 +22,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +95,10 @@ const Auth = () => {
         toast({ title: 'Erro', description: usernameResult.error.errors[0].message, variant: 'destructive' });
         return;
       }
+      if (!fullName.trim() || fullName.trim().length < 2) {
+        toast({ title: 'Erro', description: 'Informe seu nome completo (mínimo 2 caracteres)', variant: 'destructive' });
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -115,7 +120,7 @@ const Auth = () => {
           navigate('/menu');
         }
       } else {
-        const { data, error } = await signUp(email, password, username);
+        const { data, error } = await signUp(email, password, username, fullName.trim());
         if (error) {
           if (error.message.includes('already registered')) {
             toast({ title: 'Erro', description: 'Este e-mail já está cadastrado', variant: 'destructive' });
@@ -425,7 +430,23 @@ const Auth = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Este será seu nome nas partidas</p>
-                
+
+                {/* Nome completo */}
+                <div className="mt-3">
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Nome</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="pl-10 bg-background/50 border-border/50 focus:border-primary"
+                      maxLength={120}
+                    />
+                  </div>
+                </div>
+
                 {/* Promo Code */}
                 <div className="mt-3">
                   <label className="text-sm text-muted-foreground mb-1.5 block">Código promocional (opcional)</label>

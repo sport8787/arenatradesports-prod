@@ -3693,6 +3693,7 @@ export type Database = {
           bluff_coins: number
           created_at: string
           daily_streak_count: number
+          full_name: string | null
           id: string
           last_daily_bonus: string | null
           last_streak_date: string | null
@@ -3712,6 +3713,7 @@ export type Database = {
           bluff_coins?: number
           created_at?: string
           daily_streak_count?: number
+          full_name?: string | null
           id?: string
           last_daily_bonus?: string | null
           last_streak_date?: string | null
@@ -3731,6 +3733,7 @@ export type Database = {
           bluff_coins?: number
           created_at?: string
           daily_streak_count?: number
+          full_name?: string | null
           id?: string
           last_daily_bonus?: string | null
           last_streak_date?: string | null
