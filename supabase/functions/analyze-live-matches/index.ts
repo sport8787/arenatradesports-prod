@@ -315,7 +315,7 @@ serve(async (req) => {
             _backfill("dangerous_attacks_away", fds.dangerous_attacks_away);
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
-            console.log(`[AnalyzeLive] 🔵 Futodds pressão ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} (total=${fds.pressure_total})`);
+            console.log(`[AnalyzeLive] 🔵 Futodds backfill ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} | poss=${fds.possession_home}/${fds.possession_away} | shots=${fds.shots_total_home}/${fds.shots_total_away} | dAtk=${fds.dangerous_attacks_home}/${fds.dangerous_attacks_away} | corners=${fds.corners_home}/${fds.corners_away}`);
           }
         } catch (fdErr) {
           console.warn(`[AnalyzeLive] Futodds pressure enrichment failed:`, fdErr instanceof Error ? fdErr.message : fdErr);
