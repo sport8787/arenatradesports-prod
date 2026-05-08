@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
-const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
 const LIGAS_PERMITIDAS: Record<number, string> = {
