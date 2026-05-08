@@ -2242,6 +2242,42 @@ export type Database = {
         }
         Relationships: []
       }
+      futodds_health_log: {
+        Row: {
+          created_at: string
+          endpoint: string
+          error: string | null
+          id: number
+          items_count: number | null
+          latency_ms: number | null
+          leagues_count: number | null
+          ok: boolean
+          status_code: number | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          error?: string | null
+          id?: number
+          items_count?: number | null
+          latency_ms?: number | null
+          leagues_count?: number | null
+          ok?: boolean
+          status_code?: number | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          error?: string | null
+          id?: number
+          items_count?: number | null
+          latency_ms?: number | null
+          leagues_count?: number | null
+          ok?: boolean
+          status_code?: number | null
+        }
+        Relationships: []
+      }
       horus_audio_inventory: {
         Row: {
           audio_url: string | null
@@ -7062,6 +7098,7 @@ export type Database = {
         }
       }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
+      cleanup_futodds_health_log: { Args: never; Returns: undefined }
       cleanup_mycroft_analysis_queue: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
