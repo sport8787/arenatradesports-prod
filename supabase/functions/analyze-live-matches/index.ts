@@ -313,6 +313,10 @@ serve(async (req) => {
             _backfill("attacks_away", fds.attacks_away);
             _backfill("dangerous_attacks_home", fds.dangerous_attacks_home);
             _backfill("dangerous_attacks_away", fds.dangerous_attacks_away);
+            _backfill("xG_home", (fds as any).xg_home);
+            _backfill("xG_away", (fds as any).xg_away);
+            _backfill("xg_home", (fds as any).xg_home);
+            _backfill("xg_away", (fds as any).xg_away);
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
             console.log(`[AnalyzeLive] 🔵 Futodds backfill ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} | poss=${fds.possession_home}/${fds.possession_away} | shots=${fds.shots_total_home}/${fds.shots_total_away} | dAtk=${fds.dangerous_attacks_home}/${fds.dangerous_attacks_away} | corners=${fds.corners_home}/${fds.corners_away}`);
