@@ -151,6 +151,24 @@ export default function ArenaTraderSports() {
   useEffect(() => {
     try { window.localStorage.setItem('arenaTraderSports.marketFilters', JSON.stringify(marketFilters)); } catch { /* ignore */ }
   }, [marketFilters]);
+  // Navegação por teclado entre chips: ←/→ move foco, Home/End vão ao primeiro/último
+  const handleChipKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const key = e.key;
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(key)) return;
+    const chips = Array.from(
+      e.currentTarget.querySelectorAll<HTMLButtonElement>('button[data-chip]:not([disabled])')
+    );
+    if (chips.length === 0) return;
+    const idx = chips.indexOf(document.activeElement as HTMLButtonElement);
+    let next = idx;
+    if (key === 'ArrowRight') next = idx < 0 ? 0 : (idx + 1) % chips.length;
+    else if (key === 'ArrowLeft') next = idx <= 0 ? chips.length - 1 : idx - 1;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = chips.length - 1;
+    e.preventDefault();
+    chips[next]?.focus();
+  };
+
   const toggleMarketFilter = (key: string) => {
     setMarketFilters(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
   };
