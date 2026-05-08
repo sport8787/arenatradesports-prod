@@ -4494,6 +4494,78 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_steam_signals: {
+        Row: {
+          close_mid_odd: number | null
+          detected_at: string
+          direction: string
+          drift_pct: number
+          futodds_event_id: string | null
+          id: string
+          market: string
+          match_id: string
+          open_mid_odd: number | null
+          window_minutes: number
+        }
+        Insert: {
+          close_mid_odd?: number | null
+          detected_at?: string
+          direction: string
+          drift_pct: number
+          futodds_event_id?: string | null
+          id?: string
+          market: string
+          match_id: string
+          open_mid_odd?: number | null
+          window_minutes: number
+        }
+        Update: {
+          close_mid_odd?: number | null
+          detected_at?: string
+          direction?: string
+          drift_pct?: number
+          futodds_event_id?: string | null
+          id?: string
+          market?: string
+          match_id?: string
+          open_mid_odd?: number | null
+          window_minutes?: number
+        }
+        Relationships: []
+      }
+      punter_steam_snapshots: {
+        Row: {
+          back_odd: number | null
+          captured_at: string
+          futodds_event_id: string
+          id: string
+          lay_odd: number | null
+          market: string
+          mid_odd: number | null
+          side: string | null
+        }
+        Insert: {
+          back_odd?: number | null
+          captured_at?: string
+          futodds_event_id: string
+          id?: string
+          lay_odd?: number | null
+          market: string
+          mid_odd?: number | null
+          side?: string | null
+        }
+        Update: {
+          back_odd?: number | null
+          captured_at?: string
+          futodds_event_id?: string
+          id?: string
+          lay_odd?: number | null
+          market?: string
+          mid_odd?: number | null
+          side?: string | null
+        }
+        Relationships: []
+      }
       purchase_events: {
         Row: {
           amount: number | null
