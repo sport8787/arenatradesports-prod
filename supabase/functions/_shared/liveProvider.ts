@@ -1,4 +1,4 @@
-// liveProvider — Sportmonks como fonte primária, API-Football como fallback automático.
+// liveProvider — Futodds primário (com pressão real Betfair) → Sportmonks → API-Football fallback.
 // Mantém o shape "API-Football compatível" para não quebrar consumers existentes.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -11,8 +11,10 @@ import {
   type NormalizedFixture,
   type NormalizedStats,
 } from "./sportmonks.ts";
+import { getFutoddsLive, extractFutoddsStats } from "./futoddsProvider.ts";
 
 const AF_BASE = "https://v3.football.api-sports.io";
+const PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
 
 let _leagueMap: Map<number, number> | null = null;
 let _leagueMapAt = 0;
@@ -97,60 +99,88 @@ async function afFetchFixtureStats(fixtureId: string): Promise<NormalizedStats |
 
 export interface LiveResult {
   fixtures: any[];           // API-Football compatible shape
-  source: "sportmonks" | "api-football";
+  source: "futodds" | "sportmonks" | "api-football";
   fallback_reason?: string;
   count: number;
 }
 
+async function tryFutodds(): Promise<LiveResult> {
+  const r = await getFutoddsLive();
+  console.log(`[liveProvider] source=futodds count=${r.count}`);
+  return { fixtures: r.fixtures, source: "futodds", count: r.count };
+}
+
+async function trySportmonks(): Promise<LiveResult> {
+  const map = await getLeagueMap();
+  const { fixtures } = await fetchInplay();
+  const normalized = fixtures.map((f) => normalizeFixture(f, map));
+  const compat = normalized.map((n) => ({
+    fixture: {
+      id: n.fixture.id,
+      date: n.fixture.date,
+      status: { short: n.fixture.status.short, long: n.fixture.status.long, elapsed: n.fixture.status.elapsed },
+      sm_id: n.fixture.sm_id,
+    },
+    league: { id: n.league.id, name: n.league.name, sm_id: n.league.sm_id },
+    teams: n.teams,
+    goals: n.goals,
+    _source: "sportmonks",
+    _raw: fixtures.find((rf: any) => rf.id === n.fixture.sm_id),
+  }));
+  console.log(`[liveProvider] source=sportmonks count=${compat.length}`);
+  return { fixtures: compat, source: "sportmonks", count: compat.length };
+}
+
+async function tryApiFootball(reason: string): Promise<LiveResult> {
+  const fixtures = await afFetchLive();
+  const tagged = fixtures.map((f: any) => ({ ...f, _source: "api-football" }));
+  console.log(`[liveProvider] source=api-football count=${tagged.length} reason=${reason}`);
+  return { fixtures: tagged, source: "api-football", fallback_reason: reason, count: tagged.length };
+}
+
 export async function getLiveMatches(): Promise<LiveResult> {
-  // 1) Sportmonks primário
-  try {
-    const map = await getLeagueMap();
-    const { fixtures } = await fetchInplay();
-    const normalized = fixtures.map((f) => normalizeFixture(f, map));
-    // Converte para shape API-Football pra manter compat com edges existentes
-    const compat = normalized.map((n) => ({
-      fixture: {
-        id: n.fixture.id,
-        date: n.fixture.date,
-        status: { short: n.fixture.status.short, long: n.fixture.status.long, elapsed: n.fixture.status.elapsed },
-        sm_id: n.fixture.sm_id,
-      },
-      league: { id: n.league.id, name: n.league.name, sm_id: n.league.sm_id },
-      teams: n.teams,
-      goals: n.goals,
-      _source: "sportmonks",
-      _raw: fixtures.find((rf: any) => rf.id === n.fixture.sm_id), // mantém raw pra extrair stats
-    }));
-    console.log(`[liveProvider] source=sportmonks count=${compat.length}`);
-    return { fixtures: compat, source: "sportmonks", count: compat.length };
-  } catch (smErr) {
-    console.warn(`[liveProvider] FALLBACK to api-football reason=${(smErr as Error).message}`);
-    const fixtures = await afFetchLive();
-    const tagged = fixtures.map((f: any) => ({ ...f, _source: "api-football" }));
-    return {
-      fixtures: tagged,
-      source: "api-football",
-      fallback_reason: (smErr as Error).message,
-      count: tagged.length,
-    };
+  const order: Array<"futodds" | "sportmonks" | "api-football"> =
+    PRIMARY === "sportmonks" ? ["sportmonks", "futodds", "api-football"]
+    : PRIMARY === "api-football" ? ["api-football", "futodds", "sportmonks"]
+    : ["futodds", "sportmonks", "api-football"];
+
+  let lastErr = "no_provider";
+  for (const p of order) {
+    try {
+      if (p === "futodds") return await tryFutodds();
+      if (p === "sportmonks") return await trySportmonks();
+      return await tryApiFootball(lastErr);
+    } catch (e) {
+      lastErr = `${p}: ${(e as Error).message}`;
+      console.warn(`[liveProvider] ${p} failed → next. ${lastErr}`);
+    }
   }
+  throw new Error(`all_providers_failed: ${lastErr}`);
 }
 
 export interface StatsResult {
   stats: NormalizedStats | null;
-  source: "sportmonks" | "api-football" | null;
+  source: "futodds" | "sportmonks" | "api-football" | null;
   fallback_reason?: string;
 }
 
 /**
  * fixtureRef pode ser:
  *  - string id "12345" (API-Football) — fallback usa direto
- *  - { sm_id: number, af_id?: string } — tenta Sportmonks primeiro
+ *  - { sm_id?, af_id?, raw?, futodds?: any } — tenta Futodds (raw) → Sportmonks → API-Football
  */
-export async function getFixtureStats(fixtureRef: string | { sm_id?: number; af_id?: string; raw?: any }): Promise<StatsResult> {
+export async function getFixtureStats(
+  fixtureRef: string | { sm_id?: number; af_id?: string; raw?: any; _source?: string },
+): Promise<StatsResult> {
+  // Futodds: raw vem do getFutoddsLive já normalizado em _futodds_stats no fixture inteiro,
+  // mas para chamadas via _raw aqui, tentamos extrair direto se _source=futodds
+  if (typeof fixtureRef === "object" && fixtureRef._source === "futodds" && (fixtureRef as any).raw) {
+    const stats = extractFutoddsStats({ _futodds_stats: (fixtureRef as any).raw._futodds_stats ?? null });
+    if (stats) return { stats, source: "futodds" };
+  }
+
   // Se já temos o objeto raw do Sportmonks (vindo de getLiveMatches), extrai direto
-  if (typeof fixtureRef === "object" && fixtureRef.raw) {
+  if (typeof fixtureRef === "object" && fixtureRef.raw && fixtureRef._source !== "futodds") {
     try {
       const stats = extractNormalizedStats(fixtureRef.raw);
       return { stats, source: "sportmonks" };
