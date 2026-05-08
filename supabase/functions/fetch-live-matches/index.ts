@@ -4,6 +4,7 @@ import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
+import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
 // Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
 //               'api-football' (default) = comportamento legado
