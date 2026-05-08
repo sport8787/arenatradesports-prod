@@ -66,19 +66,23 @@ export default function SignalsFeed() {
     const list: FeedItem[] = [];
     const nowMs = Date.now();
     (aprovados || []).forEach((a: any) => {
-      // Card APROVADO
-      list.push({
-        id: `aprovado-${a.id}`,
-        kind: 'APROVADO',
-        created_at: a.created_at,
-        league: a.league || '—',
-        match: `${a.home_team} vs ${a.away_team}`,
-        market: a.market,
-        odd: a.odd,
-        confidence: a.confidence,
-        profit_loss: null,
-        commence_time: a.commence_time,
-      });
+      const commenceMs = a.commence_time ? new Date(a.commence_time).getTime() : null;
+      const kickoffPassed = commenceMs != null && commenceMs <= nowMs;
+      // Card APROVADO — só aparece ANTES do kickoff (anti-trapaça BC)
+      if (!kickoffPassed) {
+        list.push({
+          id: `aprovado-${a.id}`,
+          kind: 'APROVADO',
+          created_at: a.created_at,
+          league: a.league || '—',
+          match: `${a.home_team} vs ${a.away_team}`,
+          market: a.market,
+          odd: a.odd,
+          confidence: a.confidence,
+          profit_loss: null,
+          commence_time: a.commence_time,
+        });
+      }
       // Card AO VIVO: aprovado, jogo já começou e ainda não foi liquidado
       const commenceMs = a.commence_time ? new Date(a.commence_time).getTime() : null;
       const isLive =
