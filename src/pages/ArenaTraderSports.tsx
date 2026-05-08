@@ -514,30 +514,32 @@ export default function ArenaTraderSports() {
         </div>
 
         {/* Action buttons row - scrollable */}
-        <div className="container mx-auto px-4 pb-3">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
-              <Brain className="w-4 h-4 mr-1" />
-              Chat com Mycroft
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
-              <CheckCircle2 className="w-4 h-4 mr-1" />
-              Sinais Aprovados
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
-              <Sparkles className="w-4 h-4 mr-1" />
-              Eventos Raros
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Performance
-            </GoldButton>
-            <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance-por-mercado')}>
-              <TrendingUp className="w-4 h-4 mr-1" />
-              Por Mercado
-            </GoldButton>
+        {isAdvanced && (
+          <div className="container mx-auto px-4 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+              <GoldButton size="sm" variant="outline" onClick={() => setIsChatOpen(true)}>
+                <Brain className="w-4 h-4 mr-1" />
+                Chat com Mycroft
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Sinais Aprovados
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Eventos Raros
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Performance
+              </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance-por-mercado')}>
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Por Mercado
+              </GoldButton>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       <div className="container mx-auto px-4 py-4 space-y-4">
@@ -545,12 +547,12 @@ export default function ArenaTraderSports() {
         <PushOptInBanner />
 
         {/* Bankroll Widget */}
-        {bankroll && !bankrollLoading && (
+        {isAdvanced && bankroll && !bankrollLoading && (
           <BankrollWidget bankroll={bankroll} onUpdateBalance={updateInitialBalance} />
         )}
 
         {/* Active Positions */}
-        <ActivePositions />
+        {isAdvanced && <ActivePositions />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
