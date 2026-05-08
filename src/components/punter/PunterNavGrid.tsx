@@ -27,11 +27,16 @@ interface Props {
 export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
   const navigate = useNavigate();
   const { pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
-  const { hasArena, subscription } = useSubscription();
+  const { hasArena, subscription, loading: subLoading } = useSubscription();
 
   // Helper: gera onClick que respeita o gate de arena.
-  // Se não tem acesso, manda para /paywall (com toast implícito do destino).
+  // Se subscription ainda carregando → segue para a rota (RequireArena trata).
+  // Se não tem acesso → manda para /paywall.
   const arenaNav = (arena: ArenaKey, route: string) => () => {
+    if (subLoading) {
+      navigate(route);
+      return;
+    }
     if (!hasArena(arena)) {
       navigate('/paywall');
       return;
@@ -41,7 +46,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
 
   const planLabel = (subscription?.plan || 'trial').toUpperCase();
   const upgradeLabel = (arena: ArenaKey) =>
-    hasArena(arena) ? undefined : `Upgrade · plano ${planLabel}`;
+    subLoading ? undefined : (hasArena(arena) ? undefined : `Upgrade · plano ${planLabel}`);
 
   return (
     <div className="space-y-6">

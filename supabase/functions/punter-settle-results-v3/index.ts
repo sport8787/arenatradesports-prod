@@ -95,6 +95,65 @@ async function buscarPorNomeEData(home: string, away: string, isoDate: string): 
   return null;
 }
 
+// Busca eventos (gols/cartões) via /fixtures/events — usado para mercados de jogador
+interface PlayerEvent { type: string; detail: string; playerName: string; assistName: string | null; teamName: string; }
+async function fetchEvents(fixtureId: number): Promise<PlayerEvent[]> {
+  const data = await afFetch("/fixtures/events", { fixture: fixtureId });
+  if (!data || !Array.isArray(data)) return [];
+  return data.map((e: any) => ({
+    type: e.type || "",
+    detail: e.detail || "",
+    playerName: e.player?.name || "",
+    assistName: e.assist?.name || null,
+    teamName: e.team?.name || "",
+  }));
+}
+
+function normalizePlayer(n: string): string {
+  return (n || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s\.]/g, "").trim().replace(/\s+/g, " ");
+}
+// "L. Höler" matches "Lucas Höler", "L Höler", etc.
+function playerMatches(target: string, candidate: string): boolean {
+  const t = normalizePlayer(target); const c = normalizePlayer(candidate);
+  if (!t || !c) return false;
+  if (t === c) return true;
+  if (c.includes(t)) return true;
+  // expansão de inicial: "l. holer" vira regex /^l\w*\s+holer/
+  const tParts = t.split(/\s+/);
+  const cParts = c.split(/\s+/);
+  if (tParts.length >= 2 && cParts.length >= tParts.length) {
+    let ok = true;
+    for (let i = 0; i < tParts.length; i++) {
+      const tp = tParts[i].replace(/\.$/, "");
+      const cp = cParts[i] || "";
+      if (tp.length === 1) { if (!cp.startsWith(tp)) { ok = false; break; } }
+      else if (cp !== tp && !cp.includes(tp) && !tp.includes(cp)) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  // sobrenome (último token)
+  return tParts[tParts.length - 1] === cParts[cParts.length - 1] && tParts[tParts.length - 1].length >= 4;
+}
+
+function resolvePlayerMarket(market: string, events: PlayerEvent[]): Resultado | null {
+  // Formatos: "L. Höler — Marcar a Qualquer Momento", "Diego Moreira — Dar Assistência"
+  const m = market.toLowerCase();
+  const sep = market.split(/\s+[—\-–]\s+/);
+  if (sep.length < 2) return null;
+  const playerName = sep[0].trim();
+  const isGoal = /marcar|gol\s|to\s+score|anytime/i.test(market);
+  const isAssist = /assist|assistência|assistencia/i.test(market);
+  if (!isGoal && !isAssist) return null;
+  if (isGoal) {
+    const scored = events.some(e => /goal/i.test(e.type) && !/own goal/i.test(e.detail) && playerMatches(playerName, e.playerName));
+    return scored ? "GREEN" : "RED";
+  }
+  // assist
+  const assisted = events.some(e => /goal/i.test(e.type) && e.assistName && playerMatches(playerName, e.assistName));
+  return assisted ? "GREEN" : "RED";
+}
+
 // Busca escanteios via /fixtures/statistics
 async function fetchCorners(fixtureId: number): Promise<{ home: number; away: number } | null> {
   const data = await afFetch("/fixtures/statistics", { fixture: fixtureId });
@@ -181,19 +240,25 @@ function calcularResultado(market: string, homeTeam: string, awayTeam: string, f
   if (m.includes("ambas marcam") || /btts\s*(sim)?$/.test(m) || m === "btts" || m.includes("btts sim")) return (gh >= 1 && ga >= 1) ? "GREEN" : "RED";
   if (m.includes("btts não") || m.includes("btts nao") || m.includes("ambas não") || m.includes("ambas nao")) return (gh === 0 || ga === 0) ? "GREEN" : "RED";
 
-  // 1X2 / Dupla chance
-  if (m === "casa" || m === "1" || /vit[óo]ria\s*casa|home win/.test(m)) return gh > ga ? "GREEN" : "RED";
-  if (m === "fora" || m === "2" || /vit[óo]ria\s*fora|away win/.test(m)) return ga > gh ? "GREEN" : "RED";
-  if (m === "empate" || m === "x" || m === "draw") return gh === ga ? "GREEN" : "RED";
+  // 1X2 / Dupla chance — aceita "1X2 Casa", "1X2 - Casa"
+  const m1x2 = m.replace(/^1x2\s*[-:–—]?\s*/, "").trim();
+  if (m === "casa" || m === "1" || m1x2 === "casa" || /vit[óo]ria\s*casa|home win/.test(m)) return gh > ga ? "GREEN" : "RED";
+  if (m === "fora" || m === "2" || m1x2 === "fora" || /vit[óo]ria\s*fora|away win/.test(m)) return ga > gh ? "GREEN" : "RED";
+  if (m === "empate" || m === "x" || m === "draw" || m1x2 === "empate") return gh === ga ? "GREEN" : "RED";
   if (m.includes("1x") || m.includes("casa ou empate")) return gh >= ga ? "GREEN" : "RED";
   if (m.includes("x2") || m.includes("fora ou empate")) return ga >= gh ? "GREEN" : "RED";
   if (/\b12\b/.test(m) || m.includes("casa ou fora")) return gh !== ga ? "GREEN" : "RED";
 
-  // Handicap Asiático
-  const ah = m.match(/(?:ah|handicap[^\d+\-]*)\s*([+\-]?\d+(?:\.\d+)?)\s*(home|away|casa|fora)?/);
+  // Handicap Asiático — "AH +0.5 Away", "HA Casa -1.0", "Handicap -1 Home"
+  const ahCasaFora = m.match(/^(?:ah|ha|handicap)\s+(casa|fora|home|away)\s*([+\-]?\d+(?:\.\d+)?)/);
+  const ahPadrao = m.match(/(?:ah|ha|handicap[^\d+\-]*)\s*([+\-]?\d+(?:\.\d+)?)\s*(home|away|casa|fora)?/);
+  const ah = ahCasaFora
+    ? { line: parseFloat(ahCasaFora[2]), sideHint: ahCasaFora[1] }
+    : ahPadrao
+      ? { line: parseFloat(ahPadrao[1]), sideHint: ahPadrao[2] }
+      : null;
   if (ah) {
-    const line = parseFloat(ah[1]);
-    const sideHint = ah[2];
+    const { line, sideHint } = ah;
     const isHome = sideHint ? (sideHint === "home" || sideHint === "casa") : mn.includes(nh);
     const diff = isHome ? gh - ga : ga - gh;
     const adj = diff + line;
@@ -209,9 +274,13 @@ function calcularResultado(market: string, homeTeam: string, awayTeam: string, f
     return line % 1 === 0 ? "REEMBOLSO" : "RED";
   }
 
-  // Vitória pelo nome do time
-  if (nh && (mn === nh || mn.includes(nh))) return gh > ga ? "GREEN" : "RED";
-  if (na && (mn === na || mn.includes(na))) return ga > gh ? "GREEN" : "RED";
+  // "<Team> para vencer" / "Vitória <Team>" / nome do time direto
+  const teamFromMarket = m.replace(/^vit[óo]ria\s+(de\s+|do\s+|da\s+)?/, "")
+    .replace(/\s+para\s+vencer$/, "")
+    .replace(/\s+vence(r)?$/, "").trim();
+  const tn = normalizeTeamName(teamFromMarket);
+  if (tn && nh && (tn === nh || nh.includes(tn) || (tn.length >= 4 && tn.includes(nh)))) return gh > ga ? "GREEN" : "RED";
+  if (tn && na && (tn === na || na.includes(tn) || (tn.length >= 4 && tn.includes(na)))) return ga > gh ? "GREEN" : "RED";
 
   return null;
 }
@@ -238,7 +307,7 @@ serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
   const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-  const [{ data: pending, error }, { data: favoritoPending, error: favoritoError }, { data: rarosPending, error: rarosError }, { data: manualPending, error: manualError }] = await Promise.all([
+  const [{ data: pending, error }, { data: favoritoPending, error: favoritoError }, { data: rarosPending, error: rarosError }, { data: manualPending, error: manualError }, { data: punterBetsPending, error: punterBetsError }] = await Promise.all([
     sb
       .from("punter_sinais")
       .select("id, legacy_signal_id, match_id, home_team, away_team, league, market, odd, stake_percentage, stake_amount, status, commence_time, match_date")
@@ -269,10 +338,18 @@ serve(async (req) => {
       .lt("commence_time", cutoff)
       .order("commence_time", { ascending: true })
       .limit(100),
+    sb
+      .from("virtual_bets_punter")
+      .select("id, user_id, signal_id, match_id, match_name, market, odd, stake, status, commence_time, created_at")
+      .eq("status", "pending")
+      .is("result", null)
+      .lt("commence_time", cutoff)
+      .order("commence_time", { ascending: true })
+      .limit(150),
   ]);
 
-  if (error || favoritoError || rarosError || manualError) {
-    return new Response(JSON.stringify({ error: (error || favoritoError || rarosError || manualError)?.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (error || favoritoError || rarosError || manualError || punterBetsError) {
+    return new Response(JSON.stringify({ error: (error || favoritoError || rarosError || manualError || punterBetsError)?.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const items = (pending || []) as any[];
@@ -332,7 +409,12 @@ serve(async (req) => {
         continue;
       }
 
-      const res = calcularResultado(s.market, home, away, fx);
+      let res = calcularResultado(s.market, home, away, fx);
+      // Mercados de jogador (Marcar / Dar Assistência) → fetch de eventos
+      if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(s.market)) {
+        const events = await fetchEvents(fixtureId);
+        res = resolvePlayerMarket(s.market, events);
+      }
       if (!res) {
         unsupported++;
         // Mercado não suportado → marca VOID definitivo
@@ -513,23 +595,24 @@ serve(async (req) => {
     }
   }
 
-  // ====== virtual_bets_manual (apostas do usuário em /minhas-apostas) ======
-  for (const b of (manualPending || []) as any[]) {
+  // ====== Helper compartilhado: liquida uma aposta de virtual_bets_{manual|punter} ======
+  async function settleVirtualBet(table: "virtual_bets_manual" | "virtual_bets_punter", b: any) {
     const parts = String(b.match_name || "").split(/\s+vs\s+/i);
     const home = parts[0]?.trim() || "";
     const away = parts[1]?.trim() || "";
     const startIso = b.commence_time || b.created_at || new Date().toISOString();
 
     if (!home || !away) {
-      results.push({ id: b.id, status: "manual_no_teams", source: "virtual_bets_manual" });
-      continue;
+      results.push({ id: b.id, status: "no_teams", source: table });
+      return;
     }
 
     try {
       let fx: FixtureResult | null = null;
       let fonte = "api-football";
+      let fixtureId: number | undefined;
       const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; }
+      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
       if (!fx) {
         const sm = await findFixtureCached(home, away, startIso);
         if (sm) {
@@ -540,15 +623,45 @@ serve(async (req) => {
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
       if (!fx) {
         notFound++;
-        results.push({ id: b.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "virtual_bets_manual" });
-        continue;
+        // Marca como void para não ficar pendente para sempre se já passou >24h
+        const ageHours = (Date.now() - new Date(startIso).getTime()) / 36e5;
+        if (ageHours > 24) {
+          await sb.from(table).update({
+            status: "settled", result: "void", profit_loss: 0,
+            updated_at: new Date().toISOString(),
+          }).eq("id", b.id);
+        }
+        results.push({ id: b.id, status: "fixture_not_found", match: `${home} x ${away}`, source: table, voided: ageHours > 24 });
+        return;
       }
 
-      const res = calcularResultado(b.market, home, away, fx);
+      // Mercado de escanteios sem corners ainda → busca via AF
+      if (fixtureId && fx.cornersHome == null && /escante|corner/i.test(b.market)) {
+        const c = await fetchCorners(fixtureId);
+        if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
+      }
+
+      let res = calcularResultado(b.market, home, away, fx);
+
+      // Mercado de jogador (Marcar / Dar Assistência) → busca eventos
+      if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(b.market)) {
+        const events = await fetchEvents(fixtureId);
+        res = resolvePlayerMarket(b.market, events);
+      }
+
       if (!res) {
         unsupported++;
-        results.push({ id: b.id, status: "market_unsupported", market: b.market, source: "virtual_bets_manual" });
-        continue;
+        // void após 24h para não ficar pendente eternamente
+        const ageHours = (Date.now() - new Date(startIso).getTime()) / 36e5;
+        if (ageHours > 24) {
+          await sb.from(table).update({
+            status: "settled", result: "void", profit_loss: 0,
+            score_home: fx.goalsHome, score_away: fx.goalsAway,
+            updated_at: new Date().toISOString(),
+          }).eq("id", b.id);
+        }
+        results.push({ id: b.id, status: "market_unsupported", market: b.market, source: table, voided: ageHours > 24 });
+        return;
       }
 
       const stake = Number(b.stake) || 0;
@@ -556,7 +669,7 @@ serve(async (req) => {
       const pl = calcPnl(res, stake, odd);
       const dbR = dbResult(res);
 
-      await sb.from("virtual_bets_manual").update({
+      await sb.from(table).update({
         status: "settled",
         result: dbR,
         profit_loss: Number(pl.toFixed(2)),
@@ -566,11 +679,18 @@ serve(async (req) => {
       }).eq("id", b.id);
 
       settled++;
-      results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: "virtual_bets_manual" });
+      results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: table });
     } catch (e) {
-      console.error("err manual", b.id, e);
-      results.push({ id: b.id, status: "error", error: String(e), source: "virtual_bets_manual" });
+      console.error("err bet", table, b.id, e);
+      results.push({ id: b.id, status: "error", error: String(e), source: table });
     }
+  }
+
+  for (const b of (manualPending || []) as any[]) {
+    await settleVirtualBet("virtual_bets_manual", b);
+  }
+  for (const b of (punterBetsPending || []) as any[]) {
+    await settleVirtualBet("virtual_bets_punter", b);
   }
 
   return new Response(
