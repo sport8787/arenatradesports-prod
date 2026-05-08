@@ -821,6 +821,15 @@ Deno.serve(async (req) => {
           last_cashout_update: new Date().toISOString(),
         }).eq('id', pos.id);
 
+        // Histórico de auditoria por aposta — sempre grava cada tick avaliado.
+        await supabase.from('cashout_history').insert({
+          bet_id: pos.id, user_id: pos.user_id, match_id: pos.match_id, market: pos.market,
+          entry_odd: entryOdd, current_odd: oddAtual, cashout_value: cashoutValue,
+          fonte: oddFonte, confianca, saude, signal: sinal, motivo,
+          fatores, minute: minuto,
+          score: `${statsCtx.score_home}-${statsCtx.score_away}`,
+        });
+
         evaluated++;
 
         // Log signal if WARNING/CRITICAL or cashout signal
