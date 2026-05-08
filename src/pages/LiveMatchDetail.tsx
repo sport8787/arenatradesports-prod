@@ -913,6 +913,42 @@ export default function LiveMatchDetail() {
                   }}
                 />
 
+                {/* Indicador xG indisponível */}
+                {stats?.xg_unavailable && (
+                  <div className="luxury-card p-4 border border-amber-500/40 bg-amber-500/5">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-amber-300 font-orbitron uppercase tracking-wider">
+                          xG indisponível nesta partida
+                        </p>
+                        <p className="text-xs text-amber-100/80 leading-relaxed">
+                          A fonte de dados (SofaScore/Futodds) não retornou Gols Esperados para este jogo —{' '}
+                          <strong>isso não significa xG = 0</strong>. O Mycroft removeu o critério de xG do cálculo
+                          e baseou a análise em ataques perigosos, chutes (totais e no gol), posse, big chances e momentum.
+                          Como resultado, a confiança do sinal foi reduzida em ~10pp e o risco classificado é mais conservador.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {stats?.xg_estimated && !stats?.xg_unavailable && (
+                  <div className="luxury-card p-4 border border-blue-500/40 bg-blue-500/5">
+                    <div className="flex items-start gap-3">
+                      <Activity className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-blue-300 font-orbitron uppercase tracking-wider">
+                          xG estimado (sintético)
+                        </p>
+                        <p className="text-xs text-blue-100/80 leading-relaxed">
+                          xG calculado via Flashscore a partir de chutes (não é o xG oficial SofaScore).
+                          Mycroft usa este valor com peso reduzido (~10pp) e prioriza chutes, ataques e posse.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Tese */}
                 <div className="luxury-card p-5 space-y-3">
                   <div className="flex items-center gap-2">
