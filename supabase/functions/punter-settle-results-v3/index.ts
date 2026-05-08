@@ -481,36 +481,17 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // 1) API-Football PRIMEIRO (cache por dia + cota separada da Sportmonks).
-      let fx: FixtureResult | null = null;
-      let fonte = "api-football";
-      let fixtureId: number | undefined;
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) { fx = af.fx; fixtureId = af.fixtureId; }
+      // Resolver com prioridade Futodds → AF (só se necessário) → Sportmonks → Odds API
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, s.market);
+      let fx = resolved.fx;
+      const fixtureId = resolved.fixtureId;
+      let fonte = resolved.fonte;
 
-      // 2) Sportmonks como reforço (só se AF não achou). Economiza quota Sportmonks Pro.
-      if (!fx) {
-        const sm = await findFixtureCached(home, away, startIso);
-        if (sm) {
-          fx = {
-            homeTeam: sm.homeTeam, awayTeam: sm.awayTeam,
-            goalsHome: sm.goalsHome, goalsAway: sm.goalsAway,
-            status: sm.status,
-            cornersHome: sm.cornersHome, cornersAway: sm.cornersAway,
-          };
-          fonte = "sportmonks";
-        }
-      }
-
-      // 3) Se mercado de escanteios e ainda não temos corners (apenas via AF), busca
-      if (fx && fixtureId && fx.cornersHome == null && /escante|corner/i.test(s.market)) {
+      // Escanteios: se ainda não temos corners e temos fixtureId AF, busca via AF
+      if (fx && fixtureId && fx.cornersHome == null && marketIsCorners(s.market)) {
         const c = await fetchCorners(fixtureId);
         if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
       }
-
-      // 4) Fallback The Odds API
-      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
         notFound++;
