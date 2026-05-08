@@ -28,7 +28,13 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    if (userData.user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    // Admin client (service role) — usado para validar role e para queries privilegiadas
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: isAdmin, error: roleErr } = await admin.rpc('has_role', {
+      _user_id: userData.user.id,
+      _role: 'admin',
+    });
+    if (roleErr || !isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
