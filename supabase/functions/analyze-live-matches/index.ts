@@ -292,13 +292,27 @@ serve(async (req) => {
             if (fds.last10min) (enrichedStats as any).last10min_stats = fds.last10min;
             if (fds.last15min) (enrichedStats as any).last15min_stats = fds.last15min;
             if (fds.last20min) (enrichedStats as any).last20min_stats = fds.last20min;
-            // Preenche dangerous_attacks se Sportmonks/AF não tinham
-            if (!(enrichedStats as any).dangerous_attacks_home && fds.dangerous_attacks_home) {
-              (enrichedStats as any).dangerous_attacks_home = fds.dangerous_attacks_home;
-            }
-            if (!(enrichedStats as any).dangerous_attacks_away && fds.dangerous_attacks_away) {
-              (enrichedStats as any).dangerous_attacks_away = fds.dangerous_attacks_away;
-            }
+            // Backfill stats reais Futodds (somente quando Sportmonks/API-Football vieram zerados/missing)
+            const _miss = (v: any) => v == null || Number(v) === 0;
+            const _backfill = (key: string, val: any) => {
+              if (val != null && Number(val) > 0 && _miss((enrichedStats as any)[key])) {
+                (enrichedStats as any)[key] = val;
+              }
+            };
+            _backfill("possession_home", fds.possession_home);
+            _backfill("possession_away", fds.possession_away);
+            _backfill("shots_total_home", fds.shots_total_home);
+            _backfill("shots_total_away", fds.shots_total_away);
+            _backfill("shots_home", fds.shots_total_home);
+            _backfill("shots_away", fds.shots_total_away);
+            _backfill("shots_on_target_home", fds.shots_on_target_home);
+            _backfill("shots_on_target_away", fds.shots_on_target_away);
+            _backfill("corners_home", fds.corners_home);
+            _backfill("corners_away", fds.corners_away);
+            _backfill("attacks_home", fds.attacks_home);
+            _backfill("attacks_away", fds.attacks_away);
+            _backfill("dangerous_attacks_home", fds.dangerous_attacks_home);
+            _backfill("dangerous_attacks_away", fds.dangerous_attacks_away);
             (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
             (enrichedStats as any).source_pressure = "futodds";
             console.log(`[AnalyzeLive] 🔵 Futodds pressão ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} (total=${fds.pressure_total})`);
