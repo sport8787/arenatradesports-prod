@@ -630,11 +630,13 @@ export default function ArenaTraderSports() {
               </TabsTrigger>
               {/* Em mobile (<md), Finalizados/Simulado ficam ocultos para reduzir scroll horizontal */}
               <TabsTrigger value="finished" className="hidden md:inline-flex">Finalizados</TabsTrigger>
-              <TabsTrigger value="simulado" className="hidden md:inline-flex gap-1">
-                <FlaskConical className="w-3 h-3" />
-                Simulado
-              </TabsTrigger>
-              {isAdmin && (
+              {isAdvanced && (
+                <TabsTrigger value="simulado" className="hidden md:inline-flex gap-1">
+                  <FlaskConical className="w-3 h-3" />
+                  Simulado
+                </TabsTrigger>
+              )}
+              {isAdvanced && isAdmin && (
                 <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
                   <FlaskConical className="w-3 h-3" />
                   Aprovados (AF)
