@@ -38,8 +38,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Admin client
-    const admin = createClient(supabaseUrl, serviceKey);
 
     // Fetch all auth users (paginated)
     const allUsers: any[] = [];
