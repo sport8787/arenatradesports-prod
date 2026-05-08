@@ -42,6 +42,13 @@ const LINKS: AdminLink[] = [
     icon: <CreditCard className="h-4 w-4" />,
     group: 'Usuários',
   },
+  {
+    to: '/admin/metricas-conversao',
+    label: 'Métricas de Conversão',
+    description: 'Visão geral, retenção D1/D3, trial→pago e lista completa de usuários.',
+    icon: <Users className="h-4 w-4" />,
+    group: 'Usuários',
+  },
   // Operação
   {
     to: '/admin/edge-status',
