@@ -95,6 +95,65 @@ async function buscarPorNomeEData(home: string, away: string, isoDate: string): 
   return null;
 }
 
+// Busca eventos (gols/cartões) via /fixtures/events — usado para mercados de jogador
+interface PlayerEvent { type: string; detail: string; playerName: string; assistName: string | null; teamName: string; }
+async function fetchEvents(fixtureId: number): Promise<PlayerEvent[]> {
+  const data = await afFetch("/fixtures/events", { fixture: fixtureId });
+  if (!data || !Array.isArray(data)) return [];
+  return data.map((e: any) => ({
+    type: e.type || "",
+    detail: e.detail || "",
+    playerName: e.player?.name || "",
+    assistName: e.assist?.name || null,
+    teamName: e.team?.name || "",
+  }));
+}
+
+function normalizePlayer(n: string): string {
+  return (n || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s\.]/g, "").trim().replace(/\s+/g, " ");
+}
+// "L. Höler" matches "Lucas Höler", "L Höler", etc.
+function playerMatches(target: string, candidate: string): boolean {
+  const t = normalizePlayer(target); const c = normalizePlayer(candidate);
+  if (!t || !c) return false;
+  if (t === c) return true;
+  if (c.includes(t)) return true;
+  // expansão de inicial: "l. holer" vira regex /^l\w*\s+holer/
+  const tParts = t.split(/\s+/);
+  const cParts = c.split(/\s+/);
+  if (tParts.length >= 2 && cParts.length >= tParts.length) {
+    let ok = true;
+    for (let i = 0; i < tParts.length; i++) {
+      const tp = tParts[i].replace(/\.$/, "");
+      const cp = cParts[i] || "";
+      if (tp.length === 1) { if (!cp.startsWith(tp)) { ok = false; break; } }
+      else if (cp !== tp && !cp.includes(tp) && !tp.includes(cp)) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  // sobrenome (último token)
+  return tParts[tParts.length - 1] === cParts[cParts.length - 1] && tParts[tParts.length - 1].length >= 4;
+}
+
+function resolvePlayerMarket(market: string, events: PlayerEvent[]): Resultado | null {
+  // Formatos: "L. Höler — Marcar a Qualquer Momento", "Diego Moreira — Dar Assistência"
+  const m = market.toLowerCase();
+  const sep = market.split(/\s+[—\-–]\s+/);
+  if (sep.length < 2) return null;
+  const playerName = sep[0].trim();
+  const isGoal = /marcar|gol\s|to\s+score|anytime/i.test(market);
+  const isAssist = /assist|assistência|assistencia/i.test(market);
+  if (!isGoal && !isAssist) return null;
+  if (isGoal) {
+    const scored = events.some(e => /goal/i.test(e.type) && !/own goal/i.test(e.detail) && playerMatches(playerName, e.playerName));
+    return scored ? "GREEN" : "RED";
+  }
+  // assist
+  const assisted = events.some(e => /goal/i.test(e.type) && e.assistName && playerMatches(playerName, e.assistName));
+  return assisted ? "GREEN" : "RED";
+}
+
 // Busca escanteios via /fixtures/statistics
 async function fetchCorners(fixtureId: number): Promise<{ home: number; away: number } | null> {
   const data = await afFetch("/fixtures/statistics", { fixture: fixtureId });
