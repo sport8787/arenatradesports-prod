@@ -50,8 +50,10 @@ export interface Match {
   confidence?: number | null;
   alerts?: string[] | null;
   approvalOdd?: number | null;
-  oddsLive?: { home?: number | null; draw?: number | null; away?: number | null; bookmaker?: string | null } | null;
+  oddsLive?: { home?: number | null; draw?: number | null; away?: number | null; over25?: number | null; bookmaker?: string | null } | null;
 }
+
+export const BETFAIR_REFERRAL_URL = 'https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF';
 
 type CriteriaState = 'green' | 'red' | 'yellow' | 'gray';
 
