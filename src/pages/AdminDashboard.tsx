@@ -114,6 +114,7 @@ export default function AdminDashboard() {
     if (filter === 'Ativos hoje') list = list.filter((u) => u.status === 'Ativo hoje');
     else if (filter === 'Inativos') list = list.filter((u) => u.status === 'Inativo');
     else if (filter === 'Trial expirando') list = list.filter((u) => u.status === 'Trial expirando');
+    else if (filter === 'Trial expirado') list = list.filter((u) => u.status === 'Trial expirado');
     else if (filter === 'Pagos') list = list.filter((u) => u.status === 'Pago');
 
     if (search.trim()) {
