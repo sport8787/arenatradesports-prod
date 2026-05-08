@@ -78,6 +78,7 @@ const feedLabel: Record<string, string> = {
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
