@@ -58,34 +58,8 @@ async function runWithConcurrency<T, R>(
   return results;
 }
 
-// Whitelist de ligas permitidas (league_id → nome)
-// REDUZIDA: apenas principais ligas para economizar quota da API
-const LIGAS_PERMITIDAS: Record<number, string> = {
-  // Europa — Top 5
-  39:  "Premier League",
-  140: "La Liga",
-  135: "Serie A",
-  78:  "Bundesliga",
-  61:  "Ligue 1",
-  // Portugal
-  94:  "Primeira Liga (Portugal)",
-  // UEFA Competições
-  2:   "Champions League",
-  3:   "Europa League",
-  848: "Conference League",
-  // Brasil
-  71:  "Brasileirão Série A",
-  72:  "Brasileirão Série B",
-  75:  "Copa Do Brasil",
-  // América do Sul — copas continentais
-  13:  "Libertadores",
-  11:  "Sul-Americana",
-  // Mundo
-  1:   "Copa do Mundo",
-  15:  "Copa do Mundo — Qualificatórias",
-};
-
-// IDs de ligas bloqueadas
+// Whitelist de ligas: agora vem da tabela public.trader_leagues
+// (gerenciada via /admin/trader-leagues). Mantemos apenas IDs sempre bloqueados.
 const LIGAS_BLOQUEADAS: number[] = [
   667, // Amistosos clubes
 ];
