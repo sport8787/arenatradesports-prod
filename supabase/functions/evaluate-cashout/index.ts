@@ -684,14 +684,10 @@ Deno.serve(async (req) => {
         let confianca = 0;
         let fatores: any = null;
 
-        if (CASHOUT_MODE === 'live') {
-          const oddReal = await buscarOddReal(pos);
-          if (oddReal) {
-            oddAtual = oddReal; oddFonte = 'real'; confianca = 100;
-          } else {
-            const est = estimarOdd(pos, statsCtx);
-            oddAtual = est.odd; oddFonte = 'estimada'; confianca = est.confianca; fatores = est.fatores;
-          }
+        // Sempre tenta Futodds (real Betfair) primeiro; cai no estimador se não houver cobertura.
+        const oddReal = await buscarOddReal(pos);
+        if (oddReal) {
+          oddAtual = oddReal; oddFonte = 'real'; confianca = 100;
         } else {
           const est = estimarOdd(pos, statsCtx);
           oddAtual = est.odd; oddFonte = 'estimada'; confianca = est.confianca; fatores = est.fatores;
