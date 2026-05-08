@@ -244,10 +244,15 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats — Sportmonks (já no _raw) ou API-Football
+        // Fetch full stats — Futodds (_futodds_stats inline) → Sportmonks (_raw) → API-Football
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
           let stats: any = null;
-          if (fixture._source === 'sportmonks') {
+          if (fixture._source === 'futodds' && fixture._futodds_stats) {
+            stats = {
+              ...fixture._futodds_stats,
+              source: 'futodds',
+            };
+          } else if (fixture._source === 'sportmonks') {
             const r = await getFixtureStats({ sm_id: fixture.fixture.sm_id, raw: fixture._raw, af_id: fixtureId });
             stats = r.stats ? { ...r.stats } : null;
           }
@@ -257,7 +262,7 @@ serve(async (req) => {
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
-            console.log(`[LiveScores] Stats fetched for ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}%-${stats.possession_away}%, Shots ${stats.shots_total_home}-${stats.shots_total_away}`);
+            console.log(`[LiveScores] Stats ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}-${stats.possession_away}, Pressure ${stats.pressure_home ?? '-'}/${stats.pressure_away ?? '-'}`);
           }
         }
 
