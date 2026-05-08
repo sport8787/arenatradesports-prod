@@ -529,6 +529,33 @@ export default function ArenaTraderSports() {
             </TabsList>
           </Tabs>
 
+          {statusFilter === 'aprovados' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Filtrar por mercado:</span>
+              <Select value={marketFilter} onValueChange={setMarketFilter}>
+                <SelectTrigger className="h-8 w-[240px] text-xs">
+                  <SelectValue placeholder="Todos os mercados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os mercados</SelectItem>
+                  {approvedMarketOptions.map(([key, count]) => (
+                    <SelectItem key={key} value={key}>
+                      {key} <span className="text-muted-foreground">({count})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {marketFilter !== 'all' && (
+                <button
+                  onClick={() => setMarketFilter('all')}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          )}
+
           {statusFilter === 'aprovados_af' && isAdmin && (
             <ShadowAfApprovedTab />
           )}
