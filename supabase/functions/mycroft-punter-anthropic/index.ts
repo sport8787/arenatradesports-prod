@@ -1182,6 +1182,19 @@ async function getOrComputeAdvancedStats(
 
 interface SherlockResult { veto: boolean; reason?: string; confidenceDelta: number; notes: string[] }
 
+function isAsianHandicapMarket(marketStr: string): boolean {
+  const m = marketStr.toLowerCase()
+  return m.startsWith('ah ') || m.startsWith('ah-') || m.includes('asian handicap') || m.includes('handicap asiático') || /\bah[\s+\-(]/.test(m)
+}
+
+function extractHandicapValue(marketStr: string): number | null {
+  // Tries to find numeric handicap in strings like "AH -0.75", "Asian Handicap +1.5", "AH(-1)"
+  const match = marketStr.match(/[+\-]\s?\d+(?:\.\d+)?/)
+  if (!match) return null
+  const v = parseFloat(match[0].replace(/\s/g, ''))
+  return Number.isFinite(v) ? v : null
+}
+
 function applySherlockRules(
   analysis: any,
   homeStats: TeamAdvancedStats | null,
@@ -1191,6 +1204,24 @@ function applySherlockRules(
   let confidenceDelta = 0
   const market = (analysis.market || '').toString().toLowerCase()
   const plan = (analysis.plan_name || '').toString().toUpperCase()
+
+  // ═══ AH MANDATORY (Item #2): high-risk AH requires Sherlock stats for both teams ═══
+  const odd = Number(analysis.odd ?? 0)
+  const handicap = extractHandicapValue(analysis.market || '')
+  const isAH = isAsianHandicapMarket(analysis.market || '')
+  const isHighRiskAH = isAH && (odd >= 2.0 || (handicap !== null && Math.abs(handicap) >= 1.5))
+  if (isHighRiskAH) {
+    if (!homeStats || !awayStats) {
+      return { veto: true, reason: `AH alto risco (odd ${odd.toFixed(2)}${handicap !== null ? ` / handicap ${handicap}` : ''}) sem dados estatísticos suficientes (Sherlock obrigatório).`, confidenceDelta: 0, notes: [] }
+    }
+    // Strong inconsistency on either side → veto for AH high risk
+    const homeCV = Math.max(homeStats.home_cv_scored ?? 0, homeStats.home_cv_conceded ?? 0)
+    const awayCV = Math.max(awayStats.away_cv_scored ?? 0, awayStats.away_cv_conceded ?? 0)
+    if (homeCV > 1.1 || awayCV > 1.1) {
+      return { veto: true, reason: `AH alto risco bloqueado: alta variância (home CV ${homeCV.toFixed(2)} / away CV ${awayCV.toFixed(2)}).`, confidenceDelta: 0, notes: [] }
+    }
+    notes.push(`🔍 Sherlock validou AH alto risco (CV home ${homeCV.toFixed(2)} / CV away ${awayCV.toFixed(2)})`)
+  }
 
   const isLayGoleada = plan.includes('LAY_GOLEADA') || market.includes('lay goleada') || market.includes('lay-goleada')
   if (homeStats && isLayGoleada) {
