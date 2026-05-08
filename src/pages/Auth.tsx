@@ -430,7 +430,23 @@ const Auth = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Este será seu nome nas partidas</p>
-                
+
+                {/* Nome completo */}
+                <div className="mt-3">
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Nome</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Seu nome completo"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="pl-10 bg-background/50 border-border/50 focus:border-primary"
+                      maxLength={120}
+                    />
+                  </div>
+                </div>
+
                 {/* Promo Code */}
                 <div className="mt-3">
                   <label className="text-sm text-muted-foreground mb-1.5 block">Código promocional (opcional)</label>
