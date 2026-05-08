@@ -127,15 +127,33 @@ export default function ArenaTraderSports() {
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
-  const [marketFilter, setMarketFilter] = useState<string>(() => {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
-    return window.localStorage.getItem('arenaTraderSports.marketFilter') || 'all';
+    const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
+    const valid: StatusFilter[] = ['all','proximos','live','aprovados','aprovados_af','scheduled','finished','simulado'];
+    return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
   });
   useEffect(() => {
-    try { window.localStorage.setItem('arenaTraderSports.marketFilter', marketFilter); } catch { /* ignore */ }
-  }, [marketFilter]);
+    try { window.localStorage.setItem('arenaTraderSports.statusFilter', statusFilter); } catch { /* ignore */ }
+  }, [statusFilter]);
+  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [marketFilters, setMarketFilters] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem('arenaTraderSports.marketFilters');
+      if (raw) return JSON.parse(raw);
+      // Migração do filtro antigo single-select
+      const legacy = window.localStorage.getItem('arenaTraderSports.marketFilter');
+      if (legacy && legacy !== 'all') return [legacy];
+    } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.marketFilters', JSON.stringify(marketFilters)); } catch { /* ignore */ }
+  }, [marketFilters]);
+  const toggleMarketFilter = (key: string) => {
+    setMarketFilters(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
+  };
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -314,7 +332,10 @@ export default function ArenaTraderSports() {
           // Excluir sinais de 1º tempo já expirados (após HT)
           if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
           // Filtro por mercado (selecionado pelo usuário)
-          if (marketFilter !== 'all' && normalizeMarketKey(m.market) !== marketFilter) return false;
+          if (marketFilters.length > 0) {
+            const k = normalizeMarketKey(m.market);
+            if (!k || !marketFilters.includes(k)) return false;
+          }
         } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
@@ -330,7 +351,7 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilter]);
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilters]);
 
   // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
@@ -535,28 +556,33 @@ export default function ArenaTraderSports() {
             </TabsList>
           </Tabs>
 
-          {statusFilter === 'aprovados' && (
+          {statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Filtrar por mercado:</span>
-              <Select value={marketFilter} onValueChange={setMarketFilter}>
-                <SelectTrigger className="h-8 w-[240px] text-xs">
-                  <SelectValue placeholder="Todos os mercados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os mercados</SelectItem>
-                  {approvedMarketOptions.map(([key, count]) => (
-                    <SelectItem key={key} value={key}>
-                      {key} <span className="text-muted-foreground">({count})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {marketFilter !== 'all' && (
+              <span className="text-xs text-muted-foreground mr-1">Mercados:</span>
+              {approvedMarketOptions.map(([key, count]) => {
+                const active = marketFilters.includes(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleMarketFilter(key)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium border transition-all',
+                      active
+                        ? 'border-success bg-success/15 text-success'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-success/50 hover:text-success'
+                    )}
+                    aria-pressed={active}
+                  >
+                    {key} <span className="opacity-70">({count})</span>
+                  </button>
+                );
+              })}
+              {marketFilters.length > 0 && (
                 <button
-                  onClick={() => setMarketFilter('all')}
-                  className="text-[11px] text-primary hover:underline"
+                  onClick={() => setMarketFilters([])}
+                  className="text-[11px] text-primary hover:underline ml-1"
                 >
-                  Limpar
+                  Limpar ({marketFilters.length})
                 </button>
               )}
             </div>
