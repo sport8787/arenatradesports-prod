@@ -82,7 +82,23 @@ function estimarOdd(bet: any, stats: any): { odd: number; fatores: any; confianc
 // ═══════════════════════════════════════════════════
 // MÓDULO 2 — ODD REAL (Betfair Live — futuro)
 // ═══════════════════════════════════════════════════
+const FUTODDS_KEY = Deno.env.get('FUTODDS_API_KEY') || '';
+const FUTODDS_BASE = 'https://csv.futodds.com/functions/v1';
+
+/** Busca odd ao vivo: 1) Futodds /matches-live-full (Betfair odds_live), 2) Betfair Exchange direto. */
 async function buscarOddReal(bet: any): Promise<number | null> {
+  // 1) Futodds — funciona para 100% dos jogos cobertos pela API
+  if (FUTODDS_KEY && bet.match_name && bet.market) {
+    try {
+      const [home, away] = String(bet.match_name).split(/\s+vs\s+/i);
+      if (home && away) {
+        const odd = await fetchFutoddsOdd(home.trim(), away.trim(), bet.market);
+        if (odd && odd > 1.01) return odd;
+      }
+    } catch (e) { console.warn('[cashout] futodds_odd error:', (e as Error).message); }
+  }
+
+  // 2) Betfair Exchange direto (requer market_id+selection_id mapeados)
   if (!BETFAIR_APP_KEY || !BETFAIR_SESSION || !bet.betfair_market_id) return null;
   try {
     const r = await fetch('https://api.betfair.com/exchange/betting/rest/v1.0/listMarketBook/', {
@@ -93,6 +109,52 @@ async function buscarOddReal(bet: any): Promise<number | null> {
     const data = await r.json();
     return data?.[0]?.runners?.find((x: any) => x.selectionId === bet.betfair_selection_id)?.ex?.availableToBack?.[0]?.price || null;
   } catch { return null; }
+}
+
+const FUTODDS_LIVE_CACHE: { ts: number; data: any[] } = { ts: 0, data: [] };
+async function fetchFutoddsOdd(home: string, away: string, market: string): Promise<number | null> {
+  // Cache 30s do /matches-live-full (rate-limit friendly)
+  const now = Date.now();
+  let list = FUTODDS_LIVE_CACHE.data;
+  if (now - FUTODDS_LIVE_CACHE.ts > 30_000 || list.length === 0) {
+    const r = await fetch(`${FUTODDS_BASE}/matches-live-full`, {
+      headers: { Authorization: `Bearer ${FUTODDS_KEY}`, 'X-API-Key': FUTODDS_KEY, Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    list = Array.isArray(j?.data) ? j.data : [];
+    FUTODDS_LIVE_CACHE.ts = now;
+    FUTODDS_LIVE_CACHE.data = list;
+  }
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+  const h = norm(home), a = norm(away);
+  const match = list.find((m: any) => norm(m.home_name || '').includes(h) && norm(m.away_name || '').includes(a))
+             || list.find((m: any) => h.includes(norm(m.home_name || '')) && a.includes(norm(m.away_name || '')));
+  if (!match) return null;
+  return pickOddLive(match.odds_live, market) ?? pickOddLive(match.odds, market);
+}
+
+function pickOddLive(odds: any, market: string): number | null {
+  if (!odds) return null;
+  const m = market.toLowerCase();
+  const lineMatch = m.match(/(\d+(?:\.\d+)?)/);
+  const line = lineMatch ? lineMatch[1].replace('.', '').padEnd(2, '5') : null;
+  const isOver = /\bover\b/.test(m), isUnder = /\bunder\b/.test(m);
+  const isBtts = /btts|ambas|both teams to score/.test(m);
+
+  if (isBtts) {
+    const bucket = odds.btts;
+    if (/sim|yes/.test(m) && bucket?.yes) return Number(bucket.yes);
+    if (/n[ãa]o|no/.test(m) && bucket?.no) return Number(bucket.no);
+  }
+  if ((isOver || isUnder) && line) {
+    const k = `${isOver ? 'over' : 'under'}_${line}`;
+    return Number(odds.total_goals?.[k]) || null;
+  }
+  if (/casa|home/.test(m)) return Number(odds.ft_result?.home) || null;
+  if (/fora|away/.test(m)) return Number(odds.ft_result?.away) || null;
+  if (/empate|draw/.test(m)) return Number(odds.ft_result?.draw) || null;
+  return null;
 }
 
 // ═══════════════════════════════════════════════════
