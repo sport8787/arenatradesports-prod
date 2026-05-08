@@ -45,6 +45,19 @@ const getChampionshipColor = (name: string): Match['championshipColor'] => {
   return 'red';
 };
 
+// Mapeia campeonato → região para chips de filtro rápido (Trader #4).
+type Region = 'BRASIL' | 'EUROPA' | 'SUL_AMERICA' | 'OUTROS';
+const REGION_LABELS: Record<Region, string> = {
+  BRASIL: 'Brasil', EUROPA: 'Europa', SUL_AMERICA: 'Sul-América', OUTROS: 'Outros',
+};
+const getRegionForChampionship = (name: string): Region => {
+  const l = (name || '').toLowerCase();
+  if (/brasileir|copa do brasil|s[ée]rie [abcd]\b|paulist|carioca|gauch|mineir|baian|cearen|nordest|catarinens|para[ií]b/.test(l)) return 'BRASIL';
+  if (/premier league|bundesliga|la liga|laliga|ligue ?1|serie a\b|champions|europa league|conference|eredivisie|primeira liga|portuguese|copa do rei|fa cup|efl|championship|scottish|belgian|austrian|swiss|polish|turkish|s[üu]per lig|greek|russian|ukrainian|romanian|czech|hungarian|denmark|sweden|norway|finland|allsvenskan|eliteserien|veikkaus|euro/.test(l)) return 'EUROPA';
+  if (/libertador|sudameric|argentin|chilen|uruguai|paraguai|bolivian|colombian|ecuadorian|peruvian|venezuelan|copa americ/.test(l)) return 'SUL_AMERICA';
+  return 'OUTROS';
+};
+
 const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   const s = lm.stats as any;
   return {
@@ -142,7 +155,22 @@ export default function ArenaTraderSports() {
   useEffect(() => {
     try { window.localStorage.setItem('arenaTraderSports.statusFilter', statusFilter); } catch { /* ignore */ }
   }, [statusFilter]);
-  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [selectedChampionships, setSelectedChampionships] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const raw = window.localStorage.getItem('arenaTraderSports.selectedChampionships'); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.selectedChampionships', JSON.stringify(selectedChampionships)); } catch { /* ignore */ }
+  }, [selectedChampionships]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const raw = window.localStorage.getItem('arenaTraderSports.selectedRegions'); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.selectedRegions', JSON.stringify(selectedRegions)); } catch { /* ignore */ }
+  }, [selectedRegions]);
   const [marketFilters, setMarketFilters] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -319,14 +347,25 @@ export default function ArenaTraderSports() {
         if (aPrio !== bPrio) return aPrio - bPrio;
         return b[1] - a[1];
       })
+      .filter(([name]) => selectedRegions.length === 0 || selectedRegions.includes(getRegionForChampionship(name)))
       .slice(0, 10)
       .map(([name]) => name);
+  }, [allMatches, selectedRegions]);
+
+  // Contagem por região (para badges nos chips)
+  const regionCounts = useMemo(() => {
+    const counts: Record<Region, number> = { BRASIL: 0, EUROPA: 0, SUL_AMERICA: 0, OUTROS: 0 };
+    allMatches.forEach(m => { counts[getRegionForChampionship(m.championship)]++; });
+    return counts;
   }, [allMatches]);
 
   const toggleChampionship = (c: string) => {
     setSelectedChampionships(prev =>
       prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
     );
+  };
+  const toggleRegion = (r: Region) => {
+    setSelectedRegions(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
 
   const handleViewAnalysis = (matchId: string) => {
@@ -365,6 +404,7 @@ export default function ArenaTraderSports() {
           if (effectiveStatus !== statusFilter) return false;
         }
         if (selectedChampionships.length > 0 && !selectedChampionships.includes(m.championship)) return false;
+        if (selectedRegions.length > 0 && !selectedRegions.includes(getRegionForChampionship(m.championship))) return false;
         if (onlyFavorites && !isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })) return false;
         return true;
       })
@@ -375,7 +415,7 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilters]);
+  }, [statusFilter, selectedChampionships, selectedRegions, allMatches, onlyFavorites, isMatchFavorite, marketFilters]);
 
   // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
@@ -653,6 +693,40 @@ export default function ArenaTraderSports() {
           )}
 
           {statusFilter !== 'simulado' && (
+            <>
+              {/* Chips de Região (Brasil / Europa / Sul-América / Outros) — Trader #4 */}
+              <div className="flex flex-wrap gap-2 items-center mb-2" role="group" aria-label="Regiões">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-orbitron mr-1">Região</span>
+                {(['BRASIL','EUROPA','SUL_AMERICA','OUTROS'] as Region[]).map(r => {
+                  const active = selectedRegions.includes(r);
+                  const count = regionCounts[r];
+                  return (
+                    <button
+                      key={r}
+                      data-chip
+                      onClick={() => toggleRegion(r)}
+                      disabled={count === 0 && !active}
+                      className={cn(
+                        'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                        active
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/50',
+                        count === 0 && !active && 'opacity-40 cursor-not-allowed',
+                      )}
+                      aria-pressed={active}
+                    >
+                      {REGION_LABELS[r]}
+                      <span className="ml-0.5 px-1.5 rounded-full bg-foreground/10 text-foreground/70 text-[10px] font-bold">{count}</span>
+                    </button>
+                  );
+                })}
+                {selectedRegions.length > 0 && (
+                  <button
+                    onClick={() => setSelectedRegions([])}
+                    className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                  >Limpar</button>
+                )}
+              </div>
             <div
               className="flex flex-wrap gap-2 items-center"
               role="group"
@@ -697,6 +771,7 @@ export default function ArenaTraderSports() {
                 </button>
               ))}
             </div>
+            </>
           )}
 
         {/* Scheduled Games Section - shown when "Próximos Jogos" tab is active */}
