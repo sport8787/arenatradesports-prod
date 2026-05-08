@@ -43,46 +43,29 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
     let alive = true;
     let timer: number | undefined;
 
-    async function load() {
+    async function fetchFresh(): Promise<PressureData | null> {
       try {
-        // 1) Futodds (primário) — pressão real Betfair com janelas 5/10/15/20min
         let resp: any = null;
-        let err: any = null;
         try {
           const fu = await supabase.functions.invoke("futodds-pressure", {
-            body: {
-              home: args.home,
-              away: args.away,
-              commence_time: args.commenceTime,
-              fixtureId: args.fixtureId,
-            },
+            body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
           });
           const fuData: any = fu.data;
           const fuOk = !fu.error && fuData && Array.isArray(fuData.timeline) && fuData.timeline.length > 0
             && !fuData?._futodds?.not_found;
           if (fuOk) resp = fuData;
-        } catch (_) { /* cai para Sportmonks */ }
+        } catch { /* cai para Sportmonks */ }
 
-        // 2) Fallback Sportmonks (apenas se Futodds vazio/not_found)
         if (!resp) {
           try {
             const sm = await supabase.functions.invoke("sportmonks-pressure", {
-              body: {
-                home: args.home,
-                away: args.away,
-                commence_time: args.commenceTime,
-                fixtureId: args.fixtureId,
-              },
+              body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
             });
-            err = sm.error;
             const smData: any = sm.data;
-            if (smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) {
-              resp = smData;
-            }
-          } catch (_) { /* cai para estimador */ }
+            if (smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) resp = smData;
+          } catch { /* estimador local abaixo */ }
         }
 
-        // 3) Estimador local: timeline plana indicando "sem dados ao vivo"
         if (!resp) {
           resp = {
             fixtureId: args.fixtureId ?? 0,
@@ -96,17 +79,36 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
             _fallback: "estimator_no_data",
           };
         }
-
-        if (!alive) return;
-        if (err && !resp) throw err;
-        setData(resp as PressureData);
-        setError(null);
+        return resp as PressureData;
       } catch (e: any) {
-        if (!alive) return;
         setError(e?.message || "Falha ao carregar gráfico de pressão");
-      } finally {
-        if (alive) setLoading(false);
+        return null;
       }
+    }
+
+    async function load() {
+      // Cache hit?
+      const cached = PRESSURE_CACHE.get(key);
+      const now = Date.now();
+      if (cached && now - cached.ts < PRESSURE_TTL_MS) {
+        if (alive) { setData(cached.data); setError(null); setLoading(false); }
+        return;
+      }
+      // Inflight dedup
+      const existing = PRESSURE_INFLIGHT.get(key);
+      const promise = existing ?? (() => {
+        const p = fetchFresh().finally(() => PRESSURE_INFLIGHT.delete(key));
+        PRESSURE_INFLIGHT.set(key, p);
+        return p;
+      })();
+      const fresh = await promise;
+      if (!alive) return;
+      if (fresh) {
+        PRESSURE_CACHE.set(key, { ts: Date.now(), data: fresh });
+        setData(fresh);
+        setError(null);
+      }
+      setLoading(false);
     }
 
     setLoading(true);
