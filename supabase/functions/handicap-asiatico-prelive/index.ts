@@ -129,7 +129,8 @@ async function getRecentFixtures(teamId: number, last = 12): Promise<any[]> {
 
 async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, fixtureId: number) {
   const empty = { favOdd: null as number | null, undOdd: null as number | null, haOdds: {} as Partial<Record<HALine, number>> };
-  const sportKey = LIGAS_ODDS_MAP[leagueId];
+  const { oddsMap } = await getCachedAllowedHA();
+  const sportKey = oddsMap[leagueId];
 
   if (sportKey && ODDS_API_KEY) {
     try {
