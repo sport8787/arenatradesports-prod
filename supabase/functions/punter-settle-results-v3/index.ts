@@ -441,6 +441,7 @@ serve(async (req) => {
       }
 
       // 4) Fallback The Odds API
+      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
@@ -542,6 +543,7 @@ serve(async (req) => {
           fonte = "sportmonks";
         }
       }
+      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
 
       if (!fx) {
@@ -602,7 +604,8 @@ serve(async (req) => {
             fonte = "sportmonks";
           }
         }
-        if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+        if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
+      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
         if (!fx) {
           notFound++;
           results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "eventos_raros_sinais" });
@@ -671,6 +674,7 @@ serve(async (req) => {
           fonte = "sportmonks";
         }
       }
+      if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
       if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
       if (!fx) {
         notFound++;
