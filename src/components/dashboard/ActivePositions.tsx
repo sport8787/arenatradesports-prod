@@ -121,9 +121,21 @@ export default function ActivePositions() {
           if (isCritical) {
             playCriticalAlert();
             lastPlayedAt.set(pos.id, now);
+            toast.error('🚨 FECHE A POSIÇÃO AGORA', {
+              description: `${pos.match_name} — ${reason}`,
+              duration: 20000,
+              action: {
+                label: 'Abrir Betfair',
+                onClick: () => window.open('https://promos.betfair.bet.br/choose-your-refer-and-earn-offer?referrerCode=DWGLHVUTF', '_blank'),
+              },
+            });
           } else if (isWarning) {
             playWarningAlert();
             lastPlayedAt.set(pos.id, now);
+            toast.warning('⚠️ Atenção: posição sob risco', {
+              description: `${pos.match_name} — ${reason}`,
+              duration: 12000,
+            });
           }
 
           // 🚨 Toasts específicos do plano BACK FAVORITO COM VALOR
