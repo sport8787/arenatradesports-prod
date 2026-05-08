@@ -17,15 +17,9 @@ export interface TraderEntry {
   result: string | null;
   pnl: number | null;
   notes: string | null;
-  odd_source?: string | null;
   estimatedOdd?: number | null;
   estimatedCashout?: number | null;
 }
-
-const SOURCE_LABEL: Record<string, { label: string; cls: string }> = {
-  betfair_exchange: { label: 'Betfair LIVE', cls: 'bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]' },
-  estimada:         { label: 'Estimada',     cls: 'bg-muted text-muted-foreground' },
-};
 
 interface EntryRowProps {
   entry: TraderEntry;
