@@ -1,4 +1,9 @@
 /**
+ * @deprecated Substituído por `futodds-live-odd` / `futodds-live-odds` (odds reais Betfair).
+ * Mantido APENAS como fallback offline para Over/Under quando todas as edges falham.
+ * Nenhum código novo deve depender deste estimador. Ver MatchCardWithEntries.handleConfirm
+ * para a cadeia preferida (futodds → sportmonks → estimador).
+ *
  * Estimativa de odd ao vivo para mercados Over/Under via Poisson simplificada.
  * Fallback usado quando a Sportmonks/The Odds API não retorna odd para o mercado.
  *

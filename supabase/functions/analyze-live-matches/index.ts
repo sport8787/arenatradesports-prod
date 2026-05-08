@@ -3,6 +3,39 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
+import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
+
+// Cache de fixtures Futodds por execução (1 chamada por loop)
+let _futoddsLiveCache: { ts: number; fixtures: any[] } | null = null;
+async function getFutoddsLiveCached(maxAgeMs = 25_000): Promise<any[]> {
+  const now = Date.now();
+  if (_futoddsLiveCache && now - _futoddsLiveCache.ts < maxAgeMs) {
+    return _futoddsLiveCache.fixtures;
+  }
+  try {
+    const r = await getFutoddsLive();
+    _futoddsLiveCache = { ts: now, fixtures: r.fixtures || [] };
+    return _futoddsLiveCache.fixtures;
+  } catch (e) {
+    console.warn("[AnalyzeLive] futodds live fetch falhou:", (e as Error)?.message);
+    _futoddsLiveCache = { ts: now, fixtures: [] };
+    return [];
+  }
+}
+
+function _normTeam(s: string): string {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").trim();
+}
+function findFutoddsFixture(home: string, away: string, list: any[]): any | null {
+  const h = _normTeam(home), a = _normTeam(away);
+  if (!h || !a) return null;
+  return list.find((f: any) => {
+    const fh = _normTeam(f?.teams?.home?.name || "");
+    const fa = _normTeam(f?.teams?.away?.name || "");
+    return (fh.includes(h) || h.includes(fh)) && (fa.includes(a) || a.includes(fa));
+  }) || null;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -227,6 +260,40 @@ serve(async (req) => {
           }
         } catch (smErr) {
           console.warn(`[AnalyzeLive] Sportmonks live enrichment failed:`, smErr instanceof Error ? smErr.message : smErr);
+        }
+
+        // 🔵 ENRIQUECIMENTO FUTODDS — pressão real (pressure_indices) + janelas 5/10/15/20 min
+        // Adiciona campos consumidos pelo Mycroft sem sobrescrever Sportmonks.
+        try {
+          const fdList = await getFutoddsLiveCached();
+          const fdFx = findFutoddsFixture(match.home_team, match.away_team, fdList);
+          const fds = fdFx?._futodds_stats;
+          if (fds) {
+            (enrichedStats as any).pressure_indices = {
+              home: fds.pressure_home,
+              away: fds.pressure_away,
+              total: fds.pressure_total,
+            };
+            (enrichedStats as any).pressure_home = fds.pressure_home;
+            (enrichedStats as any).pressure_away = fds.pressure_away;
+            (enrichedStats as any).pressure_total = fds.pressure_total;
+            if (fds.last5min)  (enrichedStats as any).last5min_stats  = fds.last5min;
+            if (fds.last10min) (enrichedStats as any).last10min_stats = fds.last10min;
+            if (fds.last15min) (enrichedStats as any).last15min_stats = fds.last15min;
+            if (fds.last20min) (enrichedStats as any).last20min_stats = fds.last20min;
+            // Preenche dangerous_attacks se Sportmonks/AF não tinham
+            if (!(enrichedStats as any).dangerous_attacks_home && fds.dangerous_attacks_home) {
+              (enrichedStats as any).dangerous_attacks_home = fds.dangerous_attacks_home;
+            }
+            if (!(enrichedStats as any).dangerous_attacks_away && fds.dangerous_attacks_away) {
+              (enrichedStats as any).dangerous_attacks_away = fds.dangerous_attacks_away;
+            }
+            (enrichedStats as any).futodds_event_id = fdFx?.fixture?.futodds_event_id ?? null;
+            (enrichedStats as any).source_pressure = "futodds";
+            console.log(`[AnalyzeLive] 🔵 Futodds pressão ${match.home_team}-${match.away_team}: P=${fds.pressure_home}/${fds.pressure_away} (total=${fds.pressure_total})`);
+          }
+        } catch (fdErr) {
+          console.warn(`[AnalyzeLive] Futodds pressure enrichment failed:`, fdErr instanceof Error ? fdErr.message : fdErr);
         }
 
         // 🚫 SofaScore e Flashscore DESATIVADOS — fonte única: Sportmonks (live).
