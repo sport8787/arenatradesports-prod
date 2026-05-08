@@ -1182,6 +1182,19 @@ async function getOrComputeAdvancedStats(
 
 interface SherlockResult { veto: boolean; reason?: string; confidenceDelta: number; notes: string[] }
 
+function isAsianHandicapMarket(marketStr: string): boolean {
+  const m = marketStr.toLowerCase()
+  return m.startsWith('ah ') || m.startsWith('ah-') || m.includes('asian handicap') || m.includes('handicap asiático') || /\bah[\s+\-(]/.test(m)
+}
+
+function extractHandicapValue(marketStr: string): number | null {
+  // Tries to find numeric handicap in strings like "AH -0.75", "Asian Handicap +1.5", "AH(-1)"
+  const match = marketStr.match(/[+\-]\s?\d+(?:\.\d+)?/)
+  if (!match) return null
+  const v = parseFloat(match[0].replace(/\s/g, ''))
+  return Number.isFinite(v) ? v : null
+}
+
 function applySherlockRules(
   analysis: any,
   homeStats: TeamAdvancedStats | null,
@@ -1191,6 +1204,24 @@ function applySherlockRules(
   let confidenceDelta = 0
   const market = (analysis.market || '').toString().toLowerCase()
   const plan = (analysis.plan_name || '').toString().toUpperCase()
+
+  // ═══ AH MANDATORY (Item #2): high-risk AH requires Sherlock stats for both teams ═══
+  const odd = Number(analysis.odd ?? 0)
+  const handicap = extractHandicapValue(analysis.market || '')
+  const isAH = isAsianHandicapMarket(analysis.market || '')
+  const isHighRiskAH = isAH && (odd >= 2.0 || (handicap !== null && Math.abs(handicap) >= 1.5))
+  if (isHighRiskAH) {
+    if (!homeStats || !awayStats) {
+      return { veto: true, reason: `AH alto risco (odd ${odd.toFixed(2)}${handicap !== null ? ` / handicap ${handicap}` : ''}) sem dados estatísticos suficientes (Sherlock obrigatório).`, confidenceDelta: 0, notes: [] }
+    }
+    // Strong inconsistency on either side → veto for AH high risk
+    const homeCV = Math.max(homeStats.home_cv_scored ?? 0, homeStats.home_cv_conceded ?? 0)
+    const awayCV = Math.max(awayStats.away_cv_scored ?? 0, awayStats.away_cv_conceded ?? 0)
+    if (homeCV > 1.1 || awayCV > 1.1) {
+      return { veto: true, reason: `AH alto risco bloqueado: alta variância (home CV ${homeCV.toFixed(2)} / away CV ${awayCV.toFixed(2)}).`, confidenceDelta: 0, notes: [] }
+    }
+    notes.push(`🔍 Sherlock validou AH alto risco (CV home ${homeCV.toFixed(2)} / CV away ${awayCV.toFixed(2)})`)
+  }
 
   const isLayGoleada = plan.includes('LAY_GOLEADA') || market.includes('lay goleada') || market.includes('lay-goleada')
   if (homeStats && isLayGoleada) {
@@ -1518,6 +1549,51 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         }
       } catch (exErr) {
         console.warn('[Exchange] check falhou:', (exErr as Error)?.message)
+      }
+
+      // ─── AH STRICT DISPERSION (Item #3): AH precisa de edge_exchange ≥ 5pp ─────
+      try {
+        if (isAsianHandicapMarket(analysis.market || '') && analysis.verdict === 'APROVADO') {
+          const exEdge = Number(analysis.exchange_edge_pp ?? NaN)
+          if (Number.isFinite(exEdge) && exEdge < 5) {
+            console.log(`[AH-Dispersion] 🚫 ${game.home_team} vs ${game.away_team}: AH edge_exchange ${exEdge.toFixed(2)}pp < 5pp → rebaixado`)
+            analysis.verdict = 'VETADO'
+            analysis.veto_reason = `AH com edge real ${exEdge.toFixed(1)}pp < 5pp vs Betfair Exchange (mercado AH exige dispersão maior).`
+            analysis.ah_dispersion_demoted = true
+          } else if (!Number.isFinite(exEdge)) {
+            console.log(`[AH-Dispersion] ⚠️ ${game.home_team} vs ${game.away_team}: AH sem cotação Exchange → rebaixado`)
+            analysis.verdict = 'VETADO'
+            analysis.veto_reason = `AH sem cotação confiável na Betfair Exchange (não validado por dispersão).`
+            analysis.ah_dispersion_demoted = true
+          }
+        }
+      } catch (ahErr) {
+        console.warn('[AH-Dispersion] falhou:', (ahErr as Error)?.message)
+      }
+
+      // ─── QUALITY CHECK (Items #1+#3): quarantine + bucket calibration ─────
+      try {
+        if (analysis.verdict === 'APROVADO') {
+          const { data: q } = await supabaseClient.rpc('punter_check_signal_quality', {
+            p_league: game.sport_title || 'Unknown',
+            p_market: analysis.market || 'N/A',
+            p_odd: Number(analysis.odd ?? 0),
+          })
+          const row = Array.isArray(q) ? q[0] : q
+          if (row?.quarantined) {
+            console.log(`[Quality] 🚫 ${game.home_team} vs ${game.away_team}: bucket quarentenado (${row.reason})`)
+            analysis.verdict = 'VETADO'
+            analysis.veto_reason = `Bucket em quarentena: ${row.reason}`
+            analysis.quality_quarantined = true
+          } else if (row?.confidence_delta && typeof analysis.confidence === 'number') {
+            const delta = Number(row.confidence_delta)
+            analysis.confidence = Math.max(0, Math.min(92, analysis.confidence + delta))
+            analysis.quality_calibration_delta = delta
+            if (row.reason) analysis.quality_note = row.reason
+          }
+        }
+      } catch (qErr) {
+        console.warn('[Quality] check falhou:', (qErr as Error)?.message)
       }
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic${exchangeSnapshot ? ` | EX edge: ${exchangeSnapshot.edge_pp?.toFixed?.(2)}pp` : ''}`)
