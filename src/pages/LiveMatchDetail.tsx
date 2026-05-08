@@ -926,31 +926,7 @@ export default function LiveMatchDetail() {
                   </p>
                 </div>
 
-                {/* Fundamentação */}
-                {analysis.fundamentation && (
-                  <div className="luxury-card p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-primary" />
-                      <h3 className="font-orbitron text-sm uppercase tracking-wider text-primary">
-                        Fundamentação
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.entries(analysis.fundamentation).map(([k, v]) => (
-                        <div key={k} className="bg-muted/20 rounded-lg p-3 border border-border/40">
-                          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-2">
-                            {friendlyLabel(k)}
-                          </p>
-                          {typeof v === 'object' && v !== null ? (
-                            renderStatsObject(v as Record<string, any>)
-                          ) : (
-                            <p className="text-sm text-foreground break-words">{formatValue(k, v)}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Fundamentação removida — poluição visual; tese + alertas já cobrem o necessário */}
 
                 {/* Gestão de Risco */}
                 {analysis.risk_management && (
