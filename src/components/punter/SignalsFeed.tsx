@@ -84,7 +84,6 @@ export default function SignalsFeed() {
         });
       }
       // Card AO VIVO: aprovado, jogo já começou e ainda não foi liquidado
-      const commenceMs = a.commence_time ? new Date(a.commence_time).getTime() : null;
       const isLive =
         commenceMs != null &&
         commenceMs <= nowMs &&
