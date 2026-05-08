@@ -45,6 +45,19 @@ const getChampionshipColor = (name: string): Match['championshipColor'] => {
   return 'red';
 };
 
+// Mapeia campeonato → região para chips de filtro rápido (Trader #4).
+type Region = 'BRASIL' | 'EUROPA' | 'SUL_AMERICA' | 'OUTROS';
+const REGION_LABELS: Record<Region, string> = {
+  BRASIL: 'Brasil', EUROPA: 'Europa', SUL_AMERICA: 'Sul-América', OUTROS: 'Outros',
+};
+const getRegionForChampionship = (name: string): Region => {
+  const l = (name || '').toLowerCase();
+  if (/brasileir|copa do brasil|s[ée]rie [abcd]\b|paulist|carioca|gauch|mineir|baian|cearen|nordest|catarinens|para[ií]b/.test(l)) return 'BRASIL';
+  if (/premier league|bundesliga|la liga|laliga|ligue ?1|serie a\b|champions|europa league|conference|eredivisie|primeira liga|portuguese|copa do rei|fa cup|efl|championship|scottish|belgian|austrian|swiss|polish|turkish|s[üu]per lig|greek|russian|ukrainian|romanian|czech|hungarian|denmark|sweden|norway|finland|allsvenskan|eliteserien|veikkaus|euro/.test(l)) return 'EUROPA';
+  if (/libertador|sudameric|argentin|chilen|uruguai|paraguai|bolivian|colombian|ecuadorian|peruvian|venezuelan|copa americ/.test(l)) return 'SUL_AMERICA';
+  return 'OUTROS';
+};
+
 const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   const s = lm.stats as any;
   return {
