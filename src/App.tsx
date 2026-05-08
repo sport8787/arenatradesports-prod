@@ -176,6 +176,7 @@ const App = () => {
                 <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/hub" element={<AdminHub />} />
+                <Route path="/admin/futodds-health" element={<AdminFutoddsHealth />} />
                 <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
                 <Route path="/admin/push-test" element={<AdminPushTest />} />
                 <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
