@@ -74,10 +74,10 @@ async function afFetch(path: string, params: Record<string, string | number>) {
 }
 
 async function getUpcoming(): Promise<any[]> {
+  const { ids: ALLOWED } = await getCachedAllowedHA();
   if (DATA_SOURCE === 'sportmonks') {
-    const ligasAF = Array.from(LIGAS_PERMITIDAS);
+    const ligasAF = Array.from(ALLOWED);
     const sm = await getUpcomingFixturesSM(ligasAF, 25);
-    // Adapta shape SM (já no shape AF) ao consumido aqui (f.fixture / f.league / f.teams)
     return sm.map((f) => ({
       fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
       league: { id: f.league.id, name: f.league.name, season: f.league.season },
@@ -96,9 +96,8 @@ async function getUpcoming(): Promise<any[]> {
         const lid = f?.league?.id;
         const status = f?.fixture?.status?.short;
         const ts = f?.fixture?.timestamp ? f.fixture.timestamp * 1000 : new Date(f.fixture.date).getTime();
-        if (!LIGAS_PERMITIDAS.has(lid)) continue;
+        if (!ALLOWED.has(lid)) continue;
         if (status !== 'NS' && status !== 'TBD') continue;
-        // Apenas jogos a partir de agora e até 25h à frente
         if (ts < now.getTime() || ts > now.getTime() + 25 * 3600 * 1000) continue;
         if (seen.has(f.fixture.id)) continue;
         seen.add(f.fixture.id);
@@ -106,7 +105,7 @@ async function getUpcoming(): Promise<any[]> {
       }
     } catch (e) { console.error('[HA] getUpcoming err', e); }
   }
-  console.log(`[HA] ${fixtures.length} jogos encontrados em ligas permitidas`);
+  console.log(`[HA] ${fixtures.length} jogos encontrados em ligas permitidas (A+B)`);
   return fixtures;
 }
 
