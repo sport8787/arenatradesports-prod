@@ -99,7 +99,15 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
         </div>
         <div className="text-xs text-foreground font-medium truncate">{entry.market}</div>
         <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
-          <span>Odd {Number(entry.odd).toFixed(2)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help underline decoration-dotted underline-offset-2">Odd {Number(entry.odd).toFixed(2)}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-popover border border-border text-popover-foreground text-xs">
+              <div className="font-medium">{info.fonte}</div>
+              <div className="text-muted-foreground">Confiança: {info.confianca}</div>
+            </TooltipContent>
+          </Tooltip>
           {hasEstimate && (
             <>
               <span>→</span>
