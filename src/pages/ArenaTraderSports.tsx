@@ -26,6 +26,7 @@ import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
 import { useAdmin } from '@/hooks/useAdmin';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import CalibrationCard from '@/components/dashboard/CalibrationCard';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
