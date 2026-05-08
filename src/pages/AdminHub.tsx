@@ -129,6 +129,13 @@ const LINKS: AdminLink[] = [
     icon: <Activity className="h-4 w-4" />,
     group: 'Operação',
   },
+  {
+    to: '/admin/borderline-ai',
+    label: 'Camada 2 — Validador IA Borderline',
+    description: 'Métricas do validador Gemini para sinais ao vivo com confiança 55-65%.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Mycroft',
+  },
 ];
 
 const groupOrder: AdminLink['group'][] = ['Usuários', 'Operação', 'Análise', 'Mycroft', 'Logs'];
