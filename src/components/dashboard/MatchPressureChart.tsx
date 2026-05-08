@@ -50,28 +50,48 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
               fixtureId: args.fixtureId,
             },
           });
-          if (!fu.error && fu.data && (fu.data as any).timeline?.length > 0) {
-            resp = fu.data;
-          }
-        } catch (_) { /* ignora, cai para Sportmonks */ }
+          const fuData: any = fu.data;
+          const fuOk = !fu.error && fuData && Array.isArray(fuData.timeline) && fuData.timeline.length > 0
+            && !fuData?._futodds?.not_found;
+          if (fuOk) resp = fuData;
+        } catch (_) { /* cai para Sportmonks */ }
 
-        // 2) Fallback Sportmonks
+        // 2) Fallback Sportmonks (apenas se Futodds vazio/not_found)
         if (!resp) {
-          const sm = await supabase.functions.invoke("sportmonks-pressure", {
-            body: {
-              home: args.home,
-              away: args.away,
-              commence_time: args.commenceTime,
-              fixtureId: args.fixtureId,
+          try {
+            const sm = await supabase.functions.invoke("sportmonks-pressure", {
+              body: {
+                home: args.home,
+                away: args.away,
+                commence_time: args.commenceTime,
+                fixtureId: args.fixtureId,
+              },
+            });
+            err = sm.error;
+            const smData: any = sm.data;
+            if (smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) {
+              resp = smData;
+            }
+          } catch (_) { /* cai para estimador */ }
+        }
+
+        // 3) Estimador local: timeline plana indicando "sem dados ao vivo"
+        if (!resp) {
+          resp = {
+            fixtureId: args.fixtureId ?? 0,
+            source: "trends",
+            header: {
+              home: { id: 0, name: args.home, logo: "" },
+              away: { id: 0, name: args.away, logo: "" },
+              score: { home: 0, away: 0 }, state: "NS", minute: 0,
             },
-          });
-          err = sm.error;
-          resp = sm.data;
+            timeline: [], events: [], form: { home: [], away: [] },
+            _fallback: "estimator_no_data",
+          };
         }
 
         if (!alive) return;
-        if (err) throw err;
-        if ((resp as any)?.error) throw new Error((resp as any).error);
+        if (err && !resp) throw err;
         setData(resp as PressureData);
         setError(null);
       } catch (e: any) {
