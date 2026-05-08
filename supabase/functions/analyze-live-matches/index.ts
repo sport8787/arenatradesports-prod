@@ -6,6 +6,7 @@ import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
 import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
 import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 import { getCalibrationFloor, applyCalibrationFloor } from "../_shared/calibrationFloor.ts";
+import { isBorderline, validateBorderline, ACTIVE_VERDICTS as BORDERLINE_ACTIVE } from "../_shared/borderlineAIValidator.ts";
 
 // Cache de odds_live (Futodds /matches-live-full) por execução
 let _futoddsOddsCache: { ts: number; list: any[] } | null = null;
