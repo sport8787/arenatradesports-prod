@@ -45,6 +45,11 @@ function toAfFixture(m: any): any {
   const [onH, onA] = arr("on_target");
   const [offH, offA] = arr("off_target");
   const [corH, corA] = arr("corners");
+  const [xgH, xgA] = arr("xg");
+  // Alguns payloads usam "expected_goals" em vez de "xg"
+  const [xgH2, xgA2] = arr("expected_goals");
+  const xgHome = Number(xgH ?? xgH2) || 0;
+  const xgAway = Number(xgA ?? xgA2) || 0;
 
   const minute = parseInt(String(m.elapsed ?? 0)) || 0;
   const timeStatus = String(m.time_status ?? "1");
@@ -93,6 +98,8 @@ function toAfFixture(m: any): any {
       dangerous_attacks_away: Number(datkA) || 0,
       corners_home: Number(corH) || 0,
       corners_away: Number(corA) || 0,
+      xg_home: xgHome,
+      xg_away: xgAway,
       pressure_home: m.pressure_indices?.home ?? null,
       pressure_away: m.pressure_indices?.away ?? null,
       pressure_total: m.pressure_indices?.total ?? null,
