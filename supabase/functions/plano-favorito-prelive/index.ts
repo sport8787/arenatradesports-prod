@@ -861,7 +861,8 @@ _Oráculo Mycroft | Bluffer Entertainment_
 
 async function analisarJogo(fixture: any): Promise<Analise | null> {
   const { fixture: fix, league, teams } = fixture
-  if (!LIGAS_PERMITIDAS.has(league.id)) return null
+  const { ids: ALLOWED } = await getAllowedFav()
+  if (!ALLOWED.has(league.id)) return null
 
   // Busca odds
   const odds = await getOdds(teams.home.name, teams.away.name, league.id, fix.id)
