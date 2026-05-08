@@ -1249,6 +1249,7 @@ export default function PunterPage() {
 
           <div className="flex items-center gap-1.5">
             <PunterViewModeToggle />
+            <HeaderBtn icon={<History className="w-3.5 h-3.5" />} label="Minhas Apostas" onClick={() => navigate('/minhas-apostas')} />
             <button
               onClick={() => navigate('/punter/menu')}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[11px] font-mono font-semibold"
