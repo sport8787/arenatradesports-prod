@@ -103,12 +103,12 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return;
+    if (!user || !isAdmin) return;
     fetchData();
     const t = setInterval(fetchData, 60_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isAdmin]);
 
   const filteredUsers = useMemo(() => {
     if (!data) return [];
