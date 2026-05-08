@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { isExpiredHtSignal } from '@/lib/signalValidity';
 import { motion } from 'framer-motion';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw, Sparkles } from 'lucide-react';
 import PunterBackButton from '@/components/punter/PunterBackButton';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
@@ -86,6 +87,38 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
 
 type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
+/**
+ * Normaliza um mercado para uma chave curta usada no filtro
+ * (ex: "Over 0.5 HT", "Under 2.5 FT", "BTTS Yes", "Corners Over 8.5").
+ */
+function normalizeMarketKey(raw?: string | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  let m: RegExpMatchArray | null;
+  if ((m = s.match(/Corners?\s*Over\s*(\d+(?:\.\d+)?)/i))) return `Corners Over ${m[1]}`;
+  if ((m = s.match(/Corners?\s*Under\s*(\d+(?:\.\d+)?)/i))) return `Corners Under ${m[1]}`;
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)\s*(?:corners|escanteios)/i))) return `Corners Over ${m[1]}`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)\s*(?:corners|escanteios)/i))) return `Corners Under ${m[1]}`;
+  if ((m = s.match(/Cards?\s*Over\s*(\d+(?:\.\d+)?)/i))) return `Cards Over ${m[1]}`;
+  if ((m = s.match(/Cards?\s*Under\s*(\d+(?:\.\d+)?)/i))) return `Cards Under ${m[1]}`;
+  if ((m = s.match(/(?:HT\s*Over|Over\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT)/i))) {
+    const num = m[1] ?? s.match(/HT\s*Over\s*(\d+(?:\.\d+)?)/i)?.[1];
+    if (num) return `Over ${num} HT`;
+  }
+  if ((m = s.match(/(?:HT\s*Under|Under\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?HT)/i))) {
+    const num = m[1] ?? s.match(/HT\s*Under\s*(\d+(?:\.\d+)?)/i)?.[1];
+    if (num) return `Under ${num} HT`;
+  }
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)/i))) return `Over ${m[1]} 2T`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)\s*(?:Gols?\s*)?(?:2[ºo]?\s*[Tt]empo|2T|Segundo\s*Tempo)/i))) return `Under ${m[1]} 2T`;
+  if (/BTTS\s*Yes|^GG$/i.test(s)) return 'BTTS Yes';
+  if (/BTTS\s*No|^NG$/i.test(s)) return 'BTTS No';
+  if (/^BTTS$/i.test(s)) return 'BTTS';
+  if ((m = s.match(/Over\s*(\d+(?:\.\d+)?)/i))) return `Over ${m[1]} FT`;
+  if ((m = s.match(/Under\s*(\d+(?:\.\d+)?)/i))) return `Under ${m[1]} FT`;
+  return s;
+}
+
 export default function ArenaTraderSports() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
@@ -96,6 +129,7 @@ export default function ArenaTraderSports() {
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [marketFilter, setMarketFilter] = useState<string>('all');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<MycroftAnalysisData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -273,6 +307,8 @@ export default function ArenaTraderSports() {
           if (!approvedStatuses.includes(m.mycroftStatus)) return false;
           // Excluir sinais de 1º tempo já expirados (após HT)
           if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
+          // Filtro por mercado (selecionado pelo usuário)
+          if (marketFilter !== 'all' && normalizeMarketKey(m.market) !== marketFilter) return false;
         } else if (statusFilter !== 'all') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== statusFilter) return false;
@@ -288,7 +324,24 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite]);
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilter]);
+
+  // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
+  const approvedMarketOptions = useMemo(() => {
+    const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
+    const counts = new Map<string, number>();
+    allMatches.forEach(m => {
+      if (m.matchId?.startsWith('sim_')) return;
+      const eff = (m.status as string) === 'halftime' ? 'live' : m.status;
+      if (eff !== 'live') return;
+      if (!approvedStatuses.includes(m.mycroftStatus)) return;
+      if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return;
+      const key = normalizeMarketKey(m.market);
+      if (!key) return;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [allMatches]);
 
   const favoritesCount = useMemo(
     () => allMatches.filter(m => isMatchFavorite({ matchId: m.matchId, home: m.home, away: m.away })).length,
@@ -475,6 +528,33 @@ export default function ArenaTraderSports() {
               )}
             </TabsList>
           </Tabs>
+
+          {statusFilter === 'aprovados' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Filtrar por mercado:</span>
+              <Select value={marketFilter} onValueChange={setMarketFilter}>
+                <SelectTrigger className="h-8 w-[240px] text-xs">
+                  <SelectValue placeholder="Todos os mercados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os mercados</SelectItem>
+                  {approvedMarketOptions.map(([key, count]) => (
+                    <SelectItem key={key} value={key}>
+                      {key} <span className="text-muted-foreground">({count})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {marketFilter !== 'all' && (
+                <button
+                  onClick={() => setMarketFilter('all')}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          )}
 
           {statusFilter === 'aprovados_af' && isAdmin && (
             <ShadowAfApprovedTab />
