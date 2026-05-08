@@ -193,12 +193,13 @@ export default function AdminDashboard() {
             {/* Seção 1 — Visão geral */}
             <section>
               <h2 className="text-lg font-semibold mb-3">Visão geral</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
                 <StatCard icon={<Users className="w-4 h-4" />} label="Total" value={data.overview.total} />
                 <StatCard icon={<UserCheck className="w-4 h-4" />} label="Ativos hoje" value={data.overview.activeToday} />
                 <StatCard icon={<Activity className="w-4 h-4" />} label="Ativos 3 dias" value={data.overview.active3d} />
                 <StatCard icon={<UserX className="w-4 h-4" />} label="Nunca voltaram" value={data.overview.neverReturned} />
                 <StatCard icon={<Clock className="w-4 h-4" />} label="Trial expirando" value={data.overview.trialExpiringSoon} />
+                <StatCard icon={<UserX className="w-4 h-4" />} label="Trial expirado" value={data.overview.trialExpired} />
                 <StatCard icon={<CreditCard className="w-4 h-4" />} label="Pagos ativos" value={data.overview.paidActive} />
               </div>
             </section>
