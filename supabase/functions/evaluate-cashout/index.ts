@@ -950,6 +950,16 @@ Deno.serve(async (req) => {
                 fatores: futoddsAlert.deltas ?? null,
                 minuto, placar,
               });
+              if (futoddsAlert.severity === 'CRITICAL') {
+                supabase.functions.invoke('cashout-telegram-alert', { body: {
+                  bet_id: pos.id, signal_type: futoddsAlert.signalType,
+                  match_name: pos.match_name, market: pos.market,
+                  placar, minuto,
+                  entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                  cashout_value: pos.cashout_value ?? pos.stake,
+                  motivo: futoddsAlert.motivo,
+                }}).catch((e) => console.warn('[evaluate-cashout] tg alert failed:', e?.message));
+              }
             }
           }
         }
