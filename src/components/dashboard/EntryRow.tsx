@@ -49,6 +49,8 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
   const isPending = entry.status === 'pending';
   const hasEstimate = isPending && entry.estimatedCashout != null && entry.estimatedOdd != null;
 
+  const info = getOddInfo(entry.odd_source);
+
   // For settled entries, show actual P&L
   const pnlDisplay =
     entry.status === 'green'
