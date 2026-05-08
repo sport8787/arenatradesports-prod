@@ -142,7 +142,22 @@ export default function ArenaTraderSports() {
   useEffect(() => {
     try { window.localStorage.setItem('arenaTraderSports.statusFilter', statusFilter); } catch { /* ignore */ }
   }, [statusFilter]);
-  const [selectedChampionships, setSelectedChampionships] = useState<string[]>([]);
+  const [selectedChampionships, setSelectedChampionships] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const raw = window.localStorage.getItem('arenaTraderSports.selectedChampionships'); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.selectedChampionships', JSON.stringify(selectedChampionships)); } catch { /* ignore */ }
+  }, [selectedChampionships]);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const raw = window.localStorage.getItem('arenaTraderSports.selectedRegions'); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('arenaTraderSports.selectedRegions', JSON.stringify(selectedRegions)); } catch { /* ignore */ }
+  }, [selectedRegions]);
   const [marketFilters, setMarketFilters] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
