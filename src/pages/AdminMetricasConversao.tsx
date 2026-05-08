@@ -119,7 +119,11 @@ export default function AdminMetricasConversao() {
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter((u) => u.email?.toLowerCase().includes(q));
+      list = list.filter((u) =>
+        u.email?.toLowerCase().includes(q) ||
+        u.full_name?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q)
+      );
     }
     list.sort((a, b) => {
       const ta = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
