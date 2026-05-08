@@ -1742,6 +1742,57 @@ export type Database = {
         }
         Relationships: []
       }
+      cashout_telegram_alerts: {
+        Row: {
+          bet_id: string
+          cashout_value: number | null
+          created_at: string
+          current_odd: number | null
+          dedupe_key: string
+          entry_odd: number | null
+          id: string
+          market: string | null
+          match_name: string | null
+          minuto: number | null
+          motivo: string | null
+          placar: string | null
+          sent: boolean
+          signal_type: string
+        }
+        Insert: {
+          bet_id: string
+          cashout_value?: number | null
+          created_at?: string
+          current_odd?: number | null
+          dedupe_key: string
+          entry_odd?: number | null
+          id?: string
+          market?: string | null
+          match_name?: string | null
+          minuto?: number | null
+          motivo?: string | null
+          placar?: string | null
+          sent?: boolean
+          signal_type: string
+        }
+        Update: {
+          bet_id?: string
+          cashout_value?: number | null
+          created_at?: string
+          current_odd?: number | null
+          dedupe_key?: string
+          entry_odd?: number | null
+          id?: string
+          market?: string | null
+          match_name?: string | null
+          minuto?: number | null
+          motivo?: string | null
+          placar?: string | null
+          sent?: boolean
+          signal_type?: string
+        }
+        Relationships: []
+      }
       consent_records: {
         Row: {
           consent_given: boolean

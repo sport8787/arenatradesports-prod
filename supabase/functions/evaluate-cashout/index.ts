@@ -895,6 +895,17 @@ Deno.serve(async (req) => {
               fatores: u25.deltas ?? null,
               minuto, placar,
             });
+            // Telegram CRITICAL alert (fire-and-forget)
+            if (u25.severity === 'CRITICAL') {
+              supabase.functions.invoke('cashout-telegram-alert', { body: {
+                bet_id: pos.id, signal_type: u25.signalType,
+                match_name: pos.match_name, market: pos.market,
+                placar, minuto,
+                entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                cashout_value: pos.cashout_value ?? pos.stake,
+                motivo: u25.motivo,
+              }}).catch((e) => console.warn('[evaluate-cashout] tg alert failed:', e?.message));
+            }
           }
           // Não interrompe o fluxo — segue para a avaliação genérica abaixo,
           // mantendo current_odd/cashout_value atualizados (sem sobrescrever motivo).
@@ -939,6 +950,16 @@ Deno.serve(async (req) => {
                 fatores: futoddsAlert.deltas ?? null,
                 minuto, placar,
               });
+              if (futoddsAlert.severity === 'CRITICAL') {
+                supabase.functions.invoke('cashout-telegram-alert', { body: {
+                  bet_id: pos.id, signal_type: futoddsAlert.signalType,
+                  match_name: pos.match_name, market: pos.market,
+                  placar, minuto,
+                  entry_odd: entryOdd, current_odd: pos.current_odd ?? entryOdd,
+                  cashout_value: pos.cashout_value ?? pos.stake,
+                  motivo: futoddsAlert.motivo,
+                }}).catch((e) => console.warn('[evaluate-cashout] tg alert failed:', e?.message));
+              }
             }
           }
         }
