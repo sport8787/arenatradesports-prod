@@ -12,6 +12,11 @@ import {
   getRecentFixturesSM,
   getTeamStatsSM,
 } from '../_shared/sportmonks-af-adapter.ts'
+import {
+  getAllowedLeagueIds,
+  getOddsSportKeyMap,
+  getLeagueTier,
+} from '../_shared/leaguesRegistry.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
