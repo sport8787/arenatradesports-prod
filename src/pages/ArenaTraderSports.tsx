@@ -351,7 +351,7 @@ export default function ArenaTraderSports() {
         if (favA !== favB) return favA - favB;
         return (statusPriority[a.mycroftStatus] ?? 3) - (statusPriority[b.mycroftStatus] ?? 3);
       });
-  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilter]);
+  }, [statusFilter, selectedChampionships, allMatches, onlyFavorites, isMatchFavorite, marketFilters]);
 
   // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
