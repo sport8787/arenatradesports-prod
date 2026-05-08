@@ -95,6 +95,10 @@ const Auth = () => {
         toast({ title: 'Erro', description: usernameResult.error.errors[0].message, variant: 'destructive' });
         return;
       }
+      if (!fullName.trim() || fullName.trim().length < 2) {
+        toast({ title: 'Erro', description: 'Informe seu nome completo (mínimo 2 caracteres)', variant: 'destructive' });
+        return;
+      }
     }
 
     setIsLoading(true);
