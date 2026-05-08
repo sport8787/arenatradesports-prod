@@ -27,13 +27,24 @@ function _normTeam(s: string): string {
   return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9 ]/g, "").trim();
 }
+function _pairMatch(a: string, b: string): boolean {
+  // Evita falso positivo com string vazia / nomes muito curtos.
+  if (!a || !b || a.length < 4 || b.length < 4) return false;
+  if (a === b) return true;
+  // Inclusão só vale se a parte "menor" tiver pelo menos 4 chars (já garantido acima)
+  // e representar pelo menos 60% da maior — evita "as" casando "as monaco".
+  const longer = a.length >= b.length ? a : b;
+  const shorter = a.length >= b.length ? b : a;
+  if (!longer.includes(shorter)) return false;
+  return shorter.length / longer.length >= 0.6;
+}
 function findFutoddsFixture(home: string, away: string, list: any[]): any | null {
   const h = _normTeam(home), a = _normTeam(away);
   if (!h || !a) return null;
   return list.find((f: any) => {
     const fh = _normTeam(f?.teams?.home?.name || "");
     const fa = _normTeam(f?.teams?.away?.name || "");
-    return (fh.includes(h) || h.includes(fh)) && (fa.includes(a) || a.includes(fa));
+    return _pairMatch(fh, h) && _pairMatch(fa, a);
   }) || null;
 }
 
