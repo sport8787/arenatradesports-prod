@@ -25,12 +25,31 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
   useEffect(() => {
     if (!matchId) return;
     fetchOdds();
-  }, [matchId]);
+    // Phase 3: refresh real Betfair line every 30s
+    const id = setInterval(fetchOdds, 30_000);
+    return () => clearInterval(id);
+  }, [matchId, market]);
 
   const fetchOdds = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Phase 3: Betfair Exchange real (via futodds-live-odd → odds_live last_price_traded)
+      const bfRow: BookmakerOdd[] = [];
+      try {
+        const { data: bfData } = await supabase.functions.invoke('futodds-live-odd', {
+          body: { home: homeTeam, away: awayTeam, market: market || 'h2h' },
+        });
+        if (bfData?.odd && bfData.odd > 1.01) {
+          bfRow.push({
+            bookmaker: 'Betfair Exchange (LIVE)',
+            market: market || 'h2h',
+            odd: Number(bfData.odd),
+            movement: 'stable',
+          });
+        }
+      } catch { /* sem cobertura Betfair */ }
+
       // Try to get odds from cached_odds_games first
       const { data: cached } = await supabase
         .from('cached_odds_games')
@@ -63,7 +82,9 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
           p.market.toLowerCase().includes(targetKey) || 
           p.market.toLowerCase().includes('h2h')
         );
-        setOdds(filtered.length > 0 ? filtered.slice(0, 15) : parsed.slice(0, 15));
+        const finalList = filtered.length > 0 ? filtered.slice(0, 15) : parsed.slice(0, 15);
+        setOdds([...bfRow, ...finalList]);
+
       } else {
         // Fallback: check arena_odds table
         const { data: arenaOdds } = await supabase
@@ -74,14 +95,16 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
           .limit(15);
 
         if (arenaOdds && arenaOdds.length > 0) {
-          setOdds(arenaOdds.map(o => ({
+          setOdds([...bfRow, ...arenaOdds.map(o => ({
             bookmaker: o.bookmaker,
             market: o.market,
             odd: o.odd_current ?? o.odd_open ?? 0,
-            movement: o.movement_pct
+            movement: (o.movement_pct
               ? o.movement_pct > 0 ? 'up' : o.movement_pct < 0 ? 'down' : 'stable'
-              : 'stable',
-          })));
+              : 'stable') as 'up' | 'down' | 'stable',
+          }))]);
+        } else if (bfRow.length > 0) {
+          setOdds(bfRow);
         } else {
           setError('Odds não disponíveis para este jogo');
         }
