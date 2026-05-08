@@ -670,7 +670,7 @@ export default function ArenaTraderSports() {
             );
           })()}
 
-          {statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
+          {isAdvanced && statusFilter === 'aprovados' && approvedMarketOptions.length > 0 && (
             <div
               className="flex flex-wrap items-center gap-2"
               role="group"
