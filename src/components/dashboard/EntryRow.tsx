@@ -17,9 +17,18 @@ export interface TraderEntry {
   result: string | null;
   pnl: number | null;
   notes: string | null;
+  odd_source?: string | null;
   estimatedOdd?: number | null;
   estimatedCashout?: number | null;
 }
+
+const SOURCE_LABEL: Record<string, { label: string; cls: string }> = {
+  betfair_exchange: { label: 'Betfair LIVE', cls: 'bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]' },
+  futodds_live:     { label: 'Futodds',      cls: 'bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,45%)]' },
+  sportmonks_live:  { label: 'Sportmonks',   cls: 'bg-[hsl(280,70%,60%)]/15 text-[hsl(280,70%,60%)]' },
+  estimada:         { label: 'Estimada',     cls: 'bg-muted text-muted-foreground' },
+  betfair_direct:   { label: 'Betfair API',  cls: 'bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]' },
+};
 
 interface EntryRowProps {
   entry: TraderEntry;
@@ -83,21 +92,23 @@ export default function EntryRow({ entry, index, onMarkGreen, onMarkRed, onMarkC
           #{index} · Min {entry.minute_entered} · {entry.plano}
         </div>
         <div className="text-xs text-foreground font-medium truncate">{entry.market}</div>
-        <div className="text-[10px] text-muted-foreground mt-0.5">
-          Odd {Number(entry.odd).toFixed(2)}
+        <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
+          <span>Odd {Number(entry.odd).toFixed(2)}</span>
+          {entry.odd_source && SOURCE_LABEL[entry.odd_source] && (
+            <span className={cn('px-1 py-0.5 rounded text-[8px] font-orbitron uppercase tracking-wider', SOURCE_LABEL[entry.odd_source].cls)}>
+              {SOURCE_LABEL[entry.odd_source].label}
+            </span>
+          )}
           {hasEstimate && (
             <>
-              <span className="text-muted-foreground"> → </span>
-              <span className={cn(
-                'font-bold',
-                entry.estimatedOdd! < Number(entry.odd) ? 'text-[hsl(142,71%,45%)]' : 'text-[hsl(0,84%,60%)]'
-              )}>
+              <span>→</span>
+              <span className={cn('font-bold', entry.estimatedOdd! < Number(entry.odd) ? 'text-[hsl(142,71%,45%)]' : 'text-[hsl(0,84%,60%)]')}>
                 {entry.estimatedOdd!.toFixed(2)}
               </span>
-              <span className="ml-0.5 text-[9px] text-muted-foreground/70">EST</span>
+              <span className="text-[9px] text-muted-foreground/70">EST</span>
             </>
           )}
-          {' '}· R$ {Number(entry.stake_value).toFixed(2)} ({Number(entry.stake_pct).toFixed(0)}%)
+          <span>· R$ {Number(entry.stake_value).toFixed(2)} ({Number(entry.stake_pct).toFixed(0)}%)</span>
         </div>
 
         {/* Estimated cashout value for pending */}

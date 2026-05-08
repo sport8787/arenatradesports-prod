@@ -130,7 +130,8 @@ export default function MatchCardWithEntries({
         odd,
         stake_value: parseFloat(stakeValue.toFixed(2)),
         stake_pct: stakePct,
-      });
+        odd_source: source,
+      } as any);
 
       if (ok) {
         toast.success(

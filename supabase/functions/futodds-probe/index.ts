@@ -140,31 +140,56 @@ Deno.serve(async (req) => {
 
   const probes = await Promise.all(endpoints.map((p) => call(workingBase!, p)));
 
-  // Detail endpoints: precisam game_id / event_id. Pegamos IDs reais e chamamos com params.
+  // Detail endpoints: precisam game_id / event_id. Buscamos IDs em VÁRIAS fontes
+  // (live, live-full, betfair-live, betfair-live-compact, betfair-upcoming) e só
+  // chamamos os detalhes quando temos um ID concreto. Caso contrário, devolvemos
+  // entry "skipped" com o motivo — evita 400 desnecessário.
   const liveProbe = probes[endpoints.indexOf("/matches-live")] as any;
+  const liveFull = probes[endpoints.indexOf("/matches-live-full")] as any;
+  const betfairLive = probes[endpoints.indexOf("/matches-betfair-live")] as any;
   const compact = probes[endpoints.indexOf("/matches-betfair-live-compact")] as any;
   const upcoming = probes[endpoints.indexOf("/matches-betfair-upcoming")] as any;
-  const sampleGameId = liveProbe?.sample?.[0]?.id ?? liveProbe?.sample?.id;
+
+  const firstOf = (...samples: any[]): any => {
+    for (const s of samples) {
+      if (Array.isArray(s) && s.length) return s[0];
+      if (s && typeof s === "object" && !Array.isArray(s)) return s;
+    }
+    return null;
+  };
+  const liveSample = firstOf(liveProbe?.sample, liveFull?.sample);
+  const sampleGameId =
+    liveSample?.id ?? liveSample?.game_id ?? liveSample?.fixture_id ?? null;
+  const compactSample = firstOf(compact?.sample, betfairLive?.sample);
   const sampleEvent =
-    compact?.sample?.[0]?.event_id ?? compact?.sample?.event_id ??
-    liveProbe?.sample?.[0]?.id_betfair ?? null;
-  const upcomingEvent = upcoming?.sample?.[0]?.event_id ?? upcoming?.sample?.event_id ?? null;
+    compactSample?.event_id ?? compactSample?.eventId ?? compactSample?.id_betfair ??
+    liveSample?.id_betfair ?? liveSample?.event_id ?? null;
+  const upcomingSample = firstOf(upcoming?.sample);
+  const upcomingEvent =
+    upcomingSample?.event_id ?? upcomingSample?.eventId ?? upcomingSample?.id_betfair ?? null;
 
   const detailProbes: Record<string, any> = {};
-  if (sampleGameId) {
-    detailProbes["/matches-live-detail?game_id"] = await call(workingBase!, "/matches-live-detail", { game_id: String(sampleGameId) });
-    detailProbes["/matches-live-events?game_id"] = await call(workingBase!, "/matches-live-events", { game_id: String(sampleGameId) });
-  }
-  if (sampleEvent) {
-    detailProbes["/matches-betfair-live-odds?event_id"] = await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) });
-    detailProbes["/matches-betfair-live-markets?event_id"] = await call(workingBase!, "/matches-betfair-live-markets", { event_id: String(sampleEvent) });
-  }
-  if (upcomingEvent) {
-    detailProbes["/matches-upcoming-detail?event_id"] = await call(workingBase!, "/matches-upcoming-detail", { event_id: String(upcomingEvent) });
-  }
+  const skip = (reason: string) => ({ status: 0, ms: 0, skipped: true, reason });
 
-  // Cobertura por liga (a partir de /matches-betfair-live)
-  const betfairLive = probes[endpoints.indexOf("/matches-betfair-live")] as any;
+  detailProbes["/matches-live-detail?game_id"] = sampleGameId
+    ? await call(workingBase!, "/matches-live-detail", { game_id: String(sampleGameId) })
+    : skip("no_game_id_available_in_live_or_live_full");
+  detailProbes["/matches-live-events?game_id"] = sampleGameId
+    ? await call(workingBase!, "/matches-live-events", { game_id: String(sampleGameId) })
+    : skip("no_game_id_available_in_live_or_live_full");
+  detailProbes["/matches-betfair-live-odds?event_id"] = sampleEvent
+    ? await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) })
+    : skip("no_event_id_in_betfair_compact_or_betfair_live");
+  detailProbes["/matches-betfair-live-markets?event_id"] = sampleEvent
+    ? await call(workingBase!, "/matches-betfair-live-markets", { event_id: String(sampleEvent) })
+    : skip("no_event_id_in_betfair_compact_or_betfair_live");
+  detailProbes["/matches-upcoming-detail?event_id"] = upcomingEvent
+    ? await call(workingBase!, "/matches-upcoming-detail", { event_id: String(upcomingEvent) })
+    : skip("no_event_id_in_betfair_upcoming");
+
+  detailProbes["_resolved_ids"] = { sampleGameId, sampleEvent, upcomingEvent };
+
+  // Cobertura por liga (a partir de /matches-betfair-live — `betfairLive` já declarado acima)
   const liveLeagues = new Set<number>();
   if (Array.isArray(betfairLive?.sample)) {
     for (const m of betfairLive.sample) {

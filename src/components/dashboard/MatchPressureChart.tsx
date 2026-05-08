@@ -26,7 +26,14 @@ export interface PressureData {
 
 interface FetchArgs { home: string; away: string; commenceTime?: string; fixtureId?: number; }
 
-export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
+// Cache em memória por chave (home::away::fixtureId) com TTL de 30s.
+// Evita chamar futodds-pressure múltiplas vezes para o mesmo jogo quando
+// vários cards/modais são montados em paralelo.
+const PRESSURE_CACHE = new Map<string, { ts: number; data: PressureData }>();
+const PRESSURE_INFLIGHT = new Map<string, Promise<PressureData | null>>();
+const PRESSURE_TTL_MS = 30_000;
+
+export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
   const [data, setData] = useState<PressureData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,50 +43,72 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 90000) {
     let alive = true;
     let timer: number | undefined;
 
-    async function load() {
+    async function fetchFresh(): Promise<PressureData | null> {
       try {
-        // 1) Futodds (primário) — pressão real Betfair com janelas 5/10/15/20min
         let resp: any = null;
-        let err: any = null;
         try {
           const fu = await supabase.functions.invoke("futodds-pressure", {
-            body: {
-              home: args.home,
-              away: args.away,
-              commence_time: args.commenceTime,
-              fixtureId: args.fixtureId,
-            },
+            body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
           });
-          if (!fu.error && fu.data && (fu.data as any).timeline?.length > 0) {
-            resp = fu.data;
-          }
-        } catch (_) { /* ignora, cai para Sportmonks */ }
+          const fuData: any = fu.data;
+          const fuOk = !fu.error && fuData && Array.isArray(fuData.timeline) && fuData.timeline.length > 0
+            && !fuData?._futodds?.not_found;
+          if (fuOk) resp = fuData;
+        } catch { /* cai para Sportmonks */ }
 
-        // 2) Fallback Sportmonks
         if (!resp) {
-          const sm = await supabase.functions.invoke("sportmonks-pressure", {
-            body: {
-              home: args.home,
-              away: args.away,
-              commence_time: args.commenceTime,
-              fixtureId: args.fixtureId,
-            },
-          });
-          err = sm.error;
-          resp = sm.data;
+          try {
+            const sm = await supabase.functions.invoke("sportmonks-pressure", {
+              body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
+            });
+            const smData: any = sm.data;
+            if (smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) resp = smData;
+          } catch { /* estimador local abaixo */ }
         }
 
-        if (!alive) return;
-        if (err) throw err;
-        if ((resp as any)?.error) throw new Error((resp as any).error);
-        setData(resp as PressureData);
-        setError(null);
+        if (!resp) {
+          resp = {
+            fixtureId: args.fixtureId ?? 0,
+            source: "trends",
+            header: {
+              home: { id: 0, name: args.home, logo: "" },
+              away: { id: 0, name: args.away, logo: "" },
+              score: { home: 0, away: 0 }, state: "NS", minute: 0,
+            },
+            timeline: [], events: [], form: { home: [], away: [] },
+            _fallback: "estimator_no_data",
+          };
+        }
+        return resp as PressureData;
       } catch (e: any) {
-        if (!alive) return;
         setError(e?.message || "Falha ao carregar gráfico de pressão");
-      } finally {
-        if (alive) setLoading(false);
+        return null;
       }
+    }
+
+    async function load() {
+      // Cache hit?
+      const cached = PRESSURE_CACHE.get(key);
+      const now = Date.now();
+      if (cached && now - cached.ts < PRESSURE_TTL_MS) {
+        if (alive) { setData(cached.data); setError(null); setLoading(false); }
+        return;
+      }
+      // Inflight dedup
+      const existing = PRESSURE_INFLIGHT.get(key);
+      const promise = existing ?? (() => {
+        const p = fetchFresh().finally(() => PRESSURE_INFLIGHT.delete(key));
+        PRESSURE_INFLIGHT.set(key, p);
+        return p;
+      })();
+      const fresh = await promise;
+      if (!alive) return;
+      if (fresh) {
+        PRESSURE_CACHE.set(key, { ts: Date.now(), data: fresh });
+        setData(fresh);
+        setError(null);
+      }
+      setLoading(false);
     }
 
     setLoading(true);

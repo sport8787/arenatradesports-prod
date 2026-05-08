@@ -1,13 +1,13 @@
 // futodds-live-odd — Odd ao vivo via Futodds /matches-live-full (campo odds_live).
 // Mapeia mercado livre ("Over 2.5 Total", "BTTS Sim", "Casa", "Asian Handicap Home -1")
 // para a odd correta. Substitui fetch-sportmonks-live-odd como provedor primário.
+// Usa cache 30s compartilhado (_shared/futoddsCache.ts) para evitar bursts no provedor.
+import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
 
 interface Body {
   fixture_id?: number | string; // id Futodds (campo `id` em /matches-live)
@@ -106,15 +106,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(`${FUTODDS_BASE}/matches-live-full`);
-    const r = await fetch(url.toString(), { headers: authHeaders(KEY) });
-    if (!r.ok) {
-      return new Response(JSON.stringify({ odd: null, source: "futodds_http_" + r.status }), {
+    let list: any[];
+    try {
+      list = await fetchFutoddsList("/matches-live-full", { ttlMs: 30_000 });
+    } catch (e) {
+      return new Response(JSON.stringify({ odd: null, source: String((e as Error).message) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const j = await r.json();
-    const list: any[] = Array.isArray(j?.data) ? j.data : [];
 
     let match: any = null;
     if (fixture_id) match = list.find((m) => String(m.id) === String(fixture_id));

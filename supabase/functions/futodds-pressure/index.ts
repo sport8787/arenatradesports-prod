@@ -2,13 +2,13 @@
 // Constrói minutos 0..N usando: stats acumulados, pressure_indices e janelas
 // last5min/last10min/last15min/last20min. Devolve PressureData compatível com
 // o frontend (mesmo shape do sportmonks-pressure).
+// Cache 30s compartilhado de /matches-betfair-live (ver _shared/futoddsCache.ts).
+import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
 
 interface Body {
   home?: string;
@@ -87,14 +87,8 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* ok */ }
 
   try {
-    const r = await fetch(`${FUTODDS_BASE}/matches-betfair-live`, { headers: authHeaders(KEY) });
-    if (!r.ok) {
-      return new Response(JSON.stringify({ error: `futodds_http_${r.status}` }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const j = await r.json();
-    const list: any[] = Array.isArray(j?.data) ? j.data : [];
+    // Cache 30s compartilhado, dedup automático para múltiplas requisições simultâneas.
+    const list = await fetchFutoddsList("/matches-betfair-live", { ttlMs: 30_000 });
 
     let match: any = null;
     if (body.event_id) match = list.find((m) => String(m.eventId ?? m.event_id) === String(body.event_id));
