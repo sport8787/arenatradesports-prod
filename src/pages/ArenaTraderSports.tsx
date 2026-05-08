@@ -26,6 +26,7 @@ import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
 import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
 import { useAdmin } from '@/hooks/useAdmin';
 import ActivePositions from '@/components/dashboard/ActivePositions';
+import CalibrationCard from '@/components/dashboard/CalibrationCard';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
@@ -719,6 +720,7 @@ export default function ArenaTraderSports() {
 
       {/* Grid */}
       <main className="container mx-auto px-4 pb-8">
+        <CalibrationCard arena="trader_sports" />
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />

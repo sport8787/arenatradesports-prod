@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
+import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1454,6 +1455,17 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         }
       } catch (sherlockErr) {
         console.warn('[Sherlock] Falha não crítica ao aplicar indicadores avançados:', sherlockErr)
+      }
+
+      // ─── CALIBRATION FLOOR (Punter) ────────────────────────────────────
+      try {
+        const floor = await getCalibrationFloor(supabaseClient, 'punter', 70)
+        const r = applyCalibrationFloor(analysis, floor)
+        if (r.demoted) {
+          console.log(`[Mycroft Punter] 🎚️  CALIBRAÇÃO rebaixou ${game.home_team} vs ${game.away_team} (conf ${analysis.confidence}% < ${floor}%)`)
+        }
+      } catch (calErr) {
+        console.warn('[Mycroft Punter] calibrationFloor falhou:', (calErr as Error)?.message)
       }
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic`)
