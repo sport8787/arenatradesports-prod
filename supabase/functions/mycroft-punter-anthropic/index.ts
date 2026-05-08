@@ -1406,9 +1406,9 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "confidence": 72,
   "data_strength": "ALTA" | "MEDIA" | "BAIXA",
   "stake_percentage": 3,
-  "thesis": "Resumo objetivo do edge identificado",
-  "analysis": "Explicação quantitativa adaptada aos dados disponíveis",
-  "risk_factors": "Riscos e limitações do modelo aplicado",
+  "thesis": "JUSTIFICATIVA narrativa da entrada em 3-4 frases curtas, no formato dos cards aprovados do Trader Sports. NÃO repetir métricas cruas. Estrutura obrigatória: (1) Contexto do confronto e por que esse mercado é o ponto fraco do adversário ou força do nosso lado; (2) Gatilho estatístico/forma recente que sustenta a tese (ex: 'Avellino sofreu menos de 1.5 gols em 7 dos últimos 8 em casa'); (3) Por que a odd está mal precificada (edge identificado); (4) Critério de risco residual aceito. Use linguagem de analista, não de calculadora.",
+  "analysis": "Bloco quantitativo curto com os números (xG, médias, H2H, lambdas Poisson, edge). É AQUI que vão as métricas — não na thesis.",
+  "risk_factors": "Riscos e limitações específicos (ex: desfalque, motivação, contexto de tabela, viés do modelo).",
   "api_predictions_agree": true | false | null
 }
 
