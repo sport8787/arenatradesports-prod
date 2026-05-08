@@ -1,98 +1,102 @@
-## Análise — Arena Trader Sports (Live)
+# Plano — Qualidade dos Sinais AH Pré-Live (Arena Punter)
 
-### O que está bom hoje
-- Provedor primário Futodds entregando placar, stats, pressão, last5/10/15/20 min, odds Betfair real e xG.
-- Reanálise multi-mercado a cada 3 min (mercados complementares).
-- Janelas de reanálise por minuto (0–10', 10–25', 25'+).
-- Status dinâmicos (LABAREDA, CUIDADO, JOGO MORTO).
-- Veto temporal por mercado, gráfico de pressão corrigido, indicador xG indisponível.
+Objetivo: elevar ROI dos sinais Asian Handicap pré-live atacando os 4 vetores de maior impacto, na ordem do maior retorno por menor esforço.
 
-### Melhorias propostas (UX + acerto)
+## Visão geral das 4 frentes
 
-1. **Painel "Saúde do Sinal" em tempo real no card**
-   - Mostrar 3 indicadores compactos atualizados a cada 30s: Pressão (Δ último 5min), xG flow (xG/min últimos 10min), Momentum (chutes+ataques perigosos últimos 5min).
-   - Cor verde/amarelo/vermelho automática baseada em thresholds Futodds.
-   - Reduz necessidade de abrir detalhe para entender se a tese ainda vale.
-
-2. **"Cash-Out Inteligente" usando pressure_indices da Futodds**
-   - Hoje já temos regras de cashout, mas o `pressure_total` Futodds é mais preciso que o que calculávamos.
-   - Recomendar SAIR AGORA quando: pressão do lado contrário > 65 por 3 min seguidos, ou quando `last5min_stats` mostra inversão clara (ex.: visitante tendo 3x mais ataques perigosos que mandante numa entrada Back Casa).
-
-3. **Detecção precoce de "jogo virando"**
-   - Comparar `last10min` vs `last20min` Futodds. Se inversão >40% no momentum → alerta "ATENÇÃO: jogo virando" antes do gol acontecer.
-   - Notificação push + som já existem (criticalAlertSound), só plugar.
-
-4. **Filtros de Liga e Mercado mais visíveis**
-   - Hoje tudo aparece misturado. Adicionar chips de filtro rápido no topo (Brasileirão / Europa / Sul-América / Outros) e por mercado (Over/Under/BTTS/Escanteios/Resultado).
-   - Persistir preferência por usuário.
-
-5. **"Replay da entrada"**
-   - Ao clicar num sinal aprovado, mostrar timeline com snapshots a cada 5min: como estavam stats no momento da aprovação vs agora. Ajuda usuário entender se o Mycroft acertou a leitura.
-
-6. **Métrica de calibração visível**
-   - Card pequeno "Acerto últimas 50 entradas: 62% / ROI: +8.4%" no topo do dashboard. Já temos os dados em `mycroft_analyses` + settlement.
-
-7. **Modo "Foco"**
-   - Toggle que esconde jogos com score < 70 e só mostra LABAREDA/APROVADO FORTE. Reduz ruído cognitivo.
-
-8. **Auto-veto baseado em `xg_unavailable`**
-   - Já marcamos quando xG some. Próximo passo: degradar score em -10pp automaticamente em vez de apenas avisar, e nunca emitir LABAREDA sem xG.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ #1 CLV TRACKER AH       → mata seleções com value negativo  │
+│ #2 DISPERSÃO ENTRE CASAS → flag de incerteza + fade outliers│
+│ #3 CALIBRAÇÃO POR BUCKET → corrige overconfidence em faixas │
+│ #4 SHERLOCK OBRIGATÓRIO  → AH ≥ 2.00 ou |hcap| ≥ 1.5        │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Análise — Arena Punter (Pré-Live) + Futodds
+## Frente 1 — CLV Tracker AH (maior impacto)
 
-Hoje Punter usa principalmente API-Football + The Odds API. Futodds é live-first, mas tem endpoints pré-jogo úteis (`/matches-betfair-live-compact` traz event_ids futuros, e existe `futodds-upcoming-cache`).
+**O que faz:** mede quanto a odd da entrada AH bate o mercado no fechamento (Pinnacle/Futodds). CLV consistente positivo = edge real. CLV negativo = ilusão de lucro.
 
-### O que Futodds pode agregar no Punter
+**Entrega:**
+- Tabela `punter_clv_log` (signal_id, market, entry_odd, closing_odd, clv_pct, league, handicap, captured_at).
+- Cron `punter-clv-capture` rodando 5min antes do kick-off de cada sinal AH aprovado, captura odd de fechamento via Futodds Exchange (fallback Pinnacle via The Odds API).
+- View materializada `punter_clv_30d` com CLV médio agrupado por: liga, faixa de handicap, faixa de odd.
+- **Quarentena automática:** se um bucket (liga × faixa) tiver ≥15 sinais nos últimos 30d com CLV médio < -1.5%, entra em `punter_quarantine` → engine bloqueia novos sinais AH naquele bucket por 14 dias.
+- Painel `/admin/clv-monitor` mostrando CLV por liga/handicap, com badge vermelho nos buckets em quarentena.
 
-1. **Odds Betfair Exchange reais (back/lay + volume) pré-jogo**
-   - Hoje usamos preço médio de bookmakers. Exchange Betfair = preço justo de mercado (sem margem).
-   - **Impacto direto:** cálculo de Edge fica honesto. Sinais com edge ≥4% calculado contra preço Exchange são MUITO mais confiáveis do que contra Pinnacle/Bet365.
-   - Implementação: já temos `getFutoddsBetfairOdds(eventId)`. Plugar no `mycroft-punter-anthropic` para sobrescrever odd de referência quando disponível.
+---
 
-2. **CLV Real (Closing Line Value) automatizado**
-   - Capturar odd Futodds Exchange no momento da emissão do sinal e novamente 5min antes do início.
-   - Se odd fechou MENOR que a aprovada → confirmação que Mycroft pegou valor (positive CLV).
-   - Métrica de qualidade objetiva por pick — feedback loop para calibrar prompts.
+## Frente 2 — Dispersão de Odds entre Casas
 
-3. **Steam moves & Sharp money (já temos `sharp-money-detector`)**
-   - Cruzar movimento de odds Exchange Futodds com odds tradicionais. Quando Exchange cai mas bookmakers ainda não ajustaram → janela de valor que dura minutos.
-   - Hoje detector roda só com Odds API. Adicionar Futodds como segunda fonte aumenta precisão e reduz falsos positivos.
+**O que faz:** AH varia muito entre casas. Quando há grande divergência, é sinal de mercado incerto. Quando estamos pegando a pior odd, vetar.
 
-4. **Pré-aviso de "jogo morto" antes mesmo de começar**
-   - Endpoint Futodds traz competition_name. Cruzar com calendário: se jogo é último da rodada de time já rebaixado/campeão → degradar score automaticamente.
-   - Reduz aprovações em jogos sem motivação (problema clássico Punter).
+**Entrega:**
+- Função `compareAHOddsAcrossBooks(matchId, market)` em `_shared/oddsComparison.ts`: busca odds AH em Bet365, Pinnacle, Betfair Exchange, Superbet (via The Odds API) + Futodds.
+- Calcula `dispersion_pct = (max - min) / median`.
+- Integra no `mycroft-punter-anthropic` antes de aprovar:
+  - `dispersion > 7%` → flag `MERCADO_INCERTO`, reduz stake em 30%.
+  - Nossa odd no bottom 25% das casas → veto direto (`linha pior que mercado`).
+  - Nossa odd no top 25% → +3pp confidence (estamos pegando o melhor preço).
+- Campo novo em `punter_signals.market_dispersion` para auditoria.
 
-5. **Validação de escalação/lesões via eventos pré-jogo**
-   - `getFutoddsLiveEvents` antes do apito → confirma escalações. Se titular chave fora vs análise feita 3h antes → marcar sinal como REVISAR.
+---
 
-6. **Liquidação mais rápida e barata**
-   - Hoje liquidação usa API-Football (cota limitada). Futodds `/matches-ended` pode liquidar Punter sem consumir cota, deixando API-Football só para stats detalhados.
+## Frente 3 — Calibração por Bucket (AH × faixa de odd)
 
-7. **Mercado de Escanteios pré-live mais preciso**
-   - Futodds tem corners por janela e xG. Já usamos para live. Pré-live: comparar média histórica do time com últimos 5 jogos pelos dados Futodds → ajusta projeção de escanteios sem depender só de FBref.
+**O que faz:** hoje `punter_calibration` é agregada. Sinais AH em faixa específica podem estar mal-calibrados sem aparecer na média geral.
 
-### Priorização recomendada (por ROI esperado)
+**Entrega:**
+- Migration: nova coluna `bucket_key` em `punter_calibration` no formato `{market}__{odd_bucket}` (ex: `AH__1.80-2.20`).
+- Recalcular Brier Score e accuracy por bucket no cron diário existente `punter-calibration-update`.
+- Engine consulta o bucket exato do sinal antes de aprovar:
+  - Se `accuracy_observed - accuracy_expected < -8pp` no bucket → -10pp na confidence final.
+  - Se bucket tem < 30 amostras → fallback para média do mercado AH inteiro.
+- Painel `/admin/punter-calibration` ganha tab "Por Bucket AH" com heatmap odd × handicap.
 
-| # | Item | Esforço | Impacto |
-|---|------|--------|--------|
-| 1 | Edge real via Betfair Exchange (Punter) | Baixo | Alto |
-| 2 | Cash-Out Inteligente via pressure_indices (Trader) | Médio | Alto |
-| 3 | CLV automatizado (Punter) | Médio | Alto |
-| 4 | Painel "Saúde do Sinal" no card (Trader) | Médio | Médio |
-| 5 | Liquidação Punter via Futodds | Baixo | Médio (economia de cota) |
-| 6 | Steam/Sharp com 2 fontes (Punter) | Médio | Médio |
-| 7 | Detecção "jogo virando" (Trader) | Baixo | Médio |
-| 8 | Modo Foco + filtros (Trader) | Baixo | Médio (UX) |
+---
 
-### Detalhes técnicos
-- Itens 1, 3, 5, 6 reaproveitam `_shared/futoddsProvider.ts` já existente.
-- Itens 2, 4, 7 reaproveitam `_futodds_stats.last5min/last10min` já persistidos em `live_matches`.
-- Nenhuma mudança de schema crítica; apenas 1 tabela nova `punter_clv_log` para CLV (opcional).
-- Riscos: rate-limit Futodds em pré-live se chamarmos `/matches-betfair-live-odds` por jogo. Mitigar com cache 60s no `futodds-upcoming-cache`.
+## Frente 4 — Sherlock Obrigatório para AH de risco
 
-### Próximo passo sugerido
-Começar pelo **#1 (Edge real Exchange no Punter)** — é o que mais muda a qualidade percebida dos sinais sem mexer em UI. Depois **#2 (Cash-Out Inteligente)** para Trader Sports.
+**O que faz:** Sherlock já existe como camada estatística avançada. Tornar obrigatório (não opcional) nos AH onde mais erramos historicamente.
 
-Me diga quais itens quer priorizar e eu monto plano de implementação detalhado de cada um.
+**Entrega:**
+- No `mycroft-punter-anthropic`, após gerar sinal AH, se `entry_odd ≥ 2.00 OU |handicap| ≥ 1.5`, chamar `mycroft-punter-analytic` (Sherlock) inline antes de persistir.
+- Se Sherlock retornar `veto = true` → sinal vai para `punter_vetoed_log` e NÃO é aprovado.
+- Se Sherlock retornar `confidence_adjustment < -10` → downgrade automático de tier (ex: ⚡FORTE → ✅BOM).
+- Badge visual "🔍 Sherlock validado" no card do Punter para sinais que passaram.
+
+---
+
+## Detalhes técnicos
+
+**Arquivos novos/editados:**
+- `supabase/migrations/<ts>_clv_tracker.sql` — tabela `punter_clv_log`, view `punter_clv_30d`, tabela `punter_quarantine`.
+- `supabase/migrations/<ts>_calibration_bucket.sql` — coluna `bucket_key` em `punter_calibration` + índice.
+- `supabase/functions/punter-clv-capture/index.ts` — cron 1min, captura odds próximas ao kick-off.
+- `supabase/functions/_shared/oddsComparison.ts` — comparador multi-casa.
+- `supabase/functions/_shared/calibrationLookup.ts` — lookup de bucket com fallback.
+- `supabase/functions/mycroft-punter-anthropic/index.ts` — integra dispersão, calibração por bucket e chamada inline ao Sherlock para AH de risco.
+- `supabase/functions/punter-calibration-update/index.ts` — recalcula por bucket.
+- `src/pages/AdminPunterCalibration.tsx` — nova tab heatmap por bucket.
+- `src/pages/AdminCLVMonitor.tsx` — nova página com CLV e quarentena.
+- `src/components/punter/SherlockBadge.tsx` — badge visual.
+
+**Cron novos:**
+- `punter-clv-capture` a cada 1min (filtra apenas sinais AH com kick-off em ≤6min e CLV ainda não capturado).
+- `punter-quarantine-refresh` diário 04:00 UTC (recalcula buckets em quarentena).
+
+**Métricas de sucesso (revisão em 30 dias):**
+- ROI sinais AH pré-live: meta de +3pp vs baseline atual.
+- % de sinais AH com CLV positivo: meta ≥ 55%.
+- Redução de aprovações em ligas/buckets ruins: esperado -20 a -30% no volume AH (qualidade > quantidade).
+
+## Ordem de execução sugerida
+
+1. **Frente 3 (Calibração por Bucket)** — base estatística para tudo. ~1 sessão.
+2. **Frente 4 (Sherlock obrigatório)** — quick win, Sherlock já existe. ~1 sessão.
+3. **Frente 2 (Dispersão entre Casas)** — depende de teste de quota The Odds API. ~1 sessão.
+4. **Frente 1 (CLV Tracker)** — maior impacto mas requer 7-14 dias de coleta antes de ativar quarentena. Implementar primeiro como log-only, ativar quarentena depois. ~1-2 sessões.
+
+Aprova o plano nessa ordem? Se quiser cortar algo ou priorizar diferente, me diz.

@@ -4003,6 +4003,45 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_bucket_calibration: {
+        Row: {
+          accuracy_gap_pp: number
+          brier_score: number | null
+          bucket_key: string
+          expected_hit_rate: number
+          hit_rate: number
+          market_family: string
+          odd_bucket: string
+          roi: number
+          sample_size: number
+          updated_at: string
+        }
+        Insert: {
+          accuracy_gap_pp?: number
+          brier_score?: number | null
+          bucket_key: string
+          expected_hit_rate?: number
+          hit_rate?: number
+          market_family: string
+          odd_bucket: string
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+        }
+        Update: {
+          accuracy_gap_pp?: number
+          brier_score?: number | null
+          bucket_key?: string
+          expected_hit_rate?: number
+          hit_rate?: number
+          market_family?: string
+          odd_bucket?: string
+          roi?: number
+          sample_size?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       punter_calibration: {
         Row: {
           created_at: string
@@ -4168,6 +4207,45 @@ export type Database = {
           open_fair_prob?: number | null
           open_lay_odd?: number | null
           open_mid_odd?: number | null
+        }
+        Relationships: []
+      }
+      punter_quarantine: {
+        Row: {
+          active_until: string
+          created_at: string
+          id: string
+          league: string | null
+          market_family: string
+          metric_value: number | null
+          odd_bucket: string
+          reason: string
+          sample_size: number | null
+          scope_key: string
+        }
+        Insert: {
+          active_until: string
+          created_at?: string
+          id?: string
+          league?: string | null
+          market_family: string
+          metric_value?: number | null
+          odd_bucket: string
+          reason: string
+          sample_size?: number | null
+          scope_key: string
+        }
+        Update: {
+          active_until?: string
+          created_at?: string
+          id?: string
+          league?: string | null
+          market_family?: string
+          metric_value?: number | null
+          odd_bucket?: string
+          reason?: string
+          sample_size?: number | null
+          scope_key?: string
         }
         Relationships: []
       }
@@ -7467,6 +7545,13 @@ export type Database = {
         Returns: string
       }
       normalize_match_id: { Args: { mid: string }; Returns: string }
+      punter_check_signal_quality: {
+        Args: { _league: string; _market: string; _odd: number }
+        Returns: Json
+      }
+      punter_market_family: { Args: { market_text: string }; Returns: string }
+      punter_odd_bucket: { Args: { odd: number }; Returns: string }
+      recompute_punter_buckets: { Args: never; Returns: number }
       record_arena_session: {
         Args: {
           p_apc_earned: number
@@ -7488,6 +7573,7 @@ export type Database = {
           out_sample_size: number
         }[]
       }
+      refresh_punter_quarantine: { Args: never; Returns: number }
       relink_mycroft_analyses: {
         Args: never
         Returns: {
