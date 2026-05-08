@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     }, null, 2), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // Roda os 7 endpoints documentados em paralelo
+  // Roda todos os endpoints (incluindo Betfair) em paralelo
   const endpoints = [
     "/matches-live",
     "/matches-live-full",
@@ -134,10 +134,32 @@ Deno.serve(async (req) => {
     "/matches-live-events",
     "/matches-ended",
     "/matches-upcoming",
+    "/matches-upcoming-detail",
     "/matches-cs",
+    "/matches-betfair-upcoming",
+    "/matches-betfair-live",
+    "/matches-betfair-live-compact",
+    "/matches-betfair-live-markets",
   ];
 
   const probes = await Promise.all(endpoints.map((p) => call(workingBase!, p)));
+
+  // Para /matches-betfair-live-odds precisamos de um event_id real → puxa do compact
+  let betfairOddsProbe: any = { skipped: "sem event_id disponível" };
+  const compact = probes[endpoints.indexOf("/matches-betfair-live-compact")] as any;
+  const sampleEvent = compact?.sample?.[0]?.event_id ?? compact?.sample?.event_id;
+  if (sampleEvent) {
+    betfairOddsProbe = await call(workingBase!, "/matches-betfair-live-odds", { event_id: String(sampleEvent) });
+  }
+
+  // Cobertura por liga (a partir de /matches-betfair-live)
+  const betfairLive = probes[endpoints.indexOf("/matches-betfair-live")] as any;
+  const liveLeagues = new Set<number>();
+  if (Array.isArray(betfairLive?.sample)) {
+    for (const m of betfairLive.sample) {
+      if (m?.league_id) liveLeagues.add(m.league_id);
+    }
+  }
 
   return new Response(JSON.stringify({
     ok: true,
@@ -145,10 +167,15 @@ Deno.serve(async (req) => {
     base: workingBase,
     baseProbe,
     probes: Object.fromEntries(endpoints.map((p, i) => [p, probes[i]])),
+    betfair_live_odds: betfairOddsProbe,
+    coverage: {
+      betfair_live_count: betfairLive?.total_count ?? null,
+      betfair_live_leagues_in_sample: Array.from(liveLeagues),
+    },
     notes: [
-      "Verifique sample/schema_keys de /matches-live-detail para confirmar xG, posse, chutes, escanteios, ataques perigosos.",
-      "Verifique /matches-upcoming para contagem de bookmakers por mercado (substituição de The Odds API).",
-      "Verifique /matches-live-events para granularidade de eventos de jogador (gols/assists/cartões).",
+      "Confirme em /matches-betfair-live: pressure_indices, last5min_stats e stats (attacks/dangerous_attacks/on_target/corners/possession).",
+      "Confirme em /matches-betfair-live-odds: arrays back_odds e lay_odds com price+size, last_price_traded, total_matched.",
+      "Cobertura ideal Brasileirão (71/72/75/76) + Top 5 europeias (39/140/135/78/61) deve aparecer em /matches-betfair-live durante horário de jogos.",
     ],
   }, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
