@@ -1097,7 +1097,9 @@ serve(async (req) => {
         const insideBoxOk = shotsInside >= 4;
         const defenseOk = oppShotsTotal <= 2 && oppShotsOn <= 1 && oppXg <= 0.2;
         const xgOk = xg >= 0.8 && xg > oppXg + 0.5;
-        const scoreOk = score >= oppScore;
+        // scoreOk removido — dominância estatística não depende mais do placar atual.
+        // O placar é tratado a jusante para escolher entre BACK ao dominante (empate)
+        // ou LAY ao vencedor (dominante perdendo).
 
         let criteriaMet = 0;
         if (possOk) criteriaMet++;
@@ -1106,7 +1108,7 @@ serve(async (req) => {
         if (defenseOk) criteriaMet++;
         if (xgOk) criteriaMet++;
 
-        return { ok: criteriaMet >= 4 && scoreOk && d_min >= 15, criteriaMet };
+        return { ok: criteriaMet >= 4 && d_min >= 15, criteriaMet };
       }
 
       const homeDom = isDominant('home');
