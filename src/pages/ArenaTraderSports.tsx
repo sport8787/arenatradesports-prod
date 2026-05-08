@@ -693,6 +693,40 @@ export default function ArenaTraderSports() {
           )}
 
           {statusFilter !== 'simulado' && (
+            <>
+              {/* Chips de Região (Brasil / Europa / Sul-América / Outros) — Trader #4 */}
+              <div className="flex flex-wrap gap-2 items-center mb-2" role="group" aria-label="Regiões">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-orbitron mr-1">Região</span>
+                {(['BRASIL','EUROPA','SUL_AMERICA','OUTROS'] as Region[]).map(r => {
+                  const active = selectedRegions.includes(r);
+                  const count = regionCounts[r];
+                  return (
+                    <button
+                      key={r}
+                      data-chip
+                      onClick={() => toggleRegion(r)}
+                      disabled={count === 0 && !active}
+                      className={cn(
+                        'px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                        active
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/50',
+                        count === 0 && !active && 'opacity-40 cursor-not-allowed',
+                      )}
+                      aria-pressed={active}
+                    >
+                      {REGION_LABELS[r]}
+                      <span className="ml-0.5 px-1.5 rounded-full bg-foreground/10 text-foreground/70 text-[10px] font-bold">{count}</span>
+                    </button>
+                  );
+                })}
+                {selectedRegions.length > 0 && (
+                  <button
+                    onClick={() => setSelectedRegions([])}
+                    className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                  >Limpar</button>
+                )}
+              </div>
             <div
               className="flex flex-wrap gap-2 items-center"
               role="group"
