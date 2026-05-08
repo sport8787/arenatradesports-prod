@@ -45,6 +45,11 @@ function toAfFixture(m: any): any {
   const [onH, onA] = arr("on_target");
   const [offH, offA] = arr("off_target");
   const [corH, corA] = arr("corners");
+  const [xgH, xgA] = arr("xg");
+  // Alguns payloads usam "expected_goals" em vez de "xg"
+  const [xgH2, xgA2] = arr("expected_goals");
+  const xgHome = Number(xgH ?? xgH2) || 0;
+  const xgAway = Number(xgA ?? xgA2) || 0;
 
   const minute = parseInt(String(m.elapsed ?? 0)) || 0;
   const timeStatus = String(m.time_status ?? "1");
