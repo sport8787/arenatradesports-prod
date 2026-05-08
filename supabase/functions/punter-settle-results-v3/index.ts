@@ -240,19 +240,25 @@ function calcularResultado(market: string, homeTeam: string, awayTeam: string, f
   if (m.includes("ambas marcam") || /btts\s*(sim)?$/.test(m) || m === "btts" || m.includes("btts sim")) return (gh >= 1 && ga >= 1) ? "GREEN" : "RED";
   if (m.includes("btts não") || m.includes("btts nao") || m.includes("ambas não") || m.includes("ambas nao")) return (gh === 0 || ga === 0) ? "GREEN" : "RED";
 
-  // 1X2 / Dupla chance
-  if (m === "casa" || m === "1" || /vit[óo]ria\s*casa|home win/.test(m)) return gh > ga ? "GREEN" : "RED";
-  if (m === "fora" || m === "2" || /vit[óo]ria\s*fora|away win/.test(m)) return ga > gh ? "GREEN" : "RED";
-  if (m === "empate" || m === "x" || m === "draw") return gh === ga ? "GREEN" : "RED";
+  // 1X2 / Dupla chance — aceita "1X2 Casa", "1X2 - Casa"
+  const m1x2 = m.replace(/^1x2\s*[-:–—]?\s*/, "").trim();
+  if (m === "casa" || m === "1" || m1x2 === "casa" || /vit[óo]ria\s*casa|home win/.test(m)) return gh > ga ? "GREEN" : "RED";
+  if (m === "fora" || m === "2" || m1x2 === "fora" || /vit[óo]ria\s*fora|away win/.test(m)) return ga > gh ? "GREEN" : "RED";
+  if (m === "empate" || m === "x" || m === "draw" || m1x2 === "empate") return gh === ga ? "GREEN" : "RED";
   if (m.includes("1x") || m.includes("casa ou empate")) return gh >= ga ? "GREEN" : "RED";
   if (m.includes("x2") || m.includes("fora ou empate")) return ga >= gh ? "GREEN" : "RED";
   if (/\b12\b/.test(m) || m.includes("casa ou fora")) return gh !== ga ? "GREEN" : "RED";
 
-  // Handicap Asiático
-  const ah = m.match(/(?:ah|handicap[^\d+\-]*)\s*([+\-]?\d+(?:\.\d+)?)\s*(home|away|casa|fora)?/);
+  // Handicap Asiático — "AH +0.5 Away", "HA Casa -1.0", "Handicap -1 Home"
+  const ahCasaFora = m.match(/^(?:ah|ha|handicap)\s+(casa|fora|home|away)\s*([+\-]?\d+(?:\.\d+)?)/);
+  const ahPadrao = m.match(/(?:ah|ha|handicap[^\d+\-]*)\s*([+\-]?\d+(?:\.\d+)?)\s*(home|away|casa|fora)?/);
+  const ah = ahCasaFora
+    ? { line: parseFloat(ahCasaFora[2]), sideHint: ahCasaFora[1] }
+    : ahPadrao
+      ? { line: parseFloat(ahPadrao[1]), sideHint: ahPadrao[2] }
+      : null;
   if (ah) {
-    const line = parseFloat(ah[1]);
-    const sideHint = ah[2];
+    const { line, sideHint } = ah;
     const isHome = sideHint ? (sideHint === "home" || sideHint === "casa") : mn.includes(nh);
     const diff = isHome ? gh - ga : ga - gh;
     const adj = diff + line;
@@ -268,9 +274,13 @@ function calcularResultado(market: string, homeTeam: string, awayTeam: string, f
     return line % 1 === 0 ? "REEMBOLSO" : "RED";
   }
 
-  // Vitória pelo nome do time
-  if (nh && (mn === nh || mn.includes(nh))) return gh > ga ? "GREEN" : "RED";
-  if (na && (mn === na || mn.includes(na))) return ga > gh ? "GREEN" : "RED";
+  // "<Team> para vencer" / "Vitória <Team>" / nome do time direto
+  const teamFromMarket = m.replace(/^vit[óo]ria\s+(de\s+|do\s+|da\s+)?/, "")
+    .replace(/\s+para\s+vencer$/, "")
+    .replace(/\s+vence(r)?$/, "").trim();
+  const tn = normalizeTeamName(teamFromMarket);
+  if (tn && nh && (tn === nh || nh.includes(tn) || (tn.length >= 4 && tn.includes(nh)))) return gh > ga ? "GREEN" : "RED";
+  if (tn && na && (tn === na || na.includes(tn) || (tn.length >= 4 && tn.includes(na)))) return ga > gh ? "GREEN" : "RED";
 
   return null;
 }
