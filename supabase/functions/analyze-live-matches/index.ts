@@ -3,6 +3,39 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
+import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
+
+// Cache de fixtures Futodds por execução (1 chamada por loop)
+let _futoddsLiveCache: { ts: number; fixtures: any[] } | null = null;
+async function getFutoddsLiveCached(maxAgeMs = 25_000): Promise<any[]> {
+  const now = Date.now();
+  if (_futoddsLiveCache && now - _futoddsLiveCache.ts < maxAgeMs) {
+    return _futoddsLiveCache.fixtures;
+  }
+  try {
+    const r = await getFutoddsLive();
+    _futoddsLiveCache = { ts: now, fixtures: r.fixtures || [] };
+    return _futoddsLiveCache.fixtures;
+  } catch (e) {
+    console.warn("[AnalyzeLive] futodds live fetch falhou:", (e as Error)?.message);
+    _futoddsLiveCache = { ts: now, fixtures: [] };
+    return [];
+  }
+}
+
+function _normTeam(s: string): string {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").trim();
+}
+function findFutoddsFixture(home: string, away: string, list: any[]): any | null {
+  const h = _normTeam(home), a = _normTeam(away);
+  if (!h || !a) return null;
+  return list.find((f: any) => {
+    const fh = _normTeam(f?.teams?.home?.name || "");
+    const fa = _normTeam(f?.teams?.away?.name || "");
+    return (fh.includes(h) || h.includes(fh)) && (fa.includes(a) || a.includes(fa));
+  }) || null;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
