@@ -633,19 +633,9 @@ serve(async (req) => {
       const startIso = c?.match_date || s.created_at || new Date().toISOString();
 
       try {
-        let fx: FixtureResult | null = null;
-        let fonte = "api-football";
-        const af = await buscarPorNomeEData(home, away, startIso);
-        if (af) { fx = af.fx; }
-        if (!fx) {
-          const sm = await findFixtureCached(home, away, startIso);
-          if (sm) {
-            fx = { homeTeam: sm.homeTeam, awayTeam: sm.awayTeam, goalsHome: sm.goalsHome, goalsAway: sm.goalsAway, status: sm.status, cornersHome: sm.cornersHome, cornersAway: sm.cornersAway };
-            fonte = "sportmonks";
-          }
-        }
-        if (!fx) { const fdEnd = await buscarPorFutoddsEnded(home, away, startIso); if (fdEnd) { fx = fdEnd; fonte = "futodds-ended"; } }
-      if (!fx) { fx = await buscarPorOddsAPI(home, away); fonte = "the-odds-api"; }
+        const resolved = await resolveFixtureForSettlement(home, away, startIso, "eventos_raros_lay");
+        let fx = resolved.fx;
+        let fonte = resolved.fonte;
         if (!fx) {
           notFound++;
           results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, source: "eventos_raros_sinais" });
