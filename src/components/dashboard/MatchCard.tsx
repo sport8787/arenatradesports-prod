@@ -376,26 +376,26 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
           {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA' || match.mycroftStatus === 'opportunity') && (match.market || match.approvalOdd != null || match.confidence != null) && (
             <div className="rounded-lg bg-success/15 border-2 border-success/50 px-3 py-2.5 space-y-1.5 shadow-[0_0_18px_hsl(var(--success)/0.25)]">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-success/90 font-orbitron uppercase tracking-widest font-bold">
+                <span className="text-[10px] text-white font-orbitron uppercase tracking-widest font-bold">
                   🎯 Entrada Aprovada
                 </span>
                 {match.approvalOdd != null && (
-                  <span className="text-[10px] font-orbitron text-success/80 uppercase tracking-wider">
-                    Odd <span className="text-sm font-bold tabular-nums text-success ml-1">{Number(match.approvalOdd).toFixed(2)}</span>
+                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">
+                    Odd <span className="text-sm font-bold tabular-nums text-white ml-1">{Number(match.approvalOdd).toFixed(2)}</span>
                   </span>
                 )}
               </div>
               {match.market && (
                 <div className="text-center py-1 rounded-md bg-success/20 border border-success/40">
-                  <span className="text-base md:text-lg font-orbitron font-black text-success uppercase tracking-wide leading-tight">
+                  <span className="text-base md:text-lg font-orbitron font-black text-white uppercase tracking-wide leading-tight">
                     {translateMarket(match.market)}
                   </span>
                 </div>
               )}
               {match.confidence != null && (
                 <div className="flex items-center justify-end gap-1">
-                  <span className="text-[10px] font-orbitron text-success/80 uppercase tracking-wider">Confiança</span>
-                  <span className="text-xs font-orbitron font-bold text-success tabular-nums">
+                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Confiança</span>
+                  <span className="text-xs font-orbitron font-bold text-white tabular-nums">
                     {Math.round(Number(match.confidence))}%
                   </span>
                 </div>
