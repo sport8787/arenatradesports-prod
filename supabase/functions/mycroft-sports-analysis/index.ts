@@ -657,8 +657,11 @@ serve(async (req) => {
           },
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        max_tokens: 8192,
+        max_tokens: opts?.maxTokensOverride ?? computeMaxTokens(opts?.promptOverride ?? prompt),
       });
+
+    const adaptiveMaxTokens = computeMaxTokens(prompt);
+    console.log(`[MycroftSports] 🎚️ max_tokens adaptativo=${adaptiveMaxTokens} (prompt_len=${prompt.length})`);
 
     let response: Response | null = null;
     let usedModel = MODEL_FALLBACKS[0];
