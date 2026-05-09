@@ -24,7 +24,11 @@ import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
 import { useVturbTracking } from '@/hooks/useVturbTracking';
+import { useVslDelay } from '@/hooks/useVslDelay';
 import { getH1Variant, H1_VARIANTS } from '@/lib/landingAbTest';
+
+// 🎯 VSL com delay: minuto exato do pitch no vídeo. Trocar quando o vídeo final estiver pronto.
+const VSL_PITCH_DELAY_SECONDS = 8 * 60; // 8 minutos
 
 export default function LandingPage() {
   const navigate = useNavigate();
