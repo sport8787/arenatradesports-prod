@@ -425,9 +425,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const dbClient = createClient(supabaseUrl, supabaseKey)
 
-    let usedHistoricalDB = false
+    let usedSource = 'none'
 
-    if (use_historical) {
+    const tryArenaMatches = data_source === 'auto' || data_source === 'arena_matches'
+    const trySportmonks = data_source === 'auto' || data_source === 'sportmonks'
+    const tryFutodds = data_source === 'auto' || data_source === 'futodds'
+    const tryApiFootball = data_source === 'auto' || data_source === 'api_football'
+
+    if (use_historical && tryArenaMatches) {
       // Try arena_matches first
       for (const l of validLeagues) {
         const seasonStr = `${season}/${season + 1}`
@@ -442,16 +447,14 @@ serve(async (req) => {
 
         if (dbMatches && dbMatches.length > 10) {
           console.log(`[Backtest] arena_matches: ${dbMatches.length} jogos para ${l.info.name}`)
-          usedHistoricalDB = true
+          usedSource = 'arena_matches'
           for (const m of dbMatches) {
-            // Convert arena_matches format to API-Football fixture format
             const fixtureId = parseInt(m.match_id.replace(/\D/g, '').slice(0, 8)) || Math.random() * 1000000
             const converted = {
               fixture: { id: fixtureId, date: m.match_date },
               teams: { home: { name: m.home_team }, away: { name: m.away_team } },
               goals: { home: m.score_home, away: m.score_away },
               league: { round: m.season || '' },
-              // Extra stats from arena_matches
               _stats: {
                 xg_home: m.xg_home, xg_away: m.xg_away,
                 shots_home: m.shots_home, shots_away: m.shots_away,
@@ -466,8 +469,42 @@ serve(async (req) => {
       }
     }
 
-    // Fallback to API-Football if no historical data found
-    if (allFixtures.length === 0) {
+    // Sportmonks (real historical fixtures by date)
+    if (allFixtures.length === 0 && trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
+      try {
+        const smFixtures = await fetchHistoricalFromSportmonks(season, leagueNameSet)
+        if (smFixtures.length > 0) {
+          usedSource = 'sportmonks'
+          for (const f of smFixtures) {
+            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
+            allFixtures.push(f)
+          }
+          console.log(`[Backtest] Sportmonks: ${smFixtures.length} jogos`)
+        }
+      } catch (e) {
+        console.warn('[Backtest] Sportmonks falhou:', (e as Error).message)
+      }
+    }
+
+    // Futodds /matches-ended (real historical, agnostic to AF league IDs)
+    if (allFixtures.length === 0 && tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
+      try {
+        const fdFixtures = await fetchHistoricalFromFutodds(season, leagueNameSet)
+        if (fdFixtures.length > 0) {
+          usedSource = 'futodds'
+          for (const f of fdFixtures) {
+            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
+            allFixtures.push(f)
+          }
+          console.log(`[Backtest] Futodds: ${fdFixtures.length} jogos`)
+        }
+      } catch (e) {
+        console.warn('[Backtest] Futodds falhou:', (e as Error).message)
+      }
+    }
+
+    // Fallback to API-Football
+    if (allFixtures.length === 0 && tryApiFootball) {
       if (!apiKey) throw new Error('Sem dados históricos e API_FOOTBALL_KEY não configurada')
       for (const l of validLeagues) {
         const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
@@ -478,9 +515,10 @@ serve(async (req) => {
         allFixtures.push(...fixtures)
         if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
       }
+      if (allFixtures.length > 0) usedSource = 'api_football'
     }
 
-    console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedHistoricalDB ? 'arena_matches' : 'API-Football'})`)
+    console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedSource})`)
 
     if (allFixtures.length === 0) {
       return jsonResponse({ success: true, results: [], metrics: emptyMetrics(), monte_carlo: null, growth_projections: [], league: leagueNames, season })
