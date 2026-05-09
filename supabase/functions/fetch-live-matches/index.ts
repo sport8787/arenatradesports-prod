@@ -646,15 +646,21 @@ serve(async (req) => {
           });
         }
 
-        // Batched upsert (much faster than N requests)
+        // Batched insert with ignoreDuplicates — write amplification fix.
+        // Antes: cada execução reescrevia ~30k rows com updated_at=now() (35M+ UPDATEs).
+        // Agora: só insere fixtures novos. Status ao vivo é mantido em `live_matches`
+        // (fonte de verdade); transições de status são tratadas em outro caminho.
         const SCHED_CHUNK = 200;
         for (let i = 0; i < schedPayloads.length; i += SCHED_CHUNK) {
           const slice = schedPayloads.slice(i, i + SCHED_CHUNK);
           const { error: upsertErr } = await supabase
             .from('scheduled_games')
-            .upsert(slice, { onConflict: 'match_date,match_time,home_team,away_team' });
+            .upsert(slice, {
+              onConflict: 'match_date,match_time,home_team,away_team',
+              ignoreDuplicates: true,
+            });
           if (!upsertErr) scheduledCount += slice.length;
-          else console.warn('[FetchLive] sched batch upsert error:', upsertErr.message);
+          else console.warn('[FetchLive] sched batch insert error:', upsertErr.message);
         }
         console.log(`[FetchLive] Saved ${scheduledCount} scheduled games (batched)`);
       }
