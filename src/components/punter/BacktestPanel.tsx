@@ -751,12 +751,24 @@ export default function BacktestPanel({ onClose }: Props) {
                     <CardTitle className="text-sm font-orbitron">Apostas Simuladas ({results.length})</CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[60vh] overflow-y-auto space-y-1.5">
-                    {results.map((r, i) => (
+                    {results.map((r, i) => {
+                      const isWin = r.result === 'green' || r.result === 'half_green';
+                      const isLoss = r.result === 'red' || r.result === 'half_red';
+                      const isPush = r.result === 'push';
+                      const label = r.result === 'green' ? '✅ GREEN'
+                        : r.result === 'half_green' ? '½ GREEN'
+                        : r.result === 'push' ? '➖ PUSH'
+                        : r.result === 'half_red' ? '½ RED'
+                        : '❌ RED';
+                      const tone = isWin ? 'success' : isLoss ? 'destructive' : 'muted-foreground';
+                      return (
                       <div
                         key={i}
                         className={cn(
                           "flex items-center justify-between p-2 rounded-lg text-xs border",
-                          r.result === 'green' ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
+                          isWin ? 'border-success/30 bg-success/5'
+                            : isPush ? 'border-muted bg-muted/10'
+                            : 'border-destructive/30 bg-destructive/5'
                         )}
                       >
                         <div className="flex-1 min-w-0">
@@ -765,15 +777,16 @@ export default function BacktestPanel({ onClose }: Props) {
                           {r.league_name && <p className="text-[10px] text-muted-foreground/70">{r.league_name}</p>}
                         </div>
                         <div className="text-right ml-2">
-                          <p className={cn("font-orbitron font-bold", r.profit_loss >= 0 ? 'text-success' : 'text-destructive')}>
+                          <p className={cn("font-orbitron font-bold", r.profit_loss > 0 ? 'text-success' : r.profit_loss < 0 ? 'text-destructive' : 'text-muted-foreground')}>
                             {r.profit_loss >= 0 ? '+' : ''}R$ {r.profit_loss.toFixed(0)}
                           </p>
-                          <Badge variant="outline" className={cn("text-[9px]", r.result === 'green' ? 'text-success border-success/30' : 'text-destructive border-destructive/30')}>
-                            {r.result === 'green' ? '✅ GREEN' : '❌ RED'}
+                          <Badge variant="outline" className={cn("text-[9px]", `text-${tone} border-${tone}/30`)}>
+                            {label}
                           </Badge>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
               )}
