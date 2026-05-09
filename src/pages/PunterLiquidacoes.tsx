@@ -260,18 +260,34 @@ export default function PunterLiquidacoesPage() {
     return { total, decided: decided.length, greens, reds, winRate, profit, roi };
   };
 
-  const blockPunter = buildBlock(periodRows.filter((r) => r.source === 'punter_signal'));
-  const blockFavorito = buildBlock(periodRows.filter((r) => r.source === 'plano_favorito'));
-  const blockRaros = buildBlock(periodRows.filter((r) => r.source === 'eventos_raros'));
+  // Mercado de chutes (total/no gol) foi descontinuado por EV negativo —
+  // removemos do cálculo de métricas para refletir apenas mercados ativos.
+  const isShotsMarket = (m: string | null | undefined) => {
+    if (!m) return false;
+    const s = String(m).toLowerCase();
+    return /chute|shots?_on_target|shots?_total|player_shots/.test(s);
+  };
 
-  // Mantemos os agregados antigos apenas para a barra-resumo do header (counts.*),
-  // mas os 4 cards principais agora refletem APENAS Sinais IA Punter (auditável).
-  const greenCount = blockPunter.greens;
-  const redCount = blockPunter.reds;
-  const decided = blockPunter.decided;
-  const winRate = blockPunter.winRate;
-  const profitData = { profit: blockPunter.profit, staked: blockPunter.decided };
-  const roi = blockPunter.roi;
+  const punterRowsClean = periodRows.filter(
+    (r) => r.source === 'punter_signal' && !isShotsMarket(r.market)
+  );
+  const favoritoRows = periodRows.filter((r) => r.source === 'plano_favorito');
+  const rarosRows = periodRows.filter((r) => r.source === 'eventos_raros');
+
+  const blockPunter = buildBlock(punterRowsClean);
+  const blockFavorito = buildBlock(favoritoRows);
+  const blockRaros = buildBlock(rarosRows);
+
+  // Métricas-headline = TODAS as estratégias ativas combinadas
+  // (Sinais IA Punter + Plano Favorito + Eventos Raros), excluindo o mercado
+  // descontinuado de chutes. Esta é a performance real do produto Punter.
+  const blockCombined = buildBlock([...punterRowsClean, ...favoritoRows, ...rarosRows]);
+  const greenCount = blockCombined.greens;
+  const redCount = blockCombined.reds;
+  const decided = blockCombined.decided;
+  const winRate = blockCombined.winRate;
+  const profitData = { profit: blockCombined.profit, staked: blockCombined.decided };
+  const roi = blockCombined.roi;
 
   return (
     <div className="min-h-screen bg-background">
@@ -309,7 +325,7 @@ export default function PunterLiquidacoesPage() {
                 <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
               </p>
               <p className="font-mono text-[10px] text-muted-foreground/70 mt-1.5">
-                Fonte oficial: tabela <code>punter_analyses</code> (mesma da auditoria admin). Plano Favorito e Eventos Raros usam tabelas próprias e são contabilizados em blocos separados para não distorcer o win-rate dos sinais da IA.
+                Métricas combinam Sinais IA Punter + Plano Favorito + Eventos Raros (mercado de Chutes descontinuado por EV negativo). Blocos detalhados por estratégia abaixo. Auditoria completa em <code>/admin/auditoria-punter</code>.
               </p>
             </div>
             <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
@@ -338,7 +354,7 @@ export default function PunterLiquidacoesPage() {
           {/* Painel principal: APENAS Sinais IA Punter (mesma base do admin) */}
           <div className="rounded-md border border-primary/30 bg-primary/5 p-2">
             <div className="text-[10px] font-mono uppercase text-primary/80 mb-2">
-              Bloco 1 — Sinais IA Punter (auditável vs <code>/admin/auditoria-punter</code>)
+              Performance Consolidada — Punter (IA + Plano Favorito + Eventos Raros)
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-md border border-border bg-background/40 p-3">
@@ -361,9 +377,9 @@ export default function PunterLiquidacoesPage() {
                 <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
               </div>
               <div className="rounded-md border border-border bg-background/40 p-3">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais IA</div>
-                <div className="font-mono text-xl font-bold text-foreground">{blockPunter.total}</div>
-                <div className="text-[10px] font-mono text-muted-foreground">no período</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Total de Sinais</div>
+                <div className="font-mono text-xl font-bold text-foreground">{blockCombined.total}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">IA + Favorito + Raros</div>
               </div>
             </div>
           </div>
