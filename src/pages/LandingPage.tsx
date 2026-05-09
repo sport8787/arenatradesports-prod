@@ -72,6 +72,11 @@ export default function LandingPage() {
 
   // Tracking do player VSL
   useVturbTracking(`vid-${VTURB_PLAYER_ID}`, shouldLoadVturb);
+  const { unlocked: pitchUnlocked, currentTime: vslCurrentTime } = useVslDelay(
+    VTURB_PLAYER_ID,
+    VSL_PITCH_DELAY_SECONDS,
+    shouldLoadVturb,
+  );
   const [showDemo, setShowDemo] = useState(false);
   const [vturbReloadKey, setVturbReloadKey] = useState(0);
 
