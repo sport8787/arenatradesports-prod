@@ -391,7 +391,17 @@ serve(async (req) => {
       monte_carlo_sims = 10000,
       use_historical = true,
       max_stake_amount = 50000,
+      markets: marketsInput,
+      data_source = 'auto', // 'auto' | 'arena_matches' | 'sportmonks' | 'futodds' | 'api_football'
     } = body
+
+    // Normalize markets filter: default = all
+    const allowedMarkets: Set<string> = new Set(
+      Array.isArray(marketsInput) && marketsInput.length > 0
+        ? marketsInput.filter((m: string) => (ALL_MARKETS as readonly string[]).includes(m))
+        : ALL_MARKETS
+    )
+    if (allowedMarkets.size === 0) ALL_MARKETS.forEach(m => allowedMarkets.add(m))
 
     const criteria = await loadPromptCriteria()
 
@@ -403,7 +413,8 @@ serve(async (req) => {
     if (validLeagues.length === 0) throw new Error('Nenhuma liga válida selecionada')
 
     const leagueNames = validLeagues.map(l => l.info.name).join(', ')
-    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season}`)
+    const leagueNameSet = new Set(validLeagues.map(l => l.info.name))
+    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season} | Fonte: ${data_source} | Mercados: ${Array.from(allowedMarkets).join(',')}`)
     console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%`)
 
     // 1. Try to load from arena_matches first (historical DB), then fallback to API
