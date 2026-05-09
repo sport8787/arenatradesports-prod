@@ -829,7 +829,13 @@ function buildResult(
     ev: analysis.ev,
     value_pct: analysis.edgePct,
     verdict: analysis.verdict,
-    result: analysis.verdict === 'APROVADO' ? (analysis.isGreen ? 'green' : 'red') : null,
+    result: analysis.verdict === 'APROVADO'
+      ? (analysis.settlementMultiplier === 1 ? 'green'
+        : analysis.settlementMultiplier === 0.5 ? 'half_green'
+        : analysis.settlementMultiplier === 0 ? 'push'
+        : analysis.settlementMultiplier === -0.5 ? 'half_red'
+        : 'red')
+      : null,
     stake_pct: analysis.verdict === 'APROVADO' ? analysis.stakePct : 0,
     stake_amount: analysis.verdict === 'APROVADO' ? round2(stakeAmount) : 0,
     profit_loss: round2(profitLoss),
