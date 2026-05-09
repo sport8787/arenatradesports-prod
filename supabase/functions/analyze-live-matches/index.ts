@@ -367,20 +367,27 @@ serve(async (req) => {
                 return (mh.includes(h) || h.includes(mh)) && (ma.includes(a) || a.includes(ma));
               });
               const ol = fdOddMatch?.odds_live || {};
+              liveOddsRaw = ol;
               const flat = {
                 home: Number(ol?.home) || null,
                 draw: Number(ol?.draw) || null,
                 away: Number(ol?.away) || null,
+                over15: Number(ol?.over_15) || null,
+                under15: Number(ol?.under_15) || null,
                 over25: Number(ol?.over_25) || null,
                 under25: Number(ol?.under_25) || null,
+                over35: Number(ol?.over_35) || null,
+                under35: Number(ol?.under_35) || null,
+                btts_yes: Number(ol?.btts_yes) || null,
+                btts_no: Number(ol?.btts_no) || null,
                 bookmaker: 'Futodds',
                 updated_at: new Date().toISOString(),
               };
-              if (flat.home || flat.draw || flat.away || flat.over25) {
+              if (flat.home || flat.draw || flat.away || flat.over25 || flat.over15) {
                 await supabase.from('live_matches').update({
                   odds_live: flat,
                 }).eq('match_id', match.match_id);
-                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
+                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O1.5=${flat.over15} O2.5=${flat.over25} O3.5=${flat.over35} BTTS=${flat.btts_yes}/${flat.btts_no}`);
               }
 
               // 🟣 BACKFILL xG via /matches-live-full (Sportmonks/Betfair-live podem vir com xg=null)
