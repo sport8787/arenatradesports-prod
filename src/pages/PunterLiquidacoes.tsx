@@ -260,18 +260,34 @@ export default function PunterLiquidacoesPage() {
     return { total, decided: decided.length, greens, reds, winRate, profit, roi };
   };
 
-  const blockPunter = buildBlock(periodRows.filter((r) => r.source === 'punter_signal'));
-  const blockFavorito = buildBlock(periodRows.filter((r) => r.source === 'plano_favorito'));
-  const blockRaros = buildBlock(periodRows.filter((r) => r.source === 'eventos_raros'));
+  // Mercado de chutes (total/no gol) foi descontinuado por EV negativo —
+  // removemos do cálculo de métricas para refletir apenas mercados ativos.
+  const isShotsMarket = (m: string | null | undefined) => {
+    if (!m) return false;
+    const s = String(m).toLowerCase();
+    return /chute|shots?_on_target|shots?_total|player_shots/.test(s);
+  };
 
-  // Mantemos os agregados antigos apenas para a barra-resumo do header (counts.*),
-  // mas os 4 cards principais agora refletem APENAS Sinais IA Punter (auditável).
-  const greenCount = blockPunter.greens;
-  const redCount = blockPunter.reds;
-  const decided = blockPunter.decided;
-  const winRate = blockPunter.winRate;
-  const profitData = { profit: blockPunter.profit, staked: blockPunter.decided };
-  const roi = blockPunter.roi;
+  const punterRowsClean = periodRows.filter(
+    (r) => r.source === 'punter_signal' && !isShotsMarket(r.market)
+  );
+  const favoritoRows = periodRows.filter((r) => r.source === 'plano_favorito');
+  const rarosRows = periodRows.filter((r) => r.source === 'eventos_raros');
+
+  const blockPunter = buildBlock(punterRowsClean);
+  const blockFavorito = buildBlock(favoritoRows);
+  const blockRaros = buildBlock(rarosRows);
+
+  // Métricas-headline = TODAS as estratégias ativas combinadas
+  // (Sinais IA Punter + Plano Favorito + Eventos Raros), excluindo o mercado
+  // descontinuado de chutes. Esta é a performance real do produto Punter.
+  const blockCombined = buildBlock([...punterRowsClean, ...favoritoRows, ...rarosRows]);
+  const greenCount = blockCombined.greens;
+  const redCount = blockCombined.reds;
+  const decided = blockCombined.decided;
+  const winRate = blockCombined.winRate;
+  const profitData = { profit: blockCombined.profit, staked: blockCombined.decided };
+  const roi = blockCombined.roi;
 
   return (
     <div className="min-h-screen bg-background">
