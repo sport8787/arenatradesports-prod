@@ -1,5 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+// Markets supported by the backtest engine
+const ALL_MARKETS = ['Casa', 'Empate', 'Fora', 'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim'] as const
+type MarketKey = typeof ALL_MARKETS[number]
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
