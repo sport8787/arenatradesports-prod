@@ -26,6 +26,7 @@ interface Row {
   final_score?: string | null;
   isPlanoFavorito?: boolean;
   void_reason?: string | null;
+  verdict?: string | null;
 }
 
 type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
@@ -44,13 +45,16 @@ export default function PunterLiquidacoesPage() {
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Sinais Punter unificados
+      // FONTE OFICIAL/AUDITÁVEL: punter_analyses (mesma usada em /admin/auditoria-punter).
+      // Garante que /punter/liquidacoes e a auditoria admin mostrem exatamente os
+      // MESMOS sinais Punter (1X2/Over/Under/BTTS/AH/escanteios) gerados pela IA.
       const { data: sigs } = await supabase
-        .from('punter_sinais')
-        .select('id, match_id, home_team, away_team, league, market, odd, stake_amount, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
-        .gte('commence_time', since)
-        .order('commence_time', { ascending: false })
-        .limit(500);
+        .from('punter_analyses')
+        .select('id, match_id, home_team, away_team, league, market, odd, stake_percentage, verdict, result, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
+        .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       const { data: favoritos } = await supabase
         .from('sinais_favorito_prelive')
@@ -88,14 +92,15 @@ export default function PunterLiquidacoesPage() {
           league: s.league || null,
           market: s.market,
           odd: Number(s.odd) || null,
-          stakeAmount: s.stake_amount != null ? Number(s.stake_amount) : null,
-          status: s.status,
-          result: s.resultado,
+          stakeAmount: null,
+          status: s.verdict,
+          result: s.result ? String(s.result).toLowerCase() : null,
           profit_loss: s.profit_loss,
-          commence_time: s.commence_time,
+          commence_time: s.commence_time || s.created_at,
           final_score: (s.final_score_home != null && s.final_score_away != null) ? `${s.final_score_home}-${s.final_score_away}` : null,
           isPlanoFavorito: isPF,
-          void_reason: s.void_reason || null,
+          void_reason: null,
+          verdict: s.verdict,
         };
       });
 
@@ -229,43 +234,44 @@ export default function PunterLiquidacoesPage() {
     futuros: periodRows.filter(isFuture).length,
   };
 
-  // Métricas honestas: usam TODOS os sinais liquidados (green/red).
-  // O lucro hipotético é normalizado em 1u por sinal para não distorcer o ROI
-  // quando a stake real varia entre fontes/tabelas.
+  // Métricas honestas — calculadas SEPARADAMENTE por fonte para não inflar
+  // win-rate misturando Sinais Punter (1 sinal/jogo) com Plano Favorito (3 mercados/jogo)
+  // e Eventos Raros (LAY com hit-rate naturalmente alto).
   const STAKE_UNIT = 1;
-  const decidedRows = periodRows.filter((r) => isGreen(r) || isRed(r));
-  const greenCount = decidedRows.filter(isGreen).length;
-  const redCount = decidedRows.filter(isRed).length;
-  const decided = greenCount + redCount;
-  const winRate = decided > 0 ? (greenCount / decided) * 100 : 0;
 
   const getHypotheticalProfitUnits = (r: Row) => {
     if (isRed(r)) return -STAKE_UNIT;
-
-    if (r.odd != null && r.odd > 1) {
-      return (r.odd - 1) * STAKE_UNIT;
-    }
-
+    if (r.odd != null && r.odd > 1) return (r.odd - 1) * STAKE_UNIT;
     if (r.profit_loss != null && r.stakeAmount != null && r.stakeAmount > 0) {
       return Number(r.profit_loss) / Number(r.stakeAmount);
     }
-
-    if (r.profit_loss != null && Number(r.profit_loss) > 0) {
-      return Number(r.profit_loss);
-    }
-
+    if (r.profit_loss != null && Number(r.profit_loss) > 0) return Number(r.profit_loss);
     return 0;
   };
 
-  const profitData = decidedRows.reduce(
-    (acc, r) => {
-      acc.profit += getHypotheticalProfitUnits(r);
-      acc.staked += STAKE_UNIT;
-      return acc;
-    },
-    { profit: 0, staked: 0 }
-  );
-  const roi = profitData.staked > 0 ? (profitData.profit / profitData.staked) * 100 : 0;
+  const buildBlock = (sourceRows: Row[]) => {
+    const decided = sourceRows.filter((r) => isGreen(r) || isRed(r));
+    const greens = decided.filter(isGreen).length;
+    const reds = decided.filter(isRed).length;
+    const total = sourceRows.length;
+    const winRate = decided.length > 0 ? (greens / decided.length) * 100 : 0;
+    const profit = decided.reduce((acc, r) => acc + getHypotheticalProfitUnits(r), 0);
+    const roi = decided.length > 0 ? (profit / decided.length) * 100 : 0;
+    return { total, decided: decided.length, greens, reds, winRate, profit, roi };
+  };
+
+  const blockPunter = buildBlock(periodRows.filter((r) => r.source === 'punter_signal'));
+  const blockFavorito = buildBlock(periodRows.filter((r) => r.source === 'plano_favorito'));
+  const blockRaros = buildBlock(periodRows.filter((r) => r.source === 'eventos_raros'));
+
+  // Mantemos os agregados antigos apenas para a barra-resumo do header (counts.*),
+  // mas os 4 cards principais agora refletem APENAS Sinais IA Punter (auditável).
+  const greenCount = blockPunter.greens;
+  const redCount = blockPunter.reds;
+  const decided = blockPunter.decided;
+  const winRate = blockPunter.winRate;
+  const profitData = { profit: blockPunter.profit, staked: blockPunter.decided };
+  const roi = blockPunter.roi;
 
   return (
     <div className="min-h-screen bg-background">
@@ -302,6 +308,9 @@ export default function PunterLiquidacoesPage() {
                 <span className="text-slate-300"> VOID</span> ou
                 <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
               </p>
+              <p className="font-mono text-[10px] text-muted-foreground/70 mt-1.5">
+                Fonte oficial: tabela <code>punter_analyses</code> (mesma da auditoria admin). Plano Favorito e Eventos Raros usam tabelas próprias e são contabilizados em blocos separados para não distorcer o win-rate dos sinais da IA.
+              </p>
             </div>
             <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
               {([
@@ -326,37 +335,60 @@ export default function PunterLiquidacoesPage() {
             </div>
           </div>
 
-          {/* Painel de lucro hipotético */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-md border border-border bg-background/40 p-3">
-              <div className="text-[10px] font-mono uppercase text-muted-foreground">Lucro hipotético</div>
-              <div className={cn(
-                'font-mono text-xl font-bold',
-                profitData.profit > 0 ? 'text-emerald-400' : profitData.profit < 0 ? 'text-rose-400' : 'text-foreground'
-              )}>
-                {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
+          {/* Painel principal: APENAS Sinais IA Punter (mesma base do admin) */}
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-2">
+            <div className="text-[10px] font-mono uppercase text-primary/80 mb-2">
+              Bloco 1 — Sinais IA Punter (auditável vs <code>/admin/auditoria-punter</code>)
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Lucro hipotético</div>
+                <div className={cn('font-mono text-xl font-bold', profitData.profit > 0 ? 'text-emerald-400' : profitData.profit < 0 ? 'text-rose-400' : 'text-foreground')}>
+                  {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground">Base: 1u por sinal liquidado</div>
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">Base: 1u por sinal liquidado</div>
-            </div>
-            <div className="rounded-md border border-border bg-background/40 p-3">
-              <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
-              <div className={cn(
-                'font-mono text-xl font-bold',
-                roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-rose-400' : 'text-foreground'
-              )}>
-                {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
+                <div className={cn('font-mono text-xl font-bold', roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-rose-400' : 'text-foreground')}>
+                  {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground">{decided} sinais decididos</div>
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground">{decided} sinais decididos</div>
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
+                <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
+              </div>
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais IA</div>
+                <div className="font-mono text-xl font-bold text-foreground">{blockPunter.total}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">no período</div>
+              </div>
             </div>
-            <div className="rounded-md border border-border bg-background/40 p-3">
-              <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
-              <div className="font-mono text-xl font-bold text-foreground">{winRate.toFixed(1)}%</div>
-              <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
+          </div>
+
+          {/* Blocos secundários por fonte */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+              <div className="text-[10px] font-mono uppercase text-amber-300/80 mb-1">Bloco 2 — Plano Favorito</div>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-foreground">{blockFavorito.total} sinais · {blockFavorito.decided} liquidados</span>
+                <span className="text-emerald-400">{blockFavorito.winRate.toFixed(1)}% WR</span>
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground mt-1">
+                {blockFavorito.greens}G / {blockFavorito.reds}R · ROI {blockFavorito.roi >= 0 ? '+' : ''}{blockFavorito.roi.toFixed(1)}% · Cada jogo gera 3 mercados (vitória/over1.5/over2.5)
+              </div>
             </div>
-            <div className="rounded-md border border-border bg-background/40 p-3">
-              <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais liquidados</div>
-              <div className="font-mono text-xl font-bold text-foreground">{counts.green + counts.red + counts.void}</div>
-              <div className="text-[10px] font-mono text-muted-foreground">de {counts.todos} no período</div>
+            <div className="rounded-md border border-purple-500/30 bg-purple-500/5 p-3">
+              <div className="text-[10px] font-mono uppercase text-purple-300/80 mb-1">Bloco 3 — Eventos Raros (LAY)</div>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-foreground">{blockRaros.total} sinais · {blockRaros.decided} liquidados</span>
+                <span className="text-emerald-400">{blockRaros.winRate.toFixed(1)}% WR</span>
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground mt-1">
+                {blockRaros.greens}G / {blockRaros.reds}R · ROI {blockRaros.roi >= 0 ? '+' : ''}{blockRaros.roi.toFixed(1)}% · LAY tem hit-rate naturalmente alto
+              </div>
             </div>
           </div>
 
@@ -365,6 +397,7 @@ export default function PunterLiquidacoesPage() {
             <span className="text-rose-400">❌ {counts.red} RED</span>
             <span className="text-slate-300">⚪ {counts.void} VOID</span>
             <span className="text-amber-300">⏳ {counts.pendentes} pendentes</span>
+            <span className="text-muted-foreground/60">(somatório das 3 fontes)</span>
           </div>
         </div>
 
