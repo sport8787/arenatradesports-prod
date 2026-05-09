@@ -244,6 +244,28 @@ export default function PunterPage() {
     return new Set<string>();
   });
 
+  // Helper para extrair um id estável por sinal (analysis_id, ou home_away_market)
+  const signalKey = (s: PunterSignal): string => {
+    const aid = (s as any).analysis_id;
+    if (aid) return String(aid);
+    return `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  // Marca novos sinais e persiste após 8s para que o badge NOVO permaneça visível durante a visita
+  useEffect(() => {
+    if (!signals || signals.length === 0) return;
+    const t = setTimeout(() => {
+      setSeenSignalIds((prev) => {
+        const next = new Set(prev);
+        for (const s of signals) next.add(signalKey(s));
+        try { localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(next).slice(-500))); } catch {}
+        return next;
+      });
+    }, 8000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signals]);
+
   // Load pending bets AND saved approved signals on mount
   useEffect(() => {
     const loadInitialData = async () => {
