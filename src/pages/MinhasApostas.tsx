@@ -93,6 +93,7 @@ export default function MinhasApostasPage() {
 
     const mapped: ManualBet[] = (data || []).map((b: any) => ({
       id: b.id,
+      match_id: b.match_id,
       match_name: b.match_name || b.match_id,
       market: b.market,
       odd: parseFloat(b.odd),
