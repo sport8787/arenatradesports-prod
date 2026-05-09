@@ -1028,12 +1028,43 @@ export type Database = {
         }
         Relationships: []
       }
+      bc_monthly_caps: {
+        Row: {
+          cap_at_period: number
+          id: string
+          plan_at_period: string | null
+          total_credited: number
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          cap_at_period?: number
+          id?: string
+          plan_at_period?: string | null
+          total_credited?: number
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          cap_at_period?: number
+          id?: string
+          plan_at_period?: string | null
+          total_credited?: number
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
       bc_rewards_log: {
         Row: {
           base_bc: number
           bet_id: string
           bonus_bc: number
           created_at: string
+          expires_at: string | null
           id: string
           motivo: string | null
           multiplier: number
@@ -1047,6 +1078,7 @@ export type Database = {
           bet_id: string
           bonus_bc?: number
           created_at?: string
+          expires_at?: string | null
           id?: string
           motivo?: string | null
           multiplier?: number
@@ -1060,6 +1092,7 @@ export type Database = {
           bet_id?: string
           bonus_bc?: number
           created_at?: string
+          expires_at?: string | null
           id?: string
           motivo?: string | null
           multiplier?: number
@@ -7566,6 +7599,13 @@ export type Database = {
       deduct_manual_bankroll: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
+      }
+      expire_old_bc_rewards: {
+        Args: never
+        Returns: {
+          total_expired: number
+          users_affected: number
+        }[]
       }
       expire_trials: { Args: never; Returns: number }
       generate_training_label: {
