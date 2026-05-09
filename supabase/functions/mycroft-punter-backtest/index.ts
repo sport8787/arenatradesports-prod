@@ -1077,6 +1077,7 @@ interface AnalysisResult {
   edgePct: number
   verdict: 'APROVADO' | 'VETADO'
   isGreen: boolean
+  settlementMultiplier: number // 1 / 0.5 / 0 / -0.5 / -1
   confidence: number
   vetoReason?: string
   modelLevel: string
