@@ -1,13 +1,7 @@
 ---
-name: Trader Sports — apenas Tier A ativo
-description: Tier B e C foram desativados (enabled=false) em 09/05/2026 para reduzir ruído de sinais e proteger ROI; só Tier A (17 ligas principais) gera análise/aprovação
+name: Tier A only — REVERTIDO 09/05/2026
+description: Restrição de cobertura ao Tier A foi revertida porque deixou o dashboard quase vazio (3/142 jogos). Tier B+C reativados; controle de ruído fica no filtro Telegram (main leagues only).
 type: constraint
 ---
 
-09/05/2026 — Após expansão para ~120 ligas (A+B+C), volume de APROVADOS explodiu sem evidência de melhora de ROI e gerando ruído para o usuário (Trader Sports + Telegram).
-
-Decisão: `UPDATE trader_leagues SET enabled=false WHERE tier IN ('B','C')`. Apenas Tier A (17 ligas: Brasileirão, top-5 europeias, Libertadores, Champions, copas continentais, seleções) permanece ativo no `getAllowedLeagueIds()`.
-
-**Why:** ROI esperado cai com aprovação indiscriminada em ligas exóticas (dados rasos, líquidez fraca, calibração ruim). Usuário se perde com volume.
-
-**How to apply:** Não reativar Tier B/C automaticamente. Reativação manual (parcial ou total) só via `/admin/trader-leagues` se houver pedido explícito do usuário ou evidência empírica de ROI positivo por liga.
+Tier A/B/C agora todos `enabled=true` em `trader_leagues`. Filtro de notificações Telegram restrito a ligas principais permanece (`notify-trader-event`). Próximo passo, se ROI piorar, é restringir o **auto-approve** (não a ingestão) por tier.
