@@ -354,7 +354,7 @@ export default function PunterLiquidacoesPage() {
           {/* Painel principal: APENAS Sinais IA Punter (mesma base do admin) */}
           <div className="rounded-md border border-primary/30 bg-primary/5 p-2">
             <div className="text-[10px] font-mono uppercase text-primary/80 mb-2">
-              Bloco 1 — Sinais IA Punter (auditável vs <code>/admin/auditoria-punter</code>)
+              Performance Consolidada — Punter (IA + Plano Favorito + Eventos Raros)
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-md border border-border bg-background/40 p-3">
