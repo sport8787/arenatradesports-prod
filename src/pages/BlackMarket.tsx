@@ -198,16 +198,25 @@ export default function BlackMarket() {
             LIGA MYCROFT
           </h1>
 
-          <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border min-w-[80px] justify-center">
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-gold" />
-                <Skeleton className="h-4 w-12" />
-              </div>
-            ) : (
-              <BluffCoinDisplay amount={userCoins} size="sm" showChange={false} />
-            )}
-          </div>
+          {user ? (
+            <div className="flex items-center gap-2 bg-secondary/50 px-3 py-2 rounded-lg border border-border min-w-[80px] justify-center">
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-gold" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              ) : (
+                <BluffCoinDisplay amount={userCoins} size="sm" showChange={false} />
+              )}
+            </div>
+          ) : (
+            <Link
+              to="/auth"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+            >
+              Entrar
+            </Link>
+          )}
         </div>
       </header>
 
