@@ -584,11 +584,38 @@ serve(async (req) => {
     // Cada modelo tem RPM independente na Gemini API. flash-lite tem RPM mais alto e ainda atende qualidade aceitável.
     const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
 
-    const buildBody = (model: string) => JSON.stringify({
+    // === MAX_TOKENS ADAPTATIVO ===
+    // Estima saída com base no tamanho do prompt (critérios + planos + stats).
+    // Faixa: 2048 (curto) → 8192 (longo). Permite override em retry pós-truncamento.
+    const computeMaxTokens = (promptText: string): number => {
+      const len = promptText.length;
+      if (len < 2500) return 2048;
+      if (len < 5000) return 3072;
+      if (len < 9000) return 4096;
+      if (len < 14000) return 6144;
+      return 8192;
+    };
+
+    const SYSTEM_FULL = 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.';
+    const SYSTEM_SHORT = 'Você é Mycroft. Responda SOMENTE via tool_call sports_analysis. Status válidos: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO, AGUARDAR. Seja CONCISO: thesis ≤ 220 chars, alerts ≤ 3 itens curtos, sem additional_markets a menos que essencial. Português brasileiro.';
+
+    // Compacta prompt cortando linhas longas e seções repetidas para retry.
+    const compactPrompt = (p: string): string => {
+      const lines = p.split('\n');
+      const trimmed = lines.map(l => l.length > 240 ? l.slice(0, 240) + '…' : l);
+      // se ainda muito grande, pega cabeçalho + final (planos/stats finais)
+      const joined = trimmed.join('\n');
+      if (joined.length <= 6000) return joined;
+      const head = joined.slice(0, 3500);
+      const tail = joined.slice(-2200);
+      return `${head}\n\n[...prompt compactado para retry...]\n\n${tail}`;
+    };
+
+    const buildBody = (model: string, opts?: { systemOverride?: string; promptOverride?: string; maxTokensOverride?: number }) => JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.' },
-          { role: 'user', content: prompt },
+          { role: 'system', content: opts?.systemOverride ?? SYSTEM_FULL },
+          { role: 'user', content: opts?.promptOverride ?? prompt },
         ],
         tools: [{
           type: 'function',
