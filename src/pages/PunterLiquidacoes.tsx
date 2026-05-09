@@ -325,7 +325,7 @@ export default function PunterLiquidacoesPage() {
                 <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
               </p>
               <p className="font-mono text-[10px] text-muted-foreground/70 mt-1.5">
-                Fonte oficial: tabela <code>punter_analyses</code> (mesma da auditoria admin). Plano Favorito e Eventos Raros usam tabelas próprias e são contabilizados em blocos separados para não distorcer o win-rate dos sinais da IA.
+                Métricas combinam Sinais IA Punter + Plano Favorito + Eventos Raros (mercado de Chutes descontinuado por EV negativo). Blocos detalhados por estratégia abaixo. Auditoria completa em <code>/admin/auditoria-punter</code>.
               </p>
             </div>
             <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
