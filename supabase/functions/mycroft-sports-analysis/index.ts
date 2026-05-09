@@ -630,7 +630,7 @@ serve(async (req) => {
           },
         }],
         tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        max_tokens: 4096,
+        max_tokens: 8192,
       });
 
     let response: Response | null = null;
