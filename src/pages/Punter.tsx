@@ -1885,6 +1885,10 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   const gradeConfig = getGradeConfig(assetScore.grade);
 
   const handleManualBet = () => {
+    if (userAlreadyBet) {
+      toast.info('Você já apostou neste sinal. Veja em "Minhas Apostas".');
+      return;
+    }
     const stake = parseFloat(customStake);
     if (isNaN(stake) || stake <= 0) {
       toast.error('Informe um valor válido');
