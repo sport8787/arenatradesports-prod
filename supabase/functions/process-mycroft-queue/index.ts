@@ -127,7 +127,6 @@ serve(async (req) => {
             await supabase.from('live_matches').update({
               mycroft_analysis_id: row.id,
               mycroft_status: statusToSet,
-              updated_at: new Date().toISOString(),
             }).eq('match_id', matchId);
             if (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
               await supabase.from('signals_sent').insert({

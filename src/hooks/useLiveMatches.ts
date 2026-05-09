@@ -126,10 +126,17 @@ export function useLiveMatches() {
         // Aumentado de 4h → 6h para tolerar lacunas temporárias da API.
         const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
         if (updatedAgoMs > 6 * 60 * 60 * 1000) return false;
-        // Guarda anti-"jogo travado": minuto >= 90 em 2T sem refresh há > 7min ⇒ provavelmente FT
-        // que a API ainda não confirmou. Esconde da UI para evitar dashboard poluído.
+
         const minute = Number(match.minute || 0);
-        if (minute >= 90 && period.includes('second') && updatedAgoMs > 7 * 60 * 1000) return false;
+        const looksLikeSecondHalf = period.includes('second') || period.includes('2nd') || period.includes('2t') || period.includes('2º');
+        const looksLikeEndedByClock = minute >= 90 && looksLikeSecondHalf;
+        const mycroftSettled = !!match.mycroft_analyses?.result;
+
+        // Jogo 90'+ em 2T não deve continuar em Ao Vivo só porque a análise tocou o registro.
+        // Se o feed real não atualizou recentemente, escondemos da UI imediatamente.
+        if (looksLikeEndedByClock && updatedAgoMs > 2 * 60 * 1000) return false;
+        // Mesmo com update recente, se já existe resultado liquidado, não é mais jogo ao vivo.
+        if (looksLikeEndedByClock && mycroftSettled) return false;
         return true;
       })
       .map((match: any) => {

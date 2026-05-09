@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
     for (const u of updates) {
       const { error: upErr } = await supabase
         .from("live_matches")
-        .update({ odds_live: u.payload, updated_at: new Date().toISOString() })
+        .update({ odds_live: u.payload })
         .eq("match_id", u.match_id);
       if (!upErr) updated++;
       else console.warn(`[UpdateLiveOdds] update fail ${u.match_id}: ${upErr.message}`);
