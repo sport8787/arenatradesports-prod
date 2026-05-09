@@ -31,32 +31,43 @@ interface PrizeCard {
   premiumOnly?: boolean;
 }
 
-// Preços em BC são placeholders — economia interna será calibrada depois
+// Vitrine recalibrada (mai/2026): preços calculados para um Premium disciplinado
+// resgatar o vale R$50 em ~60-75 dias. Itens digitais têm custo zero pra empresa.
 const prizes: PrizeCard[] = [
   {
     id: 1,
     name: 'Vale-Presente R$ 50',
-    price: '2.000 BC',
-    priceValue: 2000,
+    price: '3.500 BC',
+    priceValue: 3500,
     image: prizeGiftcard50,
     description: 'Vale-presente digital de R$ 50 (lojas parceiras)',
     category: 'giftcard',
   },
   {
-    id: 2,
-    name: '30 Dias de Assinatura Grátis',
-    price: '3.000 BC',
-    priceValue: 3000,
+    id: 7,
+    name: '7 Dias Premium Grátis',
+    price: '800 BC',
+    priceValue: 800,
     image: prizeSub30d,
-    description: 'Estende sua assinatura atual por 30 dias',
+    description: 'Estende ou faz upgrade pra Premium por 7 dias. Custo zero pra você, valor real pra mim.',
+    category: 'subscription',
+    badge: 'NOVO',
+  },
+  {
+    id: 2,
+    name: '30 Dias Premium Grátis',
+    price: '2.500 BC',
+    priceValue: 2500,
+    image: prizeSub30d,
+    description: 'Estende ou faz upgrade pra Premium por 30 dias',
     category: 'subscription',
     badge: 'POPULAR',
   },
   {
     id: 3,
     name: 'Vale-Presente R$ 100',
-    price: '4.000 BC',
-    priceValue: 4000,
+    price: '7.000 BC',
+    priceValue: 7000,
     image: prizeGiftcard100,
     description: 'Vale-presente digital de R$ 100 (lojas parceiras)',
     category: 'giftcard',
@@ -64,8 +75,8 @@ const prizes: PrizeCard[] = [
   {
     id: 4,
     name: 'Gift Card R$ 200',
-    price: '7.000 BC',
-    priceValue: 7000,
+    price: '13.000 BC',
+    priceValue: 13000,
     image: prizeGiftcard200,
     description: 'Gift Card digital de R$ 200 (lojas parceiras)',
     category: 'giftcard',
@@ -74,8 +85,8 @@ const prizes: PrizeCard[] = [
   {
     id: 5,
     name: 'Premium VIIP (Tudo Liberado)',
-    price: '9.000 BC',
-    priceValue: 9000,
+    price: '15.000 BC',
+    priceValue: 15000,
     image: prizePremiumUpgrade,
     description: 'Faz upgrade do seu plano atual para Premium por 30 dias',
     category: 'subscription',
@@ -83,9 +94,9 @@ const prizes: PrizeCard[] = [
   },
   {
     id: 6,
-    name: 'Camisa Oficial do Seu Time do Coração',
-    price: '11.000 BC',
-    priceValue: 11000,
+    name: 'Camisa Oficial do Seu Time',
+    price: '18.000 BC',
+    priceValue: 18000,
     image: prizeCamisaTime,
     description: 'Camisa oficial original do clube de futebol que você escolher (tamanho e modelo da temporada atual). Entrega em todo o Brasil.',
     category: 'season',
