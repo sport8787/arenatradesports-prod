@@ -121,9 +121,15 @@ export function useLiveMatches() {
       .filter((match: any) => {
         const status = String(match.status || '').toLowerCase();
         if (FINISHED_STATUSES.includes(status)) return false;
+        const period = String(match.period || '').toLowerCase();
+        if (period.includes('finish') || period.includes('ended') || period.includes('after')) return false;
         // Aumentado de 4h → 6h para tolerar lacunas temporárias da API.
         const updatedAgoMs = Date.now() - new Date(match.updated_at).getTime();
         if (updatedAgoMs > 6 * 60 * 60 * 1000) return false;
+        // Guarda anti-"jogo travado": minuto >= 90 em 2T sem refresh há > 7min ⇒ provavelmente FT
+        // que a API ainda não confirmou. Esconde da UI para evitar dashboard poluído.
+        const minute = Number(match.minute || 0);
+        if (minute >= 90 && period.includes('second') && updatedAgoMs > 7 * 60 * 1000) return false;
         return true;
       })
       .map((match: any) => {
