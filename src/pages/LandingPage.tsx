@@ -169,10 +169,14 @@ export default function LandingPage() {
             
             <div className="flex items-center gap-3">
               <WhatsAppSupportButton />
-              <button onClick={ctaHandler('header', 'login')} className="text-sm text-gray-300 hover:text-white transition">Login</button>
-              <button onClick={ctaHandler('header', 'testar_7_dias')} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
-                TESTAR 7 DIAS GRÁTIS
-              </button>
+              {pitchUnlocked && (
+                <>
+                  <button onClick={ctaHandler('header', 'login')} className="text-sm text-gray-300 hover:text-white transition">Login</button>
+                  <button onClick={ctaHandler('header', 'testar_7_dias')} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
+                    TESTAR 7 DIAS GRÁTIS
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
