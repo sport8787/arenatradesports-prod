@@ -1508,6 +1508,7 @@ export default function PunterPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Schema validation error — bloqueia render quando punter_sinais está com shape inválido */}
         {schemaError && (
