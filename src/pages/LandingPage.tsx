@@ -791,6 +791,9 @@ const PRICING_PLANS = [
 ];
 
 const FAQ = [
+  { question: "O teste grátis realmente libera TUDO?", answer: "Sim. Os 7 dias de teste dão acesso completo às duas arenas — Punter e Trader Sports — com todas as funções ativas: Mycroft IA, Hórus, Dual Bankroll, sinais ao vivo, chat por jogo e gestão de banca virtual. Zero limitação. Se não gostar, cancela em 2 cliques." },
+  { question: "Sem cartão de crédito — como funciona?", answer: "Basta criar conta com e-mail. Não pedimos dados de pagamento para começar. Após os 7 dias, você escolhe se quer continuar. Não há cobrança automática e nenhum cartão é armazenado durante o trial." },
+  { question: "Sem letras miúdas — o que significa?", answer: "Significa transparência total: sem taxa oculta, sem fidelidade, sem multa de cancelamento, sem pegadinha no prazo. Tudo que prometemos está escrito em tamanho legível. Garantia dobro é real e auditável." },
   { question: "Vocês são mais uma sala de sinais?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
   { question: "Como funciona a Garantia Dobro?", answer: "Simples: se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
   { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
