@@ -1,48 +1,60 @@
 ---
 name: bc-rewards-virtual-bet-bridge
-description: Trigger credita BC por GREEN virtual com base reduzida por faixa de odd, multiplicador por plano (free 1.0x / base 1.1x / premium 1.3x); bloqueia BC e bet em jogos pós-kickoff (anti-trapaça); resgate exclusivo assinantes; streak diário cap 20 BC
+description: Economia rebalanceada (mai/2026) — BC base reduzido, cap mensal por plano, expiração 120d, penalidade RED, bônus disciplina por asset_score, multiplicador trial 2.5x para iludir progresso (resgate bloqueado para trial)
 type: feature
 ---
 
-## BC Rewards Bridge + Liga Mycroft
+## BC Rewards — Economia Rebalanceada (mai/2026)
 
-### Acúmulo de BC (com multiplicador por plano)
-- Trigger `credit_bc_for_virtual_bet` em `virtual_bets_punter` e `virtual_bets_manual`.
-- **Anti-trapaça:** crédito é IGNORADO se `commence_time IS NULL` ou `created_at >= commence_time` (aposta criada após o kickoff).
-- BC base por faixa de odd (reduzido para forçar ~20 dias até 2.000 BC):
-  - odd ≥ 4.00 → 25 BC
-  - odd ≥ 3.00 → 18 BC
-  - odd ≥ 2.30 → 12 BC
-  - odd ≥ 1.90 → 8 BC
-  - odd ≥ 1.60 → 5 BC
-  - default → 3 BC
-- Bônus por lucro proporcional: cap 10 BC.
-- **Multiplicador por plano** (lido de `user_subscriptions.plan` + `is_active`):
-  - free / trial / starter / basic: **1.0x**
-  - base: **1.1x**
-  - premium: **1.3x**
-- Loga em `bc_rewards_log` com colunas `multiplier` e `plan_at_credit` para auditoria.
-- Streak diário auto-claim no boot do Punter via `claim_daily_streak_bonus` — **cap fixo 20 BC/dia** (sem escalonamento por dias consecutivos).
+### Acúmulo por GREEN virtual
+Trigger `credit_bc_for_virtual_bet` em `virtual_bets_punter` e `virtual_bets_manual`.
 
-### Anti-trapaça pós-kickoff
-- **Frontend (`useManualBankroll.placeBet`)**: bloqueia inserção em `virtual_bets_manual` quando `commence_time <= now`.
-- **Frontend (`SignalsFeed`)**: cards APROVADO somem da lista após o kickoff; só permanecem como "AO VIVO" (sem CTA de aposta).
-- **Backend (trigger `credit_bc_for_virtual_bet`)**: garantia final — não credita BC nem mesmo se a aposta entrar de outra forma.
+**Anti-trapaça:** crédito IGNORADO se `commence_time IS NULL` ou `created_at >= commence_time`.
 
-### Resgate (regra de elegibilidade)
-- **Apenas assinantes ativos (`isPaid === true`) podem resgatar.**
-- Free/trial vê vitrine + acumula BC, mas botão de resgate fica bloqueado com CTA para `/paywall`.
-- Prêmios marcados `premiumOnly: true` exigem plano Premium (badge "👑 PREMIUM ONLY" no card).
+**BC base por faixa de odd (reduzido ~40%):**
+- ≥ 4.00 → 15
+- ≥ 3.00 → 11
+- ≥ 2.30 → 7
+- ≥ 1.90 → 5
+- ≥ 1.60 → 3
+- < 1.60 → **0** (anti-farm)
 
-### Vitrine (BlackMarket.tsx)
-- Mais barato: Vale-Presente R$ 50 = 2.000 BC.
-- Demais: 3k / 4k / 7k / 9k / 11k BC.
+**Bônus por lucro proporcional:** cap 5 BC.
 
-### Leaderboard (liga_mycroft_leaderboard)
-- View com `plan` + `plan_active`; badge 👑 PREMIUM ou BASE no `LigaMycroftLeaderboard.tsx`.
-- Hórus forçado em rank=1.
+**Bônus de disciplina:** se `asset_score >= 50` (sinal de qualidade) → 100%. Senão (manual sem sinal) → **50%**.
+
+**Multiplicador por plano (lido de `user_subscriptions`):**
+- premium ativo → **1.3x** (cap mensal 2000)
+- base ativo → **1.1x** (cap mensal 1200)
+- **trial ativo (`trial_ends_at > now`) → 2.5x** (cap mensal 600) — boost generoso para criar **falsa percepção de progresso rápido** e forçar conversão
+- free / trial expirado / outros → **1.0x** (cap mensal 600)
+
+### Cap mensal (`bc_monthly_caps`)
+Tabela `(user_id, year_month)` com `total_credited` + `cap_at_period`. Quando o cap é atingido, novos GREENs no mês são descartados (retorna 0). Reset automático no virar do mês.
+
+### Penalidade por RED
+Trigger `debit_bc_for_red_bet` debita **3 BC por RED** (saldo nunca fica negativo). Idempotente via UNIQUE(bet_id, source).
+
+### Streak diário
+`claim_daily_streak_bonus`:
+- 10 BC/dia (era 20)
+- **Exige pelo menos 1 aposta virtual no dia** (em `virtual_bets_punter` OU `virtual_bets_manual`)
+- Auto-claim no boot do Punter
+
+### Expiração FIFO 120 dias
+Cron `bc-expire-old-rewards` (03h UTC, diário) chama `expire_old_bc_rewards()`:
+- Subtrai do `profiles.bc_balance` cada lote com `expires_at <= now()` e `total_bc > 0`.
+- Marca cada lote expirado com log `source='expiration'` e `total_bc` negativo.
+
+### Resgate (bloqueio anti-abuso)
+- **Trial: BLOQUEADO** (`canRedeem = isPaid` em `BlackMarket.tsx`). Trial acumula mas não resgata — combina com o boost 2.5x para gerar pressão de conversão.
+- Free também bloqueado.
+- Itens marcados `premiumOnly: true` exigem plano premium.
+
+### Vitrine (a recalibrar — ainda não feito)
+Plano: vale R$ 50 → 3.500 BC, R$ 100 → 7.000 BC, R$ 200 → 13.000 BC. Adicionar prêmios digitais (Premium 7d/30d, Sherlock dedicado, boost cap) com custo zero pra empresa.
 
 ### Pendências
-- Calibrar economia interna por item.
-- Backend de resgate (orders + entrega + bloqueio premiumOnly server-side).
-- Definição oficial das datas de temporada para o troféu.
+- Atualizar `BlackMarket.tsx` com nova precificação + categorias (Financeiro / Digital / Temporada).
+- UI no `/loja-bc` mostrando barra "X / cap_mensal BC este mês" + próximo lote a expirar.
+- Mover prêmios físicos (PS5, iPhone) para premiação trimestral por ranking, não saque livre.
