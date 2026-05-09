@@ -1732,7 +1732,7 @@ export default function PunterPage() {
               const realBetDate = realBet ? new Date(realBet.created_at) : null;
 
               return (
-                <div key={index} className="space-y-1">
+                <div key={index} id={`signal-${matchId}`} className="space-y-1 transition-all duration-300">
                   <SignalCard
                     signal={signal}
                     onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
