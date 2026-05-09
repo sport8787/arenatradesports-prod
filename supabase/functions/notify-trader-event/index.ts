@@ -51,6 +51,39 @@ function isExpiredHtSignal(p: { market?: string | null; minute?: number | null; 
   return false;
 }
 
+// 🎯 Whitelist de "principais ligas" para Telegram do grupo trader-sports-live.
+// Após expansão de ligas, sinais aprovados explodiram — para evitar ruído no grupo,
+// só enviamos APROVADO/LABAREDA das ligas abaixo. GREEN/RED/CASHOUT (eventos pessoais
+// do usuário) continuam sendo enviados normalmente para qualquer liga.
+const MAIN_LEAGUE_PATTERNS: RegExp[] = [
+  // Brasil
+  /\bbrasileir[aã]o\b/i,
+  /\bs[ée]rie\s*a\b/i,
+  /\bcopa\s*do\s*brasil\b/i,
+  // Sul-América
+  /\blibertadores\b/i,
+  /\bsul[\s-]?americana\b/i,
+  /\bcopa\s*am[ée]rica\b/i,
+  // Europa - top 5 ligas
+  /\bpremier\s*league\b/i,
+  /\bla\s*liga\b/i,
+  /\bserie\s*a\b/i, // Itália
+  /\bbundesliga\b/i,
+  /\bligue\s*1\b/i,
+  // Europa - copas continentais
+  /\bchampions\s*league\b/i,
+  /\beuropa\s*league\b/i,
+  /\bconference\s*league\b/i,
+  // Seleções
+  /\bworld\s*cup\b|\bcopa\s*do\s*mundo\b/i,
+  /\beuro(?:pean)?\s*championship\b|\beurocopa\b/i,
+];
+
+function isMainLeague(league?: string | null): boolean {
+  if (!league) return false;
+  return MAIN_LEAGUE_PATTERNS.some((rx) => rx.test(league));
+}
+
 function buildTelegramMessage(p: Payload): string {
   const score = `${p.score_home ?? 0}:${p.score_away ?? 0}`;
   const minute = p.minute ? `${p.minute}'` : '—';
