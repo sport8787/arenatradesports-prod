@@ -426,6 +426,30 @@ export default function PunterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Foco em sinal específico vindo de /minhas-apostas (?focus=home_away)
+  useEffect(() => {
+    const focus = searchParams.get('focus');
+    if (!focus || signals.length === 0) return;
+    const targetId = `signal-${focus.toLowerCase()}`;
+    const tryScroll = (attempt = 0) => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background', 'rounded-xl');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+        }, 3500);
+        const next = new URLSearchParams(searchParams);
+        next.delete('focus');
+        setSearchParams(next, { replace: true });
+      } else if (attempt < 10) {
+        setTimeout(() => tryScroll(attempt + 1), 300);
+      }
+    };
+    tryScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, signals]);
+
   // Sincroniza filtros (?today=1 e ?cat=A|B|C) na URL para permitir compartilhar/recarregar mantendo estado
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
