@@ -1931,10 +1931,17 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 ⚠️ SIMULADAS
               </span>
             )}
-            {isNew && (
-              <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
+            {isNew && !userAlreadyBet && (
+              <span className="text-[10px] font-mono font-bold text-accent-foreground bg-accent border border-accent px-1.5 py-0.5 rounded animate-pulse">
+                ● NOVO
+              </span>
             )}
-            {horusEntered && (
+            {userAlreadyBet && (
+              <span className="text-[10px] font-mono font-bold text-success bg-success/10 border border-success/40 px-1.5 py-0.5 rounded">
+                ✓ JÁ APOSTADO
+              </span>
+            )}
+            {horusEntered && !userAlreadyBet && (
               <span className="text-[10px] font-mono text-primary">
                 ✓ HÓRUS R$ {horusStake.toFixed(2)}
               </span>
