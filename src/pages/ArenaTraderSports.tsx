@@ -863,6 +863,25 @@ export default function ArenaTraderSports() {
             animate={{ opacity: 1 }}
           >
             <NextMatchEmptyState
+              rawLiveCount={allMatches.filter(m => {
+                const eff = (m.status as string) === 'halftime' ? 'live' : m.status;
+                return eff === 'live' && !m.matchId?.startsWith('sim_');
+              }).length}
+              onResetFilters={() => {
+                setSelectedRegions([]);
+                setSelectedChampionships([]);
+                setMarketFilters([]);
+                setOnlyFavorites(false);
+                setFocusMode(false);
+                setStatusFilter('all');
+                try {
+                  window.localStorage.removeItem('arenaTraderSports.selectedRegions');
+                  window.localStorage.removeItem('arenaTraderSports.selectedChampionships');
+                  window.localStorage.removeItem('arenaTraderSports.marketFilters');
+                  window.localStorage.removeItem('arenaTraderSports.focusMode');
+                  window.localStorage.setItem('arenaTraderSports.statusFilter', 'all');
+                } catch { /* ignore */ }
+              }}
               nextMatch={(() => {
                 const next = [...scheduledGames]
                   .filter(g => new Date(g.match_datetime).getTime() > Date.now())
