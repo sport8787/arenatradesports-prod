@@ -1030,6 +1030,7 @@ function analyzeWithCriteria(
   } | null = null
 
   for (const [market, modelProb] of Object.entries(modelProbs)) {
+    if (!allowedMarkets.has(market)) continue
     const marketOdd = marketOdds[market]
     if (!marketOdd || marketOdd > 20 || marketOdd < 1.05) continue
 
