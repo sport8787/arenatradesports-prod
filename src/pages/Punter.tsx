@@ -1857,12 +1857,13 @@ export default function PunterPage() {
 }
 
 // Signal Card Component with Asset Score Grade (A+/A/B/C)
-function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, horusBetDate, kellyPercent }: {
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, userAlreadyBet, horusEntered, horusStake, horusBetDate, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
   bankroll: any;
   manualBankroll: any;
   isNew: boolean;
+  userAlreadyBet: boolean;
   horusEntered: boolean;
   horusStake: number;
   horusBetDate?: Date | null;
