@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Coins, Loader2, Trophy, Crown, Gift, Calendar } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Coins, Loader2, Trophy, Crown, Gift, Calendar, Hourglass, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useEconomy } from '@/hooks/useEconomy';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,32 +31,43 @@ interface PrizeCard {
   premiumOnly?: boolean;
 }
 
-// Preços em BC são placeholders — economia interna será calibrada depois
+// Vitrine recalibrada (mai/2026): preços calculados para um Premium disciplinado
+// resgatar o vale R$50 em ~60-75 dias. Itens digitais têm custo zero pra empresa.
 const prizes: PrizeCard[] = [
   {
     id: 1,
     name: 'Vale-Presente R$ 50',
-    price: '2.000 BC',
-    priceValue: 2000,
+    price: '3.500 BC',
+    priceValue: 3500,
     image: prizeGiftcard50,
     description: 'Vale-presente digital de R$ 50 (lojas parceiras)',
     category: 'giftcard',
   },
   {
-    id: 2,
-    name: '30 Dias de Assinatura Grátis',
-    price: '3.000 BC',
-    priceValue: 3000,
+    id: 7,
+    name: '7 Dias Premium Grátis',
+    price: '800 BC',
+    priceValue: 800,
     image: prizeSub30d,
-    description: 'Estende sua assinatura atual por 30 dias',
+    description: 'Estende ou faz upgrade pra Premium por 7 dias. Custo zero pra você, valor real pra mim.',
+    category: 'subscription',
+    badge: 'NOVO',
+  },
+  {
+    id: 2,
+    name: '30 Dias Premium Grátis',
+    price: '2.500 BC',
+    priceValue: 2500,
+    image: prizeSub30d,
+    description: 'Estende ou faz upgrade pra Premium por 30 dias',
     category: 'subscription',
     badge: 'POPULAR',
   },
   {
     id: 3,
     name: 'Vale-Presente R$ 100',
-    price: '4.000 BC',
-    priceValue: 4000,
+    price: '7.000 BC',
+    priceValue: 7000,
     image: prizeGiftcard100,
     description: 'Vale-presente digital de R$ 100 (lojas parceiras)',
     category: 'giftcard',
@@ -61,8 +75,8 @@ const prizes: PrizeCard[] = [
   {
     id: 4,
     name: 'Gift Card R$ 200',
-    price: '7.000 BC',
-    priceValue: 7000,
+    price: '13.000 BC',
+    priceValue: 13000,
     image: prizeGiftcard200,
     description: 'Gift Card digital de R$ 200 (lojas parceiras)',
     category: 'giftcard',
@@ -71,8 +85,8 @@ const prizes: PrizeCard[] = [
   {
     id: 5,
     name: 'Premium VIIP (Tudo Liberado)',
-    price: '9.000 BC',
-    priceValue: 9000,
+    price: '15.000 BC',
+    priceValue: 15000,
     image: prizePremiumUpgrade,
     description: 'Faz upgrade do seu plano atual para Premium por 30 dias',
     category: 'subscription',
@@ -80,9 +94,9 @@ const prizes: PrizeCard[] = [
   },
   {
     id: 6,
-    name: 'Camisa Oficial do Seu Time do Coração',
-    price: '11.000 BC',
-    priceValue: 11000,
+    name: 'Camisa Oficial do Seu Time',
+    price: '18.000 BC',
+    priceValue: 18000,
     image: prizeCamisaTime,
     description: 'Camisa oficial original do clube de futebol que você escolher (tamanho e modelo da temporada atual). Entrega em todo o Brasil.',
     category: 'season',
@@ -93,12 +107,60 @@ const prizes: PrizeCard[] = [
 
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
+  const { user } = useAuth();
   const { isPaid, isTrialActive, subscription, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
   const canRedeem = isPaid; // Trial acumula mas NÃO resgata
   const currentPlan = subscription?.plan ?? 'free';
-  const planMultiplier = currentPlan === 'premium' ? 2.0 : currentPlan === 'base' ? 1.5 : 1.0;
   const isPremium = currentPlan === 'premium' && !!subscription?.is_active;
+  const isBase = currentPlan === 'base' && !!subscription?.is_active;
+  const isTrial = isTrialActive;
+  const planMultiplier = isPremium ? 1.3 : isBase ? 1.1 : isTrial ? 2.5 : 1.0;
+  const monthlyCap = isPremium ? 2000 : isBase ? 1200 : 600;
+
+  // Cap mensal acumulado + próximo lote a expirar
+  const [creditedThisMonth, setCreditedThisMonth] = useState<number>(0);
+  const [nextExpiry, setNextExpiry] = useState<{ amount: number; days: number } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const ym = new Date().toISOString().slice(0, 7);
+    (async () => {
+      const [{ data: capRow }, { data: nextLot }] = await Promise.all([
+        supabase
+          .from('bc_monthly_caps' as any)
+          .select('total_credited')
+          .eq('user_id', user.id)
+          .eq('year_month', ym)
+          .maybeSingle(),
+        supabase
+          .from('bc_rewards_log')
+          .select('total_bc, expires_at')
+          .eq('user_id', user.id)
+          .gt('total_bc', 0)
+          .not('expires_at', 'is', null)
+          .gt('expires_at', new Date().toISOString())
+          .order('expires_at', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (!active) return;
+      setCreditedThisMonth(((capRow as any)?.total_credited as number) ?? 0);
+      if (nextLot?.expires_at) {
+        const days = Math.max(
+          1,
+          Math.ceil((new Date(nextLot.expires_at as string).getTime() - Date.now()) / 86400000)
+        );
+        setNextExpiry({ amount: (nextLot as any).total_bc, days });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const capPct = Math.min(100, Math.round((creditedThisMonth / monthlyCap) * 100));
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -247,33 +309,72 @@ export default function BlackMarket() {
                 </h3>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className={`rounded-md p-2 border ${planMultiplier === 1.0 && !subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Free / Trial</p>
+                <div className={`rounded-md p-2 border ${currentPlan === 'free' || (!subscription?.is_active && !isTrial) ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-muted-foreground uppercase">Free</p>
                   <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                  <p className="text-[9px] text-muted-foreground/70">cap 600/mês</p>
                 </div>
-                <div className={`rounded-md p-2 border ${(currentPlan === 'starter' || currentPlan === 'basic') && subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Starter / Basic</p>
-                  <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                <div className={`rounded-md p-2 border ${isTrial ? 'border-emerald-400/60 bg-emerald-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-emerald-300 uppercase flex items-center justify-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5" /> Trial
+                  </p>
+                  <p className="font-mono font-bold text-sm text-emerald-300">2.5x</p>
+                  <p className="text-[9px] text-emerald-300/70">acumula sem resgatar</p>
                 </div>
-                <div className={`rounded-md p-2 border ${currentPlan === 'base' && subscription?.is_active ? 'border-blue-400/60 bg-blue-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                <div className={`rounded-md p-2 border ${isBase ? 'border-blue-400/60 bg-blue-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
                   <p className="text-[10px] text-blue-300 uppercase">Base</p>
-                  <p className="font-mono font-bold text-sm text-blue-300">1.5x</p>
+                  <p className="font-mono font-bold text-sm text-blue-300">1.1x</p>
+                  <p className="text-[9px] text-blue-300/70">cap 1.200/mês</p>
                 </div>
                 <div className={`rounded-md p-2 border ${isPremium ? 'border-yellow-400/60 bg-gradient-to-b from-yellow-500/15 to-amber-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
                   <p className="text-[10px] text-yellow-300 uppercase flex items-center justify-center gap-0.5">
                     <Crown className="w-2.5 h-2.5" /> Premium
                   </p>
-                  <p className="font-mono font-bold text-sm text-yellow-300">2.0x</p>
+                  <p className="font-mono font-bold text-sm text-yellow-300">1.3x</p>
+                  <p className="text-[9px] text-yellow-300/70">cap 2.000/mês</p>
                 </div>
               </div>
+
+              {/* Barra de cap mensal */}
+              {!!user && (
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Cap mensal de BC</span>
+                    <span className="font-mono text-foreground">
+                      {creditedThisMonth.toLocaleString('pt-BR')} / {monthlyCap.toLocaleString('pt-BR')} BC
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-card/60 overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${capPct >= 100 ? 'bg-destructive' : capPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                      style={{ width: `${capPct}%` }}
+                    />
+                  </div>
+                  {capPct >= 100 && (
+                    <p className="text-[10px] text-destructive">
+                      Cap atingido este mês. Novos GREENs só vão render no virar do mês.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {nextExpiry && (
+                <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-300/90">
+                  <Hourglass className="w-3 h-3" />
+                  <span>
+                    Próximo lote a expirar: <span className="font-mono">{nextExpiry.amount} BC</span> em {nextExpiry.days} dia{nextExpiry.days > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
               <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
                 Cada GREEN virtual rende{' '}
-                <span className="font-semibold text-foreground">+50 BC base + bônus por lucro</span>, multiplicado pelo seu plano.
-                {!isPremium && (
+                <span className="font-semibold text-foreground">3 a 15 BC (por faixa de odd) + bônus por lucro</span>, multiplicado pelo seu plano.
+                Apostas seguindo sinais aprovados rendem <span className="text-emerald-300">100%</span>; manuais soltas rendem <span className="text-amber-300">50%</span>.
+                Cada RED virtual desconta <span className="text-destructive">3 BC</span>. BC expira em <span className="text-foreground">120 dias</span>.
+                {isTrial && (
                   <>
-                    {' '}Premium acumula <span className="text-yellow-300 font-semibold">2x mais BC</span>, tem acesso às{' '}
-                    <span className="text-yellow-300 font-semibold">2 arenas</span> e a{' '}
-                    <span className="text-yellow-300 font-semibold">prêmios exclusivos</span>.
+                    {' '}<span className="text-emerald-300 font-semibold">Trial acumula 2.5x</span> — você vê o saldo subir rápido, mas só consegue resgatar após assinar.
                   </>
                 )}
               </p>
