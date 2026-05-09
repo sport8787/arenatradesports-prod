@@ -729,19 +729,53 @@ serve(async (req) => {
 
         // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
         const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
-        // 🎯 Garante odd numérica para que o ROI/op de calibração seja sempre calculável.
-        // Se o modelo não devolveu odd válida, usa fallback Poisson (Over/Under) ou médias de mercado.
+        // 🎯 Garante odd numérica para o ROI/op de calibração.
+        // Prioridade: 1) odd do Mycroft (cache pré-jogo) 2) odd ao vivo Futodds 3) fallback Poisson.
         let _oddToPersist: number | null = null;
         const _rawOdd = Number(analysis.odd);
+        const _resolveLiveOdd = (market: string | null | undefined): number | null => {
+          if (!liveOddsRaw || !market) return null;
+          const m = String(market).toLowerCase();
+          const get = (k: string) => { const v = Number((liveOddsRaw as any)?.[k]); return Number.isFinite(v) && v > 1.01 ? v : null; };
+          const ouMatch = m.match(/(over|under|mais|menos)\s*(\d+(?:\.\d+)?)/);
+          if (ouMatch) {
+            const tipo = (ouMatch[1] === 'mais') ? 'over' : (ouMatch[1] === 'menos') ? 'under' : ouMatch[1];
+            const linha = ouMatch[2].replace('.', '_');
+            return get(`${tipo}_${linha}`);
+          }
+          if (/(btts|ambas)/.test(m)) {
+            return /(não|nao|\bno\b)/.test(m) ? get('btts_no') : get('btts_yes');
+          }
+          if (/(empate|draw)/.test(m)) return get('draw');
+          const home = String(match.home_team || '').toLowerCase();
+          const away = String(match.away_team || '').toLowerCase();
+          if (home && (m.includes(home) || /(mandante|home|casa)/.test(m))) return get('home');
+          if (away && (m.includes(away) || /(visitante|away|fora)/.test(m))) return get('away');
+          return null;
+        };
         if (Number.isFinite(_rawOdd) && _rawOdd > 1.01) {
           _oddToPersist = _rawOdd;
         } else {
-          _oddToPersist = resolveFallbackOdd({
-            market: analysis.market,
-            minute: Number(match.minute ?? 0),
-            scoreHome: Number(match.score_home ?? 0),
-            scoreAway: Number(match.score_away ?? 0),
-          });
+          const live = _resolveLiveOdd(analysis.market);
+          if (live != null) {
+            _oddToPersist = live;
+            console.log(`[AnalyzeLive] 🎯 Odd real Futodds para "${analysis.market}": ${live}`);
+            analysis.odd = live;
+            analysis.odd_source = 'real';
+            if (analysis.risk_management) {
+              analysis.risk_management.entry = `${analysis.market} @ ${live}`;
+              analysis.risk_management.rr = `1:${(live - 1).toFixed(2)}`;
+              analysis.risk_management.ev = `${Math.round(((Number(analysis.confidence ?? 0) / 100) * live - 1) * 100)}%`;
+            }
+          } else {
+            _oddToPersist = resolveFallbackOdd({
+              market: analysis.market,
+              minute: Number(match.minute ?? 0),
+              scoreHome: Number(match.score_home ?? 0),
+              scoreAway: Number(match.score_away ?? 0),
+            });
+            console.log(`[AnalyzeLive] ⚠️ Odd fallback Poisson para "${analysis.market}": ${_oddToPersist} (sem cotação real)`);
+          }
         }
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
