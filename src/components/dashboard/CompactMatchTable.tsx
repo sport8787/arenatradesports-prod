@@ -44,7 +44,7 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   APROVADO: 'APROVADO',
   opportunity: 'APROVADO',
-  APROVADO_SITUACIONAL: 'APROVADO SITUACIONAL',
+  APROVADO_SITUACIONAL: 'APROVADO • CONF. REDUZIDA',
   LABAREDA: 'APROVADO LABAREDAS',
   CUIDADO: 'CUIDADO',
   JOGO_MORTO: 'MORTO',
