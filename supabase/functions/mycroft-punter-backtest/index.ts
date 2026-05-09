@@ -1,5 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+// Markets supported by the backtest engine
+const ALL_MARKETS = ['Casa', 'Empate', 'Fora', 'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim'] as const
+type MarketKey = typeof ALL_MARKETS[number]
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -387,7 +391,17 @@ serve(async (req) => {
       monte_carlo_sims = 10000,
       use_historical = true,
       max_stake_amount = 50000,
+      markets: marketsInput,
+      data_source = 'auto', // 'auto' | 'arena_matches' | 'sportmonks' | 'futodds' | 'api_football'
     } = body
+
+    // Normalize markets filter: default = all
+    const allowedMarkets: Set<string> = new Set(
+      Array.isArray(marketsInput) && marketsInput.length > 0
+        ? marketsInput.filter((m: string) => (ALL_MARKETS as readonly string[]).includes(m))
+        : ALL_MARKETS
+    )
+    if (allowedMarkets.size === 0) ALL_MARKETS.forEach(m => allowedMarkets.add(m))
 
     const criteria = await loadPromptCriteria()
 
@@ -399,7 +413,8 @@ serve(async (req) => {
     if (validLeagues.length === 0) throw new Error('Nenhuma liga válida selecionada')
 
     const leagueNames = validLeagues.map(l => l.info.name).join(', ')
-    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season}`)
+    const leagueNameSet = new Set(validLeagues.map(l => l.info.name))
+    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season} | Fonte: ${data_source} | Mercados: ${Array.from(allowedMarkets).join(',')}`)
     console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%`)
 
     // 1. Try to load from arena_matches first (historical DB), then fallback to API
@@ -410,9 +425,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const dbClient = createClient(supabaseUrl, supabaseKey)
 
-    let usedHistoricalDB = false
+    let usedSource = 'none'
 
-    if (use_historical) {
+    const tryArenaMatches = data_source === 'auto' || data_source === 'arena_matches'
+    const trySportmonks = data_source === 'auto' || data_source === 'sportmonks'
+    const tryFutodds = data_source === 'auto' || data_source === 'futodds'
+    const tryApiFootball = data_source === 'auto' || data_source === 'api_football'
+
+    if (use_historical && tryArenaMatches) {
       // Try arena_matches first
       for (const l of validLeagues) {
         const seasonStr = `${season}/${season + 1}`
@@ -427,16 +447,14 @@ serve(async (req) => {
 
         if (dbMatches && dbMatches.length > 10) {
           console.log(`[Backtest] arena_matches: ${dbMatches.length} jogos para ${l.info.name}`)
-          usedHistoricalDB = true
+          usedSource = 'arena_matches'
           for (const m of dbMatches) {
-            // Convert arena_matches format to API-Football fixture format
             const fixtureId = parseInt(m.match_id.replace(/\D/g, '').slice(0, 8)) || Math.random() * 1000000
             const converted = {
               fixture: { id: fixtureId, date: m.match_date },
               teams: { home: { name: m.home_team }, away: { name: m.away_team } },
               goals: { home: m.score_home, away: m.score_away },
               league: { round: m.season || '' },
-              // Extra stats from arena_matches
               _stats: {
                 xg_home: m.xg_home, xg_away: m.xg_away,
                 shots_home: m.shots_home, shots_away: m.shots_away,
@@ -451,8 +469,42 @@ serve(async (req) => {
       }
     }
 
-    // Fallback to API-Football if no historical data found
-    if (allFixtures.length === 0) {
+    // Sportmonks (real historical fixtures by date)
+    if (allFixtures.length === 0 && trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
+      try {
+        const smFixtures = await fetchHistoricalFromSportmonks(season, leagueNameSet)
+        if (smFixtures.length > 0) {
+          usedSource = 'sportmonks'
+          for (const f of smFixtures) {
+            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
+            allFixtures.push(f)
+          }
+          console.log(`[Backtest] Sportmonks: ${smFixtures.length} jogos`)
+        }
+      } catch (e) {
+        console.warn('[Backtest] Sportmonks falhou:', (e as Error).message)
+      }
+    }
+
+    // Futodds /matches-ended (real historical, agnostic to AF league IDs)
+    if (allFixtures.length === 0 && tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
+      try {
+        const fdFixtures = await fetchHistoricalFromFutodds(season, leagueNameSet)
+        if (fdFixtures.length > 0) {
+          usedSource = 'futodds'
+          for (const f of fdFixtures) {
+            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
+            allFixtures.push(f)
+          }
+          console.log(`[Backtest] Futodds: ${fdFixtures.length} jogos`)
+        }
+      } catch (e) {
+        console.warn('[Backtest] Futodds falhou:', (e as Error).message)
+      }
+    }
+
+    // Fallback to API-Football
+    if (allFixtures.length === 0 && tryApiFootball) {
       if (!apiKey) throw new Error('Sem dados históricos e API_FOOTBALL_KEY não configurada')
       for (const l of validLeagues) {
         const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
@@ -463,9 +515,10 @@ serve(async (req) => {
         allFixtures.push(...fixtures)
         if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
       }
+      if (allFixtures.length > 0) usedSource = 'api_football'
     }
 
-    console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedHistoricalDB ? 'arena_matches' : 'API-Football'})`)
+    console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedSource})`)
 
     if (allFixtures.length === 0) {
       return jsonResponse({ success: true, results: [], metrics: emptyMetrics(), monte_carlo: null, growth_projections: [], league: leagueNames, season })
@@ -500,7 +553,7 @@ serve(async (req) => {
       if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
-          homeGoals, awayGoals, leagueAvg, criteria
+          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets
         )
 
         if (analysis) {
@@ -705,6 +758,8 @@ serve(async (req) => {
       growth_projections: growthProjections,
       results: approved.slice(0, 500),
       total_fixtures: allFixtures.length,
+      data_source: usedSource,
+      markets_used: Array.from(allowedMarkets),
     })
 
   } catch (error) {
@@ -771,8 +826,138 @@ async function fetchSeasonFixtures(leagueId: number, season: number, apiKey: str
 }
 
 // ═══════════════════════════════════════════════
-// League averages
+// SPORTMONKS — historical fixtures by date iteration
 // ═══════════════════════════════════════════════
+
+function smNorm(n: string): string {
+  return (n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ')
+}
+
+function leagueMatches(leagueName: string, allowed: Set<string>): string | null {
+  const target = smNorm(leagueName)
+  for (const a of allowed) {
+    const an = smNorm(a)
+    if (target === an || target.includes(an) || an.includes(target)) return a
+  }
+  return null
+}
+
+function* dateRangeOfSeason(season: number): Generator<string> {
+  // Brazilian leagues: Jan-Dec; European seasons: Aug season -> Jul season+1.
+  // To cover both, iterate Jan(season) -> Dec(season+1), capped at today.
+  const start = new Date(`${season}-01-01T00:00:00Z`)
+  const end = new Date(Math.min(new Date(`${season + 1}-12-31T00:00:00Z`).getTime(), Date.now()))
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    yield d.toISOString().slice(0, 10)
+  }
+}
+
+async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+  const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
+  if (!TOKEN) return []
+  const fixtures: any[] = []
+  let dayCount = 0
+  const MAX_DAYS = 400 // safety cap
+
+  for (const ymd of dateRangeOfSeason(season)) {
+    if (dayCount++ >= MAX_DAYS) break
+    const url = `https://api.sportmonks.com/v3/football/fixtures/date/${ymd}?api_token=${TOKEN}&include=scores;participants;state;league&per_page=100`
+    try {
+      const res = await fetch(url)
+      if (!res.ok) continue
+      const json = await res.json()
+      const data: any[] = json.data || []
+      for (const f of data) {
+        const stateName = f.state?.short_name || f.state?.name || ''
+        if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
+        const leagueName = f.league?.name || ''
+        const matched = leagueMatches(leagueName, allowedLeagues)
+        if (!matched) continue
+        const participants = f.participants || []
+        const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
+        const away = participants.find((p: any) => p.meta?.location === 'away') || participants[1]
+        if (!home || !away) continue
+        const scores = f.scores || []
+        let gh: number | null = null, ga: number | null = null
+        for (const s of scores) {
+          const desc = String(s.description || '').toUpperCase()
+          if (desc !== 'CURRENT') continue
+          if (s.score?.participant === 'home') gh = s.score.goals
+          if (s.score?.participant === 'away') ga = s.score.goals
+        }
+        if (gh === null || ga === null) {
+          for (const s of scores) {
+            const desc = String(s.description || '').toUpperCase()
+            if (desc !== 'FT') continue
+            if (s.score?.participant === 'home' && gh === null) gh = s.score.goals
+            if (s.score?.participant === 'away' && ga === null) ga = s.score.goals
+          }
+        }
+        if (gh === null || ga === null) continue
+        fixtures.push({
+          fixture: { id: f.id, date: f.starting_at || `${ymd}T00:00:00Z` },
+          teams: { home: { name: home.name }, away: { name: away.name } },
+          goals: { home: gh, away: ga },
+          league: { round: '' },
+          _leagueName: matched,
+        })
+      }
+    } catch { /* skip date */ }
+    // Light pacing to respect Sportmonks rate limits
+    if (dayCount % 5 === 0) await new Promise(r => setTimeout(r, 100))
+  }
+  return fixtures
+}
+
+// ═══════════════════════════════════════════════
+// FUTODDS — /matches-ended by date iteration
+// ═══════════════════════════════════════════════
+
+async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+  const TOKEN = Deno.env.get('FUTODDS_API_KEY')
+  if (!TOKEN) return []
+  const fixtures: any[] = []
+  let id = 1
+  let dayCount = 0
+  const MAX_DAYS = 400
+
+  for (const ymd of dateRangeOfSeason(season)) {
+    if (dayCount++ >= MAX_DAYS) break
+    try {
+      const res = await fetch(`https://csv.futodds.com/functions/v1/matches-ended?date=${ymd}`, {
+        headers: { Authorization: `Bearer ${TOKEN}`, 'X-API-Key': TOKEN, Accept: 'application/json' },
+      })
+      if (!res.ok) continue
+      const json = await res.json()
+      const data: any[] = Array.isArray(json) ? json : (json?.data || [])
+      for (const m of data) {
+        const leagueName = m.league_name || m.league || m.competition || ''
+        const matched = leagueMatches(leagueName, allowedLeagues)
+        if (!matched) continue
+        const home = m.home_name || m.home_team || m.home || ''
+        const away = m.away_name || m.away_team || m.away || ''
+        let gh: number | null = null, ga: number | null = null
+        if (typeof m.scores === 'string' && m.scores.includes('-')) {
+          const [a, b] = m.scores.split('-')
+          gh = Number(a); ga = Number(b)
+        }
+        if (gh == null || isNaN(gh)) gh = Number(m.home_goals)
+        if (ga == null || isNaN(ga)) ga = Number(m.away_goals)
+        if (!home || !away || gh == null || isNaN(gh) || ga == null || isNaN(ga)) continue
+        fixtures.push({
+          fixture: { id: id++, date: m.start_time || m.kickoff || `${ymd}T00:00:00Z` },
+          teams: { home: { name: home }, away: { name: away } },
+          goals: { home: gh, away: ga },
+          league: { round: '' },
+          _leagueName: matched,
+        })
+      }
+    } catch { /* skip */ }
+    if (dayCount % 5 === 0) await new Promise(r => setTimeout(r, 100))
+  }
+  return fixtures
+}
 
 interface LeagueAverages {
   avgGoals: number
@@ -879,6 +1064,7 @@ function analyzeWithCriteria(
   actualAwayGoals: number,
   leagueAvg: LeagueAverages,
   criteria: AnalysisCriteria,
+  allowedMarkets: Set<string> = new Set(ALL_MARKETS),
 ): AnalysisResult | null {
 
   // ── MODEL: Poisson-based predicted probabilities ──
@@ -976,6 +1162,7 @@ function analyzeWithCriteria(
   } | null = null
 
   for (const [market, modelProb] of Object.entries(modelProbs)) {
+    if (!allowedMarkets.has(market)) continue
     const marketOdd = marketOdds[market]
     if (!marketOdd || marketOdd > 20 || marketOdd < 1.05) continue
 

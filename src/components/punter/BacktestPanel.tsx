@@ -124,9 +124,28 @@ export default function BacktestPanel({ onClose }: Props) {
     return `R$ ${value.toFixed(0)}`;
   };
   const BANKROLL_PRESETS = [200, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+  const ALL_MARKETS = [
+    { key: 'Casa', label: 'Casa (1)' },
+    { key: 'Empate', label: 'Empate (X)' },
+    { key: 'Fora', label: 'Fora (2)' },
+    { key: 'Over 2.5', label: 'Over 2.5' },
+    { key: 'Under 2.5', label: 'Under 2.5' },
+    { key: 'Over 1.5', label: 'Over 1.5' },
+    { key: 'BTTS Sim', label: 'BTTS' },
+  ];
+  const DATA_SOURCES = [
+    { key: 'auto', label: 'Auto (melhor disponível)' },
+    { key: 'sportmonks', label: 'Sportmonks (real)' },
+    { key: 'futodds', label: 'Futodds (real)' },
+    { key: 'arena_matches', label: 'Arena Matches (DB)' },
+    { key: 'api_football', label: 'API-Football' },
+  ];
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
   const [initialBankroll, setInitialBankroll] = useState(10000);
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>(ALL_MARKETS.map(m => m.key));
+  const [dataSource, setDataSource] = useState<string>('auto');
+  const [usedSource, setUsedSource] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<BacktestMetrics | null>(null);
   const [monteCarlo, setMonteCarlo] = useState<MonteCarloResult | null>(null);
@@ -135,6 +154,19 @@ export default function BacktestPanel({ onClose }: Props) {
   const [leagueName, setLeagueName] = useState('');
   const [showBets, setShowBets] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'montecarlo' | 'breakdown' | 'bets'>('overview');
+
+  const toggleMarket = (key: string) => {
+    setSelectedMarkets(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(k => k !== key);
+        return next.length === 0 ? [key] : next;
+      }
+      return [...prev, key];
+    });
+  };
+  const toggleAllMarkets = () => {
+    setSelectedMarkets(prev => prev.length === ALL_MARKETS.length ? [ALL_MARKETS[0].key] : ALL_MARKETS.map(m => m.key));
+  };
 
   const allSelected = selectedLeagues.length === LEAGUES.length;
 
@@ -162,9 +194,17 @@ export default function BacktestPanel({ onClose }: Props) {
     setMonteCarlo(null);
     setGrowthProjections([]);
     setResults([]);
+    setUsedSource('');
     try {
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
-        body: { leagues: selectedLeagues, season, initial_bankroll: initialBankroll, max_stake_amount: MAX_STAKE_CAP }
+        body: {
+          leagues: selectedLeagues,
+          season,
+          initial_bankroll: initialBankroll,
+          max_stake_amount: MAX_STAKE_CAP,
+          markets: selectedMarkets,
+          data_source: dataSource,
+        }
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
@@ -173,7 +213,8 @@ export default function BacktestPanel({ onClose }: Props) {
       setGrowthProjections(data.growth_projections || []);
       setResults(data.results || []);
       setLeagueName(data.league);
-      toast.success(`Backtest + Monte Carlo concluído: ${data.metrics.total_approved} apostas simuladas`);
+      setUsedSource(data.data_source || '');
+      toast.success(`Backtest concluído (${data.data_source || 'fonte ?'}): ${data.metrics.total_approved} apostas simuladas`);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao executar backtest');
     } finally {
@@ -267,9 +308,52 @@ export default function BacktestPanel({ onClose }: Props) {
               </div>
             </div>
 
+            {/* Markets filter */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-muted-foreground">Mercados ({selectedMarkets.length}/{ALL_MARKETS.length})</label>
+                <button type="button" onClick={toggleAllMarkets} className="text-[10px] font-bold text-accent hover:underline">
+                  {selectedMarkets.length === ALL_MARKETS.length ? 'Desmarcar Todos' : '✅ Selecionar Todos'}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+                {ALL_MARKETS.map(m => (
+                  <label
+                    key={m.key}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs cursor-pointer border transition-colors",
+                      selectedMarkets.includes(m.key)
+                        ? 'border-accent/50 bg-accent/10 text-accent'
+                        : 'border-border bg-secondary/20 text-muted-foreground hover:border-accent/30'
+                    )}
+                  >
+                    <Checkbox checked={selectedMarkets.includes(m.key)} onCheckedChange={() => toggleMarket(m.key)} className="h-3.5 w-3.5" />
+                    <span className="truncate">{m.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Data source */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Fonte de dados históricos</label>
+              <Select value={dataSource} onValueChange={setDataSource}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DATA_SOURCES.map(s => (
+                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Sportmonks/Futodds buscam jogos REAIS encerrados (com placar) por data — modo Auto tenta arena_matches → Sportmonks → Futodds → API-Football.
+              </p>
+            </div>
+
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
               <p><strong className="text-accent">Pipeline:</strong> Backtest No-Lookahead + Monte Carlo (10.000 simulações)</p>
               <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme nível do sinal | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
+              {usedSource && <p className="mt-1 text-[10px]">📡 Última execução usou: <strong className="text-accent">{usedSource}</strong></p>}
               <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de apostas — sem crescimento infinito</p>
             </div>
 
