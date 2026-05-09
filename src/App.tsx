@@ -168,7 +168,7 @@ const App = () => {
                 <Route path="/punter/comunidade" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterComunidade /></RequireArena></RequireSubscription>} />
                 <Route path="/menu" element={<RequireSubscription><PunterMenu /></RequireSubscription>} />
                 <Route path="/punter/menu" element={<Navigate to="/menu" replace />} />
-                <Route path="/loja-bc" element={<RequireSubscription><BlackMarket /></RequireSubscription>} />
+                <Route path="/loja-bc" element={<BlackMarket />} />
                 <Route path="/punter/loja-bc" element={<Navigate to="/loja-bc" replace />} />
                 <Route path="/como-ganhar-bc" element={<HowToEarnBC />} />
                 <Route path="/how-to-earn-bc" element={<Navigate to="/como-ganhar-bc" replace />} />
