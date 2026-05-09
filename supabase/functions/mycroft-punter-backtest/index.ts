@@ -2,8 +2,38 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 // Markets supported by the backtest engine
-const ALL_MARKETS = ['Casa', 'Empate', 'Fora', 'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim'] as const
+const AH_LINES = [-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1] as const
+const AH_HOME_MARKETS = AH_LINES.map(l => `AH Casa ${l > 0 ? '+' : ''}${l}`)
+const AH_AWAY_MARKETS = AH_LINES.map(l => `AH Fora ${l > 0 ? '+' : ''}${l}`)
+const ALL_MARKETS = [
+  'Casa', 'Empate', 'Fora',
+  'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim',
+  ...AH_HOME_MARKETS,
+  ...AH_AWAY_MARKETS,
+] as const
 type MarketKey = typeof ALL_MARKETS[number]
+
+// Asian Handicap settlement multiplier on stake at odd O:
+// returns 1 (full win), 0.5 (half win), 0 (push), -0.5 (half loss), -1 (full loss)
+function settleAH(side: 'home' | 'away', line: number, homeGoals: number, awayGoals: number): number {
+  const diff = side === 'home' ? (homeGoals - awayGoals) : (awayGoals - homeGoals)
+  const adjusted = diff + line
+  // Quarter lines split between two adjacent half-lines
+  const isQuarter = Math.abs(line * 4) % 2 === 1
+  if (isQuarter) {
+    const lower = Math.floor(line * 2) / 2
+    const upper = Math.ceil(line * 2) / 2
+    return (settleAH(side, lower, homeGoals, awayGoals) + settleAH(side, upper, homeGoals, awayGoals)) / 2
+  }
+  // Half lines: never push
+  if ((line * 2) % 2 !== 0) {
+    return adjusted > 0 ? 1 : -1
+  }
+  // Whole lines: push allowed
+  if (adjusted > 0) return 1
+  if (adjusted === 0) return 0
+  return -1
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
