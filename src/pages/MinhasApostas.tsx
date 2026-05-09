@@ -598,7 +598,22 @@ export default function MinhasApostasPage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border flex-wrap">
+                    {bet.match_name && (
+                      <button
+                        onClick={() => {
+                          const teams = bet.match_name.split(' vs ');
+                          const focusKey = `${(teams[0] || '').trim()}_${(teams[1] || '').trim()}`
+                            .replace(/\s+/g, '_')
+                            .toLowerCase();
+                          navigate(`/punter?focus=${encodeURIComponent(focusKey)}`);
+                        }}
+                        className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Ver sinal
+                      </button>
+                    )}
                     {bet.status === 'pending' ? (
                       <>
                         <button
