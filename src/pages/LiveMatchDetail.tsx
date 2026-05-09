@@ -92,7 +92,7 @@ function groupHistory(history: SnapshotEvent[]): VerdictSession[] {
 
 const VERDICT_META: Record<string, { icon: string; label: string; tone: string; isActive?: boolean; isCancel?: boolean }> = {
   APROVADO: { icon: '✅', label: 'ENTRADA ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
-  APROVADO_SITUACIONAL: { icon: '✅', label: 'APROVADO SITUACIONAL', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
+  APROVADO_SITUACIONAL: { icon: '✅', label: 'APROVADO • CONF. REDUZIDA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
   opportunity: { icon: '✅', label: 'OPORTUNIDADE ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
   LABAREDA: { icon: '🔥', label: 'APROVADO LABAREDAS — ALTO RISCO', tone: 'border-orange-500/40 bg-orange-500/10 text-orange-400', isActive: true },
   CUIDADO: { icon: '⚠️', label: 'AGUARDAR — CUIDADO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
