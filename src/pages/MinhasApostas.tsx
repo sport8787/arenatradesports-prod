@@ -20,6 +20,7 @@ import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
 interface ManualBet {
   id: string;
+  match_id?: string;
   match_name: string;
   market: string;
   odd: number;
