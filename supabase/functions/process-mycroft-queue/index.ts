@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
+import { resolveFallbackOdd } from "../_shared/estimateLiveOdd.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
