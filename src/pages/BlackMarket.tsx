@@ -309,33 +309,72 @@ export default function BlackMarket() {
                 </h3>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className={`rounded-md p-2 border ${planMultiplier === 1.0 && !subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Free / Trial</p>
+                <div className={`rounded-md p-2 border ${currentPlan === 'free' || (!subscription?.is_active && !isTrial) ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-muted-foreground uppercase">Free</p>
                   <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                  <p className="text-[9px] text-muted-foreground/70">cap 600/mês</p>
                 </div>
-                <div className={`rounded-md p-2 border ${(currentPlan === 'starter' || currentPlan === 'basic') && subscription?.is_active ? 'border-foreground/40 bg-foreground/5' : 'border-border/40 bg-card/40 opacity-60'}`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Starter / Basic</p>
-                  <p className="font-mono font-bold text-sm text-foreground">1.0x</p>
+                <div className={`rounded-md p-2 border ${isTrial ? 'border-emerald-400/60 bg-emerald-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                  <p className="text-[10px] text-emerald-300 uppercase flex items-center justify-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5" /> Trial
+                  </p>
+                  <p className="font-mono font-bold text-sm text-emerald-300">2.5x</p>
+                  <p className="text-[9px] text-emerald-300/70">acumula sem resgatar</p>
                 </div>
-                <div className={`rounded-md p-2 border ${currentPlan === 'base' && subscription?.is_active ? 'border-blue-400/60 bg-blue-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
+                <div className={`rounded-md p-2 border ${isBase ? 'border-blue-400/60 bg-blue-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
                   <p className="text-[10px] text-blue-300 uppercase">Base</p>
-                  <p className="font-mono font-bold text-sm text-blue-300">1.5x</p>
+                  <p className="font-mono font-bold text-sm text-blue-300">1.1x</p>
+                  <p className="text-[9px] text-blue-300/70">cap 1.200/mês</p>
                 </div>
                 <div className={`rounded-md p-2 border ${isPremium ? 'border-yellow-400/60 bg-gradient-to-b from-yellow-500/15 to-amber-500/10' : 'border-border/40 bg-card/40 opacity-60'}`}>
                   <p className="text-[10px] text-yellow-300 uppercase flex items-center justify-center gap-0.5">
                     <Crown className="w-2.5 h-2.5" /> Premium
                   </p>
-                  <p className="font-mono font-bold text-sm text-yellow-300">2.0x</p>
+                  <p className="font-mono font-bold text-sm text-yellow-300">1.3x</p>
+                  <p className="text-[9px] text-yellow-300/70">cap 2.000/mês</p>
                 </div>
               </div>
+
+              {/* Barra de cap mensal */}
+              {!!user && (
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Cap mensal de BC</span>
+                    <span className="font-mono text-foreground">
+                      {creditedThisMonth.toLocaleString('pt-BR')} / {monthlyCap.toLocaleString('pt-BR')} BC
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-card/60 overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${capPct >= 100 ? 'bg-destructive' : capPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                      style={{ width: `${capPct}%` }}
+                    />
+                  </div>
+                  {capPct >= 100 && (
+                    <p className="text-[10px] text-destructive">
+                      Cap atingido este mês. Novos GREENs só vão render no virar do mês.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {nextExpiry && (
+                <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-300/90">
+                  <Hourglass className="w-3 h-3" />
+                  <span>
+                    Próximo lote a expirar: <span className="font-mono">{nextExpiry.amount} BC</span> em {nextExpiry.days} dia{nextExpiry.days > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
               <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
                 Cada GREEN virtual rende{' '}
-                <span className="font-semibold text-foreground">+50 BC base + bônus por lucro</span>, multiplicado pelo seu plano.
-                {!isPremium && (
+                <span className="font-semibold text-foreground">3 a 15 BC (por faixa de odd) + bônus por lucro</span>, multiplicado pelo seu plano.
+                Apostas seguindo sinais aprovados rendem <span className="text-emerald-300">100%</span>; manuais soltas rendem <span className="text-amber-300">50%</span>.
+                Cada RED virtual desconta <span className="text-destructive">3 BC</span>. BC expira em <span className="text-foreground">120 dias</span>.
+                {isTrial && (
                   <>
-                    {' '}Premium acumula <span className="text-yellow-300 font-semibold">2x mais BC</span>, tem acesso às{' '}
-                    <span className="text-yellow-300 font-semibold">2 arenas</span> e a{' '}
-                    <span className="text-yellow-300 font-semibold">prêmios exclusivos</span>.
+                    {' '}<span className="text-emerald-300 font-semibold">Trial acumula 2.5x</span> — você vê o saldo subir rápido, mas só consegue resgatar após assinar.
                   </>
                 )}
               </p>
