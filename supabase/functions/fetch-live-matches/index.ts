@@ -22,7 +22,7 @@ const corsHeaders = {
 const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 const LIVE_STATUS_SHORTS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP']);
 const FINISHED_STATUS_SHORTS = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
-const STALE_FINISH_GRACE_MS = 20 * 60 * 1000;
+const STALE_FINISH_GRACE_MS = 5 * 60 * 1000;
 
 // === Performance tuning ===
 const STATS_CONCURRENCY = 8;          // parallel fixture-stats requests
