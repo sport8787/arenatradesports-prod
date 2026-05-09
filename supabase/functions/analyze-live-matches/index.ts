@@ -379,6 +379,29 @@ serve(async (req) => {
                 }).eq('match_id', match.match_id);
                 console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
               }
+
+              // 🟣 BACKFILL xG via /matches-live-full (Sportmonks/Betfair-live podem vir com xg=null)
+              // Tenta vários shapes: m.stats.xg = [h,a] | m.stats.expected_goals=[h,a] | m.xg_home/xg_away
+              try {
+                const _curH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0);
+                const _curA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
+                if (_curH === 0 && _curA === 0 && fdOddMatch) {
+                  const fs = (fdOddMatch as any).stats || {};
+                  const arr2 = (k: string) => Array.isArray(fs[k]) ? fs[k] : [null, null];
+                  const [xH1, xA1] = arr2('xg');
+                  const [xH2, xA2] = arr2('expected_goals');
+                  const xH = Number(xH1 ?? xH2 ?? (fdOddMatch as any).xg_home ?? 0) || 0;
+                  const xA = Number(xA1 ?? xA2 ?? (fdOddMatch as any).xg_away ?? 0) || 0;
+                  if (xH > 0 || xA > 0) {
+                    (enrichedStats as any).xG_home = xH;
+                    (enrichedStats as any).xG_away = xA;
+                    (enrichedStats as any).xg_home = xH;
+                    (enrichedStats as any).xg_away = xA;
+                    (enrichedStats as any).source_xg = 'futodds-live-full';
+                    console.log(`[AnalyzeLive] 🟣 xG backfill via live-full ${match.home_team}-${match.away_team}: ${xH}/${xA}`);
+                  }
+                }
+              } catch (_e) { /* não-fatal */ }
             } catch (oddsErr) {
               console.warn('[AnalyzeLive] odds_live persist failed:', (oddsErr as Error)?.message);
             }
@@ -541,15 +564,17 @@ serve(async (req) => {
           const sa = Number(match.score_away ?? 0);
           const totalGoals = sh + sa;
 
-          // 1) Over 0.5 HT
+          // 1) Over 0.5 HT — janela estreita: APENAS entre minuto 5 e 20, com placar 0x0.
+          //    Após o minuto 20 NÃO faz mais sentido (preço já desabou e gol pode sair só no fim do 1T).
+          //    Antes do minuto 5 ainda não há leitura estatística suficiente.
           const isOver05HT =
             /over\s*0\.?5/.test(marketLower) &&
             (/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower));
           if (isOver05HT) {
-            if (minute > 30 || totalGoals >= 1) {
-              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: <=30' e 0x0)`);
+            if (minute < 5 || minute > 20 || totalGoals >= 1) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: 5'≤min≤20' e 0x0)`);
               analysis.verdict = 'AGUARDAR';
-              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Regra exige minuto ≤ 30 e placar 0x0. ` + (analysis.thesis || '');
+              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–20 e placar 0x0. Após o 20' considere Over 0.5 FT ou Back ao time dominante. ` + (analysis.thesis || '');
               analysis.plan_name = null;
             }
           }
