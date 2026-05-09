@@ -208,14 +208,63 @@ export default function PunterPage() {
     }
   };
 
-  // Set of pending bet match keys for "NOVO" badge
-  const pendingMatchKeys = useMemo(() => {
+  // Set de jogos com aposta já realizada (Hórus OU manual) — chaveado por home_away normalizado.
+  // Usado para impedir nova aposta no mesmo sinal e exibir etiqueta "JÁ APOSTADO".
+  const placedBetMatchKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (const bet of pendingBets) {
-      keys.add((bet.match_id || '').toLowerCase());
-    }
+    const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
+    const addKey = (matchId?: string, matchName?: string) => {
+      if (matchId) {
+        keys.add(norm(matchId));
+        // Variante sem commence_time (último underscore + ISO)
+        const withoutTime = String(matchId).split('_').slice(0, 2).join('_');
+        if (withoutTime) keys.add(norm(withoutTime));
+      }
+      if (matchName) {
+        // "Home vs Away" -> home_away
+        const m = matchName.split(/\s+vs\s+/i);
+        if (m.length === 2) keys.add(norm(`${m[0]}_${m[1]}`));
+      }
+    };
+    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name);
+    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name);
     return keys;
-  }, [pendingBets]);
+  }, [pendingBets, manualPendingBets]);
+
+  // Compatibilidade: mantém referência antiga (mesma estrutura)
+  const pendingMatchKeys = placedBetMatchKeys;
+
+  // Sinais NOVOS = aprovados após a última visita (persistido em localStorage)
+  const SEEN_KEY = 'punter_seen_signal_ids_v1';
+  const [seenSignalIds, setSeenSignalIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(SEEN_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {}
+    return new Set<string>();
+  });
+
+  // Helper para extrair um id estável por sinal (analysis_id, ou home_away_market)
+  const signalKey = (s: PunterSignal): string => {
+    const aid = (s as any).analysis_id;
+    if (aid) return String(aid);
+    return `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  // Marca novos sinais e persiste após 8s para que o badge NOVO permaneça visível durante a visita
+  useEffect(() => {
+    if (!signals || signals.length === 0) return;
+    const t = setTimeout(() => {
+      setSeenSignalIds((prev) => {
+        const next = new Set(prev);
+        for (const s of signals) next.add(signalKey(s));
+        try { localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(next).slice(-500))); } catch {}
+        return next;
+      });
+    }, 8000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signals]);
 
   // Load pending bets AND saved approved signals on mount
   useEffect(() => {
@@ -1665,7 +1714,8 @@ export default function PunterPage() {
                     onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
                     bankroll={bankroll}
                     manualBankroll={manualBankroll}
-                    isNew={!hasPendingBet && !wasAutoPlaced}
+                    isNew={!seenSignalIds.has(signalKey(signal))}
+                    userAlreadyBet={hasPendingBet || wasAutoPlaced}
                     horusEntered={hasPendingBet || wasAutoPlaced}
                     horusStake={realHorusStake}
                     horusBetDate={realBetDate}
@@ -1807,12 +1857,13 @@ export default function PunterPage() {
 }
 
 // Signal Card Component with Asset Score Grade (A+/A/B/C)
-function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, horusEntered, horusStake, horusBetDate, kellyPercent }: {
+function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew, userAlreadyBet, horusEntered, horusStake, horusBetDate, kellyPercent }: {
   signal: PunterSignal;
   onPlaceBetManual: (stake: number) => void;
   bankroll: any;
   manualBankroll: any;
   isNew: boolean;
+  userAlreadyBet: boolean;
   horusEntered: boolean;
   horusStake: number;
   horusBetDate?: Date | null;
@@ -1834,6 +1885,10 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
   const gradeConfig = getGradeConfig(assetScore.grade);
 
   const handleManualBet = () => {
+    if (userAlreadyBet) {
+      toast.info('Você já apostou neste sinal. Veja em "Minhas Apostas".');
+      return;
+    }
     const stake = parseFloat(customStake);
     if (isNaN(stake) || stake <= 0) {
       toast.error('Informe um valor válido');
@@ -1876,10 +1931,17 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 ⚠️ SIMULADAS
               </span>
             )}
-            {isNew && (
-              <span className="text-[10px] font-mono text-accent animate-pulse">● NOVO</span>
+            {isNew && !userAlreadyBet && (
+              <span className="text-[10px] font-mono font-bold text-accent-foreground bg-accent border border-accent px-1.5 py-0.5 rounded animate-pulse">
+                ● NOVO
+              </span>
             )}
-            {horusEntered && (
+            {userAlreadyBet && (
+              <span className="text-[10px] font-mono font-bold text-success bg-success/10 border border-success/40 px-1.5 py-0.5 rounded">
+                ✓ JÁ APOSTADO
+              </span>
+            )}
+            {horusEntered && !userAlreadyBet && (
               <span className="text-[10px] font-mono text-primary">
                 ✓ HÓRUS R$ {horusStake.toFixed(2)}
               </span>
@@ -2051,12 +2113,17 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 variant="outline"
                 size="sm"
                 className="h-8 px-3 font-mono text-xs"
-                disabled={!manualBankroll || !customStake}
+                disabled={!manualBankroll || !customStake || userAlreadyBet}
+                title={userAlreadyBet ? 'Você já apostou neste sinal' : undefined}
               >
-                APOSTAR
+                {userAlreadyBet ? '✓ APOSTADO' : 'APOSTAR'}
               </Button>
             </div>
-            {horusStake > 0 && (
+            {userAlreadyBet ? (
+              <p className="text-[10px] font-mono text-success/90 leading-tight">
+                ✓ Aposta já registrada para este sinal — abra "Minhas Apostas" para acompanhar.
+              </p>
+            ) : horusStake > 0 && (
               <p className="text-[9px] font-mono text-muted-foreground/80 leading-tight">
                 💡 Clique no valor R$ {horusStake.toFixed(2)} para copiar a mesma stake sugerida pelo Hórus.
               </p>
