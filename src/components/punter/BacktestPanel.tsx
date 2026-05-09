@@ -124,9 +124,28 @@ export default function BacktestPanel({ onClose }: Props) {
     return `R$ ${value.toFixed(0)}`;
   };
   const BANKROLL_PRESETS = [200, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+  const ALL_MARKETS = [
+    { key: 'Casa', label: 'Casa (1)' },
+    { key: 'Empate', label: 'Empate (X)' },
+    { key: 'Fora', label: 'Fora (2)' },
+    { key: 'Over 2.5', label: 'Over 2.5' },
+    { key: 'Under 2.5', label: 'Under 2.5' },
+    { key: 'Over 1.5', label: 'Over 1.5' },
+    { key: 'BTTS Sim', label: 'BTTS' },
+  ];
+  const DATA_SOURCES = [
+    { key: 'auto', label: 'Auto (melhor disponível)' },
+    { key: 'sportmonks', label: 'Sportmonks (real)' },
+    { key: 'futodds', label: 'Futodds (real)' },
+    { key: 'arena_matches', label: 'Arena Matches (DB)' },
+    { key: 'api_football', label: 'API-Football' },
+  ];
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
   const [season, setSeason] = useState(SEASONS[0]);
   const [initialBankroll, setInitialBankroll] = useState(10000);
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>(ALL_MARKETS.map(m => m.key));
+  const [dataSource, setDataSource] = useState<string>('auto');
+  const [usedSource, setUsedSource] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<BacktestMetrics | null>(null);
   const [monteCarlo, setMonteCarlo] = useState<MonteCarloResult | null>(null);
@@ -135,6 +154,19 @@ export default function BacktestPanel({ onClose }: Props) {
   const [leagueName, setLeagueName] = useState('');
   const [showBets, setShowBets] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'montecarlo' | 'breakdown' | 'bets'>('overview');
+
+  const toggleMarket = (key: string) => {
+    setSelectedMarkets(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(k => k !== key);
+        return next.length === 0 ? [key] : next;
+      }
+      return [...prev, key];
+    });
+  };
+  const toggleAllMarkets = () => {
+    setSelectedMarkets(prev => prev.length === ALL_MARKETS.length ? [ALL_MARKETS[0].key] : ALL_MARKETS.map(m => m.key));
+  };
 
   const allSelected = selectedLeagues.length === LEAGUES.length;
 
