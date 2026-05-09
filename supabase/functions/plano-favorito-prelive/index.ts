@@ -958,12 +958,31 @@ Deno.serve(async (req) => {
   const start = Date.now()
   console.log('[PLANO FAVORITO] Iniciando análise pré-live...')
 
+  // Reset contador de mirror para esta execução
+  mirrorStats.ok = 0
+  mirrorStats.fail = 0
+
+  // Lê body
+  let body: any = {}
+  try { body = await req.json() } catch { /* sem body */ }
+  DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
+  const triggerSource = String(body?.trigger || 'manual').slice(0, 64)
+  console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE} trigger=${triggerSource}`)
+
+  // Insere registro de telemetria (id reutilizado no finally)
+  let runId: string | null = null
   try {
-    // Lê data_source do body (default api-football)
-    let body: any = {}
-    try { body = await req.json() } catch { /* sem body */ }
-    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
-    console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE}`)
+    const { data: runRow } = await supabase
+      .from('plano_favorito_runs')
+      .insert({ trigger_source: triggerSource, started_at: new Date().toISOString() })
+      .select('id')
+      .single()
+    runId = runRow?.id ?? null
+  } catch (e) {
+    console.error('[PLANO FAVORITO] erro ao registrar run inicial', e)
+  }
+
+  try {
 
     // Verifica autenticação + role admin (quando chamado pelo frontend)
     const authHeader = req.headers.get('Authorization') ?? ''
