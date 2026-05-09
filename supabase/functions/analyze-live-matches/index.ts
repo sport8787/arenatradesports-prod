@@ -376,7 +376,6 @@ serve(async (req) => {
               if (flat.home || flat.draw || flat.away || flat.over25) {
                 await supabase.from('live_matches').update({
                   odds_live: flat,
-                  updated_at: new Date().toISOString(),
                 }).eq('match_id', match.match_id);
                 console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
               }
@@ -791,7 +790,6 @@ serve(async (req) => {
               .update({
                 mycroft_analysis_id: analysisRow.id,
                 mycroft_status: statusToSet,
-                updated_at: new Date().toISOString(),
               })
               .eq('match_id', match.match_id);
           }
