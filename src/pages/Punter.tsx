@@ -1714,7 +1714,8 @@ export default function PunterPage() {
                     onPlaceBetManual={(customStake: number) => placeBetManual(signal, customStake)}
                     bankroll={bankroll}
                     manualBankroll={manualBankroll}
-                    isNew={!hasPendingBet && !wasAutoPlaced}
+                    isNew={!seenSignalIds.has(signalKey(signal))}
+                    userAlreadyBet={hasPendingBet || wasAutoPlaced}
                     horusEntered={hasPendingBet || wasAutoPlaced}
                     horusStake={realHorusStake}
                     horusBetDate={realBetDate}
