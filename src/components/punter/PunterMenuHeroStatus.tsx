@@ -193,7 +193,7 @@ export default function PunterMenuHeroStatus() {
         </span>
         <div>
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Sinais hoje
+            Sinais em aberto
           </p>
           <p className="text-sm font-semibold text-foreground">
             {stats.loading ? '—' : stats.signalsToday}
