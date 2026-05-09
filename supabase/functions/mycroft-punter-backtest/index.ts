@@ -97,7 +97,7 @@ interface BacktestResult {
   ev: number
   value_pct: number
   verdict: 'APROVADO' | 'VETADO'
-  result: 'green' | 'red' | null
+  result: 'green' | 'red' | 'push' | 'half_green' | 'half_red' | null
   stake_pct: number
   stake_amount: number
   profit_loss: number
