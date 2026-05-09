@@ -194,9 +194,17 @@ export default function BacktestPanel({ onClose }: Props) {
     setMonteCarlo(null);
     setGrowthProjections([]);
     setResults([]);
+    setUsedSource('');
     try {
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
-        body: { leagues: selectedLeagues, season, initial_bankroll: initialBankroll, max_stake_amount: MAX_STAKE_CAP }
+        body: {
+          leagues: selectedLeagues,
+          season,
+          initial_bankroll: initialBankroll,
+          max_stake_amount: MAX_STAKE_CAP,
+          markets: selectedMarkets,
+          data_source: dataSource,
+        }
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
@@ -205,7 +213,8 @@ export default function BacktestPanel({ onClose }: Props) {
       setGrowthProjections(data.growth_projections || []);
       setResults(data.results || []);
       setLeagueName(data.league);
-      toast.success(`Backtest + Monte Carlo concluído: ${data.metrics.total_approved} apostas simuladas`);
+      setUsedSource(data.data_source || '');
+      toast.success(`Backtest concluído (${data.data_source || 'fonte ?'}): ${data.metrics.total_approved} apostas simuladas`);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao executar backtest');
     } finally {
