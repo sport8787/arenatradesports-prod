@@ -377,9 +377,9 @@ export default function PunterLiquidacoesPage() {
                 <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
               </div>
               <div className="rounded-md border border-border bg-background/40 p-3">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">Sinais IA</div>
-                <div className="font-mono text-xl font-bold text-foreground">{blockPunter.total}</div>
-                <div className="text-[10px] font-mono text-muted-foreground">no período</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Total de Sinais</div>
+                <div className="font-mono text-xl font-bold text-foreground">{blockCombined.total}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">IA + Favorito + Raros</div>
               </div>
             </div>
           </div>
