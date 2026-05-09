@@ -7659,6 +7659,24 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
+      league_roi_before_after: {
+        Args: { p_pivot: string; p_window_days?: number }
+        Returns: {
+          after_green: number
+          after_hit_rate: number
+          after_red: number
+          after_roi: number
+          after_total: number
+          before_green: number
+          before_hit_rate: number
+          before_red: number
+          before_roi: number
+          before_total: number
+          championship: string
+          enabled: boolean
+          tier: string
+        }[]
+      }
       log_mycroft_chat_attempt: {
         Args: {
           p_away_team?: string

@@ -143,6 +143,13 @@ const LINKS: AdminLink[] = [
     icon: <Activity className="h-4 w-4" />,
     group: 'Mycroft',
   },
+  {
+    to: '/admin/league-roi',
+    label: 'ROI por Liga (Antes vs Depois)',
+    description: 'Compara hit rate e ROI por liga antes/depois de uma data de corte. Valida impacto Tier A.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Análise',
+  },
 ];
 
 const groupOrder: AdminLink['group'][] = ['Usuários', 'Operação', 'Análise', 'Mycroft', 'Logs'];
