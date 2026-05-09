@@ -766,7 +766,10 @@ async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25
     .from('punter_analyses')
     .upsert(payload, { onConflict: 'match_id,market', ignoreDuplicates: false })
   if (error) {
+    mirrorStats.fail++
     console.error('[PLANO FAVORITO] mirror punter_analyses erro', label, error.message)
+  } else {
+    mirrorStats.ok++
   }
 
   // Mirror também para punter_sinais (tabela unificada lida pelo /punter)
