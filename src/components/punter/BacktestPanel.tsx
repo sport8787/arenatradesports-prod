@@ -316,11 +316,19 @@ export default function BacktestPanel({ onClose }: Props) {
 
             {/* Markets filter */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                 <label className="text-xs text-muted-foreground">Mercados ({selectedMarkets.length}/{ALL_MARKETS.length})</label>
-                <button type="button" onClick={toggleAllMarkets} className="text-[10px] font-bold text-accent hover:underline">
-                  {selectedMarkets.length === ALL_MARKETS.length ? 'Desmarcar Todos' : '✅ Selecionar Todos'}
-                </button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setSelectedMarkets(prev => {
+                    const allAH = AH_KEYS.every(k => prev.includes(k));
+                    return allAH ? prev.filter(k => !AH_KEYS.includes(k)) : Array.from(new Set([...prev, ...AH_KEYS]));
+                  })} className="text-[10px] font-bold text-accent hover:underline">
+                    {AH_KEYS.every(k => selectedMarkets.includes(k)) ? 'Tirar AH' : '➕ Todos AH'}
+                  </button>
+                  <button type="button" onClick={toggleAllMarkets} className="text-[10px] font-bold text-accent hover:underline">
+                    {selectedMarkets.length === ALL_MARKETS.length ? 'Desmarcar Todos' : '✅ Selecionar Todos'}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
                 {ALL_MARKETS.map(m => (
