@@ -94,7 +94,7 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'APROVADO_SITUACIONAL':
       return {
         bg: 'bg-[#1A3A2A]', border: 'border-[#34D399]', text: 'text-[#6EE7B7]',
-        label: '📍 APROVADO SITUACIONAL', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
+        label: '📍 APROVADO • CONF. REDUZIDA', animate: 'animate-pulse-green', icon: <Target className="w-4 h-4" />,
       };
     case 'LABAREDA':
       return {
