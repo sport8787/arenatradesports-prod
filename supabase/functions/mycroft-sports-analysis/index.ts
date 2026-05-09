@@ -698,7 +698,7 @@ serve(async (req) => {
 
     // Extract from tool call response
     const choice = data.choices?.[0];
-    const finishReason = choice?.finish_reason;
+    let finishReason = choice?.finish_reason;
     const toolCall = choice?.message?.tool_calls?.[0];
     let rawText = '';
     if (toolCall?.function?.arguments) {
@@ -707,7 +707,34 @@ serve(async (req) => {
       rawText = choice?.message?.content || '';
     }
     if (finishReason === 'length' || finishReason === 'MAX_TOKENS') {
-      console.warn(`[MycroftSports] ⚠️ Resposta truncada (finish_reason=${finishReason}, len=${rawText.length})`);
+      console.warn(`[MycroftSports] ⚠️ Resposta truncada (finish_reason=${finishReason}, len=${rawText.length}) — tentando retry compacto`);
+      try {
+        const retryR = await fetch(AI_URL, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
+          body: buildBody(usedModel, {
+            systemOverride: SYSTEM_SHORT,
+            promptOverride: compactPrompt(prompt),
+            maxTokensOverride: Math.min(8192, Math.max(adaptiveMaxTokens, 4096)),
+          }),
+        });
+        if (retryR.ok) {
+          const retryData = await retryR.json();
+          const rChoice = retryData.choices?.[0];
+          const rTool = rChoice?.message?.tool_calls?.[0];
+          const rRaw = rTool?.function?.arguments || rChoice?.message?.content || '';
+          if (rRaw && rRaw.length > 5) {
+            console.log(`[MycroftSports] ♻️ Retry compacto OK (finish=${rChoice?.finish_reason}, len=${rRaw.length})`);
+            rawText = rRaw;
+            finishReason = rChoice?.finish_reason;
+          }
+        } else {
+          console.warn(`[MycroftSports] ⚠️ Retry compacto falhou status=${retryR.status}`);
+          await retryR.text().catch(() => '');
+        }
+      } catch (e) {
+        console.warn('[MycroftSports] ⚠️ Erro no retry compacto:', (e as Error).message);
+      }
     }
     console.log('[MycroftSports] Raw:', rawText.substring(0, 300));
 
@@ -723,31 +750,80 @@ serve(async (req) => {
       risk_management: { stake_percent: 0, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: 'N/A', ev: 'N/A' },
     };
 
-    let analysis;
-    if (!rawText || rawText.trim().length < 5) {
-      console.warn('[MycroftSports] ⚠️ rawText vazio — usando fallback AGUARDAR');
-      analysis = safeAguardar;
-    } else {
+    // Tenta parsear JSON; em caso de falha pede à IA reenvio estritamente JSON.
+    const tryParse = (txt: string): any | null => {
       try {
-        analysis = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-      } catch (parseErr) {
-        // Fallback repair
-        const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|APROVADO_SITUACIONAL|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
-        if (!vm) {
-          console.warn('[MycroftSports] ⚠️ Parse falhou e sem verdict → fallback AGUARDAR:', (parseErr as Error).message);
-          analysis = safeAguardar;
-        } else {
-          const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
-          const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
-          analysis = {
-            verdict: vm[1], market: mm?.[1] || 'N/A', odd: om ? parseFloat(om[1]) : 1.50,
-            confidence: parseInt(rawText.match(/"confidence"\s*:\s*(\d+)/)?.[1] || '50'),
-            thesis: rawText.match(/"thesis"\s*:\s*"([^"]*)/)?.[1] || 'Análise parcial (resposta truncada)',
-            alerts: ['Resposta truncada — análise parcial'], fundamentation: {},
-            risk_management: { stake_percent: 5, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: '1:1.5', ev: '+10%' },
-          };
+        return JSON.parse(txt.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+      } catch {
+        // Tenta extrair primeiro objeto JSON balanceado
+        const m = txt.match(/\{[\s\S]*\}/);
+        if (m) {
+          try { return JSON.parse(m[0]); } catch { /* noop */ }
         }
+        return null;
       }
+    };
+
+    let analysis: any = null;
+    if (!rawText || rawText.trim().length < 5) {
+      console.warn('[MycroftSports] ⚠️ rawText vazio — tentará retry de reparo antes do fallback');
+    } else {
+      analysis = tryParse(rawText);
+    }
+
+    // Retry de REPARO: pede à IA reenviar payload estritamente JSON, sem markdown/comentários.
+    if (!analysis) {
+      console.warn('[MycroftSports] 🔧 Parse falhou — solicitando reenvio JSON estrito');
+      try {
+        const repairBody = JSON.stringify({
+          model: usedModel,
+          messages: [
+            { role: 'system', content: 'Você é um conversor JSON estrito. Receberá um texto bruto possivelmente quebrado e DEVE retornar SOMENTE um objeto JSON válido — sem markdown, sem ```json, sem comentários, sem texto antes/depois. Mantenha os campos: verdict (APROVADO|APROVADO_SITUACIONAL|LABAREDA|CUIDADO|JOGO_MORTO|AGUARDAR), market (string), odd (number), confidence (integer), thesis (string ≤220 chars), alerts (array de strings), risk_management {stake_percent, entry, stop, target, rr, ev}. Se faltar algum campo, preencha com valores neutros (ex: AGUARDAR/N/A/0). Responda APENAS o JSON.' },
+            { role: 'user', content: `Bruto recebido (pode estar truncado):\n\n${rawText.slice(0, 4000)}` },
+          ],
+          max_tokens: 1200,
+          response_format: { type: 'json_object' },
+        });
+        const repairR = await fetch(AI_URL, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
+          body: repairBody,
+        });
+        if (repairR.ok) {
+          const repairData = await repairR.json();
+          const repairText = repairData.choices?.[0]?.message?.content || '';
+          console.log('[MycroftSports] 🔧 Reparo raw:', repairText.substring(0, 200));
+          analysis = tryParse(repairText);
+          if (analysis) console.log('[MycroftSports] ✅ Reparo JSON bem-sucedido');
+        } else {
+          console.warn(`[MycroftSports] ⚠️ Reparo JSON falhou status=${repairR.status}`);
+          await repairR.text().catch(() => '');
+        }
+      } catch (e) {
+        console.warn('[MycroftSports] ⚠️ Erro no retry de reparo:', (e as Error).message);
+      }
+    }
+
+    // Último recurso: extração regex linha-a-linha do rawText
+    if (!analysis && rawText) {
+      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|APROVADO_SITUACIONAL|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
+      if (vm) {
+        const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
+        const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
+        analysis = {
+          verdict: vm[1], market: mm?.[1] || 'N/A', odd: om ? parseFloat(om[1]) : 1.50,
+          confidence: parseInt(rawText.match(/"confidence"\s*:\s*(\d+)/)?.[1] || '50'),
+          thesis: rawText.match(/"thesis"\s*:\s*"([^"]*)/)?.[1] || 'Análise parcial (resposta truncada)',
+          alerts: ['Resposta truncada — análise parcial'], fundamentation: {},
+          risk_management: { stake_percent: 5, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: '1:1.5', ev: '+10%' },
+        };
+        console.log('[MycroftSports] 🩹 Extração regex aplicada como último recurso');
+      }
+    }
+
+    if (!analysis) {
+      console.warn('[MycroftSports] ⚠️ Todas as tentativas falharam → fallback AGUARDAR');
+      analysis = safeAguardar;
     }
 
     // === GUARD TEMPORAL UNDER 2.5 ===
