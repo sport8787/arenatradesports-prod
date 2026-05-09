@@ -660,8 +660,8 @@ serve(async (req) => {
 
     // 4. Calculate metrics
     const approved = results.filter(r => r.verdict === 'APROVADO')
-    const greens = approved.filter(r => r.result === 'green')
-    const reds = approved.filter(r => r.result === 'red')
+    const greens = approved.filter(r => ['green','half_green'].includes(r.result as string))
+    const reds = approved.filter(r => ['red','half_red'].includes(r.result as string))
     const totalPL = bankroll - initial_bankroll
     const roi = totalActualStaked > 0 ? (totalPL / totalActualStaked) * 100 : 0
     const approvalRate = results.length > 0 ? (approved.length / results.length * 100) : 0
@@ -669,7 +669,7 @@ serve(async (req) => {
     // ROI by tier
     const tierBreakdown = criteria.tiers.map(tier => {
       const inTier = approved.filter(r => r.tier === tier.label)
-      const tierGreens = inTier.filter(r => r.result === 'green').length
+      const tierGreens = inTier.filter(r => ['green','half_green'].includes(r.result as string)).length
       const tierPL = inTier.reduce((s, r) => s + r.profit_loss, 0)
       const tierStaked = inTier.reduce((s, r) => s + r.stake_amount, 0)
       return {
@@ -692,7 +692,7 @@ serve(async (req) => {
     ]
     const roiByOddRange = oddRanges.map(range => {
       const inRange = approved.filter(r => r.odd >= range.min && r.odd < range.max)
-      const rangeGreens = inRange.filter(r => r.result === 'green').length
+      const rangeGreens = inRange.filter(r => ['green','half_green'].includes(r.result as string)).length
       const rangePL = inRange.reduce((s, r) => s + r.profit_loss, 0)
       const rangeStaked = inRange.reduce((s, r) => s + r.stake_amount, 0)
       return {
@@ -710,7 +710,7 @@ serve(async (req) => {
     const leagueSet = new Set(approved.map(r => r.league_name))
     const roiByLeague = Array.from(leagueSet).map(ln => {
       const inLeague = approved.filter(r => r.league_name === ln)
-      const lGreens = inLeague.filter(r => r.result === 'green').length
+      const lGreens = inLeague.filter(r => ['green','half_green'].includes(r.result as string)).length
       const lPL = inLeague.reduce((s, r) => s + r.profit_loss, 0)
       const lStaked = inLeague.reduce((s, r) => s + r.stake_amount, 0)
       return {
