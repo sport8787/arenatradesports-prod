@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
+import { resolveFallbackOdd } from "../_shared/estimateLiveOdd.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,12 +98,21 @@ serve(async (req) => {
           const analysis = await res.json();
 
           const stats = payload?.match?.stats ?? null;
+          const _rawOdd = Number(analysis.odd);
+          const _oddToPersist = Number.isFinite(_rawOdd) && _rawOdd > 1.01
+            ? _rawOdd
+            : resolveFallbackOdd({
+                market: analysis.market,
+                minute: Number(payload?.match?.minute ?? 0),
+                scoreHome: Number(payload?.match?.scoreHome ?? 0),
+                scoreAway: Number(payload?.match?.scoreAway ?? 0),
+              });
           const { data: row } = await supabase.from('mycroft_analyses').insert({
             match_id: matchId,
             verdict: analysis.verdict || 'AGUARDAR',
             market: analysis.market || 'N/A',
             thesis: analysis.thesis || '',
-            odd: analysis.odd ?? null,
+            odd: _oddToPersist,
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: analysis.alerts ?? [],

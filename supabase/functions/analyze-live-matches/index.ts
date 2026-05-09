@@ -7,6 +7,7 @@ import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
 import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 import { getCalibrationFloor, applyCalibrationFloor } from "../_shared/calibrationFloor.ts";
 import { isBorderline, validateBorderline, ACTIVE_VERDICTS as BORDERLINE_ACTIVE } from "../_shared/borderlineAIValidator.ts";
+import { resolveFallbackOdd } from "../_shared/estimateLiveOdd.ts";
 
 // Cache de odds_live (Futodds /matches-live-full) por execução
 let _futoddsOddsCache: { ts: number; list: any[] } | null = null;
@@ -694,6 +695,20 @@ serve(async (req) => {
 
         // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
         const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
+        // 🎯 Garante odd numérica para que o ROI/op de calibração seja sempre calculável.
+        // Se o modelo não devolveu odd válida, usa fallback Poisson (Over/Under) ou médias de mercado.
+        let _oddToPersist: number | null = null;
+        const _rawOdd = Number(analysis.odd);
+        if (Number.isFinite(_rawOdd) && _rawOdd > 1.01) {
+          _oddToPersist = _rawOdd;
+        } else {
+          _oddToPersist = resolveFallbackOdd({
+            market: analysis.market,
+            minute: Number(match.minute ?? 0),
+            scoreHome: Number(match.score_home ?? 0),
+            scoreAway: Number(match.score_away ?? 0),
+          });
+        }
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
           .insert({
@@ -702,7 +717,7 @@ serve(async (req) => {
             plan_name: analysis.plan_name || null,
             market: analysis.market || 'N/A',
             thesis: analysis.thesis || 'Análise sem tese.',
-            odd: analysis.odd ?? null,
+            odd: _oddToPersist,
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
