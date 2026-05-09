@@ -2113,12 +2113,17 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 variant="outline"
                 size="sm"
                 className="h-8 px-3 font-mono text-xs"
-                disabled={!manualBankroll || !customStake}
+                disabled={!manualBankroll || !customStake || userAlreadyBet}
+                title={userAlreadyBet ? 'Você já apostou neste sinal' : undefined}
               >
-                APOSTAR
+                {userAlreadyBet ? '✓ APOSTADO' : 'APOSTAR'}
               </Button>
             </div>
-            {horusStake > 0 && (
+            {userAlreadyBet ? (
+              <p className="text-[10px] font-mono text-success/90 leading-tight">
+                ✓ Aposta já registrada para este sinal — abra "Minhas Apostas" para acompanhar.
+              </p>
+            ) : horusStake > 0 && (
               <p className="text-[9px] font-mono text-muted-foreground/80 leading-tight">
                 💡 Clique no valor R$ {horusStake.toFixed(2)} para copiar a mesma stake sugerida pelo Hórus.
               </p>
