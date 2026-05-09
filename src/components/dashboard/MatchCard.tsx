@@ -11,6 +11,7 @@ import CriteriaDetailModal from './CriteriaDetailModal';
 import AdminStatsEditorModal from './AdminStatsEditorModal';
 import { useAdmin } from '@/hooks/useAdmin';
 import { MatchPressureChart, PressureFallback, useMatchPressure } from './MatchPressureChart';
+import { translateMarket } from '@/utils/marketTranslator';
 
 export interface MatchStats {
   possession_home?: number;
@@ -371,11 +372,27 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           )}
 
-          {/* Odd da entrada quando o sinal foi aprovado */}
-          {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA' || match.mycroftStatus === 'opportunity') && match.approvalOdd != null && (
-            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-success/10 border border-success/30">
-              <span className="text-[10px] text-success font-orbitron uppercase tracking-wider">Odd entrada</span>
-              <span className="text-sm font-bold tabular-nums text-success">{Number(match.approvalOdd).toFixed(2)}</span>
+          {/* Entrada aprovada — mercado, odd e confiança visíveis sem precisar abrir o card */}
+          {(match.mycroftStatus === 'APROVADO' || match.mycroftStatus === 'APROVADO_SITUACIONAL' || match.mycroftStatus === 'LABAREDA' || match.mycroftStatus === 'opportunity') && (match.market || match.approvalOdd != null || match.confidence != null) && (
+            <div className="rounded-md bg-success/10 border border-success/30 px-2.5 py-2 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-success/80 font-orbitron uppercase tracking-wider">Entrada aprovada</span>
+                {match.confidence != null && (
+                  <span className="text-[10px] font-orbitron font-bold text-success tabular-nums">
+                    {Math.round(Number(match.confidence))}% conf.
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-success truncate">
+                  🎯 {match.market ? translateMarket(match.market) : '—'}
+                </span>
+                {match.approvalOdd != null && (
+                  <span className="text-sm font-bold tabular-nums text-success shrink-0">
+                    @ {Number(match.approvalOdd).toFixed(2)}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
