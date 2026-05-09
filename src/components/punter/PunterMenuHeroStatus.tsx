@@ -44,13 +44,23 @@ export default function PunterMenuHeroStatus() {
         const since7d = since7dDate.toISOString();
         const periodEnd = Date.now() + 86400000;
 
-        // Sinais APROVADOS para hoje
-        const { count: countToday } = await supabase
-          .from('punter_analyses')
-          .select('id', { count: 'exact', head: true })
+        // Sinais APROVADOS em aberto — MESMA fonte/filtro do /punter
+        // (punter_sinais APROVADO, commence_time > now - 3h, dedup por home_away_market)
+        const inPlayCutoffIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+        const { data: openSignals } = await supabase
+          .from('punter_sinais')
+          .select('home_team, away_team, market')
           .eq('verdict', 'APROVADO')
-          .gte('commence_time', startOfToday.toISOString())
-          .lte('commence_time', endOfToday.toISOString());
+          .gt('commence_time', inPlayCutoffIso)
+          .limit(200);
+        const openDedup = new Set<string>();
+        for (const s of openSignals || []) {
+          const key = `${(s as any).home_team}_${(s as any).away_team}_${(s as any).market}`
+            .toLowerCase()
+            .replace(/\s+/g, '_');
+          openDedup.add(key);
+        }
+        const countToday = openDedup.size;
 
         // Mesmas 3 fontes da página /liquidações
         const [{ data: sigs }, { data: favoritos }, { data: raros }] = await Promise.all([
@@ -183,7 +193,7 @@ export default function PunterMenuHeroStatus() {
         </span>
         <div>
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Sinais hoje
+            Sinais em aberto
           </p>
           <p className="text-sm font-semibold text-foreground">
             {stats.loading ? '—' : stats.signalsToday}

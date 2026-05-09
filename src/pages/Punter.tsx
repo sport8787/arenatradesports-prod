@@ -1326,7 +1326,8 @@ export default function PunterPage() {
         {/* Navigation Grid movido para /punter/menu */}
 
 
-        {/* Scanner Panel */}
+        {/* Scanner Panel — exclusivo Admin */}
+        {isAdmin && (
         <Card className="border-border bg-card">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -1507,6 +1508,7 @@ export default function PunterPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Schema validation error — bloqueia render quando punter_sinais está com shape inválido */}
         {schemaError && (
