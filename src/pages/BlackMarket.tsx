@@ -1,8 +1,11 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Vault, Coins, Loader2, Trophy, Crown, Gift, Calendar } from 'lucide-react';
+import { ArrowLeft, Lock, Vault, Coins, Loader2, Trophy, Crown, Gift, Calendar, Hourglass, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useEconomy } from '@/hooks/useEconomy';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import BluffCoinDisplay from '@/components/game/BluffCoinDisplay';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
