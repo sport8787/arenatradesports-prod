@@ -53,9 +53,10 @@ export default function CalibrationCard({ arena = 'trader_sports', className }: 
   if (loading || !state || state.sample_size === 0) return null;
 
   const hitPct = (state.hit_rate * 100).toFixed(1);
+  const roiUnavailable = state.roi === 0 && state.hit_rate > 0;
   const roiPct = (state.roi * 100).toFixed(1);
   const hitTone = state.hit_rate >= 0.6 ? 'text-[hsl(142,71%,55%)]' : state.hit_rate >= 0.5 ? 'text-[hsl(43,96%,60%)]' : 'text-[hsl(0,84%,65%)]';
-  const roiTone = state.roi > 0 ? 'text-[hsl(142,71%,55%)]' : state.roi >= -0.05 ? 'text-[hsl(43,96%,60%)]' : 'text-[hsl(0,84%,65%)]';
+  const roiTone = roiUnavailable ? 'text-muted-foreground' : state.roi > 0 ? 'text-[hsl(142,71%,55%)]' : state.roi >= -0.05 ? 'text-[hsl(43,96%,60%)]' : 'text-[hsl(0,84%,65%)]';
   const deltaLabel = state.delta > 0 ? `+${state.delta} (mais restritivo)` : state.delta < 0 ? `${state.delta} (mais permissivo)` : 'neutro';
   const deltaTone = state.delta > 0 ? 'text-[hsl(0,84%,65%)]' : state.delta < 0 ? 'text-[hsl(142,71%,55%)]' : 'text-muted-foreground';
 
@@ -69,7 +70,7 @@ export default function CalibrationCard({ arena = 'trader_sports', className }: 
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Cell icon={<Target className="w-3 h-3" />} label="Acerto" value={`${hitPct}%`} sub={`${state.greens}G / ${state.reds}R`} tone={hitTone} />
-        <Cell icon={state.roi >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} label="ROI/op" value={`${state.roi >= 0 ? '+' : ''}${roiPct}%`} sub="por unidade" tone={roiTone} />
+        <Cell icon={state.roi >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} label="ROI/op" value={roiUnavailable ? 'n/d' : `${state.roi >= 0 ? '+' : ''}${roiPct}%`} sub={roiUnavailable ? 'sem odds' : 'por unidade'} tone={roiTone} />
         <Cell icon={<Gauge className="w-3 h-3" />} label="Limite atual" value={`${state.effective_min_confidence}%`} sub={`base ${state.base_min_confidence}%`} tone="text-foreground" />
         <Cell icon={<Activity className="w-3 h-3" />} label="Ajuste" value={deltaLabel} sub="auto" tone={deltaTone} />
       </div>
