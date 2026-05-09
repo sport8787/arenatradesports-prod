@@ -1,6 +1,6 @@
 // Daily Recap Email — envia para cada usuário ativo um resumo do dia anterior:
 // sinais aprovados, GREEN/RED, ROI virtual, BluffCoins ganhos, e CTA Loja BC.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

@@ -4,7 +4,7 @@
 // Identifica jogos candidatos a placares raros (LAY GOLEADA / 2x2 / 1x3 / 3x1)
 // usando estatísticas da API-Football.
 // =============================================================================
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
