@@ -260,6 +260,9 @@ serve(async (req) => {
         let enrichedStats = { ...(match.stats || {}) };
         let sofascoreFound = false;
         let sportmonksFound = false;
+        // Cotação real ao vivo capturada do Futodds /matches-live-full (usada
+        // para preencher Over/Under/BTTS quando o Mycroft não devolve odd).
+        let liveOddsRaw: Record<string, any> | null = null;
 
         // 🟢 FONTE PRIMÁRIA: SPORTMONKS LIVE — xG/shots/possession nativos e confiáveis
         // SofaScore/Flashscore caem como fallback se Sportmonks não encontrar o jogo.
@@ -364,20 +367,27 @@ serve(async (req) => {
                 return (mh.includes(h) || h.includes(mh)) && (ma.includes(a) || a.includes(ma));
               });
               const ol = fdOddMatch?.odds_live || {};
+              liveOddsRaw = ol;
               const flat = {
                 home: Number(ol?.home) || null,
                 draw: Number(ol?.draw) || null,
                 away: Number(ol?.away) || null,
+                over15: Number(ol?.over_15) || null,
+                under15: Number(ol?.under_15) || null,
                 over25: Number(ol?.over_25) || null,
                 under25: Number(ol?.under_25) || null,
+                over35: Number(ol?.over_35) || null,
+                under35: Number(ol?.under_35) || null,
+                btts_yes: Number(ol?.btts_yes) || null,
+                btts_no: Number(ol?.btts_no) || null,
                 bookmaker: 'Futodds',
                 updated_at: new Date().toISOString(),
               };
-              if (flat.home || flat.draw || flat.away || flat.over25) {
+              if (flat.home || flat.draw || flat.away || flat.over25 || flat.over15) {
                 await supabase.from('live_matches').update({
                   odds_live: flat,
                 }).eq('match_id', match.match_id);
-                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
+                console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O1.5=${flat.over15} O2.5=${flat.over25} O3.5=${flat.over35} BTTS=${flat.btts_yes}/${flat.btts_no}`);
               }
 
               // 🟣 BACKFILL xG via /matches-live-full (Sportmonks/Betfair-live podem vir com xg=null)
@@ -719,19 +729,53 @@ serve(async (req) => {
 
         // Save analysis (snapshot de stats só nos APROVADOS p/ comparação Sportmonks vs AF)
         const _isApprovedSm = ['APROVADO','APROVADO_SITUACIONAL','LABAREDA'].includes(analysis.verdict);
-        // 🎯 Garante odd numérica para que o ROI/op de calibração seja sempre calculável.
-        // Se o modelo não devolveu odd válida, usa fallback Poisson (Over/Under) ou médias de mercado.
+        // 🎯 Garante odd numérica para o ROI/op de calibração.
+        // Prioridade: 1) odd do Mycroft (cache pré-jogo) 2) odd ao vivo Futodds 3) fallback Poisson.
         let _oddToPersist: number | null = null;
         const _rawOdd = Number(analysis.odd);
+        const _resolveLiveOdd = (market: string | null | undefined): number | null => {
+          if (!liveOddsRaw || !market) return null;
+          const m = String(market).toLowerCase();
+          const get = (k: string) => { const v = Number((liveOddsRaw as any)?.[k]); return Number.isFinite(v) && v > 1.01 ? v : null; };
+          const ouMatch = m.match(/(over|under|mais|menos)\s*(\d+(?:\.\d+)?)/);
+          if (ouMatch) {
+            const tipo = (ouMatch[1] === 'mais') ? 'over' : (ouMatch[1] === 'menos') ? 'under' : ouMatch[1];
+            const linha = ouMatch[2].replace('.', '_');
+            return get(`${tipo}_${linha}`);
+          }
+          if (/(btts|ambas)/.test(m)) {
+            return /(não|nao|\bno\b)/.test(m) ? get('btts_no') : get('btts_yes');
+          }
+          if (/(empate|draw)/.test(m)) return get('draw');
+          const home = String(match.home_team || '').toLowerCase();
+          const away = String(match.away_team || '').toLowerCase();
+          if (home && (m.includes(home) || /(mandante|home|casa)/.test(m))) return get('home');
+          if (away && (m.includes(away) || /(visitante|away|fora)/.test(m))) return get('away');
+          return null;
+        };
         if (Number.isFinite(_rawOdd) && _rawOdd > 1.01) {
           _oddToPersist = _rawOdd;
         } else {
-          _oddToPersist = resolveFallbackOdd({
-            market: analysis.market,
-            minute: Number(match.minute ?? 0),
-            scoreHome: Number(match.score_home ?? 0),
-            scoreAway: Number(match.score_away ?? 0),
-          });
+          const live = _resolveLiveOdd(analysis.market);
+          if (live != null) {
+            _oddToPersist = live;
+            console.log(`[AnalyzeLive] 🎯 Odd real Futodds para "${analysis.market}": ${live}`);
+            analysis.odd = live;
+            analysis.odd_source = 'real';
+            if (analysis.risk_management) {
+              analysis.risk_management.entry = `${analysis.market} @ ${live}`;
+              analysis.risk_management.rr = `1:${(live - 1).toFixed(2)}`;
+              analysis.risk_management.ev = `${Math.round(((Number(analysis.confidence ?? 0) / 100) * live - 1) * 100)}%`;
+            }
+          } else {
+            _oddToPersist = resolveFallbackOdd({
+              market: analysis.market,
+              minute: Number(match.minute ?? 0),
+              scoreHome: Number(match.score_home ?? 0),
+              scoreAway: Number(match.score_away ?? 0),
+            });
+            console.log(`[AnalyzeLive] ⚠️ Odd fallback Poisson para "${analysis.market}": ${_oddToPersist} (sem cotação real)`);
+          }
         }
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
