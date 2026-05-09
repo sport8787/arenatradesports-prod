@@ -667,30 +667,57 @@ serve(async (req) => {
     const data = await response.json();
 
     // Extract from tool call response
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const choice = data.choices?.[0];
+    const finishReason = choice?.finish_reason;
+    const toolCall = choice?.message?.tool_calls?.[0];
     let rawText = '';
     if (toolCall?.function?.arguments) {
       rawText = toolCall.function.arguments;
     } else {
-      rawText = data.choices?.[0]?.message?.content || '';
+      rawText = choice?.message?.content || '';
+    }
+    if (finishReason === 'length' || finishReason === 'MAX_TOKENS') {
+      console.warn(`[MycroftSports] ⚠️ Resposta truncada (finish_reason=${finishReason}, len=${rawText.length})`);
     }
     console.log('[MycroftSports] Raw:', rawText.substring(0, 300));
 
+    // Safe fallback for empty / truncated responses → returns AGUARDAR instead of 500
+    const safeAguardar = {
+      verdict: 'AGUARDAR',
+      market: 'N/A',
+      odd: 0,
+      confidence: 50,
+      thesis: `Resposta da IA indisponível ou truncada (finish_reason=${finishReason || 'none'}). Aguardando próximo ciclo.`,
+      alerts: ['IA truncou ou não retornou JSON válido'],
+      fundamentation: {},
+      risk_management: { stake_percent: 0, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: 'N/A', ev: 'N/A' },
+    };
+
     let analysis;
-    try {
-      analysis = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-    } catch (parseErr) {
-      // Fallback repair
-      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
-      if (!vm) throw parseErr;
-      const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
-      const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
-      analysis = {
-        verdict: vm[1], market: mm?.[1] || 'N/A', odd: om ? parseFloat(om[1]) : 1.50,
-        confidence: parseInt(rawText.match(/"confidence"\s*:\s*(\d+)/)?.[1] || '50'),
-        thesis: rawText.match(/"thesis"\s*:\s*"([^"]*)/)?.[1] || 'Análise parcial',
-        alerts: [], fundamentation: {}, risk_management: { stake_percent: 5, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: '1:1.5', ev: '+10%' },
-      };
+    if (!rawText || rawText.trim().length < 5) {
+      console.warn('[MycroftSports] ⚠️ rawText vazio — usando fallback AGUARDAR');
+      analysis = safeAguardar;
+    } else {
+      try {
+        analysis = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+      } catch (parseErr) {
+        // Fallback repair
+        const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|APROVADO_SITUACIONAL|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
+        if (!vm) {
+          console.warn('[MycroftSports] ⚠️ Parse falhou e sem verdict → fallback AGUARDAR:', (parseErr as Error).message);
+          analysis = safeAguardar;
+        } else {
+          const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
+          const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
+          analysis = {
+            verdict: vm[1], market: mm?.[1] || 'N/A', odd: om ? parseFloat(om[1]) : 1.50,
+            confidence: parseInt(rawText.match(/"confidence"\s*:\s*(\d+)/)?.[1] || '50'),
+            thesis: rawText.match(/"thesis"\s*:\s*"([^"]*)/)?.[1] || 'Análise parcial (resposta truncada)',
+            alerts: ['Resposta truncada — análise parcial'], fundamentation: {},
+            risk_management: { stake_percent: 5, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: '1:1.5', ev: '+10%' },
+          };
+        }
+      }
     }
 
     // === GUARD TEMPORAL UNDER 2.5 ===
