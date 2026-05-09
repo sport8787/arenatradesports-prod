@@ -157,7 +157,7 @@ export default function LandingPage() {
               <img src={logoOraculo} alt="Oráculo Mycroft" className="h-10 w-auto" />
               <div>
                 <h1 className="text-xl font-bold text-white">ORÁCULO MYCROFT</h1>
-                <p className="text-[10px] text-yellow-500 -mt-1 tracking-widest">PUNTER</p>
+                <p className="text-[10px] text-yellow-500 -mt-1 tracking-widest">PUNTER • TRADER</p>
               </div>
             </div>
             
@@ -259,7 +259,7 @@ export default function LandingPage() {
                     </p>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                    No final da apresentação você terá acesso a uma condição exclusiva de teste grátis por 7 dias — sem cartão, sem letras miúdas.
+                    No final da apresentação você terá acesso a uma condição exclusiva de teste grátis por 7 dias — com <span className="text-yellow-300 font-semibold">todas as funções liberadas</span>, sem cartão e sem letras miúdas.
                   </p>
                 </div>
               )}
