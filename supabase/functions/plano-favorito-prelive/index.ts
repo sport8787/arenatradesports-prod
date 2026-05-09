@@ -6,7 +6,7 @@
 // Roda via cron: 08:00 e 14:00 BRT
 // =============================================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
   getUpcomingFixturesSM,
   getRecentFixturesSM,
