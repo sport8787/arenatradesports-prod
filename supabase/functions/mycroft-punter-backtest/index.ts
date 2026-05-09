@@ -553,7 +553,7 @@ serve(async (req) => {
       if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
-          homeGoals, awayGoals, leagueAvg, criteria
+          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets
         )
 
         if (analysis) {
