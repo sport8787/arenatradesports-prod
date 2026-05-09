@@ -69,6 +69,7 @@ const AdminMycroftRules = React.lazy(() => import("./pages/AdminMycroftRules"));
 const AdminCLVMonitor = React.lazy(() => import("./pages/AdminCLVMonitor"));
 const AdminMetricasConversao = React.lazy(() => import("./pages/AdminMetricasConversao"));
 const AdminTraderLeagues = React.lazy(() => import("./pages/AdminTraderLeagues"));
+const AdminLeagueROI = React.lazy(() => import("./pages/AdminLeagueROI"));
 const AdminBorderlineAI = React.lazy(() => import("./pages/AdminBorderlineAI"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
