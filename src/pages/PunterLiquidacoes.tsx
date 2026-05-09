@@ -26,6 +26,7 @@ interface Row {
   final_score?: string | null;
   isPlanoFavorito?: boolean;
   void_reason?: string | null;
+  verdict?: string | null;
 }
 
 type Tab = 'pendentes' | 'futuros' | 'green' | 'red' | 'void' | 'todos';
