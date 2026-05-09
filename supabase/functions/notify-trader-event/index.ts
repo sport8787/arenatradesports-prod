@@ -235,6 +235,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 🎯 Filtro de ruído: APROVADO/LABAREDA só vão ao grupo Telegram se forem de
+    // ligas principais (Brasileirão, top-5 europeias, copas continentais, seleções).
+    // Após expansão de ligas a quantidade de sinais explodiu — usuários se perdiam.
+    // GREEN/RED/CASHOUT (eventos pessoais) seguem normalmente.
+    if ((payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA') &&
+        !isMainLeague(payload.league)) {
+      console.log(`[notify-trader-event] 🎯 Liga não-principal — não enviado ao Telegram | league="${payload.league}" match=${payload.match_id} market=${payload.market}`);
+      return new Response(JSON.stringify({ skipped: true, reason: 'non_main_league', league: payload.league ?? null }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     // 🛡️ Bloqueio anti-atraso: se o sinal é de 1º tempo e o jogo já passou da janela,
     // NÃO envia (evita Telegram chegando no 2º tempo com placar/minuto defasados).
     if ((payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA') &&
