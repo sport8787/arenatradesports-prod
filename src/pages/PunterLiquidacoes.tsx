@@ -45,13 +45,16 @@ export default function PunterLiquidacoesPage() {
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Sinais Punter unificados
+      // FONTE OFICIAL/AUDITÁVEL: punter_analyses (mesma usada em /admin/auditoria-punter).
+      // Garante que /punter/liquidacoes e a auditoria admin mostrem exatamente os
+      // MESMOS sinais Punter (1X2/Over/Under/BTTS/AH/escanteios) gerados pela IA.
       const { data: sigs } = await supabase
-        .from('punter_sinais')
-        .select('id, match_id, home_team, away_team, league, market, odd, stake_amount, status, resultado, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis, void_reason')
-        .gte('commence_time', since)
-        .order('commence_time', { ascending: false })
-        .limit(500);
+        .from('punter_analyses')
+        .select('id, match_id, home_team, away_team, league, market, odd, stake_percentage, verdict, result, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
+        .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       const { data: favoritos } = await supabase
         .from('sinais_favorito_prelive')
@@ -89,14 +92,15 @@ export default function PunterLiquidacoesPage() {
           league: s.league || null,
           market: s.market,
           odd: Number(s.odd) || null,
-          stakeAmount: s.stake_amount != null ? Number(s.stake_amount) : null,
-          status: s.status,
-          result: s.resultado,
+          stakeAmount: null,
+          status: s.verdict,
+          result: s.result ? String(s.result).toLowerCase() : null,
           profit_loss: s.profit_loss,
-          commence_time: s.commence_time,
+          commence_time: s.commence_time || s.created_at,
           final_score: (s.final_score_home != null && s.final_score_away != null) ? `${s.final_score_home}-${s.final_score_away}` : null,
           isPlanoFavorito: isPF,
-          void_reason: s.void_reason || null,
+          void_reason: null,
+          verdict: s.verdict,
         };
       });
 
