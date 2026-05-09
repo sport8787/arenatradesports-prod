@@ -2,8 +2,38 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 // Markets supported by the backtest engine
-const ALL_MARKETS = ['Casa', 'Empate', 'Fora', 'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim'] as const
+const AH_LINES = [-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1] as const
+const AH_HOME_MARKETS = AH_LINES.map(l => `AH Casa ${l > 0 ? '+' : ''}${l}`)
+const AH_AWAY_MARKETS = AH_LINES.map(l => `AH Fora ${l > 0 ? '+' : ''}${l}`)
+const ALL_MARKETS = [
+  'Casa', 'Empate', 'Fora',
+  'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim',
+  ...AH_HOME_MARKETS,
+  ...AH_AWAY_MARKETS,
+] as const
 type MarketKey = typeof ALL_MARKETS[number]
+
+// Asian Handicap settlement multiplier on stake at odd O:
+// returns 1 (full win), 0.5 (half win), 0 (push), -0.5 (half loss), -1 (full loss)
+function settleAH(side: 'home' | 'away', line: number, homeGoals: number, awayGoals: number): number {
+  const diff = side === 'home' ? (homeGoals - awayGoals) : (awayGoals - homeGoals)
+  const adjusted = diff + line
+  // Quarter lines split between two adjacent half-lines
+  const isQuarter = Math.abs(line * 4) % 2 === 1
+  if (isQuarter) {
+    const lower = Math.floor(line * 2) / 2
+    const upper = Math.ceil(line * 2) / 2
+    return (settleAH(side, lower, homeGoals, awayGoals) + settleAH(side, upper, homeGoals, awayGoals)) / 2
+  }
+  // Half lines: never push
+  if ((line * 2) % 2 !== 0) {
+    return adjusted > 0 ? 1 : -1
+  }
+  // Whole lines: push allowed
+  if (adjusted > 0) return 1
+  if (adjusted === 0) return 0
+  return -1
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +97,7 @@ interface BacktestResult {
   ev: number
   value_pct: number
   verdict: 'APROVADO' | 'VETADO'
-  result: 'green' | 'red' | null
+  result: 'green' | 'red' | 'push' | 'half_green' | 'half_red' | null
   stake_pct: number
   stake_amount: number
   profit_loss: number
@@ -604,13 +634,15 @@ serve(async (req) => {
       let profitLoss = 0
       if (analysis.verdict === 'APROVADO') {
         totalActualStaked += stakeAmount
-        profitLoss = analysis.isGreen
-          ? stakeAmount * (analysis.odd - 1)
-          : -stakeAmount
+        const m = analysis.settlementMultiplier
+        // m=1 full win, 0.5 half win, 0 push, -0.5 half loss, -1 full loss
+        if (m > 0) profitLoss = stakeAmount * m * (analysis.odd - 1)
+        else if (m === 0) profitLoss = 0
+        else profitLoss = stakeAmount * m // negative
         bankroll += profitLoss
 
-        // Track for Monte Carlo
-        mcBets.push({ odd: analysis.odd, stakePct: analysis.stakePct, isGreen: analysis.isGreen })
+        // Track for Monte Carlo (treat half-results approximately as fractional outcomes)
+        mcBets.push({ odd: analysis.odd, stakePct: analysis.stakePct, isGreen: m > 0 })
 
         if (bankroll <= 0) {
           bankroll = 0
@@ -628,8 +660,8 @@ serve(async (req) => {
 
     // 4. Calculate metrics
     const approved = results.filter(r => r.verdict === 'APROVADO')
-    const greens = approved.filter(r => r.result === 'green')
-    const reds = approved.filter(r => r.result === 'red')
+    const greens = approved.filter(r => ['green','half_green'].includes(r.result as string))
+    const reds = approved.filter(r => ['red','half_red'].includes(r.result as string))
     const totalPL = bankroll - initial_bankroll
     const roi = totalActualStaked > 0 ? (totalPL / totalActualStaked) * 100 : 0
     const approvalRate = results.length > 0 ? (approved.length / results.length * 100) : 0
@@ -637,7 +669,7 @@ serve(async (req) => {
     // ROI by tier
     const tierBreakdown = criteria.tiers.map(tier => {
       const inTier = approved.filter(r => r.tier === tier.label)
-      const tierGreens = inTier.filter(r => r.result === 'green').length
+      const tierGreens = inTier.filter(r => ['green','half_green'].includes(r.result as string)).length
       const tierPL = inTier.reduce((s, r) => s + r.profit_loss, 0)
       const tierStaked = inTier.reduce((s, r) => s + r.stake_amount, 0)
       return {
@@ -660,7 +692,7 @@ serve(async (req) => {
     ]
     const roiByOddRange = oddRanges.map(range => {
       const inRange = approved.filter(r => r.odd >= range.min && r.odd < range.max)
-      const rangeGreens = inRange.filter(r => r.result === 'green').length
+      const rangeGreens = inRange.filter(r => ['green','half_green'].includes(r.result as string)).length
       const rangePL = inRange.reduce((s, r) => s + r.profit_loss, 0)
       const rangeStaked = inRange.reduce((s, r) => s + r.stake_amount, 0)
       return {
@@ -678,7 +710,7 @@ serve(async (req) => {
     const leagueSet = new Set(approved.map(r => r.league_name))
     const roiByLeague = Array.from(leagueSet).map(ln => {
       const inLeague = approved.filter(r => r.league_name === ln)
-      const lGreens = inLeague.filter(r => r.result === 'green').length
+      const lGreens = inLeague.filter(r => ['green','half_green'].includes(r.result as string)).length
       const lPL = inLeague.reduce((s, r) => s + r.profit_loss, 0)
       const lStaked = inLeague.reduce((s, r) => s + r.stake_amount, 0)
       return {
@@ -797,7 +829,13 @@ function buildResult(
     ev: analysis.ev,
     value_pct: analysis.edgePct,
     verdict: analysis.verdict,
-    result: analysis.verdict === 'APROVADO' ? (analysis.isGreen ? 'green' : 'red') : null,
+    result: analysis.verdict === 'APROVADO'
+      ? (analysis.settlementMultiplier === 1 ? 'green'
+        : analysis.settlementMultiplier === 0.5 ? 'half_green'
+        : analysis.settlementMultiplier === 0 ? 'push'
+        : analysis.settlementMultiplier === -0.5 ? 'half_red'
+        : 'red')
+      : null,
     stake_pct: analysis.verdict === 'APROVADO' ? analysis.stakePct : 0,
     stake_amount: analysis.verdict === 'APROVADO' ? round2(stakeAmount) : 0,
     profit_loss: round2(profitLoss),
@@ -1047,6 +1085,7 @@ interface AnalysisResult {
   edgePct: number
   verdict: 'APROVADO' | 'VETADO'
   isGreen: boolean
+  settlementMultiplier: number // 1 / 0.5 / 0 / -0.5 / -1
   confidence: number
   vetoReason?: string
   modelLevel: string
@@ -1150,6 +1189,78 @@ function analyzeWithCriteria(
     'BTTS Sim': actualHomeGoals > 0 && actualAwayGoals > 0,
   }
 
+  // ── Asian Handicap: compute model effective prob, fair odd, actual multiplier ──
+  // Distribution of goal diff h-a using independent Poisson
+  const diffDist: Map<number, number> = new Map()
+  for (let h = 0; h <= 8; h++) {
+    for (let a = 0; a <= 8; a++) {
+      const p = poissonPmf(homeXG, h) * poissonPmf(awayXG, a)
+      const d = h - a
+      diffDist.set(d, (diffDist.get(d) ?? 0) + p)
+    }
+  }
+
+  // For an AH bet at fair odd O, effective_prob = p_win + 0.5*p_half_win.
+  // Expected return per unit = p_win*(O-1) + 0.5*p_hw*(O-1) + 0*p_push - 0.5*p_hl - p_loss
+  // Setting EV=0 gives O = 1 + (p_loss + 0.5*p_hl) / (p_win + 0.5*p_hw)
+  function ahProbsForLine(side: 'home' | 'away', line: number) {
+    let pWin = 0, pHW = 0, pPush = 0, pHL = 0, pLoss = 0
+    for (const [d, p] of diffDist) {
+      // simulate settlement for diff=d
+      const m = settleAH(side, line, side === 'home' ? d : 0, side === 'home' ? 0 : -d)
+      // simpler: rebuild via diff
+      const diff = side === 'home' ? d : -d
+      const adjusted = diff + line
+      const isHalf = (line * 2) % 2 !== 0 && (line * 4) % 2 === 0
+      const isQuarter = (line * 4) % 2 !== 0
+      if (isQuarter) {
+        const lower = Math.floor(line * 2) / 2
+        const upper = Math.ceil(line * 2) / 2
+        const aLower = (side === 'home' ? d : -d) + lower
+        const aUpper = (side === 'home' ? d : -d) + upper
+        const partial = (x: number, half: boolean) => {
+          if (half) return x > 0 ? 1 : -1
+          if (x > 0) return 1
+          if (x === 0) return 0
+          return -1
+        }
+        const lowerHalf = (lower * 2) % 2 !== 0
+        const upperHalf = (upper * 2) % 2 !== 0
+        const mm = (partial(aLower, lowerHalf) + partial(aUpper, upperHalf)) / 2
+        if (mm === 1) pWin += p
+        else if (mm === 0.5) pHW += p
+        else if (mm === 0) pPush += p
+        else if (mm === -0.5) pHL += p
+        else pLoss += p
+      } else if (isHalf) {
+        if (adjusted > 0) pWin += p; else pLoss += p
+      } else {
+        if (adjusted > 0) pWin += p
+        else if (adjusted === 0) pPush += p
+        else pLoss += p
+      }
+      void m
+    }
+    const effProb = pWin + 0.5 * pHW
+    const lossEq = pLoss + 0.5 * pHL
+    const fairOdd = effProb > 0 ? 1 + lossEq / effProb : 99
+    return { effProb, fairOdd, pWin, pHW, pPush, pHL, pLoss }
+  }
+
+  for (const line of AH_LINES) {
+    for (const side of ['home', 'away'] as const) {
+      const market = `${side === 'home' ? 'AH Casa' : 'AH Fora'} ${line > 0 ? '+' : ''}${line}`
+      const { effProb, fairOdd } = ahProbsForLine(side, line)
+      // Apply small market margin to simulate book price
+      const oddWithMargin = Math.max(1.05, fairOdd / 1.04)
+      modelProbs[market] = effProb
+      marketOdds[market] = oddWithMargin
+      const mult = settleAH(side, line, actualHomeGoals, actualAwayGoals)
+      ;(actualResults as any)[market] = mult > 0 // approximate "isGreen"
+      ;(actualResults as any)[`__mult_${market}`] = mult
+    }
+  }
+
   // ── FIND BEST EDGE ──
   let bestOpportunity: {
     market: string
@@ -1159,6 +1270,7 @@ function analyzeWithCriteria(
     edge: number
     ev: number
     isGreen: boolean
+    settlementMultiplier: number
   } | null = null
 
   for (const [market, modelProb] of Object.entries(modelProbs)) {
@@ -1171,13 +1283,19 @@ function analyzeWithCriteria(
     const ev = (modelProb * marketOdd) - 1
 
     if (ev > 0 && edge > (bestOpportunity?.edge ?? 0)) {
-      bestOpportunity = { market, modelProb, marketOdd, impliedProb, edge, ev, isGreen: actualResults[market] ?? false }
+      const mult = (actualResults as any)[`__mult_${market}`]
+      const settlementMultiplier = typeof mult === 'number' ? mult : (actualResults[market] ? 1 : -1)
+      bestOpportunity = {
+        market, modelProb, marketOdd, impliedProb, edge, ev,
+        isGreen: actualResults[market] ?? false,
+        settlementMultiplier,
+      }
     }
   }
 
   if (!bestOpportunity) return null
 
-  const { market, modelProb, marketOdd, impliedProb, edge, ev, isGreen } = bestOpportunity
+  const { market, modelProb, marketOdd, impliedProb, edge, ev, isGreen, settlementMultiplier } = bestOpportunity
 
   const minPlayed = Math.min(homeStats.played, awayStats.played)
   const dataStrength = minPlayed >= 15 ? 'ALTA' : minPlayed >= 8 ? 'MEDIA' : 'BAIXA'
@@ -1236,6 +1354,7 @@ function analyzeWithCriteria(
     edgePct: round2(edge),
     verdict,
     isGreen,
+    settlementMultiplier,
     confidence,
     vetoReason,
     modelLevel,

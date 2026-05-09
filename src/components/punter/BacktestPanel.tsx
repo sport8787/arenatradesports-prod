@@ -106,7 +106,7 @@ interface BacktestResult {
   ev: number;
   value_pct: number;
   verdict: string;
-  result: 'green' | 'red' | null;
+  result: 'green' | 'red' | 'push' | 'half_green' | 'half_red' | null;
   stake_pct: number;
   profit_loss: number;
 }
@@ -124,6 +124,9 @@ export default function BacktestPanel({ onClose }: Props) {
     return `R$ ${value.toFixed(0)}`;
   };
   const BANKROLL_PRESETS = [200, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+  const AH_LINES = [-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1] as const;
+  const ahMarketsHome = AH_LINES.map(l => ({ key: `AH Casa ${l > 0 ? '+' : ''}${l}`, label: `AH Casa ${l > 0 ? '+' : ''}${l}` }));
+  const ahMarketsAway = AH_LINES.map(l => ({ key: `AH Fora ${l > 0 ? '+' : ''}${l}`, label: `AH Fora ${l > 0 ? '+' : ''}${l}` }));
   const ALL_MARKETS = [
     { key: 'Casa', label: 'Casa (1)' },
     { key: 'Empate', label: 'Empate (X)' },
@@ -132,7 +135,10 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'Under 2.5', label: 'Under 2.5' },
     { key: 'Over 1.5', label: 'Over 1.5' },
     { key: 'BTTS Sim', label: 'BTTS' },
+    ...ahMarketsHome,
+    ...ahMarketsAway,
   ];
+  const AH_KEYS = [...ahMarketsHome.map(m => m.key), ...ahMarketsAway.map(m => m.key)];
   const DATA_SOURCES = [
     { key: 'auto', label: 'Auto (melhor disponível)' },
     { key: 'sportmonks', label: 'Sportmonks (real)' },
@@ -310,11 +316,19 @@ export default function BacktestPanel({ onClose }: Props) {
 
             {/* Markets filter */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                 <label className="text-xs text-muted-foreground">Mercados ({selectedMarkets.length}/{ALL_MARKETS.length})</label>
-                <button type="button" onClick={toggleAllMarkets} className="text-[10px] font-bold text-accent hover:underline">
-                  {selectedMarkets.length === ALL_MARKETS.length ? 'Desmarcar Todos' : '✅ Selecionar Todos'}
-                </button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setSelectedMarkets(prev => {
+                    const allAH = AH_KEYS.every(k => prev.includes(k));
+                    return allAH ? prev.filter(k => !AH_KEYS.includes(k)) : Array.from(new Set([...prev, ...AH_KEYS]));
+                  })} className="text-[10px] font-bold text-accent hover:underline">
+                    {AH_KEYS.every(k => selectedMarkets.includes(k)) ? 'Tirar AH' : '➕ Todos AH'}
+                  </button>
+                  <button type="button" onClick={toggleAllMarkets} className="text-[10px] font-bold text-accent hover:underline">
+                    {selectedMarkets.length === ALL_MARKETS.length ? 'Desmarcar Todos' : '✅ Selecionar Todos'}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
                 {ALL_MARKETS.map(m => (
@@ -745,12 +759,24 @@ export default function BacktestPanel({ onClose }: Props) {
                     <CardTitle className="text-sm font-orbitron">Apostas Simuladas ({results.length})</CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[60vh] overflow-y-auto space-y-1.5">
-                    {results.map((r, i) => (
+                    {results.map((r, i) => {
+                      const isWin = r.result === 'green' || r.result === 'half_green';
+                      const isLoss = r.result === 'red' || r.result === 'half_red';
+                      const isPush = r.result === 'push';
+                      const label = r.result === 'green' ? '✅ GREEN'
+                        : r.result === 'half_green' ? '½ GREEN'
+                        : r.result === 'push' ? '➖ PUSH'
+                        : r.result === 'half_red' ? '½ RED'
+                        : '❌ RED';
+                      const tone = isWin ? 'success' : isLoss ? 'destructive' : 'muted-foreground';
+                      return (
                       <div
                         key={i}
                         className={cn(
                           "flex items-center justify-between p-2 rounded-lg text-xs border",
-                          r.result === 'green' ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
+                          isWin ? 'border-success/30 bg-success/5'
+                            : isPush ? 'border-muted bg-muted/10'
+                            : 'border-destructive/30 bg-destructive/5'
                         )}
                       >
                         <div className="flex-1 min-w-0">
@@ -759,15 +785,16 @@ export default function BacktestPanel({ onClose }: Props) {
                           {r.league_name && <p className="text-[10px] text-muted-foreground/70">{r.league_name}</p>}
                         </div>
                         <div className="text-right ml-2">
-                          <p className={cn("font-orbitron font-bold", r.profit_loss >= 0 ? 'text-success' : 'text-destructive')}>
+                          <p className={cn("font-orbitron font-bold", r.profit_loss > 0 ? 'text-success' : r.profit_loss < 0 ? 'text-destructive' : 'text-muted-foreground')}>
                             {r.profit_loss >= 0 ? '+' : ''}R$ {r.profit_loss.toFixed(0)}
                           </p>
-                          <Badge variant="outline" className={cn("text-[9px]", r.result === 'green' ? 'text-success border-success/30' : 'text-destructive border-destructive/30')}>
-                            {r.result === 'green' ? '✅ GREEN' : '❌ RED'}
+                          <Badge variant="outline" className={cn("text-[9px]", `text-${tone} border-${tone}/30`)}>
+                            {label}
                           </Badge>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
               )}
