@@ -7546,6 +7546,7 @@ export type Database = {
       }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
       cleanup_futodds_health_log: { Args: never; Returns: undefined }
+      cleanup_log_tables: { Args: never; Returns: Json }
       cleanup_mycroft_analysis_queue: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
