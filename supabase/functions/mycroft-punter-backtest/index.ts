@@ -1346,6 +1346,7 @@ function analyzeWithCriteria(
     edgePct: round2(edge),
     verdict,
     isGreen,
+    settlementMultiplier,
     confidence,
     vetoReason,
     modelLevel,
