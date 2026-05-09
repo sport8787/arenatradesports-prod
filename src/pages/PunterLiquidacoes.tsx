@@ -234,43 +234,44 @@ export default function PunterLiquidacoesPage() {
     futuros: periodRows.filter(isFuture).length,
   };
 
-  // Métricas honestas: usam TODOS os sinais liquidados (green/red).
-  // O lucro hipotético é normalizado em 1u por sinal para não distorcer o ROI
-  // quando a stake real varia entre fontes/tabelas.
+  // Métricas honestas — calculadas SEPARADAMENTE por fonte para não inflar
+  // win-rate misturando Sinais Punter (1 sinal/jogo) com Plano Favorito (3 mercados/jogo)
+  // e Eventos Raros (LAY com hit-rate naturalmente alto).
   const STAKE_UNIT = 1;
-  const decidedRows = periodRows.filter((r) => isGreen(r) || isRed(r));
-  const greenCount = decidedRows.filter(isGreen).length;
-  const redCount = decidedRows.filter(isRed).length;
-  const decided = greenCount + redCount;
-  const winRate = decided > 0 ? (greenCount / decided) * 100 : 0;
 
   const getHypotheticalProfitUnits = (r: Row) => {
     if (isRed(r)) return -STAKE_UNIT;
-
-    if (r.odd != null && r.odd > 1) {
-      return (r.odd - 1) * STAKE_UNIT;
-    }
-
+    if (r.odd != null && r.odd > 1) return (r.odd - 1) * STAKE_UNIT;
     if (r.profit_loss != null && r.stakeAmount != null && r.stakeAmount > 0) {
       return Number(r.profit_loss) / Number(r.stakeAmount);
     }
-
-    if (r.profit_loss != null && Number(r.profit_loss) > 0) {
-      return Number(r.profit_loss);
-    }
-
+    if (r.profit_loss != null && Number(r.profit_loss) > 0) return Number(r.profit_loss);
     return 0;
   };
 
-  const profitData = decidedRows.reduce(
-    (acc, r) => {
-      acc.profit += getHypotheticalProfitUnits(r);
-      acc.staked += STAKE_UNIT;
-      return acc;
-    },
-    { profit: 0, staked: 0 }
-  );
-  const roi = profitData.staked > 0 ? (profitData.profit / profitData.staked) * 100 : 0;
+  const buildBlock = (sourceRows: Row[]) => {
+    const decided = sourceRows.filter((r) => isGreen(r) || isRed(r));
+    const greens = decided.filter(isGreen).length;
+    const reds = decided.filter(isRed).length;
+    const total = sourceRows.length;
+    const winRate = decided.length > 0 ? (greens / decided.length) * 100 : 0;
+    const profit = decided.reduce((acc, r) => acc + getHypotheticalProfitUnits(r), 0);
+    const roi = decided.length > 0 ? (profit / decided.length) * 100 : 0;
+    return { total, decided: decided.length, greens, reds, winRate, profit, roi };
+  };
+
+  const blockPunter = buildBlock(periodRows.filter((r) => r.source === 'punter_signal'));
+  const blockFavorito = buildBlock(periodRows.filter((r) => r.source === 'plano_favorito'));
+  const blockRaros = buildBlock(periodRows.filter((r) => r.source === 'eventos_raros'));
+
+  // Mantemos os agregados antigos apenas para a barra-resumo do header (counts.*),
+  // mas os 4 cards principais agora refletem APENAS Sinais IA Punter (auditável).
+  const greenCount = blockPunter.greens;
+  const redCount = blockPunter.reds;
+  const decided = blockPunter.decided;
+  const winRate = blockPunter.winRate;
+  const profitData = { profit: blockPunter.profit, staked: blockPunter.decided };
+  const roi = blockPunter.roi;
 
   return (
     <div className="min-h-screen bg-background">
