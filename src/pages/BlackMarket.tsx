@@ -107,12 +107,60 @@ const prizes: PrizeCard[] = [
 
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
+  const { user } = useAuth();
   const { isPaid, isTrialActive, subscription, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
   const canRedeem = isPaid; // Trial acumula mas NÃO resgata
   const currentPlan = subscription?.plan ?? 'free';
-  const planMultiplier = currentPlan === 'premium' ? 2.0 : currentPlan === 'base' ? 1.5 : 1.0;
   const isPremium = currentPlan === 'premium' && !!subscription?.is_active;
+  const isBase = currentPlan === 'base' && !!subscription?.is_active;
+  const isTrial = isTrialActive;
+  const planMultiplier = isPremium ? 1.3 : isBase ? 1.1 : isTrial ? 2.5 : 1.0;
+  const monthlyCap = isPremium ? 2000 : isBase ? 1200 : 600;
+
+  // Cap mensal acumulado + próximo lote a expirar
+  const [creditedThisMonth, setCreditedThisMonth] = useState<number>(0);
+  const [nextExpiry, setNextExpiry] = useState<{ amount: number; days: number } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const ym = new Date().toISOString().slice(0, 7);
+    (async () => {
+      const [{ data: capRow }, { data: nextLot }] = await Promise.all([
+        supabase
+          .from('bc_monthly_caps' as any)
+          .select('total_credited')
+          .eq('user_id', user.id)
+          .eq('year_month', ym)
+          .maybeSingle(),
+        supabase
+          .from('bc_rewards_log')
+          .select('total_bc, expires_at')
+          .eq('user_id', user.id)
+          .gt('total_bc', 0)
+          .not('expires_at', 'is', null)
+          .gt('expires_at', new Date().toISOString())
+          .order('expires_at', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (!active) return;
+      setCreditedThisMonth(((capRow as any)?.total_credited as number) ?? 0);
+      if (nextLot?.expires_at) {
+        const days = Math.max(
+          1,
+          Math.ceil((new Date(nextLot.expires_at as string).getTime() - Date.now()) / 86400000)
+        );
+        setNextExpiry({ amount: (nextLot as any).total_bc, days });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const capPct = Math.min(100, Math.round((creditedThisMonth / monthlyCap) * 100));
 
   const formatCoins = (amount: number) => {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
