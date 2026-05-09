@@ -3589,6 +3589,57 @@ export type Database = {
         }
         Relationships: []
       }
+      plano_favorito_runs: {
+        Row: {
+          created_at: string
+          detalhes: Json | null
+          duracao_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          jogos_analisados: number | null
+          ok: boolean | null
+          sinais_bons: number | null
+          sinais_espelhados: number | null
+          sinais_falha_mirror: number | null
+          sinais_fortes: number | null
+          started_at: string
+          trigger_source: string
+        }
+        Insert: {
+          created_at?: string
+          detalhes?: Json | null
+          duracao_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          jogos_analisados?: number | null
+          ok?: boolean | null
+          sinais_bons?: number | null
+          sinais_espelhados?: number | null
+          sinais_falha_mirror?: number | null
+          sinais_fortes?: number | null
+          started_at?: string
+          trigger_source?: string
+        }
+        Update: {
+          created_at?: string
+          detalhes?: Json | null
+          duracao_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          jogos_analisados?: number | null
+          ok?: boolean | null
+          sinais_bons?: number | null
+          sinais_espelhados?: number | null
+          sinais_falha_mirror?: number | null
+          sinais_fortes?: number | null
+          started_at?: string
+          trigger_source?: string
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           avatar_url: string | null

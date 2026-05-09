@@ -727,6 +727,9 @@ function buildJustificativa(analise: Analise, mercado: string, score: number): s
   return linhas.join('\n')
 }
 
+// Telemetria de mirror (resetada a cada handler)
+const mirrorStats = { ok: 0, fail: 0 }
+
 async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25', label: string, score: number, status: string, odd: number | null) {
   if (!['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return
   const cat = classifyCat(score)
@@ -763,7 +766,10 @@ async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25
     .from('punter_analyses')
     .upsert(payload, { onConflict: 'match_id,market', ignoreDuplicates: false })
   if (error) {
+    mirrorStats.fail++
     console.error('[PLANO FAVORITO] mirror punter_analyses erro', label, error.message)
+  } else {
+    mirrorStats.ok++
   }
 
   // Mirror também para punter_sinais (tabela unificada lida pelo /punter)
@@ -952,12 +958,31 @@ Deno.serve(async (req) => {
   const start = Date.now()
   console.log('[PLANO FAVORITO] Iniciando análise pré-live...')
 
+  // Reset contador de mirror para esta execução
+  mirrorStats.ok = 0
+  mirrorStats.fail = 0
+
+  // Lê body
+  let body: any = {}
+  try { body = await req.json() } catch { /* sem body */ }
+  DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
+  const triggerSource = String(body?.trigger || 'manual').slice(0, 64)
+  console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE} trigger=${triggerSource}`)
+
+  // Insere registro de telemetria (id reutilizado no finally)
+  let runId: string | null = null
   try {
-    // Lê data_source do body (default api-football)
-    let body: any = {}
-    try { body = await req.json() } catch { /* sem body */ }
-    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
-    console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE}`)
+    const { data: runRow } = await supabase
+      .from('plano_favorito_runs')
+      .insert({ trigger_source: triggerSource, started_at: new Date().toISOString() })
+      .select('id')
+      .single()
+    runId = runRow?.id ?? null
+  } catch (e) {
+    console.error('[PLANO FAVORITO] erro ao registrar run inicial', e)
+  }
+
+  try {
 
     // Verifica autenticação + role admin (quando chamado pelo frontend)
     const authHeader = req.headers.get('Authorization') ?? ''
@@ -1038,13 +1063,46 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Conta sinais por força (somando os 3 mercados de cada jogo)
+    let fortes = 0, bons = 0
+    for (const a of resultados) {
+      for (const s of [a.statusVitoria, a.statusOver15, a.statusOver25]) {
+        if (s === 'SINAL_FORTE') fortes++
+        else if (s === 'SINAL_BOM') bons++
+      }
+    }
+
+    const duracaoMs = Date.now() - start
+
+    // Atualiza telemetria
+    if (runId) {
+      await supabase.from('plano_favorito_runs').update({
+        finished_at: new Date().toISOString(),
+        jogos_analisados: resultados.length,
+        sinais_fortes: fortes,
+        sinais_bons: bons,
+        sinais_espelhados: mirrorStats.ok,
+        sinais_falha_mirror: mirrorStats.fail,
+        duracao_ms: duracaoMs,
+        ok: true,
+        detalhes: { aprovados: aprovados.length, notificados: sinaísEmitidos, data_source: DATA_SOURCE, horus: horusResult },
+      }).eq('id', runId)
+    }
+
+    console.log(`[PLANO FAVORITO] ✅ Run ${runId} concluída — jogos=${resultados.length} fortes=${fortes} bons=${bons} mirror_ok=${mirrorStats.ok} mirror_fail=${mirrorStats.fail} dur=${duracaoMs}ms`)
+
     return new Response(JSON.stringify({
       success: true,
+      run_id: runId,
       analisados: resultados.length,
       aprovados: aprovados.length,
+      sinais_fortes: fortes,
+      sinais_bons: bons,
+      mirror_ok: mirrorStats.ok,
+      mirror_fail: mirrorStats.fail,
       notificados: sinaísEmitidos,
       horus_auto_bet: horusResult,
-      duracao_s: ((Date.now() - start) / 1000).toFixed(1),
+      duracao_s: (duracaoMs / 1000).toFixed(1),
       top: aprovados.slice(0, 10).map(a => ({
         jogo: `${a.homeTeam} x ${a.awayTeam}`,
         favorito: a.isFavoriteHome ? a.homeTeam : a.awayTeam,
@@ -1057,7 +1115,19 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('[PLANO FAVORITO] Erro:', err)
-    return new Response(JSON.stringify({ success: false, error: String(err) }), {
+    if (runId) {
+      try {
+        await supabase.from('plano_favorito_runs').update({
+          finished_at: new Date().toISOString(),
+          duracao_ms: Date.now() - start,
+          sinais_espelhados: mirrorStats.ok,
+          sinais_falha_mirror: mirrorStats.fail,
+          ok: false,
+          error_message: String(err).slice(0, 1000),
+        }).eq('id', runId)
+      } catch (_) { /* ignore */ }
+    }
+    return new Response(JSON.stringify({ success: false, run_id: runId, error: String(err) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
