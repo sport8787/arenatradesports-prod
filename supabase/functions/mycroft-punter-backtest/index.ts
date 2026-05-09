@@ -932,6 +932,7 @@ function analyzeWithCriteria(
   actualAwayGoals: number,
   leagueAvg: LeagueAverages,
   criteria: AnalysisCriteria,
+  allowedMarkets: Set<string> = new Set(ALL_MARKETS),
 ): AnalysisResult | null {
 
   // ── MODEL: Poisson-based predicted probabilities ──
