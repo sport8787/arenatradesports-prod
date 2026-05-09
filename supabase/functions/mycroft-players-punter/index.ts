@@ -224,51 +224,10 @@ function avaliarJogador(p: PlayerStats, oddsBlob: any): Sinal[] {
     });
   }
 
-  // 2) Chutes ao gol — linhas 0.5, 1.5
-  for (const linha of [0.5, 1.5]) {
-    const lambda = p.shots_on_target_per90 * fatorMin;
-    if (lambda < 0.4) continue;
-    let pUnder = 0;
-    for (let k = 0; k <= Math.floor(linha); k++) pUnder += poissonPmf(lambda, k);
-    const pOver = 1 - pUnder;
-    const lado: "Over" | "Under" = pOver > 0.55 ? "Over" : pUnder > 0.65 ? "Under" : "Over";
-    const prob = lado === "Over" ? pOver : pUnder;
-    if (prob < 0.5) continue;
-    const odd = findPlayerOdd(oddsBlob, "player_shots_on_target", p.name, linha);
-    sinais.push({
-      market: `${p.name} — ${lado} ${linha} Chutes ao Gol`,
-      player: p.name,
-      prob,
-      odd: odd?.odd ?? null,
-      bookmaker: odd?.bookmaker ?? "—",
-      rationale: `${p.shots_on_target_per90.toFixed(2)} chutes ao gol/90`,
-      line: linha,
-      lado,
-    });
-  }
-
-  // 3) Chutes totais — linhas 1.5, 2.5
-  for (const linha of [1.5, 2.5]) {
-    const lambda = p.shots_per90 * fatorMin;
-    if (lambda < 0.8) continue;
-    let pUnder = 0;
-    for (let k = 0; k <= Math.floor(linha); k++) pUnder += poissonPmf(lambda, k);
-    const pOver = 1 - pUnder;
-    const lado: "Over" | "Under" = pOver > 0.55 ? "Over" : pUnder > 0.65 ? "Under" : "Over";
-    const prob = lado === "Over" ? pOver : pUnder;
-    if (prob < 0.5) continue;
-    const odd = findPlayerOdd(oddsBlob, "player_shots", p.name, linha);
-    sinais.push({
-      market: `${p.name} — ${lado} ${linha} Chutes Totais`,
-      player: p.name,
-      prob,
-      odd: odd?.odd ?? null,
-      bookmaker: odd?.bookmaker ?? "—",
-      rationale: `${p.shots_per90.toFixed(2)} chutes/90`,
-      line: linha,
-      lado,
-    });
-  }
+  // 2) ❌ Chutes ao Gol e Chutes Totais REMOVIDOS (decisão do produto: EV negativo
+  //    sistêmico no varejo — margem do livro ~7-8%, baixa correlação com xG/dominância,
+  //    ruído de goleiro/bloqueios. Auditoria mostrou P/L negativo na soma. Reativar
+  //    apenas com dados de closing line / sharp books.)
 
   // 4) Assistências (anytime)
   const lambdaA = p.assists_per90 * fatorMin;
