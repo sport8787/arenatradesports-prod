@@ -1063,13 +1063,46 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Conta sinais por força (somando os 3 mercados de cada jogo)
+    let fortes = 0, bons = 0
+    for (const a of resultados) {
+      for (const s of [a.statusVitoria, a.statusOver15, a.statusOver25]) {
+        if (s === 'SINAL_FORTE') fortes++
+        else if (s === 'SINAL_BOM') bons++
+      }
+    }
+
+    const duracaoMs = Date.now() - start
+
+    // Atualiza telemetria
+    if (runId) {
+      await supabase.from('plano_favorito_runs').update({
+        finished_at: new Date().toISOString(),
+        jogos_analisados: resultados.length,
+        sinais_fortes: fortes,
+        sinais_bons: bons,
+        sinais_espelhados: mirrorStats.ok,
+        sinais_falha_mirror: mirrorStats.fail,
+        duracao_ms: duracaoMs,
+        ok: true,
+        detalhes: { aprovados: aprovados.length, notificados: sinaísEmitidos, data_source: DATA_SOURCE, horus: horusResult },
+      }).eq('id', runId)
+    }
+
+    console.log(`[PLANO FAVORITO] ✅ Run ${runId} concluída — jogos=${resultados.length} fortes=${fortes} bons=${bons} mirror_ok=${mirrorStats.ok} mirror_fail=${mirrorStats.fail} dur=${duracaoMs}ms`)
+
     return new Response(JSON.stringify({
       success: true,
+      run_id: runId,
       analisados: resultados.length,
       aprovados: aprovados.length,
+      sinais_fortes: fortes,
+      sinais_bons: bons,
+      mirror_ok: mirrorStats.ok,
+      mirror_fail: mirrorStats.fail,
       notificados: sinaísEmitidos,
       horus_auto_bet: horusResult,
-      duracao_s: ((Date.now() - start) / 1000).toFixed(1),
+      duracao_s: (duracaoMs / 1000).toFixed(1),
       top: aprovados.slice(0, 10).map(a => ({
         jogo: `${a.homeTeam} x ${a.awayTeam}`,
         favorito: a.isFavoriteHome ? a.homeTeam : a.awayTeam,
@@ -1082,7 +1115,19 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('[PLANO FAVORITO] Erro:', err)
-    return new Response(JSON.stringify({ success: false, error: String(err) }), {
+    if (runId) {
+      try {
+        await supabase.from('plano_favorito_runs').update({
+          finished_at: new Date().toISOString(),
+          duracao_ms: Date.now() - start,
+          sinais_espelhados: mirrorStats.ok,
+          sinais_falha_mirror: mirrorStats.fail,
+          ok: false,
+          error_message: String(err).slice(0, 1000),
+        }).eq('id', runId)
+      } catch (_) { /* ignore */ }
+    }
+    return new Response(JSON.stringify({ success: false, run_id: runId, error: String(err) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
