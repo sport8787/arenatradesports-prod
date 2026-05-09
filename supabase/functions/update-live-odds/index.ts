@@ -4,7 +4,6 @@
 //   2) cached_odds_games (Pinnacle pré-jogo) como fallback para principais ligas
 // Roda independente de análise/pressure → garante que o card mostre odds mesmo
 // quando o Futodds não conseguir parear o time ou a análise não rodar.
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 
