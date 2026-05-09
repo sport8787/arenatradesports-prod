@@ -4,7 +4,7 @@
 // Espelha sinais aprovados em punter_analyses para o feed da Arena Punter
 // =============================================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts';
 import {
   getUpcomingFixturesSM,

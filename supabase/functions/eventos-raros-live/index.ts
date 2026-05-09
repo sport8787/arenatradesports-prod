@@ -5,7 +5,7 @@
 //   - Cria sinal ATIVO (modo simulado: sem odd Betfair, alerta manual)
 //   - Monitora condições de saída (placar evolui contra a tese)
 // =============================================================================
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 
 const corsHeaders = {
