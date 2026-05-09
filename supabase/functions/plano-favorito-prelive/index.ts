@@ -727,6 +727,9 @@ function buildJustificativa(analise: Analise, mercado: string, score: number): s
   return linhas.join('\n')
 }
 
+// Telemetria de mirror (resetada a cada handler)
+const mirrorStats = { ok: 0, fail: 0 }
+
 async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25', label: string, score: number, status: string, odd: number | null) {
   if (!['SINAL_FORTE', 'SINAL_BOM'].includes(status)) return
   const cat = classifyCat(score)
