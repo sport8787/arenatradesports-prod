@@ -730,9 +730,9 @@ export default function LandingPage() {
         <LiveSocialProofTicker />
       </Suspense>
 
-      {/* CTA fixo no rodapé (mobile) */}
+      {/* CTA fixo no rodapé (mobile) — só após pitch da VSL */}
       <Suspense fallback={null}>
-        <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />
+        {pitchUnlocked && <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />}
         <FloatingWhatsApp />
       </Suspense>
     </>
