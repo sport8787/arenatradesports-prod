@@ -260,6 +260,9 @@ serve(async (req) => {
         let enrichedStats = { ...(match.stats || {}) };
         let sofascoreFound = false;
         let sportmonksFound = false;
+        // Cotação real ao vivo capturada do Futodds /matches-live-full (usada
+        // para preencher Over/Under/BTTS quando o Mycroft não devolve odd).
+        let liveOddsRaw: Record<string, any> | null = null;
 
         // 🟢 FONTE PRIMÁRIA: SPORTMONKS LIVE — xG/shots/possession nativos e confiáveis
         // SofaScore/Flashscore caem como fallback se Sportmonks não encontrar o jogo.
