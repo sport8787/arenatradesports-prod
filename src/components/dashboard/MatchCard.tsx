@@ -307,23 +307,30 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
 
           {/* Odds (modelo Futodds): Casa | Empate | Fora | Over 2.5 */}
           {match.status === 'live' && match.oddsLive && (match.oddsLive.home || match.oddsLive.draw || match.oddsLive.away || match.oddsLive.over25) && (
-            <div className="grid grid-cols-4 gap-1.5 rounded-lg bg-muted/20 border border-border/60 p-2">
-              {([
-                { k: 'home', label: 'Casa', cls: 'text-blue-400' },
-                { k: 'draw', label: 'Empate', cls: 'text-muted-foreground' },
-                { k: 'away', label: 'Fora', cls: 'text-red-400' },
-                { k: 'over25', label: 'Over 2.5', cls: 'text-emerald-400' },
-              ] as const).map((o) => {
-                const val = (match.oddsLive as any)?.[o.k];
-                return (
-                  <div key={o.k} className="flex flex-col items-center justify-center px-1 py-1">
-                    <span className="text-[9px] text-muted-foreground font-orbitron uppercase tracking-wider">{o.label}</span>
-                    <span className={cn('text-sm font-bold tabular-nums', o.cls)}>
-                      {val != null ? Number(val).toFixed(2) : '—'}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="rounded-lg bg-muted/20 border border-border/60 p-2 space-y-1">
+              <div className="grid grid-cols-4 gap-1.5">
+                {([
+                  { k: 'home', label: 'Casa', cls: 'text-blue-400' },
+                  { k: 'draw', label: 'Empate', cls: 'text-muted-foreground' },
+                  { k: 'away', label: 'Fora', cls: 'text-red-400' },
+                  { k: 'over25', label: 'Over 2.5', cls: 'text-emerald-400' },
+                ] as const).map((o) => {
+                  const val = (match.oddsLive as any)?.[o.k];
+                  return (
+                    <div key={o.k} className="flex flex-col items-center justify-center px-1 py-1">
+                      <span className="text-[9px] text-muted-foreground font-orbitron uppercase tracking-wider">{o.label}</span>
+                      <span className={cn('text-sm font-bold tabular-nums', o.cls)}>
+                        {val != null ? Number(val).toFixed(2) : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {match.oddsLive.bookmaker && (
+                <div className="text-[8px] text-muted-foreground/70 text-right font-mono uppercase tracking-wider">
+                  {match.oddsLive.bookmaker}
+                </div>
+              )}
             </div>
           )}
 
