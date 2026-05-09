@@ -88,8 +88,15 @@ const LINKS: AdminLink[] = [
   // Análise
   {
     to: '/admin/auditoria-sinais',
-    label: 'Auditoria de Sinais',
-    description: 'Inspeção minuto-a-minuto de cada análise (Mycroft live + punter).',
+    label: 'Auditoria de Sinais (Trader Live)',
+    description: 'Inspeção minuto-a-minuto de cada análise ao vivo do Mycroft.',
+    icon: <Search className="h-4 w-4" />,
+    group: 'Análise',
+  },
+  {
+    to: '/admin/auditoria-punter',
+    label: 'Auditoria Pré-Live (Punter)',
+    description: 'Sinais APROVADOS do Punter × resultado · simulação de banca virtual e drawdown.',
     icon: <Search className="h-4 w-4" />,
     group: 'Análise',
   },
