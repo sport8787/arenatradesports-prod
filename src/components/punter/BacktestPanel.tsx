@@ -124,6 +124,9 @@ export default function BacktestPanel({ onClose }: Props) {
     return `R$ ${value.toFixed(0)}`;
   };
   const BANKROLL_PRESETS = [200, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+  const AH_LINES = [-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1] as const;
+  const ahMarketsHome = AH_LINES.map(l => ({ key: `AH Casa ${l > 0 ? '+' : ''}${l}`, label: `AH Casa ${l > 0 ? '+' : ''}${l}` }));
+  const ahMarketsAway = AH_LINES.map(l => ({ key: `AH Fora ${l > 0 ? '+' : ''}${l}`, label: `AH Fora ${l > 0 ? '+' : ''}${l}` }));
   const ALL_MARKETS = [
     { key: 'Casa', label: 'Casa (1)' },
     { key: 'Empate', label: 'Empate (X)' },
@@ -132,7 +135,10 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'Under 2.5', label: 'Under 2.5' },
     { key: 'Over 1.5', label: 'Over 1.5' },
     { key: 'BTTS Sim', label: 'BTTS' },
+    ...ahMarketsHome,
+    ...ahMarketsAway,
   ];
+  const AH_KEYS = [...ahMarketsHome.map(m => m.key), ...ahMarketsAway.map(m => m.key)];
   const DATA_SOURCES = [
     { key: 'auto', label: 'Auto (melhor disponível)' },
     { key: 'sportmonks', label: 'Sportmonks (real)' },
