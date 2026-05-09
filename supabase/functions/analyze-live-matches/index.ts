@@ -379,6 +379,29 @@ serve(async (req) => {
                 }).eq('match_id', match.match_id);
                 console.log(`[AnalyzeLive] 💰 odds_live ${match.home_team}-${match.away_team}: ${flat.home}/${flat.draw}/${flat.away} O2.5=${flat.over25}`);
               }
+
+              // 🟣 BACKFILL xG via /matches-live-full (Sportmonks/Betfair-live podem vir com xg=null)
+              // Tenta vários shapes: m.stats.xg = [h,a] | m.stats.expected_goals=[h,a] | m.xg_home/xg_away
+              try {
+                const _curH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0);
+                const _curA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
+                if (_curH === 0 && _curA === 0 && fdOddMatch) {
+                  const fs = (fdOddMatch as any).stats || {};
+                  const arr2 = (k: string) => Array.isArray(fs[k]) ? fs[k] : [null, null];
+                  const [xH1, xA1] = arr2('xg');
+                  const [xH2, xA2] = arr2('expected_goals');
+                  const xH = Number(xH1 ?? xH2 ?? (fdOddMatch as any).xg_home ?? 0) || 0;
+                  const xA = Number(xA1 ?? xA2 ?? (fdOddMatch as any).xg_away ?? 0) || 0;
+                  if (xH > 0 || xA > 0) {
+                    (enrichedStats as any).xG_home = xH;
+                    (enrichedStats as any).xG_away = xA;
+                    (enrichedStats as any).xg_home = xH;
+                    (enrichedStats as any).xg_away = xA;
+                    (enrichedStats as any).source_xg = 'futodds-live-full';
+                    console.log(`[AnalyzeLive] 🟣 xG backfill via live-full ${match.home_team}-${match.away_team}: ${xH}/${xA}`);
+                  }
+                }
+              } catch (_e) { /* não-fatal */ }
             } catch (oddsErr) {
               console.warn('[AnalyzeLive] odds_live persist failed:', (oddsErr as Error)?.message);
             }
