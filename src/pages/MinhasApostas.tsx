@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, FileDown } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, Wallet, Target, Gavel, Undo2, Ban, CalendarDays, FileDown, ExternalLink } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
@@ -20,6 +20,7 @@ import { generateBetReportPdf } from '@/utils/generateBetReportPdf';
 
 interface ManualBet {
   id: string;
+  match_id?: string;
   match_name: string;
   market: string;
   odd: number;
@@ -92,6 +93,7 @@ export default function MinhasApostasPage() {
 
     const mapped: ManualBet[] = (data || []).map((b: any) => ({
       id: b.id,
+      match_id: b.match_id,
       match_name: b.match_name || b.match_id,
       market: b.market,
       odd: parseFloat(b.odd),
@@ -596,7 +598,22 @@ export default function MinhasApostasPage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border flex-wrap">
+                    {bet.match_name && (
+                      <button
+                        onClick={() => {
+                          const teams = bet.match_name.split(' vs ');
+                          const focusKey = `${(teams[0] || '').trim()}_${(teams[1] || '').trim()}`
+                            .replace(/\s+/g, '_')
+                            .toLowerCase();
+                          navigate(`/punter?focus=${encodeURIComponent(focusKey)}`);
+                        }}
+                        className="flex items-center gap-1 text-xs font-orbitron text-primary hover:text-primary/80 hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Ver sinal
+                      </button>
+                    )}
                     {bet.status === 'pending' ? (
                       <>
                         <button
