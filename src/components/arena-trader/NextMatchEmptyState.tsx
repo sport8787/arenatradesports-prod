@@ -9,14 +9,19 @@ interface Props {
     championship?: string | null;
     datetime: string; // ISO
   } | null;
+  /** Total de jogos ao vivo na base (antes dos filtros do usuário). */
+  rawLiveCount?: number;
+  /** Callback para limpar filtros persistidos (regiões/ligas/mercados/foco). */
+  onResetFilters?: () => void;
 }
 
 /**
  * Estado vazio educativo para a Arena Live quando não há jogos ao vivo.
  * Mostra o próximo jogo relevante e CTA pra ativar push.
  */
-export default function NextMatchEmptyState({ nextMatch }: Props) {
+export default function NextMatchEmptyState({ nextMatch, rawLiveCount = 0, onResetFilters }: Props) {
   const { enabled, isSupported, requestPush } = usePushNotifications();
+  const filtersHidingMatches = rawLiveCount > 0 && !!onResetFilters;
 
   const handleEnablePush = async () => {
     const ok = await requestPush();
@@ -34,11 +39,22 @@ export default function NextMatchEmptyState({ nextMatch }: Props) {
         <Zap className="w-7 h-7" />
       </span>
       <h3 className="text-lg font-bold text-foreground mb-1">
-        Mycroft em modo de espera
+        {filtersHidingMatches ? 'Filtros ativos escondem os jogos' : 'Mycroft em modo de espera'}
       </h3>
       <p className="text-sm text-muted-foreground max-w-md mx-auto mb-5">
-        Sem jogos das ligas-alvo no momento. O Mycroft só atua em ligas selecionadas para preservar a precisão.
+        {filtersHidingMatches
+          ? `Há ${rawLiveCount} jogo(s) ao vivo agora, mas seus filtros (região, liga, mercado ou Modo Foco) estão ocultando todos. Limpe para voltar a ver tudo.`
+          : 'Sem jogos das ligas-alvo no momento. O Mycroft só atua em ligas selecionadas para preservar a precisão.'}
       </p>
+
+      {filtersHidingMatches && (
+        <button
+          onClick={onResetFilters}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs font-bold uppercase tracking-wider transition-colors mb-5"
+        >
+          Limpar filtros
+        </button>
+      )}
 
       {nextMatch ? (
         <div className="inline-flex flex-col items-center gap-1 px-4 py-3 rounded-lg border border-primary/30 bg-primary/5 mb-5">
