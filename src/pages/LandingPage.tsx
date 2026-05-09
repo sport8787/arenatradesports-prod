@@ -376,6 +376,10 @@ export default function LandingPage() {
 
       {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
 
+      {/* 🔒 GATE: tudo abaixo só aparece após o pitch da VSL (8 min de vídeo assistido) */}
+      {pitchUnlocked && (
+      <>
+
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
         <div className="container mx-auto max-w-3xl">
