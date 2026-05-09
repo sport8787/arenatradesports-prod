@@ -758,6 +758,8 @@ serve(async (req) => {
       growth_projections: growthProjections,
       results: approved.slice(0, 500),
       total_fixtures: allFixtures.length,
+      data_source: usedSource,
+      markets_used: Array.from(allowedMarkets),
     })
 
   } catch (error) {
