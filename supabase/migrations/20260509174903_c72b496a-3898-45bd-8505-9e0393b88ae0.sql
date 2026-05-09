@@ -1,0 +1,1 @@
+UPDATE public.trader_leagues SET enabled = false WHERE tier IN ('B','C');
