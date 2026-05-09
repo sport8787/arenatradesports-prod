@@ -258,14 +258,35 @@ export default function BlackMarket() {
           </div>
         </motion.section>
 
-        {/* Aviso de elegibilidade — Trial vs Assinante */}
+        {/* Aviso de elegibilidade — Trial vs Assinante vs Não logado */}
         {!subLoading && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-3xl mx-auto"
           >
-            {canRedeem ? (
+            {!user ? (
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 flex items-start gap-3">
+                <div className="shrink-0 rounded-lg bg-blue-500/20 p-2">
+                  <Coins className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-300">
+                    Liga Mycroft — acumule BC e troque por prêmios reais 🏆
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Assinantes e usuários em trial acumulam <span className="text-foreground font-medium">BluffCoins</span> a cada GREEN virtual.
+                    Troque por vale-presentes, dias grátis Premium, camisas oficiais e dispute o troféu da temporada.
+                  </p>
+                  <Link
+                    to="/auth"
+                    className="inline-flex items-center gap-1.5 mt-3 rounded-md bg-blue-500/20 hover:bg-blue-500/30 px-3 py-1.5 text-xs font-medium text-blue-300 transition"
+                  >
+                    Criar conta gratuita
+                  </Link>
+                </div>
+              </div>
+            ) : canRedeem ? (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-start gap-3">
                 <div className="shrink-0 rounded-lg bg-emerald-500/20 p-2">
                   <Gift className="w-5 h-5 text-emerald-400" />
