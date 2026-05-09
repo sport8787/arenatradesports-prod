@@ -733,35 +733,37 @@ async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25
   const matchIdStd = `pf-${analise.fixtureId}-${marketKey}`
   const justificativa = buildJustificativa(analise, label, score)
 
+  // Odd: se não foi passada, usa estimativa típica pré-live para favoritos
+  // (Over 1.5 ~1.40, Over 2.5 ~1.85). Settlement usa resultado real, odd só p/ ROI base.
+  const oddFinal = odd != null && odd > 1.01
+    ? odd
+    : marketKey === 'over15' ? 1.40
+    : marketKey === 'over25' ? 1.85
+    : 1.90
+
   const payload: any = {
     match_id: matchIdStd,
     league: analise.leagueName,
     home_team: analise.homeTeam,
     away_team: analise.awayTeam,
     market: label,
-    odd: odd,
+    odd: oddFinal,
+    bookmaker: 'plano-favorito',
     confidence: Math.min(100, Math.max(0, Math.round(score))),
     verdict: 'APROVADO',
     commence_time: analise.matchDate,
-    justificativa,
-    categoria: cat,
-    fonte: 'plano-favorito-prelive',
-    indicadores: analise.indicadores,
+    thesis: justificativa,
+    analysis: justificativa,
+    analyzed_by: `plano-favorito-prelive (${cat})`,
+    stake_percentage: status === 'SINAL_FORTE' ? 4 : 3,
   }
 
-  // Upsert por match_id+market para evitar duplicatas
-  try {
-    await supabase
-      .from('punter_analyses')
-      .upsert(payload, { onConflict: 'match_id,market', ignoreDuplicates: false })
-  } catch (e) {
-    // fallback: tenta insert simples se schema não tiver alguns campos opcionais
-    try {
-      const { categoria, indicadores, fonte, ...minimal } = payload
-      await supabase.from('punter_analyses').upsert(minimal, { onConflict: 'match_id,market', ignoreDuplicates: false })
-    } catch (e2) {
-      console.error('[PLANO FAVORITO] mirror erro', e2)
-    }
+  // supabase-js NÃO lança em erro de PostgREST — precisa checar .error explicitamente
+  const { error } = await supabase
+    .from('punter_analyses')
+    .upsert(payload, { onConflict: 'match_id,market', ignoreDuplicates: false })
+  if (error) {
+    console.error('[PLANO FAVORITO] mirror punter_analyses erro', label, error.message)
   }
 
   // Mirror também para punter_sinais (tabela unificada lida pelo /punter)
