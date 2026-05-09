@@ -78,6 +78,7 @@ const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFuncti
 const AdminAssinaturas = React.lazy(() => import("./pages/AdminAssinaturas"));
 const AdminAuditoriaSinais = React.lazy(() => import("./pages/AdminAuditoriaSinais"));
 const AdminAuditoriaSinalDetalhe = React.lazy(() => import("./pages/AdminAuditoriaSinalDetalhe"));
+const AdminAuditoriaPunter = React.lazy(() => import("./pages/AdminAuditoriaPunter"));
 const AdminMycroftChatAccessLog = React.lazy(() => import("./pages/AdminMycroftChatAccessLog"));
 const PunterPerformancePorMercado = React.lazy(() => import("./pages/PunterPerformancePorMercado"));
 const TraderSportsPerformancePorMercado = React.lazy(() => import("./pages/TraderSportsPerformancePorMercado"));
@@ -194,6 +195,7 @@ const App = () => {
                 <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
                 <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />
+                <Route path="/admin/auditoria-punter" element={<AdminAuditoriaPunter />} />
                 <Route path="/admin/mycroft-chat-access" element={<AdminMycroftChatAccessLog />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
