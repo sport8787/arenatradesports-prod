@@ -634,13 +634,15 @@ serve(async (req) => {
       let profitLoss = 0
       if (analysis.verdict === 'APROVADO') {
         totalActualStaked += stakeAmount
-        profitLoss = analysis.isGreen
-          ? stakeAmount * (analysis.odd - 1)
-          : -stakeAmount
+        const m = analysis.settlementMultiplier
+        // m=1 full win, 0.5 half win, 0 push, -0.5 half loss, -1 full loss
+        if (m > 0) profitLoss = stakeAmount * m * (analysis.odd - 1)
+        else if (m === 0) profitLoss = 0
+        else profitLoss = stakeAmount * m // negative
         bankroll += profitLoss
 
-        // Track for Monte Carlo
-        mcBets.push({ odd: analysis.odd, stakePct: analysis.stakePct, isGreen: analysis.isGreen })
+        // Track for Monte Carlo (treat half-results approximately as fractional outcomes)
+        mcBets.push({ odd: analysis.odd, stakePct: analysis.stakePct, isGreen: m > 0 })
 
         if (bankroll <= 0) {
           bankroll = 0
