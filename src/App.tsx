@@ -192,6 +192,7 @@ const App = () => {
                 <Route path="/admin/clv-monitor" element={<AdminCLVMonitor />} />
                 <Route path="/admin/metricas-conversao" element={<AdminMetricasConversao />} />
                 <Route path="/admin/trader-leagues" element={<AdminTraderLeagues />} />
+                <Route path="/admin/league-roi" element={<AdminLeagueROI />} />
                 <Route path="/admin/borderline-ai" element={<AdminBorderlineAI />} />
                 <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
                 <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
