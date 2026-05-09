@@ -324,6 +324,134 @@ export default function BlackMarket() {
           </motion.section>
         )}
 
+        {/* Painel de Progresso do Trial — projeção até o primeiro resgate */}
+        {!subLoading && !!user && isTrial && (() => {
+          const balance = userCoins;
+          const cheapestPrize = 800; // 7 Dias Premium Grátis
+          const valePrize = 3500;     // Vale R$ 50
+          const day = new Date().getUTCDate();
+          const dailyPace = day > 0 ? creditedThisMonth / day : 0;
+          // Após assinar Premium, o multiplicador cai (2.5x → 1.3x) e o cap sobe (600 → 2000).
+          // Pace projetado pós-assinatura ≈ dailyPace * (1.3 / 2.5).
+          const postPace = dailyPace * (1.3 / 2.5);
+          const remainingToCheap = Math.max(0, cheapestPrize - balance);
+          const remainingToVale = Math.max(0, valePrize - balance);
+          const daysToCheap = postPace > 0 ? Math.ceil(remainingToCheap / postPace) : null;
+          const daysToVale = postPace > 0 ? Math.ceil(remainingToVale / postPace) : null;
+          const cheapPct = Math.min(100, Math.round((balance / cheapestPrize) * 100));
+          const valePct = Math.min(100, Math.round((balance / valePrize) * 100));
+
+          return (
+            <motion.section
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto"
+            >
+              <div className="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-4 h-4 text-emerald-300" />
+                  <h3 className="font-mono text-xs uppercase tracking-wider text-emerald-300 font-bold">
+                    Seu progresso no trial
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                  <div className="rounded-lg bg-card/60 border border-border/40 p-3">
+                    <p className="text-[10px] uppercase text-muted-foreground">BC acumulado</p>
+                    <p className="font-orbitron font-bold text-xl text-foreground mt-1">
+                      {balance.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">saldo atual</p>
+                  </div>
+                  <div className="rounded-lg bg-card/60 border border-border/40 p-3">
+                    <p className="text-[10px] uppercase text-muted-foreground">Cap mensal trial</p>
+                    <p className="font-orbitron font-bold text-xl text-emerald-300 mt-1">
+                      {creditedThisMonth} <span className="text-sm text-muted-foreground">/ {monthlyCap}</span>
+                    </p>
+                    <p className="text-[10px] text-emerald-300/70 mt-0.5">multiplicador 2.5x ativo</p>
+                  </div>
+                  <div className="rounded-lg bg-card/60 border border-border/40 p-3">
+                    <p className="text-[10px] uppercase text-muted-foreground">Ritmo diário</p>
+                    <p className="font-orbitron font-bold text-xl text-foreground mt-1">
+                      {dailyPace > 0 ? `${dailyPace.toFixed(1)} BC` : '—'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">média neste mês</p>
+                  </div>
+                </div>
+
+                {/* Barras de progresso para os 2 primeiros prêmios */}
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-muted-foreground">
+                        🎯 7 Dias Premium Grátis <span className="text-foreground font-medium">(800 BC)</span>
+                      </span>
+                      <span className="font-mono text-foreground">{cheapPct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-card/60 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
+                        style={{ width: `${cheapPct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-muted-foreground">
+                        💸 Vale-Presente R$ 50 <span className="text-foreground font-medium">(3.500 BC)</span>
+                      </span>
+                      <span className="font-mono text-foreground">{valePct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-card/60 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all"
+                        style={{ width: `${valePct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estimativa pós-assinatura */}
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                  <p className="text-[11px] font-semibold text-amber-300 mb-1.5">
+                    📊 Estimativa após você assinar (ritmo Premium)
+                  </p>
+                  {dailyPace > 0 ? (
+                    <ul className="text-[11px] text-muted-foreground space-y-1">
+                      <li>
+                        🎯 <span className="text-foreground">7 Dias Premium</span> em ~
+                        <span className="text-emerald-300 font-mono font-semibold">
+                          {balance >= cheapestPrize ? 'JÁ DESBLOQUEADO ✓' : `${daysToCheap} dia${daysToCheap === 1 ? '' : 's'}`}
+                        </span>
+                      </li>
+                      <li>
+                        💸 <span className="text-foreground">Vale R$ 50</span> em ~
+                        <span className="text-amber-300 font-mono font-semibold">
+                          {balance >= valePrize ? 'JÁ DESBLOQUEADO ✓' : `${daysToVale} dia${daysToVale === 1 ? '' : 's'}`}
+                        </span>
+                      </li>
+                    </ul>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground italic">
+                      Faça suas primeiras apostas virtuais para calcularmos sua estimativa.
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70 mt-2 leading-snug">
+                    Cálculo baseado no seu ritmo atual de {dailyPace > 0 ? dailyPace.toFixed(1) : '—'} BC/dia (trial 2.5x)
+                    projetado para o ritmo Premium (1.3x). Quanto melhor sua disciplina, mais rápido o resgate.
+                  </p>
+                  <Link
+                    to="/paywall"
+                    className="inline-flex items-center gap-1.5 mt-3 rounded-md bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 text-xs font-medium text-amber-300 transition"
+                  >
+                    Assinar para liberar resgates
+                  </Link>
+                </div>
+              </div>
+            </motion.section>
+          );
+        })()}
+
         {/* Multiplicador de BC por plano */}
         {!subLoading && (
           <motion.section
