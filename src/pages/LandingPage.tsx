@@ -222,30 +222,46 @@ export default function LandingPage() {
                 <span className="text-blue-400 font-semibold"> +71% de ROI</span> em apostas auditadas.
               </p>
 
-              <div className="mb-6">
-                <Suspense fallback={<div className="h-10" />}>
-                  <PromoSlotsCounter variant="inline" />
-                </Suspense>
-              </div>
+              {pitchUnlocked ? (
+                <>
+                  <div className="mb-6">
+                    <Suspense fallback={<div className="h-10" />}>
+                      <PromoSlotsCounter variant="inline" />
+                    </Suspense>
+                  </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
-                  TESTAR GRÁTIS POR 7 DIAS
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                </button>
-                <a href="https://t.me/oraculo_mycroft" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-[#229ED9]/10 border border-[#229ED9]/40 text-[#229ED9] font-semibold rounded-lg hover:bg-[#229ED9]/20 transition backdrop-blur-sm flex items-center justify-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Grupo VIP Telegram
-                </a>
-              </div>
+                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
+                      TESTAR GRÁTIS POR 7 DIAS
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
+                    </button>
+                    <a href="https://t.me/oraculo_mycroft" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-[#229ED9]/10 border border-[#229ED9]/40 text-[#229ED9] font-semibold rounded-lg hover:bg-[#229ED9]/20 transition backdrop-blur-sm flex items-center justify-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Grupo VIP Telegram
+                    </a>
+                  </div>
 
-              <p className="text-sm text-gray-400 mb-8">✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques • ⚡ Acesso imediato</p>
+                  <p className="text-sm text-gray-400 mb-8">✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques • ⚡ Acesso imediato</p>
 
-              <div className="flex items-center gap-8 flex-wrap">
-                <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
-                <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
-                <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições</p></div>
-              </div>
+                  <div className="flex items-center gap-8 flex-wrap">
+                    <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
+                    <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
+                    <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições</p></div>
+                  </div>
+                </>
+              ) : (
+                <div className="mb-8 p-5 bg-gradient-to-br from-yellow-500/5 to-transparent border border-yellow-500/20 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">🎬</span>
+                    <p className="text-sm sm:text-base font-bold text-yellow-300">
+                      Assista o vídeo para liberar sua oferta
+                    </p>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+                    No final da apresentação você terá acesso a uma condição exclusiva de teste grátis por 7 dias — sem cartão, sem letras miúdas.
+                  </p>
+                </div>
+              )}
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative space-y-6">
