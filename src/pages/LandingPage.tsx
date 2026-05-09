@@ -274,7 +274,7 @@ export default function LandingPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                       <p className="text-xs sm:text-sm font-bold text-yellow-300 uppercase tracking-wide">
-                        Veja como o Hórus identifica apostas com valor em tempo real
+                        Veja como o Mycroft identifica apostas com valor em tempo real
                       </p>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-300">
