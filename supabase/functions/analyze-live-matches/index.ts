@@ -600,6 +600,87 @@ serve(async (req) => {
             analysis.thesis = `[VETO TEMPORAL] ${analysis.market} bloqueado: minuto ${minute} > 70'. Janela de valor encerrada. ` + (analysis.thesis || '');
             analysis.plan_name = null;
           }
+
+          // ========== MARKET SANITY VETO (estado já decidido / sem valor) ==========
+          // Bloqueia mercados cuja condição já foi atingida ou cujo EV é inviável dado o placar atual.
+          if (activeVerdicts.includes(analysis.verdict)) {
+            const isHTMarket = /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower);
+            const isBTTS = /(btts|ambas\s*marcam|both\s*teams)/.test(marketLower);
+            const isBTTSNo = isBTTS && /(não|nao|\bno\b)/.test(marketLower);
+            const isBTTSYes = isBTTS && !isBTTSNo;
+
+            // 3) BTTS Sim — VETAR se ambos os times já marcaram (mercado já decidido, odd≈1.0)
+            //    OU se já passou do minuto 75 e algum time ainda está em 0 (probabilidade muito baixa)
+            if (isBTTSYes) {
+              if (sh >= 1 && sa >= 1) {
+                console.log(`[AnalyzeLive] 🚫 VETO BTTS Sim — placar ${sh}x${sa} (já decidido)`);
+                analysis.verdict = 'AGUARDAR';
+                analysis.thesis = `[VETO MERCADO] Ambas Marcam Sim bloqueado: placar ${sh}x${sa} no minuto ${minute} — mercado já decidido (sem valor). ` + (analysis.thesis || '');
+                analysis.plan_name = null;
+              } else if (minute >= 75 && (sh === 0 || sa === 0)) {
+                console.log(`[AnalyzeLive] 🚫 VETO BTTS Sim — min=${minute} placar=${sh}x${sa} (tempo curto)`);
+                analysis.verdict = 'AGUARDAR';
+                analysis.thesis = `[VETO MERCADO] Ambas Marcam Sim bloqueado: minuto ${minute}, placar ${sh}x${sa}. Tempo restante insuficiente para o time zerado marcar. ` + (analysis.thesis || '');
+                analysis.plan_name = null;
+              }
+            }
+
+            // 4) BTTS Não — VETAR se ambos já marcaram (já perdeu)
+            if (isBTTSNo && sh >= 1 && sa >= 1) {
+              console.log(`[AnalyzeLive] 🚫 VETO BTTS Não — placar ${sh}x${sa} (já perdeu)`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.thesis = `[VETO MERCADO] Ambas Marcam Não bloqueado: placar ${sh}x${sa} — mercado já perdido. ` + (analysis.thesis || '');
+              analysis.plan_name = null;
+            }
+
+            // 5) Over X.5 FT já batido — se total de gols >= linha, mercado já ganho (sem valor)
+            if (activeVerdicts.includes(analysis.verdict) && !isHTMarket) {
+              const overFTMatch = marketLower.match(/over\s*(\d)\.?5/);
+              if (overFTMatch) {
+                const line = Number(overFTMatch[1]); // 0,1,2,3,4
+                if (totalGoals >= line + 1) {
+                  console.log(`[AnalyzeLive] 🚫 VETO Over ${line}.5 FT — total=${totalGoals} (já batido)`);
+                  analysis.verdict = 'AGUARDAR';
+                  analysis.thesis = `[VETO MERCADO] Over ${line}.5 FT bloqueado: ${totalGoals} gols já marcados — mercado já decidido (sem valor). ` + (analysis.thesis || '');
+                  analysis.plan_name = null;
+                }
+              }
+            }
+
+            // 6) Over X.5 HT já batido (no 1º tempo) — total de gols no HT >= linha
+            if (activeVerdicts.includes(analysis.verdict) && isHTMarket) {
+              const overHTMatch = marketLower.match(/over\s*(\d)\.?5/);
+              if (overHTMatch) {
+                const line = Number(overHTMatch[1]);
+                // Considera apenas se ainda no 1T; se já passou do HT, mercado HT está fechado
+                if (totalGoals >= line + 1) {
+                  console.log(`[AnalyzeLive] 🚫 VETO Over ${line}.5 HT — total=${totalGoals} (já batido)`);
+                  analysis.verdict = 'AGUARDAR';
+                  analysis.thesis = `[VETO MERCADO] Over ${line}.5 HT bloqueado: ${totalGoals} gols no HT — mercado já decidido. ` + (analysis.thesis || '');
+                  analysis.plan_name = null;
+                } else if (minute > 40) {
+                  console.log(`[AnalyzeLive] 🚫 VETO Over ${line}.5 HT — min=${minute} (janela encerrada)`);
+                  analysis.verdict = 'AGUARDAR';
+                  analysis.thesis = `[VETO MERCADO] Over ${line}.5 HT bloqueado: minuto ${minute} > 40' — tempo restante insuficiente. ` + (analysis.thesis || '');
+                  analysis.plan_name = null;
+                }
+              }
+            }
+
+            // 7) Under X.5 já estourado — se total de gols >= linha, Under já perdeu
+            if (activeVerdicts.includes(analysis.verdict)) {
+              const underMatch = marketLower.match(/under\s*(\d)\.?5/);
+              if (underMatch) {
+                const line = Number(underMatch[1]);
+                if (totalGoals >= line + 1) {
+                  console.log(`[AnalyzeLive] 🚫 VETO Under ${line}.5 — total=${totalGoals} (já estourado)`);
+                  analysis.verdict = 'AGUARDAR';
+                  analysis.thesis = `[VETO MERCADO] Under ${line}.5 bloqueado: ${totalGoals} gols já marcados — mercado já perdido. ` + (analysis.thesis || '');
+                  analysis.plan_name = null;
+                }
+              }
+            }
+          }
         }
         // ====================================================================
 
