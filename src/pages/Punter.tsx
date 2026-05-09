@@ -208,14 +208,41 @@ export default function PunterPage() {
     }
   };
 
-  // Set of pending bet match keys for "NOVO" badge
-  const pendingMatchKeys = useMemo(() => {
+  // Set de jogos com aposta já realizada (Hórus OU manual) — chaveado por home_away normalizado.
+  // Usado para impedir nova aposta no mesmo sinal e exibir etiqueta "JÁ APOSTADO".
+  const placedBetMatchKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (const bet of pendingBets) {
-      keys.add((bet.match_id || '').toLowerCase());
-    }
+    const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
+    const addKey = (matchId?: string, matchName?: string) => {
+      if (matchId) {
+        keys.add(norm(matchId));
+        // Variante sem commence_time (último underscore + ISO)
+        const withoutTime = String(matchId).split('_').slice(0, 2).join('_');
+        if (withoutTime) keys.add(norm(withoutTime));
+      }
+      if (matchName) {
+        // "Home vs Away" -> home_away
+        const m = matchName.split(/\s+vs\s+/i);
+        if (m.length === 2) keys.add(norm(`${m[0]}_${m[1]}`));
+      }
+    };
+    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name);
+    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name);
     return keys;
-  }, [pendingBets]);
+  }, [pendingBets, manualPendingBets]);
+
+  // Compatibilidade: mantém referência antiga (mesma estrutura)
+  const pendingMatchKeys = placedBetMatchKeys;
+
+  // Sinais NOVOS = aprovados após a última visita (persistido em localStorage)
+  const SEEN_KEY = 'punter_seen_signal_ids_v1';
+  const [seenSignalIds, setSeenSignalIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(SEEN_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {}
+    return new Set<string>();
+  });
 
   // Load pending bets AND saved approved signals on mount
   useEffect(() => {
