@@ -199,35 +199,47 @@ serve(async (req) => {
     let skippedFuture = 0;
     let skippedPast = 0;
 
+    // Build payloads first, then batch upsert with ignoreDuplicates.
+    // Antes: cada execução horária reescrevia ~todas as linhas (write amplification gigante).
+    // Agora: só insere fixtures novos; transições de status vivem em live_matches.
+    const payloads: any[] = [];
     for (const m of allParsed) {
-      try {
-        const matchDate = new Date(m.time);
-        const startMs = matchDate.getTime();
-        if (!startMs) continue;
-        if (startMs < now - 30 * 60000) { skippedPast++; continue; }
-        if (startMs > max) { skippedFuture++; continue; }
+      const matchDate = new Date(m.time);
+      const startMs = matchDate.getTime();
+      if (!startMs) continue;
+      if (startMs < now - 30 * 60000) { skippedPast++; continue; }
+      if (startMs > max) { skippedFuture++; continue; }
 
-        const dateStr = matchDate.toISOString().split('T')[0];
-        const timeStr = matchDate.toISOString().slice(11, 16);
-        const status = startMs <= now ? 'live' : 'scheduled';
+      const dateStr = matchDate.toISOString().split('T')[0];
+      const timeStr = matchDate.toISOString().slice(11, 16);
+      const status = startMs <= now ? 'live' : 'scheduled';
 
-        const { error } = await supabase.from('scheduled_games').upsert({
-          match_date: dateStr,
-          match_time: timeStr,
-          match_datetime: matchDate.toISOString(),
-          league_name: `${m.league}${m.country ? ` (${m.country})` : ''}`,
-          home_team: m.home,
-          away_team: m.away,
-          event_id: `sofa_${m.matchId}`,
-          match_id: `sofa_${m.matchId}`,
-          status,
-          check_time: new Date(startMs - 15 * 60000).toISOString(),
-          relevance_score: relevanceFor(m.league, m.country),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'match_date,match_time,home_team,away_team' });
+      payloads.push({
+        match_date: dateStr,
+        match_time: timeStr,
+        match_datetime: matchDate.toISOString(),
+        league_name: `${m.league}${m.country ? ` (${m.country})` : ''}`,
+        home_team: m.home,
+        away_team: m.away,
+        event_id: `sofa_${m.matchId}`,
+        match_id: `sofa_${m.matchId}`,
+        status,
+        check_time: new Date(startMs - 15 * 60000).toISOString(),
+        relevance_score: relevanceFor(m.league, m.country),
+      });
+    }
 
-        if (!error) inserted++;
-      } catch (_) {}
+    const CHUNK = 200;
+    for (let i = 0; i < payloads.length; i += CHUNK) {
+      const slice = payloads.slice(i, i + CHUNK);
+      const { error } = await supabase
+        .from('scheduled_games')
+        .upsert(slice, {
+          onConflict: 'match_date,match_time,home_team,away_team',
+          ignoreDuplicates: true,
+        });
+      if (!error) inserted += slice.length;
+      else console.warn('[SofaScheduled] batch upsert error:', error.message);
     }
 
     console.log(`[SofaScheduled] Done: ${allParsed.length} parsed, ${inserted} inserted, ${skippedPast} past, ${skippedFuture} too far`);
