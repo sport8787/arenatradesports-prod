@@ -28,7 +28,8 @@ import { useVslDelay } from '@/hooks/useVslDelay';
 import { getH1Variant, H1_VARIANTS } from '@/lib/landingAbTest';
 
 // 🎯 VSL com delay: minuto exato do pitch no vídeo. Trocar quando o vídeo final estiver pronto.
-const VSL_PITCH_DELAY_SECONDS = 8 * 60; // 8 minutos
+// 0 = sem delay (CTA visível desde o início). Baseline ~20 cadastros/dia foi obtido sem delay.
+const VSL_PITCH_DELAY_SECONDS = 0;
 
 export default function LandingPage() {
   const navigate = useNavigate();
