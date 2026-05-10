@@ -1,77 +1,89 @@
-## Objetivo
-Expandir o Trader Sports de ~17 ligas hoje no whitelist para **120-150**, sem estourar custo Gemini nem quota da API-Football, usando sistema de **tiers A/B/C**.
 
-## Diagnóstico atual
-- `fetch-live-matches/index.ts` tem whitelist hardcoded (`LIGAS_PERMITIDAS`) com 17 ligas top.
-- `handicap-asiatico-prelive/index.ts` e `plano-favorito-prelive/index.ts` têm seus próprios sets reduzidos (~18 ligas) e chamam Gemini por jogo.
-- `analyze-live-matches` (motor ao vivo) é **determinístico** — não chama IA. Então expandir cobertura ao vivo tem custo de quota API-Football, mas **zero custo Gemini**.
-- `arena-trader-jury` é chamado sob demanda (não em loop por jogo).
+# Reavaliação honesta: migrar para Supabase próprio AGORA não resolve nada
 
-Conclusão: o custo Gemini concentra-se nas edges pré-live (HA, Plano Favorito). Live é "barato" do lado da IA.
+Você escolheu reavaliar — e essa é a decisão certa. Vou ser direto:
 
-## Estratégia de tiers
+---
 
-| Tier | Ligas | Live (analyze-live) | Pré-live (HA + Favorito) | Modelo Gemini |
-|------|-------|---------------------|---------------------------|---------------|
-| **A** | ~30 top (atual) | ✅ completo | ✅ análise completa | gemini-2.5-flash |
-| **B** | ~60 médio | ✅ completo | ✅ prompt enxuto + max 25 jogos | gemini-2.5-flash-lite |
-| **C** | ~40 cauda longa | ✅ completo | ❌ só Sherlock (estatística pura, sem IA) | — |
+## Suas 3 motivações vs realidade
 
-Resultado: 3-5x mais cobertura, custo Gemini cresce ~30-40% (não 8x).
+### 1. "Crashes/performance recentes"
+**Não vai melhorar migrando.** O crash de hoje teve causa identificada e corrigida:
+- Faltava índice parcial em `live_matches` (criado).
+- `update-live-odds` carregava JSON pesado de `cached_odds_games` em toda execução (corrigido com lazy load).
+- UPDATEs sequenciais geravam lock contention (paralelizados).
+- Instância subdimensionada (subiu para 8GB).
 
-## Implementação
+Se você levar o mesmo schema e os mesmos cron jobs pro Supabase próprio com a mesma instância, vai dar **o mesmo crash**. O Supabase de baixo é o mesmo Postgres.
 
-### 1. Migração — tabela `trader_leagues`
-```sql
-CREATE TABLE public.trader_leagues (
-  league_id integer PRIMARY KEY,
-  name text NOT NULL,
-  country text,
-  region text,             -- BRASIL|EUROPA|SUL_AMERICA|ASIA|NORTE_AMERICA|OUTROS
-  tier text NOT NULL,      -- 'A' | 'B' | 'C'
-  enabled boolean NOT NULL DEFAULT true,
-  odds_sport_key text,     -- mapping pro The Odds API (quando existir)
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.trader_leagues ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "trader_leagues readable by everyone" ON public.trader_leagues FOR SELECT USING (true);
-CREATE POLICY "trader_leagues admin write" ON public.trader_leagues FOR ALL USING (public.has_role(auth.uid(),'admin'));
+### 2. "Custo"
+**Provavelmente fica MAIS caro, não mais barato.** Comparativo realista para o seu uso atual (8GB, ~80 edges, ~20 crons, tráfego intenso):
+- **Lovable Cloud:** já incluso no plano Lovable, billing unificado.
+- **Supabase Pro direto:** ~US$25/mês base + compute add-on (Large 8GB ≈ US$110/mês) + egress + edge function invocations + storage. Estimativa US$ 150–250/mês só de Supabase, **fora** o plano Lovable que você continua pagando para editar o app.
+
+Você paga **dois** fornecedores em vez de um. Só compensa se sair também da Lovable — o que é uma decisão muito maior.
+
+### 3. "Medo de lock-in"
+**Esse é o único ponto legítimo.** E tem solução parcial sem migrar:
+- O schema, edges e RLS já são 100% Postgres/Deno padrão Supabase. Se um dia precisar sair, o caminho é o mesmo (export schema + redeploy edges + repointar client).
+- **A migração HOJE não te dá vantagem nenhuma** — ela apenas antecipa um trabalho que custa o mesmo se feito em 6 meses, 1 ano, ou nunca.
+
+---
+
+## Riscos REAIS de migrar agora
+
+```text
+Janela de manutenção         4–8h de downtime obrigatório (cutover único)
+Edge functions               ~80 funções para redeploy + revalidar secrets
+Cron jobs                    ~20 jobs pg_cron com URLs hardcoded (precisam reescrever)
+Auth users                   Migração de senhas: possível mas frágil
+Webhooks externos            Telegram, Resend, PostHog, Vercel rewrites — todos
+                             apontam para affquongjlhmusxzohjl.supabase.co.
+                             Cada um precisa ser reapontado manualmente.
+URLs no código               36+ ocorrências hardcoded de affquongjlhmusxzohjl
+                             em edges (notify_aprovado_broadcast, triggers SQL,
+                             punter functions, etc.) — buscar/substituir tudo
+Realtime                     Reassinar canais; testar push notifications
+Storage                      Migrar buckets seo-static, audio, etc.
+Risco operacional            Você opera live durante jogos. Qualquer bug pós-
+                             migração afeta usuários pagantes em tempo real.
 ```
-Seed inicial: as 17 ligas atuais como Tier A + ~60 Tier B (Brasileirão B/C, Argentina, Chile, Colômbia, México, MLS, Eredivisie, Belga, Turca, Grega, J-League, K-League, A-League, China, Saudi, Eredivisie 2, EFL Championship/L1/L2, Bundesliga 2, La Liga 2, Serie B Italiana, Ligue 2, FA Cup, Copa del Rey, Coppa Italia, DFB-Pokal, etc.) + ~40 Tier C (3ª/4ª divisões, Cyprus, Bulgaria, Romania, Croatia, Sérvia, Israel, Egito, África do Sul, etc.).
 
-### 2. Helper compartilhado — `_shared/leaguesRegistry.ts`
-- Cache em memória (TTL 30 min) das ligas habilitadas, indexado por id e por tier.
-- Funções: `getAllowedLeagueIds()`, `getLeagueTier(id)`, `getLeaguesByTier('A'|'B'|'C')`.
+E o pior: **se algo der errado, não tem rollback fácil** — voltar pra Lovable Cloud significa migrar tudo de novo na direção oposta.
 
-### 3. `fetch-live-matches/index.ts`
-- Substituir `LIGAS_PERMITIDAS` constante por consulta ao registry (1x por execução, cacheado).
-- Bloqueio mantém `LIGAS_BLOQUEADAS` (amistosos).
+---
 
-### 4. `handicap-asiatico-prelive/index.ts`
-- Tier A+B somente (C nunca chega aqui).
-- Tier B usa `gemini-2.5-flash-lite` e prompt 50% menor (sem H2H detalhado, sem narrativa longa).
-- Limite de jogos: A=25, B=20.
+## Minha recomendação
 
-### 5. `plano-favorito-prelive/index.ts`
-- Mesmo padrão: A+B only, modelo por tier.
+**Não migre agora. Use os próximos 2–3 meses para:**
 
-### 6. UI Admin — `/admin/trader-leagues` (opcional, mas útil)
-- Nova rota com tabela editável: enable/disable, mudar tier, filtrar por região.
-- Adicionar link no `AdminHub`.
+1. **Otimizar o que está aqui** — ainda tem ganhos fáceis: índices faltantes em outras tabelas quentes (`punter_signals`, `mycroft_analyses`, `virtual_bets`), revisar queries das outras edges que rodam por cron, adicionar `statement_timeout` local nas edges críticas.
+2. **Monitorar de verdade** — você já tem `edge_function_runs` e `edge_function_errors`. Vamos criar um painel de saúde (queries lentas, locks, % de erro por edge) para detectar gargalo *antes* de virar crash.
+3. **Documentar dependências externas** — listar tudo que aponta para `affquongjlhmusxzohjl.supabase.co`. Quando/se migrar, esse inventário vira o checklist de cutover.
+4. **Reavaliar em 90 dias.** Se nesse período você tiver: (a) atingido limites que upgrade de instância não resolve, (b) precisar de read replicas / branching / PITR avançado, ou (c) decidir sair da Lovable também, **aí** a migração faz sentido. E você terá inventário pronto.
 
-### 7. Memória atualizada
-Atualizar `mem://features/arena-trader-sports/league-filtering-system-v2` com a estrutura de tiers e tabela `trader_leagues`.
+---
 
-## Pontos técnicos a confirmar
-- IDs API-Football das ligas adicionais: vou usar a lista canônica conhecida + verificação contra `/leagues` da API.
-- Se uma liga não tiver `odds_sport_key`, o HA pula (já é o comportamento atual).
-- Sherlock (cauda longa) já roda sem IA na própria edge `mycroft-punter-analytic` — não precisa mudar nada lá.
+## Quando migrar FAZ sentido
 
-## Entregas
-1. Migração + seed das ligas (uma única ação `supabase--migration` para schema, depois `supabase--insert` para o seed).
-2. `_shared/leaguesRegistry.ts` (novo).
-3. Edits em `fetch-live-matches`, `handicap-asiatico-prelive`, `plano-favorito-prelive`.
-4. `/admin/trader-leagues` + entrada no `AdminHub`.
-5. Memória atualizada.
+Marque pelo menos 2 destes para considerar:
+- [ ] Você decidiu sair da Lovable como ferramenta de edição.
+- [ ] Precisa de Point-in-Time Recovery, read replicas ou branching que Cloud não expõe.
+- [ ] Tem equipe técnica dedicada para operar Postgres/edges direto.
+- [ ] Volume de dados/tráfego justifica negociar contrato direto com Supabase.
+- [ ] Quer multi-região ou self-hosting.
 
-Aprovado o plano, começo pela migração da tabela.
+Hoje você não marca nenhum.
+
+---
+
+## Próximo passo proposto
+
+Em vez de migrar, **execute uma rodada de hardening do que está aqui**:
+- Auditoria de índices em todas as tabelas com >100k rows.
+- Painel admin de saúde (lock waits, queries >1s, top edges por tempo).
+- `statement_timeout` por função crítica.
+- Documento `MIGRATION_INVENTORY.md` listando todo recurso/URL externo (vira o seu seguro caso decida migrar no futuro).
+
+Quer que eu monte esse plano de hardening + inventário de migração como próxima tarefa?
+
