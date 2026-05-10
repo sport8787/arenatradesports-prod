@@ -25,6 +25,7 @@ export interface Subscription {
   notes: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  chat_override_until: string | null;
   created_at: string;
   updated_at: string;
 }
