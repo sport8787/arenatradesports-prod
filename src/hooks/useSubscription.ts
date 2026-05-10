@@ -159,6 +159,11 @@ export function useSubscription() {
     return allowedArenas.includes(arena);
   };
 
+  const chatOverrideActive = !!(
+    subscription?.chat_override_until &&
+    new Date(subscription.chat_override_until) > new Date()
+  );
+
   return {
     subscription,
     loading: loading || adminLoading || authLoading,
@@ -169,6 +174,7 @@ export function useSubscription() {
     hasAccess,
     allowedArenas,
     hasArena,
+    chatOverrideActive,
     refetch: fetchSubscription,
   };
 }
