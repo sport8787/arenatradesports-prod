@@ -101,6 +101,16 @@ export default function LandingPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // Telemetria: marca momento em que decidimos começar a carregar o player
+  useEffect(() => {
+    if (!shouldLoadVturb) return;
+    track.videoEvent('vsl_load_triggered', {
+      player_id: VTURB_PLAYER_ID,
+      pitch_delay_seconds: VSL_PITCH_DELAY_SECONDS,
+      timestamp: Date.now(),
+    });
+  }, [shouldLoadVturb, VTURB_PLAYER_ID]);
+
   // Força reload total do script VTurb para evitar cache/CDN/browser e re-renderizações inconsistentes
   useEffect(() => {
     if (!shouldLoadVturb || vturbFailed) return;
@@ -123,20 +133,51 @@ export default function LandingPage() {
       // noop
     }
 
+    const scriptStartedAt = Date.now();
     const s = document.createElement('script');
     s.src = `${VTURB_SCRIPT_SRC}?cb=${Date.now()}-${vturbReloadKey}`;
     s.async = true;
     s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
     s.setAttribute('data-vturb-reload-key', String(vturbReloadKey));
-    s.onerror = () => setVturbFailed(true);
+    s.onload = () => {
+      track.videoEvent('vsl_script_loaded', {
+        player_id: VTURB_PLAYER_ID,
+        reload_key: vturbReloadKey,
+        load_ms: Date.now() - scriptStartedAt,
+      });
+    };
+    s.onerror = () => {
+      track.videoEvent('vsl_script_error', {
+        player_id: VTURB_PLAYER_ID,
+        reload_key: vturbReloadKey,
+        elapsed_ms: Date.now() - scriptStartedAt,
+      });
+      setVturbFailed(true);
+    };
     document.head.appendChild(s);
 
     const retry = window.setTimeout(() => {
       const hasPlayerInstance = Boolean((window as any).smartplayer?.instances?.length);
       if (!hasPlayerInstance && vturbReloadKey < 1) {
+        track.videoEvent('vsl_player_retry', {
+          player_id: VTURB_PLAYER_ID,
+          reload_key: vturbReloadKey,
+          reason: 'no_instance_after_2500ms',
+        });
         setVturbReloadKey((current) => current + 1);
       } else if (!hasPlayerInstance) {
+        track.videoEvent('vsl_player_failed', {
+          player_id: VTURB_PLAYER_ID,
+          reload_key: vturbReloadKey,
+          reason: 'no_instance_after_retry',
+        });
         setVturbFailed(true);
+      } else {
+        track.videoEvent('vsl_player_ready', {
+          player_id: VTURB_PLAYER_ID,
+          reload_key: vturbReloadKey,
+          ready_ms: Date.now() - scriptStartedAt,
+        });
       }
     }, 2500);
 
