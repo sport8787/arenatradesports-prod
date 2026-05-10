@@ -650,51 +650,6 @@ export type Database = {
         }
         Relationships: []
       }
-      arena_poker_rankings: {
-        Row: {
-          apc_balance: number
-          best_win_streak: number
-          champion_titles: number
-          created_at: string
-          golden_tickets: number
-          id: string
-          total_scenarios_played: number
-          total_scenarios_won: number
-          total_sessions: number
-          updated_at: string
-          user_id: string
-          username: string
-        }
-        Insert: {
-          apc_balance?: number
-          best_win_streak?: number
-          champion_titles?: number
-          created_at?: string
-          golden_tickets?: number
-          id?: string
-          total_scenarios_played?: number
-          total_scenarios_won?: number
-          total_sessions?: number
-          updated_at?: string
-          user_id: string
-          username?: string
-        }
-        Update: {
-          apc_balance?: number
-          best_win_streak?: number
-          champion_titles?: number
-          created_at?: string
-          golden_tickets?: number
-          id?: string
-          total_scenarios_played?: number
-          total_scenarios_won?: number
-          total_sessions?: number
-          updated_at?: string
-          user_id?: string
-          username?: string
-        }
-        Relationships: []
-      }
       arena_trader_entries: {
         Row: {
           created_at: string | null
@@ -1217,153 +1172,6 @@ export type Database = {
           stake?: number
           stake_percentage?: number | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      biometric_baselines: {
-        Row: {
-          blink_rate_deviation_threshold: number | null
-          calibrated_at: string
-          capture_mode: string
-          created_at: string
-          expires_at: string
-          id: string
-          is_valid: boolean
-          jitter_deviation_threshold: number | null
-          lie_avg_pitch: number | null
-          lie_blink_rate: number | null
-          lie_brow_asymmetry: number | null
-          lie_face_symmetry: number | null
-          lie_facial_stress_score: number | null
-          lie_gaze_deviation: number | null
-          lie_jitter: number | null
-          lie_lip_tension: number | null
-          lie_longest_pause: number | null
-          lie_mouth_openness: number | null
-          lie_pitch_variance: number | null
-          lie_response_latency: number | null
-          lie_shimmer: number | null
-          lie_silent_periods: number | null
-          lie_speech_continuity: number | null
-          lie_speech_rate: number | null
-          lip_tension_deviation_threshold: number | null
-          pitch_deviation_threshold: number | null
-          session_id: string | null
-          stress_score_deviation_threshold: number | null
-          truth_avg_pitch: number | null
-          truth_blink_rate: number | null
-          truth_brow_asymmetry: number | null
-          truth_face_symmetry: number | null
-          truth_facial_stress_score: number | null
-          truth_gaze_deviation: number | null
-          truth_jitter: number | null
-          truth_lip_tension: number | null
-          truth_longest_pause: number | null
-          truth_mouth_openness: number | null
-          truth_pitch_variance: number | null
-          truth_response_latency: number | null
-          truth_shimmer: number | null
-          truth_silent_periods: number | null
-          truth_speech_continuity: number | null
-          truth_speech_rate: number | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          blink_rate_deviation_threshold?: number | null
-          calibrated_at?: string
-          capture_mode?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          is_valid?: boolean
-          jitter_deviation_threshold?: number | null
-          lie_avg_pitch?: number | null
-          lie_blink_rate?: number | null
-          lie_brow_asymmetry?: number | null
-          lie_face_symmetry?: number | null
-          lie_facial_stress_score?: number | null
-          lie_gaze_deviation?: number | null
-          lie_jitter?: number | null
-          lie_lip_tension?: number | null
-          lie_longest_pause?: number | null
-          lie_mouth_openness?: number | null
-          lie_pitch_variance?: number | null
-          lie_response_latency?: number | null
-          lie_shimmer?: number | null
-          lie_silent_periods?: number | null
-          lie_speech_continuity?: number | null
-          lie_speech_rate?: number | null
-          lip_tension_deviation_threshold?: number | null
-          pitch_deviation_threshold?: number | null
-          session_id?: string | null
-          stress_score_deviation_threshold?: number | null
-          truth_avg_pitch?: number | null
-          truth_blink_rate?: number | null
-          truth_brow_asymmetry?: number | null
-          truth_face_symmetry?: number | null
-          truth_facial_stress_score?: number | null
-          truth_gaze_deviation?: number | null
-          truth_jitter?: number | null
-          truth_lip_tension?: number | null
-          truth_longest_pause?: number | null
-          truth_mouth_openness?: number | null
-          truth_pitch_variance?: number | null
-          truth_response_latency?: number | null
-          truth_shimmer?: number | null
-          truth_silent_periods?: number | null
-          truth_speech_continuity?: number | null
-          truth_speech_rate?: number | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          blink_rate_deviation_threshold?: number | null
-          calibrated_at?: string
-          capture_mode?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          is_valid?: boolean
-          jitter_deviation_threshold?: number | null
-          lie_avg_pitch?: number | null
-          lie_blink_rate?: number | null
-          lie_brow_asymmetry?: number | null
-          lie_face_symmetry?: number | null
-          lie_facial_stress_score?: number | null
-          lie_gaze_deviation?: number | null
-          lie_jitter?: number | null
-          lie_lip_tension?: number | null
-          lie_longest_pause?: number | null
-          lie_mouth_openness?: number | null
-          lie_pitch_variance?: number | null
-          lie_response_latency?: number | null
-          lie_shimmer?: number | null
-          lie_silent_periods?: number | null
-          lie_speech_continuity?: number | null
-          lie_speech_rate?: number | null
-          lip_tension_deviation_threshold?: number | null
-          pitch_deviation_threshold?: number | null
-          session_id?: string | null
-          stress_score_deviation_threshold?: number | null
-          truth_avg_pitch?: number | null
-          truth_blink_rate?: number | null
-          truth_brow_asymmetry?: number | null
-          truth_face_symmetry?: number | null
-          truth_facial_stress_score?: number | null
-          truth_gaze_deviation?: number | null
-          truth_jitter?: number | null
-          truth_lip_tension?: number | null
-          truth_longest_pause?: number | null
-          truth_mouth_openness?: number | null
-          truth_pitch_variance?: number | null
-          truth_response_latency?: number | null
-          truth_shimmer?: number | null
-          truth_silent_periods?: number | null
-          truth_speech_continuity?: number | null
-          truth_speech_rate?: number | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -2335,36 +2143,6 @@ export type Database = {
           fetched_at?: string
           fixture_id?: string
           stats?: Json | null
-        }
-        Relationships: []
-      }
-      founder_cases: {
-        Row: {
-          activated_at: string | null
-          case_code: string
-          created_at: string | null
-          expires_at: string | null
-          id: string
-          is_active: boolean | null
-          user_id: string | null
-        }
-        Insert: {
-          activated_at?: string | null
-          case_code: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          user_id?: string | null
-        }
-        Update: {
-          activated_at?: string | null
-          case_code?: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -3673,56 +3451,6 @@ export type Database = {
         }
         Relationships: []
       }
-      players: {
-        Row: {
-          avatar_url: string | null
-          bluffcoins: number
-          created_at: string
-          detective_score: number
-          id: string
-          is_host: boolean
-          nickname: string
-          role: string | null
-          room_id: string
-          score: number
-          session_id: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          bluffcoins?: number
-          created_at?: string
-          detective_score?: number
-          id?: string
-          is_host?: boolean
-          nickname: string
-          role?: string | null
-          room_id: string
-          score?: number
-          session_id: string
-        }
-        Update: {
-          avatar_url?: string | null
-          bluffcoins?: number
-          created_at?: string
-          detective_score?: number
-          id?: string
-          is_host?: boolean
-          nickname?: string
-          role?: string | null
-          room_id?: string
-          score?: number
-          session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "players_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       poisson_log: {
         Row: {
           created_at: string | null
@@ -4812,54 +4540,6 @@ export type Database = {
         }
         Relationships: []
       }
-      questions: {
-        Row: {
-          category: string
-          correct_option: Database["public"]["Enums"]["answer_option"]
-          created_at: string
-          difficulty: Database["public"]["Enums"]["difficulty_level"]
-          id: string
-          mycroft_bluff_suggestion: string | null
-          mycroft_risk_analysis: string | null
-          mycroft_risk_level: number | null
-          option_a: string
-          option_b: string
-          option_c: string
-          option_d: string
-          question_text: string
-        }
-        Insert: {
-          category: string
-          correct_option: Database["public"]["Enums"]["answer_option"]
-          created_at?: string
-          difficulty?: Database["public"]["Enums"]["difficulty_level"]
-          id?: string
-          mycroft_bluff_suggestion?: string | null
-          mycroft_risk_analysis?: string | null
-          mycroft_risk_level?: number | null
-          option_a: string
-          option_b: string
-          option_c: string
-          option_d: string
-          question_text: string
-        }
-        Update: {
-          category?: string
-          correct_option?: Database["public"]["Enums"]["answer_option"]
-          created_at?: string
-          difficulty?: Database["public"]["Enums"]["difficulty_level"]
-          id?: string
-          mycroft_bluff_suggestion?: string | null
-          mycroft_risk_analysis?: string | null
-          mycroft_risk_level?: number | null
-          option_a?: string
-          option_b?: string
-          option_c?: string
-          option_d?: string
-          question_text?: string
-        }
-        Relationships: []
-      }
       rankings: {
         Row: {
           bluffs_detected: number
@@ -4971,15 +4651,7 @@ export type Database = {
           mode?: string | null
           pin?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "rooms_current_question_id_fkey"
-            columns: ["current_question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       scheduled_games: {
         Row: {
@@ -5820,92 +5492,6 @@ export type Database = {
         }
         Relationships: []
       }
-      training_hand_sessions: {
-        Row: {
-          ante: string | null
-          bc_awarded: number
-          blind_level: string | null
-          board_cards_flop: string | null
-          board_cards_river: string | null
-          board_cards_turn: string | null
-          created_at: string
-          current_street: string
-          hand_number: number
-          hero_hole_cards: string
-          hero_stack: number
-          id: string
-          initial_stacks_json: Json | null
-          metadata_json: Json | null
-          position_hero: string | null
-          position_villain: string | null
-          pot_size: number
-          status: string
-          training_run_id: string
-          user_id: string
-          villain_name: string | null
-          villain_profile: string | null
-          villain_stack: number
-        }
-        Insert: {
-          ante?: string | null
-          bc_awarded?: number
-          blind_level?: string | null
-          board_cards_flop?: string | null
-          board_cards_river?: string | null
-          board_cards_turn?: string | null
-          created_at?: string
-          current_street?: string
-          hand_number?: number
-          hero_hole_cards: string
-          hero_stack?: number
-          id?: string
-          initial_stacks_json?: Json | null
-          metadata_json?: Json | null
-          position_hero?: string | null
-          position_villain?: string | null
-          pot_size?: number
-          status?: string
-          training_run_id: string
-          user_id: string
-          villain_name?: string | null
-          villain_profile?: string | null
-          villain_stack?: number
-        }
-        Update: {
-          ante?: string | null
-          bc_awarded?: number
-          blind_level?: string | null
-          board_cards_flop?: string | null
-          board_cards_river?: string | null
-          board_cards_turn?: string | null
-          created_at?: string
-          current_street?: string
-          hand_number?: number
-          hero_hole_cards?: string
-          hero_stack?: number
-          id?: string
-          initial_stacks_json?: Json | null
-          metadata_json?: Json | null
-          position_hero?: string | null
-          position_villain?: string | null
-          pot_size?: number
-          status?: string
-          training_run_id?: string
-          user_id?: string
-          villain_name?: string | null
-          villain_profile?: string | null
-          villain_stack?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_hand_sessions_training_run_id_fkey"
-            columns: ["training_run_id"]
-            isOneToOne: false
-            referencedRelation: "training_runs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       training_labels: {
         Row: {
           ai_votes_believe: number | null
@@ -5982,20 +5568,6 @@ export type Database = {
             columns: ["match_id"]
             isOneToOne: false
             referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "training_labels_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "training_labels_recording_id_fkey"
-            columns: ["recording_id"]
-            isOneToOne: true
-            referencedRelation: "voice_recordings"
             referencedColumns: ["id"]
           },
         ]
@@ -6196,15 +5768,7 @@ export type Database = {
           verdict_horus_text?: string | null
           villain_stack?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "training_streets_training_hand_session_id_fkey"
-            columns: ["training_hand_session_id"]
-            isOneToOne: false
-            referencedRelation: "training_hand_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       trial_notification_log: {
         Row: {
@@ -6265,45 +5829,6 @@ export type Database = {
           risk_profile?: string
           under_line?: number
           updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      uploaded_hand_files: {
-        Row: {
-          created_at: string
-          file_hash: string
-          filename: string
-          hands_count: number
-          id: string
-          platform: string
-          players_extracted: string[] | null
-          raw_content: string
-          storage_path: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          file_hash: string
-          filename: string
-          hands_count?: number
-          id?: string
-          platform?: string
-          players_extracted?: string[] | null
-          raw_content: string
-          storage_path?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          file_hash?: string
-          filename?: string
-          hands_count?: number
-          id?: string
-          platform?: string
-          players_extracted?: string[] | null
-          raw_content?: string
-          storage_path?: string | null
           user_id?: string
         }
         Relationships: []
@@ -6467,35 +5992,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_question_history: {
-        Row: {
-          created_at: string
-          id: string
-          question_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          question_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          question_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_question_history_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -6630,144 +6126,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      villain_profiles: {
-        Row: {
-          ai_danger_level: string | null
-          ai_evolution_notes: string | null
-          ai_exploitable_tendencies: string | null
-          ai_style_summary: string | null
-          created_at: string
-          estimated_3bet: number | null
-          estimated_aggression: number | null
-          estimated_fold_to_3bet: number | null
-          estimated_pfr: number | null
-          estimated_vpip: number | null
-          first_seen_at: string
-          id: string
-          last_seen_at: string
-          platform: string
-          player_name: string
-          showdown_frequency: number | null
-          tags: string[] | null
-          times_seen: number
-          total_hands_against: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          ai_danger_level?: string | null
-          ai_evolution_notes?: string | null
-          ai_exploitable_tendencies?: string | null
-          ai_style_summary?: string | null
-          created_at?: string
-          estimated_3bet?: number | null
-          estimated_aggression?: number | null
-          estimated_fold_to_3bet?: number | null
-          estimated_pfr?: number | null
-          estimated_vpip?: number | null
-          first_seen_at?: string
-          id?: string
-          last_seen_at?: string
-          platform?: string
-          player_name: string
-          showdown_frequency?: number | null
-          tags?: string[] | null
-          times_seen?: number
-          total_hands_against?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          ai_danger_level?: string | null
-          ai_evolution_notes?: string | null
-          ai_exploitable_tendencies?: string | null
-          ai_style_summary?: string | null
-          created_at?: string
-          estimated_3bet?: number | null
-          estimated_aggression?: number | null
-          estimated_fold_to_3bet?: number | null
-          estimated_pfr?: number | null
-          estimated_vpip?: number | null
-          first_seen_at?: string
-          id?: string
-          last_seen_at?: string
-          platform?: string
-          player_name?: string
-          showdown_frequency?: number | null
-          tags?: string[] | null
-          times_seen?: number
-          total_hands_against?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      villain_session_stats: {
-        Row: {
-          aggression_session: number | null
-          all_ins: number
-          biggest_pot_bb: number | null
-          created_at: string
-          hands_played: number
-          hands_won: number
-          id: string
-          notable_plays: string | null
-          pfr_session: number | null
-          showdowns: number
-          uploaded_file_id: string
-          user_id: string
-          villain_profile_id: string
-          vpip_session: number | null
-        }
-        Insert: {
-          aggression_session?: number | null
-          all_ins?: number
-          biggest_pot_bb?: number | null
-          created_at?: string
-          hands_played?: number
-          hands_won?: number
-          id?: string
-          notable_plays?: string | null
-          pfr_session?: number | null
-          showdowns?: number
-          uploaded_file_id: string
-          user_id: string
-          villain_profile_id: string
-          vpip_session?: number | null
-        }
-        Update: {
-          aggression_session?: number | null
-          all_ins?: number
-          biggest_pot_bb?: number | null
-          created_at?: string
-          hands_played?: number
-          hands_won?: number
-          id?: string
-          notable_plays?: string | null
-          pfr_session?: number | null
-          showdowns?: number
-          uploaded_file_id?: string
-          user_id?: string
-          villain_profile_id?: string
-          vpip_session?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "villain_session_stats_uploaded_file_id_fkey"
-            columns: ["uploaded_file_id"]
-            isOneToOne: false
-            referencedRelation: "uploaded_hand_files"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "villain_session_stats_villain_profile_id_fkey"
-            columns: ["villain_profile_id"]
-            isOneToOne: false
-            referencedRelation: "villain_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       virtual_bets: {
         Row: {
@@ -7026,210 +6384,6 @@ export type Database = {
           },
         ]
       }
-      voice_recordings: {
-        Row: {
-          answer_was_correct: boolean | null
-          audio_url: string
-          avg_pitch: number | null
-          baseline_id: string | null
-          blink_rate: number | null
-          brow_asymmetry: number | null
-          capture_mode: string | null
-          combined_suspicion_score: number | null
-          consent_level: string | null
-          created_at: string
-          device_type: string | null
-          eye_gaze_dominant: string | null
-          facial_analysis_json: Json | null
-          facial_stress_score: number | null
-          filler_words_count: number | null
-          harmonics_to_noise: number | null
-          id: string
-          jitter: number | null
-          jitter_absolute: number | null
-          jitter_deviation: number | null
-          latency_deviation: number | null
-          lip_tension: number | null
-          longest_pause_ms: number | null
-          match_id: string | null
-          micro_expressions_detected: string[] | null
-          mycroft_forensic_details: string | null
-          mycroft_verdict: string | null
-          peak_amplitude: number | null
-          pitch_deviation: number | null
-          pitch_stability: string | null
-          pitch_variance: number | null
-          player_id: string | null
-          player_name: string | null
-          pnl_access_type: string | null
-          question_category: string | null
-          question_difficulty: string | null
-          question_id: string | null
-          recording_duration_ms: number | null
-          response_latency_ms: number | null
-          room_id: string | null
-          round_number: number
-          session_id: string | null
-          shimmer: number | null
-          silent_periods_count: number | null
-          speech_continuity: number | null
-          speech_rate_bpm: number | null
-          speech_rate_deviation: number | null
-          stress_level: string | null
-          stress_score: number | null
-          time_to_answer_ms: number | null
-          video_url: string | null
-          was_bluffing: boolean | null
-          words_per_minute: number | null
-        }
-        Insert: {
-          answer_was_correct?: boolean | null
-          audio_url: string
-          avg_pitch?: number | null
-          baseline_id?: string | null
-          blink_rate?: number | null
-          brow_asymmetry?: number | null
-          capture_mode?: string | null
-          combined_suspicion_score?: number | null
-          consent_level?: string | null
-          created_at?: string
-          device_type?: string | null
-          eye_gaze_dominant?: string | null
-          facial_analysis_json?: Json | null
-          facial_stress_score?: number | null
-          filler_words_count?: number | null
-          harmonics_to_noise?: number | null
-          id?: string
-          jitter?: number | null
-          jitter_absolute?: number | null
-          jitter_deviation?: number | null
-          latency_deviation?: number | null
-          lip_tension?: number | null
-          longest_pause_ms?: number | null
-          match_id?: string | null
-          micro_expressions_detected?: string[] | null
-          mycroft_forensic_details?: string | null
-          mycroft_verdict?: string | null
-          peak_amplitude?: number | null
-          pitch_deviation?: number | null
-          pitch_stability?: string | null
-          pitch_variance?: number | null
-          player_id?: string | null
-          player_name?: string | null
-          pnl_access_type?: string | null
-          question_category?: string | null
-          question_difficulty?: string | null
-          question_id?: string | null
-          recording_duration_ms?: number | null
-          response_latency_ms?: number | null
-          room_id?: string | null
-          round_number?: number
-          session_id?: string | null
-          shimmer?: number | null
-          silent_periods_count?: number | null
-          speech_continuity?: number | null
-          speech_rate_bpm?: number | null
-          speech_rate_deviation?: number | null
-          stress_level?: string | null
-          stress_score?: number | null
-          time_to_answer_ms?: number | null
-          video_url?: string | null
-          was_bluffing?: boolean | null
-          words_per_minute?: number | null
-        }
-        Update: {
-          answer_was_correct?: boolean | null
-          audio_url?: string
-          avg_pitch?: number | null
-          baseline_id?: string | null
-          blink_rate?: number | null
-          brow_asymmetry?: number | null
-          capture_mode?: string | null
-          combined_suspicion_score?: number | null
-          consent_level?: string | null
-          created_at?: string
-          device_type?: string | null
-          eye_gaze_dominant?: string | null
-          facial_analysis_json?: Json | null
-          facial_stress_score?: number | null
-          filler_words_count?: number | null
-          harmonics_to_noise?: number | null
-          id?: string
-          jitter?: number | null
-          jitter_absolute?: number | null
-          jitter_deviation?: number | null
-          latency_deviation?: number | null
-          lip_tension?: number | null
-          longest_pause_ms?: number | null
-          match_id?: string | null
-          micro_expressions_detected?: string[] | null
-          mycroft_forensic_details?: string | null
-          mycroft_verdict?: string | null
-          peak_amplitude?: number | null
-          pitch_deviation?: number | null
-          pitch_stability?: string | null
-          pitch_variance?: number | null
-          player_id?: string | null
-          player_name?: string | null
-          pnl_access_type?: string | null
-          question_category?: string | null
-          question_difficulty?: string | null
-          question_id?: string | null
-          recording_duration_ms?: number | null
-          response_latency_ms?: number | null
-          room_id?: string | null
-          round_number?: number
-          session_id?: string | null
-          shimmer?: number | null
-          silent_periods_count?: number | null
-          speech_continuity?: number | null
-          speech_rate_bpm?: number | null
-          speech_rate_deviation?: number | null
-          stress_level?: string | null
-          stress_score?: number | null
-          time_to_answer_ms?: number | null
-          video_url?: string | null
-          was_bluffing?: boolean | null
-          words_per_minute?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "voice_recordings_baseline_id_fkey"
-            columns: ["baseline_id"]
-            isOneToOne: false
-            referencedRelation: "biometric_baselines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "voice_recordings_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: false
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "voice_recordings_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "voice_recordings_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "voice_recordings_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       votes: {
         Row: {
           ai_profile: string | null
@@ -7271,27 +6425,6 @@ export type Database = {
           voter_type?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "votes_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "votes_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "votes_recording_id_fkey"
-            columns: ["recording_id"]
-            isOneToOne: false
-            referencedRelation: "voice_recordings"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "votes_room_id_fkey"
             columns: ["room_id"]

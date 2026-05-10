@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS public.arena_poker_rankings CASCADE;
+DROP TABLE IF EXISTS public.biometric_baselines CASCADE;
+DROP TABLE IF EXISTS public.founder_cases CASCADE;
+DROP TABLE IF EXISTS public.players CASCADE;
+DROP TABLE IF EXISTS public.questions CASCADE;
+DROP TABLE IF EXISTS public.training_hand_sessions CASCADE;
+DROP TABLE IF EXISTS public.uploaded_hand_files CASCADE;
+DROP TABLE IF EXISTS public.user_question_history CASCADE;
+DROP TABLE IF EXISTS public.villain_profiles CASCADE;
+DROP TABLE IF EXISTS public.villain_session_stats CASCADE;
+DROP TABLE IF EXISTS public.voice_recordings CASCADE;
