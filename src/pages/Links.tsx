@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, MessageCircle, Send, Youtube, Music2 } from 'lucide-react';
+import { Sparkles, MessageCircle, Send, Youtube, Music2, Info } from 'lucide-react';
 import horusAvatar from '@/assets/horus-avatar.png';
 
 const links = [
