@@ -20,6 +20,7 @@ const LandingPage = React.lazy(() => import("./pages/LandingPage"));
 const Paywall = React.lazy(() => import("./pages/Paywall"));
 const OfertaEspecial = React.lazy(() => import("./pages/OfertaEspecial"));
 const Index = React.lazy(() => import("./pages/Index"));
+const Links = React.lazy(() => import("./pages/Links"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const ChangePassword = React.lazy(() => import("./pages/ChangePassword"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
