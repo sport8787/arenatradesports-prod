@@ -47,7 +47,7 @@ const arenas = [
 
 export default function Index() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: authLoading, profile } = useAuth();
+  const { isAuthenticated, loading: authLoading, profile } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
