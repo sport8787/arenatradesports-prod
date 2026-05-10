@@ -7544,6 +7544,8 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_ai_response_cache: { Args: never; Returns: undefined }
+      cleanup_cron_logs: { Args: never; Returns: undefined }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
       cleanup_futodds_health_log: { Args: never; Returns: undefined }
       cleanup_log_tables: { Args: never; Returns: Json }
