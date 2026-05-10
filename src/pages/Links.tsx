@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, MessageCircle, Send, Youtube, Music2 } from 'lucide-react';
+import { Sparkles, MessageCircle, Send, Youtube, Music2, Info } from 'lucide-react';
 import horusAvatar from '@/assets/horus-avatar.png';
 
 const links = [
@@ -34,6 +34,12 @@ const links = [
     sub: '@israelfideles',
     href: 'https://tiktok.com/@israelfideles',
     icon: Music2,
+  },
+  {
+    label: 'Como funciona o Oráculo Mycroft',
+    sub: 'Conheça a metodologia',
+    href: 'https://oraculo-mycroft.com',
+    icon: Info,
   },
 ];
 
