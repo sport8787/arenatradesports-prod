@@ -858,6 +858,68 @@ serve(async (req) => {
             console.log(`[AnalyzeLive] ⚠️ Odd fallback Poisson para "${analysis.market}": ${_oddToPersist} (sem cotação real)`);
           }
         }
+        // ========== FINAL SAFETY NET (defense-in-depth) ==========
+        // Última checagem antes do INSERT: garante que NENHUM mercado expirado/já decidido
+        // entre como APROVADO/APROVADO_SITUACIONAL/LABAREDA, mesmo se algum caminho anterior
+        // tiver pulado as vetos (re-análise, mutação tardia de market, etc.).
+        try {
+          const _active = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'];
+          if (_active.includes(analysis.verdict)) {
+            const _m = String(analysis.market || '').toLowerCase();
+            const _min = Number(match.minute ?? 0);
+            const _sh = Number(match.score_home ?? 0);
+            const _sa = Number(match.score_away ?? 0);
+            const _tot = _sh + _sa;
+            const _isHT = /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(_m);
+            const _period = String(match.period || '').toLowerCase();
+            const _isInSecondHalf = /(second|2nd|2t|2º|2o\s*tempo|segundo)/.test(_period) || _min > 45;
+
+            let _killReason: string | null = null;
+
+            // Over X.5 HT — já batido OU janela 1T encerrada
+            const _overHT = _m.match(/over\s*(\d)\.?5/);
+            if (_isHT && _overHT) {
+              const _line = Number(_overHT[1]);
+              if (_tot >= _line + 1) _killReason = `Over ${_line}.5 HT já batido (${_tot} gols)`;
+              else if (_isInSecondHalf) _killReason = `Over ${_line}.5 HT — 1T encerrado (min ${_min}, period=${_period})`;
+              else if (_line === 0 && _min > 20) _killReason = `Over 0.5 HT fora da janela (min ${_min} > 20)`;
+              else if (_line === 0 && _min < 5) _killReason = `Over 0.5 HT fora da janela (min ${_min} < 5)`;
+            }
+            // Over X.5 FT — já batido (sem valor)
+            const _overFT = !_isHT ? _m.match(/over\s*(\d)\.?5/) : null;
+            if (_overFT) {
+              const _line = Number(_overFT[1]);
+              if (_tot >= _line + 1) _killReason = `Over ${_line}.5 FT já batido (${_tot} gols)`;
+              else if (_line >= 1 && _min > 70) _killReason = `Over ${_line}.5 FT fora da janela (min ${_min} > 70)`;
+            }
+            // Under X.5 — já estourado
+            const _underAny = _m.match(/under\s*(\d)\.?5/);
+            if (_underAny) {
+              const _line = Number(_underAny[1]);
+              if (_tot >= _line + 1) _killReason = `Under ${_line}.5 já estourado (${_tot} gols)`;
+            }
+            // BTTS Sim — ambos já marcaram
+            if (/(btts|ambas\s*marcam|both\s*teams)/.test(_m) && !/(não|nao|\bno\b)/.test(_m)) {
+              if (_sh >= 1 && _sa >= 1) _killReason = `BTTS Sim já decidido (${_sh}x${_sa})`;
+              else if (_min >= 75 && (_sh === 0 || _sa === 0)) _killReason = `BTTS Sim — tempo curto (min ${_min}, ${_sh}x${_sa})`;
+            }
+            // BTTS Não — ambos já marcaram (perdeu)
+            if (/(btts|ambas\s*marcam|both\s*teams)/.test(_m) && /(não|nao|\bno\b)/.test(_m)) {
+              if (_sh >= 1 && _sa >= 1) _killReason = `BTTS Não já perdido (${_sh}x${_sa})`;
+            }
+
+            if (_killReason) {
+              console.log(`[AnalyzeLive] 🛑 SAFETY NET → AGUARDAR (${match.home_team} vs ${match.away_team}) — ${_killReason} | market="${analysis.market}" verdict_orig=${analysis.verdict}`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.thesis = `[SAFETY NET] ${_killReason}. ` + (analysis.thesis || '');
+              analysis.plan_name = null;
+            }
+          }
+        } catch (sErr) {
+          console.warn('[AnalyzeLive] safety net falhou:', (sErr as Error).message);
+        }
+        // ====================================================================
+
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
           .insert({
