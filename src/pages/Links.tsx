@@ -35,6 +35,12 @@ const links = [
     href: 'https://tiktok.com/@israelfideles',
     icon: Music2,
   },
+  {
+    label: 'Como funciona o Oráculo Mycroft',
+    sub: 'Conheça a metodologia',
+    href: 'https://oraculo-mycroft.com',
+    icon: Info,
+  },
 ];
 
 export default function Links() {
