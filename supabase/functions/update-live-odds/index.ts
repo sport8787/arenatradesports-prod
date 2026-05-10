@@ -220,9 +220,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 2) Fallback pré-jogo (cached_odds_games / Pinnacle)
-      if (!payload && cachedList.length > 0) {
-        const cd = cachedList.find((x: any) => {
+      // 2) Fallback pré-jogo (cached_odds_games / Pinnacle) — lazy load
+      if (!payload) {
+        const list = await loadCachedList();
+        const cd = list.find((x: any) => {
           const ch = normTeam(x?.home_team || "");
           const ca = normTeam(x?.away_team || "");
           return pairMatch(ch, homeN) && pairMatch(ca, awayN);
