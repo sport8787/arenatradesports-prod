@@ -2,46 +2,94 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, MessageCircle, Send, Youtube, Music2, Info } from 'lucide-react';
 import horusAvatar from '@/assets/horus-avatar.png';
+import { track } from '@/lib/analytics';
 
-const links = [
+type LinkItem = {
+  id: string;
+  label: string;
+  sub: string;
+  href: string;
+  icon: typeof Sparkles;
+  primary?: boolean;
+  channel: 'web' | 'whatsapp' | 'telegram' | 'youtube' | 'tiktok';
+  appendUtm: boolean;
+};
+
+const links: LinkItem[] = [
   {
+    id: 'trial_7_dias',
     label: 'Testar 7 dias grátis',
     sub: 'Acesso total ao Oráculo Mycroft',
     href: 'https://oraculo-mycroft.com',
     icon: Sparkles,
     primary: true,
+    channel: 'web',
+    appendUtm: true,
   },
   {
+    id: 'whatsapp',
     label: 'WhatsApp',
     sub: 'Falar com a equipe',
     href: 'https://wa.me/5581973278848',
     icon: MessageCircle,
+    channel: 'whatsapp',
+    appendUtm: false,
   },
   {
+    id: 'telegram_vip',
     label: 'Telegram VIP',
     sub: 'Grupo de sinais',
     href: 'https://t.me/oraculo_mycroft',
     icon: Send,
+    channel: 'telegram',
+    appendUtm: false,
   },
   {
+    id: 'youtube',
     label: 'YouTube',
     sub: '@OraculoMycroft',
     href: 'https://youtube.com/@OraculoMycroft',
     icon: Youtube,
+    channel: 'youtube',
+    appendUtm: false,
   },
   {
+    id: 'tiktok',
     label: 'TikTok',
     sub: '@israelfideles',
     href: 'https://tiktok.com/@israelfideles',
     icon: Music2,
+    channel: 'tiktok',
+    appendUtm: false,
   },
   {
+    id: 'como_funciona',
     label: 'Como funciona o Oráculo Mycroft',
     sub: 'Conheça a metodologia',
     href: 'https://oraculo-mycroft.com',
     icon: Info,
+    channel: 'web',
+    appendUtm: true,
   },
 ];
+
+const UTM_SOURCE = 'links_page';
+const UTM_MEDIUM = 'linktree';
+const UTM_CAMPAIGN = 'mycroft_links';
+
+function buildHref(link: LinkItem): string {
+  if (!link.appendUtm) return link.href;
+  try {
+    const url = new URL(link.href);
+    url.searchParams.set('utm_source', UTM_SOURCE);
+    url.searchParams.set('utm_medium', UTM_MEDIUM);
+    url.searchParams.set('utm_campaign', UTM_CAMPAIGN);
+    url.searchParams.set('utm_content', link.id);
+    return url.toString();
+  } catch {
+    return link.href;
+  }
+}
 
 export default function Links() {
   useEffect(() => {
@@ -54,7 +102,26 @@ export default function Links() {
       'Links oficiais do Oráculo Mycroft: trial 7 dias grátis, WhatsApp, Telegram VIP, YouTube e TikTok.',
     );
     if (!meta.parentNode) document.head.appendChild(meta);
+
+    track.pageView('links');
+    track.custom('links_page_viewed', { page: 'links' });
   }, []);
+
+  const handleClick = (link: LinkItem, position: number) => {
+    const payload = {
+      link_id: link.id,
+      label: link.label,
+      channel: link.channel,
+      destination: link.href,
+      position,
+      is_primary: !!link.primary,
+      page: 'links',
+    };
+    // Evento dedicado da página /links
+    track.custom('links_page_click', payload);
+    // Compatibilidade com funil de CTA existente
+    track.ctaClicked(`links_page:${link.id}`, link.label);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-amber-950/10 text-foreground">
@@ -87,10 +154,14 @@ export default function Links() {
             const Icon = link.icon;
             return (
               <motion.a
-                key={link.href}
-                href={link.href}
+                key={link.id}
+                href={buildHref(link)}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-link-id={link.id}
+                data-channel={link.channel}
+                onClick={() => handleClick(link, i)}
+                onAuxClick={() => handleClick(link, i)}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.06 }}
