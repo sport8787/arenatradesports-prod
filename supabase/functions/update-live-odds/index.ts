@@ -168,12 +168,20 @@ Deno.serve(async (req) => {
     // Carrega lista compacta Betfair (event_id ↔ team names)
     const compact = await getBetfairCompact();
 
-    // Pré-carrega cached_odds_games para fallback pré-jogo
-    const { data: cachedOdds } = await supabase
-      .from("cached_odds_games")
-      .select("home_team, away_team, bookmakers")
-      .gt("expires_at", new Date().toISOString());
-    const cachedList = cachedOdds || [];
+    // OTIMIZAÇÃO: cached_odds_games é carregado SOB DEMANDA (lazy), apenas se algum
+    // jogo realmente precisar de fallback. Antes era carregado sempre (payload JSON pesado).
+    let cachedList: any[] | null = null;
+    const loadCachedList = async (): Promise<any[]> => {
+      if (cachedList !== null) return cachedList;
+      const { data } = await supabase
+        .from("cached_odds_games")
+        .select("home_team, away_team, bookmakers")
+        .gt("expires_at", new Date().toISOString())
+        .gt("commence_time", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+        .lt("commence_time", new Date(Date.now() + 30 * 60 * 1000).toISOString());
+      cachedList = data || [];
+      return cachedList;
+    };
 
     let updated = 0;
     const breakdown: Record<string, number> = { betfair_live: 0, cached_pre: 0, miss: 0, skipped_fresh: 0 };
