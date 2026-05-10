@@ -1,95 +1,106 @@
-## Objetivo
-Separar definitivamente o Oráculo Mycroft (Punter/Trader Sports) do Blefador Milionário (Quiz/Poker/Apresentador), preservando 100% do código atual num remix engavetado e deixando este repo enxuto.
+## Diagnóstico atualizado
 
-## Fase 0 — Backup (você faz manualmente, antes de eu mexer)
-1. No menu de três pontos (⋯) do projeto no dashboard → **Remix**.
-2. Renomeie o remix para algo como `blefador-milionario-archive-2026-05-10`.
-3. Confirme que o remix abre, dá build e mostra a lista de arquivos.
-4. Quando confirmar, eu executo as Fases 1–3 abaixo.
+Consultei `pg_stat_user_tables`. Os maiores consumidores de write IO desde o último reset:
 
-> O remix preserva todo o código + esquema + edges. Banco/secrets/storage **não** são copiados, mas o código fica congelado para reuso futuro.
+| Tabela | UPDATEs | INSERTs | DELETEs | Observação |
+|---|---:|---:|---:|---|
+| `public.scheduled_games` | **35.7M** | 30k | 15k | **#1 ofensor** — write amplification gigante |
+| `cron.job_run_details` | 537k | 134k | 346k | log interno pg_cron — cresce sozinho |
+| `public.live_matches` | 1.04M | 4.1k | — | atualizado a cada minuto |
+| `net.http_request_queue` | — | 130k | 128k | fila pg_net (5 crons /1min) |
+| `net._http_response` | — | 130k | 128k | respostas pg_net |
+| `public.cron_logs` | — | 121k | 325k | log próprio nosso |
+| `public.edge_function_errors` | — | 59k | 66k | log de erros |
+| `public.edge_function_runs` | — | 56k | 68k | log de execuções |
+| `public.fixture_stats_cache` | 118k | 833 | — | cache reescrito demais |
+| `public.mycroft_analyses` | seq_scan 8.7k lendo **81M rows** | | | índice ausente |
 
-## Fase 1 — Remoção de frontend (eu executo)
+A migração anterior reduziu `scheduled_games` na fonte (`fetch-live-matches` agora só roda 4×/hora e usa `ignoreDuplicates`), mas **outras 3 fontes continuam reescrevendo a tabela inteira**:
 
-### 1.1 Páginas e rotas Blefador
-Remover do `src/App.tsx` (rotas) e deletar arquivos:
-- `src/pages/ArenaPoker.tsx`
-- `src/pages/ArenaPokerRankings.tsx`
-- `src/pages/SinglePlayerRoom.tsx` (se existir e for Blefador)
-- Qualquer rota `/poker`, `/presenter`, `/blefador`
+1. `sofascore-scheduled-games` (cron por hora) faz `upsert` com `updated_at: now()` **sem `ignoreDuplicates`** → toda hora reescreve ~todas as linhas.
+2. `n8n-webhook` também escreve em `scheduled_games`.
+3. `update-live-odds-1min`, `futodds-upcoming-cache-60s`, `punter-steam-monitor`, `shadow-af-cron-1min` somam **5 crons/minuto** martelando pg_net + tabelas auxiliares.
 
-### 1.2 Componentes Blefador
-- Pasta inteira: `src/components/arena-poker/` (HorusTrashTalk, PersonaIcons usados só lá, etc.)
-- `src/components/HorusTerminal.tsx` (widget convai, só usado no SinglePlayerRoom)
+E a tabela `mycroft_analyses` está fazendo seq scan em 81M de tuplas porque algum filtro não tem índice cobrindo.
 
-### 1.3 Hooks Blefador
-- `usePresenterRoom`
-- `useGameState` (se for do quiz)
-- `useQuestionAudioPreloader`, `useQuestionHistory`, `useQuestionNarration`
-- `useNarrativeEngine`, `useNarrativeIntegration`, `useAtomicNarrationTrigger`
-- `useMycroftVerdict`, `useFounderCase`, `useDialogManager`
-- `useHorusNarration`, `useAudioSync`
-- `usePromoSlots` (revisar — pode ser do Mycroft)
+---
 
-> Antes de deletar cada um eu rodo `rg` para confirmar que não é importado por nada do Punter/Trader. Se for, eu paro e pergunto.
+## Plano de correção (3 frentes paralelas)
 
-### 1.4 Services Blefador
-- `presenterAudioService`, `audioForensicsTypes`, `voiceBaselineService`, `voiceRecordingService`
-- `faceMeshService`, `cognitiveLeaksService`, `cognitiveRuptureService`
-- `juryClaudeService`
-- `horus2Engine`, `horusPhrasesPool`, `horusPsychologyService`, `horusLocalAudio`
-- `pressureTimerService`, `silentObserverService`
-- `mycroftHumanReadingService`, `mycroftBlockService`
-- `elevenLabsSTTService`, `webSpeechFallbackService`
-- `audioCacheService`, `audioDebugService`, `audioPreloader`, `audioQueueManager`, `backgroundMusicService`, `centralAudioQueue`, `globalAudioContext` (revisar — alguns alimentam o Hórus do Punter)
+### 1. Migração SQL — eliminar write amplification e cobrir seq scans
 
-### 1.5 Pages do AdminFounderCases e Hub Quiz
-- `src/pages/AdminFounderCases.tsx`
-- `src/pages/HowToPlay.tsx` (se for tutorial Blefador)
-- `src/pages/MycroftMemory.tsx` (revisar — pode ser config Mycroft)
+```sql
+-- (a) Truncar logs internos do pg_cron (eles crescem indefinidamente)
+DELETE FROM cron.job_run_details WHERE start_time < now() - interval '2 days';
 
-### 1.6 Outros
-- `src/data/horusActPhrases.ts`, `src/data/trainingScenarios.ts`
-- `src/types/personas.ts`, `src/types/game.ts`, `src/types/bot.ts` (revisar)
-- `src/lib/handHistoryParser.ts`, `src/lib/gameUtils.ts`
-- `src/__tests__/` referentes a quiz
+-- (b) Limpar fila pg_net já consumida
+DELETE FROM net._http_response WHERE created < now() - interval '1 day';
 
-### 1.7 Edge Functions Blefador
-Remover via `delete_edge_functions`:
-- `arena-trader-jury` (3 IAs CLARO/BLEFE — só quiz)
-- `mycroft-ai` se for usado só pelo presenter (verificar primeiro)
+-- (c) Limpar nossos logs aplicacionais
+DELETE FROM public.cron_logs WHERE created_at < now() - interval '3 days';
+DELETE FROM public.edge_function_errors WHERE created_at < now() - interval '3 days';
+DELETE FROM public.edge_function_runs  WHERE started_at  < now() - interval '3 days';
 
-> Se outra função do Punter/Trader chamar uma dessas, eu paro.
+-- (d) Índice composto para mycroft_analyses (cobre o filtro mais comum
+--     verdict + match_id + created_at usado em vários joins/triggers)
+CREATE INDEX IF NOT EXISTS idx_mycroft_analyses_match_verdict_created
+  ON public.mycroft_analyses (match_id, verdict, created_at DESC);
 
-## Fase 2 — Validação
-- Rodar build (`tsc --noEmit` automático do Lovable)
-- Conferir que `/`, `/punter`, `/trader/*`, `/lobby`, `/admin/*` carregam
-- Conferir console sem erros de import
+CREATE INDEX IF NOT EXISTS idx_mycroft_analyses_verdict_created
+  ON public.mycroft_analyses (verdict, created_at DESC)
+  WHERE verdict IN ('APROVADO','APROVADO_SITUACIONAL','LABAREDA');
 
-## Fase 3 — Banco (NÃO agora — você pediu "depois")
-Documentar em `MIGRATION_INVENTORY.md` (já existe) a lista de tabelas/edges/storage Blefador que ficaram **órfãs** vivas no Postgres, para limpeza futura quando você quiser. Provavelmente:
-- `presenter_rooms`, `presenter_players`, `presenter_audio_*`
-- `poker_rankings`, `poker_*`
-- `horus_punter_audio_plays` (manter — é Mycroft)
-- Storage bucket `game-audio` (manter — é Mycroft, usado em outros lugares)
+-- (e) Crons periódicos de auto-limpeza (executam à noite)
+SELECT cron.schedule(
+  'cleanup-internal-pgcron-logs-daily',
+  '15 3 * * *',
+  $$DELETE FROM cron.job_run_details WHERE start_time < now() - interval '2 days';$$
+);
+SELECT cron.schedule(
+  'cleanup-pgnet-response-daily',
+  '20 3 * * *',
+  $$DELETE FROM net._http_response WHERE created < now() - interval '1 day';$$
+);
 
-## O que NÃO vou tocar (já confirmado como Mycroft)
-- `useHorusPunterAudio`, `horusPunterVoiceService`, `HorusTTSPlayer`
-- `useCentralAudioQueue`, `horus_audio_inventory`, edge `elevenlabs-tts`
-- `useApprovedSignalSound`, `criticalAlertSound`, `useAudioQueue*` (alertas Punter/Trader)
-- Todo o Punter, Trader Sports, Trader (cripto), BC Rewards, Liga Mycroft, SEO, Admin
+-- (f) ANALYZE pós-mudanças
+ANALYZE public.mycroft_analyses;
+ANALYZE public.scheduled_games;
+ANALYZE public.live_matches;
+```
 
-## Riscos
-- **Médio**: alguns services de áudio (`audioPreloader`, `centralAudioQueue`, `globalAudioContext`) são usados por **ambos**. Se eu deletar errado, alerta sonoro do Punter quebra. Mitigação: rodar `rg` em cada um antes, manter se houver qualquer import vivo do Punter/Trader.
-- **Baixo**: rotas órfãs no `App.tsx` — se eu esquecer alguma, vira tela branca em URL antiga (não usada).
-- **Zero**: banco intacto, secrets intactos, edges Punter/Trader intactos.
+### 2. Edge function `sofascore-scheduled-games` — corte de 99% das writes
 
-## Pós-execução
-- Rodar `getJurorVote` e edges removidas via `delete_edge_functions` no Supabase
-- Atualizar `mem://index.md` com nota: "Blefador removido em 10/05/2026, snapshot em remix `blefador-milionario-archive-2026-05-10`"
-- Reportar lista exata de arquivos deletados, linhas removidas e edges deployadas
+- Adicionar `{ onConflict: '...', ignoreDuplicates: true }` igual ao `fetch-live-matches`.
+- Remover `updated_at: new Date()` do payload (assim conflitos não disparam UPDATE).
+- Trocar o loop de 200 upserts individuais por **1 upsert em batch** (chunks de 200).
 
-## Estimativa
-- Tempo de execução: ~5 min
-- Arquivos removidos: ~40–60
-- Bundle/build: estimo -15–25% mais rápido
+Resultado esperado: a tabela só recebe INSERT quando aparece um jogo novo. Hoje cada execução horária reescreve ~todas as linhas.
+
+### 3. Reduzir frequência de crons de 1min
+
+Hoje rodam **5 crons/minuto** (300/hora cada um abrindo HTTP via pg_net):
+
+| Job | Atual | Proposto | Justificativa |
+|---|---|---|---|
+| `cron-live-matches-1min` | `* * * * *` | manter | dado ao vivo precisa de 1min |
+| `update-live-odds-1min` | `* * * * *` | `*/2 * * * *` | odds movem em janela de minutos |
+| `punter-steam-monitor` | `* * * * *` | `*/2 * * * *` | drift 4%/15min — 2min basta |
+| `futodds-upcoming-cache-60s` | `* * * * *` | `*/3 * * * *` | cache pré-live |
+| `shadow-af-cron-1min` | `* * * * *` | `*/3 * * * *` | shadow comparison, não-crítico |
+
+Isso corta **~60% do tráfego pg_net** (de 5/min → ~2/min em média) sem afetar features críticas (alertas live + steam).
+
+---
+
+## Impacto esperado
+
+- `scheduled_games`: de ~35M UPDATEs cumulativos → próximo de zero (só inserts novos). **#1 alívio**.
+- pg_net: ~3 mil chamadas HTTP/dia a menos.
+- pg_cron + logs internos: tabelas estabilizam em alguns dias de dados em vez de meses acumulados.
+- `mycroft_analyses`: queries que faziam seq scan de 81M tuplas passam a usar índice.
+
+Se mesmo assim o IO ficar acima de 70% após 2h, o gargalo restante é estrutural (volume de tráfego real, não código) e o upgrade de instância passa a ser a saída correta.
+
+---
+
+**Confirma que posso aplicar as 3 frentes?** Posso fazer tudo em sequência: migração SQL, edição da edge function, e re-`cron.schedule` dos jobs ajustados.
