@@ -52,9 +52,6 @@ export default function MycroftChatGate({
   const ready = !loading && !adminLoading;
   const canUse = isAdmin || (isPaid && subscription?.plan === 'premium') || chatOverrideActive;
 
-  const ready = !loading && !adminLoading;
-  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
-
   // Registra tentativa quando bloqueado e dados já hidrataram
   useEffect(() => {
     if (!ready || canUse) return;
