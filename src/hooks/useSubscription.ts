@@ -25,6 +25,7 @@ export interface Subscription {
   notes: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  chat_override_until: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -158,6 +159,11 @@ export function useSubscription() {
     return allowedArenas.includes(arena);
   };
 
+  const chatOverrideActive = !!(
+    subscription?.chat_override_until &&
+    new Date(subscription.chat_override_until) > new Date()
+  );
+
   return {
     subscription,
     loading: loading || adminLoading || authLoading,
@@ -168,6 +174,7 @@ export function useSubscription() {
     hasAccess,
     allowedArenas,
     hasArena,
+    chatOverrideActive,
     refetch: fetchSubscription,
   };
 }
