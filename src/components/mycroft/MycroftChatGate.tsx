@@ -45,9 +45,12 @@ export default function MycroftChatGate({
   source = 'other',
   matchContext,
 }: MycroftChatGateProps) {
-  const { isPaid, subscription, loading, daysLeft } = useSubscription();
+  const { isPaid, subscription, loading, daysLeft, chatOverrideActive } = useSubscription();
   const { isAdmin, loading: adminLoading } = useAdmin();
   const { user } = useAuth();
+
+  const ready = !loading && !adminLoading;
+  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium') || chatOverrideActive;
 
   const ready = !loading && !adminLoading;
   const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
