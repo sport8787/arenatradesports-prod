@@ -582,12 +582,14 @@ serve(async (req) => {
       console.log(`[FetchLive] Marked ${staleIds.length} matches as finished after grace period`);
     }
 
-    // 7. Fetch today's scheduled fixtures — throttled to once every 15 min per isolate.
-    // Also skipped when we're over the run budget (worker still picks up enqueued jobs).
+    // 7. Fetch today's scheduled fixtures — gated to wall-clock minute % 15 === 0.
+    // Antes: throttle in-memory `lastScheduledFetchAt` não funcionava (cron = isolate novo a cada execução).
+    // Agora: o fetch só roda 4x por hora (00, 15, 30, 45) — corta ~93% do IO de scheduled_games.
     let scheduledCount = 0;
-    const schedShouldRun = !isOverBudget() && Date.now() - lastScheduledFetchAt > SCHEDULED_FETCH_INTERVAL_MS;
+    const nowMin = new Date().getUTCMinutes();
+    const schedShouldRun = !isOverBudget() && (nowMin % 15 === 0);
     if (!schedShouldRun) {
-      console.log(`[FetchLive] ⏭️ Scheduled fetch skipped (${isOverBudget() ? 'over budget' : 'cache window active'})`);
+      console.log(`[FetchLive] ⏭️ Scheduled fetch skipped (${isOverBudget() ? 'over budget' : `gate: minute=${nowMin}`})`);
     }
     if (schedShouldRun) try {
       lastScheduledFetchAt = Date.now();
