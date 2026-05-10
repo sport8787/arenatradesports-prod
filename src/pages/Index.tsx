@@ -71,13 +71,10 @@ export default function Index() {
               <div className="text-xs text-muted-foreground">Lobby de Arenas</div>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
-            <BalanceHeader />
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
         </div>
       </header>
 
