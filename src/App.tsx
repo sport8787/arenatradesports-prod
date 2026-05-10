@@ -57,9 +57,7 @@ const BlackMarket = React.lazy(() => import("./pages/BlackMarket"));
 const HowToEarnBC = React.lazy(() => import("./pages/HowToEarnBC"));
 const PunterAuditoria = React.lazy(() => import("./pages/PunterAuditoria"));
 const ArenaTrader = React.lazy(() => import("./pages/ArenaTrader"));
-const ArenaPoker = React.lazy(() => import("./pages/ArenaPoker"));
 const ArenaTraderRankings = React.lazy(() => import("./pages/ArenaTraderRankings"));
-const ArenaTraderSeason = React.lazy(() => import("./pages/ArenaTraderSeason"));
 const ArenaBlackjack = React.lazy(() => import("./pages/ArenaBlackjack"));
 const MycroftMemory = React.lazy(() => import("./pages/MycroftMemory"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
@@ -176,9 +174,7 @@ const App = () => {
                 <Route path="/punter/auditoria" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAuditoria /></RequireArena></RequireSubscription>} />
                 <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
                 <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
-                <Route path="/arena-trader/season" element={<RequireSubscription><ArenaTraderSeason /></RequireSubscription>} />
                 <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
-                <Route path="/arena-poker" element={<RequireSubscription><ArenaPoker /></RequireSubscription>} />
                 <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/hub" element={<AdminHub />} />
