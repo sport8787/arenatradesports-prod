@@ -69,11 +69,11 @@ export default function MatchMycroftChat({ matchContext }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedScrollRef = useRef<number>(initial?.scrollTop ?? 0);
   const shouldAutoScrollRef = useRef<boolean>(true);
-  const { isPaid, subscription, daysLeft } = useSubscription();
+  const { isPaid, subscription, daysLeft, chatOverrideActive } = useSubscription();
   const { isAdmin } = useAdmin();
 
-  // Liberado para Admin OU plano Premium pago. Trial / Starter / Base → bloqueado.
-  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium');
+  // Liberado para Admin OU Premium pago OU override temporário de chat (teste 7 dias).
+  const canUse = isAdmin || (isPaid && subscription?.plan === 'premium') || chatOverrideActive;
 
   // Registra tentativa quando usuário sem permissão expande o chat de partida
   useEffect(() => {
