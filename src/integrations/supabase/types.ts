@@ -6016,6 +6016,7 @@ export type Database = {
       user_subscriptions: {
         Row: {
           allowed_arenas: string[] | null
+          chat_override_until: string | null
           created_at: string | null
           external_order_id: string | null
           id: string
@@ -6035,6 +6036,7 @@ export type Database = {
         }
         Insert: {
           allowed_arenas?: string[] | null
+          chat_override_until?: string | null
           created_at?: string | null
           external_order_id?: string | null
           id?: string
@@ -6054,6 +6056,7 @@ export type Database = {
         }
         Update: {
           allowed_arenas?: string[] | null
+          chat_override_until?: string | null
           created_at?: string | null
           external_order_id?: string | null
           id?: string
