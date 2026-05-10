@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-const VTURB_PLAYER_ID = '69e9c5680b351269d472496f';
+const VTURB_PLAYER_ID = '6a00acb708dd22f8e61508b7';
 const VTURB_ACCOUNT_ID = '425e46be-1934-41ee-ac61-375afed6531f';
 const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/players/${VTURB_PLAYER_ID}/v4/player.js`;
 
