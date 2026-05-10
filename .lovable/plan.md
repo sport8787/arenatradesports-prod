@@ -1,89 +1,95 @@
+## Objetivo
+Separar definitivamente o Oráculo Mycroft (Punter/Trader Sports) do Blefador Milionário (Quiz/Poker/Apresentador), preservando 100% do código atual num remix engavetado e deixando este repo enxuto.
 
-# Reavaliação honesta: migrar para Supabase próprio AGORA não resolve nada
+## Fase 0 — Backup (você faz manualmente, antes de eu mexer)
+1. No menu de três pontos (⋯) do projeto no dashboard → **Remix**.
+2. Renomeie o remix para algo como `blefador-milionario-archive-2026-05-10`.
+3. Confirme que o remix abre, dá build e mostra a lista de arquivos.
+4. Quando confirmar, eu executo as Fases 1–3 abaixo.
 
-Você escolheu reavaliar — e essa é a decisão certa. Vou ser direto:
+> O remix preserva todo o código + esquema + edges. Banco/secrets/storage **não** são copiados, mas o código fica congelado para reuso futuro.
 
----
+## Fase 1 — Remoção de frontend (eu executo)
 
-## Suas 3 motivações vs realidade
+### 1.1 Páginas e rotas Blefador
+Remover do `src/App.tsx` (rotas) e deletar arquivos:
+- `src/pages/ArenaPoker.tsx`
+- `src/pages/ArenaPokerRankings.tsx`
+- `src/pages/SinglePlayerRoom.tsx` (se existir e for Blefador)
+- Qualquer rota `/poker`, `/presenter`, `/blefador`
 
-### 1. "Crashes/performance recentes"
-**Não vai melhorar migrando.** O crash de hoje teve causa identificada e corrigida:
-- Faltava índice parcial em `live_matches` (criado).
-- `update-live-odds` carregava JSON pesado de `cached_odds_games` em toda execução (corrigido com lazy load).
-- UPDATEs sequenciais geravam lock contention (paralelizados).
-- Instância subdimensionada (subiu para 8GB).
+### 1.2 Componentes Blefador
+- Pasta inteira: `src/components/arena-poker/` (HorusTrashTalk, PersonaIcons usados só lá, etc.)
+- `src/components/HorusTerminal.tsx` (widget convai, só usado no SinglePlayerRoom)
 
-Se você levar o mesmo schema e os mesmos cron jobs pro Supabase próprio com a mesma instância, vai dar **o mesmo crash**. O Supabase de baixo é o mesmo Postgres.
+### 1.3 Hooks Blefador
+- `usePresenterRoom`
+- `useGameState` (se for do quiz)
+- `useQuestionAudioPreloader`, `useQuestionHistory`, `useQuestionNarration`
+- `useNarrativeEngine`, `useNarrativeIntegration`, `useAtomicNarrationTrigger`
+- `useMycroftVerdict`, `useFounderCase`, `useDialogManager`
+- `useHorusNarration`, `useAudioSync`
+- `usePromoSlots` (revisar — pode ser do Mycroft)
 
-### 2. "Custo"
-**Provavelmente fica MAIS caro, não mais barato.** Comparativo realista para o seu uso atual (8GB, ~80 edges, ~20 crons, tráfego intenso):
-- **Lovable Cloud:** já incluso no plano Lovable, billing unificado.
-- **Supabase Pro direto:** ~US$25/mês base + compute add-on (Large 8GB ≈ US$110/mês) + egress + edge function invocations + storage. Estimativa US$ 150–250/mês só de Supabase, **fora** o plano Lovable que você continua pagando para editar o app.
+> Antes de deletar cada um eu rodo `rg` para confirmar que não é importado por nada do Punter/Trader. Se for, eu paro e pergunto.
 
-Você paga **dois** fornecedores em vez de um. Só compensa se sair também da Lovable — o que é uma decisão muito maior.
+### 1.4 Services Blefador
+- `presenterAudioService`, `audioForensicsTypes`, `voiceBaselineService`, `voiceRecordingService`
+- `faceMeshService`, `cognitiveLeaksService`, `cognitiveRuptureService`
+- `juryClaudeService`
+- `horus2Engine`, `horusPhrasesPool`, `horusPsychologyService`, `horusLocalAudio`
+- `pressureTimerService`, `silentObserverService`
+- `mycroftHumanReadingService`, `mycroftBlockService`
+- `elevenLabsSTTService`, `webSpeechFallbackService`
+- `audioCacheService`, `audioDebugService`, `audioPreloader`, `audioQueueManager`, `backgroundMusicService`, `centralAudioQueue`, `globalAudioContext` (revisar — alguns alimentam o Hórus do Punter)
 
-### 3. "Medo de lock-in"
-**Esse é o único ponto legítimo.** E tem solução parcial sem migrar:
-- O schema, edges e RLS já são 100% Postgres/Deno padrão Supabase. Se um dia precisar sair, o caminho é o mesmo (export schema + redeploy edges + repointar client).
-- **A migração HOJE não te dá vantagem nenhuma** — ela apenas antecipa um trabalho que custa o mesmo se feito em 6 meses, 1 ano, ou nunca.
+### 1.5 Pages do AdminFounderCases e Hub Quiz
+- `src/pages/AdminFounderCases.tsx`
+- `src/pages/HowToPlay.tsx` (se for tutorial Blefador)
+- `src/pages/MycroftMemory.tsx` (revisar — pode ser config Mycroft)
 
----
+### 1.6 Outros
+- `src/data/horusActPhrases.ts`, `src/data/trainingScenarios.ts`
+- `src/types/personas.ts`, `src/types/game.ts`, `src/types/bot.ts` (revisar)
+- `src/lib/handHistoryParser.ts`, `src/lib/gameUtils.ts`
+- `src/__tests__/` referentes a quiz
 
-## Riscos REAIS de migrar agora
+### 1.7 Edge Functions Blefador
+Remover via `delete_edge_functions`:
+- `arena-trader-jury` (3 IAs CLARO/BLEFE — só quiz)
+- `mycroft-ai` se for usado só pelo presenter (verificar primeiro)
 
-```text
-Janela de manutenção         4–8h de downtime obrigatório (cutover único)
-Edge functions               ~80 funções para redeploy + revalidar secrets
-Cron jobs                    ~20 jobs pg_cron com URLs hardcoded (precisam reescrever)
-Auth users                   Migração de senhas: possível mas frágil
-Webhooks externos            Telegram, Resend, PostHog, Vercel rewrites — todos
-                             apontam para affquongjlhmusxzohjl.supabase.co.
-                             Cada um precisa ser reapontado manualmente.
-URLs no código               36+ ocorrências hardcoded de affquongjlhmusxzohjl
-                             em edges (notify_aprovado_broadcast, triggers SQL,
-                             punter functions, etc.) — buscar/substituir tudo
-Realtime                     Reassinar canais; testar push notifications
-Storage                      Migrar buckets seo-static, audio, etc.
-Risco operacional            Você opera live durante jogos. Qualquer bug pós-
-                             migração afeta usuários pagantes em tempo real.
-```
+> Se outra função do Punter/Trader chamar uma dessas, eu paro.
 
-E o pior: **se algo der errado, não tem rollback fácil** — voltar pra Lovable Cloud significa migrar tudo de novo na direção oposta.
+## Fase 2 — Validação
+- Rodar build (`tsc --noEmit` automático do Lovable)
+- Conferir que `/`, `/punter`, `/trader/*`, `/lobby`, `/admin/*` carregam
+- Conferir console sem erros de import
 
----
+## Fase 3 — Banco (NÃO agora — você pediu "depois")
+Documentar em `MIGRATION_INVENTORY.md` (já existe) a lista de tabelas/edges/storage Blefador que ficaram **órfãs** vivas no Postgres, para limpeza futura quando você quiser. Provavelmente:
+- `presenter_rooms`, `presenter_players`, `presenter_audio_*`
+- `poker_rankings`, `poker_*`
+- `horus_punter_audio_plays` (manter — é Mycroft)
+- Storage bucket `game-audio` (manter — é Mycroft, usado em outros lugares)
 
-## Minha recomendação
+## O que NÃO vou tocar (já confirmado como Mycroft)
+- `useHorusPunterAudio`, `horusPunterVoiceService`, `HorusTTSPlayer`
+- `useCentralAudioQueue`, `horus_audio_inventory`, edge `elevenlabs-tts`
+- `useApprovedSignalSound`, `criticalAlertSound`, `useAudioQueue*` (alertas Punter/Trader)
+- Todo o Punter, Trader Sports, Trader (cripto), BC Rewards, Liga Mycroft, SEO, Admin
 
-**Não migre agora. Use os próximos 2–3 meses para:**
+## Riscos
+- **Médio**: alguns services de áudio (`audioPreloader`, `centralAudioQueue`, `globalAudioContext`) são usados por **ambos**. Se eu deletar errado, alerta sonoro do Punter quebra. Mitigação: rodar `rg` em cada um antes, manter se houver qualquer import vivo do Punter/Trader.
+- **Baixo**: rotas órfãs no `App.tsx` — se eu esquecer alguma, vira tela branca em URL antiga (não usada).
+- **Zero**: banco intacto, secrets intactos, edges Punter/Trader intactos.
 
-1. **Otimizar o que está aqui** — ainda tem ganhos fáceis: índices faltantes em outras tabelas quentes (`punter_signals`, `mycroft_analyses`, `virtual_bets`), revisar queries das outras edges que rodam por cron, adicionar `statement_timeout` local nas edges críticas.
-2. **Monitorar de verdade** — você já tem `edge_function_runs` e `edge_function_errors`. Vamos criar um painel de saúde (queries lentas, locks, % de erro por edge) para detectar gargalo *antes* de virar crash.
-3. **Documentar dependências externas** — listar tudo que aponta para `affquongjlhmusxzohjl.supabase.co`. Quando/se migrar, esse inventário vira o checklist de cutover.
-4. **Reavaliar em 90 dias.** Se nesse período você tiver: (a) atingido limites que upgrade de instância não resolve, (b) precisar de read replicas / branching / PITR avançado, ou (c) decidir sair da Lovable também, **aí** a migração faz sentido. E você terá inventário pronto.
+## Pós-execução
+- Rodar `getJurorVote` e edges removidas via `delete_edge_functions` no Supabase
+- Atualizar `mem://index.md` com nota: "Blefador removido em 10/05/2026, snapshot em remix `blefador-milionario-archive-2026-05-10`"
+- Reportar lista exata de arquivos deletados, linhas removidas e edges deployadas
 
----
-
-## Quando migrar FAZ sentido
-
-Marque pelo menos 2 destes para considerar:
-- [ ] Você decidiu sair da Lovable como ferramenta de edição.
-- [ ] Precisa de Point-in-Time Recovery, read replicas ou branching que Cloud não expõe.
-- [ ] Tem equipe técnica dedicada para operar Postgres/edges direto.
-- [ ] Volume de dados/tráfego justifica negociar contrato direto com Supabase.
-- [ ] Quer multi-região ou self-hosting.
-
-Hoje você não marca nenhum.
-
----
-
-## Próximo passo proposto
-
-Em vez de migrar, **execute uma rodada de hardening do que está aqui**:
-- Auditoria de índices em todas as tabelas com >100k rows.
-- Painel admin de saúde (lock waits, queries >1s, top edges por tempo).
-- `statement_timeout` por função crítica.
-- Documento `MIGRATION_INVENTORY.md` listando todo recurso/URL externo (vira o seu seguro caso decida migrar no futuro).
-
-Quer que eu monte esse plano de hardening + inventário de migração como próxima tarefa?
-
+## Estimativa
+- Tempo de execução: ~5 min
+- Arquivos removidos: ~40–60
+- Bundle/build: estimo -15–25% mais rápido
