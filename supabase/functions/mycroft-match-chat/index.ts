@@ -107,9 +107,11 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
       { role: "user", content: query },
     ];
 
-    // Tenta múltiplos modelos com retry/backoff em caso de 503/overload
+    // Cadeia de modelos: tenta o forte primeiro, depois cai pro lite
     const modelChain = [AI_MODEL, "gemini-2.5-flash-lite", "gemini-2.5-flash"];
     let resp: Response | null = null;
+    let data: any = null;
+    let answer = "";
     let lastErr = "";
     let lastStatus = 0;
 
@@ -121,30 +123,45 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
             Authorization: `Bearer ${AI_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ model, messages, max_tokens: 1500 }),
+          body: JSON.stringify({ model, messages, max_tokens: 2400 }),
         });
 
-        if (resp.ok) break outer;
+        if (resp.ok) {
+          // Validar conteúdo: se Gemini estourou tokens e devolveu vazio, NÃO aceita
+          try {
+            data = await resp.json();
+          } catch (e) {
+            lastErr = `parse_error: ${e}`;
+            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+            continue;
+          }
+          answer = (data?.choices?.[0]?.message?.content ?? "").trim();
+          const finish = data?.choices?.[0]?.finish_reason;
+          if (answer.length > 0) break outer;
 
-        lastStatus = resp.status;
-        // 429/402 são respostas de fim-de-linha — retorna direto
-        if (resp.status === 429 || resp.status === 402) break outer;
-
-        // 503/500/502/504 → retry com backoff e troca de modelo
-        if ([500, 502, 503, 504].includes(resp.status)) {
-          lastErr = await resp.text().catch(() => "");
-          console.warn(`[mycroft-match-chat] ${model} attempt ${attempt + 1} failed ${resp.status}`);
-          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+          // Resposta vazia — provável MAX_TOKENS / overload silencioso
+          console.warn(`[mycroft-match-chat] ${model} attempt ${attempt + 1} returned EMPTY (finish=${finish})`);
+          lastErr = `empty_content (finish=${finish})`;
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
           continue;
         }
 
-        // outros erros: aborta
+        lastStatus = resp.status;
+        if (resp.status === 429 || resp.status === 402) break outer;
+
+        if ([500, 502, 503, 504].includes(resp.status)) {
+          lastErr = await resp.text().catch(() => "");
+          console.warn(`[mycroft-match-chat] ${model} attempt ${attempt + 1} failed ${resp.status}`);
+          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+          continue;
+        }
+
         lastErr = await resp.text().catch(() => "");
         break outer;
       }
     }
 
-    if (!resp || !resp.ok) {
+    if (!answer) {
       if (lastStatus === 429) {
         return new Response(
           JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }),
@@ -158,20 +175,19 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
         );
       }
       console.error("AI gateway error", lastStatus, lastErr);
-      const overloaded = lastStatus === 503;
       return new Response(JSON.stringify({
-        error: overloaded
+        error: lastStatus === 503
           ? "Mycroft está sobrecarregado no momento (alta demanda do modelo). Aguarde alguns segundos e tente novamente."
-          : "Falha ao consultar o Mycroft.",
+          : "Falha ao consultar o Mycroft. Tente novamente em alguns segundos.",
       }), {
-        status: 500,
+        status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await resp.json();
-    const response =
-      data?.choices?.[0]?.message?.content ?? "Sem resposta no momento.";
+    const response = answer;
+
+
 
     const elapsed = Date.now() - startedAt;
 
