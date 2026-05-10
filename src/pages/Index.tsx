@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Activity, Target, LineChart, Spade, Trophy, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BalanceHeader } from '@/components/game/BalanceHeader';
 import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
 import { supabase } from '@/integrations/supabase/client';
 
