@@ -130,6 +130,7 @@ const App = () => {
                 <Route path="/blog/brasileirao-2026" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
                 <Route path="/blog/brasileirao-2026/" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
                 <Route path="/lobby" element={<Index />} />
+                <Route path="/links" element={<Links />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/trocar-senha" element={<ChangePassword />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
