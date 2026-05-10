@@ -187,34 +187,7 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
 
     const response = answer;
 
-    if (!resp || !resp.ok) {
-      if (lastStatus === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      if (lastStatus === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos de IA esgotados. Adicione saldo em Settings → Cloud & AI." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      console.error("AI gateway error", lastStatus, lastErr);
-      const overloaded = lastStatus === 503;
-      return new Response(JSON.stringify({
-        error: overloaded
-          ? "Mycroft está sobrecarregado no momento (alta demanda do modelo). Aguarde alguns segundos e tente novamente."
-          : "Falha ao consultar o Mycroft.",
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
-    const data = await resp.json();
-    const response =
-      data?.choices?.[0]?.message?.content ?? "Sem resposta no momento.";
 
     const elapsed = Date.now() - startedAt;
 
