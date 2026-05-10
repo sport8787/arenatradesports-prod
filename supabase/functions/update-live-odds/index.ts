@@ -270,13 +270,20 @@ Deno.serve(async (req) => {
       updates.push({ match_id: m.match_id, payload });
     }
 
-    for (const u of updates) {
-      const { error: upErr } = await supabase
-        .from("live_matches")
-        .update({ odds_live: u.payload })
-        .eq("match_id", u.match_id);
-      if (!upErr) updated++;
-      else console.warn(`[UpdateLiveOdds] update fail ${u.match_id}: ${upErr.message}`);
+    // OTIMIZAÇÃO: UPDATEs em paralelo (Promise.allSettled) ao invés de sequenciais.
+    // Reduz tempo total e libera locks mais rápido, evitando contention com fetch-live-matches/update-live-scores.
+    const results = await Promise.allSettled(
+      updates.map((u) =>
+        supabase.from("live_matches").update({ odds_live: u.payload }).eq("match_id", u.match_id),
+      ),
+    );
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === "fulfilled" && !(r.value as any).error) updated++;
+      else {
+        const msg = r.status === "rejected" ? (r.reason as any)?.message : (r.value as any)?.error?.message;
+        console.warn(`[UpdateLiveOdds] update fail ${updates[i].match_id}: ${msg}`);
+      }
     }
 
     const ms = Math.round(performance.now() - t0);
