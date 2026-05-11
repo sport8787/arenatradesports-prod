@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { translateMarket } from "@/utils/marketTranslator";
 import { cn } from "@/lib/utils";
 
-type Period = "today" | "7d" | "14d" | "30d";
+type Period = "today";
 type ResultFilter = "all" | "GREEN" | "RED";
 
 interface Signal {
