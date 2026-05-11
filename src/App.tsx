@@ -34,6 +34,7 @@ const BackFavoritoComValor = React.lazy(() => import("./pages/BackFavoritoComVal
 const LiveMatchDetail = React.lazy(() => import("./pages/LiveMatchDetail"));
 const TradingHistory = React.lazy(() => import("./pages/TradingHistory"));
 const MycroftSinaisAprovados = React.lazy(() => import("./pages/MycroftSinaisAprovados"));
+const SinaisLiquidados = React.lazy(() => import("./pages/SinaisLiquidados"));
 const MycroftSinalDetalhe = React.lazy(() => import("./pages/MycroftSinalDetalhe"));
 const LiquidationsHistory = React.lazy(() => import("./pages/LiquidationsHistory"));
 const SportsPerformance = React.lazy(() => import("./pages/SportsPerformance"));
@@ -141,6 +142,7 @@ const App = () => {
                 <Route path="/arena-trader-sports/historico" element={<RequireSubscription><TradingHistory /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/sinais-liquidados" element={<RequireSubscription><SinaisLiquidados /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
