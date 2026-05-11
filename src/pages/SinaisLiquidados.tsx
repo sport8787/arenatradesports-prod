@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, Target, Clock, BarChart3 } from "lucide-react";
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, Target, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { translateMarket } from "@/utils/marketTranslator";
 import { cn } from "@/lib/utils";
 
 type Period = "today" | "7d" | "14d" | "30d";
-type ResultFilter = "all" | "GREEN" | "RED" | "PENDING";
+type ResultFilter = "all" | "GREEN" | "RED";
 
 interface Signal {
   id: string;
@@ -36,8 +36,6 @@ interface Summary {
   total: number;
   greens: number;
   reds: number;
-  voids: number;
-  pendings: number;
   win_rate: number | null;
   roi_percent: number | null;
   profit_total: number;
@@ -53,10 +51,24 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const STORAGE_KEY = "live_sinais_filters_v1";
 
+const isSettledResult = (result: Signal["result"]): result is "GREEN" | "RED" =>
+  result === "GREEN" || result === "RED";
+
+function normalizeResultFilter(value: string | null | undefined): ResultFilter {
+  if (value === "GREEN" || value === "RED") return value;
+  return "all";
+}
+
 function readPersisted(): { period: Period; result: ResultFilter } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        period: parsed?.period ?? "today",
+        result: normalizeResultFilter(parsed?.result),
+      };
+    }
   } catch {}
   return { period: "today", result: "all" };
 }
@@ -70,10 +82,9 @@ export default function SinaisLiquidados() {
     (searchParams.get("period") as Period) || persisted.period,
   );
   const [resultFilter, setResultFilter] = useState<ResultFilter>(
-    (searchParams.get("result") as ResultFilter) || persisted.result,
+    normalizeResultFilter(searchParams.get("result") || persisted.result),
   );
   const [signals, setSignals] = useState<Signal[]>([]);
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Persist filters
@@ -95,10 +106,8 @@ export default function SinaisLiquidados() {
       if (error) {
         console.error("get_live_sinais_summary error:", error);
         setSignals([]);
-        setSummary(null);
       } else {
         const payload = data as unknown as { summary: Summary; signals: Signal[] };
-        setSummary(payload?.summary ?? null);
         setSignals(payload?.signals ?? []);
       }
       setLoading(false);
@@ -108,20 +117,44 @@ export default function SinaisLiquidados() {
     };
   }, [period]);
 
+  const settledSignals = useMemo(
+    () => signals.filter((signal) => isSettledResult(signal.result)),
+    [signals],
+  );
+
   const filteredSignals = useMemo(() => {
-    if (resultFilter === "all") return signals;
-    if (resultFilter === "PENDING") return signals.filter((s) => !s.result);
-    return signals.filter((s) => s.result === resultFilter);
-  }, [signals, resultFilter]);
+    if (resultFilter === "all") return settledSignals;
+    return settledSignals.filter((s) => s.result === resultFilter);
+  }, [settledSignals, resultFilter]);
+
+  const summary = useMemo<Summary>(() => {
+    const greens = settledSignals.filter((signal) => signal.result === "GREEN").length;
+    const reds = settledSignals.filter((signal) => signal.result === "RED").length;
+    const stakeTotal = settledSignals.reduce((sum, signal) => sum + Number(signal.stake ?? 0), 0);
+    const profitTotal = settledSignals.reduce(
+      (sum, signal) => sum + Number(signal.profit_loss ?? 0),
+      0,
+    );
+
+    return {
+      total: settledSignals.length,
+      greens,
+      reds,
+      win_rate: greens + reds > 0 ? Number(((greens / (greens + reds)) * 100).toFixed(1)) : null,
+      roi_percent:
+        stakeTotal > 0 ? Number(((profitTotal / stakeTotal) * 100).toFixed(2)) : null,
+      profit_total: Number(profitTotal.toFixed(2)),
+      stake_total: Number(stakeTotal.toFixed(2)),
+    };
+  }, [settledSignals]);
 
   const filterCounts = useMemo(() => {
     return {
-      all: signals.length,
-      GREEN: signals.filter((s) => s.result === "GREEN").length,
-      RED: signals.filter((s) => s.result === "RED").length,
-      PENDING: signals.filter((s) => !s.result).length,
+      all: settledSignals.length,
+      GREEN: settledSignals.filter((s) => s.result === "GREEN").length,
+      RED: settledSignals.filter((s) => s.result === "RED").length,
     };
-  }, [signals]);
+  }, [settledSignals]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -164,34 +197,28 @@ export default function SinaisLiquidados() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <SummaryCard
                 label="Total"
-                value={summary?.total ?? 0}
+                value={summary.total}
                 icon={<BarChart3 className="w-4 h-4" />}
               />
               <SummaryCard
                 label="GREEN"
-                value={summary?.greens ?? 0}
+                value={summary.greens}
                 icon={<TrendingUp className="w-4 h-4" />}
                 valueColor="text-success"
               />
               <SummaryCard
                 label="RED"
-                value={summary?.reds ?? 0}
+                value={summary.reds}
                 icon={<TrendingDown className="w-4 h-4" />}
                 valueColor="text-destructive"
               />
               <SummaryCard
-                label="Pendentes"
-                value={summary?.pendings ?? 0}
-                icon={<Clock className="w-4 h-4" />}
-                valueColor="text-muted-foreground"
-              />
-              <SummaryCard
                 label="Win Rate"
-                value={summary?.win_rate != null ? `${summary.win_rate}%` : "—"}
+                value={summary.win_rate != null ? `${summary.win_rate}%` : "—"}
                 icon={<Target className="w-4 h-4" />}
                 valueColor="text-primary"
                 sub={
-                  summary?.roi_percent != null ? (
+                  summary.roi_percent != null ? (
                     <span
                       className={cn(
                         "text-xs font-orbitron",
@@ -207,11 +234,14 @@ export default function SinaisLiquidados() {
             </div>
 
             <div className="text-xs text-muted-foreground font-orbitron">
-              Resumo · {PERIOD_LABELS[period]} · liquidados {summary?.greens ?? 0}G /{" "}
-              {summary?.reds ?? 0}R · pendentes {summary?.pendings ?? 0} · lucro{" "}
-              {summary?.profit_total != null
+              Resumo confiável · {PERIOD_LABELS[period]} · {summary.greens}G / {summary.reds}R · lucro{" "}
+              {summary.profit_total != null
                 ? `${summary.profit_total > 0 ? "+" : ""}${summary.profit_total}u`
                 : "—"}
+            </div>
+
+            <div className="text-[11px] text-muted-foreground/80">
+              Sinais sem liquidação concluída ficam ocultos até auditoria para não contaminar as métricas.
             </div>
 
             {/* Result filter */}
@@ -220,7 +250,6 @@ export default function SinaisLiquidados() {
                 <TabsTrigger value="all">Todos ({filterCounts.all})</TabsTrigger>
                 <TabsTrigger value="GREEN">GREEN ({filterCounts.GREEN})</TabsTrigger>
                 <TabsTrigger value="RED">RED ({filterCounts.RED})</TabsTrigger>
-                <TabsTrigger value="PENDING">Pendentes ({filterCounts.PENDING})</TabsTrigger>
               </TabsList>
             </Tabs>
 
