@@ -6737,6 +6737,10 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_live_sinais_from_notifications: {
+        Args: { _days?: number }
+        Returns: number
+      }
       calc_signal_pnl: {
         Args: { _odd: number; _result: string; _stake: number }
         Returns: number
@@ -7003,6 +7007,19 @@ export type Database = {
       spend_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
+      }
+      sync_live_sinal_from_notification: {
+        Args: {
+          _away_team: string
+          _confidence: number
+          _event_type: string
+          _home_team: string
+          _market: string
+          _match_id: string
+          _odd: number
+          _sent_at: string
+        }
+        Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }
       update_trader_balance: {
