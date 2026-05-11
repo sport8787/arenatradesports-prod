@@ -30,6 +30,18 @@ interface ApprovedSignal {
 }
 
 type ResultFilter = 'all' | 'green' | 'red' | 'pending';
+type PeriodFilter = 'today' | '7d' | '14d' | '30d';
+
+const PERIOD_DAYS: Record<PeriodFilter, number> = { today: 1, '7d': 7, '14d': 14, '30d': 30 };
+const PERIOD_LABELS: Record<PeriodFilter, string> = { today: 'Hoje', '7d': '7 dias', '14d': '14 dias', '30d': '30 dias' };
+
+function getPeriodSinceISO(period: PeriodFilter): string {
+  if (period === 'today') {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  }
+  return new Date(Date.now() - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000).toISOString();
+}
 
 const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
   APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
