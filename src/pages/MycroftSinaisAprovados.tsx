@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Hourglass, Filter, TrendingUp, Trophy } from 'lucide-react';
@@ -29,6 +29,19 @@ interface ApprovedSignal {
   match_status?: string | null;
 }
 
+interface MatchSnapshot {
+  match_id: string;
+  home_team: string | null;
+  away_team: string | null;
+  championship: string | null;
+  score_home: number | null;
+  score_away: number | null;
+  status: string | null;
+  period?: string | null;
+  updated_at: string;
+  mycroft_analysis_id?: string | null;
+}
+
 type ResultFilter = 'all' | 'green' | 'red' | 'pending';
 type PeriodFilter = 'today' | '7d' | '14d' | '30d';
 
@@ -46,6 +59,8 @@ const PERIOD_LABELS: Record<PeriodFilter, string> = { today: 'Hoje', '7d': '7 di
 const STORAGE_KEY = 'mycroft.sinaisAprovados.filters.v1';
 const VALID_PERIODS: PeriodFilter[] = ['today', '7d', '14d', '30d'];
 const VALID_RESULTS: ResultFilter[] = ['all', 'green', 'red', 'pending'];
+const LIVE_MATCH_RETENTION_MS = 6 * 60 * 60 * 1000;
+const FINISHED_STATUSES = ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'postponed', 'abandoned'];
 
 const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
   APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
@@ -65,6 +80,19 @@ function isFinishedStatus(status?: string | null) {
   if (!status) return false;
   const s = status.toLowerCase();
   return ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'abandoned'].includes(s);
+}
+
+function isActiveLiveMatch(match: Pick<MatchSnapshot, 'status' | 'period' | 'updated_at' | 'mycroft_analysis_id'>) {
+  const status = String(match.status || '').toLowerCase();
+  if (FINISHED_STATUSES.includes(status)) return false;
+
+  const period = String(match.period || '').toLowerCase();
+  if (period.includes('finish') || period.includes('ended') || period.includes('after')) return false;
+
+  const updatedAt = toTimestamp(match.updated_at);
+  if (!updatedAt || Date.now() - updatedAt > LIVE_MATCH_RETENTION_MS) return false;
+
+  return !!match.mycroft_analysis_id;
 }
 
 function formatDate(iso: string) {
