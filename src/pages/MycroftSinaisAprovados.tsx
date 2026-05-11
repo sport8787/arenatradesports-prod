@@ -154,9 +154,10 @@ export default function MycroftSinaisAprovados() {
       const baseFilter = (q: any) =>
         q.in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA']).gte('created_at', since);
 
-      const [{ count: greensCount }, { count: redsCount }, { data: settledRows }] = await Promise.all([
+      const [{ count: greensCount }, { count: redsCount }, { count: pendingsCount }, { data: settledRows }] = await Promise.all([
         baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'green'),
         baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'red'),
+        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).is('result', null),
         baseFilter(supabase.from('mycroft_analyses').select('odd, result, market')).in('result', ['green', 'red']),
       ]);
 
