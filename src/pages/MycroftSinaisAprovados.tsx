@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Hourglass, Filter, TrendingUp, Target, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Hourglass, Filter, TrendingUp, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,8 +19,8 @@ interface ApprovedSignal {
   final_score_home: number | null;
   final_score_away: number | null;
   settled_at: string | null;
+  approved_at_timestamp: string | null;
   created_at: string;
-  // join from live_matches
   home_team?: string | null;
   away_team?: string | null;
   championship?: string | null;
@@ -32,8 +32,26 @@ interface ApprovedSignal {
 type ResultFilter = 'all' | 'green' | 'red' | 'pending';
 type PeriodFilter = 'today' | '7d' | '14d' | '30d';
 
+interface ComputedStats {
+  greens: number;
+  reds: number;
+  pendings: number;
+  pnlUnits: number;
+  stakeUnits: number;
+}
+
+const APPROVED_VERDICTS = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'] as const;
 const PERIOD_DAYS: Record<PeriodFilter, number> = { today: 1, '7d': 7, '14d': 14, '30d': 30 };
 const PERIOD_LABELS: Record<PeriodFilter, string> = { today: 'Hoje', '7d': '7 dias', '14d': '14 dias', '30d': '30 dias' };
+const STORAGE_KEY = 'mycroft.sinaisAprovados.filters.v1';
+const VALID_PERIODS: PeriodFilter[] = ['today', '7d', '14d', '30d'];
+const VALID_RESULTS: ResultFilter[] = ['all', 'green', 'red', 'pending'];
+
+const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
+  APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
+  APROVADO_SITUACIONAL: { label: '🎯 APROVADO • CONF. REDUZIDA', className: 'bg-success/10 text-success border-success/30' },
+  LABAREDA: { label: '⚡ APROVADO LABAREDAS', className: 'bg-warning/15 text-warning border-warning/40' },
+};
 
 function getPeriodSinceISO(period: PeriodFilter): string {
   if (period === 'today') {
@@ -42,12 +60,6 @@ function getPeriodSinceISO(period: PeriodFilter): string {
   }
   return new Date(Date.now() - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000).toISOString();
 }
-
-const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
-  APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
-  APROVADO_SITUACIONAL: { label: '🎯 APROVADO • CONF. REDUZIDA', className: 'bg-success/10 text-success border-success/30' },
-  LABAREDA: { label: '⚡ APROVADO LABAREDAS', className: 'bg-warning/15 text-warning border-warning/40' },
-};
 
 function isFinishedStatus(status?: string | null) {
   if (!status) return false;
@@ -64,38 +76,52 @@ function formatDate(iso: string) {
   });
 }
 
-interface AggregateStats {
-  greens: number;
-  reds: number;
-  pendings: number;
-  pnlUnits: number;   // soma de profits em unidades (stake = 1u)
-  stakeUnits: number; // soma de stakes em unidades (apenas sinais com odd válida)
-  validSignals: number;
+function isSettledResult(result?: string | null) {
+  return result === 'green' || result === 'red';
 }
 
-// Fallback genérico por padrão de mercado (usado quando não há média histórica do próprio mercado)
-function fallbackOddByMarket(market: string | null | undefined): number | null {
-  if (!market) return null;
-  const m = market.toLowerCase();
-  if (m.includes('over 0.5 ht') || m.includes('back over 0.5 ht')) return 1.45;
-  if (m.includes('over 0.5')) return 1.30;
-  if (m.includes('over 1.5 ht')) return 2.40;
-  if (m.includes('over 1.5')) return 1.75;
-  if (m.includes('over 2.5')) return 2.00;
-  if (m.includes('over 3.5')) return 2.80;
-  if (m.includes('over 4.5')) return 4.00;
-  if (m.includes('over 5.5')) return 6.00;
-  if (m.includes('under 2.5')) return 1.85;
-  if (m.includes('under 3.5')) return 1.40;
-  if (m.includes('under 1.5')) return 2.50;
-  if (m.includes('btts') || m.includes('ambas marcam')) return 1.80;
-  if (m.includes('próximo gol') || m.includes('proximo gol') || m.includes('gols restantes')) return 1.70;
-  return 1.85; // genérico conservador
+function getApprovedAt(signal: Pick<ApprovedSignal, 'approved_at_timestamp' | 'created_at'>) {
+  return signal.approved_at_timestamp || signal.created_at;
 }
 
-const STORAGE_KEY = 'mycroft.sinaisAprovados.filters.v1';
-const VALID_PERIODS: PeriodFilter[] = ['today', '7d', '14d', '30d'];
-const VALID_RESULTS: ResultFilter[] = ['all', 'green', 'red', 'pending'];
+function getSignalEventDate(signal: Pick<ApprovedSignal, 'result' | 'settled_at' | 'approved_at_timestamp' | 'created_at'>) {
+  return isSettledResult(signal.result) && signal.settled_at
+    ? signal.settled_at
+    : getApprovedAt(signal);
+}
+
+function getSignalKey(signal: Pick<ApprovedSignal, 'match_id' | 'market'>) {
+  return `${signal.match_id}::${signal.market.trim().toLowerCase()}`;
+}
+
+function toTimestamp(value?: string | null) {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isSignalInPeriod(signal: Pick<ApprovedSignal, 'result' | 'settled_at' | 'approved_at_timestamp' | 'created_at'>, since: string) {
+  return toTimestamp(getSignalEventDate(signal)) >= toTimestamp(since);
+}
+
+function pickPreferredSignal(current: ApprovedSignal | undefined, candidate: ApprovedSignal) {
+  if (!current) return candidate;
+
+  const currentSettled = isSettledResult(current.result);
+  const candidateSettled = isSettledResult(candidate.result);
+
+  if (candidateSettled && !currentSettled) return candidate;
+  if (currentSettled && !candidateSettled) return current;
+
+  const currentEventTime = toTimestamp(getSignalEventDate(current));
+  const candidateEventTime = toTimestamp(getSignalEventDate(candidate));
+
+  if (candidateEventTime !== currentEventTime) {
+    return candidateEventTime > currentEventTime ? candidate : current;
+  }
+
+  return toTimestamp(candidate.created_at) > toTimestamp(current.created_at) ? candidate : current;
+}
 
 function readPersisted(): { period: PeriodFilter; filter: ResultFilter } {
   try {
@@ -111,14 +137,71 @@ function readPersisted(): { period: PeriodFilter; filter: ResultFilter } {
   return { period: '30d', filter: 'all' };
 }
 
+function fallbackOddByMarket(market: string | null | undefined): number | null {
+  if (!market) return null;
+  const m = market.toLowerCase();
+  if (m.includes('over 0.5 ht') || m.includes('back over 0.5 ht')) return 1.45;
+  if (m.includes('over 0.5')) return 1.30;
+  if (m.includes('over 1.5 ht')) return 2.40;
+  if (m.includes('over 1.5')) return 1.75;
+  if (m.includes('over 2.5')) return 2.0;
+  if (m.includes('over 3.5')) return 2.8;
+  if (m.includes('over 4.5')) return 4.0;
+  if (m.includes('over 5.5')) return 6.0;
+  if (m.includes('under 2.5')) return 1.85;
+  if (m.includes('under 3.5')) return 1.4;
+  if (m.includes('under 1.5')) return 2.5;
+  if (m.includes('btts') || m.includes('ambas marcam')) return 1.8;
+  if (m.includes('próximo gol') || m.includes('proximo gol') || m.includes('gols restantes')) return 1.7;
+  return 1.85;
+}
+
+function computeStats(rows: ApprovedSignal[]): ComputedStats {
+  const greens = rows.filter((row) => row.result === 'green').length;
+  const reds = rows.filter((row) => row.result === 'red').length;
+  const pendings = rows.length - greens - reds;
+
+  const marketOddSum = new Map<string, { sum: number; n: number }>();
+  for (const row of rows) {
+    const odd = Number(row.odd);
+    const market = row.market?.trim();
+    if (!market || !isSettledResult(row.result) || !Number.isFinite(odd) || odd <= 1) continue;
+    const current = marketOddSum.get(market) ?? { sum: 0, n: 0 };
+    current.sum += odd;
+    current.n += 1;
+    marketOddSum.set(market, current);
+  }
+
+  const marketOddAvg = (market: string | null | undefined): number | null => {
+    if (!market) return null;
+    const entry = marketOddSum.get(market.trim());
+    if (!entry || entry.n === 0) return null;
+    return entry.sum / entry.n;
+  };
+
+  let pnlUnits = 0;
+  let stakeUnits = 0;
+
+  for (const row of rows) {
+    if (!isSettledResult(row.result)) continue;
+    let odd = Number(row.odd);
+    if (!Number.isFinite(odd) || odd <= 1) {
+      odd = marketOddAvg(row.market) ?? fallbackOddByMarket(row.market) ?? 0;
+    }
+    if (!Number.isFinite(odd) || odd <= 1) continue;
+    stakeUnits += 1;
+    pnlUnits += row.result === 'green' ? odd - 1 : -1;
+  }
+
+  return { greens, reds, pendings, pnlUnits, stakeUnits };
+}
+
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
-  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pendings: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Inicializa do URL > localStorage > default
   const persisted = readPersisted();
   const initialPeriod = (VALID_PERIODS as string[]).includes(searchParams.get('period') ?? '')
     ? (searchParams.get('period') as PeriodFilter)
@@ -130,7 +213,6 @@ export default function MycroftSinaisAprovados() {
   const [filter, setFilter] = useState<ResultFilter>(initialFilter);
   const [period, setPeriod] = useState<PeriodFilter>(initialPeriod);
 
-  // Persiste em URL + localStorage sempre que mudar
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     next.set('period', period);
@@ -139,7 +221,6 @@ export default function MycroftSinaisAprovados() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, filter }));
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, filter]);
 
   useEffect(() => {
@@ -147,115 +228,92 @@ export default function MycroftSinaisAprovados() {
 
     async function load() {
       setLoading(true);
-      // Buscar análises aprovadas no período selecionado
       const since = getPeriodSinceISO(period);
 
-      // 1) Agregados REAIS (sem limite de 300) para os cards
-      const baseFilter = (q: any) =>
-        q.in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA']).gte('created_at', since);
+      try {
+        const pageSize = 500;
+        const rawAnalyses: ApprovedSignal[] = [];
+        let from = 0;
 
-      const [{ count: greensCount }, { count: redsCount }, { count: pendingsCount }, { data: settledRows }] = await Promise.all([
-        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'green'),
-        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).eq('result', 'red'),
-        baseFilter(supabase.from('mycroft_analyses').select('id', { count: 'exact', head: true })).is('result', null),
-        baseFilter(supabase.from('mycroft_analyses').select('odd, result, market')).in('result', ['green', 'red']),
-      ]);
+        while (true) {
+          const { data: page, error } = await supabase
+            .from('mycroft_analyses')
+            .select('id, match_id, market, verdict, odd, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, approved_at_timestamp, created_at')
+            .in('verdict', [...APPROVED_VERDICTS])
+            .or(`settled_at.gte.${since},approved_at_timestamp.gte.${since},and(approved_at_timestamp.is.null,created_at.gte.${since})`)
+            .order('created_at', { ascending: false })
+            .range(from, from + pageSize - 1);
 
-      // 1.1) Média histórica de odd por mercado (entre sinais que TÊM odd) — usada como fallback
-      //      para sinais sem odd registrada do MESMO mercado.
-      const marketOddSum = new Map<string, { sum: number; n: number }>();
-      for (const r of settledRows ?? []) {
-        const odd = Number((r as any).odd);
-        const market = String((r as any).market || '').trim();
-        if (!market || !Number.isFinite(odd) || odd <= 1) continue;
-        const cur = marketOddSum.get(market) ?? { sum: 0, n: 0 };
-        cur.sum += odd; cur.n += 1;
-        marketOddSum.set(market, cur);
-      }
-      const marketOddAvg = (market: string | null | undefined): number | null => {
-        if (!market) return null;
-        const e = marketOddSum.get(market);
-        if (!e || e.n === 0) return null;
-        return e.sum / e.n;
-      };
+          if (error) {
+            console.error('[sinais-aprovados] erro:', error);
+            if (mounted) setLoading(false);
+            return;
+          }
 
-      // 1.2) ROI correto: stake = 1u por sinal válido, profit = (odd-1) GREEN / -1 RED.
-      //      Sinais sem odd ganham fallback (média do próprio mercado → fallback genérico).
-      let pnlUnits = 0;
-      let stakeUnits = 0;
-      let validSignals = 0;
-      for (const r of settledRows ?? []) {
-        const result = (r as any).result as 'green' | 'red';
-        const market = (r as any).market as string | null;
-        let odd = Number((r as any).odd);
-        if (!Number.isFinite(odd) || odd <= 1) {
-          odd = marketOddAvg(market) ?? fallbackOddByMarket(market) ?? 0;
+          if (!page?.length) break;
+          rawAnalyses.push(...(page as ApprovedSignal[]));
+          if (page.length < pageSize) break;
+          from += pageSize;
         }
-        if (!Number.isFinite(odd) || odd <= 1) continue; // VOID/REEMBOLSO/sem fallback → ignora
-        stakeUnits += 1;
-        validSignals += 1;
-        if (result === 'green') pnlUnits += odd - 1;
-        else if (result === 'red') pnlUnits -= 1;
-      }
 
-      if (mounted) {
-        setAggStats({
-          greens: greensCount ?? 0,
-          reds: redsCount ?? 0,
-          pendings: pendingsCount ?? 0,
-          pnlUnits,
-          stakeUnits,
-          validSignals,
+        const dedupedMap = new Map<string, ApprovedSignal>();
+        for (const analysis of rawAnalyses) {
+          if (!isSignalInPeriod(analysis, since)) continue;
+          const key = getSignalKey(analysis);
+          dedupedMap.set(key, pickPreferredSignal(dedupedMap.get(key), analysis));
+        }
+
+        const baseSignals = Array.from(dedupedMap.values()).sort(
+          (a, b) => toTimestamp(getSignalEventDate(b)) - toTimestamp(getSignalEventDate(a)),
+        );
+
+        const matchIds = Array.from(new Set(baseSignals.map((a) => a.match_id).filter(Boolean)));
+        const matchMap = new Map<string, {
+          match_id: string;
+          home_team: string | null;
+          away_team: string | null;
+          championship: string | null;
+          score_home: number | null;
+          score_away: number | null;
+          status: string | null;
+        }>();
+
+        if (matchIds.length > 0) {
+          const { data: matches } = await supabase
+            .from('live_matches')
+            .select('match_id, home_team, away_team, championship, score_home, score_away, status')
+            .in('match_id', matchIds);
+
+          for (const match of matches ?? []) {
+            matchMap.set(match.match_id, match);
+          }
+        }
+
+        const enriched: ApprovedSignal[] = baseSignals.map((analysis) => {
+          const match = matchMap.get(analysis.match_id);
+          return {
+            ...analysis,
+            home_team: match?.home_team ?? null,
+            away_team: match?.away_team ?? null,
+            championship: match?.championship ?? null,
+            current_score_home: match?.score_home ?? null,
+            current_score_away: match?.score_away ?? null,
+            match_status: match?.status ?? null,
+          };
         });
-      }
 
-      // 2) Lista paginada (mantém limite p/ não estourar memória)
-      const { data: analyses, error } = await supabase
-        .from('mycroft_analyses')
-        .select('id, match_id, market, verdict, odd, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, created_at')
-        .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(300);
-
-      if (error) {
-        console.error('[sinais-aprovados] erro:', error);
+        if (mounted) {
+          setSignals(enriched);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('[sinais-aprovados] falha inesperada:', error);
         if (mounted) setLoading(false);
-        return;
-      }
-
-      const matchIds = Array.from(new Set((analyses ?? []).map((a) => a.match_id).filter(Boolean)));
-      let matchMap = new Map<string, any>();
-      if (matchIds.length > 0) {
-        const { data: matches } = await supabase
-          .from('live_matches')
-          .select('match_id, home_team, away_team, championship, score_home, score_away, status')
-          .in('match_id', matchIds);
-        for (const m of matches ?? []) matchMap.set(m.match_id, m);
-      }
-
-      const enriched: ApprovedSignal[] = (analyses ?? []).map((a) => {
-        const m = matchMap.get(a.match_id);
-        return {
-          ...a,
-          home_team: m?.home_team ?? null,
-          away_team: m?.away_team ?? null,
-          championship: m?.championship ?? null,
-          current_score_home: m?.score_home ?? null,
-          current_score_away: m?.score_away ?? null,
-          match_status: m?.status ?? null,
-        };
-      });
-
-      if (mounted) {
-        setSignals(enriched);
-        setLoading(false);
       }
     }
 
     load();
 
-    // Realtime: atualiza quando uma análise é liquidada
     const channel = supabase
       .channel('mycroft_signals_settle')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mycroft_analyses' }, () => load())
@@ -268,44 +326,46 @@ export default function MycroftSinaisAprovados() {
   }, [period]);
 
   const filtered = useMemo(() => {
-    return signals.filter((s) => {
+    return signals.filter((signal) => {
       if (filter === 'all') return true;
-      if (filter === 'green') return s.result === 'green';
-      if (filter === 'red') return s.result === 'red';
-      if (filter === 'pending') return !s.result;
+      if (filter === 'green') return signal.result === 'green';
+      if (filter === 'red') return signal.result === 'red';
+      if (filter === 'pending') return !isSettledResult(signal.result);
       return true;
     });
   }, [signals, filter]);
 
-  // Resumo TOTAL do período (sempre completo, independente do filtro de resultado)
   const periodSummary = useMemo(() => {
-    const greens = aggStats.greens;
-    const reds = aggStats.reds;
-    const pendings = aggStats.pendings;
-    const total = greens + reds + pendings;
-    const settled = greens + reds;
-    const greenPct = settled > 0 ? (greens / settled) * 100 : 0;
-    const redPct = settled > 0 ? (reds / settled) * 100 : 0;
-    const roi = aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0;
-    return { greens, reds, pendings, total, settled, greenPct, redPct, roi };
-  }, [aggStats]);
+    const computed = computeStats(signals);
+    const settled = computed.greens + computed.reds;
+    const total = signals.length;
+    const greenPct = settled > 0 ? (computed.greens / settled) * 100 : 0;
+    const redPct = settled > 0 ? (computed.reds / settled) * 100 : 0;
+    const roi = computed.stakeUnits > 0 ? (computed.pnlUnits / computed.stakeUnits) * 100 : 0;
+    return {
+      greens: computed.greens,
+      reds: computed.reds,
+      pendings: computed.pendings,
+      total,
+      settled,
+      greenPct,
+      redPct,
+      roi,
+    };
+  }, [signals]);
 
-  // Stats reativas ao recorte (período + filtro de resultado)
   const stats = useMemo(() => {
-    const greens = filter === 'red' || filter === 'pending' ? 0 : aggStats.greens;
-    const reds = filter === 'green' || filter === 'pending' ? 0 : aggStats.reds;
-    const settled = greens + reds;
-    const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-    // ROI só faz sentido quando vê greens+reds
+    const computed = computeStats(filtered);
+    const settled = computed.greens + computed.reds;
+    const winRate = settled > 0 ? (computed.greens / settled) * 100 : 0;
     const roi = filter === 'all'
-      ? (aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0)
+      ? (computed.stakeUnits > 0 ? (computed.pnlUnits / computed.stakeUnits) * 100 : 0)
       : null;
-    return { greens, reds, winRate, roi };
-  }, [aggStats, filter]);
+    return { greens: computed.greens, reds: computed.reds, winRate, roi };
+  }, [filtered, filter]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
           <button
@@ -325,7 +385,6 @@ export default function MycroftSinaisAprovados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Filtro por período */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Filter className="w-4 h-4" />
@@ -349,7 +408,6 @@ export default function MycroftSinaisAprovados() {
           </div>
         </div>
 
-        {/* Resumo do período (sempre total, dá contexto mesmo com filtro aplicado) */}
         <div className="luxury-card p-3 sm:p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
@@ -387,24 +445,26 @@ export default function MycroftSinaisAprovados() {
                 {periodSummary.pendings}
               </p>
             </div>
-            <div className={cn(
-              'rounded-md border px-2.5 py-1.5',
-              periodSummary.roi >= 0
-                ? 'border-success/30 bg-success/5'
-                : 'border-destructive/30 bg-destructive/5',
-            )}>
+            <div
+              className={cn(
+                'rounded-md border px-2.5 py-1.5',
+                periodSummary.roi >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5',
+              )}
+            >
               <p className="text-[10px] font-orbitron uppercase text-muted-foreground">ROI</p>
-              <p className={cn(
-                'text-base sm:text-lg font-orbitron font-bold leading-tight',
-                periodSummary.roi >= 0 ? 'text-success' : 'text-destructive',
-              )}>
-                {periodSummary.roi >= 0 ? '+' : ''}{periodSummary.roi.toFixed(1)}%
+              <p
+                className={cn(
+                  'text-base sm:text-lg font-orbitron font-bold leading-tight',
+                  periodSummary.roi >= 0 ? 'text-success' : 'text-destructive',
+                )}
+              >
+                {periodSummary.roi >= 0 ? '+' : ''}
+                {periodSummary.roi.toFixed(1)}%
               </p>
             </div>
           </div>
         </div>
 
-        {/* Stats Cards do RECORTE atual (período + filtro) */}
         <div>
           <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-2">
             Recorte selecionado · {PERIOD_LABELS[period]} ·{' '}
@@ -427,7 +487,6 @@ export default function MycroftSinaisAprovados() {
           </div>
         </div>
 
-        {/* Filtros de resultado (com contagem) */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as ResultFilter)}>
           <TabsList className="grid grid-cols-4 w-full max-w-xl">
             <TabsTrigger value="all">
@@ -445,7 +504,6 @@ export default function MycroftSinaisAprovados() {
           </TabsList>
         </Tabs>
 
-        {/* Lista */}
         {loading ? (
           <div className="text-center py-12 text-muted-foreground font-orbitron text-sm">
             Carregando sinais...
@@ -457,8 +515,8 @@ export default function MycroftSinaisAprovados() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((s) => (
-              <SignalCard key={s.id} signal={s} onClick={() => navigate(`/arena-trader-sports/sinais-aprovados/${s.id}`)} />
+            {filtered.map((signal) => (
+              <SignalCard key={signal.id} signal={signal} onClick={() => navigate(`/arena-trader-sports/sinais-aprovados/${signal.id}`)} />
             ))}
           </div>
         )}
@@ -483,6 +541,8 @@ function StatCard({ icon, label, value, color, subtitle }: { icon: React.ReactNo
 function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () => void }) {
   const verdictMeta = VERDICT_LABELS[signal.verdict] ?? { label: signal.verdict, className: 'bg-muted text-foreground border-border' };
   const finished = isFinishedStatus(signal.match_status) || !!signal.settled_at;
+  const eventDate = getSignalEventDate(signal);
+  const eventLabel = isSettledResult(signal.result) ? 'Liquidado' : 'Aprovado';
 
   let resultBadge: { label: string; className: string; icon: React.ReactNode } | null = null;
   if (signal.result === 'green') {
@@ -511,7 +571,6 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
       whileHover={{ y: -2 }}
       className="luxury-card p-4 text-left space-y-3 hover:border-primary/40 transition-all"
     >
-      {/* Top: verdict + result */}
       <div className="flex items-center justify-between gap-2">
         <span className={cn('text-[10px] font-orbitron uppercase px-2 py-0.5 rounded-full border', verdictMeta.className)}>
           {verdictMeta.label}
@@ -522,7 +581,6 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
         </span>
       </div>
 
-      {/* Match */}
       <div>
         {signal.championship && (
           <p className="text-[10px] font-orbitron uppercase tracking-wider text-primary truncate mb-1">
@@ -537,7 +595,6 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
         )}
       </div>
 
-      {/* Market + odd */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
         <div className="min-w-0">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mercado</p>
@@ -551,9 +608,8 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
-        <span>{formatDate(signal.created_at)}</span>
+        <span>{eventLabel}: {formatDate(eventDate)}</span>
         {signal.confidence != null && <span>Conf. {signal.confidence}%</span>}
         {signal.plan_name && <span className="text-primary font-orbitron">{signal.plan_name}</span>}
       </div>
