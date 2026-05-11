@@ -2519,6 +2519,89 @@ export type Database = {
           },
         ]
       }
+      live_sinais: {
+        Row: {
+          analysis_id: string | null
+          approved_at_minute: number | null
+          approved_at_period: string | null
+          approved_at_score: string | null
+          away_team: string | null
+          championship: string | null
+          confidence: number | null
+          created_at: string
+          goals_away: number | null
+          goals_home: number | null
+          home_team: string | null
+          id: string
+          market: string
+          match_date: string
+          match_id: string
+          odd: number | null
+          profit_loss: number | null
+          result: string | null
+          settled_at: string | null
+          stake: number
+          updated_at: string
+          verdict: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          approved_at_minute?: number | null
+          approved_at_period?: string | null
+          approved_at_score?: string | null
+          away_team?: string | null
+          championship?: string | null
+          confidence?: number | null
+          created_at?: string
+          goals_away?: number | null
+          goals_home?: number | null
+          home_team?: string | null
+          id?: string
+          market: string
+          match_date: string
+          match_id: string
+          odd?: number | null
+          profit_loss?: number | null
+          result?: string | null
+          settled_at?: string | null
+          stake?: number
+          updated_at?: string
+          verdict: string
+        }
+        Update: {
+          analysis_id?: string | null
+          approved_at_minute?: number | null
+          approved_at_period?: string | null
+          approved_at_score?: string | null
+          away_team?: string | null
+          championship?: string | null
+          confidence?: number | null
+          created_at?: string
+          goals_away?: number | null
+          goals_home?: number | null
+          home_team?: string | null
+          id?: string
+          market?: string
+          match_date?: string
+          match_id?: string
+          odd?: number | null
+          profit_loss?: number | null
+          result?: string | null
+          settled_at?: string | null
+          stake?: number
+          updated_at?: string
+          verdict?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_sinais_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "mycroft_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manual_bankroll: {
         Row: {
           balance: number | null
@@ -6651,6 +6734,10 @@ export type Database = {
       }
     }
     Functions: {
+      calc_signal_pnl: {
+        Args: { _odd: number; _result: string; _stake: number }
+        Returns: number
+      }
       calculate_rank_title: { Args: { coins: number }; Returns: string }
       claim_daily_nt_bonus: {
         Args: { p_amount?: number; p_user_id: string }
@@ -6751,6 +6838,7 @@ export type Database = {
         Args: { p_recording_id: string }
         Returns: string
       }
+      get_live_sinais_summary: { Args: { _period?: string }; Returns: Json }
       get_performance_punter: {
         Args: { p_days?: number }
         Returns: {
