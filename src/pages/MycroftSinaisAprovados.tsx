@@ -92,13 +92,54 @@ function fallbackOddByMarket(market: string | null | undefined): number | null {
   return 1.85; // genérico conservador
 }
 
+const STORAGE_KEY = 'mycroft.sinaisAprovados.filters.v1';
+const VALID_PERIODS: PeriodFilter[] = ['today', '7d', '14d', '30d'];
+const VALID_RESULTS: ResultFilter[] = ['all', 'green', 'red', 'pending'];
+
+function readPersisted(): { period: PeriodFilter; filter: ResultFilter } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const j = JSON.parse(raw);
+      return {
+        period: VALID_PERIODS.includes(j?.period) ? j.period : '30d',
+        filter: VALID_RESULTS.includes(j?.filter) ? j.filter : 'all',
+      };
+    }
+  } catch {}
+  return { period: '30d', filter: 'all' };
+}
+
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
   const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ResultFilter>('all');
-  const [period, setPeriod] = useState<PeriodFilter>('30d');
+
+  // Inicializa do URL > localStorage > default
+  const persisted = readPersisted();
+  const initialPeriod = (VALID_PERIODS as string[]).includes(searchParams.get('period') ?? '')
+    ? (searchParams.get('period') as PeriodFilter)
+    : persisted.period;
+  const initialFilter = (VALID_RESULTS as string[]).includes(searchParams.get('filter') ?? '')
+    ? (searchParams.get('filter') as ResultFilter)
+    : persisted.filter;
+
+  const [filter, setFilter] = useState<ResultFilter>(initialFilter);
+  const [period, setPeriod] = useState<PeriodFilter>(initialPeriod);
+
+  // Persiste em URL + localStorage sempre que mudar
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('period', period);
+    next.set('filter', filter);
+    setSearchParams(next, { replace: true });
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, filter }));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, filter]);
 
   useEffect(() => {
     let mounted = true;
