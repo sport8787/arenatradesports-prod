@@ -30,6 +30,18 @@ interface ApprovedSignal {
 }
 
 type ResultFilter = 'all' | 'green' | 'red' | 'pending';
+type PeriodFilter = 'today' | '7d' | '14d' | '30d';
+
+const PERIOD_DAYS: Record<PeriodFilter, number> = { today: 1, '7d': 7, '14d': 14, '30d': 30 };
+const PERIOD_LABELS: Record<PeriodFilter, string> = { today: 'Hoje', '7d': '7 dias', '14d': '14 dias', '30d': '30 dias' };
+
+function getPeriodSinceISO(period: PeriodFilter): string {
+  if (period === 'today') {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  }
+  return new Date(Date.now() - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000).toISOString();
+}
 
 const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
   APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
@@ -86,13 +98,15 @@ export default function MycroftSinaisAprovados() {
   const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ResultFilter>('all');
+  const [period, setPeriod] = useState<PeriodFilter>('30d');
 
   useEffect(() => {
     let mounted = true;
 
     async function load() {
-      // Buscar análises aprovadas dos últimos 30 dias
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      setLoading(true);
+      // Buscar análises aprovadas no período selecionado
+      const since = getPeriodSinceISO(period);
 
       // 1) Agregados REAIS (sem limite de 300) para os cards
       const baseFilter = (q: any) =>
@@ -207,7 +221,7 @@ export default function MycroftSinaisAprovados() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [period]);
 
   const filtered = useMemo(() => {
     return signals.filter((s) => {
@@ -251,6 +265,30 @@ export default function MycroftSinaisAprovados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Filtro por período */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            <span className="text-[11px] font-orbitron uppercase tracking-wider">Período</span>
+          </div>
+          <div className="flex items-center gap-1 bg-secondary/30 rounded-lg p-1">
+            {(Object.keys(PERIOD_DAYS) as PeriodFilter[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-orbitron rounded-md transition-all',
+                  period === p
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                )}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
