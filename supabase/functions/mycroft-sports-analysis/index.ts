@@ -259,6 +259,8 @@ function buildPrompt(match: MatchData, planos: any[], memoryRules: string): stri
   // Montar matriz de planos dinamicamente da tabela
   const validPlanNames = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
 
+  // Matriz COMPACTA (11/05/2026): 1 linha de cabeçalho + critérios e vetos em linha única
+  // Reduz ~70% do tamanho da matriz vs formato verboso anterior.
   const matrizPlanos = planos.map(p => {
     const criteriosArr = toStringArray(p.criterios);
     const vetosArr = toStringArray(p.vetos);
@@ -270,17 +272,11 @@ function buildPrompt(match: MatchData, planos: any[], memoryRules: string): stri
         vetos_type: Array.isArray(p.vetos) ? 'array' : typeof p.vetos,
       });
     }
-    const criterios = criteriosArr.map((c, i) => `  ${i+1}. ${c}`).join('\n') || '  (sem critérios definidos)';
-    const vetos = vetosArr.map(v => `  ✗ ${v}`).join('\n') || '  (sem vetos definidos)';
-    return `${p.emoji} **${p.nome.toUpperCase()}** [${p.codigo}] — ${p.categoria}
-Mercado: ${p.mercado} | Janela: ${p.janela} | Risco: ${p.risco}
-Conceito: ${p.conceito}
-Execução: ${p.execucao}
-${p.observacao ? `Obs: ${p.observacao}` : ''}
-CRITÉRIOS (TODOS obrigatórios):
-${criterios}
-VETOS (qualquer um invalida):
-${vetos}`;
+    const criterios = criteriosArr.join(' | ') || '(sem critérios)';
+    const vetos = vetosArr.join(' | ') || '(sem vetos)';
+    return `[${p.codigo}] ${p.nome.toUpperCase()} — ${p.mercado} | ${p.janela} | risco ${p.risco}
+  CRITÉRIOS (todos): ${criterios}
+  VETOS (qualquer): ${vetos}`;
   }).join('\n\n');
 
   // Guia de diagnóstico rápido
