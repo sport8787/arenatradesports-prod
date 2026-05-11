@@ -202,6 +202,7 @@ export default function MycroftSinaisAprovados() {
         setAggStats({
           greens: greensCount ?? 0,
           reds: redsCount ?? 0,
+          pendings: pendingsCount ?? 0,
           pnlUnits,
           stakeUnits,
           validSignals,
