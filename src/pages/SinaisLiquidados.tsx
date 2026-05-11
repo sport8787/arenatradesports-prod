@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { translateMarket } from "@/utils/marketTranslator";
 import { cn } from "@/lib/utils";
 
-type Period = "today" | "7d" | "14d" | "30d";
+type Period = "today";
 type ResultFilter = "all" | "GREEN" | "RED";
 
 interface Signal {
@@ -44,9 +44,6 @@ interface Summary {
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Hoje",
-  "7d": "7 dias",
-  "14d": "14 dias",
-  "30d": "30 dias",
 };
 
 const STORAGE_KEY = "live_sinais_filters_v1";
@@ -78,9 +75,7 @@ export default function SinaisLiquidados() {
   const [searchParams, setSearchParams] = useSearchParams();
   const persisted = readPersisted();
 
-  const [period, setPeriod] = useState<Period>(
-    (searchParams.get("period") as Period) || persisted.period,
-  );
+  const [period] = useState<Period>("today");
   const [resultFilter, setResultFilter] = useState<ResultFilter>(
     normalizeResultFilter(searchParams.get("result") || persisted.result),
   );
@@ -175,16 +170,9 @@ export default function SinaisLiquidados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Period selector */}
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <TabsList className="grid grid-cols-4 w-full max-w-md bg-secondary/50">
-            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-              <TabsTrigger key={p} value={p}>
-                {PERIOD_LABELS[p]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="text-xs text-muted-foreground font-orbitron">
+          Recorte: <span className="text-primary">Hoje</span> · histórico anterior foi descartado para garantir confiabilidade dos dados.
+        </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
