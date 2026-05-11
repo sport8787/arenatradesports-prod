@@ -2534,6 +2534,7 @@ export type Database = {
           home_team: string | null
           id: string
           market: string
+          market_key: string | null
           match_date: string
           match_id: string
           odd: number | null
@@ -2558,6 +2559,7 @@ export type Database = {
           home_team?: string | null
           id?: string
           market: string
+          market_key?: string | null
           match_date: string
           match_id: string
           odd?: number | null
@@ -2582,6 +2584,7 @@ export type Database = {
           home_team?: string | null
           id?: string
           market?: string
+          market_key?: string | null
           match_date?: string
           match_id?: string
           odd?: number | null
@@ -6767,6 +6770,12 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      classify_market:
+        | { Args: { _market: string }; Returns: string }
+        | {
+            Args: { _away?: string; _home?: string; _market: string }
+            Returns: string
+          }
       cleanup_ai_response_cache: { Args: never; Returns: undefined }
       cleanup_cron_logs: { Args: never; Returns: undefined }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
@@ -6919,6 +6928,7 @@ export type Database = {
         }
         Returns: string
       }
+      norm_market_text: { Args: { _t: string }; Returns: string }
       normalize_match_id: { Args: { mid: string }; Returns: string }
       punter_check_signal_quality: {
         Args: { _league: string; _market: string; _odd: number }
@@ -6975,10 +6985,26 @@ export type Database = {
         }
         Returns: string
       }
+      settle_signal: {
+        Args: {
+          _ga: number
+          _gh: number
+          _htga: number
+          _htgh: number
+          _market_key: string
+          _odd: number
+          _stake: number
+        }
+        Returns: {
+          profit_loss: number
+          result: string
+        }[]
+      }
       spend_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
       }
+      unaccent: { Args: { "": string }; Returns: string }
       update_trader_balance: {
         Args: { p_amount: number; p_is_win?: boolean; p_user_id: string }
         Returns: undefined
