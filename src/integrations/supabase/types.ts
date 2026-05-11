@@ -6770,7 +6770,12 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      classify_market: { Args: { _market: string }; Returns: string }
+      classify_market:
+        | { Args: { _market: string }; Returns: string }
+        | {
+            Args: { _away?: string; _home?: string; _market: string }
+            Returns: string
+          }
       cleanup_ai_response_cache: { Args: never; Returns: undefined }
       cleanup_cron_logs: { Args: never; Returns: undefined }
       cleanup_expired_fixture_stats_cache: { Args: never; Returns: undefined }
