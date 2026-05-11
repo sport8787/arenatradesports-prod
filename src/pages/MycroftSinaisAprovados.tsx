@@ -67,6 +67,7 @@ function formatDate(iso: string) {
 interface AggregateStats {
   greens: number;
   reds: number;
+  pendings: number;
   pnlUnits: number;   // soma de profits em unidades (stake = 1u)
   stakeUnits: number; // soma de stakes em unidades (apenas sinais com odd válida)
   validSignals: number;
