@@ -34,6 +34,7 @@ const BackFavoritoComValor = React.lazy(() => import("./pages/BackFavoritoComVal
 const LiveMatchDetail = React.lazy(() => import("./pages/LiveMatchDetail"));
 const TradingHistory = React.lazy(() => import("./pages/TradingHistory"));
 const MycroftSinaisAprovados = React.lazy(() => import("./pages/MycroftSinaisAprovados"));
+const SinaisLiquidados = React.lazy(() => import("./pages/SinaisLiquidados"));
 const MycroftSinalDetalhe = React.lazy(() => import("./pages/MycroftSinalDetalhe"));
 const LiquidationsHistory = React.lazy(() => import("./pages/LiquidationsHistory"));
 const SportsPerformance = React.lazy(() => import("./pages/SportsPerformance"));
