@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, Target, BarChart3 } from "lucide-react";
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, Target, BarChart3, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { translateMarket } from "@/utils/marketTranslator";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-type Period = "today";
-type ResultFilter = "all" | "GREEN" | "RED";
+type Period = "today" | "yesterday" | "7d" | "14d" | "30d";
+type ViewFilter = "all" | "approved" | "GREEN" | "RED";
 
 interface Signal {
   id: string;
@@ -34,6 +36,9 @@ interface Signal {
 
 interface Summary {
   total: number;
+  approved_total: number;
+  pending_total: number;
+  settled_total: number;
   greens: number;
   reds: number;
   win_rate: number | null;
@@ -44,6 +49,10 @@ interface Summary {
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Hoje",
+  yesterday: "Ontem",
+  "7d": "7 dias",
+  "14d": "14 dias",
+  "30d": "30 dias",
 };
 
 const STORAGE_KEY = "live_sinais_filters_v1";
@@ -51,23 +60,28 @@ const STORAGE_KEY = "live_sinais_filters_v1";
 const isSettledResult = (result: Signal["result"]): result is "GREEN" | "RED" =>
   result === "GREEN" || result === "RED";
 
-function normalizeResultFilter(value: string | null | undefined): ResultFilter {
-  if (value === "GREEN" || value === "RED") return value;
+function normalizePeriod(value: string | null | undefined): Period {
+  if (value === "yesterday" || value === "7d" || value === "14d" || value === "30d") return value;
+  return "today";
+}
+
+function normalizeViewFilter(value: string | null | undefined): ViewFilter {
+  if (value === "approved" || value === "GREEN" || value === "RED") return value;
   return "all";
 }
 
-function readPersisted(): { period: Period; result: ResultFilter } {
+function readPersisted(): { period: Period; view: ViewFilter } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        period: parsed?.period ?? "today",
-        result: normalizeResultFilter(parsed?.result),
+        period: normalizePeriod(parsed?.period),
+        view: normalizeViewFilter(parsed?.view),
       };
     }
   } catch {}
-  return { period: "today", result: "all" };
+  return { period: "today", view: "all" };
 }
 
 export default function SinaisLiquidados() {
@@ -75,81 +89,115 @@ export default function SinaisLiquidados() {
   const [searchParams, setSearchParams] = useSearchParams();
   const persisted = readPersisted();
 
-  const [period] = useState<Period>("today");
-  const [resultFilter, setResultFilter] = useState<ResultFilter>(
-    normalizeResultFilter(searchParams.get("result") || persisted.result),
+  const [period, setPeriod] = useState<Period>(normalizePeriod(searchParams.get("period") || persisted.period));
+  const [viewFilter, setViewFilter] = useState<ViewFilter>(
+    normalizeViewFilter(searchParams.get("view") || searchParams.get("result") || persisted.view),
   );
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [summary, setSummary] = useState<Summary>({
+    total: 0,
+    approved_total: 0,
+    pending_total: 0,
+    settled_total: 0,
+    greens: 0,
+    reds: 0,
+    win_rate: null,
+    roi_percent: null,
+    profit_total: 0,
+    stake_total: 0,
+  });
   const [loading, setLoading] = useState(true);
+  const [runningSettlement, setRunningSettlement] = useState(false);
 
   // Persist filters
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     next.set("period", period);
-    next.set("result", resultFilter);
+    next.set("view", viewFilter);
+    next.delete("result");
     setSearchParams(next, { replace: true });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, result: resultFilter }));
-  }, [period, resultFilter]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, view: viewFilter }));
+  }, [period, viewFilter]);
 
   // Load data
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     let cancelled = false;
     setLoading(true);
-    (async () => {
-      const { data, error } = await supabase.rpc("get_live_sinais_summary", { _period: period });
-      if (cancelled) return;
-      if (error) {
-        console.error("get_live_sinais_summary error:", error);
-        setSignals([]);
-      } else {
-        const payload = data as unknown as { summary: Summary; signals: Signal[] };
-        setSignals(payload?.signals ?? []);
-      }
-      setLoading(false);
-    })();
+    const { data, error } = await supabase.rpc("get_live_sinais_summary", { _period: period });
+    if (cancelled) return;
+    if (error) {
+      console.error("get_live_sinais_summary error:", error);
+      setSignals([]);
+      setSummary({
+        total: 0,
+        approved_total: 0,
+        pending_total: 0,
+        settled_total: 0,
+        greens: 0,
+        reds: 0,
+        win_rate: null,
+        roi_percent: null,
+        profit_total: 0,
+        stake_total: 0,
+      });
+    } else {
+      const payload = data as unknown as { summary: Summary; signals: Signal[] };
+      setSignals(payload?.signals ?? []);
+      setSummary(payload?.summary ?? {
+        total: 0,
+        approved_total: 0,
+        pending_total: 0,
+        settled_total: 0,
+        greens: 0,
+        reds: 0,
+        win_rate: null,
+        roi_percent: null,
+        profit_total: 0,
+        stake_total: 0,
+      });
+    }
+    setLoading(false);
     return () => {
       cancelled = true;
     };
   }, [period]);
 
-  const settledSignals = useMemo(
-    () => signals.filter((signal) => isSettledResult(signal.result)),
-    [signals],
-  );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filteredSignals = useMemo(() => {
-    if (resultFilter === "all") return settledSignals;
-    return settledSignals.filter((s) => s.result === resultFilter);
-  }, [settledSignals, resultFilter]);
-
-  const summary = useMemo<Summary>(() => {
-    const greens = settledSignals.filter((signal) => signal.result === "GREEN").length;
-    const reds = settledSignals.filter((signal) => signal.result === "RED").length;
-    const stakeTotal = settledSignals.reduce((sum, signal) => sum + Number(signal.stake ?? 0), 0);
-    const profitTotal = settledSignals.reduce(
-      (sum, signal) => sum + Number(signal.profit_loss ?? 0),
-      0,
-    );
-
-    return {
-      total: settledSignals.length,
-      greens,
-      reds,
-      win_rate: greens + reds > 0 ? Number(((greens / (greens + reds)) * 100).toFixed(1)) : null,
-      roi_percent:
-        stakeTotal > 0 ? Number(((profitTotal / stakeTotal) * 100).toFixed(2)) : null,
-      profit_total: Number(profitTotal.toFixed(2)),
-      stake_total: Number(stakeTotal.toFixed(2)),
-    };
-  }, [settledSignals]);
+    if (viewFilter === "approved") return signals.filter((signal) => !isSettledResult(signal.result));
+    if (viewFilter === "GREEN" || viewFilter === "RED") return signals.filter((signal) => signal.result === viewFilter);
+    return signals;
+  }, [signals, viewFilter]);
 
   const filterCounts = useMemo(() => {
     return {
-      all: settledSignals.length,
-      GREEN: settledSignals.filter((s) => s.result === "GREEN").length,
-      RED: settledSignals.filter((s) => s.result === "RED").length,
+      all: signals.length,
+      approved: signals.filter((s) => !isSettledResult(s.result)).length,
+      GREEN: signals.filter((s) => s.result === "GREEN").length,
+      RED: signals.filter((s) => s.result === "RED").length,
     };
-  }, [settledSignals]);
+  }, [signals]);
+
+  async function runManualSettlement() {
+    setRunningSettlement(true);
+    const { data, error } = await supabase.functions.invoke("liquidar-sinais-ao-vivo", {
+      body: { manual: true, source: "sinais-liquidados-page" },
+    });
+
+    if (error) {
+      console.error("manual liquidation error:", error);
+      toast.error("Falha ao rodar a liquidação manual.");
+      setRunningSettlement(false);
+      return;
+    }
+
+    toast.success(`Liquidação manual concluída: ${data?.settled ?? 0} liquidados.`);
+    await loadData();
+    setRunningSettlement(false);
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -170,9 +218,25 @@ export default function SinaisLiquidados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        <div className="text-xs text-muted-foreground font-orbitron">
-          Recorte: <span className="text-primary">Hoje</span> · histórico anterior foi descartado para garantir confiabilidade dos dados.
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="text-xs text-muted-foreground font-orbitron">
+            Recorte: <span className="text-primary">{PERIOD_LABELS[period]}</span> · sinais aprovados entram na lista no momento do envio ao Telegram.
+          </div>
+          <Button onClick={runManualSettlement} disabled={runningSettlement} variant="outline" className="w-full md:w-auto">
+            {runningSettlement ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Rodar liquidação manual
+          </Button>
         </div>
+
+        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+          <TabsList className="bg-secondary/50 flex flex-wrap h-auto">
+            <TabsTrigger value="today">Hoje</TabsTrigger>
+            <TabsTrigger value="yesterday">Ontem</TabsTrigger>
+            <TabsTrigger value="7d">7 dias</TabsTrigger>
+            <TabsTrigger value="14d">14 dias</TabsTrigger>
+            <TabsTrigger value="30d">30 dias</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -185,8 +249,13 @@ export default function SinaisLiquidados() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <SummaryCard
                 label="Total"
-                value={summary.total}
+                value={summary.approved_total}
                 icon={<BarChart3 className="w-4 h-4" />}
+              />
+              <SummaryCard
+                label="Aprovados"
+                value={summary.pending_total}
+                icon={<RefreshCw className="w-4 h-4" />}
               />
               <SummaryCard
                 label="GREEN"
@@ -222,20 +291,21 @@ export default function SinaisLiquidados() {
             </div>
 
             <div className="text-xs text-muted-foreground font-orbitron">
-              Resumo confiável · {PERIOD_LABELS[period]} · {summary.greens}G / {summary.reds}R · lucro{" "}
+              Resumo · {PERIOD_LABELS[period]} · {summary.greens}G / {summary.reds}R · lucro{" "}
               {summary.profit_total != null
                 ? `${summary.profit_total > 0 ? "+" : ""}${summary.profit_total}u`
                 : "—"}
             </div>
 
             <div className="text-[11px] text-muted-foreground/80">
-              Sinais sem liquidação concluída ficam ocultos até auditoria para não contaminar as métricas.
+              A aba <span className="font-semibold text-foreground">Sinais Aprovados</span> mostra entradas pendentes de liquidação; GREEN e RED entram assim que forem fechados.
             </div>
 
             {/* Result filter */}
-            <Tabs value={resultFilter} onValueChange={(v) => setResultFilter(v as ResultFilter)}>
+            <Tabs value={viewFilter} onValueChange={(v) => setViewFilter(v as ViewFilter)}>
               <TabsList className="bg-secondary/50">
                 <TabsTrigger value="all">Todos ({filterCounts.all})</TabsTrigger>
+                <TabsTrigger value="approved">Sinais Aprovados ({filterCounts.approved})</TabsTrigger>
                 <TabsTrigger value="GREEN">GREEN ({filterCounts.GREEN})</TabsTrigger>
                 <TabsTrigger value="RED">RED ({filterCounts.RED})</TabsTrigger>
               </TabsList>
@@ -301,11 +371,7 @@ function SignalRow({ signal }: { signal: Signal }) {
 
   const resultBadge = (() => {
     if (!signal.result)
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          Pendente
-        </Badge>
-      );
+      return <Badge variant="outline">{signal.verdict === "LABAREDA" ? "LABAREDA" : "APROVADO"}</Badge>;
     if (signal.result === "GREEN")
       return <Badge className="bg-success/20 text-success border-success/30">GREEN</Badge>;
     if (signal.result === "RED")
