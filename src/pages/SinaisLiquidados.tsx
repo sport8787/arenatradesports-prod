@@ -97,7 +97,7 @@ export default function SinaisLiquidados() {
         setSignals([]);
         setSummary(null);
       } else {
-        const payload = data as { summary: Summary; signals: Signal[] };
+        const payload = data as unknown as { summary: Summary; signals: Signal[] };
         setSummary(payload?.summary ?? null);
         setSignals(payload?.signals ?? []);
       }
