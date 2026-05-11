@@ -81,30 +81,29 @@ function getSupabaseAdmin() {
 }
 
 // Reanalysis intervals (ms) by status and minute range
+// AJUSTE 11/05/2026: throttle global aumentado para reduzir custo Gemini.
+// Mínimo de 3 min entre reanálises do mesmo jogo a partir do minuto 25,
+// exceto LABAREDA (2 min) que precisa de granularidade fina.
 function getReanalysisInterval(status: string, minute: number): number {
   const MIN = 60 * 1000;
   if (status === 'aguardar' || status === 'AGUARDAR') {
     if (minute < 25) return 5 * MIN;
-    return 1 * MIN;
+    return 3 * MIN; // antes 1 min
   }
   if (status === 'jogo_morto' || status === 'JOGO_MORTO') {
     if (minute < 60) return 5 * MIN;
-    if (minute < 75) return 3 * MIN;
-    return 2 * MIN;
+    return 3 * MIN; // antes 2-3 min
   }
   if (status === 'cuidado' || status === 'CUIDADO') {
-    if (minute < 60) return 3 * MIN;
-    if (minute < 75) return 2 * MIN;
-    return 1 * MIN;
+    if (minute < 60) return 5 * MIN; // antes 3 min
+    return 3 * MIN; // antes 1-2 min
   }
   if (status === 'labareda' || status === 'LABAREDA') {
-    return 1 * MIN; // Always 1 min for LABAREDA
+    return 2 * MIN; // antes 1 min — mantém granularidade fina sem martelar
   }
-  // Jogo já APROVADO: ainda assim revisitamos a cada 3 min para tentar mercados
-  // COMPLEMENTARES (ex: aprovou Over 0.5 HT, depois pode aprovar Over 1.5 FT).
   if (status === 'approved_extra' || status === 'APPROVED_EXTRA') {
-    if (minute < 60) return 3 * MIN;
-    return 2 * MIN;
+    if (minute < 60) return 5 * MIN; // antes 3 min
+    return 3 * MIN; // antes 2 min
   }
   return 5 * MIN; // default
 }
