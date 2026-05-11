@@ -221,7 +221,7 @@ export default function MycroftSinaisAprovados() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [period]);
 
   const filtered = useMemo(() => {
     return signals.filter((s) => {
