@@ -277,15 +277,31 @@ export default function MycroftSinaisAprovados() {
     });
   }, [signals, filter]);
 
-  const stats = useMemo(() => {
+  // Resumo TOTAL do período (sempre completo, independente do filtro de resultado)
+  const periodSummary = useMemo(() => {
     const greens = aggStats.greens;
     const reds = aggStats.reds;
+    const pendings = aggStats.pendings;
+    const total = greens + reds + pendings;
+    const settled = greens + reds;
+    const greenPct = settled > 0 ? (greens / settled) * 100 : 0;
+    const redPct = settled > 0 ? (reds / settled) * 100 : 0;
+    const roi = aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0;
+    return { greens, reds, pendings, total, settled, greenPct, redPct, roi };
+  }, [aggStats]);
+
+  // Stats reativas ao recorte (período + filtro de resultado)
+  const stats = useMemo(() => {
+    const greens = filter === 'red' || filter === 'pending' ? 0 : aggStats.greens;
+    const reds = filter === 'green' || filter === 'pending' ? 0 : aggStats.reds;
     const settled = greens + reds;
     const winRate = settled > 0 ? (greens / settled) * 100 : 0;
-    // ROI = (lucro_total / aporte_total) * 100, considerando só sinais com odd válida (real ou fallback de mercado)
-    const roi = aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0;
+    // ROI só faz sentido quando vê greens+reds
+    const roi = filter === 'all'
+      ? (aggStats.stakeUnits > 0 ? (aggStats.pnlUnits / aggStats.stakeUnits) * 100 : 0)
+      : null;
     return { greens, reds, winRate, roi };
-  }, [aggStats]);
+  }, [aggStats, filter]);
 
   return (
     <div className="min-h-screen bg-background">
