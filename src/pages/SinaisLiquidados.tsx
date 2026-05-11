@@ -44,9 +44,6 @@ interface Summary {
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Hoje",
-  "7d": "7 dias",
-  "14d": "14 dias",
-  "30d": "30 dias",
 };
 
 const STORAGE_KEY = "live_sinais_filters_v1";
