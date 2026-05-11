@@ -265,6 +265,30 @@ export default function MycroftSinaisAprovados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Filtro por período */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Filter className="w-4 h-4" />
+            <span className="text-[11px] font-orbitron uppercase tracking-wider">Período</span>
+          </div>
+          <div className="flex items-center gap-1 bg-secondary/30 rounded-lg p-1">
+            {(Object.keys(PERIOD_DAYS) as PeriodFilter[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-orbitron rounded-md transition-all',
+                  period === p
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                )}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
