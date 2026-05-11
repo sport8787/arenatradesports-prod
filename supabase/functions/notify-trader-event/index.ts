@@ -296,6 +296,23 @@ Deno.serve(async (req) => {
       push_sent: true, // o cliente dispara o push localmente
     });
 
+    if (telegramOk && (payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA')) {
+      const { error: syncErr } = await supabase.rpc('sync_live_sinal_from_notification', {
+        _match_id: payload.match_id,
+        _market: payload.market,
+        _event_type: payload.event_type,
+        _home_team: payload.home_team,
+        _away_team: payload.away_team,
+        _odd: payload.odd ?? null,
+        _confidence: payload.confidence ?? null,
+        _sent_at: new Date().toISOString(),
+      });
+
+      if (syncErr) {
+        console.error('[notify-trader-event] sync_live_sinal_from_notification error:', syncErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, telegram_sent: telegramOk, message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
