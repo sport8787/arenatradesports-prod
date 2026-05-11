@@ -75,9 +75,7 @@ export default function SinaisLiquidados() {
   const [searchParams, setSearchParams] = useSearchParams();
   const persisted = readPersisted();
 
-  const [period, setPeriod] = useState<Period>(
-    (searchParams.get("period") as Period) || persisted.period,
-  );
+  const [period] = useState<Period>("today");
   const [resultFilter, setResultFilter] = useState<ResultFilter>(
     normalizeResultFilter(searchParams.get("result") || persisted.result),
   );
