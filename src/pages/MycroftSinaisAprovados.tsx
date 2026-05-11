@@ -115,7 +115,7 @@ export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
-  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
+  const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pendings: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
 
   // Inicializa do URL > localStorage > default
