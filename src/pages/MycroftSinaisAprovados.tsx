@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Hourglass, Filter, TrendingUp, Trophy } from 'lucide-react';
@@ -29,6 +29,19 @@ interface ApprovedSignal {
   match_status?: string | null;
 }
 
+interface MatchSnapshot {
+  match_id: string;
+  home_team: string | null;
+  away_team: string | null;
+  championship: string | null;
+  score_home: number | null;
+  score_away: number | null;
+  status: string | null;
+  period?: string | null;
+  updated_at: string;
+  mycroft_analysis_id?: string | null;
+}
+
 type ResultFilter = 'all' | 'green' | 'red' | 'pending';
 type PeriodFilter = 'today' | '7d' | '14d' | '30d';
 
@@ -46,6 +59,8 @@ const PERIOD_LABELS: Record<PeriodFilter, string> = { today: 'Hoje', '7d': '7 di
 const STORAGE_KEY = 'mycroft.sinaisAprovados.filters.v1';
 const VALID_PERIODS: PeriodFilter[] = ['today', '7d', '14d', '30d'];
 const VALID_RESULTS: ResultFilter[] = ['all', 'green', 'red', 'pending'];
+const LIVE_MATCH_RETENTION_MS = 6 * 60 * 60 * 1000;
+const FINISHED_STATUSES = ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'postponed', 'abandoned'];
 
 const VERDICT_LABELS: Record<string, { label: string; className: string }> = {
   APROVADO: { label: '🎯 APROVADO', className: 'bg-success/15 text-success border-success/40' },
@@ -65,6 +80,19 @@ function isFinishedStatus(status?: string | null) {
   if (!status) return false;
   const s = status.toLowerCase();
   return ['finished', 'ft', 'aet', 'pen', 'fin', 'ended', 'cancelled', 'canceled', 'abandoned'].includes(s);
+}
+
+function isActiveLiveMatch(match: Pick<MatchSnapshot, 'status' | 'period' | 'updated_at' | 'mycroft_analysis_id'>) {
+  const status = String(match.status || '').toLowerCase();
+  if (FINISHED_STATUSES.includes(status)) return false;
+
+  const period = String(match.period || '').toLowerCase();
+  if (period.includes('finish') || period.includes('ended') || period.includes('after')) return false;
+
+  const updatedAt = toTimestamp(match.updated_at);
+  if (!updatedAt || Date.now() - updatedAt > LIVE_MATCH_RETENTION_MS) return false;
+
+  return !!match.mycroft_analysis_id;
 }
 
 function formatDate(iso: string) {
@@ -201,6 +229,7 @@ export default function MycroftSinaisAprovados() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
   const persisted = readPersisted();
   const initialPeriod = (VALID_PERIODS as string[]).includes(searchParams.get('period') ?? '')
@@ -227,6 +256,7 @@ export default function MycroftSinaisAprovados() {
     let mounted = true;
 
     async function load() {
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       const since = getPeriodSinceISO(period);
 
@@ -268,28 +298,35 @@ export default function MycroftSinaisAprovados() {
         );
 
         const matchIds = Array.from(new Set(baseSignals.map((a) => a.match_id).filter(Boolean)));
-        const matchMap = new Map<string, {
-          match_id: string;
-          home_team: string | null;
-          away_team: string | null;
-          championship: string | null;
-          score_home: number | null;
-          score_away: number | null;
-          status: string | null;
-        }>();
+        const matchMap = new Map<string, MatchSnapshot>();
+        const activePendingByMatchId = new Map<string, string>();
 
         if (matchIds.length > 0) {
           const { data: matches } = await supabase
             .from('live_matches')
-            .select('match_id, home_team, away_team, championship, score_home, score_away, status')
+            .select('match_id, home_team, away_team, championship, score_home, score_away, status, period, updated_at, mycroft_analysis_id')
             .in('match_id', matchIds);
 
           for (const match of matches ?? []) {
-            matchMap.set(match.match_id, match);
+            const previous = matchMap.get(match.match_id);
+            const current = match as MatchSnapshot;
+            if (!previous || toTimestamp(current.updated_at) >= toTimestamp(previous.updated_at)) {
+              matchMap.set(match.match_id, current);
+            }
+          }
+
+          for (const match of matchMap.values()) {
+            if (!isActiveLiveMatch(match) || !match.mycroft_analysis_id) continue;
+            activePendingByMatchId.set(match.match_id, match.mycroft_analysis_id);
           }
         }
 
-        const enriched: ApprovedSignal[] = baseSignals.map((analysis) => {
+        const normalizedSignals = baseSignals.filter((analysis) => {
+          if (isSettledResult(analysis.result)) return true;
+          return activePendingByMatchId.get(analysis.match_id) === analysis.id;
+        });
+
+        const enriched: ApprovedSignal[] = normalizedSignals.map((analysis) => {
           const match = matchMap.get(analysis.match_id);
           return {
             ...analysis,
@@ -302,13 +339,13 @@ export default function MycroftSinaisAprovados() {
           };
         });
 
-        if (mounted) {
+        if (mounted && requestId === requestIdRef.current) {
           setSignals(enriched);
           setLoading(false);
         }
       } catch (error) {
         console.error('[sinais-aprovados] falha inesperada:', error);
-        if (mounted) setLoading(false);
+        if (mounted && requestId === requestIdRef.current) setLoading(false);
       }
     }
 
