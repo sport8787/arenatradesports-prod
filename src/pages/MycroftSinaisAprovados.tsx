@@ -229,6 +229,7 @@ export default function MycroftSinaisAprovados() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [signals, setSignals] = useState<ApprovedSignal[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
   const persisted = readPersisted();
   const initialPeriod = (VALID_PERIODS as string[]).includes(searchParams.get('period') ?? '')
@@ -255,6 +256,7 @@ export default function MycroftSinaisAprovados() {
     let mounted = true;
 
     async function load() {
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       const since = getPeriodSinceISO(period);
 
@@ -296,28 +298,35 @@ export default function MycroftSinaisAprovados() {
         );
 
         const matchIds = Array.from(new Set(baseSignals.map((a) => a.match_id).filter(Boolean)));
-        const matchMap = new Map<string, {
-          match_id: string;
-          home_team: string | null;
-          away_team: string | null;
-          championship: string | null;
-          score_home: number | null;
-          score_away: number | null;
-          status: string | null;
-        }>();
+        const matchMap = new Map<string, MatchSnapshot>();
+        const activePendingByMatchId = new Map<string, string>();
 
         if (matchIds.length > 0) {
           const { data: matches } = await supabase
             .from('live_matches')
-            .select('match_id, home_team, away_team, championship, score_home, score_away, status')
+            .select('match_id, home_team, away_team, championship, score_home, score_away, status, period, updated_at, mycroft_analysis_id')
             .in('match_id', matchIds);
 
           for (const match of matches ?? []) {
-            matchMap.set(match.match_id, match);
+            const previous = matchMap.get(match.match_id);
+            const current = match as MatchSnapshot;
+            if (!previous || toTimestamp(current.updated_at) >= toTimestamp(previous.updated_at)) {
+              matchMap.set(match.match_id, current);
+            }
+          }
+
+          for (const match of matchMap.values()) {
+            if (!isActiveLiveMatch(match) || !match.mycroft_analysis_id) continue;
+            activePendingByMatchId.set(match.match_id, match.mycroft_analysis_id);
           }
         }
 
-        const enriched: ApprovedSignal[] = baseSignals.map((analysis) => {
+        const normalizedSignals = baseSignals.filter((analysis) => {
+          if (isSettledResult(analysis.result)) return true;
+          return activePendingByMatchId.get(analysis.match_id) === analysis.id;
+        });
+
+        const enriched: ApprovedSignal[] = normalizedSignals.map((analysis) => {
           const match = matchMap.get(analysis.match_id);
           return {
             ...analysis,
@@ -330,13 +339,13 @@ export default function MycroftSinaisAprovados() {
           };
         });
 
-        if (mounted) {
+        if (mounted && requestId === requestIdRef.current) {
           setSignals(enriched);
           setLoading(false);
         }
       } catch (error) {
         console.error('[sinais-aprovados] falha inesperada:', error);
-        if (mounted) setLoading(false);
+        if (mounted && requestId === requestIdRef.current) setLoading(false);
       }
     }
 
