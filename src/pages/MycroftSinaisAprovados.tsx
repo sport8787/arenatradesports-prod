@@ -98,13 +98,15 @@ export default function MycroftSinaisAprovados() {
   const [aggStats, setAggStats] = useState<AggregateStats>({ greens: 0, reds: 0, pnlUnits: 0, stakeUnits: 0, validSignals: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ResultFilter>('all');
+  const [period, setPeriod] = useState<PeriodFilter>('30d');
 
   useEffect(() => {
     let mounted = true;
 
     async function load() {
-      // Buscar análises aprovadas dos últimos 30 dias
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      setLoading(true);
+      // Buscar análises aprovadas no período selecionado
+      const since = getPeriodSinceISO(period);
 
       // 1) Agregados REAIS (sem limite de 300) para os cards
       const baseFilter = (q: any) =>
