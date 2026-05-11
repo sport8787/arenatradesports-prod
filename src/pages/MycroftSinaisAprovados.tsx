@@ -349,26 +349,99 @@ export default function MycroftSinaisAprovados() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
-          <StatCard icon={<XCircle className="w-4 h-4" />} label="RED" value={stats.reds} color="text-destructive" />
-          <StatCard
-            icon={<TrendingUp className="w-4 h-4" />}
-            label="Win Rate"
-            value={`${stats.winRate.toFixed(1)}%`}
-            color={stats.winRate >= 50 ? 'text-success' : 'text-destructive'}
-            subtitle={`ROI ${stats.roi >= 0 ? '+' : ''}${stats.roi.toFixed(1)}%`}
-          />
+        {/* Resumo do período (sempre total, dá contexto mesmo com filtro aplicado) */}
+        <div className="luxury-card p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-primary" />
+              <span className="text-[11px] font-orbitron uppercase tracking-wider text-muted-foreground">
+                Resumo · {PERIOD_LABELS[period]}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-muted-foreground">
+              {periodSummary.total} sinais · {periodSummary.settled} liquidados
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div className="rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-orbitron uppercase text-success/80">GREEN</p>
+              <p className="text-base sm:text-lg font-orbitron font-bold text-success leading-tight">
+                {periodSummary.greens}
+                <span className="text-[10px] sm:text-xs font-mono ml-1.5 opacity-80">
+                  {periodSummary.greenPct.toFixed(1)}%
+                </span>
+              </p>
+            </div>
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-orbitron uppercase text-destructive/80">RED</p>
+              <p className="text-base sm:text-lg font-orbitron font-bold text-destructive leading-tight">
+                {periodSummary.reds}
+                <span className="text-[10px] sm:text-xs font-mono ml-1.5 opacity-80">
+                  {periodSummary.redPct.toFixed(1)}%
+                </span>
+              </p>
+            </div>
+            <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-orbitron uppercase text-warning/80">PENDENTES</p>
+              <p className="text-base sm:text-lg font-orbitron font-bold text-warning leading-tight">
+                {periodSummary.pendings}
+              </p>
+            </div>
+            <div className={cn(
+              'rounded-md border px-2.5 py-1.5',
+              periodSummary.roi >= 0
+                ? 'border-success/30 bg-success/5'
+                : 'border-destructive/30 bg-destructive/5',
+            )}>
+              <p className="text-[10px] font-orbitron uppercase text-muted-foreground">ROI</p>
+              <p className={cn(
+                'text-base sm:text-lg font-orbitron font-bold leading-tight',
+                periodSummary.roi >= 0 ? 'text-success' : 'text-destructive',
+              )}>
+                {periodSummary.roi >= 0 ? '+' : ''}{periodSummary.roi.toFixed(1)}%
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Filtros */}
+        {/* Stats Cards do RECORTE atual (período + filtro) */}
+        <div>
+          <p className="text-[10px] font-orbitron uppercase tracking-wider text-muted-foreground mb-2">
+            Recorte selecionado · {PERIOD_LABELS[period]} ·{' '}
+            {filter === 'all' ? 'Todos' : filter === 'green' ? 'GREEN' : filter === 'red' ? 'RED' : 'Pendentes'}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="GREEN" value={stats.greens} color="text-success" />
+            <StatCard icon={<XCircle className="w-4 h-4" />} label="RED" value={stats.reds} color="text-destructive" />
+            <StatCard
+              icon={<TrendingUp className="w-4 h-4" />}
+              label="Win Rate"
+              value={`${stats.winRate.toFixed(1)}%`}
+              color={stats.winRate >= 50 ? 'text-success' : 'text-destructive'}
+              subtitle={
+                stats.roi != null
+                  ? `ROI ${stats.roi >= 0 ? '+' : ''}${stats.roi.toFixed(1)}%`
+                  : `Filtro: ${filter === 'green' ? 'apenas greens' : filter === 'red' ? 'apenas reds' : 'pendentes'}`
+              }
+            />
+          </div>
+        </div>
+
+        {/* Filtros de resultado (com contagem) */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as ResultFilter)}>
           <TabsList className="grid grid-cols-4 w-full max-w-xl">
-            <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="green" className="data-[state=active]:text-success">GREEN</TabsTrigger>
-            <TabsTrigger value="red" className="data-[state=active]:text-destructive">RED</TabsTrigger>
-            <TabsTrigger value="pending">Pendentes</TabsTrigger>
+            <TabsTrigger value="all">
+              Todos <span className="ml-1 opacity-70 text-[10px]">({periodSummary.total})</span>
+            </TabsTrigger>
+            <TabsTrigger value="green" className="data-[state=active]:text-success">
+              GREEN <span className="ml-1 opacity-70 text-[10px]">({periodSummary.greens})</span>
+            </TabsTrigger>
+            <TabsTrigger value="red" className="data-[state=active]:text-destructive">
+              RED <span className="ml-1 opacity-70 text-[10px]">({periodSummary.reds})</span>
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pendentes <span className="ml-1 opacity-70 text-[10px]">({periodSummary.pendings})</span>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -380,7 +453,7 @@ export default function MycroftSinaisAprovados() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground space-y-2">
             <Filter className="w-8 h-8 mx-auto opacity-50" />
-            <p className="text-sm">Nenhum sinal encontrado neste filtro.</p>
+            <p className="text-sm">Nenhum sinal encontrado para {PERIOD_LABELS[period]} · {filter === 'all' ? 'Todos' : filter}.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
