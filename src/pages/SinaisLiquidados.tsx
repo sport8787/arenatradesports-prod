@@ -170,16 +170,9 @@ export default function SinaisLiquidados() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Period selector */}
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <TabsList className="grid grid-cols-4 w-full max-w-md bg-secondary/50">
-            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-              <TabsTrigger key={p} value={p}>
-                {PERIOD_LABELS[p]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="text-xs text-muted-foreground font-orbitron">
+          Recorte: <span className="text-primary">Hoje</span> · histórico anterior foi descartado para garantir confiabilidade dos dados.
+        </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
