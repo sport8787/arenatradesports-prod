@@ -184,7 +184,7 @@ const Auth = () => {
 
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Conta criada!', description: 'Bem-vindo ao Oráculo Mycroft!' });
-          navigate('/menu');
+          // Mesma razão do login: deixar o useEffect redirecionar quando user atualizar.
         }
       }
     } finally {
