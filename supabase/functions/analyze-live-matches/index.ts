@@ -588,15 +588,34 @@ serve(async (req) => {
             }
           }
 
-          // 2) Over 1.5 / 2.5 / 3.5 / 4.5 (FT) — só até minuto 70
+          // 2) Over X.5 (FT) — só até minuto 70 e linha máxima 4.5
           //    Não aplica a Over X.5 HT (já tratado/menor escopo) nem Under.
-          const over15plusFT =
-            /over\s*(1\.?5|2\.?5|3\.?5|4\.?5)/.test(marketLower) &&
-            !/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half|2t|2[ºo]?\s*tempo|segundo\s*tempo|second\s*half)/.test(marketLower);
-          if (over15plusFT && minute > 70) {
-            console.log(`[AnalyzeLive] 🚫 VETO Over 1.5/2.5/3.5/4.5 FT — min=${minute} (regra: <=70')`);
+          const overFTMatch = !/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half|2t|2[ºo]?\s*tempo|segundo\s*tempo|second\s*half)/.test(marketLower)
+            ? marketLower.match(/over\s*(\d+(?:\.\d+)?)/)
+            : null;
+          if (overFTMatch) {
+            const overLine = Number(overFTMatch[1]);
+            if (overLine >= 5) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over ${overLine} FT — linha acima de 4.5 não permitida`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.thesis = `[VETO MERCADO] ${analysis.market} bloqueado: linha ${overLine} acima do máximo permitido (4.5). ` + (analysis.thesis || '');
+              analysis.plan_name = null;
+            } else if (overLine >= 1 && minute > 70) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over ${overLine} FT — min=${minute} (regra: <=70')`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.thesis = `[VETO TEMPORAL] ${analysis.market} bloqueado: minuto ${minute} > 70'. Janela de valor encerrada. ` + (analysis.thesis || '');
+              analysis.plan_name = null;
+            }
+          }
+
+          // 3) VETO TEMPORAL GLOBAL — após minuto 70, NENHUM mercado pode ser aprovado,
+          //    EXCETO o plano LABAREDA (alta volatilidade pré-final). Verdict LABAREDA é tratado como exceção.
+          const isLabareda = analysis.verdict === 'LABAREDA' ||
+            String(analysis.plan_name || '').toUpperCase().includes('LABAREDA');
+          if (!isLabareda && minute > 70 && activeVerdicts.includes(analysis.verdict)) {
+            console.log(`[AnalyzeLive] 🚫 VETO GLOBAL pós-70' — ${analysis.market} (min=${minute}, plan=${analysis.plan_name})`);
             analysis.verdict = 'AGUARDAR';
-            analysis.thesis = `[VETO TEMPORAL] ${analysis.market} bloqueado: minuto ${minute} > 70'. Janela de valor encerrada. ` + (analysis.thesis || '');
+            analysis.thesis = `[VETO TEMPORAL GLOBAL] Aprovação após minuto 70 só é permitida para plano LABAREDA. Mercado ${analysis.market} bloqueado (min ${minute}). ` + (analysis.thesis || '');
             analysis.plan_name = null;
           }
 
@@ -884,12 +903,19 @@ serve(async (req) => {
               else if (_line === 0 && _min > 20) _killReason = `Over 0.5 HT fora da janela (min ${_min} > 20)`;
               else if (_line === 0 && _min < 5) _killReason = `Over 0.5 HT fora da janela (min ${_min} < 5)`;
             }
-            // Over X.5 FT — já batido (sem valor)
-            const _overFT = !_isHT ? _m.match(/over\s*(\d)\.?5/) : null;
+            // Over X.5 FT — já batido (sem valor), linha máxima 4.5, ou pós-70'
+            const _overFT = !_isHT ? _m.match(/over\s*(\d+(?:\.\d+)?)/) : null;
             if (_overFT) {
               const _line = Number(_overFT[1]);
-              if (_tot >= _line + 1) _killReason = `Over ${_line}.5 FT já batido (${_tot} gols)`;
-              else if (_line >= 1 && _min > 70) _killReason = `Over ${_line}.5 FT fora da janela (min ${_min} > 70)`;
+              if (_line >= 5) _killReason = `Over ${_line} FT acima do limite (máx 4.5)`;
+              else if (_tot >= Math.ceil(_line)) _killReason = `Over ${_line} FT já batido (${_tot} gols)`;
+              else if (_line >= 1 && _min > 70) _killReason = `Over ${_line} FT fora da janela (min ${_min} > 70)`;
+            }
+            // VETO GLOBAL pós-70' — exceto LABAREDA
+            const _isLabareda = analysis.verdict === 'LABAREDA' ||
+              String(analysis.plan_name || '').toUpperCase().includes('LABAREDA');
+            if (!_killReason && !_isLabareda && _min > 70) {
+              _killReason = `Pós-70' apenas LABAREDA permitido (min ${_min}, plan=${analysis.plan_name})`;
             }
             // Under X.5 — já estourado
             const _underAny = _m.match(/under\s*(\d)\.?5/);
