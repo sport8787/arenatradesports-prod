@@ -118,7 +118,10 @@ const Auth = () => {
         } else {
           sessionStorage.setItem('showOpening', 'true');
           toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso' });
-          navigate('/menu');
+          // NÃO navegar aqui — o useEffect acima cuida do redirect assim que
+          // o estado de auth (user) for populado pelo onAuthStateChange.
+          // Navegar imediatamente causa race com RequireSubscription, que vê
+          // user=null no próximo render e devolve para /auth.
         }
       } else {
         const { data, error } = await signUp(email, password, username, fullName.trim());
