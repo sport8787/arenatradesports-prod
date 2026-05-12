@@ -48,15 +48,16 @@ const Auth = () => {
     }
   }, [prefilledCode, refSource]);
 
-  // Check if user needs to set nickname (Google login with default "Jogador")
+  // Redireciona assim que o estado de auth confirmar o login.
+  // Não esperamos o profile carregar para evitar travamento — só usamos o
+  // profile (se já estiver disponível) para abrir o setup de nickname do Google.
   useEffect(() => {
-    if (!loading && isAuthenticated && profile) {
-      if (profile.username === 'Jogador') {
-        setShowNicknameSetup(true);
-      } else {
-        navigate('/menu');
-      }
+    if (loading || !isAuthenticated) return;
+    if (profile && profile.username === 'Jogador') {
+      setShowNicknameSetup(true);
+      return;
     }
+    navigate('/menu', { replace: true });
   }, [isAuthenticated, loading, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
