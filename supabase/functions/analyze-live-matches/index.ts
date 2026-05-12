@@ -903,12 +903,19 @@ serve(async (req) => {
               else if (_line === 0 && _min > 20) _killReason = `Over 0.5 HT fora da janela (min ${_min} > 20)`;
               else if (_line === 0 && _min < 5) _killReason = `Over 0.5 HT fora da janela (min ${_min} < 5)`;
             }
-            // Over X.5 FT — já batido (sem valor)
-            const _overFT = !_isHT ? _m.match(/over\s*(\d)\.?5/) : null;
+            // Over X.5 FT — já batido (sem valor), linha máxima 4.5, ou pós-70'
+            const _overFT = !_isHT ? _m.match(/over\s*(\d+(?:\.\d+)?)/) : null;
             if (_overFT) {
               const _line = Number(_overFT[1]);
-              if (_tot >= _line + 1) _killReason = `Over ${_line}.5 FT já batido (${_tot} gols)`;
-              else if (_line >= 1 && _min > 70) _killReason = `Over ${_line}.5 FT fora da janela (min ${_min} > 70)`;
+              if (_line >= 5) _killReason = `Over ${_line} FT acima do limite (máx 4.5)`;
+              else if (_tot >= Math.ceil(_line)) _killReason = `Over ${_line} FT já batido (${_tot} gols)`;
+              else if (_line >= 1 && _min > 70) _killReason = `Over ${_line} FT fora da janela (min ${_min} > 70)`;
+            }
+            // VETO GLOBAL pós-70' — exceto LABAREDA
+            const _isLabareda = analysis.verdict === 'LABAREDA' ||
+              String(analysis.plan_name || '').toUpperCase().includes('LABAREDA');
+            if (!_killReason && !_isLabareda && _min > 70) {
+              _killReason = `Pós-70' apenas LABAREDA permitido (min ${_min}, plan=${analysis.plan_name})`;
             }
             // Under X.5 — já estourado
             const _underAny = _m.match(/under\s*(\d)\.?5/);
