@@ -164,22 +164,28 @@ Deno.serve(async (req) => {
   }
 
   const fsCache = new Map<string, FinalScore | null>();
-  const futoddsToday = await futoddsByDate(today);
-  let afToday: any[] | null = null;
+  const futoddsByDayCache = new Map<string, any[]>();
+  const afByDayCache = new Map<string, any[]>();
 
   let settled = 0, stillPending = 0, unknownMarket = 0;
   const examples: any[] = [];
 
   for (const sig of list) {
     const home = sig.home_team || "", away = sig.away_team || "";
-    const cacheKey = `${today}|${norm(home)}|${norm(away)}`;
+    const signalDay = new Date(sig.match_date).toISOString().slice(0, 10);
+    const cacheKey = `${signalDay}|${norm(home)}|${norm(away)}`;
     let fs: FinalScore | null;
     if (fsCache.has(cacheKey)) fs = fsCache.get(cacheKey)!;
     else {
-      fs = findFutodds(futoddsToday, home, away);
+      if (!futoddsByDayCache.has(signalDay)) {
+        futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
+      }
+      fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
       if (!fs) {
-        if (afToday == null) afToday = await apiFootballByDate(today);
-        fs = findAf(afToday, home, away);
+        if (!afByDayCache.has(signalDay)) {
+          afByDayCache.set(signalDay, await apiFootballByDate(signalDay));
+        }
+        fs = findAf(afByDayCache.get(signalDay) ?? [], home, away);
       }
       fsCache.set(cacheKey, fs);
     }
