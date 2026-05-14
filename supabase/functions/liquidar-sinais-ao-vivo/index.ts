@@ -33,6 +33,8 @@ interface FinalScore {
   source: string;
 }
 
+const DEFAULT_SETTLEMENT_ODD = 1.7;
+
 const norm = (s: string) =>
   (s || "")
     .toLowerCase()
@@ -130,17 +132,22 @@ Deno.serve(async (req) => {
   );
 
   const startedAt = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
-  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const reqBody = await req.json().catch(() => ({}));
+  const requestedDays = Number(reqBody?.days_back ?? reqBody?.daysBack ?? 3);
+  const daysBack = Number.isFinite(requestedDays) ? Math.min(Math.max(Math.trunc(requestedDays), 1), 14) : 3;
+  const windowStart = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
 
   const { data: pendings, error: pErr } = await supabase
     .from("live_sinais")
     .select("id, match_id, home_team, away_team, market, market_key, odd, stake, match_date")
     .is("result", null)
     .not("market_key", "is", null)
-    .gte("match_date", `${today}T00:00:00Z`)
-    .lt("match_date", `${today}T23:59:59Z`)
+    .gte("match_date", windowStart)
     .lte("match_date", cutoff)
+    .order("match_date", { ascending: false })
     .limit(500);
 
   if (pErr) {
@@ -157,22 +164,28 @@ Deno.serve(async (req) => {
   }
 
   const fsCache = new Map<string, FinalScore | null>();
-  const futoddsToday = await futoddsByDate(today);
-  let afToday: any[] | null = null;
+  const futoddsByDayCache = new Map<string, any[]>();
+  const afByDayCache = new Map<string, any[]>();
 
   let settled = 0, stillPending = 0, unknownMarket = 0;
   const examples: any[] = [];
 
   for (const sig of list) {
     const home = sig.home_team || "", away = sig.away_team || "";
-    const cacheKey = `${today}|${norm(home)}|${norm(away)}`;
+    const signalDay = new Date(sig.match_date).toISOString().slice(0, 10);
+    const cacheKey = `${signalDay}|${norm(home)}|${norm(away)}`;
     let fs: FinalScore | null;
     if (fsCache.has(cacheKey)) fs = fsCache.get(cacheKey)!;
     else {
-      fs = findFutodds(futoddsToday, home, away);
+      if (!futoddsByDayCache.has(signalDay)) {
+        futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
+      }
+      fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
       if (!fs) {
-        if (afToday == null) afToday = await apiFootballByDate(today);
-        fs = findAf(afToday, home, away);
+        if (!afByDayCache.has(signalDay)) {
+          afByDayCache.set(signalDay, await apiFootballByDate(signalDay));
+        }
+        fs = findAf(afByDayCache.get(signalDay) ?? [], home, away);
       }
       fsCache.set(cacheKey, fs);
     }
@@ -183,7 +196,7 @@ Deno.serve(async (req) => {
       _market_key: sig.market_key,
       _gh: fs.home, _ga: fs.away,
       _htgh: fs.ht_home, _htga: fs.ht_away,
-      _odd: Number(sig.odd ?? 0), _stake: Number(sig.stake ?? 5),
+      _odd: Number(sig.odd ?? DEFAULT_SETTLEMENT_ODD), _stake: Number(sig.stake ?? 5),
     });
     if (rpcErr) { console.error("[liquidar] settle rpc", sig.id, rpcErr.message); continue; }
 
@@ -214,10 +227,11 @@ Deno.serve(async (req) => {
   }
 
   const elapsed = Date.now() - startedAt;
-  console.log(`[liquidar] today=${today} pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket} (${elapsed}ms)`);
+  console.log(`[liquidar] today=${today} days_back=${daysBack} pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket} (${elapsed}ms)`);
 
   return new Response(JSON.stringify({
     ok: true, today,
+    days_back: daysBack,
     pending_total: list.length,
     settled, no_score_yet: stillPending, unknown_market: unknownMarket,
     examples, elapsed_ms: elapsed,
