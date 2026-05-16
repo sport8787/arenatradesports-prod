@@ -6,9 +6,9 @@ import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
 import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
-// Feature flag: 'sportmonks' = Sportmonks primário (com fallback automático para API-Football)
-//               'api-football' (default) = comportamento legado
-const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "api-football").toLowerCase();
+// Provedores ao vivo: Futodds (primário) + Sportmonks (fallback). API-Football REMOVIDA em 16/05/2026.
+// O env só altera a ordem entre Futodds e Sportmonks; a cadeia é fixa nesses dois.
+const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
 
 // Hard wall-clock budget for the entire invocation. Anything not started by
 // this point gets enqueued to mycroft_analysis_queue for the background worker.
