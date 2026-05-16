@@ -139,17 +139,16 @@ async function tryApiFootball(reason: string): Promise<LiveResult> {
 }
 
 export async function getLiveMatches(): Promise<LiveResult> {
-  const order: Array<"futodds" | "sportmonks" | "api-football"> =
-    PRIMARY === "sportmonks" ? ["sportmonks", "futodds", "api-football"]
-    : PRIMARY === "api-football" ? ["api-football", "futodds", "sportmonks"]
-    : ["futodds", "sportmonks", "api-football"];
+  // API-Football REMOVIDA da cadeia de fallback (decisão usuário 16/05/2026).
+  // Apenas Futodds + Sportmonks.
+  const order: Array<"futodds" | "sportmonks"> =
+    PRIMARY === "sportmonks" ? ["sportmonks", "futodds"] : ["futodds", "sportmonks"];
 
   let lastErr = "no_provider";
   for (const p of order) {
     try {
       if (p === "futodds") return await tryFutodds();
-      if (p === "sportmonks") return await trySportmonks();
-      return await tryApiFootball(lastErr);
+      return await trySportmonks();
     } catch (e) {
       lastErr = `${p}: ${(e as Error).message}`;
       console.warn(`[liveProvider] ${p} failed → next. ${lastErr}`);
