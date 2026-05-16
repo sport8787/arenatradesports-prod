@@ -258,10 +258,29 @@ serve(async (req) => {
     console.log(`[FetchLive] Found ${allFixtures.length} total live matches via ${providerUsed}`);
 
     // 1b. Filtrar apenas ligas permitidas (registry dinâmico)
+    // Futodds usa league_id BetsAPI (não compatível com API-Football),
+    // então fazemos fallback por nome contra trader_leagues quando id não bate.
     const allowedIds = await getAllowedLeagueIds();
+    const { getLeagues } = await import("../_shared/leaguesRegistry.ts");
+    const allowedRows = await getLeagues();
+    const normName = (s: string) => String(s || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    const allowedNameSet = new Set(allowedRows.map(r => normName(r.name)));
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
-      return typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId);
+      if (typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId)) {
+        return true;
+      }
+      // Fallback Futodds: match por nome de liga
+      const ln = normName(f.league?.name || "");
+      if (!ln) return false;
+      if (allowedNameSet.has(ln)) return true;
+      // Match parcial (inclusão) para variações como "Brazilian Serie A" vs "Serie A"
+      for (const allowed of allowedNameSet) {
+        if (allowed.length >= 6 && (ln.includes(allowed) || allowed.includes(ln))) return true;
+      }
+      return false;
     });
 
     console.log(`[FetchLive] ✅ ${fixtures.length}/${allFixtures.length} jogos passaram no filtro de ligas`);
