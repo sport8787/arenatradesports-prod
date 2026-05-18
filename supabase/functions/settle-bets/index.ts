@@ -1,5 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { logEdgeError } from "../_shared/logEdgeError.ts";
+import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
