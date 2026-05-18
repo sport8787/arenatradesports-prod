@@ -751,6 +751,7 @@ serve(async (req) => {
             stake_confirmed: isHoje,
             dismissed: false,
             resultado: null,
+            approval_block: gate.block,
           }, { onConflict: "match_id,market", ignoreDuplicates: false });
 
           // === TELEGRAM (Pré Live) — usa telegram-send-dedupe (evita duplicatas) ===
