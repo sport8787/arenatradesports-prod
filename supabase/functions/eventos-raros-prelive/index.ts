@@ -30,7 +30,7 @@ const LIGAS_PERMITIDAS = [
   88, 94, 144, 203, 207, 218, 253, 262, 281, 2, 3, 4, 5, 11, 13,
 ];
 
-type PlacarTipo = "LAY_GOLEADA" | "LAY_2x2" | "LAY_1x3" | "LAY_3x1";
+type PlacarTipo = "LAY_GOLEADA" | "LAY_2x2" | "LAY_1x3" | "LAY_3x1" | "BACK_0x0";
 
 interface Indicadores {
   freq_goleada_home: number;
@@ -38,6 +38,7 @@ interface Indicadores {
   freq_goleada_h2h: number;
   freq_2x2_h2h: number;
   freq_1x3_h2h: number;
+  freq_0x0_h2h: number;
   forca_ofensiva_home: number;
   forca_ofensiva_away: number;
   fragilidade_def_home: number;
