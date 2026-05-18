@@ -34,33 +34,15 @@ async function buscarTeamIdPorNome(teamName: string): Promise<{ id: number; name
 // ════════════════════════════════════════════════════
 // BUSCAR FIXTURES RECENTES DO TIME
 // ════════════════════════════════════════════════════
-async function buscarFixturesRecentes(teamId: number, season: number, limit: number = 8) {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getRecentFixturesSM(teamId, limit);
-  }
-  const url = `${BASE_URL}/fixtures?team=${teamId}&season=${season}&last=${limit}&status=FT`;
-  const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
-  const data = await res.json();
-  return data.response || [];
+async function buscarFixturesRecentes(teamId: number, _season: number, limit: number = 8) {
+  return await getRecentFixturesSM(teamId, limit);
 }
 
 // ════════════════════════════════════════════════════
-// BUSCAR ESTATÍSTICAS DE UM FIXTURE (Corner Kicks)
+// BUSCAR ESTATÍSTICAS DE UM FIXTURE (Corner Kicks) — Sportmonks
 // ════════════════════════════════════════════════════
 async function buscarEstatisticasFixture(fixtureId: number, teamId: number): Promise<number> {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getCornersForFixtureSM(fixtureId, teamId);
-  }
-  try {
-    const url = `${BASE_URL}/fixtures/statistics?fixture=${fixtureId}&team=${teamId}`;
-    const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
-    const data = await res.json();
-    const stats = data.response?.[0]?.statistics || [];
-    const corners = stats.find((s: any) => s.type === "Corner Kicks");
-    return parseInt(corners?.value || "0") || 0;
-  } catch {
-    return 0;
-  }
+  return await getCornersForFixtureSM(fixtureId, teamId);
 }
 
 // ════════════════════════════════════════════════════
