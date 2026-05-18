@@ -6233,13 +6233,18 @@ export type Database = {
       }
       user_cycles_bankroll: {
         Row: {
+          auto_paused: boolean
+          consecutive_reds: number
           created_at: string
           current_balance: number
           current_cycle: number
           current_stake: number
           entries_in_cycle: number
           green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
           id: string
+          independent_bankroll: boolean
           initial_bankroll: number
           isolated_pct: number
           status: string
@@ -6249,13 +6254,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_paused?: boolean
+          consecutive_reds?: number
           created_at?: string
           current_balance: number
           current_cycle?: number
           current_stake: number
           entries_in_cycle?: number
           green_streak?: number
+          horus_pilot_enabled?: boolean
+          horus_pilot_mode?: string
           id?: string
+          independent_bankroll?: boolean
           initial_bankroll: number
           isolated_pct: number
           status?: string
@@ -6265,13 +6275,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_paused?: boolean
+          consecutive_reds?: number
           created_at?: string
           current_balance?: number
           current_cycle?: number
           current_stake?: number
           entries_in_cycle?: number
           green_streak?: number
+          horus_pilot_enabled?: boolean
+          horus_pilot_mode?: string
           id?: string
+          independent_bankroll?: boolean
           initial_bankroll?: number
           isolated_pct?: number
           status?: string
@@ -7103,16 +7118,31 @@ export type Database = {
       }
     }
     Functions: {
+      _register_cycle_entry_for_user: {
+        Args: {
+          p_match_id?: string
+          p_note?: string
+          p_profit_loss: number
+          p_result: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       advance_cycle: {
         Args: never
         Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
           created_at: string
           current_balance: number
           current_cycle: number
           current_stake: number
           entries_in_cycle: number
           green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
           id: string
+          independent_bankroll: boolean
           initial_bankroll: number
           isolated_pct: number
           status: string
@@ -7291,6 +7321,7 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
+      is_match_odds_market: { Args: { p_market: string }; Returns: boolean }
       league_roi_before_after: {
         Args: { p_pivot: string; p_window_days?: number }
         Returns: {
@@ -7376,13 +7407,48 @@ export type Database = {
       reset_cycle_method: {
         Args: never
         Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
           created_at: string
           current_balance: number
           current_cycle: number
           current_stake: number
           entries_in_cycle: number
           green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
           id: string
+          independent_bankroll: boolean
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      resume_horus_pilot: {
+        Args: never
+        Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
+          id: string
+          independent_bankroll: boolean
           initial_bankroll: number
           isolated_pct: number
           status: string
@@ -7438,13 +7504,48 @@ export type Database = {
       start_cycle_method: {
         Args: { p_pct: number; p_total: number }
         Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
           created_at: string
           current_balance: number
           current_cycle: number
           current_stake: number
           entries_in_cycle: number
           green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
           id: string
+          independent_bankroll: boolean
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      start_horus_pilot_cycle: {
+        Args: { p_bankroll?: number; p_mode?: string }
+        Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
+          id: string
+          independent_bankroll: boolean
           initial_bankroll: number
           isolated_pct: number
           status: string
@@ -7472,6 +7573,36 @@ export type Database = {
           _sent_at: string
         }
         Returns: undefined
+      }
+      toggle_horus_pilot: {
+        Args: { p_enabled: boolean; p_mode?: string }
+        Returns: {
+          auto_paused: boolean
+          consecutive_reds: number
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          horus_pilot_enabled: boolean
+          horus_pilot_mode: string
+          id: string
+          independent_bankroll: boolean
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       unaccent: { Args: { "": string }; Returns: string }
       update_trader_balance: {
