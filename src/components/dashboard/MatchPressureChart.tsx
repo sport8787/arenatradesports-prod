@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Loader2, AlertTriangle } from "lucide-react";
@@ -20,6 +20,7 @@ export interface PressureData {
   source: "pressure" | "trends";
   header: PressureHeader;
   timeline: PressurePoint[];
+  xgTimeline?: PressurePoint[];
   events: PressureEvent[];
   form: PressureForm;
 }
@@ -130,27 +131,44 @@ interface ChartProps {
   height?: number;
   showAxis?: boolean;
   showEvents?: boolean;
+  showXg?: boolean;
 }
 
-export function MatchPressureChart({ data, height = 220, showAxis = true, showEvents = true }: ChartProps) {
+export function MatchPressureChart({ data, height = 220, showAxis = true, showEvents = true, showXg = false }: ChartProps) {
   // Timeline contínua + suavização extra (média móvel 3') e espelhamento.
   const series = useMemo(() => {
     if (!data.timeline.length) return [];
     const max = Math.max(90, ...data.timeline.map((p) => p.minute));
     const map = new Map(data.timeline.map((p) => [p.minute, p]));
-    const raw: Array<{ minute: number; home: number; away: number }> = [];
+    const xgMap = new Map((data.xgTimeline || []).map((p) => [p.minute, p]));
+    // último valor cumulativo visto (xG é cumulativo)
+    let lastXgH = 0, lastXgA = 0;
+    const raw: Array<{ minute: number; home: number; away: number; xgH: number; xgA: number }> = [];
     for (let m = 0; m <= max; m++) {
       const p = map.get(m);
-      raw.push({ minute: m, home: p?.home ?? 0, away: p?.away ?? 0 });
+      const xg = xgMap.get(m);
+      if (xg) { lastXgH = xg.home; lastXgA = xg.away; }
+      raw.push({ minute: m, home: p?.home ?? 0, away: p?.away ?? 0, xgH: lastXgH, xgA: lastXgA });
     }
-    // média móvel 3'
+    // pico de xG (combinado) para escalar a curva ao range -100..100
+    const xgPeak = Math.max(0.5, ...raw.map((r) => Math.max(r.xgH, r.xgA)));
+    // média móvel 3' para pressão; xG mantém forma original (cumulativa monotônica)
     return raw.map((p, i) => {
       const slice = raw.slice(Math.max(0, i - 2), Math.min(raw.length, i + 3));
       const home = slice.reduce((s, x) => s + x.home, 0) / slice.length;
       const away = slice.reduce((s, x) => s + x.away, 0) / slice.length;
-      return { minute: p.minute, home: Math.round(home), awayNeg: -Math.round(away) };
+      const xgScale = 90 / xgPeak; // escala para ~90% do eixo
+      return {
+        minute: p.minute,
+        home: Math.round(home),
+        awayNeg: -Math.round(away),
+        xgHome: +(p.xgH * xgScale).toFixed(2),
+        xgAwayNeg: -+(p.xgA * xgScale).toFixed(2),
+        xgHomeRaw: p.xgH,
+        xgAwayRaw: p.xgA,
+      };
     });
-  }, [data.timeline]);
+  }, [data.timeline, data.xgTimeline]);
 
   if (series.length === 0) {
     return (
@@ -273,12 +291,41 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
             activeDot={{ r: 3, fill: AWAY_COLOR, stroke: "hsl(var(--background))", strokeWidth: 1.5 }}
           />
 
+          {/* xG acumulado (overlay opcional) */}
+          {showXg && (data.xgTimeline?.length ?? 0) > 0 && (
+            <>
+              <Line
+                type="monotone"
+                dataKey="xgHome"
+                stroke={HOME_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.9}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="xgAwayNeg"
+                stroke={AWAY_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.9}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </>
+          )}
+
           <Tooltip
             cursor={{ stroke: "hsl(var(--muted-foreground) / 0.4)", strokeWidth: 1, strokeDasharray: "3 3" }}
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               const home = payload.find((p) => p.dataKey === "home")?.value as number;
               const away = -(payload.find((p) => p.dataKey === "awayNeg")?.value as number);
+              const row = payload[0]?.payload as any;
+              const xgH = row?.xgHomeRaw as number | undefined;
+              const xgA = row?.xgAwayRaw as number | undefined;
               return (
                 <div className="rounded-lg bg-popover/95 border border-border px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm">
                   <div className="font-orbitron text-[10px] text-muted-foreground mb-1.5">
@@ -288,11 +335,17 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
                     <span className="w-2 h-2 rounded-full" style={{ background: HOME_COLOR }} />
                     <span className="text-foreground truncate max-w-[120px]">{data.header.home.name}</span>
                     <span className="ml-auto font-bold tabular-nums">{Math.round(home)}</span>
+                    {showXg && xgH !== undefined && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">xG {xgH.toFixed(2)}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: AWAY_COLOR }} />
                     <span className="text-foreground truncate max-w-[120px]">{data.header.away.name}</span>
                     <span className="ml-auto font-bold tabular-nums">{Math.round(away)}</span>
+                    {showXg && xgA !== undefined && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">xG {xgA.toFixed(2)}</span>
+                    )}
                   </div>
                 </div>
               );

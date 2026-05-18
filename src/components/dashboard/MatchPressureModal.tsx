@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   FormDots,
   MatchPressureChart,
@@ -29,6 +31,8 @@ export default function MatchPressureModal({
     open ? { home, away, commenceTime } : { home: "", away: "" },
     30000,
   );
+  const [showXg, setShowXg] = useState(false);
+  const hasXg = (data?.xgTimeline?.length ?? 0) > 0;
 
   const headerHome = data?.header.home.name || home;
   const headerAway = data?.header.away.name || away;
@@ -73,10 +77,21 @@ export default function MatchPressureModal({
           </div>
         </div>
 
+        {/* Toggle overlay xG */}
+        {hasXg && (
+          <div className="flex items-center justify-end gap-2 px-1">
+            <span className="text-[11px] text-muted-foreground">
+              Sobrepor xG acumulado
+              <span className="ml-1 opacity-60">(explica divergência pressão × placar)</span>
+            </span>
+            <Switch checked={showXg} onCheckedChange={setShowXg} />
+          </div>
+        )}
+
         {/* Gráfico */}
         <div className="rounded-lg bg-background/50 border border-border p-2">
           {data ? (
-            <MatchPressureChart data={data} height={260} />
+            <MatchPressureChart data={data} height={260} showXg={showXg} />
           ) : (
             <PressureFallback loading={loading} error={error} />
           )}
