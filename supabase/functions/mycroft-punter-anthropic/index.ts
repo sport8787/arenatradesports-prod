@@ -1599,8 +1599,9 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.warn('[Quality] check falhou:', (qErr as Error)?.message)
       }
 
-      // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
+      // ─── BLOCK GATE (3 blocos A/B/C + vetos) — config dinâmica via DB/env ───
       try {
+        const gateCfg = await loadGateConfig(supabaseClient)
         const gate = applyApprovalBlocks({
           verdict: String(analysis.verdict || 'VETADO'),
           market: analysis.market,
@@ -1611,7 +1612,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
           league: game.sport_title || '',
           bookmaker: analysis.bookmaker || '',
           data_strength: analysis.data_strength || '',
-        })
+        }, gateCfg)
         if (gate.demoted) {
           console.log(`[Punter GATE] 🚫 ${game.home_team} vs ${game.away_team}: ${gate.veto_reason || gate.block_reason}`)
         }
