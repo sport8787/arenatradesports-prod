@@ -559,6 +559,9 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         {isAdvanced && <ActivePositions />}
 
+        {/* Meus Sinais (plano pessoal do usuário, roda no cliente) */}
+        <MeusSinaisPanel />
+
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
         {/* Filters */}
