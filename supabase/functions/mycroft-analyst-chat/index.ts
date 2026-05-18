@@ -42,11 +42,11 @@ Retorne APENAS o JSON usando a tool fornecida.
 
 Mensagem do usuário: "${query}"`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "gemini-2.5-flash-lite",
+        model: "llama-3.1-8b-instant",
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0.1,
         max_tokens: 500,
@@ -153,8 +153,8 @@ serve(async (req) => {
     const { query, marketData, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
 
     const supabase = getSupabaseAdmin();
 
@@ -292,10 +292,10 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-      body: JSON.stringify({ model: "gemini-2.5-flash", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
     });
 
     if (!response.ok) {
@@ -314,7 +314,7 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     if (userId) {
       (async () => {
         try {
-          const extraction = await aiExtractRules(query, GEMINI_API_KEY);
+          const extraction = await aiExtractRules(query, GROQ_API_KEY);
           if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
             await processMemoryActions(userId, extraction);
           }
