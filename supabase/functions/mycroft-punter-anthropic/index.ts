@@ -1597,6 +1597,32 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.warn('[Quality] check falhou:', (qErr as Error)?.message)
       }
 
+      // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
+      try {
+        const gate = applyApprovalBlocks({
+          verdict: String(analysis.verdict || 'VETADO'),
+          market: analysis.market,
+          odd: Number(analysis.odd) || 0,
+          estimated_probability: Number(analysis.estimated_probability) || 0,
+          value_percentage: Number(analysis.value_percentage) || 0,
+          confidence: Number(analysis.confidence) || 0,
+          league: game.sport_title || '',
+          bookmaker: analysis.bookmaker || '',
+          data_strength: analysis.data_strength || '',
+        })
+        if (gate.demoted) {
+          console.log(`[Punter GATE] 🚫 ${game.home_team} vs ${game.away_team}: ${gate.veto_reason || gate.block_reason}`)
+        }
+        analysis.verdict = gate.verdict
+        analysis.tier = gate.block
+        analysis.tier_label = gate.tier_label
+        analysis.block_reason = gate.block_reason
+        if (gate.veto_reason) analysis.veto_reason = gate.veto_reason
+        if (gate.stake_percentage > 0) analysis.stake_percentage = gate.stake_percentage
+      } catch (gateErr) {
+        console.warn('[Punter GATE] erro (mantendo verdict original):', (gateErr as Error)?.message)
+      }
+
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic${exchangeSnapshot ? ` | EX edge: ${exchangeSnapshot.edge_pp?.toFixed?.(2)}pp` : ''}`)
 
       if (analysis.verdict === 'APROVADO') {
