@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Crown, Loader2, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
+import { Crown, Loader2, RefreshCw, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
 
 interface SinalFavorito {
   id: string;
