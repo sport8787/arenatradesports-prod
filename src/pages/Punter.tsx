@@ -612,6 +612,9 @@ export default function PunterPage() {
         thesis: a.thesis,
         analysis: a.analysis,
         risk_factors: a.risk_factors,
+        sherlock_alert: a.sherlock_alert ?? null,
+        sportmonks_probability: a.sportmonks_probability ?? null,
+        sportmonks_divergence_pp: a.sportmonks_divergence_pp ?? null,
       },
     }));
 
