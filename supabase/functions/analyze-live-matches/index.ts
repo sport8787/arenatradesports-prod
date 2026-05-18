@@ -74,12 +74,12 @@ const corsHeaders = {
 };
 
 // ============================================================
-// FALLBACK GROK (xAI) — usado se a engine determinística falhar
+// FALLBACK GROQ (api.groq.com - Llama) — usado se a engine determinística falhar
 // ============================================================
 async function callGrokFallback(payload: any): Promise<any | null> {
-  const GROK_API_KEY = Deno.env.get('GROK_API_KEY');
-  if (!GROK_API_KEY) {
-    console.warn('[AnalyzeLive][Grok] GROK_API_KEY não configurada — fallback desativado');
+  const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+  if (!GROQ_API_KEY) {
+    console.warn('[AnalyzeLive][Groq] GROQ_API_KEY não configurada — fallback desativado');
     return null;
   }
   const m = payload?.match || {};
@@ -96,14 +96,14 @@ Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 20_000);
-    const r = await fetch('https://api.x.ai/v1/chat/completions', {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROK_API_KEY}`,
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'grok-2-latest',
+        model: 'llama-3.3-70b-versatile',
         temperature: 0.2,
         response_format: { type: 'json_object' },
         messages: [
@@ -116,35 +116,35 @@ Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(
     clearTimeout(t);
     if (!r.ok) {
       const errText = await r.text();
-      console.error('[AnalyzeLive][Grok] HTTP', r.status, errText.slice(0, 300));
+      console.error('[AnalyzeLive][Groq] HTTP', r.status, errText.slice(0, 300));
       return null;
     }
     const j = await r.json();
     const content = j?.choices?.[0]?.message?.content;
     if (!content) {
-      console.error('[AnalyzeLive][Grok] resposta sem content');
+      console.error('[AnalyzeLive][Groq] resposta sem content');
       return null;
     }
     let parsed: any;
     try { parsed = JSON.parse(content); } catch {
       const match = content.match(/\{[\s\S]*\}/);
-      if (!match) { console.error('[AnalyzeLive][Grok] JSON inválido'); return null; }
+      if (!match) { console.error('[AnalyzeLive][Groq] JSON inválido'); return null; }
       parsed = JSON.parse(match[0]);
     }
     // Normaliza campos esperados
     return {
       verdict: String(parsed.verdict || 'AGUARDAR').toUpperCase(),
       market: parsed.market || 'N/A',
-      plan_name: parsed.plan_name || 'GROK FALLBACK',
+      plan_name: parsed.plan_name || 'GROQ FALLBACK',
       confidence: Number(parsed.confidence ?? 0),
       thesis: parsed.thesis || 'Fallback Grok sem tese.',
       estimated_probability: parsed.estimated_probability ?? null,
       odd: parsed.odd ?? null,
       stake_pct: parsed.stake_pct ?? null,
-      ai_engine: 'grok-fallback',
+      ai_engine: 'groq-fallback',
     };
   } catch (e) {
-    console.error('[AnalyzeLive][Grok] exceção:', (e as Error)?.message);
+    console.error('[AnalyzeLive][Groq] exceção:', (e as Error)?.message);
     return null;
   }
 }
@@ -647,11 +647,11 @@ serve(async (req) => {
         }
 
         if (!analysis) {
-          console.error(`[AnalyzeLive] Sem análise (deterministic+grok falharam) para ${match.match_id}, pulando`);
+          console.error(`[AnalyzeLive] Sem análise (deterministic+groq falharam) para ${match.match_id}, pulando`);
           continue;
         }
         if (usedFallback) {
-          analysis.ai_engine = 'grok-fallback';
+          analysis.ai_engine = 'groq-fallback';
           console.log(`[AnalyzeLive] ⚠️ Fallback Grok usado para ${match.match_id}`);
         }
         console.log(`[AnalyzeLive] Verdict for ${match.match_id}: ${analysis.verdict} (${analysis.confidence}%)`);
