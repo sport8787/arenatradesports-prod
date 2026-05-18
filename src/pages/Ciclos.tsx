@@ -24,6 +24,11 @@ interface CycleBankroll {
   green_streak: number;
   status: 'active' | 'completed' | 'failed' | 'awaiting_withdrawal';
   total_withdrawn: number;
+  horus_pilot_enabled: boolean;
+  horus_pilot_mode: 'assisted' | 'simulated';
+  independent_bankroll: boolean;
+  auto_paused: boolean;
+  consecutive_reds: number;
 }
 
 interface CycleEntry {
