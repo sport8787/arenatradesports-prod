@@ -275,6 +275,7 @@ Retorne APENAS JSON neste formato:
   "estimated_probability": 54.1,
   "value_percentage": 13.5,
   "confidence": 70,
+  "data_strength": "ALTA" | "MEDIA" | "BAIXA",
   "stake_percentage": 3,
   "thesis": "JUSTIFICATIVA narrativa em 3-4 frases curtas (formato dos cards aprovados do Trader Sports). NÃO colocar métricas cruas aqui. Estrutura: (1) contexto do confronto e ponto fraco do adversário ou força do nosso lado; (2) gatilho estatístico/forma recente; (3) por que a odd está mal precificada; (4) risco residual aceito. Linguagem de analista.",
   "analysis": "Bloco quantitativo curto: prob X% × odd Y = Z% edge. Métricas vão AQUI, não na thesis.",
