@@ -30,6 +30,7 @@ const ArenaTraderSports = React.lazy(() => import("./pages/ArenaTraderSports"));
 const ArenaTraderSportsRankingMonthly = React.lazy(() => import("./pages/ArenaTraderSportsRankingMonthly"));
 const ArenaTraderSportsEventosRaros = React.lazy(() => import("./pages/ArenaTraderSportsEventosRaros"));
 const ArenaTraderSportsMeuPlano = React.lazy(() => import("./pages/ArenaTraderSportsMeuPlano"));
+const Ciclos = React.lazy(() => import("./pages/Ciclos"));
 const UnderThresholdsConfig = React.lazy(() => import("./pages/UnderThresholdsConfig"));
 const BackFavoritoComValor = React.lazy(() => import("./pages/BackFavoritoComValor"));
 const LiveMatchDetail = React.lazy(() => import("./pages/LiveMatchDetail"));
@@ -152,6 +153,9 @@ const App = () => {
                 <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/eventos-raros" element={<RequireSubscription><ArenaTraderSportsEventosRaros /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/meu-plano" element={<RequireSubscription><ArenaTraderSportsMeuPlano /></RequireSubscription>} />
+                <Route path="/ciclos" element={<RequireSubscription><Ciclos /></RequireSubscription>} />
+                <Route path="/arena-trader-sports/ciclos" element={<RequireSubscription><Ciclos /></RequireSubscription>} />
+                <Route path="/punter/ciclos" element={<RequireSubscription><Ciclos /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/under-thresholds" element={<RequireSubscription><UnderThresholdsConfig /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/planos/back-fav-valor" element={<RequireSubscription><BackFavoritoComValor /></RequireSubscription>} />
                 <Route path="/modo-treino" element={<RequireSubscription><ModoTreino /></RequireSubscription>} />
