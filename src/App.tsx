@@ -217,6 +217,7 @@ const App = () => {
                 <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />
                 <Route path="/admin/auditoria-punter" element={<AdminAuditoriaPunter />} />
                 <Route path="/admin/mycroft-chat-access" element={<AdminMycroftChatAccessLog />} />
+                <Route path="/admin/ab-lab" element={<AdminAbLab />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>
