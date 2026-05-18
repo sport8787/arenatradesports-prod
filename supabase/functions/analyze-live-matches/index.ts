@@ -841,6 +841,158 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ========== xG TRIGGER/VETO (Sportmonks live xG) ==========
+        // Premissas:
+        //  • xG é fonte primária de "qualidade de chance" (não inflado por escanteios/posses estéril).
+        //  • Aplica-se SOMENTE quando xG está disponível (xg_unavailable !== true) e há minuto > 0.
+        // Regras (em ordem; só a 1ª compatível atua):
+        //  V1) VETO UNDER 2.5 / UNDER 3.5 antes do 60': xG_total > 2.2 já indica pressão de gol acima do mercado.
+        //       → rebaixa verdict ativo para AGUARDAR (alto risco) com nota técnica.
+        //  T1) PROMOÇÃO p/ LABAREDA: minuto >= 35, placar 0x0 e xG_total > 1.8 (jogo "quase furou" várias vezes)
+        //       → se verdict é OVER X.5 / BTTS SIM com APROVADO/APROVADO_SITUACIONAL → vira LABAREDA (+5pp conf).
+        //  T2) BOOST CONF +5pp em BACK ao dominante quando xG do nosso lado é >= 2x xG do adversário e minuto >= 25.
+        try {
+          const xgUnavailable = (enrichedStats as any).xg_unavailable === true;
+          const minNow = Number(match.minute ?? 0);
+          const xgH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0) || 0;
+          const xgA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0) || 0;
+          const xgTotal = xgH + xgA;
+          const sH = Number(match.score_home ?? 0);
+          const sA = Number(match.score_away ?? 0);
+          const mktKey = normalizeMarketKey(String(analysis.market || ''));
+          const isActive = activeVerdicts.includes(analysis.verdict);
+
+          if (!xgUnavailable && isActive && minNow > 0 && xgTotal > 0) {
+            // V1 — VETO Under 2.5/3.5 com xG > 2.2 antes do 60'
+            const isUnder25 = /under\s*2\.?5|menos.*2\.?5/i.test(mktKey);
+            const isUnder35 = /under\s*3\.?5|menos.*3\.?5/i.test(mktKey);
+            const totalGoals = sH + sA;
+            if ((isUnder25 || isUnder35) && minNow < 60 && xgTotal > 2.2 && totalGoals < (isUnder25 ? 2 : 3)) {
+              const before = Number(analysis.confidence ?? 0);
+              console.log(`[AnalyzeLive] 🚫 xG VETO Under: xGtotal=${xgTotal.toFixed(2)} > 2.2 antes do ${minNow}' (${match.home_team} vs ${match.away_team})`);
+              analysis.verdict = 'AGUARDAR';
+              analysis.plan_name = null;
+              const note = `[xG VETO] xG total ${xgTotal.toFixed(2)} > 2.2 antes do 60' contra ${analysis.market} (conf era ${before}%).`;
+              analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+              analysis.thesis = note + ' ' + (analysis.thesis || '');
+            } else {
+              // T1 — Promoção LABAREDA: 0x0 ≥ 35' com xG > 1.8 em Over/BTTS SIM
+              const isOver = /over\s*[0-2]\.?5|mais.*[0-2]\.?5/i.test(mktKey);
+              const isBttsYes = /btts.*sim|both.*yes|ambas.*sim/i.test(mktKey);
+              if (
+                (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') &&
+                minNow >= 35 && minNow <= 70 &&
+                sH === 0 && sA === 0 &&
+                xgTotal > 1.8 &&
+                (isOver || isBttsYes)
+              ) {
+                const before = Number(analysis.confidence ?? 0);
+                const after = Math.min(95, before + 5);
+                analysis.verdict = 'LABAREDA';
+                analysis.confidence = after;
+                const note = `[xG LABAREDA] 0x0 no ${minNow}' com xG ${xgTotal.toFixed(2)} > 1.8 → pressão real sem conversão (conf ${before}→${after}).`;
+                analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                analysis.thesis = note + ' ' + (analysis.thesis || '');
+                console.log(`[AnalyzeLive] 🔥 xG promoveu LABAREDA ${match.home_team} vs ${match.away_team} (xG ${xgH.toFixed(2)}-${xgA.toFixed(2)})`);
+              } else {
+                // T2 — Boost +5pp em BACK dominante (xG nosso ≥ 2× adversário, min ≥ 25)
+                const isBackHome = /back\s+casa|1x2.*home|vitoria.*casa|back\s+1\b/i.test(mktKey);
+                const isBackAway = /back\s+fora|1x2.*away|vitoria.*fora|back\s+2\b/i.test(mktKey);
+                if (minNow >= 25 && (isBackHome || isBackAway)) {
+                  const ourXg = isBackHome ? xgH : xgA;
+                  const advXg = isBackHome ? xgA : xgH;
+                  if (ourXg >= 0.8 && advXg > 0 && ourXg >= advXg * 2) {
+                    const before = Number(analysis.confidence ?? 0);
+                    const after = Math.min(95, before + 5);
+                    analysis.confidence = after;
+                    const note = `[xG BOOST] Dominância xG real (${ourXg.toFixed(2)} vs ${advXg.toFixed(2)}) → +5pp (${before}→${after}).`;
+                    analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                    console.log(`[AnalyzeLive] ✨ xG boost +5pp em ${analysis.market} (${match.home_team} vs ${match.away_team})`);
+                  }
+                }
+              }
+            }
+          }
+        } catch (xgTriggerErr) {
+          console.warn('[AnalyzeLive] xG trigger/veto falhou:', (xgTriggerErr as Error)?.message);
+        }
+        // ====================================================================
+
+        // ========== PREMATCH CONTEXT (lineups + formations + injuries) ==========
+        // Aplica hints (Item 3+4): boost/veto em Over/Under/BACK baseado em desfalques
+        // chave e formação. Só roda se há sm_fixture_id (apurado por Sportmonks).
+        // Cacheado por 6h por match_id na tabela prematch_context_cache.
+        try {
+          const smFixtureId = (match as any).sm_fixture_id
+            ?? (enrichedStats as any).sm_fixture_id
+            ?? null;
+          if (smFixtureId && activeVerdicts.includes(analysis.verdict)) {
+            const ctxRes = await supabase.functions.invoke('sportmonks-prematch-context', {
+              body: { match_id: match.match_id, sm_fixture_id: smFixtureId },
+            });
+            const ctx = ctxRes?.data?.context;
+            if (ctx?.hints) {
+              const mktKey = normalizeMarketKey(String(analysis.market || ''));
+              const isUnder = /under|menos/i.test(mktKey);
+              const isOver = /over|mais/i.test(mktKey);
+              const isBackHome = /back\s+casa|1x2.*home|vitoria.*casa|back\s+1\b/i.test(mktKey);
+              const isBackAway = /back\s+fora|1x2.*away|vitoria.*fora|back\s+2\b/i.test(mktKey);
+
+              // VETO BACK quando time tem atacante + goleiro chave fora
+              if ((isBackHome && ctx.hints.vetoBack?.home) || (isBackAway && ctx.hints.vetoBack?.away)) {
+                console.log(`[AnalyzeLive] 🚫 PREMATCH VETO BACK: ${ctx.hints.vetoBack.reason}`);
+                analysis.verdict = 'AGUARDAR';
+                analysis.plan_name = null;
+                const note = `[PREMATCH VETO] ${ctx.hints.vetoBack.reason}.`;
+                analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                analysis.thesis = note + ' ' + (analysis.thesis || '');
+              } else {
+                // Boost/penalty (em pp) sobre confidence
+                let delta = 0;
+                const reasons: string[] = [];
+                if (isUnder && ctx.hints.underBoost) {
+                  delta += ctx.hints.underBoost;
+                  reasons.push(`underBoost ${ctx.hints.underBoost > 0 ? '+' : ''}${ctx.hints.underBoost}pp`);
+                }
+                if (isOver && ctx.hints.overBoost) {
+                  delta += ctx.hints.overBoost;
+                  reasons.push(`overBoost ${ctx.hints.overBoost > 0 ? '+' : ''}${ctx.hints.overBoost}pp`);
+                }
+                // Desfalques chave também afetam Over (atacante fora reduz over)
+                if (isOver && (ctx.missingKey?.home?.striker || ctx.missingKey?.away?.striker)) {
+                  delta -= 4;
+                  reasons.push('atacante chave fora (-4pp)');
+                }
+                if (delta !== 0) {
+                  const before = Number(analysis.confidence ?? 0);
+                  const after = Math.max(0, Math.min(95, before + delta));
+                  analysis.confidence = after;
+                  const missingNames = [
+                    ...(ctx.missingKey?.home?.names || []).map((n: string) => `${n} (casa)`),
+                    ...(ctx.missingKey?.away?.names || []).map((n: string) => `${n} (fora)`),
+                  ].slice(0, 4);
+                  const note = `[PREMATCH] ${reasons.join(' • ')} → ${before}→${after}%${missingNames.length ? ` | desfalques: ${missingNames.join(', ')}` : ''}`;
+                  analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                  console.log(`[AnalyzeLive] 📋 ${note} (${match.home_team} vs ${match.away_team})`);
+                  // Se ficou muito baixo, rebaixa
+                  if (after < 50 && analysis.verdict !== 'AGUARDAR') {
+                    analysis.verdict = 'AGUARDAR';
+                    analysis.plan_name = null;
+                    analysis.thesis = `[PREMATCH] confidence pós-ajuste ${after}% < 50%. ` + (analysis.thesis || '');
+                  }
+                }
+              }
+            }
+          }
+        } catch (preCtxErr) {
+          console.warn('[AnalyzeLive] prematch-context falhou:', (preCtxErr as Error)?.message);
+        }
+        // ====================================================================
+
+
+
+
+
         // ─── CALIBRATION FLOOR (Trader) ───────────────────────────────────
         // Rebaixa APROVADO* se confidence < limite calibrado das últimas 50.
         try {
