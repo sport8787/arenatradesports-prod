@@ -22,7 +22,7 @@ export default function MeusSinaisPanel() {
 
   const hits = useMemo(() => {
     if (activeMarkets.length === 0) return [];
-    const out: Array<{ matchId: string; home: string; away: string; minute: number; score: string; league: string; market: UserMarket; label: string; odd: number | null; reasons: string[] }> = [];
+    const out: Array<{ matchId: string; home: string; away: string; minute: number; score: string; league: string; market: UserMarket; label: string; odd: number | null; reasons: string[]; outcome: string; line: number | null; commence_time?: string | null }> = [];
     for (const lm of matches) {
       if (lm.status !== 'live' && lm.status !== 'halftime') continue;
       if ((lm.match_id || '').startsWith('sim_')) continue;
@@ -41,12 +41,34 @@ export default function MeusSinaisPanel() {
             label: res.market_label,
             odd: res.selected_odd,
             reasons: res.reasons,
+            outcome: plan.outcome,
+            line: plan.line ?? null,
+            commence_time: (lm as any).commence_time ?? null,
           });
         }
       }
     }
     return out;
   }, [matches, activeMarkets.join(','), JSON.stringify(plans)]); // refresca quando plano muda
+
+  // Loga sinais aprovados no Supabase (idempotente por user+match+market+outcome).
+  useEffect(() => {
+    for (const h of hits) {
+      void logUserPlanSignal({
+        match_id: h.matchId,
+        match_name: `${h.home} x ${h.away}`,
+        league: h.league,
+        market: h.market,
+        outcome: h.outcome as any,
+        line: h.line,
+        market_label: h.label,
+        selected_odd: h.odd,
+        minute: h.minute,
+        reasons: h.reasons,
+        commence_time: h.commence_time ?? null,
+      });
+    }
+  }, [hits]);
 
   if (activeMarkets.length === 0) {
     return (
