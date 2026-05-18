@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-const MAX_GAMES = 15, BATCH = 3, BATCH_COOLDOWN_MS = 12_000, API_FB = 'https://v3.football.api-sports.io'
+const MAX_GAMES = 15, BATCH = 3, BATCH_COOLDOWN_MS = 12_000, API_FB = '' // API-Football removida em Fase 2 (18/05/2026)
 const MAX_EXEC_MS = 110_000 // 110s guard — must return BEFORE gateway kills the connection (~120s)
 let execStart = 0
 let geminiRateLimitUntil = 0
