@@ -407,10 +407,9 @@ serve(async (req) => {
       away_team_name,
       liga = "Liga não informada",
       season = 2025,
-      data_source,
     } = body;
-    DATA_SOURCE = data_source === 'sportmonks' ? 'sportmonks' : 'api-football';
-    console.log(`[Corners] data_source=${DATA_SOURCE}`);
+    // data_source ignorado — Sportmonks fixo (Fase 2)
+    console.log(`[Corners] data_source=${DATA_SOURCE} (forçado)`);
 
     if (!home_team_name || !away_team_name) {
       return new Response(
