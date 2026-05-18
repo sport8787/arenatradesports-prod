@@ -455,7 +455,8 @@ function evaluateFutoddsPressure(
   if (isBackHome || isBackAway) {
     const ourSide = isBackHome ? 'home' : 'away';
     const advSide = isBackHome ? 'away' : 'home';
-    const pOur = isBackHome ? pH : pA;
+    // pAdv usa o MAIOR (Futodds ∨ Sportmonks) e pOur o MENOR — conservador para nosso lado.
+    const pOur = isBackHome ? pHOur : pAOur;
     const pAdv = isBackHome ? pA : pH;
     const scoreOur = isBackHome ? scoreH : scoreA;
     const scoreAdv = isBackHome ? scoreA : scoreH;
@@ -466,7 +467,7 @@ function evaluateFutoddsPressure(
     const reasons: string[] = [];
     let critical = false;
 
-    // Critério 1: pressão adversária >= 65 com diferença >=15 (Futodds 0-100)
+    // Critério 1: pressão adversária >= 65 com diferença >=15
     if (Number.isFinite(pAdv) && Number.isFinite(pOur) && pAdv >= 65 && (pAdv - pOur) >= 15) {
       reasons.push(`Pressão adversária ${pAdv.toFixed(0)} vs ${pOur.toFixed(0)} (Δ${(pAdv - pOur).toFixed(0)})`);
       if (pAdv >= 75) critical = true;
@@ -487,6 +488,23 @@ function evaluateFutoddsPressure(
     if (scoreOur <= scoreAdv && Number.isFinite(pAdv) && pAdv >= 55 && (pAdv - pOur) >= 10) {
       reasons.push(`Placar ${scoreH}x${scoreA} sob pressão`);
     }
+
+    // Critério 4 (NOVO): Sportmonks Pressure Index CONFIRMA Futodds — escala WARN → CRITICAL.
+    // Quando ambas as fontes concordam que pAdv >= 70 com Δ >= 12, sinal vira CRITICAL.
+    if (smAgreement) {
+      const advFut = isBackHome ? pAfut : pHfut;
+      const advSm = isBackHome ? pAsm : pHsm;
+      const ourFut = isBackHome ? pHfut : pAfut;
+      const ourSm = isBackHome ? pHsm : pAsm;
+      const bothAdvHigh = Number.isFinite(advFut) && Number.isFinite(advSm) && advFut >= 70 && advSm >= 70;
+      const deltaFut = Number.isFinite(advFut) && Number.isFinite(ourFut) ? (advFut - ourFut) : 0;
+      const deltaSm = Number.isFinite(advSm) && Number.isFinite(ourSm) ? (advSm - ourSm) : 0;
+      if (bothAdvHigh && deltaFut >= 12 && deltaSm >= 12) {
+        reasons.push(`SM+Futodds concordam (SM ${advSm.toFixed(0)}/Fut ${advFut.toFixed(0)})`);
+        critical = true;
+      }
+    }
+
 
     if (reasons.length === 0) return null;
     if (critical) {
