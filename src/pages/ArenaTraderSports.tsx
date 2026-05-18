@@ -530,6 +530,10 @@ export default function ArenaTraderSports() {
                 <Sparkles className="w-4 h-4 mr-1" />
                 Eventos Raros
               </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/meu-plano')}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Meu Plano
+              </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
                 Performance
