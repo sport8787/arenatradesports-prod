@@ -3588,6 +3588,27 @@ export type Database = {
         }
         Relationships: []
       }
+      prematch_context_cache: {
+        Row: {
+          created_at: string
+          fetched_at: string
+          match_id: string
+          payload: Json
+        }
+        Insert: {
+          created_at?: string
+          fetched_at?: string
+          match_id: string
+          payload: Json
+        }
+        Update: {
+          created_at?: string
+          fetched_at?: string
+          match_id?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           bc_balance: number
