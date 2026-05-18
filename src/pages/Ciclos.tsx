@@ -182,12 +182,16 @@ export default function Ciclos() {
           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : !bk ? (
           <SetupCard
+            setupMode={setupMode} setSetupMode={setSetupMode}
             totalBankroll={totalBankroll} setTotalBankroll={setTotalBankroll}
             isolatedPct={isolatedPct} setIsolatedPct={setIsolatedPct}
+            horusBankroll={horusBankroll} setHorusBankroll={setHorusBankroll}
+            horusMode={horusMode} setHorusMode={setHorusMode}
             onStart={handleStart} starting={starting}
           />
         ) : (
           <>
+            <HorusPilotPanel bk={bk} onToggle={handleTogglePilot} onResume={handleResumePilot} />
             <ActivePanel bk={bk} onOpenRegister={openRegister} onAdvance={handleAdvance} onReset={handleReset} />
             <CyclesTimeline bk={bk} />
             <EntriesHistory entries={entries} />
