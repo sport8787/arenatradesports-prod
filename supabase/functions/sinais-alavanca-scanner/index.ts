@@ -101,12 +101,24 @@ function calcScoreLive(opts: {
   minute: number;
   goals: number;
   odd: number | null;
+  xgTotal?: number | null;
 }) {
   const reasons: string[] = [];
   let score = 0;
   if (opts.goals >= 4) return { score: 0, reasons: ['já marcou 4+ gols'], veto: true };
   if (opts.minute >= 30 && opts.goals >= 3) {
     return { score: 0, reasons: ['3 gols antes dos 30\' = risco real'], veto: true };
+  }
+  // 🚫 VETO xG: ritmo de alta voltagem inviabiliza Under 4.5
+  if (opts.xgTotal != null && opts.xgTotal > 0 && opts.minute >= 20) {
+    const projetado = opts.xgTotal * (90 / Math.max(opts.minute, 20));
+    if (opts.xgTotal >= 2.5 || projetado >= 4.0) {
+      return {
+        score: 0,
+        reasons: [`xG atual ${opts.xgTotal.toFixed(2)} (proj. ${projetado.toFixed(2)}) inviabiliza Under 4.5`],
+        veto: true,
+      };
+    }
   }
   if (opts.minute >= 60 && opts.goals <= 2) {
     score += 50;
@@ -125,6 +137,11 @@ function calcScoreLive(opts: {
   if (opts.minute >= 75 && opts.goals <= 3) {
     score += 15;
     reasons.push(`Reta final (${opts.minute}') sob controle`);
+  }
+  // ✨ BOOST: xG baixo confirma jogo "amarrado"
+  if (opts.xgTotal != null && opts.minute >= 30 && opts.xgTotal <= 1.0) {
+    score += 10;
+    reasons.push(`xG total ${opts.xgTotal.toFixed(2)} reforça baixa voltagem`);
   }
   return { score, reasons, veto: false };
 }
