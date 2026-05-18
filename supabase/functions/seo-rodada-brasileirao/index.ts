@@ -147,8 +147,10 @@ ${totalSignals === 0
 
 <a class="cta" href="https://oraculo-mycroft.com/auth">Receber sinais ao vivo — 7 dias grátis</a>
 
+${noticiasHtml}
+
 <h2>Próximas rodadas</h2>
-<p><a href="/blog/brasileirao-2026/">Voltar ao hub do Brasileirão 2026</a></p>
+<p><a href="/blog/brasileirao-2026/">Voltar ao hub do Brasileirão 2026</a> · <a href="/blog/noticias/">Todas as notícias</a></p>
 </body>
 </html>`;
 
