@@ -156,7 +156,6 @@ Deno.serve(async (req) => {
 
   const fsCache = new Map<string, FinalScore | null>();
   const futoddsByDayCache = new Map<string, any[]>();
-  const afByDayCache = new Map<string, any[]>();
 
   let settled = 0, stillPending = 0, unknownMarket = 0;
   const examples: any[] = [];
@@ -173,10 +172,7 @@ Deno.serve(async (req) => {
       }
       fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
       if (!fs) {
-        if (!afByDayCache.has(signalDay)) {
-          afByDayCache.set(signalDay, await apiFootballByDate(signalDay));
-        }
-        fs = findAf(afByDayCache.get(signalDay) ?? [], home, away);
+        fs = await smFallback(home, away, sig.match_date);
       }
       fsCache.set(cacheKey, fs);
     }
