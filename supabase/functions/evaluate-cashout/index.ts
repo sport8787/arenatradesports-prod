@@ -710,35 +710,9 @@ function normalizeMatchStatus(status?: string | null, period?: string | null): M
   return 'unknown';
 }
 
-async function fetchApiFootballSnapshot(matchId: string): Promise<Partial<MatchState> | null> {
-  const apiKey = Deno.env.get('API_FOOTBALL_KEY');
-  if (!apiKey || !/^\d+$/.test(matchId)) return null;
-
-  try {
-    const response = await fetch(`https://v3.football.api-sports.io/fixtures?id=${matchId}`, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const fixture = data.response?.[0];
-    if (!fixture) return null;
-
-    return {
-      homeTeam: fixture.teams?.home?.name || undefined,
-      awayTeam: fixture.teams?.away?.name || undefined,
-      minute: fixture.fixture?.status?.elapsed ?? 0,
-      period: fixture.fixture?.status?.long || null,
-      status: normalizeMatchStatus(fixture.fixture?.status?.short, fixture.fixture?.status?.long),
-      scoreHome: fixture.goals?.home ?? 0,
-      scoreAway: fixture.goals?.away ?? 0,
-      halftimeHome: fixture.score?.halftime?.home ?? null,
-      halftimeAway: fixture.score?.halftime?.away ?? null,
-    };
-  } catch (error) {
-    console.warn(`[evaluate-cashout] API-Football snapshot failed for ${matchId}:`, error);
-    return null;
-  }
+async function fetchApiFootballSnapshot(_matchId: string): Promise<Partial<MatchState> | null> {
+  // API-Football removida em Fase 2 (18/05/2026). Snapshot agora vem só de live_matches (Futodds/Sportmonks).
+  return null;
 }
 
 async function resolveMatchState(matchId: string, supabase: any, cache: Map<string, MatchState | null>): Promise<MatchState | null> {
