@@ -11,6 +11,12 @@ interface FunctionItem {
 
 const FUNCTIONS: FunctionItem[] = [
   {
+    title: 'Gate Dashboard A/B/C',
+    description: 'Win rate, EV e ROI por bloco, liga e faixa de odd — dia/semana',
+    icon: <BarChart3 className="w-4 h-4 text-primary" />,
+    to: '/punter/gate-dashboard',
+  },
+  {
     title: 'Análise Detalhada',
     description: 'Comparativo, horários, config Hórus, oportunidades',
     icon: <BarChart3 className="w-4 h-4 text-primary" />,
