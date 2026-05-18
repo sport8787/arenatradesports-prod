@@ -22,7 +22,7 @@ export default function MeusSinaisPanel() {
 
   const hits = useMemo(() => {
     if (activeMarkets.length === 0) return [];
-    const out: Array<{ matchId: string; home: string; away: string; minute: number; score: string; league: string; market: UserMarket; label: string; odd: number | null; reasons: string[]; outcome: string; line: number | null; commence_time?: string | null }> = [];
+    const out: Array<{ matchId: string; home: string; away: string; minute: number; score: string; league: string; market: UserMarket; label: string; odd: number | null; reasons: string[]; outcome: string; line: number | null; commence_time?: string | null; tier: 'APROVADO' | 'APROVADO_CONF_REDUZIDA'; missing: string[] }> = [];
     for (const lm of matches) {
       if (lm.status !== 'live' && lm.status !== 'halftime') continue;
       if ((lm.match_id || '').startsWith('sim_')) continue;
@@ -44,12 +44,14 @@ export default function MeusSinaisPanel() {
             outcome: plan.outcome,
             line: plan.line ?? null,
             commence_time: (lm as any).commence_time ?? null,
+            tier: res.tier,
+            missing: res.missing_stats,
           });
         }
       }
     }
     return out;
-  }, [matches, activeMarkets.join(','), JSON.stringify(plans)]); // refresca quando plano muda
+  }, [matches, activeMarkets.join(','), JSON.stringify(plans)]);
 
   // Loga sinais aprovados no Supabase (idempotente por user+match+market+outcome).
   useEffect(() => {
@@ -64,7 +66,9 @@ export default function MeusSinaisPanel() {
         market_label: h.label,
         selected_odd: h.odd,
         minute: h.minute,
-        reasons: h.reasons,
+        reasons: h.tier === 'APROVADO_CONF_REDUZIDA'
+          ? [...h.reasons, `⚠ conf. reduzida: dados ausentes (${h.missing.join(', ')})`]
+          : h.reasons,
         commence_time: h.commence_time ?? null,
       });
     }
@@ -129,10 +133,20 @@ export default function MeusSinaisPanel() {
                   <span className="font-semibold text-foreground truncate">{h.away}</span>
                   <span className="ml-2 text-[10px] font-mono text-destructive">{h.minute}'</span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] uppercase font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                     {MARKET_LABEL[h.market]} · {h.label}
                   </span>
+                  {h.tier === 'APROVADO' ? (
+                    <span className="text-[10px] uppercase font-mono text-success bg-success/10 px-1.5 py-0.5 rounded">✓ APROVADO</span>
+                  ) : (
+                    <span
+                      className="text-[10px] uppercase font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded"
+                      title={`Dados ausentes: ${h.missing.join(', ')}`}
+                    >
+                      ⚠ APROVADO · CONF. REDUZIDA
+                    </span>
+                  )}
                   {h.odd != null && (
                     <span className="text-[10px] font-mono text-success">@ {h.odd.toFixed(2)}</span>
                   )}
@@ -141,6 +155,9 @@ export default function MeusSinaisPanel() {
                 {showDetails && h.reasons.length > 0 && (
                   <div className="mt-1 text-[10px] text-muted-foreground font-mono">
                     {h.reasons.join(' · ')}
+                    {h.missing.length > 0 && (
+                      <span className="text-warning"> · faltando: {h.missing.join(', ')}</span>
+                    )}
                   </div>
                 )}
               </div>

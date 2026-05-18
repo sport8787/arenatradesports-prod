@@ -35,6 +35,16 @@ export interface UserPlan {
     posse_min?: number;
     /** Finalizações no gol mínimas (1x2 → do time; OU/BTTS → totais). */
     shots_on_target_min?: number;
+    /** Diferença mínima de posse Casa - Visitante (positivo = casa domina). */
+    posse_diff_min?: number;
+    /** Chutes totais combinados (casa + visitante). */
+    shots_total_min?: number;
+    /** Chutes no gol totais combinados (casa + visitante). */
+    shots_on_target_total_min?: number;
+    /** Escanteios totais combinados (casa + visitante). */
+    corners_total_min?: number;
+    /** Mín. de cartões vermelhos no adversário (1x2). Em OU/BTTS/Corners: total na partida. */
+    red_cards_adv_min?: number;
   };
   reforco: {
     /** Diferença de ataques perigosos a favor (1x2). */
@@ -50,6 +60,9 @@ export interface UserPlan {
     veto_antes_min?: number;
   };
 }
+
+/** Tier final do sinal aprovado pelo plano pessoal. */
+export type PlanTier = 'APROVADO' | 'APROVADO_CONF_REDUZIDA';
 
 export type PlansByMarket = Partial<Record<UserMarket, UserPlan>>;
 export type PlanVisibility = 'private' | 'public';
@@ -251,6 +264,8 @@ export interface EvalResult {
   market_label: string;   // ex "1X2 · CASA"
   selected_odd: number | null;
   shouldShow: boolean;    // true se atende min/max minuto (para listar como elegível)
+  tier: PlanTier;         // APROVADO ou APROVADO_CONF_REDUZIDA
+  missing_stats: string[];// stats opcionais ausentes que reduziram a confiança
 }
 
 function pickOdd(lm: LiveMatch, plan: UserPlan): number | null {
@@ -293,6 +308,7 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
   const oddPicked = pickOdd(lm, plan);
   const label = marketLabel(plan);
 
+  const missing: string[] = [];
   const result: EvalResult = {
     passed: false,
     reasons,
@@ -300,6 +316,28 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     market_label: label,
     selected_odd: oddPicked,
     shouldShow: minute >= plan.obrigatorios.minuto_min && minute <= plan.obrigatorios.minuto_max,
+    tier: 'APROVADO',
+    missing_stats: missing,
+  };
+
+  /**
+   * Soft check: se o stat está faltando/zerado (provavelmente ausente vindo de
+   * Sportmonks/Futodds), NÃO veta — apenas marca como "missing" e degrada o tier
+   * para APROVADO_CONF_REDUZIDA. Se o valor existe e está abaixo, aí sim falha.
+   */
+  const softCheckStat = (
+    rawValue: number | null | undefined,
+    threshold: number,
+    label: string,
+    fmt?: (v: number) => string,
+  ) => {
+    const v = rawValue == null ? 0 : Number(rawValue);
+    if (!Number.isFinite(v) || v === 0) {
+      missing.push(label);
+      return;
+    }
+    if (v < threshold) failed.push(`${label} ${fmt ? fmt(v) : v} < ${threshold}`);
+    else reasons.push(`${label} ${fmt ? fmt(v) : v} ✓`);
   };
 
   // Janela de minuto
@@ -323,43 +361,76 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     failed.push('Sem odd ao vivo');
   }
 
+  // Stats globais (todos os mercados)
+  const possH = Number(s.possession_home ?? 0);
+  const possA = Number(s.possession_away ?? 0);
+  const shotsTotal = Number(s.shots_home ?? 0) + Number(s.shots_away ?? 0);
+  const sotTotal = Number(s.shots_on_target_home ?? 0) + Number(s.shots_on_target_away ?? 0);
+  const cornersTotal = Number(s.corners_home ?? 0) + Number(s.corners_away ?? 0);
+  const redH = Number(s.red_cards_home ?? s.redcards_home ?? 0);
+  const redA = Number(s.red_cards_away ?? s.redcards_away ?? 0);
+
+  if (plan.obrigatorios.shots_total_min != null) {
+    softCheckStat(shotsTotal, plan.obrigatorios.shots_total_min, 'Chutes totais');
+  }
+  if (plan.obrigatorios.shots_on_target_total_min != null) {
+    softCheckStat(sotTotal, plan.obrigatorios.shots_on_target_total_min, 'Chutes no gol (total)');
+  }
+  if (plan.obrigatorios.corners_total_min != null) {
+    softCheckStat(cornersTotal, plan.obrigatorios.corners_total_min, 'Escanteios (total)');
+  }
+
   // ============ Específico por mercado ============
   if (plan.market === '1x2') {
     const isHome = plan.outcome === 'home';
     const isDraw = plan.outcome === 'draw';
     const meXg = isHome ? (s.xG_home ?? s.xg_home ?? 0) : (s.xG_away ?? s.xg_away ?? 0);
     const advXg = isHome ? (s.xG_away ?? s.xg_away ?? 0) : (s.xG_home ?? s.xg_home ?? 0);
-    const mePoss = isHome ? (s.possession_home ?? 0) : (s.possession_away ?? 0);
+    const mePoss = isHome ? possH : possA;
     const meShots = isHome ? (s.shots_on_target_home ?? s.shots_home ?? 0) : (s.shots_on_target_away ?? s.shots_away ?? 0);
     const meAtaq = isHome ? (s.dangerous_attacks_home ?? s.attacks_home ?? 0) : (s.dangerous_attacks_away ?? s.attacks_away ?? 0);
     const advAtaq = isHome ? (s.dangerous_attacks_away ?? s.attacks_away ?? 0) : (s.dangerous_attacks_home ?? s.attacks_home ?? 0);
+    const advRed = isHome ? redA : redH;
 
     const myScore = isHome ? sh : sa;
     const advScore = isHome ? sa : sh;
     const diff = myScore - advScore;
 
     if (!isDraw) {
-      // vetos de placar
       if (plan.vetos.veto_time_vencendo && diff > 0) failed.push('Veto: time vencendo');
       if (plan.vetos.veto_diff_2gols && Math.abs(diff) >= 2) failed.push('Veto: diferença ≥ 2 gols');
       if (plan.vetos.veto_xg_adversario_maior && advXg > meXg) failed.push(`Veto: xG adv ${advXg.toFixed(2)} > meu ${meXg.toFixed(2)}`);
 
-      // obrigatórios
       if (plan.obrigatorios.xg_diff_min != null) {
         const xgDiff = meXg - advXg;
-        if (xgDiff < plan.obrigatorios.xg_diff_min) failed.push(`xG diff ${xgDiff.toFixed(2)} < ${plan.obrigatorios.xg_diff_min}`);
+        if (meXg === 0 && advXg === 0) missing.push('xG');
+        else if (xgDiff < plan.obrigatorios.xg_diff_min) failed.push(`xG diff ${xgDiff.toFixed(2)} < ${plan.obrigatorios.xg_diff_min}`);
         else reasons.push(`xG +${xgDiff.toFixed(2)}`);
       }
       if (plan.obrigatorios.posse_min != null) {
-        if (mePoss < plan.obrigatorios.posse_min) failed.push(`Posse ${mePoss}% < ${plan.obrigatorios.posse_min}%`);
-        else reasons.push(`Posse ${mePoss}%`);
+        softCheckStat(mePoss, plan.obrigatorios.posse_min, 'Posse', (v) => `${v}%`);
       }
       if (plan.obrigatorios.shots_on_target_min != null) {
-        if (meShots < plan.obrigatorios.shots_on_target_min) failed.push(`SoT ${meShots} < ${plan.obrigatorios.shots_on_target_min}`);
-        else reasons.push(`SoT ${meShots}`);
+        softCheckStat(meShots, plan.obrigatorios.shots_on_target_min, 'SoT (time)');
       }
 
-      // reforço
+      if (plan.obrigatorios.posse_diff_min != null) {
+        if (possH === 0 && possA === 0) missing.push('Diferença de posse');
+        else {
+          const pd = possH - possA;
+          const sign = isHome ? pd : -pd;
+          if (sign < plan.obrigatorios.posse_diff_min) failed.push(`Δ posse ${sign}pp < ${plan.obrigatorios.posse_diff_min}pp`);
+          else reasons.push(`Δ posse ${sign}pp ✓`);
+        }
+      }
+
+      if (plan.obrigatorios.red_cards_adv_min != null) {
+        if (advRed < plan.obrigatorios.red_cards_adv_min) {
+          if (redH === 0 && redA === 0) missing.push('Cartões vermelhos');
+          else failed.push(`Vermelhos adv ${advRed} < ${plan.obrigatorios.red_cards_adv_min}`);
+        } else reasons.push(`Vermelhos adv ${advRed} ✓`);
+      }
+
       if (plan.reforco.ataques_perigosos_diff_min != null) {
         const ad = meAtaq - advAtaq;
         if (ad >= plan.reforco.ataques_perigosos_diff_min) reasons.push(`Ataques +${ad}`);
@@ -377,10 +448,16 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     const line = plan.line ?? 2.5;
     if (plan.outcome === 'over' && gols > line) failed.push(`Linha já batida (${gols} > ${line})`);
     if (plan.outcome === 'under' && gols >= Math.ceil(line)) failed.push(`Já ${gols} gols`);
-    const sotTotal = (s.shots_on_target_home ?? s.shots_home ?? 0) + (s.shots_on_target_away ?? s.shots_away ?? 0);
     if (plan.obrigatorios.shots_on_target_min != null) {
-      if (plan.outcome === 'over' && sotTotal < plan.obrigatorios.shots_on_target_min) failed.push(`SoT total ${sotTotal} < ${plan.obrigatorios.shots_on_target_min}`);
+      if (plan.outcome === 'over') softCheckStat(sotTotal, plan.obrigatorios.shots_on_target_min, 'SoT total');
       else reasons.push(`SoT total ${sotTotal}`);
+    }
+    if (plan.obrigatorios.red_cards_adv_min != null) {
+      const total = redH + redA;
+      if (total < plan.obrigatorios.red_cards_adv_min) {
+        if (total === 0) missing.push('Cartões vermelhos');
+        else failed.push(`Vermelhos ${total} < ${plan.obrigatorios.red_cards_adv_min}`);
+      } else reasons.push(`Vermelhos ${total} ✓`);
     }
   }
 
@@ -393,24 +470,26 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     const sotA = s.shots_on_target_away ?? s.shots_away ?? 0;
     if (plan.obrigatorios.shots_on_target_min != null) {
       const min = plan.obrigatorios.shots_on_target_min;
-      if (sotH < min || sotA < min) failed.push(`SoT min por lado ${min} (${sotH}/${sotA})`);
+      if (sotH === 0 && sotA === 0) missing.push('Chutes no gol por lado');
+      else if (sotH < min || sotA < min) failed.push(`SoT min por lado ${min} (${sotH}/${sotA})`);
       else reasons.push(`SoT ${sotH}/${sotA}`);
     }
   }
 
   if (plan.market === 'corners') {
-    const cornersTotal = (s.corners_home ?? 0) + (s.corners_away ?? 0);
     const line = plan.line ?? 8.5;
     if (cornersTotal > line) failed.push(`Linha já batida (${cornersTotal} > ${line})`);
-    else reasons.push(`Escanteios atuais: ${cornersTotal}`);
-    // Ritmo: precisa de 0.1 esc/min para chegar lá em 90'
-    if (minute > 30) {
+    else if (cornersTotal > 0) reasons.push(`Escanteios atuais: ${cornersTotal}`);
+    if (minute > 30 && cornersTotal > 0) {
       const rate = cornersTotal / minute;
       const proj = rate * 90;
       if (proj < line) failed.push(`Ritmo baixo (proj ${proj.toFixed(1)} < ${line})`);
+    } else if (minute > 30 && cornersTotal === 0) {
+      missing.push('Escanteios');
     }
   }
 
   result.passed = failed.length === 0;
+  result.tier = result.passed && missing.length > 0 ? 'APROVADO_CONF_REDUZIDA' : 'APROVADO';
   return result;
 }
