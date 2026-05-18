@@ -198,7 +198,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats — Futodds (_futodds_stats inline) → Sportmonks (_raw) → API-Football
+        // Fetch full stats — Futodds (_futodds_stats inline) → Sportmonks (_raw). AF removida em Fase 2.
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
           let stats: any = null;
           if (fixture._source === 'futodds' && fixture._futodds_stats) {
@@ -210,13 +210,10 @@ serve(async (req) => {
             const r = await getFixtureStats({ sm_id: fixture.fixture.sm_id, raw: fixture._raw, af_id: fixtureId });
             stats = r.stats ? { ...r.stats } : null;
           }
-          if (!stats) {
-            stats = await fetchFixtureStats(fixtureId, apiKey);
-          }
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
-            console.log(`[LiveScores] Stats ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}-${stats.possession_away}, Pressure ${stats.pressure_home ?? '-'}/${stats.pressure_away ?? '-'}`);
+            console.log(`[LiveScores] Stats ${fixtureId} (src=${stats.source || 'sportmonks'}): Poss ${stats.possession_home}-${stats.possession_away}, Pressure ${stats.pressure_home ?? '-'}/${stats.pressure_away ?? '-'}`);
           }
         }
 
