@@ -150,29 +150,9 @@ async function fetchStatsFromApiFootball(fixtureId: string): Promise<MatchData['
       console.warn(`[mycroft-sports] sportmonks stats fail for ${fixtureId}: ${(e as Error).message} — fallback AF`);
     }
   }
-  const apiKey = Deno.env.get('API_FOOTBALL_KEY');
-  if (!apiKey) return null;
-  try {
-    const res = await fetch(`https://v3.football.api-sports.io/fixtures/statistics?fixture=${fixtureId}`, { headers: { 'x-apisports-key': apiKey } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const teams = data.response;
-    if (!teams || teams.length < 2) return null;
-    const [h, a] = [teams[0].statistics || [], teams[1].statistics || []];
-    const p = (v: string | null) => parseInt((v || '0').replace('%', ''), 10) || 0;
-    const siH = parseInt(findStat(h, 'Shots insidebox') || '0', 10);
-    const siA = parseInt(findStat(a, 'Shots insidebox') || '0', 10);
-    return {
-      attacks_home: siH + parseInt(findStat(h, 'Shots outsidebox') || '0', 10),
-      attacks_away: siA + parseInt(findStat(a, 'Shots outsidebox') || '0', 10),
-      dangerous_attacks_home: siH, dangerous_attacks_away: siA,
-      possession_home: p(findStat(h, 'Ball Possession')), possession_away: p(findStat(a, 'Ball Possession')),
-      shots_home: parseInt(findStat(h, 'Shots on Goal') || '0', 10), shots_away: parseInt(findStat(a, 'Shots on Goal') || '0', 10),
-      shots_total_home: parseInt(findStat(h, 'Total Shots') || '0', 10), shots_total_away: parseInt(findStat(a, 'Total Shots') || '0', 10),
-      shots_on_target_home: parseInt(findStat(h, 'Shots on Goal') || '0', 10), shots_on_target_away: parseInt(findStat(a, 'Shots on Goal') || '0', 10),
-      xG_home: parseFloat(findStat(h, 'expected_goals') || '0'), xG_away: parseFloat(findStat(a, 'expected_goals') || '0'),
-    };
-  } catch { return null; }
+  // API-Football removida em Fase 2 (18/05/2026). Stats vêm exclusivamente do Sportmonks acima.
+  console.warn(`[mycroft-sports] sportmonks stats indisponíveis para ${fixtureId} — retornando null (AF descontinuada)`);
+  return null;
 }
 
 async function loadMemoryRules(): Promise<string> {
