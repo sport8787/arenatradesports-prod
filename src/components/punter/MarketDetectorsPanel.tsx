@@ -81,20 +81,7 @@ export default function MarketDetectorsPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Scan button */}
-      <button
-        onClick={runScan}
-        disabled={scanning}
-        className={cn(
-          "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-mono font-bold transition-all",
-          scanning
-            ? "border-primary/30 bg-primary/5 text-primary cursor-wait"
-            : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-        )}
-      >
-        {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-        {scanning ? 'SCANNING MMD + SHARP MONEY...' : 'EXECUTAR SCAN AUTOMÁTICO'}
-      </button>
+      {/* Scan automático roda via cron — sem botão manual */}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
