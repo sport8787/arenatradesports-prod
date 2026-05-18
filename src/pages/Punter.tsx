@@ -29,6 +29,7 @@ import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 import ExchangeEdgeBadge from '@/components/punter/ExchangeEdgeBadge';
 import SteamBadge from '@/components/punter/SteamBadge';
+import SportmonksPredictionBadge from '@/components/punter/SportmonksPredictionBadge';
 import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
 import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
@@ -79,6 +80,9 @@ interface PunterSignal {
     analysis: string;
     risk_factors: string;
     simulated_odds?: boolean;
+    sherlock_alert?: boolean | null;
+    sportmonks_probability?: number | null;
+    sportmonks_divergence_pp?: number | null;
   };
 }
 
@@ -609,6 +613,9 @@ export default function PunterPage() {
         thesis: a.thesis,
         analysis: a.analysis,
         risk_factors: a.risk_factors,
+        sherlock_alert: a.sherlock_alert ?? null,
+        sportmonks_probability: a.sportmonks_probability ?? null,
+        sportmonks_divergence_pp: a.sportmonks_divergence_pp ?? null,
       },
     }));
 
@@ -2185,6 +2192,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   <>
                     <ExchangeEdgeBadge matchId={mid} market={signal.recommendation.market} className="mt-2" />
                     <SteamBadge matchId={mid} market={signal.recommendation.market} className="mt-1" />
+                    <SportmonksPredictionBadge
+                      mycroftProbability={signal.recommendation.estimated_probability ?? null}
+                      sportmonksProbability={signal.recommendation.sportmonks_probability ?? null}
+                      divergencePp={signal.recommendation.sportmonks_divergence_pp ?? null}
+                      sherlockAlert={signal.recommendation.sherlock_alert ?? false}
+                      className="mt-1"
+                    />
                   </>
                 );
               })()}

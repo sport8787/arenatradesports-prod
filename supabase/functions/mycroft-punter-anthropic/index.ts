@@ -4,6 +4,7 @@ import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
 import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
+import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1628,6 +1629,28 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic${exchangeSnapshot ? ` | EX edge: ${exchangeSnapshot.edge_pp?.toFixed?.(2)}pp` : ''}`)
 
+      // ─── SPORTMONKS PREDICTIONS (segunda opinião + shadow log) ───
+      let smProbe: Awaited<ReturnType<typeof probeSportmonksPrediction>> | null = null
+      try {
+        smProbe = await probeSportmonksPrediction({
+          match_id: matchId,
+          home_team: game.home_team,
+          away_team: game.away_team,
+          commence_time: game.commence_time,
+          league: game.sport_title,
+          market: analysis.market || '',
+          mycroft_probability_pct: Number(analysis.estimated_probability ?? 0),
+          verdict: String(analysis.verdict || ''),
+        })
+        if (smProbe.sherlock_alert && smProbe.note) {
+          analysis.sherlock_alert = true
+          analysis.risk_factors = [analysis.risk_factors, smProbe.note].filter(Boolean).join(' | ')
+          console.log(`[SM-Predictions] ⚠️ ${game.home_team} vs ${game.away_team}: ${smProbe.note}`)
+        }
+      } catch (smErr) {
+        console.warn('[SM-Predictions] probe falhou (não crítico):', (smErr as Error)?.message)
+      }
+
       if (analysis.verdict === 'APROVADO') {
         const commenceDate = game.commence_time ? new Date(game.commence_time) : new Date()
         const matchDate = commenceDate.toISOString().split('T')[0]
@@ -1661,6 +1684,9 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
           dismissed: false,
           resultado: null,
           approval_block: (analysis as any).tier ?? null,
+          sherlock_alert: !!smProbe?.sherlock_alert,
+          sportmonks_probability: smProbe?.sportmonks_probability ?? null,
+          sportmonks_divergence_pp: smProbe?.divergence_pp ?? null,
         }, { onConflict: 'match_id,market', ignoreDuplicates: false })
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
