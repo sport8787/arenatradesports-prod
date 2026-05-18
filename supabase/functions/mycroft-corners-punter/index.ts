@@ -19,8 +19,8 @@ const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const BASE_URL = "https://v3.football.api-sports.io";
 
-// Fonte de dados ativa (set per-request)
-let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
+// Fonte de dados: Sportmonks (API-Football descontinuada — Fase 2)
+const DATA_SOURCE: 'sportmonks' = 'sportmonks';
 
 // ════════════════════════════════════════════════════
 // BUSCAR TEAM ID POR NOME (API-Football /teams)
@@ -407,10 +407,9 @@ serve(async (req) => {
       away_team_name,
       liga = "Liga não informada",
       season = 2025,
-      data_source,
     } = body;
-    DATA_SOURCE = data_source === 'sportmonks' ? 'sportmonks' : 'api-football';
-    console.log(`[Corners] data_source=${DATA_SOURCE}`);
+    // data_source ignorado — Sportmonks fixo (Fase 2)
+    console.log(`[Corners] data_source=${DATA_SOURCE} (forçado)`);
 
     if (!home_team_name || !away_team_name) {
       return new Response(

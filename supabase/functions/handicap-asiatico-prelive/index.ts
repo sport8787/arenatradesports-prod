@@ -20,7 +20,7 @@ import {
 } from '../_shared/leaguesRegistry.ts';
 
 // Fonte de dados ativa (set per-request)
-let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
+const DATA_SOURCE: 'sportmonks' = 'sportmonks'; // API-Football descontinuada (Fase 2)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -590,17 +590,9 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   try {
-    // Lê data_source do body (default api-football)
-    let body: any = {};
-    try { body = await req.json(); } catch { /* sem body */ }
-    DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football';
-    console.log(`[HA] data_source=${DATA_SOURCE}`);
-
-    if (DATA_SOURCE === 'api-football' && !API_FOOTBALL_KEY) {
-      return new Response(JSON.stringify({ success: false, error: 'API_FOOTBALL_KEY não configurada' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // data_source ignorado — Sportmonks fixo (Fase 2)
+    try { await req.json(); } catch { /* sem body */ }
+    console.log(`[HA] data_source=${DATA_SOURCE} (forçado)`);
 
     const fixtures = await getUpcoming();
     const resultados: any[] = [];

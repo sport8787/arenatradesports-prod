@@ -9,6 +9,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { smSearchTeam, getRecentFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY") ?? "";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -30,19 +30,7 @@ function calcularCV(valores: number[]): number {
   return Math.sqrt(variancia) / media;
 }
 
-async function fetchFixtures(teamId: number, season: number): Promise<any[]> {
-  if (!API_FOOTBALL_KEY) return [];
-  try {
-    const r = await fetch(
-      `https://v3.football.api-sports.io/fixtures?team=${teamId}&season=${season}&last=20`,
-      { headers: { "x-apisports-key": API_FOOTBALL_KEY } },
-    );
-    const j = await r.json();
-    return j?.response ?? [];
-  } catch {
-    return [];
-  }
-}
+// (fetchFixtures inline em getOrComputeAdvancedStats via Sportmonks adapter)
 
 function computeContext(fixtures: any[], teamId: number, ctx: "home" | "away") {
   const filtered = fixtures.filter((f: any) => {
@@ -78,11 +66,14 @@ async function getOrComputeAdvancedStats(teamId: number, teamName: string, seaso
     (Date.now() - new Date(cached.last_updated).getTime()) < 24 * 60 * 60 * 1000;
   if (fresh) return cached;
 
-  const fixtures = await fetchFixtures(teamId, season);
+  // Resolve team em Sportmonks pelo nome e usa o SM id para filtrar contexto H/A
+  const smTeam = await smSearchTeam(teamName);
+  const smTeamId = smTeam?.id ?? 0;
+  const fixtures = smTeamId ? await getRecentFixturesSM(smTeamId, 20) : [];
   if (fixtures.length < 3) return cached || null;
 
-  const home = computeContext(fixtures, teamId, "home");
-  const away = computeContext(fixtures, teamId, "away");
+  const home = computeContext(fixtures, smTeamId, "home");
+  const away = computeContext(fixtures, smTeamId, "away");
   const row = {
     team_id: teamId,
     season,
