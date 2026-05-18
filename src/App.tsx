@@ -30,6 +30,7 @@ const ArenaTraderSports = React.lazy(() => import("./pages/ArenaTraderSports"));
 const ArenaTraderSportsRankingMonthly = React.lazy(() => import("./pages/ArenaTraderSportsRankingMonthly"));
 const ArenaTraderSportsEventosRaros = React.lazy(() => import("./pages/ArenaTraderSportsEventosRaros"));
 const ArenaTraderSportsMeuPlano = React.lazy(() => import("./pages/ArenaTraderSportsMeuPlano"));
+const Ciclos = React.lazy(() => import("./pages/Ciclos"));
 const UnderThresholdsConfig = React.lazy(() => import("./pages/UnderThresholdsConfig"));
 const BackFavoritoComValor = React.lazy(() => import("./pages/BackFavoritoComValor"));
 const LiveMatchDetail = React.lazy(() => import("./pages/LiveMatchDetail"));
