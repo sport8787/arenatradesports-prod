@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { calcularPoisson, calcularEdges, formatarBlocoPoisson, type PoissonResult, type EdgeResult } from '../_shared/poisson.ts'
+import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
