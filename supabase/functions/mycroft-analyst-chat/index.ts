@@ -292,10 +292,10 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-      body: JSON.stringify({ model: "gemini-2.5-flash", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
     });
 
     if (!response.ok) {
