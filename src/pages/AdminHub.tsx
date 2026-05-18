@@ -144,6 +144,13 @@ const LINKS: AdminLink[] = [
     group: 'Mycroft',
   },
   {
+    to: '/admin/user-trader-plans',
+    label: 'Planos Pessoais (Trader Sports)',
+    description: 'Planos personalizados dos usuários + G/R para calibrar regras globais.',
+    icon: <Activity className="h-4 w-4" />,
+    group: 'Mycroft',
+  },
+  {
     to: '/admin/league-roi',
     label: 'ROI por Liga (Antes vs Depois)',
     description: 'Compara hit rate e ROI por liga antes/depois de uma data de corte. Valida impacto Tier A.',

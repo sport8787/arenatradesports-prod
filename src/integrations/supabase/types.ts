@@ -6345,6 +6345,87 @@ export type Database = {
         }
         Relationships: []
       }
+      user_trader_plan_signals: {
+        Row: {
+          commence_time: string | null
+          id: string
+          league: string | null
+          line: number | null
+          market: string
+          market_label: string
+          match_id: string
+          match_name: string | null
+          minute: number | null
+          outcome: string
+          placed_at: string
+          profit_loss: number | null
+          reasons: Json | null
+          selected_odd: number | null
+          settled_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          commence_time?: string | null
+          id?: string
+          league?: string | null
+          line?: number | null
+          market: string
+          market_label: string
+          match_id: string
+          match_name?: string | null
+          minute?: number | null
+          outcome: string
+          placed_at?: string
+          profit_loss?: number | null
+          reasons?: Json | null
+          selected_odd?: number | null
+          settled_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          commence_time?: string | null
+          id?: string
+          league?: string | null
+          line?: number | null
+          market?: string
+          market_label?: string
+          match_id?: string
+          match_name?: string | null
+          minute?: number | null
+          outcome?: string
+          placed_at?: string
+          profit_loss?: number | null
+          reasons?: Json | null
+          selected_odd?: number | null
+          settled_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_trader_plans: {
+        Row: {
+          market: string
+          plan: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          market: string
+          plan: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          market?: string
+          plan?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_vocal_profiles: {
         Row: {
           avg_jitter: number | null
