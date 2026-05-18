@@ -36,6 +36,7 @@ import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
+import MeusSinaisPanel from '@/components/arena-trader/MeusSinaisPanel';
 import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 
 
