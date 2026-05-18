@@ -411,7 +411,7 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('API_FOOTBALL_KEY')
+    const apiKey = '' // API-Football removida em Fase 2 (18/05/2026) — backtest usa arena_matches/Sportmonks/Futodds
 
     const body = await req.json()
     const {
