@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, TrendingUp, AlertTriangle, RotateCcw, CheckCircle2, Wallet, Target, Trophy } from 'lucide-react';
+import { ArrowLeft, Loader2, TrendingUp, AlertTriangle, RotateCcw, CheckCircle2, Wallet, Target, Trophy, Bot, PauseCircle, PlayCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { nextTargetPct, cycleConfig, progressPct, fmtBRL } from '@/lib/ciclosMath';
