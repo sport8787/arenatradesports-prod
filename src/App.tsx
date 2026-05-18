@@ -58,6 +58,7 @@ const PunterLiquidacoes = React.lazy(() => import("./pages/PunterLiquidacoes"));
 const PunterFeedEventos = React.lazy(() => import("./pages/PunterFeedEventos"));
 const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
 const PunterMenu = React.lazy(() => import("./pages/PunterMenu"));
+const SinaisAlavanca = React.lazy(() => import("./pages/SinaisAlavanca"));
 const BlackMarket = React.lazy(() => import("./pages/BlackMarket"));
 const HowToEarnBC = React.lazy(() => import("./pages/HowToEarnBC"));
 const PunterAuditoria = React.lazy(() => import("./pages/PunterAuditoria"));
