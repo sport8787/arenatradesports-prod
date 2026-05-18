@@ -392,7 +392,7 @@ async function resolveFixtureForSettlement(
     } catch (_) { /* ignore */ }
   }
 
-  return { fx, fixtureId, fonte };
+  return { fx, fonte };
 }
 
 serve(async (req) => {
