@@ -123,6 +123,7 @@ function indicadores(statsHome: any, statsAway: any, h2h: any[]): Indicadores {
     freq_goleada_h2h: calcGoleadaH2H(h2h),
     freq_2x2_h2h: calcPlacarH2H(h2h, 2, 2),
     freq_1x3_h2h: calcPlacarH2H(h2h, 1, 3),
+    freq_0x0_h2h: calcPlacarH2H(h2h, 0, 0),
     forca_ofensiva_home: goalsForHome,
     forca_ofensiva_away: goalsForAway,
     fragilidade_def_home: goalsAgainstHome,
