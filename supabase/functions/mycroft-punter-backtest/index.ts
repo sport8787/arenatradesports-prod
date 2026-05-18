@@ -1221,6 +1221,7 @@ interface AnalysisResult {
   dataStrength: string
   tier: string | null
   stakePct: number
+  usedRealOdd: boolean
 }
 
 function analyzeWithCriteria(
