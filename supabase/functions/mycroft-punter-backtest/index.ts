@@ -1233,6 +1233,7 @@ function analyzeWithCriteria(
   leagueAvg: LeagueAverages,
   criteria: AnalysisCriteria,
   allowedMarkets: Set<string> = new Set(ALL_MARKETS),
+  realOdds: Record<string, number> = {},
 ): AnalysisResult | null {
 
   // ── MODEL: Poisson-based predicted probabilities ──
