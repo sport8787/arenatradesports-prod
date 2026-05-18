@@ -431,6 +431,7 @@ serve(async (req) => {
     }
 
     const events = extractEvents(fixture, homeId);
+    const xgTimeline = buildXgTimeline(fixture, homeId);
 
     const [homeForm, awayForm] = await Promise.all([
       fetchForm(header.home.id),
@@ -442,6 +443,7 @@ serve(async (req) => {
       source: usedSource,
       header,
       timeline,
+      xgTimeline,
       events,
       form: { home: homeForm, away: awayForm },
     };
