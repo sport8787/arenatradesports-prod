@@ -500,21 +500,29 @@ serve(async (req) => {
       }
     }
 
-    // Sportmonks (real historical fixtures by date)
+    // Sportmonks (real historical fixtures) — PER LEAGUE, com cache em sportmonks_fixtures_cache
+    let smCacheHits = 0
+    let smCacheMisses = 0
     if (allFixtures.length === 0 && trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
-      try {
-        const smFixtures = await fetchHistoricalFromSportmonks(season, leagueNameSet)
-        if (smFixtures.length > 0) {
-          usedSource = 'sportmonks'
-          for (const f of smFixtures) {
-            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
-            allFixtures.push(f)
+      for (const l of validLeagues) {
+        try {
+          const { fixtures: smFixtures, fromCache } = await fetchHistoricalFromSportmonksCached(
+            l.key, season, l.info.name, dbClient
+          )
+          if (smFixtures.length > 0) {
+            usedSource = 'sportmonks'
+            if (fromCache) smCacheHits++; else smCacheMisses++
+            for (const f of smFixtures) {
+              fixtureLeagueMap.set(f.fixture.id, f._leagueName || l.info.name)
+              allFixtures.push(f)
+            }
+            console.log(`[Backtest] Sportmonks ${l.info.name}: ${smFixtures.length} jogos (${fromCache ? 'CACHE' : 'API'})`)
           }
-          console.log(`[Backtest] Sportmonks: ${smFixtures.length} jogos`)
+        } catch (e) {
+          console.warn(`[Backtest] Sportmonks ${l.info.name} falhou:`, (e as Error).message)
         }
-      } catch (e) {
-        console.warn('[Backtest] Sportmonks falhou:', (e as Error).message)
       }
+      console.log(`[Backtest] Sportmonks fixtures: cache hits=${smCacheHits}, API fetches=${smCacheMisses}`)
     }
 
     // Futodds /matches-ended (real historical, agnostic to AF league IDs)
