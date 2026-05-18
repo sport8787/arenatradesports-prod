@@ -67,60 +67,47 @@ interface RecomendacaoFinal {
 // ════════════════════════════════════════════════════
 // MÓDULO 1 — BUSCAR STATS DE ESCANTEIOS (API-Football)
 // ════════════════════════════════════════════════════
-async function buscarStatsEscanteios(teamId: number, isHome: boolean, season: number = 2025): Promise<TimeStats | null> {
+async function buscarStatsEscanteios(teamName: string, _isHome: boolean): Promise<TimeStats | null> {
   try {
-    // Buscar fixtures recentes do time
-    const url = `https://v3.football.api-sports.io/fixtures?team=${teamId}&season=${season}&last=10`;
-    const res = await fetch(url, { headers: { "x-apisports-key": API_FOOTBALL_KEY } });
-    const data = await res.json();
-    const fixtures = data.response || [];
+    const team = await smSearchTeam(teamName);
+    if (!team) {
+      console.warn(`[CornersAnalyzer-SM] Team not found: ${teamName}`);
+      return null;
+    }
+    const teamId = team.id;
 
+    // Últimos 10 jogos FT no shape AF-compatível (id é o SM fixture id)
+    const fixtures = await getRecentFixturesSM(teamId, 10);
     if (fixtures.length === 0) return null;
 
     const escanteiosPorJogo: number[] = [];
     const escanteios1T: number[] = [];
     const escanteiosSofridos: number[] = [];
 
-    for (const fixture of fixtures.slice(0, 8)) {
-      // Buscar estatísticas do jogo
-      const statsUrl = `https://v3.football.api-sports.io/fixtures/statistics?fixture=${fixture.fixture.id}`;
-      const statsRes = await fetch(statsUrl, { headers: { "x-apisports-key": API_FOOTBALL_KEY } });
-      const statsData = await statsRes.json();
+    // Limita a 8 chamadas paralelas de statistics
+    const slice = fixtures.slice(0, 8);
+    const cornersPairs = await Promise.all(slice.map(async (fixture: any) => {
+      const ownerIsHome = fixture.teams.home.id === teamId;
+      const oppId = ownerIsHome ? fixture.teams.away.id : fixture.teams.home.id;
+      const [cFor, cAgainst] = await Promise.all([
+        getCornersForFixtureSM(fixture.fixture.id, teamId),
+        getCornersForFixtureSM(fixture.fixture.id, oppId),
+      ]);
+      return { cFor, cAgainst };
+    }));
 
-      const teamStats = statsData.response?.find((s: any) => s.team.id === teamId);
-      const oppStats = statsData.response?.find((s: any) => s.team.id !== teamId);
-
-      if (!teamStats) continue;
-
-      const getVal = (stats: any[], type: string) => {
-        const s = stats.find((s: any) => s.type === type);
-        return parseInt(s?.value || "0") || 0;
-      };
-
-      const cornersFor = getVal(teamStats.statistics, "Corner Kicks");
-      const cornersAgainst = getVal(oppStats?.statistics || [], "Corner Kicks");
-
-      escanteiosPorJogo.push(cornersFor);
-      escanteiosSofridos.push(cornersAgainst);
-      // API-Football não tem corners por tempo via statistics, estimamos 45% no 1T
-      escanteios1T.push(Math.round(cornersFor * 0.45));
+    for (const { cFor, cAgainst } of cornersPairs) {
+      escanteiosPorJogo.push(cFor);
+      escanteiosSofridos.push(cAgainst);
+      escanteios1T.push(Math.round(cFor * 0.45)); // estimativa 1T (SM não separa por tempo)
     }
 
     const avg = (arr: number[]) => arr.length > 0
       ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10
       : 0;
 
-    const filtradosCasa = fixtures
-      .filter((f: any) => f.teams.home.id === teamId)
-      .slice(0, 5);
-    const filtradosFora = fixtures
-      .filter((f: any) => f.teams.away.id === teamId)
-      .slice(0, 5);
-
     return {
-      nome: fixtures[0]?.teams.home.id === teamId
-        ? fixtures[0]?.teams.home.name
-        : fixtures[0]?.teams.away.name,
+      nome: team.name,
       media_escanteios_geral: avg(escanteiosPorJogo),
       media_escanteios_casa: avg(escanteiosPorJogo.slice(0, 5)),
       media_escanteios_fora: avg(escanteiosPorJogo.slice(5)),
@@ -130,7 +117,7 @@ async function buscarStatsEscanteios(teamId: number, isHome: boolean, season: nu
       ultimos_jogos_1t: escanteios1T.slice(0, 5),
     };
   } catch (err) {
-    console.error("Erro buscarStatsEscanteios:", err);
+    console.error("[CornersAnalyzer-SM] Erro buscarStatsEscanteios:", err);
     return null;
   }
 }
