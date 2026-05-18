@@ -79,11 +79,14 @@ async function getOrComputeAdvancedStats(teamId: number, teamName: string, seaso
     (Date.now() - new Date(cached.last_updated).getTime()) < 24 * 60 * 60 * 1000;
   if (fresh) return cached;
 
-  const fixtures = await fetchFixtures(teamName);
+  // Resolve team em Sportmonks pelo nome e usa o SM id para filtrar contexto H/A
+  const smTeam = await smSearchTeam(teamName);
+  const smTeamId = smTeam?.id ?? 0;
+  const fixtures = smTeamId ? await getRecentFixturesSM(smTeamId, 20) : [];
   if (fixtures.length < 3) return cached || null;
 
-  const home = computeContext(fixtures, teamId, "home");
-  const away = computeContext(fixtures, teamId, "away");
+  const home = computeContext(fixtures, smTeamId, "home");
+  const away = computeContext(fixtures, smTeamId, "away");
   const row = {
     team_id: teamId,
     season,
