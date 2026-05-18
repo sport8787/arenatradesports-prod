@@ -84,6 +84,19 @@ Deno.serve(async (req) => {
     const dateNow = new Date().toISOString().slice(0, 10);
     const aiSummary = await generateSeoSummary(rodada, data ?? []);
 
+    // Notícias recentes do Brasileirão (link cruzado)
+    const { data: noticias } = await supabase
+      .from("seo_news_posts")
+      .select("slug,title,summary,published_at")
+      .eq("league_slug", "brasileirao-2026")
+      .order("published_at", { ascending: false })
+      .limit(5);
+    const noticiasHtml = noticias && noticias.length
+      ? `<h2>📰 Notícias da rodada</h2><ul>${noticias.map((n: { slug: string; title: string; summary: string; published_at: string }) =>
+          `<li><a href="/blog/noticias/${escape(n.slug)}.html"><strong>${escape(n.title)}</strong></a><br/><span class="muted">${String(n.published_at).slice(0,10)} — ${escape(n.summary ?? "")}</span></li>`
+        ).join("")}</ul>`
+      : "";
+
     const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
