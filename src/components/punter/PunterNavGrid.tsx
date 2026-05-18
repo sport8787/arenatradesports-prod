@@ -8,6 +8,7 @@ import {
   Activity,
   Send,
   Coins,
+  Newspaper,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
