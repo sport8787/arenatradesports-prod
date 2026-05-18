@@ -36,8 +36,8 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-SRC_URL = "https://affquongjlhmusxzohjl.supabase.co"
-SRC_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+SRC_URL = os.environ.get("SUPABASE_URL", "https://affquongjlhmusxzohjl.supabase.co")
+SRC_KEY = os.environ.get("SOURCE_SUPABASE_SERVICE_ROLE")
 DST_URL = os.environ.get("EXTERNAL_SUPABASE_URL", "https://ogpohiugfkvygcejrzfp.supabase.co")
 DST_KEY = os.environ.get("EXTERNAL_SUPABASE_SERVICE_ROLE")
 
