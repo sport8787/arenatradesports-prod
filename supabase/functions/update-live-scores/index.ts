@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+// API-Football removida em Fase 2 (18/05/2026). Provedores: Futodds (primário) + Sportmonks (fallback).
 const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
