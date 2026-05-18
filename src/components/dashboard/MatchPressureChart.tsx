@@ -131,9 +131,10 @@ interface ChartProps {
   height?: number;
   showAxis?: boolean;
   showEvents?: boolean;
+  showXg?: boolean;
 }
 
-export function MatchPressureChart({ data, height = 220, showAxis = true, showEvents = true }: ChartProps) {
+export function MatchPressureChart({ data, height = 220, showAxis = true, showEvents = true, showXg = false }: ChartProps) {
   // Timeline contínua + suavização extra (média móvel 3') e espelhamento.
   const series = useMemo(() => {
     if (!data.timeline.length) return [];
