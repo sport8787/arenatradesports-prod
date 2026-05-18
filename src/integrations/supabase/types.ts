@@ -5197,6 +5197,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sportmonks_odds_cache: {
+        Row: {
+          fetched_at: string
+          fixture_id: number
+          has_real_odds: boolean
+          match_date: string | null
+          odds: Json
+        }
+        Insert: {
+          fetched_at?: string
+          fixture_id: number
+          has_real_odds?: boolean
+          match_date?: string | null
+          odds?: Json
+        }
+        Update: {
+          fetched_at?: string
+          fixture_id?: number
+          has_real_odds?: boolean
+          match_date?: string | null
+          odds?: Json
+        }
+        Relationships: []
+      }
       sports_bankroll: {
         Row: {
           balance: number | null
