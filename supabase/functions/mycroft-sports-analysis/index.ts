@@ -220,15 +220,43 @@ Regras de status:
 ## GESTÃO DE RISCO
 Stake: ALTO 2-3% | MÉDIO 3-4% | BAIXO 4-5%. R:R mínimo 1:1.5. Exposição máx 15%.
 
+## QUALIDADE SOBRE QUANTIDADE (REGRA CRÍTICA)
+Um único sinal forte por jogo é o PADRÃO. ROI cai quando se aprovam vários mercados no mesmo jogo. Só emita mercado adicional se ele for ESTATISTICAMENTE INDEPENDENTE do principal.
+
+### Mercados correlacionados (NUNCA aprovar juntos no mesmo momento)
+- Over 1.5 + Over 2.5 (mesmo escalonamento). Over 2.5 só após Over 1.5 já ter batido.
+- Over 0.5 HT + Over 1.5 FT (sequenciais — esperar HT bater).
+- Back dominante + Over X.5 com mesmo dominante marcando (dupla exposição na mesma tese).
+- BTTS + Over 2.5 quando a tese é o mesmo gol esperado.
+
+### Quando PODE haver mais de um sinal
+- Mercados verdadeiramente desacoplados (ex.: Under 2.5 FT + escanteios) e o principal já está em GREEN parcial.
+- Over 2.5 DIRETO (sem Over 1.5 antes) só com pressão real de AMBOS os times: xG total ≥1.5, ≥6 SOT combinados, big chances criadas, defesas do goleiro, posse equilibrada com finalização.
+
+### Sinais OPOSTOS (alerta de fechamento)
+- Se principal foi Under 2.5 e depois você aprova Over 0.5 HT / Over 1.5 FT / BTTS no mesmo jogo, isso indica VIRADA — sinalize em "alerts" que o usuário deve FECHAR o Under 2.5.
+
+## REGRA DE TEMPO (70')
+NUNCA aprovar sinal novo após o minuto 70, exceto LABAREDA. Após 70', use CUIDADO ou AGUARDAR.
+
+## PRIORIDADE DE APROVAÇÃO (ordem)
+1. Back dominante claro com pressão real (xG, SOT, big chances, posse com finalização).
+2. Over 1.5 com jogo 0-0 e critérios fortes de gol iminente.
+3. Under 2.5 no 1º tempo com jogo travado.
+4. Over 2.5 só com pressão bilateral confirmada.
+
+## LAY AO GOLEADO (regra de inversão)
+Se o time dominante LEVA o gol contra a corrida do jogo, prefira LAY ao time que marcou (em vez de insistir no Back dominante) — geralmente o dominante ainda terá chances mas o marcador surpresa raramente sustenta vantagem.
+
 ## MÚLTIPLOS MERCADOS POR JOGO
-Pode retornar até 2 mercados em "additional_markets" se tiverem fundamento independente, conf≥60% e stake máx 2% cada. Nunca opostos ao principal.
+Em "additional_markets" retorne NO MÁXIMO 1 mercado, com conf≥75%, stake máx 2%, NÃO correlacionado ao principal (ver lista acima), nunca oposto, nunca após min 70'. Quando em dúvida, devolva array vazio.
 
 ## MÓDULO SITUACIONAL (override quando JOGO_MORTO por dados insuficientes)
-S1 PRESSÃO PRÉ-GOL: min 5-35, placar 0-0/1-0, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT / Over 1.5 / Back dom (2%, conf≥65%)
-S2 PLACAR EXPRESSIVO ABERTO: min 20-60, placar ≥2-0/≥3-1, xG total≥2.0, perdedor posse≥40% → Over próximo gol / Over 3.5 / Back vencedor (2%, conf≥68%)
-S3 MATA-MATA OBRIGAÇÃO: eliminatória, time perdendo agregado, dif 1-2 → Over próximo / Back obrigado / Over 2.5 (3% se dif=1, 2% se dif=2)
-S4 ESCANTEIOS PRESSÃO: min 10-40, ≥4 escanteios e ≤1 gol, xG≥0.6 sem gol → Over X escanteios / Over 0.5 HT (2%, conf≥65%)
-Anti-abuso: máx 2 situacionais/partida, nunca após min 70.
+S1 PRESSÃO PRÉ-GOL: min 5-35, placar 0-0/1-0, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT / Over 1.5 / Back dom (2%, conf≥75%)
+S2 PLACAR EXPRESSIVO ABERTO: min 20-60, placar ≥2-0/≥3-1, xG total≥2.0, perdedor posse≥40% → Over próximo gol / Over 3.5 / Back vencedor (2%, conf≥75%)
+S3 MATA-MATA OBRIGAÇÃO: eliminatória, time perdendo agregado, dif 1-2 → Over próximo / Back obrigado / Over 2.5 (3% se dif=1, 2% se dif=2, conf≥75%)
+S4 ESCANTEIOS PRESSÃO: min 10-40, ≥4 escanteios e ≤1 gol, xG≥0.6 sem gol → Over X escanteios / Over 0.5 HT (2%, conf≥75%)
+Anti-abuso: máx 1 situacional/partida, nunca após min 70.
 `;
 
 
@@ -762,12 +790,12 @@ serve(async (req) => {
     }
 
     // === PROMOÇÃO CUIDADO → APROVADO_SITUACIONAL ===
-    // CUIDADO com fundamento sólido (confiança ≥ 65% e mercado definido) vira sinal ativo
-    // com stake conservador (2%). Evita acumular jogos com tese clara sem nunca emitir sinal.
+    // CUIDADO com fundamento sólido (confiança ≥ 75% e mercado definido) vira sinal ativo
+    // com stake conservador (2%). Limiar elevado de 65% → 75% para reduzir volume e elevar ROI.
     if (
       analysis.verdict === 'CUIDADO' &&
       typeof analysis.confidence === 'number' &&
-      analysis.confidence >= 65 &&
+      analysis.confidence >= 75 &&
       typeof analysis.market === 'string' &&
       analysis.market.length > 0 &&
       analysis.market !== 'N/A'
@@ -778,7 +806,7 @@ serve(async (req) => {
         analysis.risk_management.stake_percent = Math.min(2, analysis.risk_management.stake_percent ?? 2);
       }
       analysis.alerts = [...(analysis.alerts || []),
-        `🔼 Promovido de CUIDADO para APROVADO_SITUACIONAL — stake reduzido a 2% por fatores de risco residuais.`,
+        `🔼 Promovido de CUIDADO para APROVADO_SITUACIONAL — stake reduzido a 2% (limiar 75%).`,
       ];
     }
 
@@ -1453,34 +1481,95 @@ serve(async (req) => {
     }
 
     // === VALIDAR ADDITIONAL_MARKETS ===
+    // Regra dura: máx 1 mercado adicional, conf≥75%, não correlacionado, não oposto,
+    // não após min 70'. Qualidade > quantidade (reduz volume e eleva ROI).
     if (analysis.additional_markets?.length > 0 && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA')) {
       const bankroll = match.bankroll ?? 500;
-      const primaryMarket = analysis.market;
+      const primaryMarket = String(analysis.market || '');
+      const minNow = match.minute ?? 0;
+
+      // Helpers de correlação/oposição (mercados de gols escalonados são correlacionados)
+      const normMarket = (s: string) => String(s || '').toLowerCase().trim();
+      const isOver = (s: string) => /over\s*\d/.test(normMarket(s)) || /mais\s*\d/.test(normMarket(s));
+      const isUnder = (s: string) => /under\s*\d/.test(normMarket(s)) || /menos\s*\d/.test(normMarket(s));
+      const overLine = (s: string): number | null => {
+        const m = normMarket(s).match(/(?:over|mais|under|menos)\s*(\d+(?:\.\d+)?)/);
+        return m ? parseFloat(m[1]) : null;
+      };
+      const isBTTS = (s: string) => /ambas\s*marcam|btts|both\s*teams\s*to\s*score/i.test(s || '');
+      const isBackTeam = (s: string) => /back\s+(mandante|visitante|casa|fora|home|away)|vit[óo]ria\s+(mandante|visitante|casa|fora)/i.test(s || '');
+
+      const correlated = (primary: string, extra: string): boolean => {
+        // Mesmo mercado
+        if (normMarket(primary) === normMarket(extra)) return true;
+        // Overs/Unders escalonados (Over 1.5 vs Over 2.5 etc) — correlacionados
+        const lp = overLine(primary); const le = overLine(extra);
+        if (lp != null && le != null && ((isOver(primary) && isOver(extra)) || (isUnder(primary) && isUnder(extra)))) return true;
+        // Over linha alta + BTTS (mesma tese de gols)
+        if ((isOver(primary) && isBTTS(extra)) || (isBTTS(primary) && isOver(extra))) {
+          const line = lp ?? le ?? 0;
+          if (line >= 2.5) return true;
+        }
+        // Back time + Over (geralmente mesma tese: dominante marca)
+        if ((isBackTeam(primary) && isOver(extra)) || (isOver(primary) && isBackTeam(extra))) return true;
+        return false;
+      };
+
       analysis.additional_markets = analysis.additional_markets
         .filter((am: any) => {
-          if (!am.market || !am.odd || !am.confidence) return false;
-          if (am.confidence < 60) return false;
+          if (!am?.market || !am?.confidence) return false;
+          if (am.confidence < 75) return false; // novo limiar (era 60)
           if (am.market === primaryMarket) return false;
-          // Block opposite markets
+          // Bloqueia mercados opostos (Over X.5 vs Under X.5 da mesma linha)
           const opposites: Record<string, string> = {
             'Over 0.5 Total': 'Under 0.5 Total', 'Over 1.5 Total': 'Under 1.5 Total',
             'Over 2.5 Total': 'Under 2.5 Total', 'Over 3.5 Total': 'Under 3.5 Total',
           };
           if (opposites[am.market] === primaryMarket || opposites[primaryMarket] === am.market) return false;
+          // Bloqueia correlacionados
+          if (correlated(primaryMarket, am.market)) {
+            console.log(`[MycroftSports] 🚫 Additional bloqueado (correlacionado): "${am.market}" vs principal "${primaryMarket}"`);
+            return false;
+          }
+          // Bloqueia novos sinais após min 70 (exceto se já é LABAREDA, mas additional não é LABAREDA)
+          if (minNow >= 70) {
+            console.log(`[MycroftSports] 🚫 Additional bloqueado (min ${minNow}' ≥ 70'): "${am.market}"`);
+            return false;
+          }
           return true;
         })
-        .slice(0, 2)
+        .slice(0, 1) // máx 1 adicional (era 2)
         .map((am: any) => ({
           ...am,
           stake_percent: Math.min(am.stake_percent || 2, 2),
           stake_value: bankroll * Math.min(am.stake_percent || 2, 2) / 100,
         }));
       if (analysis.additional_markets.length > 0) {
-        console.log(`[MycroftSports] 📊 ${analysis.additional_markets.length} mercado(s) adicional(is): ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
+        console.log(`[MycroftSports] 📊 1 mercado adicional aprovado: ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
       }
     } else {
       analysis.additional_markets = [];
     }
+
+    // === GUARDA DE TEMPO: nenhum sinal novo após min 70' (exceto LABAREDA) ===
+    {
+      const minNow = match.minute ?? 0;
+      if (
+        minNow >= 70 &&
+        (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') &&
+        analysis.verdict !== 'LABAREDA'
+      ) {
+        console.log(`[MycroftSports] ⏱️ Veto 70': ${match.home} vs ${match.away} no min ${minNow}' — ${analysis.verdict} → CUIDADO (apenas LABAREDA permitido após 70')`);
+        analysis.verdict = 'CUIDADO';
+        analysis.alerts = [
+          ...(analysis.alerts || []),
+          `⏱️ Sinal vetado por tempo: aprovações novas só até min 70' (exceto LABAREDA).`,
+        ];
+        // additional_markets já foram limpos acima quando min ≥ 70
+        analysis.additional_markets = [];
+      }
+    }
+
 
     // === BAS (Bluffer Asset Score) — composite quality score ===
     {
