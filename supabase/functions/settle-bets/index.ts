@@ -191,8 +191,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!apiFootballKey && !oddsApiKey) {
-      return new Response(JSON.stringify({ error: 'No API key configured (API_FOOTBALL_KEY or THE_ODDS_API_KEY)' }), {
+    if (!oddsApiKey) {
+      return new Response(JSON.stringify({ error: 'No API key configured (THE_ODDS_API_KEY)' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
