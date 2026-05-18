@@ -59,65 +59,26 @@ async function getCachedAllowedHA() {
 }
 
 // =============================================================================
-// HELPERS API-FOOTBALL
+// HELPERS — Sportmonks via adapter
 // =============================================================================
-
-async function afFetch(path: string, params: Record<string, string | number>) {
-  const url = new URL(`${AF_BASE}${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  const r = await fetch(url.toString(), { headers: { 'x-apisports-key': API_FOOTBALL_KEY } });
-  if (!r.ok) throw new Error(`AF ${path} → ${r.status}`);
-  return (await r.json()).response;
-}
 
 async function getUpcoming(): Promise<any[]> {
   const { ids: ALLOWED } = await getCachedAllowedHA();
-  if (DATA_SOURCE === 'sportmonks') {
-    const ligasAF = Array.from(ALLOWED);
-    const sm = await getUpcomingFixturesSM(ligasAF, 25);
-    return sm.map((f) => ({
-      fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
-      league: { id: f.league.id, name: f.league.name, season: f.league.season },
-      teams: f.teams,
-    }));
-  }
-  const now = new Date();
-  const from = now.toISOString().split('T')[0];
-  const to = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
-  const fixtures: any[] = [];
-  const seen = new Set<number>();
-  for (const date of [from, to]) {
-    try {
-      const res = await afFetch('/fixtures', { date, timezone: 'America/Recife' });
-      for (const f of res) {
-        const lid = f?.league?.id;
-        const status = f?.fixture?.status?.short;
-        const ts = f?.fixture?.timestamp ? f.fixture.timestamp * 1000 : new Date(f.fixture.date).getTime();
-        if (!ALLOWED.has(lid)) continue;
-        if (status !== 'NS' && status !== 'TBD') continue;
-        if (ts < now.getTime() || ts > now.getTime() + 25 * 3600 * 1000) continue;
-        if (seen.has(f.fixture.id)) continue;
-        seen.add(f.fixture.id);
-        fixtures.push(f);
-      }
-    } catch (e) { console.error('[HA] getUpcoming err', e); }
-  }
-  console.log(`[HA] ${fixtures.length} jogos encontrados em ligas permitidas (A+B)`);
-  return fixtures;
+  const ligasAF = Array.from(ALLOWED);
+  const sm = await getUpcomingFixturesSM(ligasAF, 25);
+  return sm.map((f) => ({
+    fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
+    league: { id: f.league.id, name: f.league.name, season: f.league.season },
+    teams: f.teams,
+  }));
 }
 
-async function getTeamStats(teamId: number, leagueId: number, season: number) {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getTeamStatsSM(teamId, 20);
-  }
-  try { return await afFetch('/teams/statistics', { team: teamId, league: leagueId, season }); } catch { return null; }
+async function getTeamStats(teamId: number, _leagueId: number, _season: number) {
+  return await getTeamStatsSM(teamId, 20);
 }
 
 async function getRecentFixtures(teamId: number, last = 12): Promise<any[]> {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getRecentFixturesSM(teamId, last);
-  }
-  try { return await afFetch('/fixtures', { team: teamId, last }); } catch { return []; }
+  return await getRecentFixturesSM(teamId, last);
 }
 
 // =============================================================================
