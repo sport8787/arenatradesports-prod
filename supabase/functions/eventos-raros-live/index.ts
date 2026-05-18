@@ -94,6 +94,9 @@ function podeEntrar(alvo: string, sh: number, sa: number, minuto: number) {
       return ((sh === 1 && sa === 2) || (sh === 0 && sa === 2)) && minuto >= 30 && minuto <= 70;
     case "LAY_3x1":
       return ((sh === 2 && sa === 1) || (sh === 2 && sa === 0)) && minuto >= 30 && minuto <= 70;
+    case "BACK_0x0":
+      // Entra cedo (até min 15) com placar zerado — odds crescem ao longo do jogo
+      return minuto >= 1 && minuto <= 15 && sh === 0 && sa === 0;
   }
   return false;
 }
