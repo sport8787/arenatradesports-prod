@@ -165,7 +165,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY');
+    // (API-Football descontinuada — variável mantida apenas para compat de logs)
+    const apiFootballKey: string | undefined = undefined;
     // [Fase 2 migração] API-Football removida — usamos Sportmonks (primário) + The Odds API (fallback)
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
