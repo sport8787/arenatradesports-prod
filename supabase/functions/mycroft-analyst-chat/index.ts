@@ -314,7 +314,7 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     if (userId) {
       (async () => {
         try {
-          const extraction = await aiExtractRules(query, GEMINI_API_KEY);
+          const extraction = await aiExtractRules(query, GROQ_API_KEY);
           if (extraction.rules.length > 0 || extraction.forget_rules.length > 0) {
             await processMemoryActions(userId, extraction);
           }
