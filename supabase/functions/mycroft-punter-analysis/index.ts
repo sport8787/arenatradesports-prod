@@ -1419,7 +1419,10 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
             stake_percentage:a.stake_percentage, stake_percentage_original:a.stake_percentage,
             thesis:a.thesis, analysis:a.analysis, risk_factors:a.risk_factors, analyzed_by:'gemini',
             status:'pending', stake_confirmed:true, match_date:matchDate, commence_time:game.commence_time,
-            dismissed:false, resultado:null
+            dismissed:false, resultado:null,
+            sherlock_alert: !!smProbe?.sherlock_alert,
+            sportmonks_probability: smProbe?.sportmonks_probability ?? null,
+            sportmonks_divergence_pp: smProbe?.divergence_pp ?? null,
           })
           console.log(`[Mycroft Punter] ✅ Sinal HOJE registrado — stake ${a.stake_percentage}%`)
         } else {
@@ -1432,7 +1435,10 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
             stake_percentage:null, stake_percentage_original:a.stake_percentage,
             thesis:a.thesis, analysis:a.analysis, risk_factors:a.risk_factors, analyzed_by:'gemini',
             status:'awaiting_stake', stake_confirmed:false, match_date:matchDate, commence_time:game.commence_time,
-            dismissed:false, resultado:null
+            dismissed:false, resultado:null,
+            sherlock_alert: !!smProbe?.sherlock_alert,
+            sportmonks_probability: smProbe?.sportmonks_probability ?? null,
+            sportmonks_divergence_pp: smProbe?.divergence_pp ?? null,
           })
           const diasRestantes = Math.ceil((commenceDate.getTime() - Date.now()) / (1000*60*60*24))
           console.log(`[Mycroft Punter] ⏳ Sinal FUTURO registrado (${matchDate}, ${diasRestantes}d) — stake será recalculado`)
