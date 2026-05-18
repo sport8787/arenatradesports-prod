@@ -387,7 +387,7 @@ Deno.serve(async (req) => {
     await rebuildSitemap(supabase);
 
     return new Response(
-      JSON.stringify({ ok: true, scanned: raw.length, eligible: candidates.length, new_posts: published.length, published }),
+      JSON.stringify({ ok: true, scanned: raw.length, new_posts: published.length, published }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
