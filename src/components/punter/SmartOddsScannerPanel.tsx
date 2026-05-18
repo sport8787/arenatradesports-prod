@@ -35,14 +35,10 @@ export default function SmartOddsScannerPanel() {
           <Search className="w-4 h-4 text-primary" />
           <span className="font-mono text-xs font-bold text-foreground">SMART ODDS SCANNER</span>
         </div>
-        <button
-          onClick={scanLive}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-mono rounded-lg transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-          {loading ? 'ESCANEANDO...' : 'SCAN CROSS-BOOK'}
-        </button>
+        {loading && (
+          <span className="text-[10px] font-mono text-muted-foreground">CARREGANDO...</span>
+        )}
+
       </div>
 
       {error && <p className="text-[10px] text-destructive font-mono">{error}</p>}
