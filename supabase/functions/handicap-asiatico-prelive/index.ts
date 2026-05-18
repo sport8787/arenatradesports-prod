@@ -510,7 +510,7 @@ Deno.serve(async (req) => {
   try {
     // data_source ignorado — Sportmonks fixo (Fase 2)
     try { await req.json(); } catch { /* sem body */ }
-    console.log(`[HA] data_source=${DATA_SOURCE} (forçado)`);
+    console.log(`[HA] data_source=sportmonks (Fase 2)`);
 
     const fixtures = await getUpcoming();
     const resultados: any[] = [];
