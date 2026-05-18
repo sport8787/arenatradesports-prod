@@ -153,8 +153,8 @@ serve(async (req) => {
     const { query, marketData, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
 
     const supabase = getSupabaseAdmin();
 
