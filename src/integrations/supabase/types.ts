@@ -5136,6 +5136,75 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_news_posts: {
+        Row: {
+          away_team: string | null
+          content_html: string
+          created_at: string
+          fixture_id: number | null
+          hero_image: string | null
+          home_team: string | null
+          id: string
+          kind: string
+          league: string | null
+          league_slug: string | null
+          public_url: string | null
+          published_at: string
+          slug: string
+          source_id: string
+          source_title: string | null
+          source_url: string | null
+          storage_path: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          away_team?: string | null
+          content_html: string
+          created_at?: string
+          fixture_id?: number | null
+          hero_image?: string | null
+          home_team?: string | null
+          id?: string
+          kind?: string
+          league?: string | null
+          league_slug?: string | null
+          public_url?: string | null
+          published_at?: string
+          slug: string
+          source_id: string
+          source_title?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          away_team?: string | null
+          content_html?: string
+          created_at?: string
+          fixture_id?: number | null
+          hero_image?: string | null
+          home_team?: string | null
+          id?: string
+          kind?: string
+          league?: string | null
+          league_slug?: string | null
+          public_url?: string | null
+          published_at?: string
+          slug?: string
+          source_id?: string
+          source_title?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       seo_rodadas_publicadas: {
         Row: {
           championship: string

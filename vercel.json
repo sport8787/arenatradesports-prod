@@ -4,6 +4,9 @@
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/sitemap.xml" },
     { "source": "/blog/brasileirao-2026/rodada-:n.html", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/brasileirao-2026/rodada-:n.html" },
+    { "source": "/blog/noticias", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/noticias/index.html" },
+    { "source": "/blog/noticias/", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/noticias/index.html" },
+    { "source": "/blog/noticias/:slug.html", "destination": "https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/seo-static/noticias/:slug.html" },
     { "source": "/blog", "destination": "/blog/index.html" },
     { "source": "/blog/", "destination": "/blog/index.html" },
     { "source": "/blog/brasileirao-2026", "destination": "/blog/brasileirao-2026/index.html" },
