@@ -681,7 +681,7 @@ serve(async (req) => {
           league: g.sport_title || "",
           bookmaker: an.bookmaker || "",
           data_strength: an.data_strength || "",
-        });
+        }, gateCfg);
         if (gate.demoted) {
           console.log(`[sm-punter GATE] ${g.home_team} vs ${g.away_team}: ${gate.veto_reason || gate.block_reason}`);
         }
