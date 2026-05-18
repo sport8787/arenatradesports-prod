@@ -19,8 +19,7 @@ import {
   type LeagueTier,
 } from '../_shared/leaguesRegistry.ts';
 
-// Fonte de dados ativa (set per-request)
-const DATA_SOURCE: 'sportmonks' = 'sportmonks'; // API-Football descontinuada (Fase 2)
+// Fonte de dados: Sportmonks (Fase 2 — API-Football removida 18/05/2026)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,13 +28,11 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const API_FOOTBALL_KEY = Deno.env.get('API_FOOTBALL_KEY')!;
 const ODDS_API_KEY = Deno.env.get('THE_ODDS_API_KEY') || Deno.env.get('ODDS_API_KEY') || '';
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
 const TELEGRAM_CHAT = Deno.env.get('TELEGRAM_CHAT_ID');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
-const AF_BASE = 'https://v3.football.api-sports.io';
 
 type HALine = '-1.0' | '-0.75' | '-0.5' | '0.0' | '+0.5' | '+0.75' | '+1.0';
 type HAType = 'NEGATIVO' | 'POSITIVO' | 'DNB';
