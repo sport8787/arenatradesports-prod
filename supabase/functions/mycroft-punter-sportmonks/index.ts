@@ -620,6 +620,7 @@ serve(async (req) => {
 
     console.log(`[sm-punter] ${games.length} jogos para análise`);
 
+    const gateCfg = await loadGateConfig(sb);
     let approved = 0, vetoed = 0, errors = 0;
     const results: any[] = [];
 
