@@ -154,10 +154,11 @@ export default function PunterBancaVirtualPage() {
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
             Ferramentas relacionadas
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
             <QuickBtn icon={<FileText className="w-3.5 h-3.5" />} label="Análise Manual" onClick={() => navigate('/punter/analise-manual')} />
             <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Sinais Liquidados" onClick={() => navigate('/punter')} />
             <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Apostas" onClick={() => navigate('/punter/auditoria')} />
+            <QuickBtn icon={<TrendingUp className="w-3.5 h-3.5" />} label="Método dos Ciclos" onClick={() => navigate('/punter/ciclos')} />
           </div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
             Painéis rápidos
