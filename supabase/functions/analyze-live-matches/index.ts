@@ -73,6 +73,83 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ============================================================
+// FALLBACK GROK (xAI) — usado se a engine determinística falhar
+// ============================================================
+async function callGrokFallback(payload: any): Promise<any | null> {
+  const GROK_API_KEY = Deno.env.get('GROK_API_KEY');
+  if (!GROK_API_KEY) {
+    console.warn('[AnalyzeLive][Grok] GROK_API_KEY não configurada — fallback desativado');
+    return null;
+  }
+  const m = payload?.match || {};
+  const stats = m.stats || {};
+  const system = `Você é o Mycroft, analista frio de futebol ao vivo. Responda APENAS um JSON válido com este shape exato:
+{"verdict":"APROVADO|APROVADO_SITUACIONAL|LABAREDA|AGUARDAR|CUIDADO|JOGO_MORTO","market":"string","plan_name":"string","confidence":0-100,"thesis":"string em pt-br","estimated_probability":0-1,"odd":number|null,"stake_pct":number|null}
+Use no máximo 2 frases na thesis. NUNCA invente estatísticas.`;
+  const user = `Jogo: ${m.home} ${m.scoreHome ?? 0} x ${m.scoreAway ?? 0} ${m.away}
+Minuto: ${m.minute} (${m.period || '?'})
+Campeonato: ${m.championship || '?'}
+Stats: ${JSON.stringify(stats).slice(0, 2500)}
+Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(0, 500)}`;
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20_000);
+    const r = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROK_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'grok-2-latest',
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('[AnalyzeLive][Grok] HTTP', r.status, errText.slice(0, 300));
+      return null;
+    }
+    const j = await r.json();
+    const content = j?.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error('[AnalyzeLive][Grok] resposta sem content');
+      return null;
+    }
+    let parsed: any;
+    try { parsed = JSON.parse(content); } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (!match) { console.error('[AnalyzeLive][Grok] JSON inválido'); return null; }
+      parsed = JSON.parse(match[0]);
+    }
+    // Normaliza campos esperados
+    return {
+      verdict: String(parsed.verdict || 'AGUARDAR').toUpperCase(),
+      market: parsed.market || 'N/A',
+      plan_name: parsed.plan_name || 'GROK FALLBACK',
+      confidence: Number(parsed.confidence ?? 0),
+      thesis: parsed.thesis || 'Fallback Grok sem tese.',
+      estimated_probability: parsed.estimated_probability ?? null,
+      odd: parsed.odd ?? null,
+      stake_pct: parsed.stake_pct ?? null,
+      ai_engine: 'grok-fallback',
+    };
+  } catch (e) {
+    console.error('[AnalyzeLive][Grok] exceção:', (e as Error)?.message);
+    return null;
+  }
+}
+
+
 function getSupabaseAdmin() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -523,40 +600,60 @@ serve(async (req) => {
           console.warn('[AnalyzeLive] Falha ao buscar mercados já aprovados:', (e as Error)?.message);
         }
 
-        const analysisRes = await fetch(
-          `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseAnonKey}`,
-            },
-            body: JSON.stringify({
-              match: {
-                home: match.home_team,
-                away: match.away_team,
-                scoreHome: match.score_home ?? 0,
-                scoreAway: match.score_away ?? 0,
-                minute: match.minute ?? 0,
-                period: match.period ?? '',
-                championship: match.championship,
-                match_id: match.match_id,
-                stats: enrichedStats,
-                bankroll: bankroll ?? 500,
-                existingApprovedMarkets,
-                punterPreliveAnalyses,
-              },
-            }),
-          }
-        );
+        const matchPayload = {
+          match: {
+            home: match.home_team,
+            away: match.away_team,
+            scoreHome: match.score_home ?? 0,
+            scoreAway: match.score_away ?? 0,
+            minute: match.minute ?? 0,
+            period: match.period ?? '',
+            championship: match.championship,
+            match_id: match.match_id,
+            stats: enrichedStats,
+            bankroll: bankroll ?? 500,
+            existingApprovedMarkets,
+            punterPreliveAnalyses,
+          },
+        };
 
-        if (!analysisRes.ok) {
-          const errText = await analysisRes.text();
-          console.error(`[AnalyzeLive] Mycroft failed for ${match.match_id}:`, errText);
-          continue;
+        let analysis: any = null;
+        let usedFallback = false;
+        try {
+          const analysisRes = await fetch(
+            `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify(matchPayload),
+            }
+          );
+
+          if (!analysisRes.ok) {
+            const errText = await analysisRes.text();
+            console.error(`[AnalyzeLive] Mycroft deterministic failed for ${match.match_id}:`, errText);
+            analysis = await callGrokFallback(matchPayload);
+            usedFallback = !!analysis;
+          } else {
+            analysis = await analysisRes.json();
+          }
+        } catch (err) {
+          console.error(`[AnalyzeLive] Mycroft deterministic threw for ${match.match_id}:`, (err as Error)?.message);
+          analysis = await callGrokFallback(matchPayload);
+          usedFallback = !!analysis;
         }
 
-        const analysis = await analysisRes.json();
+        if (!analysis) {
+          console.error(`[AnalyzeLive] Sem análise (deterministic+grok falharam) para ${match.match_id}, pulando`);
+          continue;
+        }
+        if (usedFallback) {
+          analysis.ai_engine = 'grok-fallback';
+          console.log(`[AnalyzeLive] ⚠️ Fallback Grok usado para ${match.match_id}`);
+        }
         console.log(`[AnalyzeLive] Verdict for ${match.match_id}: ${analysis.verdict} (${analysis.confidence}%)`);
 
         // ========== VETO TEMPORAL POR MERCADO (server-side guard) ==========
