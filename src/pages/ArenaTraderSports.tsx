@@ -107,7 +107,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
 /**
  * Normaliza um mercado para uma chave curta usada no filtro
@@ -153,7 +153,7 @@ export default function ArenaTraderSports() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
-    const valid: StatusFilter[] = ['all','proximos','live','aprovados','aprovados_af','scheduled','finished','simulado'];
+    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','scheduled','finished','simulado'];
     return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
   });
   useEffect(() => {
@@ -387,6 +387,7 @@ export default function ArenaTraderSports() {
 
   const filtered = useMemo(() => {
     const statusPriority: Record<string, number> = { APROVADO: 0, opportunity: 0, APROVADO_SITUACIONAL: 0, LABAREDA: 1, CUIDADO: 2, AGUARDAR: 3, analyzing: 3, JOGO_MORTO: 4, VETADO: 4, no_value: 4 };
+    if (statusFilter === 'meus_sinais') return [];
     return allMatches
       .filter(m => {
         if (statusFilter === 'proximos' || statusFilter === 'scheduled') return false;
@@ -567,8 +568,8 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         {isAdvanced && <ActivePositions />}
 
-        {/* Meus Sinais (plano pessoal do usuário, roda no cliente) */}
-        <MeusSinaisPanel />
+        {/* Meus Sinais (plano pessoal) — promo discreta. Conteúdo completo na aba "Meus Sinais". */}
+        {statusFilter !== 'meus_sinais' && <MeusSinaisPanel />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
@@ -619,6 +620,10 @@ export default function ArenaTraderSports() {
                     </span>
                   ) : null;
                 })()}
+              </TabsTrigger>
+              <TabsTrigger value="meus_sinais" className="gap-1.5">
+                <Target className="w-3 h-3" />
+                Meus Sinais
               </TabsTrigger>
               <TabsTrigger value="all">Todos</TabsTrigger>
               <TabsTrigger value="proximos" className="gap-1.5">
@@ -734,7 +739,14 @@ export default function ArenaTraderSports() {
             <SimulationPanel onFetched={refetch} />
           )}
 
-          {isAdvanced && statusFilter !== 'simulado' && (
+          {/* Meus Sinais — painel grande quando a aba está ativa */}
+          {statusFilter === 'meus_sinais' && (
+            <div className="space-y-3">
+              <MeusSinaisPanel />
+            </div>
+          )}
+
+          {isAdvanced && statusFilter !== 'simulado' && statusFilter !== 'meus_sinais' && (
             <>
               {/* Chips de Região (Brasil / Europa / Sul-América / Outros) — Trader #4 */}
               <div className="flex flex-wrap gap-2 items-center mb-2" role="group" aria-label="Regiões">
@@ -852,7 +864,7 @@ export default function ArenaTraderSports() {
       {/* Grid */}
       <main className="container mx-auto px-4 pb-8">
         {isAdvanced && isAdmin && <CalibrationCard arena="trader_sports" />}
-        {loading ? (
+        {statusFilter === 'meus_sinais' ? null : loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
             <p className="text-sm text-muted-foreground font-orbitron">Carregando jogos...</p>
