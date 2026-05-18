@@ -214,7 +214,6 @@ serve(async (req) => {
   try {
     const games = await buscarJogos();
     console.log(`[cards] ${games.length} jogos para analisar`);
-    const season = new Date().getFullYear();
     let aprovados = 0, informativos = 0;
 
     for (const g of games) {
@@ -231,8 +230,8 @@ serve(async (req) => {
         if (!th || !ta) continue;
 
         const [mh, ma] = await Promise.all([
-          buscarMediaCartoes(th.id, season),
-          buscarMediaCartoes(ta.id, season),
+          buscarMediaCartoes(th.id),
+          buscarMediaCartoes(ta.id),
         ]);
         if (!mh || !ma) continue;
 
