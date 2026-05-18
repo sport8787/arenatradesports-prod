@@ -5197,6 +5197,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sportmonks_fixtures_cache: {
+        Row: {
+          fetched_at: string
+          fixture_count: number
+          fixtures: Json
+          is_complete: boolean
+          league_key: string
+          league_name: string
+          season: number
+        }
+        Insert: {
+          fetched_at?: string
+          fixture_count?: number
+          fixtures?: Json
+          is_complete?: boolean
+          league_key: string
+          league_name: string
+          season: number
+        }
+        Update: {
+          fetched_at?: string
+          fixture_count?: number
+          fixtures?: Json
+          is_complete?: boolean
+          league_key?: string
+          league_name?: string
+          season?: number
+        }
+        Relationships: []
+      }
       sportmonks_odds_cache: {
         Row: {
           fetched_at: string

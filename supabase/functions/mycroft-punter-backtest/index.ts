@@ -500,21 +500,29 @@ serve(async (req) => {
       }
     }
 
-    // Sportmonks (real historical fixtures by date)
+    // Sportmonks (real historical fixtures) — PER LEAGUE, com cache em sportmonks_fixtures_cache
+    let smCacheHits = 0
+    let smCacheMisses = 0
     if (allFixtures.length === 0 && trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
-      try {
-        const smFixtures = await fetchHistoricalFromSportmonks(season, leagueNameSet)
-        if (smFixtures.length > 0) {
-          usedSource = 'sportmonks'
-          for (const f of smFixtures) {
-            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
-            allFixtures.push(f)
+      for (const l of validLeagues) {
+        try {
+          const { fixtures: smFixtures, fromCache } = await fetchHistoricalFromSportmonksCached(
+            l.key, season, l.info.name, dbClient
+          )
+          if (smFixtures.length > 0) {
+            usedSource = 'sportmonks'
+            if (fromCache) smCacheHits++; else smCacheMisses++
+            for (const f of smFixtures) {
+              fixtureLeagueMap.set(f.fixture.id, f._leagueName || l.info.name)
+              allFixtures.push(f)
+            }
+            console.log(`[Backtest] Sportmonks ${l.info.name}: ${smFixtures.length} jogos (${fromCache ? 'CACHE' : 'API'})`)
           }
-          console.log(`[Backtest] Sportmonks: ${smFixtures.length} jogos`)
+        } catch (e) {
+          console.warn(`[Backtest] Sportmonks ${l.info.name} falhou:`, (e as Error).message)
         }
-      } catch (e) {
-        console.warn('[Backtest] Sportmonks falhou:', (e as Error).message)
       }
+      console.log(`[Backtest] Sportmonks fixtures: cache hits=${smCacheHits}, API fetches=${smCacheMisses}`)
     }
 
     // Futodds /matches-ended (real historical, agnostic to AF league IDs)
@@ -911,12 +919,41 @@ function* dateRangeOfSeason(season: number): Generator<string> {
   }
 }
 
-async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+/**
+ * Fetches all FT fixtures of a (league, season) from Sportmonks.
+ * Uses `sportmonks_fixtures_cache` to skip API completely on subsequent runs.
+ * Returns { fixtures, fromCache } so callers can report cache usage.
+ */
+async function fetchHistoricalFromSportmonksCached(
+  leagueKey: string,
+  season: number,
+  leagueName: string,
+  dbClient: any,
+): Promise<{ fixtures: any[]; fromCache: boolean }> {
   const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
-  if (!TOKEN) return []
+  if (!TOKEN) return { fixtures: [], fromCache: false }
+
+  // 1) Cache hit?
+  try {
+    const { data: cached } = await dbClient
+      .from('sportmonks_fixtures_cache')
+      .select('fixtures, is_complete, fetched_at')
+      .eq('league_key', leagueKey)
+      .eq('season', season)
+      .maybeSingle()
+    if (cached?.is_complete && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
+      console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cached.fixtures.length} fixtures (cached em ${cached.fetched_at})`)
+      return { fixtures: cached.fixtures, fromCache: true }
+    }
+  } catch (e) {
+    console.warn('[Backtest][SM-Cache] read failed:', (e as Error).message)
+  }
+
+  console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: buscando da API Sportmonks...`)
+  const allowedSet = new Set([leagueName])
   const fixtures: any[] = []
   let dayCount = 0
-  const MAX_DAYS = 400 // safety cap
+  const MAX_DAYS = 400
 
   for (const ymd of dateRangeOfSeason(season)) {
     if (dayCount++ >= MAX_DAYS) break
@@ -929,8 +966,8 @@ async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set
       for (const f of data) {
         const stateName = f.state?.short_name || f.state?.name || ''
         if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
-        const leagueName = f.league?.name || ''
-        const matched = leagueMatches(leagueName, allowedLeagues)
+        const lname = f.league?.name || ''
+        const matched = leagueMatches(lname, allowedSet)
         if (!matched) continue
         const participants = f.participants || []
         const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
@@ -962,10 +999,26 @@ async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set
         })
       }
     } catch { /* skip date */ }
-    // Light pacing to respect Sportmonks rate limits
     if (dayCount % 5 === 0) await new Promise(r => setTimeout(r, 100))
   }
-  return fixtures
+
+  // 2) Persist to cache (mark complete only if scan reached today / end of season)
+  try {
+    await dbClient.from('sportmonks_fixtures_cache').upsert({
+      league_key: leagueKey,
+      season,
+      league_name: leagueName,
+      fixtures,
+      fixture_count: fixtures.length,
+      is_complete: true,
+      fetched_at: new Date().toISOString(),
+    }, { onConflict: 'league_key,season' })
+    console.log(`[Backtest][SM-Cache] SAVED ${leagueKey}/${season}: ${fixtures.length} fixtures`)
+  } catch (e) {
+    console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
+  }
+
+  return { fixtures, fromCache: false }
 }
 
 // ═══════════════════════════════════════════════
@@ -1023,7 +1076,15 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
 // Cached in `sportmonks_odds_cache` to avoid re-paying API calls on reruns.
 // ═══════════════════════════════════════════════
 
-const SM_TARGET_MARKETS = '1,12,14'
+// Markets: 1=Fulltime Result, 12=Goals O/U, 14=BTTS, 28=Asian Handicap
+const SM_TARGET_MARKETS = '1,12,14,28'
+
+// Formats a numeric AH line to our internal label format ("AH Casa +0.5", "AH Fora -1", etc.)
+function fmtAHLabel(side: 'Casa' | 'Fora', line: number): string {
+  // Normalize: 0 → "0", positives → "+X", negatives → "-X"
+  const lineStr = line === 0 ? '0' : (line > 0 ? `+${line}` : `${line}`)
+  return `AH ${side} ${lineStr}`
+}
 
 function median(nums: number[]): number {
   if (nums.length === 0) return 0
@@ -1041,6 +1102,9 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
     if (!buckets[label]) buckets[label] = []
     buckets[label].push(v)
   }
+  // Allowed AH lines (mirror AH_LINES from backtest engine)
+  const allowedAHLines = new Set([-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1])
+
   for (const o of rawOdds || []) {
     const mid = Number(o.market_id)
     const lbl = String(o.label || '').toLowerCase().trim()
@@ -1051,7 +1115,7 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
       else if (lbl === 'draw' || lbl === 'x') push('Empate', val)
       else if (lbl === 'away' || lbl === '2') push('Fora', val)
     } else if (mid === 12) {
-      // Goals Over/Under — total field contains the line, e.g. "2.5"
+      // Goals Over/Under — total field contains the line
       const total = String(o.total ?? '').trim()
       if (total === '2.5' || total === '2.50') {
         if (lbl === 'over') push('Over 2.5', val)
@@ -1062,6 +1126,13 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
     } else if (mid === 14) {
       // BTTS
       if (lbl === 'yes') push('BTTS Sim', val)
+    } else if (mid === 28) {
+      // Asian Handicap — handicap field holds the line from this side's perspective
+      const hcRaw = String(o.handicap ?? '').trim().replace(/^\+/, '')
+      const hc = parseFloat(hcRaw)
+      if (!isFinite(hc) || !allowedAHLines.has(hc)) continue
+      if (lbl === 'home' || lbl === '1') push(fmtAHLabel('Casa', hc), val)
+      else if (lbl === 'away' || lbl === '2') push(fmtAHLabel('Fora', hc), val)
     }
   }
   const agg: Record<string, number> = {}
