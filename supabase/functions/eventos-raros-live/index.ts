@@ -40,6 +40,7 @@ function rotuloEstrategia(alvo: string, favorito?: string | null): string {
     case "LAY_2x2": return "LAY 2x2 (placar exato)";
     case "LAY_1x3": return "LAY 1x3 (placar exato)";
     case "LAY_3x1": return "LAY 3x1 (placar exato)";
+    case "BACK_0x0": return "BACK 0x0 — operar a favor do empate sem gols";
     default: return alvo;
   }
 }
