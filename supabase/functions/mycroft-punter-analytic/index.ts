@@ -79,7 +79,7 @@ async function getOrComputeAdvancedStats(teamId: number, teamName: string, seaso
     (Date.now() - new Date(cached.last_updated).getTime()) < 24 * 60 * 60 * 1000;
   if (fresh) return cached;
 
-  const fixtures = await fetchFixtures(teamId, season);
+  const fixtures = await fetchFixtures(teamName);
   if (fixtures.length < 3) return cached || null;
 
   const home = computeContext(fixtures, teamId, "home");
