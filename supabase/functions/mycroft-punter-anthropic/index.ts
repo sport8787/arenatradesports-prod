@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
+import { applyApprovalBlocks } from '../_shared/punterApprovalBlocks.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
