@@ -506,12 +506,12 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               )}
               {effectiveStatus === 'CUIDADO' && (
                 <span className="font-orbitron text-[#FBBF24]">
-                  ⚠️ Fator de risco ativo
+                  ⚠️ Cenário ainda não favorável — não entre agora
                 </span>
               )}
               {(effectiveStatus === 'JOGO_MORTO' || effectiveStatus === 'VETADO' || effectiveStatus === 'no_value') && (
                 <span className="font-orbitron text-[#A8A29E]">
-                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade (${criteriaMet}/5)`}
+                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade neste jogo (${criteriaMet}/5 critérios)`}
                 </span>
               )}
               {effectiveStatus === 'EXPIRADO' && (
