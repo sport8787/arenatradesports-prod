@@ -1351,6 +1351,30 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
 
       console.log(`[Mycroft Punter] ✅ APROVADO: ${game.home_team} vs ${game.away_team} | Tier ${a.tier} | Edge ${a.edge_percentage}% | Stake ${a.stake_percentage}%`)
 
+      // ─── SPORTMONKS PREDICTIONS (segunda opinião) ───
+      // Camada 1 (Sherlock alert): divergência >15pp → flag sherlock_alert + nota informativa (NÃO veta)
+      // Camada 2 (Shadow log): persiste em punter_predictions_shadow para calibração futura
+      let smProbe: Awaited<ReturnType<typeof probeSportmonksPrediction>> | null = null
+      try {
+        smProbe = await probeSportmonksPrediction({
+          match_id: mid,
+          home_team: game.home_team,
+          away_team: game.away_team,
+          commence_time: game.commence_time,
+          league: game.sport_title,
+          market: a.market || '',
+          mycroft_probability_pct: Number(a.estimated_probability ?? 0),
+          verdict: a.verdict,
+        })
+        if (smProbe.sherlock_alert && smProbe.note) {
+          a.sherlock_alert = true
+          a.risk_factors = [a.risk_factors, smProbe.note].filter(Boolean).join(' | ')
+          console.log(`[SM-Predictions] ⚠️ ${game.home_team} vs ${game.away_team}: ${smProbe.note}`)
+        }
+      } catch (smErr) {
+        console.warn('[SM-Predictions] probe falhou (não crítico):', (smErr as Error)?.message)
+      }
+
       // Dedup: remove old unified signal for same match+market before inserting
       await sb.from('punter_sinais').delete().eq('match_id',mid).eq('market',a.market||'N/A')
       await sb.from('punter_analyses').delete().eq('match_id',mid).eq('market',a.market||'N/A')
@@ -1360,8 +1384,23 @@ SIGA RIGOROSAMENTE os critérios de Edge, Confiança e Filtros definidos no syst
         commence_time:game.commence_time,market:a.market||'N/A',bookmaker:a.bookmaker||'N/A',odd:a.odd||0,
         fair_odd:a.fair_odd,implied_probability:a.implied_probability,estimated_probability:a.estimated_probability,
         value_percentage:a.value_percentage,verdict:a.verdict,confidence:a.confidence,stake_percentage:a.stake_percentage,
-        thesis:a.thesis,analysis:a.analysis,risk_factors:a.risk_factors,analyzed_by:'gemini'
+        thesis:a.thesis,analysis:a.analysis,risk_factors:a.risk_factors,analyzed_by:'gemini',
+        sherlock_alert: !!smProbe?.sherlock_alert,
+        sportmonks_probability: smProbe?.sportmonks_probability ?? null,
+        sportmonks_divergence_pp: smProbe?.divergence_pp ?? null,
+        sportmonks_prediction: smProbe?.prediction ?? null,
       }).select().maybeSingle()
+
+      if (row && smProbe && smProbe.sportmonks_probability !== null) {
+        await logShadowPrediction(sb, {
+          analysis_id: row.id, match_id: mid,
+          home_team: game.home_team, away_team: game.away_team,
+          league: game.sport_title, commence_time: game.commence_time,
+          market: a.market || 'N/A',
+          mycroft_probability: Number(a.estimated_probability ?? 0),
+          probe: smProbe, verdict: a.verdict,
+        })
+      }
 
       if(a.verdict==='APROVADO'&&row) {
         // ═══ Fluxo desacoplado: hoje = stake imediato, futuro = aguardar recálculo ═══
