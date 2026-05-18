@@ -345,25 +345,19 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
   return "void";
 }
 
-// ─── Resolver de fixture com prioridade Futodds (economia de cota AF) ──────
-// Ordem:
-//  1) Futodds /matches-ended (cota separada, suficiente para gols/escanteios quando expostos)
-//  2) API-Football (necessário para mercados de jogador/eventos via fixtureId)
-//  3) Sportmonks (reforço)
-//  4) The Odds API (fallback final)
-// AF é forçada quando o mercado precisa de eventos (jogador) ou de corners
-// e o Futodds não trouxe corners.
-function marketNeedsAfEvents(market: string): boolean {
-  return /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(market || "");
-}
+// ─── Resolver de fixture (sem API-Football) ──────────────────────────────
+// Ordem [Fase 2 migração]:
+//  1) Futodds /matches-ended (cobre 70-80% dos casos com gols/escanteios)
+//  2) Sportmonks (reforço com corners + status FT)
+//  3) The Odds API (fallback final)
+// Mercados de jogador permanecem desabilitados; corners caem para Sportmonks.
 function marketIsCorners(market: string): boolean {
   return /escante|corner/i.test(market || "");
 }
 async function resolveFixtureForSettlement(
-  home: string, away: string, startIso: string, market: string,
+  home: string, away: string, startIso: string, _market: string,
 ): Promise<{ fx: FixtureResult | null; fixtureId?: number; fonte: string }> {
   let fx: FixtureResult | null = null;
-  let fixtureId: number | undefined;
   let fonte = "futodds-ended";
 
   // 1) Futodds primeiro
@@ -372,19 +366,7 @@ async function resolveFixtureForSettlement(
     if (fdEnd) fx = fdEnd;
   } catch (_) { /* ignore */ }
 
-  // Se mercado de jogador → precisamos de fixtureId AF
-  // Se mercado de escanteios e Futodds não trouxe corners → tentar AF
-  const needsAf = marketNeedsAfEvents(market) || (fx && marketIsCorners(market) && fx.cornersHome == null);
 
-  if (!fx || needsAf) {
-    try {
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) {
-        if (!fx) { fx = af.fx; fonte = "api-football"; }
-        fixtureId = af.fixtureId;
-      }
-    } catch (_) { /* ignore */ }
-  }
 
   // 2) Sportmonks reforço
   if (!fx) {
