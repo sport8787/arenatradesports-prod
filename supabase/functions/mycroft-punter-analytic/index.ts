@@ -30,20 +30,7 @@ function calcularCV(valores: number[]): number {
   return Math.sqrt(variancia) / media;
 }
 
-// Sportmonks-based: resolve team by name then fetch last 20 FT fixtures (AF-compatible shape)
-async function fetchFixtures(teamName: string): Promise<any[]> {
-  try {
-    const team = await smSearchTeam(teamName);
-    if (!team) {
-      console.warn(`[sherlock] time não encontrado no Sportmonks: ${teamName}`);
-      return [];
-    }
-    return await getRecentFixturesSM(team.id, 20);
-  } catch (e) {
-    console.warn(`[sherlock] fetchFixtures err: ${(e as Error).message}`);
-    return [];
-  }
-}
+// (fetchFixtures inline em getOrComputeAdvancedStats via Sportmonks adapter)
 
 function computeContext(fixtures: any[], teamId: number, ctx: "home" | "away") {
   const filtered = fixtures.filter((f: any) => {
