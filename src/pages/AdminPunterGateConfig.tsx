@@ -305,9 +305,9 @@ export default function AdminPunterGateConfig() {
         </section>
 
         <div className="flex gap-2 sticky bottom-4">
-          <Button onClick={handleSave} disabled={saving} className="flex-1 font-mono">
+          <Button onClick={handleSave} disabled={saving || hasErrors} className="flex-1 font-mono">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Salvar configuração
+            {hasErrors ? `Corrija ${errorList.length} erro(s)` : 'Salvar configuração'}
           </Button>
           <Button onClick={handleReset} variant="outline" className="font-mono">
             <RotateCcw className="w-4 h-4 mr-2" /> Restaurar defaults
