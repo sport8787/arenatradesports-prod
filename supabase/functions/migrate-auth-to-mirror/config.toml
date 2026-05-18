@@ -1,0 +1,3 @@
+# supabase/functions/migrate-auth-to-mirror/config.toml
+# Roda sem autenticação de JWT — protegida por X-Migration-Token interno.
+verify_jwt = false
