@@ -224,6 +224,25 @@ export default function ArenaTraderSportsMeuPlano() {
           </p>
         </div>
 
+        <div className="rounded-lg border border-border bg-card/40 p-4 flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">Visibilidade do plano</p>
+            <p className="text-[12px] text-muted-foreground">
+              {visibility === 'public'
+                ? 'Público — seu plano poderá aparecer no ranking da Liga Mycroft de estrategistas (em breve).'
+                : 'Privado — só você e o admin veem seu plano e ROI.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Privado</span>
+            <Switch
+              checked={visibility === 'public'}
+              onCheckedChange={(v) => setVisibility(v ? 'public' : 'private')}
+            />
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Público</span>
+          </div>
+        </div>
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as UserMarket)}>
           <TabsList className="grid grid-cols-4 w-full">
             {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
