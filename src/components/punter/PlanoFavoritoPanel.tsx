@@ -38,10 +38,8 @@ function StatusChip({ label, status, score }: { label: string; status: string | 
 }
 
 export default function PlanoFavoritoPanel() {
-  const { isAdmin } = useAdmin();
   const [signals, setSignals] = useState<SinalFavorito[]>([]);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
