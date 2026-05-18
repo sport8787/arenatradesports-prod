@@ -123,6 +123,11 @@ function deveSair(alvo: string, sh: number, sa: number, minuto: number): { sair:
       if (sh === 3 && sa === 1) return { sair: true, motivo: "Placar 3x1 (RED)" };
       if (minuto >= 85) return { sair: true, motivo: "Fim de jogo" };
       break;
+    case "BACK_0x0":
+      // Qualquer gol antes do fim mata a tese → sai imediatamente como RED
+      if (sh + sa >= 1 && minuto < 85) return { sair: true, motivo: "Gol marcado — 0x0 perdido" };
+      if (minuto >= 85 && sh === 0 && sa === 0) return { sair: true, motivo: "Min 85 com 0x0 — segurar GREEN" };
+      break;
   }
   return { sair: false, motivo: "" };
 }
@@ -137,6 +142,8 @@ function resultadoFinal(alvo: string, sh: number, sa: number): "GREEN" | "RED" {
       return sh === 1 && sa === 3 ? "RED" : "GREEN";
     case "LAY_3x1":
       return sh === 3 && sa === 1 ? "RED" : "GREEN";
+    case "BACK_0x0":
+      return sh === 0 && sa === 0 ? "GREEN" : "RED";
   }
   return "GREEN";
 }
