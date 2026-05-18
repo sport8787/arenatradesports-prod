@@ -217,36 +217,169 @@ export default function Ciclos() {
   );
 }
 
-function SetupCard({ totalBankroll, setTotalBankroll, isolatedPct, setIsolatedPct, onStart, starting }: any) {
+function SetupCard({
+  setupMode, setSetupMode,
+  totalBankroll, setTotalBankroll, isolatedPct, setIsolatedPct,
+  horusBankroll, setHorusBankroll, horusMode, setHorusMode,
+  onStart, starting,
+}: any) {
   const total = parseFloat(totalBankroll) || 0;
   const pct = parseFloat(isolatedPct) || 0;
   const initial = (total * pct) / 100;
+  const hb = parseFloat(horusBankroll) || 0;
+  const canStart = setupMode === 'horus' ? hb > 0 : (total > 0 && pct > 0);
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-6 space-y-5">
       <div className="space-y-1">
         <h2 className="font-orbitron text-lg font-bold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" /> Configurar Método dos Ciclos</h2>
         <p className="text-xs text-muted-foreground">Método do Nettuno: dobre uma fração isolada da sua banca em 5 ciclos sequenciais. Meta 5% por entrada com fator redutor de 2,5% a cada green.</p>
       </div>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Banca total disponível (R$)</Label>
-          <Input type="number" min={0} value={totalBankroll} onChange={(e) => setTotalBankroll(e.target.value)} placeholder="1000.00" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Fração isolada do método (% — máx 10%)</Label>
-          <Input type="number" min={0.1} max={10} step={0.5} value={isolatedPct} onChange={(e) => setIsolatedPct(e.target.value)} placeholder="10" />
-        </div>
+
+      {/* Mode tabs */}
+      <div className="grid grid-cols-2 gap-2 p-1 bg-muted/30 rounded-lg">
+        <button
+          onClick={() => setSetupMode('horus')}
+          className={`px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wide flex items-center justify-center gap-1.5 transition-colors ${setupMode === 'horus' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Bot className="w-3.5 h-3.5" /> Hórus Pilota
+        </button>
+        <button
+          onClick={() => setSetupMode('manual')}
+          className={`px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wide transition-colors ${setupMode === 'manual' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Manual (fração)
+        </button>
       </div>
-      <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs space-y-1">
-        <p className="text-foreground">Banca inicial do método (<strong>B</strong>): <span className="text-primary font-bold">{fmtBRL(initial)}</span></p>
-        <p className="text-muted-foreground">Objetivo final do método: <strong>{fmtBRL(initial * 6)}</strong> (após os 5 ciclos)</p>
-        <p className="text-muted-foreground">Recomendação Nettuno: nunca use mais que 10% da sua banca total — assim você pode tentar o método várias vezes em caso de erro.</p>
-      </div>
-      <Button onClick={onStart} disabled={starting || !total || !pct} className="w-full">
+
+      {setupMode === 'horus' ? (
+        <>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Banca independente do método (R$)</Label>
+              <Input type="number" min={0} value={horusBankroll} onChange={(e) => setHorusBankroll(e.target.value)} placeholder="200.00" />
+              <p className="text-[10px] text-muted-foreground">Sugestão Nettuno: R$ 200 — banca pequena, separada do resto.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Modo de operação</Label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => setHorusMode('assisted')} className={`px-2 py-2 rounded-md text-[11px] font-mono border ${horusMode === 'assisted' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                  Assistido
+                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus sugere, você aposta na Betfair</span>
+                </button>
+                <button onClick={() => setHorusMode('simulated')} className={`px-2 py-2 rounded-md text-[11px] font-mono border ${horusMode === 'simulated' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                  Simulado
+                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus aposta virtualmente</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+            <p className="text-foreground flex items-center gap-1.5"><Bot className="w-3.5 h-3.5 text-primary" /> <strong>Hórus Pilota</strong> — automação 100% fiel ao Nettuno:</p>
+            <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+              <li>Apenas mercado <strong>Match Odds (1X2)</strong> é automatizado.</li>
+              <li>Banca de <strong>{fmtBRL(hb)}</strong> independente da sua banca virtual.</li>
+              <li>Objetivo final do método: <strong>{fmtBRL(hb * 6)}</strong>.</li>
+              <li>Pausa automática após <strong>2 REDs consecutivos</strong> — você confirma para retomar.</li>
+              <li>Quando atinge a meta do ciclo, faz cash-out automático e avança.</li>
+            </ul>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Banca total disponível (R$)</Label>
+              <Input type="number" min={0} value={totalBankroll} onChange={(e) => setTotalBankroll(e.target.value)} placeholder="1000.00" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Fração isolada do método (% — máx 10%)</Label>
+              <Input type="number" min={0.1} max={10} step={0.5} value={isolatedPct} onChange={(e) => setIsolatedPct(e.target.value)} placeholder="10" />
+            </div>
+          </div>
+          <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs space-y-1">
+            <p className="text-foreground">Banca inicial do método (<strong>B</strong>): <span className="text-primary font-bold">{fmtBRL(initial)}</span></p>
+            <p className="text-muted-foreground">Objetivo final do método: <strong>{fmtBRL(initial * 6)}</strong> (após os 5 ciclos)</p>
+            <p className="text-muted-foreground">Recomendação Nettuno: nunca use mais que 10% da sua banca total — assim você pode tentar o método várias vezes em caso de erro.</p>
+          </div>
+        </>
+      )}
+
+      <Button onClick={onStart} disabled={starting || !canStart} className="w-full">
         {starting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-        Iniciar Método dos Ciclos
+        {setupMode === 'horus' ? 'Ativar Hórus Pilota' : 'Iniciar Método dos Ciclos'}
       </Button>
     </motion.div>
+  );
+}
+
+function HorusPilotPanel({ bk, onToggle, onResume }: { bk: CycleBankroll; onToggle: (enabled: boolean, mode?: 'assisted' | 'simulated') => void; onResume: () => void }) {
+  // Só renderiza se o usuário já tem ou pode ter pilot (banca independente OU já ativou antes)
+  if (!bk.independent_bankroll && !bk.horus_pilot_enabled) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-card/30 p-3 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          <Bot className="w-4 h-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Ativar Hórus Pilota para auto-vincular sinais de Match Odds ao ciclo</span>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => onToggle(true, 'simulated')} className="h-7 text-[11px]">
+          Ativar piloto
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-xl border p-4 space-y-3 ${bk.auto_paused ? 'border-warning/50 bg-warning/5' : bk.horus_pilot_enabled ? 'border-primary/40 bg-primary/5' : 'border-border bg-card/40'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2">
+          <Bot className={`w-5 h-5 mt-0.5 ${bk.horus_pilot_enabled && !bk.auto_paused ? 'text-primary' : 'text-muted-foreground'}`} />
+          <div>
+            <p className="text-sm font-semibold flex items-center gap-2">
+              Hórus Pilota
+              {bk.horus_pilot_enabled && !bk.auto_paused && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-success/15 text-success">ATIVO</span>}
+              {bk.auto_paused && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warning/15 text-warning">PAUSADO</span>}
+              {!bk.horus_pilot_enabled && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">DESLIGADO</span>}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Modo <strong className="text-foreground">{bk.horus_pilot_mode === 'assisted' ? 'Assistido' : 'Simulado'}</strong> · auto-vincula apenas Match Odds (1X2)
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={bk.horus_pilot_enabled && !bk.auto_paused}
+          onCheckedChange={(v) => onToggle(!!v)}
+        />
+      </div>
+
+      {bk.auto_paused && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs flex items-start gap-2">
+          <PauseCircle className="w-4 h-4 text-warning mt-0.5" />
+          <div className="flex-1 space-y-2">
+            <p className="text-foreground font-medium">Auto-pausa após 2 REDs consecutivos.</p>
+            <p className="text-muted-foreground text-[11px]">Respiro obrigatório — robôs não respiram, você sim. Revise seus últimos sinais antes de continuar.</p>
+            <Button size="sm" onClick={onResume} className="h-7 text-[11px]"><PlayCircle className="w-3.5 h-3.5 mr-1" /> Retomar auto-vínculo</Button>
+          </div>
+        </div>
+      )}
+
+      {bk.horus_pilot_enabled && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => onToggle(true, 'assisted')}
+            className={`px-2 py-1.5 rounded-md text-[10px] font-mono border ${bk.horus_pilot_mode === 'assisted' ? 'border-primary bg-primary/10' : 'border-border opacity-60 hover:opacity-100'}`}
+          >
+            Assistido
+          </button>
+          <button
+            onClick={() => onToggle(true, 'simulated')}
+            className={`px-2 py-1.5 rounded-md text-[10px] font-mono border ${bk.horus_pilot_mode === 'simulated' ? 'border-primary bg-primary/10' : 'border-border opacity-60 hover:opacity-100'}`}
+          >
+            Simulado
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
