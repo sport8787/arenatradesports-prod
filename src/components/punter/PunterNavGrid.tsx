@@ -8,6 +8,7 @@ import {
   Activity,
   Send,
   Coins,
+  Newspaper,
 } from 'lucide-react';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import HorusAudioFallback from '@/components/punter/HorusAudioFallback';
@@ -124,6 +125,21 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             title="Liga Mycroft"
             description="Ranking por ROI · Prêmios reais · Troféu da temporada"
             badge={{ label: 'Novo', tone: 'exclusive' }}
+          />
+        </div>
+      </section>
+
+      {/* Conteúdo */}
+      <section>
+        <SectionLabel>Conteúdo</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <NavCard
+            onClick={() => window.open('/blog/', '_blank', 'noopener,noreferrer')}
+            icon={<Newspaper className="w-4 h-4" />}
+            iconBg="bg-primary/15"
+            iconColor="text-primary"
+            title="Blog Mycroft"
+            description="Análises de rodada, notícias e dedução fria"
           />
         </div>
       </section>
