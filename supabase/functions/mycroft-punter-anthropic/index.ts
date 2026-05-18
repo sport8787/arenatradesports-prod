@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
+import { applyApprovalBlocks } from '../_shared/punterApprovalBlocks.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1412,28 +1413,30 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json, sem preamble):
   "api_predictions_agree": true | false | null
 }
 
-IMPORTANTE — REGRAS DE APROVAÇÃO (LEIA COM ATENÇÃO):
+IMPORTANTE — SISTEMA DE 3 BLOCOS (LEIA COM ATENÇÃO):
 - Use EXATAMENTE "APROVADO" ou "VETADO" no verdict
-- Edge ≥ 2% com Confiança ≥ 58% = APROVAR (Tier 3 mínimo)
-- Edge ≥ 4% com Confiança ≥ 65% = Tier 2
-- Edge ≥ 6% com Confiança ≥ 72% = Tier 1
-- META DE APROVAÇÃO: 50-70% dos jogos analisados
-- NÃO invente motivos extras de veto
+- Aprove APENAS se o sinal se encaixar em ALGUM destes blocos:
 
-🚫 VETOS PROIBIDOS (NUNCA use estes motivos para vetar):
-1. "Não há bookmakers soft / apenas Pinnacle/Bet365" — IGNORE essa exigência. Use as odds disponíveis (mesmo que apenas 1-2 casas) como referência de mercado. Pinnacle e Bet365 já são suficientes para calcular edge.
-2. "Faltam dados / dados insuficientes" para ligas major (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Champions League, Brasileirão, Libertadores) — essas ligas SEMPRE têm contexto público suficiente para análise quantitativa via odds + H2H + standings.
-3. "Sem H2H recente" / "sem lesões reportadas" — são desejáveis mas NÃO bloqueiam aprovação se odds + standings + season stats existirem.
-4. "Imprevisibilidade do futebol" / "variância alta" — isso é inerente ao esporte, não é motivo de veto.
+🟢 BLOCO A — SEGURANÇA: prob_estimada >= 58%, edge >= 3%, confidence >= 72%, odd entre 1.30 e 1.85 → tier=1
+🟡 BLOCO B — VALOR:     prob_estimada >= 45%, edge >= 5%, confidence >= 70%, odd entre 1.85 e 3.20 → tier=2
+🔥 BLOCO C — ELITE:     prob_estimada >= 55%, edge >= 7%, confidence >= 80%, odd entre 1.50 e 4.50 c/ Pinnacle como bookmaker → tier=3
 
-✅ APROVE quando:
-- Há edge ≥ 2% calculado vs odds reais (mesmo com apenas 1 bookmaker)
-- E confiança ≥ 58% sustentada por pelo menos 2 dos seguintes: standings, season stats, H2H, predictions, momento atual
+- META DE APROVAÇÃO: 25-40% dos jogos (qualidade > volume)
+- Win rate alvo: >= 58%
 
-⛔ VETE APENAS quando:
-- Edge < 2% OU EV negativo OU confiança < 58%
-- OU NIVEL_3 com zero stats E zero standings E zero H2H (dados realmente vazios)
-- OU contradição grave entre análise e odds (ex: você projeta 70% home win mas odd home está em 4.0)
+🚫 VETOS OBRIGATÓRIOS (NUNCA aprovar):
+1. prob_estimada < 45% (mesmo com edge alto — evento improvável destrói win rate)
+2. odd < 1.30 ou > 4.50 (fora da faixa de risco/retorno aceitável)
+3. odd < 1.50 e data_strength != "ALTA" (favorito barato sem xG é onde mais se perde)
+4. Liga fora de top (Premier/La Liga/Serie A/Bundesliga/Ligue1/Champions/Libertadores/Brasileirão/Championship) com odd < 1.60
+5. Contradição grave (você projeta 70% mas odd está em 4.0)
+
+🚫 VETOS PROIBIDOS (NÃO use estes motivos):
+1. "Apenas Pinnacle/Bet365" — Pinnacle/Bet365 SÃO sharp baselines aceitáveis
+2. "Dados insuficientes" para ligas major — sempre há contexto público suficiente
+3. "Imprevisibilidade do futebol" — isso é inerente ao esporte
+
+✅ APROVE quando o sinal se encaixar em A, B ou C E nenhum veto obrigatório aplicar.
 
 ANALISE AGORA E RETORNE APENAS O JSON:`
 
@@ -1594,6 +1597,32 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         }
       } catch (qErr) {
         console.warn('[Quality] check falhou:', (qErr as Error)?.message)
+      }
+
+      // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
+      try {
+        const gate = applyApprovalBlocks({
+          verdict: String(analysis.verdict || 'VETADO'),
+          market: analysis.market,
+          odd: Number(analysis.odd) || 0,
+          estimated_probability: Number(analysis.estimated_probability) || 0,
+          value_percentage: Number(analysis.value_percentage) || 0,
+          confidence: Number(analysis.confidence) || 0,
+          league: game.sport_title || '',
+          bookmaker: analysis.bookmaker || '',
+          data_strength: analysis.data_strength || '',
+        })
+        if (gate.demoted) {
+          console.log(`[Punter GATE] 🚫 ${game.home_team} vs ${game.away_team}: ${gate.veto_reason || gate.block_reason}`)
+        }
+        analysis.verdict = gate.verdict
+        analysis.tier = gate.block
+        analysis.tier_label = gate.tier_label
+        analysis.block_reason = gate.block_reason
+        if (gate.veto_reason) analysis.veto_reason = gate.veto_reason
+        if (gate.stake_percentage > 0) analysis.stake_percentage = gate.stake_percentage
+      } catch (gateErr) {
+        console.warn('[Punter GATE] erro (mantendo verdict original):', (gateErr as Error)?.message)
       }
 
       console.log(`[Mycroft Punter] ${game.home_team} vs ${game.away_team}: ${analysis.verdict} | Model: ${analysis.model_level} | Value: ${analysis.value_percentage}% | EV: ${analysis.expected_value} | AI: anthropic${exchangeSnapshot ? ` | EX edge: ${exchangeSnapshot.edge_pp?.toFixed?.(2)}pp` : ''}`)
