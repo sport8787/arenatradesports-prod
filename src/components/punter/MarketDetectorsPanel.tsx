@@ -34,7 +34,6 @@ export default function MarketDetectorsPanel() {
   const [marketData, setMarketData] = useState<MarketAnalysis[]>([]);
   const [sharpData, setSharpData] = useState<SharpSignal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -48,28 +47,6 @@ export default function MarketDetectorsPanel() {
     setMarketData((mRes.data as any[]) || []);
     setSharpData((sRes.data as any[]) || []);
     setLoading(false);
-  }
-
-  async function runScan() {
-    setScanning(true);
-    try {
-      const [mmdRes, sharpRes] = await Promise.all([
-        supabase.functions.invoke('market-manipulation-detector', { body: {} }),
-        supabase.functions.invoke('sharp-money-detector', { body: {} }),
-      ]);
-      if (mmdRes.error) throw mmdRes.error;
-      if (sharpRes.error) throw sharpRes.error;
-      
-      const mmdData = mmdRes.data;
-      const sharpDataRes = sharpRes.data;
-      
-      toast.success(`Scan concluído: ${mmdData?.suspicious_count || 0} suspeitos, ${sharpDataRes?.steam_count || 0} steam moves`);
-      await loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao executar scan');
-    } finally {
-      setScanning(false);
-    }
   }
 
   const misLevelConfig = (level: string | null) => {
