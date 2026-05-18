@@ -5113,6 +5113,69 @@ export type Database = {
           },
         ]
       }
+      sinais_alavanca: {
+        Row: {
+          created_at: string
+          criteria: Json
+          goals_total: number | null
+          id: string
+          kickoff: string | null
+          league: string | null
+          league_id: number | null
+          match_id: string
+          match_name: string
+          minute: number | null
+          mode: string
+          odd_under45: number | null
+          reasons: string[]
+          score: number
+          settled_at: string | null
+          settled_result: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criteria?: Json
+          goals_total?: number | null
+          id?: string
+          kickoff?: string | null
+          league?: string | null
+          league_id?: number | null
+          match_id: string
+          match_name: string
+          minute?: number | null
+          mode: string
+          odd_under45?: number | null
+          reasons?: string[]
+          score?: number
+          settled_at?: string | null
+          settled_result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criteria?: Json
+          goals_total?: number | null
+          id?: string
+          kickoff?: string | null
+          league?: string | null
+          league_id?: number | null
+          match_id?: string
+          match_name?: string
+          minute?: number | null
+          mode?: string
+          odd_under45?: number | null
+          reasons?: string[]
+          score?: number
+          settled_at?: string | null
+          settled_result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sinais_favorito_prelive: {
         Row: {
           away_team: string
