@@ -792,6 +792,10 @@ serve(async (req) => {
         min_sample: criteria.min_sample_games,
         target_approval: `${criteria.min_approval_pct}-${criteria.max_approval_pct}%`,
       },
+      real_odds_coverage_pct: approved.length > 0
+        ? round2(approved.filter(r => r.used_real_odd).length / approved.length * 100)
+        : 0,
+      real_odds_used_count: approved.filter(r => r.used_real_odd).length,
     }
 
     console.log(`[Backtest] CONCLUÍDO: ${results.length} analisados, ${approved.length} aprovados (${approvalRate.toFixed(1)}%), ${greens.length}G/${reds.length}R, ROI: ${roi.toFixed(2)}%, Banca: R$ ${bankroll.toFixed(2)}`)
