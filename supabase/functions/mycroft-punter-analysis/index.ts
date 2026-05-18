@@ -1495,7 +1495,7 @@ serve(async (req) => {
     const leagues:string[] = sport?[sport]:sports
     console.log(`[Mycroft Punter] Leagues: ${leagues.length}, Hours: ${hours_ahead}h, Corners: ${include_corners}, Cards: ${include_cards}`)
     const oddsKey=Deno.env.get('THE_ODDS_API_KEY'); if(!oddsKey) throw new Error('THE_ODDS_API_KEY not configured')
-    const apiKey=Deno.env.get('API_FOOTBALL_KEY')||''
+    const apiKey='' // API-Football removida em Fase 2 — estaduais sem odds não terão fallback (skip)
     const now=new Date(), maxT=new Date(now.getTime()+hours_ahead*36e5)
     const games:any[]=[], noOdds:string[]=[]
 
