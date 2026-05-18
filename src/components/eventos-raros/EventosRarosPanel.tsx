@@ -35,6 +35,7 @@ const PLACAR_LABEL: Record<string, { label: string; emoji: string; color: string
   LAY_2x2:     { label: "LAY 2x2",     emoji: "⚖️", color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   LAY_1x3:     { label: "LAY 1x3",     emoji: "📉", color: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
   LAY_3x1:     { label: "LAY 3x1",     emoji: "📈", color: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  BACK_0x0:    { label: "BACK 0x0",    emoji: "🔒", color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
 };
 
 interface Props {
