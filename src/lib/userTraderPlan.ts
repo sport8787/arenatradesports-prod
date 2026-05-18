@@ -264,6 +264,8 @@ export interface EvalResult {
   market_label: string;   // ex "1X2 · CASA"
   selected_odd: number | null;
   shouldShow: boolean;    // true se atende min/max minuto (para listar como elegível)
+  tier: PlanTier;         // APROVADO ou APROVADO_CONF_REDUZIDA
+  missing_stats: string[];// stats opcionais ausentes que reduziram a confiança
 }
 
 function pickOdd(lm: LiveMatch, plan: UserPlan): number | null {
