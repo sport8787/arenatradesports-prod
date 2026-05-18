@@ -791,10 +791,10 @@ export default function LiveMatchDetail() {
           {!htSignalExpired && analysis && (VERDICT_META[String(analysis.verdict).toUpperCase()]?.isActive) && (
             <div className="mt-4 mx-auto max-w-2xl rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-center">
               <p className="text-xs sm:text-sm font-orbitron uppercase tracking-wider text-yellow-400">
-                ⚠️ CUIDADO
+                ⚠️ Atenção
               </p>
               <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
-                O sinal pode ser cancelado caso o cenário mude.
+                O sinal pode ser cancelado caso o cenário do jogo mude.
               </p>
             </div>
           )}
