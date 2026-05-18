@@ -27,14 +27,15 @@ const BUCKET = "seo-static";
 
 // Queries Firecrawl: 1 por liga. Filtra últimas 24h (tbs:qdr:d). Portais BR.
 const LEAGUE_QUERIES: Array<{ slug: string; label: string; query: string }> = [
-  { slug: "brasileirao-2026", label: "Brasileirão", query: "Brasileirão 2026 análise rodada (site:globoesporte.globo.com OR site:lance.com.br OR site:espn.com.br OR site:uol.com.br)" },
-  { slug: "premier-league", label: "Premier League", query: "Premier League análise rodada (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
-  { slug: "laliga", label: "LaLiga", query: "LaLiga Espanha análise jogo (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
-  { slug: "bundesliga", label: "Bundesliga", query: "Bundesliga Alemanha análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
-  { slug: "serie-a-italia", label: "Serie A Itália", query: "Serie A Italiana análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
-  { slug: "ligue-1", label: "Ligue 1", query: "Ligue 1 França análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
-  { slug: "libertadores", label: "Libertadores", query: "Libertadores análise jogo (site:globoesporte.globo.com OR site:lance.com.br OR site:espn.com.br)" },
+  { slug: "brasileirao-2026", label: "Brasileirão", query: "Brasileirão 2026 análise rodada palpites" },
+  { slug: "premier-league", label: "Premier League", query: "Premier League análise rodada palpites em português" },
+  { slug: "laliga", label: "LaLiga", query: "LaLiga Espanha análise jogo palpites em português" },
+  { slug: "bundesliga", label: "Bundesliga", query: "Bundesliga Alemanha análise palpites em português" },
+  { slug: "serie-a-italia", label: "Serie A Itália", query: "Serie A Italiana análise palpites em português" },
+  { slug: "ligue-1", label: "Ligue 1", query: "Ligue 1 França análise palpites em português" },
+  { slug: "libertadores", label: "Libertadores", query: "Libertadores análise jogo palpites" },
 ];
+
 
 function slugify(s: string): string {
   return s
