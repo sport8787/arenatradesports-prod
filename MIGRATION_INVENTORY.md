@@ -1,7 +1,43 @@
 # Migration Inventory — Supabase / Lovable Cloud
 
 > **Status:** ❄️ Não migrar agora. Este documento existe como **seguro** para o dia em que a migração for inevitável.  
-> **Última atualização:** 10/05/2026 — após hardening pós-crash.
+> **Última atualização:** 18/05/2026 — backup schema + seed config já replicados no projeto-espelho.
+
+---
+
+## 0. Estado do projeto-espelho (backup)
+
+Projeto Supabase externo criado como cópia fria (não conectado ao app):
+
+| Item | Valor |
+|---|---|
+| Project ref espelho | `ogpohiugfkvygcejrzfp` |
+| URL | `https://ogpohiugfkvygcejrzfp.supabase.co` |
+| Senha DB | `#Sport@12167318` |
+| Connection string | `postgresql://postgres:%23Sport%4012167318@db.ogpohiugfkvygcejrzfp.supabase.co:5432/postgres` |
+
+### Já replicado (18/05/2026)
+- ✅ **Schema `public` completo:** 120 tabelas, 83 funções, 64 triggers, enum `app_role`, índices, constraints, RLS — backup em `/mnt/documents/oraculo_schema_public.sql` (392 KB)
+- ✅ **Seed de configuração v1** (`/mnt/documents/oraculo_seed.sql`):
+  - `mycroft_planos` (12), `trader_leagues` (128), `mycroft_rules` (9),
+  - `league_id_map` (24), `eventos_raros_config` (3), `under_cashout_thresholds` (0 — vazia na origem)
+- ✅ **Seed de configuração v2** (`/mnt/documents/oraculo_seed_v2.sql`):
+  - `mycroft_config` (14), `cron_settings` (5), `mycroft_memory` (45),
+  - `horus_audio_inventory` (30), `liga_mycroft_seed_users` (15), `mycroft_rules_history` (32)
+  - ❌ `user_roles` (0) — FK em `auth.users`, refazer no cutover após migrar usuários
+
+### Pendente para o cutover real (D-Day)
+1. **`auth.users` + `auth.identities`** — exportar via Supabase admin API do projeto origem
+2. **Dados de usuário (tabelas grandes):**
+   `profiles`, `user_subscriptions`, `user_bankroll`, `sports_bankroll`, `manual_bankroll`, `bc_monthly_caps`, `virtual_bets`, `virtual_bets_manual`, `bets_history`, `imported_bets`, `punter_signals`, `punter_sinais`, `punter_analyses`, `push_subscriptions`, `mycroft_chat_logs`, `user_preferences`, `user_activation_checklist`, `promo_redemptions`
+3. **Reseed `user_roles`** depois que `auth.users` estiver populado
+4. **Storage buckets** (`seo-static`, áudios Hórus, avatares) — copiar via Supabase Storage API ou rclone
+5. **Secrets das edge functions** — re-registrar manualmente (ver §2.6)
+6. **Recriar cron jobs `pg_cron`** — não vem no `pg_dump --schema-only`; recriar à mão atualizando URL `affquongjlhmusxzohjl` → `ogpohiugfkvygcejrzfp`
+7. **Atualizar triggers de notificação** (`notify_aprovado_broadcast`, `notify_punter_signal_aprovado`, `notify_punter_signal_settled`, `notify_bet_settled`) — substituir URL hardcoded
+8. **Habilitar extensões** no destino: `pg_cron`, `pg_net`, `pgcrypto`, `pg_stat_statements`
+9. **Atualizar hardcodes no frontend** (3 arquivos listados em §4.1) + `vercel.json` rewrites
+10. **Reapontar Google OAuth callback URL** no Google Cloud Console
 
 ## Por que este documento existe
 
