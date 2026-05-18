@@ -1502,6 +1502,7 @@ function analyzeWithCriteria(
     dataStrength,
     tier: matchedTier,
     stakePct: tierStake,
+    usedRealOdd: realOddsUsedForMarkets.has(market),
   }
 }
 
