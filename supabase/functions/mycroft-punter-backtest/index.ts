@@ -911,12 +911,41 @@ function* dateRangeOfSeason(season: number): Generator<string> {
   }
 }
 
-async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+/**
+ * Fetches all FT fixtures of a (league, season) from Sportmonks.
+ * Uses `sportmonks_fixtures_cache` to skip API completely on subsequent runs.
+ * Returns { fixtures, fromCache } so callers can report cache usage.
+ */
+async function fetchHistoricalFromSportmonksCached(
+  leagueKey: string,
+  season: number,
+  leagueName: string,
+  dbClient: any,
+): Promise<{ fixtures: any[]; fromCache: boolean }> {
   const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
-  if (!TOKEN) return []
+  if (!TOKEN) return { fixtures: [], fromCache: false }
+
+  // 1) Cache hit?
+  try {
+    const { data: cached } = await dbClient
+      .from('sportmonks_fixtures_cache')
+      .select('fixtures, is_complete, fetched_at')
+      .eq('league_key', leagueKey)
+      .eq('season', season)
+      .maybeSingle()
+    if (cached?.is_complete && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
+      console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cached.fixtures.length} fixtures (cached em ${cached.fetched_at})`)
+      return { fixtures: cached.fixtures, fromCache: true }
+    }
+  } catch (e) {
+    console.warn('[Backtest][SM-Cache] read failed:', (e as Error).message)
+  }
+
+  console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: buscando da API Sportmonks...`)
+  const allowedSet = new Set([leagueName])
   const fixtures: any[] = []
   let dayCount = 0
-  const MAX_DAYS = 400 // safety cap
+  const MAX_DAYS = 400
 
   for (const ymd of dateRangeOfSeason(season)) {
     if (dayCount++ >= MAX_DAYS) break
@@ -929,8 +958,8 @@ async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set
       for (const f of data) {
         const stateName = f.state?.short_name || f.state?.name || ''
         if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
-        const leagueName = f.league?.name || ''
-        const matched = leagueMatches(leagueName, allowedLeagues)
+        const lname = f.league?.name || ''
+        const matched = leagueMatches(lname, allowedSet)
         if (!matched) continue
         const participants = f.participants || []
         const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
@@ -962,10 +991,26 @@ async function fetchHistoricalFromSportmonks(season: number, allowedLeagues: Set
         })
       }
     } catch { /* skip date */ }
-    // Light pacing to respect Sportmonks rate limits
     if (dayCount % 5 === 0) await new Promise(r => setTimeout(r, 100))
   }
-  return fixtures
+
+  // 2) Persist to cache (mark complete only if scan reached today / end of season)
+  try {
+    await dbClient.from('sportmonks_fixtures_cache').upsert({
+      league_key: leagueKey,
+      season,
+      league_name: leagueName,
+      fixtures,
+      fixture_count: fixtures.length,
+      is_complete: true,
+      fetched_at: new Date().toISOString(),
+    }, { onConflict: 'league_key,season' })
+    console.log(`[Backtest][SM-Cache] SAVED ${leagueKey}/${season}: ${fixtures.length} fixtures`)
+  } catch (e) {
+    console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
+  }
+
+  return { fixtures, fromCache: false }
 }
 
 // ═══════════════════════════════════════════════
