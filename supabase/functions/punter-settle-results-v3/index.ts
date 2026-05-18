@@ -680,19 +680,16 @@ serve(async (req) => {
         return;
       }
 
-      // Mercado de escanteios sem corners ainda → busca via AF
-      if (fixtureId && fx.cornersHome == null && /escante|corner/i.test(b.market)) {
-        const c = await fetchCorners(fixtureId);
-        if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
-      }
-
+      // Escanteios / mercados de jogador via AF — desativado (Fase 2 migração).
+      // Corners agora vêm de Futodds/Sportmonks; mercados de jogador estão off.
       let res = calcularResultado(b.market, home, away, fx);
 
-      // Mercado de jogador (Marcar / Dar Assistência) → busca eventos
       if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(b.market)) {
         const events = await fetchEvents(fixtureId);
         res = resolvePlayerMarket(b.market, events);
       }
+
+
 
       if (!res) {
         unsupported++;
