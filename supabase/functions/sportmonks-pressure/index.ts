@@ -412,6 +412,10 @@ serve(async (req) => {
       timeline,
       events,
       form: { home: homeForm, away: awayForm },
+      _debugEvents,
+    };
+      events,
+      form: { home: homeForm, away: awayForm },
     };
     responseCache.set(cacheKey, { expires: Date.now() + RESPONSE_TTL_MS, payload });
 
