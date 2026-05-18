@@ -148,37 +148,27 @@ async function buscarOdds(fixtureId: string): Promise<OddMarket[] | null> {
   return data;
 }
 
-// Busca médias de gols via API-Football (fallback rápido)
-async function buscarMediaGolsFallback(teamName: string, season: number) {
-  const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
-  if (!API_FOOTBALL_KEY) return null;
+// Busca médias de gols via Sportmonks (API-Football descontinuada — Fase 2)
+async function buscarMediaGolsFallback(teamName: string, _season: number) {
   try {
-    const r = await fetch(
-      `https://v3.football.api-sports.io/teams?search=${encodeURIComponent(teamName)}`,
-      { headers: { "x-apisports-key": API_FOOTBALL_KEY } }
-    );
-    const d = await r.json();
-    const team = d.response?.[0]?.team;
+    const { smSearchTeam, getRecentFixturesSM } = await import("../_shared/sportmonks-af-adapter.ts");
+    const team = await smSearchTeam(teamName);
     if (!team) return null;
-    const fr = await fetch(
-      `https://v3.football.api-sports.io/fixtures?team=${team.id}&season=${season}&last=12&status=FT`,
-      { headers: { "x-apisports-key": API_FOOTBALL_KEY } }
-    );
-    const fd = await fr.json();
-    const fixtures = fd.response || [];
+    const fixtures = await getRecentFixturesSM(team.id, 12);
     if (fixtures.length < 5) return null;
     let scored = 0, conceded = 0;
     for (const f of fixtures) {
       const isHome = f.teams?.home?.id === team.id;
-      scored += isHome ? f.goals.home : f.goals.away;
-      conceded += isHome ? f.goals.away : f.goals.home;
+      scored += isHome ? (f.goals.home ?? 0) : (f.goals.away ?? 0);
+      conceded += isHome ? (f.goals.away ?? 0) : (f.goals.home ?? 0);
     }
     return {
       avg_scored: scored / fixtures.length,
       avg_conceded: conceded / fixtures.length,
       sample: fixtures.length,
     };
-  } catch {
+  } catch (e) {
+    console.warn("[extra-markets-SM] buscarMediaGolsFallback err:", (e as Error).message);
     return null;
   }
 }
