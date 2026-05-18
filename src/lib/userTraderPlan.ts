@@ -3,9 +3,13 @@
  * Modo paralelo: roda em cima dos jogos já carregados, no cliente.
  * Mycroft global continua aprovando os "Sinais Aprovados" — esta feature é uma
  * lista extra "Meus Sinais" baseada SOMENTE nos critérios do usuário.
+ *
+ * Persistência: salva no localStorage E sincroniza com Supabase (user_trader_plans)
+ * para que o admin possa comparar com o plano global.
  */
 
 import type { LiveMatch } from '@/hooks/useLiveMatches';
+import { supabase } from '@/integrations/supabase/client';
 
 export type UserMarket = '1x2' | 'over_under' | 'btts' | 'corners';
 export type Outcome =
