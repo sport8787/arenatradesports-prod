@@ -415,12 +415,34 @@ function evaluateFutoddsPressure(
   const market = String(pos.market || '').toLowerCase().trim();
   const minute = matchState?.minute ?? 0;
 
-  // Só roda se temos dados Futodds (pressure_total/last5min/last10min)
-  const pH = Number(stats.pressure_home);
-  const pA = Number(stats.pressure_away);
+  // Fontes 1ª/2ª: pressure_home/away (Futodds 0-100) e pressure_index_home/away (Sportmonks 0-100).
+  // Quando ambos existem, usamos o MAIOR entre eles para o lado adversário (early-warning conservador)
+  // e o MENOR para o nosso lado (não esconde fragilidade). Se só Sportmonks existir, ele substitui.
+  const pHfut = Number(stats.pressure_home);
+  const pAfut = Number(stats.pressure_away);
+  const pHsm = Number(stats.pressure_index_home ?? stats.sportmonks_pressure_home);
+  const pAsm = Number(stats.pressure_index_away ?? stats.sportmonks_pressure_away);
+  const pickAdv = (fut: number, sm: number): number => {
+    if (Number.isFinite(fut) && Number.isFinite(sm)) return Math.max(fut, sm);
+    if (Number.isFinite(fut)) return fut;
+    if (Number.isFinite(sm)) return sm;
+    return NaN;
+  };
+  const pickOur = (fut: number, sm: number): number => {
+    if (Number.isFinite(fut) && Number.isFinite(sm)) return Math.min(fut, sm);
+    if (Number.isFinite(fut)) return fut;
+    if (Number.isFinite(sm)) return sm;
+    return NaN;
+  };
+  const pH = pickAdv(pHfut, pHsm); // será reinterpretado abaixo: aqui só garantimos numeric
+  const pA = pickAdv(pAfut, pAsm);
+  const pHOur = pickOur(pHfut, pHsm);
+  const pAOur = pickOur(pAfut, pAsm);
+  const smAgreement = Number.isFinite(pHsm) && Number.isFinite(pAsm); // se Sportmonks disponível
   const last5 = stats.last5min_stats;
   const last10 = stats.last10min_stats;
   if (!Number.isFinite(pH) && !Number.isFinite(pA) && !last5 && !last10) return null;
+
 
   const scoreH = matchState?.scoreHome ?? 0;
   const scoreA = matchState?.scoreAway ?? 0;
