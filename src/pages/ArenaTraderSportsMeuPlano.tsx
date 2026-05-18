@@ -116,16 +116,42 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
             <>
               <NumberField label="xG diff mín" step={0.05} value={plan.obrigatorios.xg_diff_min}
                 onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, xg_diff_min: v } })} />
-              <NumberField label="Posse mín" suffix="%" value={plan.obrigatorios.posse_min}
+              <NumberField label="Posse mín (time)" suffix="%" value={plan.obrigatorios.posse_min}
                 onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, posse_min: v } })} />
             </>
           )}
           <NumberField
-            label={isWith1x2 ? 'Finalizações no gol mín' : 'Finalizações no gol mín (total)'}
+            label={isWith1x2 ? 'Finalizações no gol mín (time)' : 'Finalizações no gol mín (total)'}
             value={plan.obrigatorios.shots_on_target_min}
             onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, shots_on_target_min: v } })} />
         </div>
       </section>
+
+      <section className="space-y-2">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="text-xs font-mono uppercase text-primary tracking-wider">Estatísticas adicionais (opcionais)</h3>
+          <p className="text-[10px] text-muted-foreground">
+            Se algum dado vier zerado/ausente da Sportmonks/Futodds, o sinal não é vetado — vira <span className="text-warning font-medium">APROVADO · CONF. REDUZIDA</span>.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {isWith1x2 && (
+            <NumberField label="Δ Posse Casa-Visit. (mín pp)" value={plan.obrigatorios.posse_diff_min}
+              onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, posse_diff_min: v } })} />
+          )}
+          <NumberField label="Chutes totais (mín)" value={plan.obrigatorios.shots_total_min}
+            onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, shots_total_min: v } })} />
+          <NumberField label="Chutes no gol total (mín)" value={plan.obrigatorios.shots_on_target_total_min}
+            onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, shots_on_target_total_min: v } })} />
+          <NumberField label="Escanteios total (mín)" value={plan.obrigatorios.corners_total_min}
+            onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, corners_total_min: v } })} />
+          <NumberField
+            label={isWith1x2 ? 'Vermelhos no adversário (mín)' : 'Vermelhos na partida (mín)'}
+            value={plan.obrigatorios.red_cards_adv_min}
+            onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, red_cards_adv_min: v } })} />
+        </div>
+      </section>
+
 
       {isWith1x2 && (
         <section className="space-y-2">
