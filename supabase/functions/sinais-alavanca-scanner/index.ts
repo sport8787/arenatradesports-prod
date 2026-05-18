@@ -219,6 +219,16 @@ async function runLive() {
     try {
       const goals = (m.score_home ?? 0) + (m.score_away ?? 0);
       const minute = m.minute ?? 0;
+  const { data: lives } = await sb
+    .from("live_matches")
+    .select("match_id, championship, home_team, away_team, score_home, score_away, minute, status, odds_live, stats")
+    .eq("status", "live");
+
+  let inserted = 0;
+  for (const m of lives || []) {
+    try {
+      const goals = (m.score_home ?? 0) + (m.score_away ?? 0);
+      const minute = m.minute ?? 0;
       let odd: number | null = null;
       const od = (m as any).odds_live;
       if (od && typeof od === 'object') {
@@ -226,7 +236,13 @@ async function runLive() {
       }
       if (odd == null) odd = await getOddUnder45(m.match_id);
 
-      const { score, reasons, veto } = calcScoreLive({ minute, goals, odd });
+      // xG total a partir de live_matches.stats (Sportmonks/SofaScore)
+      const st = (m as any).stats || {};
+      const xgH = Number(st.xG_home ?? st.xg_home ?? 0) || 0;
+      const xgA = Number(st.xG_away ?? st.xg_away ?? 0) || 0;
+      const xgTotal = (xgH + xgA) > 0 ? (xgH + xgA) : null;
+
+      const { score, reasons, veto } = calcScoreLive({ minute, goals, odd, xgTotal });
       if (veto || score < SCORE_THRESHOLD) continue;
 
       await sb.from("sinais_alavanca").upsert({
@@ -238,7 +254,7 @@ async function runLive() {
         odd_under45: odd,
         minute,
         goals_total: goals,
-        criteria: { minute, goals, odd },
+        criteria: { minute, goals, odd, xgTotal },
         reasons,
         status: 'pending',
       }, { onConflict: 'match_id,mode' });
