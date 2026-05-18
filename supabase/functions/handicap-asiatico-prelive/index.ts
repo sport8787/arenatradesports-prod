@@ -133,47 +133,7 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, f
     } catch (e) { console.warn('[HA] Odds API erro, indo p/ fallback', e); }
   }
 
-  // Fallback via API-Football
-  try {
-    const oddsResp = await afFetch('/odds', { fixture: fixtureId });
-    if (oddsResp && oddsResp.length) {
-      let homeOdd: number | null = null, awayOdd: number | null = null;
-      const haOdds: Partial<Record<HALine, number>> = {};
-      for (const item of oddsResp) {
-        for (const bm of item.bookmakers || []) {
-          for (const bet of bm.bets || []) {
-            const name = (bet.name || '').toLowerCase();
-            if (name === 'match winner' || name === '1x2') {
-              for (const v of bet.values || []) {
-                const val = String(v.value).toLowerCase();
-                const odd = parseFloat(v.odd);
-                if ((val === 'home' || val === '1') && !homeOdd) homeOdd = odd;
-                if ((val === 'away' || val === '2') && !awayOdd) awayOdd = odd;
-              }
-            }
-            if (name.includes('asian handicap')) {
-              for (const v of bet.values || []) {
-                const m = String(v.value).match(/(home|away)\s*\(?(-?\+?\d+(?:\.\d+)?)\)?/i);
-                if (!m) continue;
-                const side = m[1].toLowerCase();
-                const num = parseFloat(m[2]);
-                const adj = side === 'away' ? -num : num;
-                const key = adj > 0 ? '+' + adj.toString() : adj.toString();
-                const lineMap: Record<string, HALine> = {
-                  '0': '0.0', '0.0': '0.0', '+0.5': '+0.5', '+0.75': '+0.75', '+1': '+1.0',
-                  '-0.5': '-0.5', '-0.75': '-0.75', '-1': '-1.0',
-                };
-                const line = lineMap[key];
-                if (line && !haOdds[line]) haOdds[line] = parseFloat(v.odd);
-              }
-            }
-          }
-          if (homeOdd && awayOdd) break;
-        }
-      }
-      if (homeOdd && awayOdd) return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
-    }
-  } catch (e) { console.error('[HA] Fallback err', e); }
+  // API-Football removida (Fase 2). Sem odds da The Odds API → sinal não gerado.
   return empty;
 }
 
