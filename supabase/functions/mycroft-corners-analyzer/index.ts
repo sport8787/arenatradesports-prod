@@ -415,26 +415,26 @@ serve(async (req) => {
   try {
     const {
       fixture_id,
-      home_team_id,
+      home_team_id,   // legado — ignorado (era AF), agora usamos só o nome
       away_team_id,
       home_team_name,
       away_team_name,
       liga,
-      linha_total = 9.5,        // linha padrão para Over/Under total
-      modo = "completo"          // "completo" | "rapido"
+      linha_total = 9.5,
+      modo = "completo"
     } = await req.json();
 
-    if (!home_team_id || !away_team_id) {
+    if (!home_team_name || !away_team_name) {
       return new Response(
-        JSON.stringify({ error: "home_team_id e away_team_id são obrigatórios" }),
+        JSON.stringify({ error: "home_team_name e away_team_name são obrigatórios (Sportmonks)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Buscar stats de ambos os times em paralelo
+    // Buscar stats de ambos os times em paralelo (Sportmonks)
     const [stats_m, stats_v] = await Promise.all([
-      buscarStatsEscanteios(home_team_id, true),
-      buscarStatsEscanteios(away_team_id, false)
+      buscarStatsEscanteios(home_team_name, true),
+      buscarStatsEscanteios(away_team_name, false)
     ]);
 
     // Fallback se API não retornar dados
