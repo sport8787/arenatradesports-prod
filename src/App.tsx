@@ -87,6 +87,7 @@ const AdminAuditoriaSinais = React.lazy(() => import("./pages/AdminAuditoriaSina
 const AdminAuditoriaSinalDetalhe = React.lazy(() => import("./pages/AdminAuditoriaSinalDetalhe"));
 const AdminAuditoriaPunter = React.lazy(() => import("./pages/AdminAuditoriaPunter"));
 const AdminMycroftChatAccessLog = React.lazy(() => import("./pages/AdminMycroftChatAccessLog"));
+const AdminAbLab = React.lazy(() => import("./pages/AdminAbLab"));
 const PunterPerformancePorMercado = React.lazy(() => import("./pages/PunterPerformancePorMercado"));
 const TraderSportsPerformancePorMercado = React.lazy(() => import("./pages/TraderSportsPerformancePorMercado"));
 
