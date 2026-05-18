@@ -35,6 +35,16 @@ export interface UserPlan {
     posse_min?: number;
     /** Finalizações no gol mínimas (1x2 → do time; OU/BTTS → totais). */
     shots_on_target_min?: number;
+    /** Diferença mínima de posse Casa - Visitante (positivo = casa domina). */
+    posse_diff_min?: number;
+    /** Chutes totais combinados (casa + visitante). */
+    shots_total_min?: number;
+    /** Chutes no gol totais combinados (casa + visitante). */
+    shots_on_target_total_min?: number;
+    /** Escanteios totais combinados (casa + visitante). */
+    corners_total_min?: number;
+    /** Mín. de cartões vermelhos no adversário (1x2). Em OU/BTTS/Corners: total na partida. */
+    red_cards_adv_min?: number;
   };
   reforco: {
     /** Diferença de ataques perigosos a favor (1x2). */
@@ -50,6 +60,9 @@ export interface UserPlan {
     veto_antes_min?: number;
   };
 }
+
+/** Tier final do sinal aprovado pelo plano pessoal. */
+export type PlanTier = 'APROVADO' | 'APROVADO_CONF_REDUZIDA';
 
 export type PlansByMarket = Partial<Record<UserMarket, UserPlan>>;
 export type PlanVisibility = 'private' | 'public';
