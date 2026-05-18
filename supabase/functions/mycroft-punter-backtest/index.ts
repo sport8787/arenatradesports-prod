@@ -106,6 +106,7 @@ interface BacktestResult {
   confidence: number
   data_strength: string
   tier: string | null
+  used_real_odd?: boolean
 }
 
 // ═══════════════════════════════════════════════
@@ -561,6 +562,19 @@ serve(async (req) => {
     const leagueAvg = calculateLeagueAverages(allFixtures)
     console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo`)
 
+    // 2b. Pre-fetch REAL pre-match odds from Sportmonks (uses cache).
+    // Only meaningful when fixtures came from Sportmonks (they carry SM fixture_id).
+    let realOddsByFixture: Map<number, Record<string, number>> = new Map()
+    if (usedSource === 'sportmonks' && Deno.env.get('SPORTMONKS_API_KEY')) {
+      const ids = allFixtures.map((f: any) => Number(f.fixture.id)).filter((n: number) => Number.isFinite(n))
+      console.log(`[Backtest] Buscando odds reais pré-jogo para ${ids.length} fixtures (Sportmonks)...`)
+      realOddsByFixture = await fetchSportmonksOddsBatch(ids, dbClient)
+      const withOdds = Array.from(realOddsByFixture.values()).filter(o => Object.keys(o).length > 0).length
+      console.log(`[Backtest] Odds reais: ${withOdds}/${ids.length} fixtures cobertas`)
+    } else {
+      console.log(`[Backtest] Odds reais NÃO disponíveis (fonte=${usedSource}). Backtest usará odds sintéticas (ROI estimado).`)
+    }
+
     // 3. Simulate game by game (NO LOOKAHEAD)
     const teamStats: Record<string, TeamCumulativeStats> = {}
     const rawAnalyses: {
@@ -581,9 +595,10 @@ serve(async (req) => {
       const awayStats = teamStats[awayTeam]
 
       if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
+        const fixRealOdds = realOddsByFixture.get(Number(fixture.fixture.id)) || {}
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
-          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets
+          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets, fixRealOdds
         )
 
         if (analysis) {
@@ -777,6 +792,10 @@ serve(async (req) => {
         min_sample: criteria.min_sample_games,
         target_approval: `${criteria.min_approval_pct}-${criteria.max_approval_pct}%`,
       },
+      real_odds_coverage_pct: approved.length > 0
+        ? round2(approved.filter(r => r.used_real_odd).length / approved.length * 100)
+        : 0,
+      real_odds_used_count: approved.filter(r => r.used_real_odd).length,
     }
 
     console.log(`[Backtest] CONCLUÍDO: ${results.length} analisados, ${approved.length} aprovados (${approvalRate.toFixed(1)}%), ${greens.length}G/${reds.length}R, ROI: ${roi.toFixed(2)}%, Banca: R$ ${bankroll.toFixed(2)}`)
@@ -844,6 +863,7 @@ function buildResult(
     confidence: analysis.confidence,
     data_strength: analysis.dataStrength,
     tier: analysis.tier,
+    used_real_odd: analysis.usedRealOdd,
   }
 }
 
@@ -997,6 +1017,135 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
   return fixtures
 }
 
+// ═══════════════════════════════════════════════
+// SPORTMONKS — REAL PRE-MATCH ODDS (1X2, O/U, BTTS)
+// Market IDs: 1=Fulltime Result, 12=Goals Over/Under, 14=Both Teams To Score
+// Cached in `sportmonks_odds_cache` to avoid re-paying API calls on reruns.
+// ═══════════════════════════════════════════════
+
+const SM_TARGET_MARKETS = '1,12,14'
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0
+  const s = [...nums].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
+}
+
+/** Parses raw Sportmonks odds array → our canonical market label → median odd. */
+function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
+  const buckets: Record<string, number[]> = {}
+  const push = (label: string, val: any) => {
+    const v = parseFloat(String(val))
+    if (!isFinite(v) || v < 1.01 || v > 50) return
+    if (!buckets[label]) buckets[label] = []
+    buckets[label].push(v)
+  }
+  for (const o of rawOdds || []) {
+    const mid = Number(o.market_id)
+    const lbl = String(o.label || '').toLowerCase().trim()
+    const val = o.value ?? o.dp3
+    if (mid === 1) {
+      // Match Winner / Fulltime Result
+      if (lbl === 'home' || lbl === '1') push('Casa', val)
+      else if (lbl === 'draw' || lbl === 'x') push('Empate', val)
+      else if (lbl === 'away' || lbl === '2') push('Fora', val)
+    } else if (mid === 12) {
+      // Goals Over/Under — total field contains the line, e.g. "2.5"
+      const total = String(o.total ?? '').trim()
+      if (total === '2.5' || total === '2.50') {
+        if (lbl === 'over') push('Over 2.5', val)
+        else if (lbl === 'under') push('Under 2.5', val)
+      } else if (total === '1.5' || total === '1.50') {
+        if (lbl === 'over') push('Over 1.5', val)
+      }
+    } else if (mid === 14) {
+      // BTTS
+      if (lbl === 'yes') push('BTTS Sim', val)
+    }
+  }
+  const agg: Record<string, number> = {}
+  for (const [label, arr] of Object.entries(buckets)) {
+    agg[label] = round2(median(arr))
+  }
+  return agg
+}
+
+/**
+ * Fetches real pre-match odds for a set of fixture IDs, using cache first.
+ * Returns Map<fixture_id, marketLabel → odd>. Missing fixtures get empty object.
+ */
+async function fetchSportmonksOddsBatch(
+  fixtureIds: number[],
+  dbClient: any,
+): Promise<Map<number, Record<string, number>>> {
+  const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
+  const result = new Map<number, Record<string, number>>()
+  if (!TOKEN || fixtureIds.length === 0) return result
+
+  // 1) Load cache
+  const uniqueIds = Array.from(new Set(fixtureIds))
+  try {
+    const { data: cached } = await dbClient
+      .from('sportmonks_odds_cache')
+      .select('fixture_id, odds')
+      .in('fixture_id', uniqueIds)
+    if (cached) {
+      for (const row of cached) {
+        result.set(Number(row.fixture_id), row.odds || {})
+      }
+    }
+  } catch (e) {
+    console.warn('[Backtest][Odds] cache read failed:', (e as Error).message)
+  }
+
+  const missing = uniqueIds.filter(id => !result.has(id))
+  console.log(`[Backtest][Odds] cache hit: ${uniqueIds.length - missing.length}/${uniqueIds.length}, fetching ${missing.length}`)
+
+  // 2) Fetch missing in parallel batches of 8
+  const CONCURRENCY = 8
+  const toInsert: any[] = []
+  for (let i = 0; i < missing.length; i += CONCURRENCY) {
+    const batch = missing.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(batch.map(async (fid) => {
+      const url = `https://api.sportmonks.com/v3/football/odds/pre-match/fixtures/${fid}?api_token=${TOKEN}&filters=markets:${SM_TARGET_MARKETS}`
+      try {
+        const res = await fetch(url)
+        if (!res.ok) return { fid, parsed: {} as Record<string, number> }
+        const json = await res.json()
+        const parsed = parseSportmonksOdds(json.data || [])
+        return { fid, parsed }
+      } catch {
+        return { fid, parsed: {} as Record<string, number> }
+      }
+    }))
+    for (const { fid, parsed } of results) {
+      result.set(fid, parsed)
+      toInsert.push({
+        fixture_id: fid,
+        odds: parsed,
+        has_real_odds: Object.keys(parsed).length > 0,
+        fetched_at: new Date().toISOString(),
+      })
+    }
+    // pacing
+    await new Promise(r => setTimeout(r, 120))
+  }
+
+  // 3) Persist to cache (upsert in chunks of 100)
+  for (let i = 0; i < toInsert.length; i += 100) {
+    try {
+      await dbClient
+        .from('sportmonks_odds_cache')
+        .upsert(toInsert.slice(i, i + 100), { onConflict: 'fixture_id' })
+    } catch (e) {
+      console.warn('[Backtest][Odds] cache upsert failed:', (e as Error).message)
+    }
+  }
+
+  return result
+}
+
 interface LeagueAverages {
   avgGoals: number
   homeWinRate: number
@@ -1092,6 +1241,7 @@ interface AnalysisResult {
   dataStrength: string
   tier: string | null
   stakePct: number
+  usedRealOdd: boolean
 }
 
 function analyzeWithCriteria(
@@ -1104,6 +1254,7 @@ function analyzeWithCriteria(
   leagueAvg: LeagueAverages,
   criteria: AnalysisCriteria,
   allowedMarkets: Set<string> = new Set(ALL_MARKETS),
+  realOdds: Record<string, number> = {},
 ): AnalysisResult | null {
 
   // ── MODEL: Poisson-based predicted probabilities ──
@@ -1167,6 +1318,16 @@ function analyzeWithCriteria(
     'Under 2.5': margin / marketUnder25,
     'Over 1.5': margin / marketOver15,
     'BTTS Sim': margin / marketBTTS,
+  }
+
+  // OVERRIDE with REAL pre-match odds from Sportmonks where available.
+  // This eliminates the synthetic-edge bias on canonical markets.
+  const realOddsUsedForMarkets = new Set<string>()
+  for (const [mk, od] of Object.entries(realOdds)) {
+    if (mk in marketOdds && od >= 1.05 && od <= 50) {
+      marketOdds[mk] = od
+      realOddsUsedForMarkets.add(mk)
+    }
   }
 
   const modelProbs: Record<string, number> = {
@@ -1361,6 +1522,7 @@ function analyzeWithCriteria(
     dataStrength,
     tier: matchedTier,
     stakePct: tierStake,
+    usedRealOdd: realOddsUsedForMarkets.has(market),
   }
 }
 
