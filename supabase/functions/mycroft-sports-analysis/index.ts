@@ -220,15 +220,43 @@ Regras de status:
 ## GESTÃO DE RISCO
 Stake: ALTO 2-3% | MÉDIO 3-4% | BAIXO 4-5%. R:R mínimo 1:1.5. Exposição máx 15%.
 
+## QUALIDADE SOBRE QUANTIDADE (REGRA CRÍTICA)
+Um único sinal forte por jogo é o PADRÃO. ROI cai quando se aprovam vários mercados no mesmo jogo. Só emita mercado adicional se ele for ESTATISTICAMENTE INDEPENDENTE do principal.
+
+### Mercados correlacionados (NUNCA aprovar juntos no mesmo momento)
+- Over 1.5 + Over 2.5 (mesmo escalonamento). Over 2.5 só após Over 1.5 já ter batido.
+- Over 0.5 HT + Over 1.5 FT (sequenciais — esperar HT bater).
+- Back dominante + Over X.5 com mesmo dominante marcando (dupla exposição na mesma tese).
+- BTTS + Over 2.5 quando a tese é o mesmo gol esperado.
+
+### Quando PODE haver mais de um sinal
+- Mercados verdadeiramente desacoplados (ex.: Under 2.5 FT + escanteios) e o principal já está em GREEN parcial.
+- Over 2.5 DIRETO (sem Over 1.5 antes) só com pressão real de AMBOS os times: xG total ≥1.5, ≥6 SOT combinados, big chances criadas, defesas do goleiro, posse equilibrada com finalização.
+
+### Sinais OPOSTOS (alerta de fechamento)
+- Se principal foi Under 2.5 e depois você aprova Over 0.5 HT / Over 1.5 FT / BTTS no mesmo jogo, isso indica VIRADA — sinalize em "alerts" que o usuário deve FECHAR o Under 2.5.
+
+## REGRA DE TEMPO (70')
+NUNCA aprovar sinal novo após o minuto 70, exceto LABAREDA. Após 70', use CUIDADO ou AGUARDAR.
+
+## PRIORIDADE DE APROVAÇÃO (ordem)
+1. Back dominante claro com pressão real (xG, SOT, big chances, posse com finalização).
+2. Over 1.5 com jogo 0-0 e critérios fortes de gol iminente.
+3. Under 2.5 no 1º tempo com jogo travado.
+4. Over 2.5 só com pressão bilateral confirmada.
+
+## LAY AO GOLEADO (regra de inversão)
+Se o time dominante LEVA o gol contra a corrida do jogo, prefira LAY ao time que marcou (em vez de insistir no Back dominante) — geralmente o dominante ainda terá chances mas o marcador surpresa raramente sustenta vantagem.
+
 ## MÚLTIPLOS MERCADOS POR JOGO
-Pode retornar até 2 mercados em "additional_markets" se tiverem fundamento independente, conf≥60% e stake máx 2% cada. Nunca opostos ao principal.
+Em "additional_markets" retorne NO MÁXIMO 1 mercado, com conf≥75%, stake máx 2%, NÃO correlacionado ao principal (ver lista acima), nunca oposto, nunca após min 70'. Quando em dúvida, devolva array vazio.
 
 ## MÓDULO SITUACIONAL (override quando JOGO_MORTO por dados insuficientes)
-S1 PRESSÃO PRÉ-GOL: min 5-35, placar 0-0/1-0, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT / Over 1.5 / Back dom (2%, conf≥65%)
-S2 PLACAR EXPRESSIVO ABERTO: min 20-60, placar ≥2-0/≥3-1, xG total≥2.0, perdedor posse≥40% → Over próximo gol / Over 3.5 / Back vencedor (2%, conf≥68%)
-S3 MATA-MATA OBRIGAÇÃO: eliminatória, time perdendo agregado, dif 1-2 → Over próximo / Back obrigado / Over 2.5 (3% se dif=1, 2% se dif=2)
-S4 ESCANTEIOS PRESSÃO: min 10-40, ≥4 escanteios e ≤1 gol, xG≥0.6 sem gol → Over X escanteios / Over 0.5 HT (2%, conf≥65%)
-Anti-abuso: máx 2 situacionais/partida, nunca após min 70.
+S1 PRESSÃO PRÉ-GOL: min 5-35, placar 0-0/1-0, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT / Over 1.5 / Back dom (2%, conf≥75%)
+S2 PLACAR EXPRESSIVO ABERTO: min 20-60, placar ≥2-0/≥3-1, xG total≥2.0, perdedor posse≥40% → Over próximo gol / Over 3.5 / Back vencedor (2%, conf≥75%)
+S3 MATA-MATA OBRIGAÇÃO: eliminatória, time perdendo agregado, dif 1-2 → Over próximo / Back obrigado / Over 2.5 (3% se dif=1, 2% se dif=2, conf≥75%)
+S4 ESCANTEIOS PRESSÃO: min 10-40, ≥4 escanteios e ≤1 gol, xG≥0.6 sem gol → Over X escanteios / Over 0.5 HT (2%, conf≥75%)
+Anti-abuso: máx 1 situacional/partida, nunca após min 70.
 `;
 
 
