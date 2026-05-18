@@ -1481,34 +1481,95 @@ serve(async (req) => {
     }
 
     // === VALIDAR ADDITIONAL_MARKETS ===
+    // Regra dura: máx 1 mercado adicional, conf≥75%, não correlacionado, não oposto,
+    // não após min 70'. Qualidade > quantidade (reduz volume e eleva ROI).
     if (analysis.additional_markets?.length > 0 && (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'LABAREDA')) {
       const bankroll = match.bankroll ?? 500;
-      const primaryMarket = analysis.market;
+      const primaryMarket = String(analysis.market || '');
+      const minNow = match.minute ?? 0;
+
+      // Helpers de correlação/oposição (mercados de gols escalonados são correlacionados)
+      const normMarket = (s: string) => String(s || '').toLowerCase().trim();
+      const isOver = (s: string) => /over\s*\d/.test(normMarket(s)) || /mais\s*\d/.test(normMarket(s));
+      const isUnder = (s: string) => /under\s*\d/.test(normMarket(s)) || /menos\s*\d/.test(normMarket(s));
+      const overLine = (s: string): number | null => {
+        const m = normMarket(s).match(/(?:over|mais|under|menos)\s*(\d+(?:\.\d+)?)/);
+        return m ? parseFloat(m[1]) : null;
+      };
+      const isBTTS = (s: string) => /ambas\s*marcam|btts|both\s*teams\s*to\s*score/i.test(s || '');
+      const isBackTeam = (s: string) => /back\s+(mandante|visitante|casa|fora|home|away)|vit[óo]ria\s+(mandante|visitante|casa|fora)/i.test(s || '');
+
+      const correlated = (primary: string, extra: string): boolean => {
+        // Mesmo mercado
+        if (normMarket(primary) === normMarket(extra)) return true;
+        // Overs/Unders escalonados (Over 1.5 vs Over 2.5 etc) — correlacionados
+        const lp = overLine(primary); const le = overLine(extra);
+        if (lp != null && le != null && ((isOver(primary) && isOver(extra)) || (isUnder(primary) && isUnder(extra)))) return true;
+        // Over linha alta + BTTS (mesma tese de gols)
+        if ((isOver(primary) && isBTTS(extra)) || (isBTTS(primary) && isOver(extra))) {
+          const line = lp ?? le ?? 0;
+          if (line >= 2.5) return true;
+        }
+        // Back time + Over (geralmente mesma tese: dominante marca)
+        if ((isBackTeam(primary) && isOver(extra)) || (isOver(primary) && isBackTeam(extra))) return true;
+        return false;
+      };
+
       analysis.additional_markets = analysis.additional_markets
         .filter((am: any) => {
-          if (!am.market || !am.odd || !am.confidence) return false;
-          if (am.confidence < 60) return false;
+          if (!am?.market || !am?.confidence) return false;
+          if (am.confidence < 75) return false; // novo limiar (era 60)
           if (am.market === primaryMarket) return false;
-          // Block opposite markets
+          // Bloqueia mercados opostos (Over X.5 vs Under X.5 da mesma linha)
           const opposites: Record<string, string> = {
             'Over 0.5 Total': 'Under 0.5 Total', 'Over 1.5 Total': 'Under 1.5 Total',
             'Over 2.5 Total': 'Under 2.5 Total', 'Over 3.5 Total': 'Under 3.5 Total',
           };
           if (opposites[am.market] === primaryMarket || opposites[primaryMarket] === am.market) return false;
+          // Bloqueia correlacionados
+          if (correlated(primaryMarket, am.market)) {
+            console.log(`[MycroftSports] 🚫 Additional bloqueado (correlacionado): "${am.market}" vs principal "${primaryMarket}"`);
+            return false;
+          }
+          // Bloqueia novos sinais após min 70 (exceto se já é LABAREDA, mas additional não é LABAREDA)
+          if (minNow >= 70) {
+            console.log(`[MycroftSports] 🚫 Additional bloqueado (min ${minNow}' ≥ 70'): "${am.market}"`);
+            return false;
+          }
           return true;
         })
-        .slice(0, 2)
+        .slice(0, 1) // máx 1 adicional (era 2)
         .map((am: any) => ({
           ...am,
           stake_percent: Math.min(am.stake_percent || 2, 2),
           stake_value: bankroll * Math.min(am.stake_percent || 2, 2) / 100,
         }));
       if (analysis.additional_markets.length > 0) {
-        console.log(`[MycroftSports] 📊 ${analysis.additional_markets.length} mercado(s) adicional(is): ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
+        console.log(`[MycroftSports] 📊 1 mercado adicional aprovado: ${analysis.additional_markets.map((m: any) => m.market).join(', ')}`);
       }
     } else {
       analysis.additional_markets = [];
     }
+
+    // === GUARDA DE TEMPO: nenhum sinal novo após min 70' (exceto LABAREDA) ===
+    {
+      const minNow = match.minute ?? 0;
+      if (
+        minNow >= 70 &&
+        (analysis.verdict === 'APROVADO' || analysis.verdict === 'APROVADO_SITUACIONAL') &&
+        analysis.verdict !== 'LABAREDA'
+      ) {
+        console.log(`[MycroftSports] ⏱️ Veto 70': ${match.home} vs ${match.away} no min ${minNow}' — ${analysis.verdict} → CUIDADO (apenas LABAREDA permitido após 70')`);
+        analysis.verdict = 'CUIDADO';
+        analysis.alerts = [
+          ...(analysis.alerts || []),
+          `⏱️ Sinal vetado por tempo: aprovações novas só até min 70' (exceto LABAREDA).`,
+        ];
+        // additional_markets já foram limpos acima quando min ≥ 70
+        analysis.additional_markets = [];
+      }
+    }
+
 
     // === BAS (Bluffer Asset Score) — composite quality score ===
     {
