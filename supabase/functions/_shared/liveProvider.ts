@@ -1,4 +1,4 @@
-// liveProvider — Futodds primário (com pressão real Betfair) → Sportmonks → API-Football fallback.
+// liveProvider — Sportmonks primário (plano Pro Advanced + Odds&Predictions) → Futodds fallback → API-Football.
 // Mantém o shape "API-Football compatível" para não quebrar consumers existentes.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -14,7 +14,7 @@ import {
 import { getFutoddsLive, extractFutoddsStats } from "./futoddsProvider.ts";
 
 const AF_BASE = "https://v3.football.api-sports.io";
-const PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
+const PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "sportmonks").toLowerCase();
 
 let _leagueMap: Map<number, number> | null = null;
 let _leagueMapAt = 0;
