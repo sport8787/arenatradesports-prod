@@ -46,24 +46,28 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
     async function fetchFresh(): Promise<PressureData | null> {
       try {
         let resp: any = null;
+        // Sportmonks PRIMEIRO (Pressure Index oficial / Trends suavizado)
         try {
-          const fu = await supabase.functions.invoke("futodds-pressure", {
+          const sm = await supabase.functions.invoke("sportmonks-pressure", {
             body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
           });
-          const fuData: any = fu.data;
-          const fuOk = !fu.error && fuData && Array.isArray(fuData.timeline) && fuData.timeline.length > 0
-            && !fuData?._futodds?.not_found;
-          if (fuOk) resp = fuData;
-        } catch { /* cai para Sportmonks */ }
+          const smData: any = sm.data;
+          if (!sm.error && smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) {
+            resp = smData;
+          }
+        } catch { /* cai para Futodds */ }
 
+        // Futodds como fallback
         if (!resp) {
           try {
-            const sm = await supabase.functions.invoke("sportmonks-pressure", {
+            const fu = await supabase.functions.invoke("futodds-pressure", {
               body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
             });
-            const smData: any = sm.data;
-            if (smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) resp = smData;
-          } catch { /* estimador local abaixo */ }
+            const fuData: any = fu.data;
+            const fuOk = !fu.error && fuData && Array.isArray(fuData.timeline) && fuData.timeline.length > 0
+              && !fuData?._futodds?.not_found;
+            if (fuOk) resp = fuData;
+          } catch { /* estimador vazio abaixo */ }
         }
 
         if (!resp) {
