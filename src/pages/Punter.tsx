@@ -2192,6 +2192,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   <>
                     <ExchangeEdgeBadge matchId={mid} market={signal.recommendation.market} className="mt-2" />
                     <SteamBadge matchId={mid} market={signal.recommendation.market} className="mt-1" />
+                    <SportmonksPredictionBadge
+                      mycroftProbability={signal.recommendation.estimated_probability ?? null}
+                      sportmonksProbability={signal.recommendation.sportmonks_probability ?? null}
+                      divergencePp={signal.recommendation.sportmonks_divergence_pp ?? null}
+                      sherlockAlert={signal.recommendation.sherlock_alert ?? false}
+                      className="mt-1"
+                    />
                   </>
                 );
               })()}
