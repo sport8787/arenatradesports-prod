@@ -997,6 +997,135 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
   return fixtures
 }
 
+// ═══════════════════════════════════════════════
+// SPORTMONKS — REAL PRE-MATCH ODDS (1X2, O/U, BTTS)
+// Market IDs: 1=Fulltime Result, 12=Goals Over/Under, 14=Both Teams To Score
+// Cached in `sportmonks_odds_cache` to avoid re-paying API calls on reruns.
+// ═══════════════════════════════════════════════
+
+const SM_TARGET_MARKETS = '1,12,14'
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0
+  const s = [...nums].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
+}
+
+/** Parses raw Sportmonks odds array → our canonical market label → median odd. */
+function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
+  const buckets: Record<string, number[]> = {}
+  const push = (label: string, val: any) => {
+    const v = parseFloat(String(val))
+    if (!isFinite(v) || v < 1.01 || v > 50) return
+    if (!buckets[label]) buckets[label] = []
+    buckets[label].push(v)
+  }
+  for (const o of rawOdds || []) {
+    const mid = Number(o.market_id)
+    const lbl = String(o.label || '').toLowerCase().trim()
+    const val = o.value ?? o.dp3
+    if (mid === 1) {
+      // Match Winner / Fulltime Result
+      if (lbl === 'home' || lbl === '1') push('Casa', val)
+      else if (lbl === 'draw' || lbl === 'x') push('Empate', val)
+      else if (lbl === 'away' || lbl === '2') push('Fora', val)
+    } else if (mid === 12) {
+      // Goals Over/Under — total field contains the line, e.g. "2.5"
+      const total = String(o.total ?? '').trim()
+      if (total === '2.5' || total === '2.50') {
+        if (lbl === 'over') push('Over 2.5', val)
+        else if (lbl === 'under') push('Under 2.5', val)
+      } else if (total === '1.5' || total === '1.50') {
+        if (lbl === 'over') push('Over 1.5', val)
+      }
+    } else if (mid === 14) {
+      // BTTS
+      if (lbl === 'yes') push('BTTS Sim', val)
+    }
+  }
+  const agg: Record<string, number> = {}
+  for (const [label, arr] of Object.entries(buckets)) {
+    agg[label] = round2(median(arr))
+  }
+  return agg
+}
+
+/**
+ * Fetches real pre-match odds for a set of fixture IDs, using cache first.
+ * Returns Map<fixture_id, marketLabel → odd>. Missing fixtures get empty object.
+ */
+async function fetchSportmonksOddsBatch(
+  fixtureIds: number[],
+  dbClient: any,
+): Promise<Map<number, Record<string, number>>> {
+  const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
+  const result = new Map<number, Record<string, number>>()
+  if (!TOKEN || fixtureIds.length === 0) return result
+
+  // 1) Load cache
+  const uniqueIds = Array.from(new Set(fixtureIds))
+  try {
+    const { data: cached } = await dbClient
+      .from('sportmonks_odds_cache')
+      .select('fixture_id, odds')
+      .in('fixture_id', uniqueIds)
+    if (cached) {
+      for (const row of cached) {
+        result.set(Number(row.fixture_id), row.odds || {})
+      }
+    }
+  } catch (e) {
+    console.warn('[Backtest][Odds] cache read failed:', (e as Error).message)
+  }
+
+  const missing = uniqueIds.filter(id => !result.has(id))
+  console.log(`[Backtest][Odds] cache hit: ${uniqueIds.length - missing.length}/${uniqueIds.length}, fetching ${missing.length}`)
+
+  // 2) Fetch missing in parallel batches of 8
+  const CONCURRENCY = 8
+  const toInsert: any[] = []
+  for (let i = 0; i < missing.length; i += CONCURRENCY) {
+    const batch = missing.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(batch.map(async (fid) => {
+      const url = `https://api.sportmonks.com/v3/football/odds/pre-match/fixtures/${fid}?api_token=${TOKEN}&filters=markets:${SM_TARGET_MARKETS}`
+      try {
+        const res = await fetch(url)
+        if (!res.ok) return { fid, parsed: {} as Record<string, number> }
+        const json = await res.json()
+        const parsed = parseSportmonksOdds(json.data || [])
+        return { fid, parsed }
+      } catch {
+        return { fid, parsed: {} as Record<string, number> }
+      }
+    }))
+    for (const { fid, parsed } of results) {
+      result.set(fid, parsed)
+      toInsert.push({
+        fixture_id: fid,
+        odds: parsed,
+        has_real_odds: Object.keys(parsed).length > 0,
+        fetched_at: new Date().toISOString(),
+      })
+    }
+    // pacing
+    await new Promise(r => setTimeout(r, 120))
+  }
+
+  // 3) Persist to cache (upsert in chunks of 100)
+  for (let i = 0; i < toInsert.length; i += 100) {
+    try {
+      await dbClient
+        .from('sportmonks_odds_cache')
+        .upsert(toInsert.slice(i, i + 100), { onConflict: 'fixture_id' })
+    } catch (e) {
+      console.warn('[Backtest][Odds] cache upsert failed:', (e as Error).message)
+    }
+  }
+
+  return result
+}
+
 interface LeagueAverages {
   avgGoals: number
   homeWinRate: number
