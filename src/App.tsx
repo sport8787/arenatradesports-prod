@@ -43,6 +43,7 @@ const Historico = React.lazy(() => import("./pages/Historico"));
 const BetHistory = React.lazy(() => import("./pages/BetHistory"));
 const Punter = React.lazy(() => import("./pages/Punter"));
 const PunterAnalytics = React.lazy(() => import("./pages/PunterAnalytics"));
+const PunterGateDashboard = React.lazy(() => import("./pages/PunterGateDashboard"));
 const PunterWidgets = React.lazy(() => import("./pages/PunterWidgets"));
 const PunterConfig = React.lazy(() => import("./pages/PunterConfig"));
 const PunterImport = React.lazy(() => import("./pages/PunterImport"));
@@ -156,6 +157,8 @@ const App = () => {
                 <Route path="/punter" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><Punter /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/widgets" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterWidgets /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/analytics" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAnalytics /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/gate-dashboard" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterGateDashboard /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/dashboard-gate" element={<Navigate to="/punter/gate-dashboard" replace />} />
                 <Route path="/punter/config" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterConfig /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/import" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterImport /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/betfair-real" element={<RequireSubscription><RequireArena arena="banca_real" arenaLabel="Banca Real"><PunterBetfairReal /></RequireArena></RequireSubscription>} />
