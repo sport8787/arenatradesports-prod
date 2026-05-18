@@ -19,8 +19,8 @@ const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const BASE_URL = "https://v3.football.api-sports.io";
 
-// Fonte de dados ativa (set per-request)
-let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
+// Fonte de dados: Sportmonks (API-Football descontinuada — Fase 2)
+const DATA_SOURCE: 'sportmonks' = 'sportmonks';
 
 // ════════════════════════════════════════════════════
 // BUSCAR TEAM ID POR NOME (API-Football /teams)
