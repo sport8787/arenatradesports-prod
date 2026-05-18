@@ -129,6 +129,21 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
         </div>
       </section>
 
+      {/* Conteúdo */}
+      <section>
+        <SectionLabel>Conteúdo</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <NavCard
+            onClick={() => window.open('/blog/', '_blank', 'noopener,noreferrer')}
+            icon={<Newspaper className="w-4 h-4" />}
+            iconBg="bg-primary/15"
+            iconColor="text-primary"
+            title="Blog Mycroft"
+            description="Análises de rodada, notícias e dedução fria"
+          />
+        </div>
+      </section>
+
       {/* Suporte */}
       <section>
         <SectionLabel>Suporte</SectionLabel>
