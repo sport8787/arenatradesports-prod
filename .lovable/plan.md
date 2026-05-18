@@ -1,59 +1,45 @@
-## Sinais Alavanca — Under 4.5 (juros compostos)
+## A/B Lab — Página de testes controlados antes de promover ao global
 
-Nova aba dedicada a sinais Under 4.5 (alta probabilidade, odd baixa 1.10–1.20) para o usuário aplicar juros compostos com uma fração reservada da banca real.
+Objetivo: criar `/admin/ab-lab` para rodar qualquer mudança candidata (provider de IA, prompt, regra de aprovação, threshold) em paralelo ao motor atual, registrando decisões em uma tabela isolada (`ab_decisions`) sem poluir o feed real. Promoção ao global só com evidência estatística.
 
-### O que será construído
+### Fase 1 — Backend (tabelas + RPC)
 
-1. **Página `/sinais-alavanca`** (atalhos em `/punter` e `/arena-trader-sports`)
-   - 2 seções: **Ao Vivo** e **Pré-Live (hoje/amanhã)**
-   - Cada card mostra: confronto, liga, horário/minuto, odd Under 4.5 atual, score de probabilidade, motivos da aprovação
-   - Banner explicativo no topo: "Reserve 5–10% da sua banca real. Reinvista a cada green: 100 → 110 → 121…" (sem sugerir valor absoluto)
-   - Calculadora simples de juros compostos (input: stake inicial + número de greens previstos → projeção)
+Migração SQL:
+- `ab_experiments` (id, name, hypothesis, scope `punter|trader|chats`, variant_a_config jsonb, variant_b_config jsonb, status `draft|running|paused|promoted|discarded`, started_at, ended_at, created_by, notes)
+- `ab_decisions` (id, experiment_id FK, match_id, market, variant `A|B`, verdict, probability, edge, stake, raw jsonb, created_at, settled_at, result `GREEN|RED|VOID|null`, pnl)
+- Índices: `(experiment_id, variant)`, `(experiment_id, match_id, market, variant)` unique
+- RLS: somente admins (`has_role(auth.uid(),'admin')`)
+- Trigger de espelhamento: quando `virtual_bets` (ou `punter_signals`) liquida, copia `result/pnl` para `ab_decisions` com mesmo `match_id+market`
+- RPC `ab_compute_metrics(experiment_id uuid)` → retorna por variante: total, approved, GREEN%, ROI%, stake médio, drawdown, p-value chi-quadrado entre A e B
 
-2. **Motor de seleção Under 4.5** (compartilhado live + prelive)
-   - **Critérios de aprovação** (todos opcionais, score ponderado, threshold mínimo 70):
-     - Média de gols H2H ≤ 2.8 (peso 25)
-     - Média de gols casa+fora últimos 5/10 jogos ≤ 2.8 (peso 25)
-     - % de jogos Under 4.5 do confronto direto ≥ 85% (peso 20)
-     - Odd Under 4.5 entre 1.06 e 1.25 (peso 10) — fora dessa faixa = descarta
-     - Liga com média de gols/jogo ≤ 2.7 (peso 10)
-     - Ao vivo: minuto ≥ 60 e gols totais ≤ 2 (peso adicional 20, com odd ≥ 1.04)
-   - **Vetos automáticos**:
-     - Já marcou 4+ gols → descarta
-     - Minuto ≥ 30 com 3 gols → descarta (risco real de 5º gol)
-     - Times com média ofensiva > 2.0 gols ambos os lados
-     - xG total esperado > 3.2
+### Fase 2 — Integração nas edges candidatas
 
-3. **Backend**
-   - Edge function `sinais-alavanca-scanner` (uma só, com modo `live` ou `prelive`)
-   - Cron: prelive 2x/dia (07h e 13h UTC), live a cada 3 min
-   - Tabela `sinais_alavanca` (id, match_id, match_name, league, kickoff, mode, score, odd_under45, criteria jsonb, status, settled_result, created_at)
-   - RLS: leitura pública para autenticados, escrita só service_role
-   - Liquidação automática via trigger ligando ao settlement existente (resultado final ≤ 4 gols = GREEN)
+Padrão mínimo, opt-in via parâmetro:
+- Cada edge candidata (ex.: `mycroft-punter-sportmonks` Groq, `mycroft-punter-anthropic` Gemini, futuras variações de prompt/regra) aceita `experiment_id` e `variant` no body
+- Se presente: grava em `ab_decisions` em vez de `punter_analyses/punter_signals` (zero impacto no feed real)
+- Se ausente: comportamento atual inalterado
+- Mesmo `match_id` deve poder ser analisado por A e B no mesmo experimento
 
-4. **Histórico/performance** dentro da própria aba
-   - Card de stats: total sinais 30d, % green, odd média, ROI teórico com compostagem
+Cron opcional `ab-lab-runner` (1×/dia): para cada experimento `running`, pega as N partidas do dia e dispara A e B em paralelo para a mesma amostra. Sem cron, admin pode disparar manualmente na UI.
+
+### Fase 3 — UI `/admin/ab-lab`
+
+- Lista de experimentos (status, dias rodando, nº decisões A vs B)
+- Botão "Novo Experimento": form com nome, hipótese, escopo, configs A/B (JSON livre — quem cria sabe o que está testando)
+- Detalhe do experimento: placar lado a lado (approvals, GREEN%, ROI, p-value, drawdown), tabela de divergências do dia (mesmo jogo onde A≠B), botões "Promover B → Global" / "Descartar B" / "Pausar" / "Estender N dias"
+- Histórico de experimentos encerrados
+
+Promoção é manual: o botão só registra a decisão; aplicar o config ao motor real continua sendo trabalho explícito (edge swap, atualizar prompt, etc.). Evita auto-promoção surpresa.
 
 ### Detalhes técnicos
 
-- Arquivos novos:
-  - `src/pages/SinaisAlavanca.tsx`
-  - `src/components/sinais-alavanca/AlavancaCard.tsx`
-  - `src/components/sinais-alavanca/CompoundCalculator.tsx`
-  - `supabase/functions/sinais-alavanca-scanner/index.ts`
-  - migração: tabela `sinais_alavanca` + cron + RLS
-- Arquivos editados:
-  - `src/App.tsx` (rota)
-  - `src/pages/PunterMenu.tsx` e `src/pages/ArenaTraderSports.tsx` (atalhos)
-- Fontes de dados: API-Football (estatísticas H2H + média gols + last 5/10), `arena_odds` (odd Under 4.5), `live_matches` (estado live)
-- Reutiliza padrão de `eventos_raros_prelive`/`live` (mesmo formato de scanner + persistência)
-- Liquidação reaproveita `settle-bets` (ou trigger próprio se necessário) lendo `total_goals` ≤ 4
+- Sem tocar `punter_analyses`, `punter_signals`, `virtual_bets` no fluxo A/B — tudo isolado em `ab_decisions`
+- Reaproveita a lógica de `compare_providers_metrics` do `shadow-af-comparison` (mesmo padrão estatístico)
+- p-value via chi-quadrado 2x2 (GREEN/RED × A/B) computado no Postgres
+- Mínimo recomendado exibido na UI: 80 decisões por variante antes de habilitar botão "Promover"
 
-### Comunicação ao usuário
+### Entrega desta sprint
 
-A aba deixa claro:
-- "Não é garantia — é alta probabilidade. Defina um teto (ex.: 5–10% da banca real)."
-- "Pare após 2 reds consecutivos — juros compostos amplificam perdas também."
-- Sem sugerir valor absoluto de entrada.
+Fase 1 (backend completo) + Fase 3 (UI lendo dados, criar/pausar/encerrar experimento, ver métricas e divergências). Fase 2 (integração nas edges) entra como segundo passo, edge por edge, conforme você quiser testar cada mudança — assim não mexo em produção sem necessidade.
 
-Posso seguir e implementar?
+Posso começar pela Fase 1+3 agora?
