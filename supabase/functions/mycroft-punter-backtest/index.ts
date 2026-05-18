@@ -1076,7 +1076,15 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
 // Cached in `sportmonks_odds_cache` to avoid re-paying API calls on reruns.
 // ═══════════════════════════════════════════════
 
-const SM_TARGET_MARKETS = '1,12,14'
+// Markets: 1=Fulltime Result, 12=Goals O/U, 14=BTTS, 28=Asian Handicap
+const SM_TARGET_MARKETS = '1,12,14,28'
+
+// Formats a numeric AH line to our internal label format ("AH Casa +0.5", "AH Fora -1", etc.)
+function fmtAHLabel(side: 'Casa' | 'Fora', line: number): string {
+  // Normalize: 0 → "0", positives → "+X", negatives → "-X"
+  const lineStr = line === 0 ? '0' : (line > 0 ? `+${line}` : `${line}`)
+  return `AH ${side} ${lineStr}`
+}
 
 function median(nums: number[]): number {
   if (nums.length === 0) return 0
@@ -1094,6 +1102,9 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
     if (!buckets[label]) buckets[label] = []
     buckets[label].push(v)
   }
+  // Allowed AH lines (mirror AH_LINES from backtest engine)
+  const allowedAHLines = new Set([-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1])
+
   for (const o of rawOdds || []) {
     const mid = Number(o.market_id)
     const lbl = String(o.label || '').toLowerCase().trim()
@@ -1104,7 +1115,7 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
       else if (lbl === 'draw' || lbl === 'x') push('Empate', val)
       else if (lbl === 'away' || lbl === '2') push('Fora', val)
     } else if (mid === 12) {
-      // Goals Over/Under — total field contains the line, e.g. "2.5"
+      // Goals Over/Under — total field contains the line
       const total = String(o.total ?? '').trim()
       if (total === '2.5' || total === '2.50') {
         if (lbl === 'over') push('Over 2.5', val)
@@ -1115,6 +1126,13 @@ function parseSportmonksOdds(rawOdds: any[]): Record<string, number> {
     } else if (mid === 14) {
       // BTTS
       if (lbl === 'yes') push('BTTS Sim', val)
+    } else if (mid === 28) {
+      // Asian Handicap — handicap field holds the line from this side's perspective
+      const hcRaw = String(o.handicap ?? '').trim().replace(/^\+/, '')
+      const hc = parseFloat(hcRaw)
+      if (!isFinite(hc) || !allowedAHLines.has(hc)) continue
+      if (lbl === 'home' || lbl === '1') push(fmtAHLabel('Casa', hc), val)
+      else if (lbl === 'away' || lbl === '2') push(fmtAHLabel('Fora', hc), val)
     }
   }
   const agg: Record<string, number> = {}
