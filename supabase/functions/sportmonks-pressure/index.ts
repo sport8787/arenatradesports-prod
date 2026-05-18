@@ -202,6 +202,42 @@ function buildPressureFromTrends(fixture: any, homeId: number): TimelinePoint[] 
   }));
 }
 
+// ─── xG acumulado por minuto (a partir de trends) ────────────────────
+// Retorna a curva cumulativa de xG home/away para sobrepor no gráfico
+// de pressão e explicar divergências entre pressão e placar.
+function buildXgTimeline(fixture: any, homeId: number): TimelinePoint[] {
+  const trends = fixture?.trends || [];
+  if (!Array.isArray(trends) || trends.length === 0) return [];
+  const XG_CODES = new Set(["expected-goals", "expected_goals", "xg"]);
+  const buckets = new Map<number, { home: number; away: number }>();
+  for (const t of trends) {
+    const code: string = (t.type?.developer_name || t.type?.code || t.code || "").toLowerCase();
+    if (!XG_CODES.has(code)) continue;
+    const isHome = Number(t.participant_id) === homeId;
+    const series = t.data || [];
+    for (const pt of series) {
+      const minute = Number(pt.minute);
+      const value = Number(pt.value ?? 0);
+      if (!Number.isFinite(minute)) continue;
+      if (!buckets.has(minute)) buckets.set(minute, { home: 0, away: 0 });
+      const b = buckets.get(minute)!;
+      // valores do Sportmonks já vêm cumulativos; mantém o maior visto até aqui
+      if (isHome) b.home = Math.max(b.home, value); else b.away = Math.max(b.away, value);
+    }
+  }
+  if (buckets.size === 0) return [];
+  const sorted = Array.from(buckets.entries()).sort(([a], [b]) => a - b);
+  const maxM = Math.max(90, ...sorted.map(([m]) => m));
+  let curH = 0, curA = 0;
+  const out: TimelinePoint[] = [];
+  for (let m = 0; m <= maxM; m++) {
+    const b = buckets.get(m);
+    if (b) { curH = Math.max(curH, b.home); curA = Math.max(curA, b.away); }
+    out.push({ minute: m, home: +curH.toFixed(2), away: +curA.toFixed(2) });
+  }
+  return out;
+}
+
 // Header / placar / forma / eventos
 function extractHeader(fixture: any) {
   const parts = fixture?.participants || [];
