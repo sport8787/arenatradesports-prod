@@ -4,6 +4,7 @@ import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
 import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
+import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
