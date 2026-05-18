@@ -121,8 +121,27 @@ export default function AdminPunterGateConfig() {
   const set = <K extends keyof GateConfig>(k: K, v: GateConfig[K]) =>
     setCfg(prev => prev ? { ...prev, [k]: v } : prev);
 
+  const errors = useMemo<Record<string, string>>(() => {
+    if (!cfg) return {};
+    const r = gateSchema.safeParse(cfg);
+    if (r.success) return {};
+    const map: Record<string, string> = {};
+    for (const issue of r.error.issues) {
+      const key = String(issue.path[0] ?? '_');
+      if (!map[key]) map[key] = issue.message;
+    }
+    return map;
+  }, [cfg]);
+
+  const errorList = Object.entries(errors);
+  const hasErrors = errorList.length > 0;
+
   const handleSave = async () => {
     if (!cfg) return;
+    if (hasErrors) {
+      toast.error(`Corrija ${errorList.length} erro(s) antes de salvar`);
+      return;
+    }
     setSaving(true);
     const { error } = await (supabase as any)
       .from('punter_gate_config')
@@ -152,17 +171,22 @@ export default function AdminPunterGateConfig() {
   }
   if (!cfg) return null;
 
-  const NumField = ({ k, label, step = 0.01 }: { k: keyof GateConfig; label: string; step?: number }) => (
-    <div className="space-y-1">
-      <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
-      <Input
-        type="number" step={step}
-        value={Number(cfg[k] as any) || 0}
-        onChange={(e) => set(k, Number(e.target.value) as any)}
-        className="h-8 font-mono text-xs"
-      />
-    </div>
-  );
+  const NumField = ({ k, label, step = 0.01 }: { k: keyof GateConfig; label: string; step?: number }) => {
+    const err = errors[k as string];
+    return (
+      <div className="space-y-1">
+        <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
+        <Input
+          type="number" step={step}
+          value={Number(cfg[k] as any) || 0}
+          onChange={(e) => set(k, Number(e.target.value) as any)}
+          className={`h-8 font-mono text-xs ${err ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+          aria-invalid={!!err}
+        />
+        {err && <p className="text-[10px] font-mono text-destructive">{err}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
