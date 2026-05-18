@@ -26,15 +26,53 @@ const SITE_ORIGIN = "https://oraculo-mycroft.com";
 const BUCKET = "seo-static";
 
 // Queries Firecrawl: 1 por liga. Filtra últimas 24h (tbs:qdr:d). Portais BR.
-const LEAGUE_QUERIES: Array<{ slug: string; label: string; query: string }> = [
-  { slug: "brasileirao-2026", label: "Brasileirão", query: "Brasileirão 2026 análise rodada palpites" },
-  { slug: "premier-league", label: "Premier League", query: "Premier League análise rodada palpites em português" },
-  { slug: "laliga", label: "LaLiga", query: "LaLiga Espanha análise jogo palpites em português" },
-  { slug: "bundesliga", label: "Bundesliga", query: "Bundesliga Alemanha análise palpites em português" },
-  { slug: "serie-a-italia", label: "Serie A Itália", query: "Serie A Italiana análise palpites em português" },
-  { slug: "ligue-1", label: "Ligue 1", query: "Ligue 1 França análise palpites em português" },
-  { slug: "libertadores", label: "Libertadores", query: "Libertadores análise jogo palpites" },
+// Whitelist site: restringe ao Globoesporte/ESPN/Lance/UOL/Gazeta/Goal/CNN para evitar agregadores e YouTube.
+const ALLOWED_DOMAINS = [
+  "ge.globo.com",
+  "globoesporte.globo.com",
+  "espn.com.br",
+  "lance.com.br",
+  "uol.com.br",
+  "gazetaesportiva.com",
+  "goal.com",
+  "cnnbrasil.com.br",
+  "trivela.com.br",
+  "placar.abril.com.br",
 ];
+
+const BLOCKED_DOMAINS = [
+  "youtube.com",
+  "youtu.be",
+  "tiktok.com",
+  "instagram.com",
+  "facebook.com",
+  "twitter.com",
+  "x.com",
+  "reddit.com",
+  "wikipedia.org",
+];
+
+const SITE_FILTER = ALLOWED_DOMAINS.map((d) => `site:${d}`).join(" OR ");
+
+const LEAGUE_QUERIES: Array<{ slug: string; label: string; query: string }> = [
+  { slug: "brasileirao-2026", label: "Brasileirão", query: `Brasileirão 2026 análise rodada palpites (${SITE_FILTER})` },
+  { slug: "premier-league", label: "Premier League", query: `Premier League análise rodada palpites (${SITE_FILTER})` },
+  { slug: "laliga", label: "LaLiga", query: `LaLiga Espanha análise jogo palpites (${SITE_FILTER})` },
+  { slug: "bundesliga", label: "Bundesliga", query: `Bundesliga Alemanha análise palpites (${SITE_FILTER})` },
+  { slug: "serie-a-italia", label: "Serie A Itália", query: `Serie A Italiana análise palpites (${SITE_FILTER})` },
+  { slug: "ligue-1", label: "Ligue 1", query: `Ligue 1 França análise palpites (${SITE_FILTER})` },
+  { slug: "libertadores", label: "Libertadores", query: `Libertadores Conmebol análise jogo palpites (${SITE_FILTER})` },
+];
+
+function isAllowedUrl(u: string): boolean {
+  try {
+    const host = new URL(u).hostname.toLowerCase().replace(/^www\./, "");
+    if (BLOCKED_DOMAINS.some((b) => host === b || host.endsWith(`.${b}`))) return false;
+    return ALLOWED_DOMAINS.some((a) => host === a || host.endsWith(`.${a}`));
+  } catch {
+    return false;
+  }
+}
 
 
 function slugify(s: string): string {
