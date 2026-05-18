@@ -107,7 +107,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
 
 /**
  * Normaliza um mercado para uma chave curta usada no filtro
