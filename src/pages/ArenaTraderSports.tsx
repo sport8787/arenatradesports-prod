@@ -36,6 +36,7 @@ import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
+import MeusSinaisPanel from '@/components/arena-trader/MeusSinaisPanel';
 import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 
 
@@ -529,6 +530,10 @@ export default function ArenaTraderSports() {
                 <Sparkles className="w-4 h-4 mr-1" />
                 Eventos Raros
               </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/meu-plano')}>
+                <Sparkles className="w-4 h-4 mr-1" />
+                Meu Plano
+              </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
                 Performance
@@ -553,6 +558,9 @@ export default function ArenaTraderSports() {
 
         {/* Active Positions */}
         {isAdvanced && <ActivePositions />}
+
+        {/* Meus Sinais (plano pessoal do usuário, roda no cliente) */}
+        <MeusSinaisPanel />
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
