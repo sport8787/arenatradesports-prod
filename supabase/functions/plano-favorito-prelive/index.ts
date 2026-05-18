@@ -23,8 +23,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Fonte de dados ativa: 'api-football' (default) ou 'sportmonks' (admin opt-in)
-let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football'
+// Fonte de dados: Sportmonks (API-Football descontinuada — Fase 2)
+const DATA_SOURCE: 'sportmonks' = 'sportmonks'
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
