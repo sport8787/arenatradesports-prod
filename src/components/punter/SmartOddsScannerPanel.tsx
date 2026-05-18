@@ -1,26 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { smartOddsScannerService, type ScanResult } from '@/services/smartOddsScannerService';
-import { Search, RefreshCw, ExternalLink } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 export default function SmartOddsScannerPanel() {
   const [result, setResult] = useState<ScanResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function scanLive() {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await smartOddsScannerService.scanLive('soccer');
-      setResult(data);
-    } catch (e: any) {
-      setError(e.message || 'Erro no scan');
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await smartOddsScannerService.scanLive('soccer');
+        if (!cancelled) setResult(data);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Erro ao carregar scan');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const opportunities = result?.opportunities || [];
 
@@ -31,14 +35,10 @@ export default function SmartOddsScannerPanel() {
           <Search className="w-4 h-4 text-primary" />
           <span className="font-mono text-xs font-bold text-foreground">SMART ODDS SCANNER</span>
         </div>
-        <button
-          onClick={scanLive}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-mono rounded-lg transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-          {loading ? 'ESCANEANDO...' : 'SCAN CROSS-BOOK'}
-        </button>
+        {loading && (
+          <span className="text-[10px] font-mono text-muted-foreground">CARREGANDO...</span>
+        )}
+
       </div>
 
       {error && <p className="text-[10px] text-destructive font-mono">{error}</p>}

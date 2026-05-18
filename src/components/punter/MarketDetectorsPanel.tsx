@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, TrendingDown, Zap, Shield, Activity, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Zap, Shield, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 
 interface MarketAnalysis {
   id: string;
@@ -35,7 +34,6 @@ export default function MarketDetectorsPanel() {
   const [marketData, setMarketData] = useState<MarketAnalysis[]>([]);
   const [sharpData, setSharpData] = useState<SharpSignal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -49,28 +47,6 @@ export default function MarketDetectorsPanel() {
     setMarketData((mRes.data as any[]) || []);
     setSharpData((sRes.data as any[]) || []);
     setLoading(false);
-  }
-
-  async function runScan() {
-    setScanning(true);
-    try {
-      const [mmdRes, sharpRes] = await Promise.all([
-        supabase.functions.invoke('market-manipulation-detector', { body: {} }),
-        supabase.functions.invoke('sharp-money-detector', { body: {} }),
-      ]);
-      if (mmdRes.error) throw mmdRes.error;
-      if (sharpRes.error) throw sharpRes.error;
-      
-      const mmdData = mmdRes.data;
-      const sharpDataRes = sharpRes.data;
-      
-      toast.success(`Scan concluído: ${mmdData?.suspicious_count || 0} suspeitos, ${sharpDataRes?.steam_count || 0} steam moves`);
-      await loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao executar scan');
-    } finally {
-      setScanning(false);
-    }
   }
 
   const misLevelConfig = (level: string | null) => {
@@ -105,20 +81,7 @@ export default function MarketDetectorsPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Scan button */}
-      <button
-        onClick={runScan}
-        disabled={scanning}
-        className={cn(
-          "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-mono font-bold transition-all",
-          scanning
-            ? "border-primary/30 bg-primary/5 text-primary cursor-wait"
-            : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-        )}
-      >
-        {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-        {scanning ? 'SCANNING MMD + SHARP MONEY...' : 'EXECUTAR SCAN AUTOMÁTICO'}
-      </button>
+      {/* Scan automático roda via cron — sem botão manual */}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

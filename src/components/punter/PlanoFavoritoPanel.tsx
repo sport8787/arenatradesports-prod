@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Crown, Loader2, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
+import { Crown, Loader2, RefreshCw, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
 
 interface SinalFavorito {
   id: string;
@@ -40,10 +38,8 @@ function StatusChip({ label, status, score }: { label: string; status: string | 
 }
 
 export default function PlanoFavoritoPanel() {
-  const { isAdmin } = useAdmin();
   const [signals, setSignals] = useState<SinalFavorito[]>([]);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,27 +69,6 @@ export default function PlanoFavoritoPanel() {
     load();
   }, [load]);
 
-  const handleRun = async () => {
-    setRunning(true);
-    const t = toast.loading('Disparando análise Plano Favorito...', {
-      description: 'Buscando jogos e calculando scores. Pode levar 1-3 min.',
-    });
-    try {
-      const { data, error } = await supabase.functions.invoke('plano-favorito-prelive', {
-        body: { data_source: 'sportmonks' },
-      });
-      if (error) throw error;
-      toast.success(`Análise concluída — ${data?.aprovados ?? 0} aprovados`, {
-        id: t,
-        description: `Analisados: ${data?.analisados ?? 0} · Notificados: ${data?.notificados ?? 0}`,
-      });
-      await load();
-    } catch (err: any) {
-      toast.error('Erro ao rodar análise', { id: t, description: err?.message ?? String(err) });
-    } finally {
-      setRunning(false);
-    }
-  };
 
   return (
     <section className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
@@ -113,19 +88,6 @@ export default function PlanoFavoritoPanel() {
           <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-7 sm:h-8 px-2">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          {isAdmin && (
-            <Button
-              size="sm"
-              onClick={handleRun}
-              disabled={running}
-              className="h-7 sm:h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
-            >
-              {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              <span className="text-[10px] sm:text-[11px] font-mono font-bold">
-                {running ? 'Analisando...' : 'Rodar (Admin)'}
-              </span>
-            </Button>
-          )}
         </div>
       </div>
 
@@ -137,11 +99,9 @@ export default function PlanoFavoritoPanel() {
         <div className="rounded-md border border-dashed border-border/60 p-5 text-center">
           <TrendingUp className="w-6 h-6 mx-auto text-muted-foreground/60 mb-1.5" />
           <p className="text-xs text-muted-foreground">Nenhum sinal aprovado nas próximas horas.</p>
-          {isAdmin && (
-            <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
-              Use "Rodar análise" para buscar agora.
-            </p>
-          )}
+          <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
+            Análise automática roda via cron.
+          </p>
         </div>
       ) : (
         <ul className="space-y-2">
