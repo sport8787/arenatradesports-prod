@@ -31,6 +31,8 @@ export default function MatchPressureModal({
     open ? { home, away, commenceTime } : { home: "", away: "" },
     30000,
   );
+  const [showXg, setShowXg] = useState(false);
+  const hasXg = (data?.xgTimeline?.length ?? 0) > 0;
 
   const headerHome = data?.header.home.name || home;
   const headerAway = data?.header.away.name || away;
