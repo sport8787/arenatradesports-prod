@@ -523,40 +523,60 @@ serve(async (req) => {
           console.warn('[AnalyzeLive] Falha ao buscar mercados já aprovados:', (e as Error)?.message);
         }
 
-        const analysisRes = await fetch(
-          `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseAnonKey}`,
-            },
-            body: JSON.stringify({
-              match: {
-                home: match.home_team,
-                away: match.away_team,
-                scoreHome: match.score_home ?? 0,
-                scoreAway: match.score_away ?? 0,
-                minute: match.minute ?? 0,
-                period: match.period ?? '',
-                championship: match.championship,
-                match_id: match.match_id,
-                stats: enrichedStats,
-                bankroll: bankroll ?? 500,
-                existingApprovedMarkets,
-                punterPreliveAnalyses,
-              },
-            }),
-          }
-        );
+        const matchPayload = {
+          match: {
+            home: match.home_team,
+            away: match.away_team,
+            scoreHome: match.score_home ?? 0,
+            scoreAway: match.score_away ?? 0,
+            minute: match.minute ?? 0,
+            period: match.period ?? '',
+            championship: match.championship,
+            match_id: match.match_id,
+            stats: enrichedStats,
+            bankroll: bankroll ?? 500,
+            existingApprovedMarkets,
+            punterPreliveAnalyses,
+          },
+        };
 
-        if (!analysisRes.ok) {
-          const errText = await analysisRes.text();
-          console.error(`[AnalyzeLive] Mycroft failed for ${match.match_id}:`, errText);
-          continue;
+        let analysis: any = null;
+        let usedFallback = false;
+        try {
+          const analysisRes = await fetch(
+            `${supabaseUrl}/functions/v1/mycroft-sports-analysis`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify(matchPayload),
+            }
+          );
+
+          if (!analysisRes.ok) {
+            const errText = await analysisRes.text();
+            console.error(`[AnalyzeLive] Mycroft deterministic failed for ${match.match_id}:`, errText);
+            analysis = await callGrokFallback(matchPayload);
+            usedFallback = !!analysis;
+          } else {
+            analysis = await analysisRes.json();
+          }
+        } catch (err) {
+          console.error(`[AnalyzeLive] Mycroft deterministic threw for ${match.match_id}:`, (err as Error)?.message);
+          analysis = await callGrokFallback(matchPayload);
+          usedFallback = !!analysis;
         }
 
-        const analysis = await analysisRes.json();
+        if (!analysis) {
+          console.error(`[AnalyzeLive] Sem análise (deterministic+grok falharam) para ${match.match_id}, pulando`);
+          continue;
+        }
+        if (usedFallback) {
+          analysis.ai_engine = 'grok-fallback';
+          console.log(`[AnalyzeLive] ⚠️ Fallback Grok usado para ${match.match_id}`);
+        }
         console.log(`[AnalyzeLive] Verdict for ${match.match_id}: ${analysis.verdict} (${analysis.confidence}%)`);
 
         // ========== VETO TEMPORAL POR MERCADO (server-side guard) ==========
