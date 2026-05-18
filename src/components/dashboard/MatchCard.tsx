@@ -104,23 +104,23 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'CUIDADO':
       return {
         bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
-        label: '⚠️ CUIDADO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
+        label: '🟡 NÃO ENTRE — OBSERVANDO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
       };
     case 'JOGO_MORTO':
       return {
         bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
-        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
+        label: '💀 SEM CHANCE — NÃO ENTRE', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'VETADO':
     case 'no_value':
       return {
         bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
-        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
+        label: '💀 SEM CHANCE — NÃO ENTRE', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'AGUARDAR':
       return {
         bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
-        label: '⏳ AGUARDAR', animate: '', icon: <Clock className="w-4 h-4" />,
+        label: '⏳ AINDA SEM SINAL', animate: '', icon: <Clock className="w-4 h-4" />,
       };
     case 'analyzing':
       return {
@@ -393,8 +393,8 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                 </div>
               )}
               {match.confidence != null && (
-                <div className="flex items-center justify-end gap-1">
-                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Confiança</span>
+                <div className="flex items-center justify-end gap-1" title="Força estatística do sinal. 70% ou mais = entrada recomendada. Abaixo disso, Mycroft só observa.">
+                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Força do sinal</span>
                   <span className="text-xs font-orbitron font-bold text-white tabular-nums">
                     {Math.round(Number(match.confidence))}%
                   </span>
@@ -506,12 +506,12 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
               )}
               {effectiveStatus === 'CUIDADO' && (
                 <span className="font-orbitron text-[#FBBF24]">
-                  ⚠️ Fator de risco ativo
+                  ⚠️ Cenário ainda não favorável — não entre agora
                 </span>
               )}
               {(effectiveStatus === 'JOGO_MORTO' || effectiveStatus === 'VETADO' || effectiveStatus === 'no_value') && (
                 <span className="font-orbitron text-[#A8A29E]">
-                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade (${criteriaMet}/5)`}
+                  {vetoSummary ? `💀 ${vetoSummary}` : `Sem oportunidade neste jogo (${criteriaMet}/5 critérios)`}
                 </span>
               )}
               {effectiveStatus === 'EXPIRADO' && (

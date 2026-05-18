@@ -95,8 +95,8 @@ const VERDICT_META: Record<string, { icon: string; label: string; tone: string; 
   APROVADO_SITUACIONAL: { icon: '✅', label: 'APROVADO • CONF. REDUZIDA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
   opportunity: { icon: '✅', label: 'OPORTUNIDADE ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
   LABAREDA: { icon: '🔥', label: 'APROVADO LABAREDAS — ALTO RISCO', tone: 'border-orange-500/40 bg-orange-500/10 text-orange-400', isActive: true },
-  CUIDADO: { icon: '⚠️', label: 'AGUARDAR — CUIDADO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
-  AGUARDAR: { icon: '⏳', label: 'AGUARDANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  CUIDADO: { icon: '🟡', label: 'NÃO ENTRE — OBSERVANDO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
+  AGUARDAR: { icon: '⏳', label: 'AINDA SEM SINAL', tone: 'border-border bg-muted/20 text-muted-foreground' },
   analyzing: { icon: '🧠', label: 'ANALISANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
   JOGO_MORTO: { icon: '🛑', label: 'JOGO MORTO', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
   VETADO: { icon: '⛔', label: 'ENTRADA CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
@@ -744,8 +744,8 @@ export default function LiveMatchDetail() {
                 </Badge>
               )}
               {analysis.confidence != null && (
-                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')}>
-                  Confiança {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')} title="Força estatística do sinal. 70% ou mais = entrada recomendada.">
+                  Força {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
                 </Badge>
               )}
             </div>
@@ -791,10 +791,10 @@ export default function LiveMatchDetail() {
           {!htSignalExpired && analysis && (VERDICT_META[String(analysis.verdict).toUpperCase()]?.isActive) && (
             <div className="mt-4 mx-auto max-w-2xl rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-center">
               <p className="text-xs sm:text-sm font-orbitron uppercase tracking-wider text-yellow-400">
-                ⚠️ CUIDADO
+                ⚠️ Atenção
               </p>
               <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
-                O sinal pode ser cancelado caso o cenário mude.
+                O sinal pode ser cancelado caso o cenário do jogo mude.
               </p>
             </div>
           )}
