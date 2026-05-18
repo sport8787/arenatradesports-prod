@@ -191,9 +191,11 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
 export default function ArenaTraderSportsMeuPlano() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<PlansByMarket>(() => loadUserPlans());
+  const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());
   const [tab, setTab] = useState<UserMarket>('1x2');
 
   useEffect(() => { saveUserPlans(plans); }, [plans]);
+  useEffect(() => { savePlanVisibility(visibility); }, [visibility]);
 
   const current = plans[tab] ?? DEFAULT_PLANS[tab]!;
 
