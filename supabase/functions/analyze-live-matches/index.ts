@@ -918,6 +918,79 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        // ========== PREMATCH CONTEXT (lineups + formations + injuries) ==========
+        // Aplica hints (Item 3+4): boost/veto em Over/Under/BACK baseado em desfalques
+        // chave e formação. Só roda se há sm_fixture_id (apurado por Sportmonks).
+        // Cacheado por 6h por match_id na tabela prematch_context_cache.
+        try {
+          const smFixtureId = (match as any).sm_fixture_id
+            ?? (enrichedStats as any).sm_fixture_id
+            ?? null;
+          if (smFixtureId && activeVerdicts.includes(analysis.verdict)) {
+            const ctxRes = await supabase.functions.invoke('sportmonks-prematch-context', {
+              body: { match_id: match.match_id, sm_fixture_id: smFixtureId },
+            });
+            const ctx = ctxRes?.data?.context;
+            if (ctx?.hints) {
+              const mktKey = normalizeMarketKey(String(analysis.market || ''));
+              const isUnder = /under|menos/i.test(mktKey);
+              const isOver = /over|mais/i.test(mktKey);
+              const isBackHome = /back\s+casa|1x2.*home|vitoria.*casa|back\s+1\b/i.test(mktKey);
+              const isBackAway = /back\s+fora|1x2.*away|vitoria.*fora|back\s+2\b/i.test(mktKey);
+
+              // VETO BACK quando time tem atacante + goleiro chave fora
+              if ((isBackHome && ctx.hints.vetoBack?.home) || (isBackAway && ctx.hints.vetoBack?.away)) {
+                console.log(`[AnalyzeLive] 🚫 PREMATCH VETO BACK: ${ctx.hints.vetoBack.reason}`);
+                analysis.verdict = 'AGUARDAR';
+                analysis.plan_name = null;
+                const note = `[PREMATCH VETO] ${ctx.hints.vetoBack.reason}.`;
+                analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                analysis.thesis = note + ' ' + (analysis.thesis || '');
+              } else {
+                // Boost/penalty (em pp) sobre confidence
+                let delta = 0;
+                const reasons: string[] = [];
+                if (isUnder && ctx.hints.underBoost) {
+                  delta += ctx.hints.underBoost;
+                  reasons.push(`underBoost ${ctx.hints.underBoost > 0 ? '+' : ''}${ctx.hints.underBoost}pp`);
+                }
+                if (isOver && ctx.hints.overBoost) {
+                  delta += ctx.hints.overBoost;
+                  reasons.push(`overBoost ${ctx.hints.overBoost > 0 ? '+' : ''}${ctx.hints.overBoost}pp`);
+                }
+                // Desfalques chave também afetam Over (atacante fora reduz over)
+                if (isOver && (ctx.missingKey?.home?.striker || ctx.missingKey?.away?.striker)) {
+                  delta -= 4;
+                  reasons.push('atacante chave fora (-4pp)');
+                }
+                if (delta !== 0) {
+                  const before = Number(analysis.confidence ?? 0);
+                  const after = Math.max(0, Math.min(95, before + delta));
+                  analysis.confidence = after;
+                  const missingNames = [
+                    ...(ctx.missingKey?.home?.names || []).map((n: string) => `${n} (casa)`),
+                    ...(ctx.missingKey?.away?.names || []).map((n: string) => `${n} (fora)`),
+                  ].slice(0, 4);
+                  const note = `[PREMATCH] ${reasons.join(' • ')} → ${before}→${after}%${missingNames.length ? ` | desfalques: ${missingNames.join(', ')}` : ''}`;
+                  analysis.alerts = Array.isArray(analysis.alerts) ? [...analysis.alerts, note] : [note];
+                  console.log(`[AnalyzeLive] 📋 ${note} (${match.home_team} vs ${match.away_team})`);
+                  // Se ficou muito baixo, rebaixa
+                  if (after < 50 && analysis.verdict !== 'AGUARDAR') {
+                    analysis.verdict = 'AGUARDAR';
+                    analysis.plan_name = null;
+                    analysis.thesis = `[PREMATCH] confidence pós-ajuste ${after}% < 50%. ` + (analysis.thesis || '');
+                  }
+                }
+              }
+            }
+          }
+        } catch (preCtxErr) {
+          console.warn('[AnalyzeLive] prematch-context falhou:', (preCtxErr as Error)?.message);
+        }
+        // ====================================================================
+
+
+
 
 
         // ─── CALIBRATION FLOOR (Trader) ───────────────────────────────────
