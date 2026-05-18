@@ -83,15 +83,36 @@ export default function Ciclos() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
 
   const handleStart = async () => {
-    const total = parseFloat(totalBankroll);
-    const pct = parseFloat(isolatedPct);
-    if (!total || total <= 0) { toast.error('Banca total inválida'); return; }
-    if (!pct || pct <= 0 || pct > 10) { toast.error('Fração isolada deve ser entre 0,1% e 10%'); return; }
     setStarting(true);
-    const { error } = await supabase.rpc('start_cycle_method' as any, { p_total: total, p_pct: pct });
+    let error: any;
+    if (setupMode === 'horus') {
+      const bankroll = parseFloat(horusBankroll);
+      if (!bankroll || bankroll <= 0) { setStarting(false); toast.error('Banca inválida'); return; }
+      ({ error } = await supabase.rpc('start_horus_pilot_cycle' as any, { p_bankroll: bankroll, p_mode: horusMode }));
+    } else {
+      const total = parseFloat(totalBankroll);
+      const pct = parseFloat(isolatedPct);
+      if (!total || total <= 0) { setStarting(false); toast.error('Banca total inválida'); return; }
+      if (!pct || pct <= 0 || pct > 10) { setStarting(false); toast.error('Fração isolada deve ser entre 0,1% e 10%'); return; }
+      ({ error } = await supabase.rpc('start_cycle_method' as any, { p_total: total, p_pct: pct }));
+    }
     setStarting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success('Método dos Ciclos iniciado');
+    toast.success(setupMode === 'horus' ? '🤖 Hórus Pilota ativado — banca independente' : 'Método dos Ciclos iniciado');
+    load();
+  };
+
+  const handleTogglePilot = async (enabled: boolean, mode?: 'assisted' | 'simulated') => {
+    const { error } = await supabase.rpc('toggle_horus_pilot' as any, { p_enabled: enabled, p_mode: mode ?? null });
+    if (error) { toast.error(error.message); return; }
+    toast.success(enabled ? 'Hórus Pilota ATIVO' : 'Hórus Pilota PAUSADO');
+    load();
+  };
+
+  const handleResumePilot = async () => {
+    const { error } = await supabase.rpc('resume_horus_pilot' as any);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Auto-vínculo retomado');
     load();
   };
 
