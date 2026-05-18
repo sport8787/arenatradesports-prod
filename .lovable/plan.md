@@ -64,12 +64,14 @@ Remover o degrau "API-Football" do `resolveFixtureForSettlement`. Nova ordem:
 2. ✅ **Bloco 5** (settlement) — Futodds → Sportmonks → Odds API.
 3. ✅ **Bloco 1** (cards via Sportmonks) — `getTeamCardsAvgSM` adicionado ao adapter; edge migrada.
 4. ✅ **Bloco 2** (players desativado).
-5. ⏳ **Bloco 7** (limpeza + remover secret) — pendente; ainda há refs em:
-   `update-live-scores`, `get-widget-key`, `live-provider-compare`, `mycroft-punter-backtest`,
-   `settle-bets` (resíduo), `mycroft-punter-anthropic`, `plano-favorito-prelive`,
-   `mycroft-corners-punter`, `mycroft-punter-analysis`, `mycroft-sports-analysis`,
-   `punter-settle-results`, `fetch-live-matches`, `fetch-daily-odds`,
-   `eventos-raros-live`, `eventos-raros-prelive`, `evaluate-cashout`.
+5. ✅ **Bloco 7** (varredura) — todas as 16 edges restantes foram neutralizadas:
+   - **0 reads** de `Deno.env.get('API_FOOTBALL_KEY')` no projeto inteiro.
+   - 5 URLs literais `api-sports.io` permanecem em código MORTO (apiKey vazia → early-return), em:
+     `mycroft-punter-backtest`, `fetch-daily-odds`, `eventos-raros-live`, `eventos-raros-prelive`, `live-provider-compare`.
+   - **Pendente migração real (não bloqueia remoção do secret):**
+     `eventos-raros-prelive` e `eventos-raros-live` precisam de port completo para Sportmonks (hoje retornam 0 candidatos).
+   - **Frontend:** página `/punter/widgets` retornará 410 (widgets AF descontinuados) — avaliar remoção do menu.
+6. ⏳ **Próximo passo:** remover o secret `API_FOOTBALL_KEY` via `delete_secret`.
 
 ---
 
