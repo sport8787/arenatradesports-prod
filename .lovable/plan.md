@@ -59,12 +59,17 @@ Remover o degrau "API-Football" do `resolveFixtureForSettlement`. Nova ordem:
 
 ---
 
-## Ordem de execução (proposta)
-1. **Blocos 3 + 4** (AH + Alavanca) — baixo risco, adapter pronto, ~30min.
-2. **Bloco 5** (settlement) — limpa fallback AF, deixa Sportmonks no comando, ~20min.
-3. **Bloco 1** (cards via Sportmonks) — média complexidade, requer testar `getTeamStatsSM`, ~45min.
-4. **Bloco 2** (desativar players) — trivial, ~10min.
-5. **Bloco 7** (limpeza + remover secret) — após validar tudo em produção por 24-48h.
+## Ordem de execução (status)
+1. ✅ **Blocos 3 + 4** (AH + Alavanca) — migrados.
+2. ✅ **Bloco 5** (settlement) — Futodds → Sportmonks → Odds API.
+3. ✅ **Bloco 1** (cards via Sportmonks) — `getTeamCardsAvgSM` adicionado ao adapter; edge migrada.
+4. ✅ **Bloco 2** (players desativado).
+5. ⏳ **Bloco 7** (limpeza + remover secret) — pendente; ainda há refs em:
+   `update-live-scores`, `get-widget-key`, `live-provider-compare`, `mycroft-punter-backtest`,
+   `settle-bets` (resíduo), `mycroft-punter-anthropic`, `plano-favorito-prelive`,
+   `mycroft-corners-punter`, `mycroft-punter-analysis`, `mycroft-sports-analysis`,
+   `punter-settle-results`, `fetch-live-matches`, `fetch-daily-odds`,
+   `eventos-raros-live`, `eventos-raros-prelive`, `evaluate-cashout`.
 
 ---
 

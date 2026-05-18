@@ -1,12 +1,13 @@
 // Edge Function: mycroft-cards-punter
-// Análise híbrida de mercado de CARTÕES
-// 1) Calcula média estatística via API-Football (últimos 8 jogos)
-// 2) Tenta odds via The Odds API (mercado totals/cards quando disponível)
+// Análise híbrida de mercado de CARTÕES (migrado para Sportmonks — Fase 2)
+// 1) Calcula média estatística via Sportmonks (últimos 10 jogos finalizados)
+// 2) Tenta odds via The Odds API (mercado cards_totals quando disponível)
 // 3) Se não há odd → salva como sinal informativo (verdict APROVADO_SITUACIONAL)
 // 4) Se há odd e edge ≥ 4% → APROVADO normal
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { smSearchTeam, getTeamCardsAvgSM } from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,9 +17,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
 const ODDS_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
-const BASE = "https://v3.football.api-sports.io";
 
 const TIME_GUARD_MS = 100_000;
 const MAX_GAMES = 25;
@@ -34,75 +33,17 @@ interface Game {
 }
 
 // ═════════════════════════════════════════════════════
-// Buscar team ID
+// Buscar team via Sportmonks
 // ═════════════════════════════════════════════════════
 async function findTeam(name: string) {
-  if (!API_KEY) return null;
-  try {
-    const r = await fetch(`${BASE}/teams?search=${encodeURIComponent(name)}`, {
-      headers: { "x-apisports-key": API_KEY },
-    });
-    const d = await r.json();
-    return d.response?.[0]?.team || null;
-  } catch {
-    return null;
-  }
+  return await smSearchTeam(name);
 }
 
 // ═════════════════════════════════════════════════════
-// Buscar média de cartões dos últimos N jogos
+// Média de cartões — Sportmonks
 // ═════════════════════════════════════════════════════
-async function buscarMediaCartoes(teamId: number, season: number) {
-  // Tenta temporada atual; se vazia, tenta anterior (jogos de pré-temporada/internacionais)
-  let fixtures: any[] = [];
-  for (const s of [season, season - 1]) {
-    const r = await fetch(
-      `${BASE}/fixtures?team=${teamId}&season=${s}&last=10&status=FT`,
-      { headers: { "x-apisports-key": API_KEY } },
-    );
-    const d = await r.json();
-    fixtures = d.response || [];
-    if (fixtures.length >= 3) break;
-  }
-  if (!fixtures.length) return null;
-
-  let totalCartoes = 0;
-  let totalRecebidos = 0;
-  let amostra = 0;
-
-  for (const f of fixtures) {
-    const fid = f.fixture?.id;
-    if (!fid) continue;
-    try {
-      const sr = await fetch(`${BASE}/fixtures/statistics?fixture=${fid}`, {
-        headers: { "x-apisports-key": API_KEY },
-      });
-      const sd = await sr.json();
-      const teams = sd.response || [];
-      let jogoTotal = 0;
-      let recebido = 0;
-      for (const t of teams) {
-        const yc = t.statistics?.find((s: any) => s.type === "Yellow Cards");
-        const rc = t.statistics?.find((s: any) => s.type === "Red Cards");
-        const ycN = parseInt(yc?.value || "0") || 0;
-        const rcN = parseInt(rc?.value || "0") || 0;
-        jogoTotal += ycN + rcN;
-        if (t.team?.id === teamId) recebido = ycN + rcN;
-      }
-      totalCartoes += jogoTotal;
-      totalRecebidos += recebido;
-      amostra++;
-    } catch {
-      continue;
-    }
-  }
-
-  if (amostra < 3) return null;
-  return {
-    avg_total_jogo: totalCartoes / amostra,
-    avg_recebidos: totalRecebidos / amostra,
-    sample: amostra,
-  };
+async function buscarMediaCartoes(teamId: number) {
+  return await getTeamCardsAvgSM(teamId, 10);
 }
 
 // ═════════════════════════════════════════════════════
@@ -273,7 +214,6 @@ serve(async (req) => {
   try {
     const games = await buscarJogos();
     console.log(`[cards] ${games.length} jogos para analisar`);
-    const season = new Date().getFullYear();
     let aprovados = 0, informativos = 0;
 
     for (const g of games) {
@@ -290,8 +230,8 @@ serve(async (req) => {
         if (!th || !ta) continue;
 
         const [mh, ma] = await Promise.all([
-          buscarMediaCartoes(th.id, season),
-          buscarMediaCartoes(ta.id, season),
+          buscarMediaCartoes(th.id),
+          buscarMediaCartoes(ta.id),
         ]);
         if (!mh || !ma) continue;
 

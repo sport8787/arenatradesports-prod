@@ -326,6 +326,60 @@ export async function getCornersForFixtureSM(fixtureId: number, teamId: number):
 }
 
 // =============================================================================
+// 5b) CARDS AVG — média de cartões (amarelos+vermelhos) por jogo
+// Usa fixtures recentes com include=statistics; type_id 84=yellow, 83=red.
+// Retorna { avg_total_jogo, avg_recebidos, sample } ou null.
+// =============================================================================
+export async function getTeamCardsAvgSM(
+  teamId: number,
+  last = 10,
+): Promise<{ avg_total_jogo: number; avg_recebidos: number; sample: number } | null> {
+  if (!TOKEN) return null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const since = new Date(Date.now() - 240 * 86400_000).toISOString().slice(0, 10);
+    const url = smUrl(`/football/fixtures/between/${since}/${today}/${teamId}`, {
+      include: "participants;state;statistics",
+      per_page: "100",
+    });
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const list = (j.data || []).filter(isFinished);
+    list.sort((a: any, b: any) => new Date(b.starting_at).getTime() - new Date(a.starting_at).getTime());
+    const slice = list.slice(0, last);
+    if (slice.length < 3) return null;
+
+    let totalJogo = 0;
+    let recebidos = 0;
+    let sample = 0;
+    for (const f of slice) {
+      const stats = f.statistics || [];
+      if (!stats.length) continue;
+      let jogo = 0;
+      let meu = 0;
+      for (const s of stats) {
+        if (s.type_id !== 84 && s.type_id !== 83) continue;
+        const v = Number(s?.data?.value ?? 0) || 0;
+        jogo += v;
+        if (Number(s.participant_id) === teamId) meu += v;
+      }
+      totalJogo += jogo;
+      recebidos += meu;
+      sample++;
+    }
+    if (sample < 3) return null;
+    return {
+      avg_total_jogo: totalJogo / sample,
+      avg_recebidos: recebidos / sample,
+      sample,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
 // 6) LIVE STATS por nome de time — usado pelo analyze-live-matches
 // Busca o fixture LIVE pelos nomes dos times e retorna xG/shots/possession/corners
 // no formato consumido pelo enrichedStats. Retorna null se não encontrado.
