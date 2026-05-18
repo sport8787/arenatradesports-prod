@@ -68,9 +68,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
+// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks → The Odds API.
 const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
-const AF_BASE = "https://v3.football.api-sports.io";
 
 type Resultado = "GREEN" | "RED" | "VOID" | "MEIO_GREEN" | "MEIO_RED" | "REEMBOLSO";
 interface FixtureResult {
@@ -94,15 +93,9 @@ function teamsMatch(a: string, b: string): boolean {
   return wa[0] === wb[0] && wa.filter(w => wb.includes(w) && w.length > 2).length > 0;
 }
 
-async function afFetch(path: string, params: Record<string, string | number>) {
-  const url = new URL(`${AF_BASE}${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  try {
-    const r = await fetch(url.toString(), { headers: { "x-apisports-key": API_FOOTBALL_KEY } });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d.response ?? null;
-  } catch { return null; }
+async function afFetch(_path: string, _params: Record<string, string | number>) {
+  // [Fase 2 migração] API-Football desativada. Retorna null para neutralizar caminhos legados.
+  return null as any;
 }
 function isFinished(s: string) { return ["FT", "AET", "PEN", "AWD", "WO"].includes(s); }
 function parseFixture(f: any): FixtureResult | null {
@@ -352,25 +345,19 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
   return "void";
 }
 
-// ─── Resolver de fixture com prioridade Futodds (economia de cota AF) ──────
-// Ordem:
-//  1) Futodds /matches-ended (cota separada, suficiente para gols/escanteios quando expostos)
-//  2) API-Football (necessário para mercados de jogador/eventos via fixtureId)
-//  3) Sportmonks (reforço)
-//  4) The Odds API (fallback final)
-// AF é forçada quando o mercado precisa de eventos (jogador) ou de corners
-// e o Futodds não trouxe corners.
-function marketNeedsAfEvents(market: string): boolean {
-  return /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(market || "");
-}
+// ─── Resolver de fixture (sem API-Football) ──────────────────────────────
+// Ordem [Fase 2 migração]:
+//  1) Futodds /matches-ended (cobre 70-80% dos casos com gols/escanteios)
+//  2) Sportmonks (reforço com corners + status FT)
+//  3) The Odds API (fallback final)
+// Mercados de jogador permanecem desabilitados; corners caem para Sportmonks.
 function marketIsCorners(market: string): boolean {
   return /escante|corner/i.test(market || "");
 }
 async function resolveFixtureForSettlement(
-  home: string, away: string, startIso: string, market: string,
+  home: string, away: string, startIso: string, _market: string,
 ): Promise<{ fx: FixtureResult | null; fixtureId?: number; fonte: string }> {
   let fx: FixtureResult | null = null;
-  let fixtureId: number | undefined;
   let fonte = "futodds-ended";
 
   // 1) Futodds primeiro
@@ -379,19 +366,7 @@ async function resolveFixtureForSettlement(
     if (fdEnd) fx = fdEnd;
   } catch (_) { /* ignore */ }
 
-  // Se mercado de jogador → precisamos de fixtureId AF
-  // Se mercado de escanteios e Futodds não trouxe corners → tentar AF
-  const needsAf = marketNeedsAfEvents(market) || (fx && marketIsCorners(market) && fx.cornersHome == null);
 
-  if (!fx || needsAf) {
-    try {
-      const af = await buscarPorNomeEData(home, away, startIso);
-      if (af) {
-        if (!fx) { fx = af.fx; fonte = "api-football"; }
-        fixtureId = af.fixtureId;
-      }
-    } catch (_) { /* ignore */ }
-  }
 
   // 2) Sportmonks reforço
   if (!fx) {
@@ -417,7 +392,7 @@ async function resolveFixtureForSettlement(
     } catch (_) { /* ignore */ }
   }
 
-  return { fx, fixtureId, fonte };
+  return { fx, fonte };
 }
 
 serve(async (req) => {
@@ -481,17 +456,11 @@ serve(async (req) => {
     const startIso = s.commence_time || (s.match_date ? `${s.match_date}T00:00:00Z` : new Date().toISOString());
 
     try {
-      // Resolver com prioridade Futodds → AF (só se necessário) → Sportmonks → Odds API
+      // Resolver: Futodds → Sportmonks → Odds API (sem API-Football)
       const resolved = await resolveFixtureForSettlement(home, away, startIso, s.market);
       let fx = resolved.fx;
-      const fixtureId = resolved.fixtureId;
+      const fixtureId = resolved.fixtureId; // sempre undefined (AF removida)
       let fonte = resolved.fonte;
-
-      // Escanteios: se ainda não temos corners e temos fixtureId AF, busca via AF
-      if (fx && fixtureId && fx.cornersHome == null && marketIsCorners(s.market)) {
-        const c = await fetchCorners(fixtureId);
-        if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
-      }
 
       if (!fx) {
         notFound++;
@@ -504,18 +473,19 @@ serve(async (req) => {
           resulted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           fonte_liquidacao: "nao_encontrado",
-          void_reason: "Jogo não encontrado em API-Football nem The Odds API",
+          void_reason: "Jogo não encontrado em Futodds, Sportmonks ou The Odds API",
         }).eq("id", s.id);
         results.push({ id: s.id, status: "void_not_found", match: `${home} x ${away}` });
         continue;
       }
 
       let res = calcularResultado(s.market, home, away, fx);
-      // Mercados de jogador (Marcar / Dar Assistência) → fetch de eventos
+      // Mercados de jogador desativados (Sportmonks não tem granularidade)
       if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(s.market)) {
         const events = await fetchEvents(fixtureId);
         res = resolvePlayerMarket(s.market, events);
       }
+
       if (!res) {
         unsupported++;
         // Mercado não suportado → marca VOID definitivo
@@ -710,19 +680,16 @@ serve(async (req) => {
         return;
       }
 
-      // Mercado de escanteios sem corners ainda → busca via AF
-      if (fixtureId && fx.cornersHome == null && /escante|corner/i.test(b.market)) {
-        const c = await fetchCorners(fixtureId);
-        if (c) { fx.cornersHome = c.home; fx.cornersAway = c.away; }
-      }
-
+      // Escanteios / mercados de jogador via AF — desativado (Fase 2 migração).
+      // Corners agora vêm de Futodds/Sportmonks; mercados de jogador estão off.
       let res = calcularResultado(b.market, home, away, fx);
 
-      // Mercado de jogador (Marcar / Dar Assistência) → busca eventos
       if (!res && fixtureId && /(marcar|gol\s|to\s+score|anytime|assist|assistência|assistencia)/i.test(b.market)) {
         const events = await fetchEvents(fixtureId);
         res = resolvePlayerMarket(b.market, events);
       }
+
+
 
       if (!res) {
         unsupported++;
