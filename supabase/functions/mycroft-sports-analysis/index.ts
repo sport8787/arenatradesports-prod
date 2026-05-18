@@ -790,12 +790,12 @@ serve(async (req) => {
     }
 
     // === PROMOÇÃO CUIDADO → APROVADO_SITUACIONAL ===
-    // CUIDADO com fundamento sólido (confiança ≥ 65% e mercado definido) vira sinal ativo
-    // com stake conservador (2%). Evita acumular jogos com tese clara sem nunca emitir sinal.
+    // CUIDADO com fundamento sólido (confiança ≥ 75% e mercado definido) vira sinal ativo
+    // com stake conservador (2%). Limiar elevado de 65% → 75% para reduzir volume e elevar ROI.
     if (
       analysis.verdict === 'CUIDADO' &&
       typeof analysis.confidence === 'number' &&
-      analysis.confidence >= 65 &&
+      analysis.confidence >= 75 &&
       typeof analysis.market === 'string' &&
       analysis.market.length > 0 &&
       analysis.market !== 'N/A'
@@ -806,7 +806,7 @@ serve(async (req) => {
         analysis.risk_management.stake_percent = Math.min(2, analysis.risk_management.stake_percent ?? 2);
       }
       analysis.alerts = [...(analysis.alerts || []),
-        `🔼 Promovido de CUIDADO para APROVADO_SITUACIONAL — stake reduzido a 2% por fatores de risco residuais.`,
+        `🔼 Promovido de CUIDADO para APROVADO_SITUACIONAL — stake reduzido a 2% (limiar 75%).`,
       ];
     }
 
