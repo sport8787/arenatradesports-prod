@@ -9,6 +9,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { smSearchTeam, getRecentFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY") ?? "";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -30,16 +30,17 @@ function calcularCV(valores: number[]): number {
   return Math.sqrt(variancia) / media;
 }
 
-async function fetchFixtures(teamId: number, season: number): Promise<any[]> {
-  if (!API_FOOTBALL_KEY) return [];
+// Sportmonks-based: resolve team by name then fetch last 20 FT fixtures (AF-compatible shape)
+async function fetchFixtures(teamName: string): Promise<any[]> {
   try {
-    const r = await fetch(
-      `https://v3.football.api-sports.io/fixtures?team=${teamId}&season=${season}&last=20`,
-      { headers: { "x-apisports-key": API_FOOTBALL_KEY } },
-    );
-    const j = await r.json();
-    return j?.response ?? [];
-  } catch {
+    const team = await smSearchTeam(teamName);
+    if (!team) {
+      console.warn(`[sherlock] time não encontrado no Sportmonks: ${teamName}`);
+      return [];
+    }
+    return await getRecentFixturesSM(team.id, 20);
+  } catch (e) {
+    console.warn(`[sherlock] fetchFixtures err: ${(e as Error).message}`);
     return [];
   }
 }
