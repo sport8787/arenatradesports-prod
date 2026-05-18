@@ -555,7 +555,7 @@ serve(async (req) => {
   try {
     if (!ODDS_KEY) throw new Error("THE_ODDS_API_KEY missing");
     if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
-    if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY missing");
+    if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
 
     const body = await req.json().catch(() => ({}));
     const sports: string[] = body.sports || [
