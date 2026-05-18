@@ -87,6 +87,13 @@ const LINKS: AdminLink[] = [
   },
   // Análise
   {
+    to: '/admin/ab-lab',
+    label: 'A/B Lab',
+    description: 'Testar mudanças (provider, prompt, regra) em paralelo antes de promover ao global.',
+    icon: <Search className="h-4 w-4" />,
+    group: 'Análise',
+  },
+  {
     to: '/admin/auditoria-sinais',
     label: 'Auditoria de Sinais (Trader Live)',
     description: 'Inspeção minuto-a-minuto de cada análise ao vivo do Mycroft.',
