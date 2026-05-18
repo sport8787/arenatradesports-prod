@@ -298,7 +298,7 @@ export default function AdminMetricasConversao() {
             </section>
 
             <EmailSequenceReport />
-            <LiveProviderCompare />
+            {/* LiveProviderCompare removido — API-Football descontinuada (Fase 1) */}
             <FutoddsProbe />
 
             <section>
