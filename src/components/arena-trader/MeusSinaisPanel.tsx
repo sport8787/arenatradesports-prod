@@ -115,8 +115,19 @@ export default function MeusSinaisPanel() {
       </div>
 
       {hits.length === 0 ? (
-        <div className="px-4 py-3 text-[12px] text-muted-foreground">
-          Nenhum jogo ao vivo atende seus critérios neste momento.
+        <div className="px-4 py-4 space-y-2">
+          <p className="text-sm font-medium text-foreground">
+            ⏳ Ainda não há sinais aprovados pelo seu plano.
+          </p>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            O Mycroft está varrendo {matches.filter(m => (m.status === 'live' || m.status === 'halftime') && !(m.match_id || '').startsWith('sim_')).length} jogo(s) ao vivo agora.
+            Nenhum atendeu aos critérios de {activeMarkets.map((m) => MARKET_LABEL[m]).join(', ')} que você definiu.
+          </p>
+          <ul className="text-[11px] text-muted-foreground list-disc pl-4 space-y-0.5">
+            <li>A lista atualiza sozinha a cada 30s — basta deixar aberta.</li>
+            <li>Se estiver muito restritivo, ajuste os limites em <button onClick={() => navigate('/arena-trader-sports/meu-plano')} className="text-primary hover:underline">Meu Plano</button>.</li>
+            <li>Critérios menos rígidos = mais sinais (alguns como "conf. reduzida").</li>
+          </ul>
         </div>
       ) : (
         <div className="divide-y divide-border">
