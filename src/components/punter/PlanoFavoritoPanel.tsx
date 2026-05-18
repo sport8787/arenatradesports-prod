@@ -69,27 +69,6 @@ export default function PlanoFavoritoPanel() {
     load();
   }, [load]);
 
-  const handleRun = async () => {
-    setRunning(true);
-    const t = toast.loading('Disparando análise Plano Favorito...', {
-      description: 'Buscando jogos e calculando scores. Pode levar 1-3 min.',
-    });
-    try {
-      const { data, error } = await supabase.functions.invoke('plano-favorito-prelive', {
-        body: { data_source: 'sportmonks' },
-      });
-      if (error) throw error;
-      toast.success(`Análise concluída — ${data?.aprovados ?? 0} aprovados`, {
-        id: t,
-        description: `Analisados: ${data?.analisados ?? 0} · Notificados: ${data?.notificados ?? 0}`,
-      });
-      await load();
-    } catch (err: any) {
-      toast.error('Erro ao rodar análise', { id: t, description: err?.message ?? String(err) });
-    } finally {
-      setRunning(false);
-    }
-  };
 
   return (
     <section className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
