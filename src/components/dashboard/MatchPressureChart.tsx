@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Loader2, AlertTriangle } from "lucide-react";
@@ -20,6 +20,7 @@ export interface PressureData {
   source: "pressure" | "trends";
   header: PressureHeader;
   timeline: PressurePoint[];
+  xgTimeline?: PressurePoint[];
   events: PressureEvent[];
   form: PressureForm;
 }
