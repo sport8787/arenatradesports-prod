@@ -492,7 +492,7 @@ export default function ArenaTraderSports() {
             <WhatsAppSupportButton />
             <TraderViewModeToggle />
             {isAdvanced && isAdmin && <LiveCronToggle />}
-            {isAdvanced && isAdmin && <ShadowAfCronToggle />}
+            {/* ShadowAfCronToggle removido — API-Football descontinuada (Fase 1) */}
             {/* View toggle */}
             {isAdvanced && (
               <div className="flex items-center border border-border rounded-lg overflow-hidden">
@@ -636,7 +636,8 @@ export default function ArenaTraderSports() {
                   Simulado
                 </TabsTrigger>
               )}
-              {isAdvanced && isAdmin && (
+              {/* Aba "Aprovados (AF)" removida — API-Football descontinuada (Fase 1) */}
+              {false && isAdvanced && isAdmin && (
                 <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
                   <FlaskConical className="w-3 h-3" />
                   Aprovados (AF)
