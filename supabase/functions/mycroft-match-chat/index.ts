@@ -53,11 +53,11 @@ serve(async (req) => {
 
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
-    const AI_KEY = GEMINI_API_KEY;
-    const AI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-    const AI_MODEL = "gemini-2.5-flash";
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    const AI_KEY = GROQ_API_KEY;
+    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
+    const AI_MODEL = "llama-3.3-70b-versatile";
 
     // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
     let userId: string | null = null;
