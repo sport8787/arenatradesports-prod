@@ -133,21 +133,23 @@ interface ChartProps {
 }
 
 export function MatchPressureChart({ data, height = 220, showAxis = true, showEvents = true }: ChartProps) {
-  // Normaliza pra timeline contínua 0..max
+  // Timeline contínua + suavização extra (média móvel 3') e espelhamento.
   const series = useMemo(() => {
     if (!data.timeline.length) return [];
     const max = Math.max(90, ...data.timeline.map((p) => p.minute));
     const map = new Map(data.timeline.map((p) => [p.minute, p]));
-    const out: Array<{ minute: number; home: number; awayNeg: number }> = [];
+    const raw: Array<{ minute: number; home: number; away: number }> = [];
     for (let m = 0; m <= max; m++) {
       const p = map.get(m);
-      out.push({
-        minute: m,
-        home: p?.home ?? 0,
-        awayNeg: p ? -p.away : 0,
-      });
+      raw.push({ minute: m, home: p?.home ?? 0, away: p?.away ?? 0 });
     }
-    return out;
+    // média móvel 3'
+    return raw.map((p, i) => {
+      const slice = raw.slice(Math.max(0, i - 2), Math.min(raw.length, i + 3));
+      const home = slice.reduce((s, x) => s + x.home, 0) / slice.length;
+      const away = slice.reduce((s, x) => s + x.away, 0) / slice.length;
+      return { minute: p.minute, home: Math.round(home), awayNeg: -Math.round(away) };
+    });
   }, [data.timeline]);
 
   if (series.length === 0) {
@@ -158,49 +160,84 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
     );
   }
 
-  const HOME_COLOR = "hsl(217 91% 60%)"; // azul vibrante (estilo concorrente)
-  const AWAY_COLOR = "hsl(25 95% 55%)";  // laranja vibrante
+  const HOME_COLOR = "hsl(199 89% 60%)"; // ciano elegante
+  const AWAY_COLOR = "hsl(340 82% 62%)"; // magenta/rosa
 
   const goalEvents = showEvents ? data.events.filter((e) => e.type === "goal") : [];
   const redEvents = showEvents ? data.events.filter((e) => e.type === "red") : [];
+  const currentMinute = data.header.minute || 0;
+  const uid = useMemo(() => Math.random().toString(36).slice(2, 8), []);
+  const gradHome = `pressGradH-${uid}`;
+  const gradAway = `pressGradA-${uid}`;
 
   return (
     <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
+        <AreaChart
           data={series}
-          margin={{ top: 14, right: 8, left: 0, bottom: showAxis ? 16 : 4 }}
-          barCategoryGap={0}
-          barGap={0}
+          margin={{ top: 16, right: 12, left: 0, bottom: showAxis ? 20 : 4 }}
         >
+          <defs>
+            <linearGradient id={gradHome} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={HOME_COLOR} stopOpacity={0.75} />
+              <stop offset="100%" stopColor={HOME_COLOR} stopOpacity={0.05} />
+            </linearGradient>
+            <linearGradient id={gradAway} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor={AWAY_COLOR} stopOpacity={0.75} />
+              <stop offset="100%" stopColor={AWAY_COLOR} stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+
           {showAxis && (
             <XAxis
               dataKey="minute"
               ticks={[0, 15, 30, 45, 60, 75, 90]}
+              tickFormatter={(v) => `${v}'`}
               tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               stroke="hsl(var(--border))"
+              tickLine={false}
+              axisLine={false}
             />
           )}
           <YAxis hide domain={[-100, 100]} />
+
+          {/* eixo zero */}
           <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1} />
+          {/* intervalo */}
           <ReferenceLine
             x={45}
-            stroke="hsl(var(--muted-foreground))"
-            strokeDasharray="2 3"
-            label={showAxis ? { value: "45'", position: "insideBottom", fill: "hsl(var(--muted-foreground))", fontSize: 10 } : undefined}
+            stroke="hsl(var(--muted-foreground) / 0.4)"
+            strokeDasharray="3 4"
           />
+          {/* minuto atual com glow */}
+          {currentMinute > 0 && (
+            <ReferenceLine
+              x={currentMinute}
+              stroke="hsl(var(--primary))"
+              strokeWidth={1.5}
+              strokeDasharray="0"
+              label={showAxis ? {
+                value: `${currentMinute}'`,
+                position: "top",
+                fill: "hsl(var(--primary))",
+                fontSize: 10,
+                fontWeight: 700,
+              } : undefined}
+            />
+          )}
 
-          {/* Gols: bolinha sobre o eixo zero */}
+          {/* Eventos */}
           {goalEvents.map((ev, i) => (
             <ReferenceLine
               key={`g-${ev.minute}-${i}`}
               x={ev.minute}
-              stroke="transparent"
+              stroke={ev.side === "home" ? HOME_COLOR : AWAY_COLOR}
+              strokeOpacity={0.5}
+              strokeDasharray="2 2"
               label={{
                 value: "⚽",
-                position: "center",
-                fill: "hsl(var(--foreground))",
-                fontSize: 14,
+                position: ev.side === "home" ? "top" : "bottom",
+                fontSize: 13,
               }}
             />
           ))}
@@ -209,56 +246,59 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
               key={`r-${ev.minute}-${i}`}
               x={ev.minute}
               stroke="hsl(var(--destructive))"
-              strokeWidth={1.5}
+              strokeWidth={1.2}
               strokeDasharray="3 3"
-              label={{
-                value: "🟥",
-                position: "top",
-                fill: "hsl(var(--foreground))",
-                fontSize: 12,
-              }}
+              label={{ value: "🟥", position: "top", fontSize: 11 }}
             />
           ))}
 
-          {/* Sem stackId: cada barra ancora no zero independentemente.
-              home (positivo) sobe; awayNeg (negativo) desce — gráfico espelhado. */}
-          <Bar dataKey="home" isAnimationActive={false}>
-            {series.map((_, i) => (
-              <Cell key={`h-${i}`} fill={HOME_COLOR} />
-            ))}
-          </Bar>
-          <Bar dataKey="awayNeg" isAnimationActive={false}>
-            {series.map((_, i) => (
-              <Cell key={`a-${i}`} fill={AWAY_COLOR} />
-            ))}
-          </Bar>
+          <Area
+            type="monotone"
+            dataKey="home"
+            stroke={HOME_COLOR}
+            strokeWidth={2}
+            fill={`url(#${gradHome})`}
+            isAnimationActive={false}
+            dot={false}
+            activeDot={{ r: 3, fill: HOME_COLOR, stroke: "hsl(var(--background))", strokeWidth: 1.5 }}
+          />
+          <Area
+            type="monotone"
+            dataKey="awayNeg"
+            stroke={AWAY_COLOR}
+            strokeWidth={2}
+            fill={`url(#${gradAway})`}
+            isAnimationActive={false}
+            dot={false}
+            activeDot={{ r: 3, fill: AWAY_COLOR, stroke: "hsl(var(--background))", strokeWidth: 1.5 }}
+          />
 
           <Tooltip
-            cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
+            cursor={{ stroke: "hsl(var(--muted-foreground) / 0.4)", strokeWidth: 1, strokeDasharray: "3 3" }}
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               const home = payload.find((p) => p.dataKey === "home")?.value as number;
               const away = -(payload.find((p) => p.dataKey === "awayNeg")?.value as number);
               return (
-                <div className="rounded-md bg-popover/95 border border-border px-2 py-1.5 text-xs shadow-lg backdrop-blur-sm">
-                  <div className="font-orbitron text-[10px] text-muted-foreground mb-1">
-                    {String(label)}'
+                <div className="rounded-lg bg-popover/95 border border-border px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm">
+                  <div className="font-orbitron text-[10px] text-muted-foreground mb-1.5">
+                    Minuto {String(label)}'
+                  </div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="w-2 h-2 rounded-full" style={{ background: HOME_COLOR }} />
+                    <span className="text-foreground truncate max-w-[120px]">{data.header.home.name}</span>
+                    <span className="ml-auto font-bold tabular-nums">{Math.round(home)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-sm" style={{ background: HOME_COLOR }} />
-                    <span className="text-foreground">{data.header.home.name}</span>
-                    <span className="ml-auto font-bold">{Math.round(home)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-sm" style={{ background: AWAY_COLOR }} />
-                    <span className="text-foreground">{data.header.away.name}</span>
-                    <span className="ml-auto font-bold">{Math.round(away)}</span>
+                    <span className="w-2 h-2 rounded-full" style={{ background: AWAY_COLOR }} />
+                    <span className="text-foreground truncate max-w-[120px]">{data.header.away.name}</span>
+                    <span className="ml-auto font-bold tabular-nums">{Math.round(away)}</span>
                   </div>
                 </div>
               );
             }}
           />
-        </BarChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
