@@ -1,45 +1,86 @@
-## A/B Lab — Página de testes controlados antes de promover ao global
+# Plano de Migração — Fase 2: Remoção total da API-Football
 
-Objetivo: criar `/admin/ab-lab` para rodar qualquer mudança candidata (provider de IA, prompt, regra de aprovação, threshold) em paralelo ao motor atual, registrando decisões em uma tabela isolada (`ab_decisions`) sem poluir o feed real. Promoção ao global só com evidência estatística.
+## Objetivo
+Eliminar dependência da API-Football do projeto. Stack final: **Futodds** (placar/odds ao vivo + matches-ended) + **Sportmonks** (stats, H2H, AH, predictions, fallback de liquidação) + **The Odds API** (odds pré-live + fallback final).
 
-### Fase 1 — Backend (tabelas + RPC)
+Justificativa já validada na auditoria: Futodds cobre placar ao vivo com latência ~30-60s e Sportmonks `/livescores/inplay` com ~10-30s — AF é redundante. Settlement já roda Futodds-first em 70-80% dos casos.
 
-Migração SQL:
-- `ab_experiments` (id, name, hypothesis, scope `punter|trader|chats`, variant_a_config jsonb, variant_b_config jsonb, status `draft|running|paused|promoted|discarded`, started_at, ended_at, created_by, notes)
-- `ab_decisions` (id, experiment_id FK, match_id, market, variant `A|B`, verdict, probability, edge, stake, raw jsonb, created_at, settled_at, result `GREEN|RED|VOID|null`, pnl)
-- Índices: `(experiment_id, variant)`, `(experiment_id, match_id, market, variant)` unique
-- RLS: somente admins (`has_role(auth.uid(),'admin')`)
-- Trigger de espelhamento: quando `virtual_bets` (ou `punter_signals`) liquida, copia `result/pnl` para `ab_decisions` com mesmo `match_id+market`
-- RPC `ab_compute_metrics(experiment_id uuid)` → retorna por variante: total, approved, GREEN%, ROI%, stake médio, drawdown, p-value chi-quadrado entre A e B
+---
 
-### Fase 2 — Integração nas edges candidatas
+## Escopo por bloco
 
-Padrão mínimo, opt-in via parâmetro:
-- Cada edge candidata (ex.: `mycroft-punter-sportmonks` Groq, `mycroft-punter-anthropic` Gemini, futuras variações de prompt/regra) aceita `experiment_id` e `variant` no body
-- Se presente: grava em `ab_decisions` em vez de `punter_analyses/punter_signals` (zero impacto no feed real)
-- Se ausente: comportamento atual inalterado
-- Mesmo `match_id` deve poder ser analisado por A e B no mesmo experimento
+### Bloco 1 — Cards (Punter)
+**Arquivo:** `supabase/functions/mycroft-cards-punter/index.ts`
+- Substituir `findTeam` + `buscarMediaCartoes` (AF `/teams/search` + `/fixtures` + `/fixtures/statistics`) por `getTeamStatsSM` do `sportmonks-af-adapter.ts`.
+- Sportmonks expõe `yellowcards`/`redcards` agregados na temporada via `teams/seasons` includes. Calcular `avg_total_jogo = (homeYC+homeRC+awayYC+awayRC) / matchesPlayed`.
+- Qualidade esperada: ~70% da precisão do AF (sem detalhe por jogo, mas média de temporada é mais estável amostralmente).
+- Manter lógica de Poisson, edge ≥ 4% e `APROVADO_SITUACIONAL` quando não houver odd.
 
-Cron opcional `ab-lab-runner` (1×/dia): para cada experimento `running`, pega as N partidas do dia e dispara A e B em paralelo para a mesma amostra. Sem cron, admin pode disparar manualmente na UI.
+### Bloco 2 — Players (Punter)
+**Arquivo:** `supabase/functions/mycroft-players-punter/index.ts`
+- **Desativar permanentemente**: remover cron `punter-prelive-players-1730-brt` e marcar edge como deprecated (mantém arquivo com early-return e log de aviso).
+- Atualizar memória `extra-markets.md` removendo seção Players.
+- Realocar slot 17:30 BRT: liberar para `mycroft-extra-markets` rodar segunda passada (reanálise vespertina de DC/AH).
 
-### Fase 3 — UI `/admin/ab-lab`
+### Bloco 3 — Handicap Asiático Pré-live
+**Arquivo:** `supabase/functions/handicap-asiatico-prelive/index.ts`
+- Trocar chamadas `v3.football.api-sports.io` por helpers do `sportmonks-af-adapter.ts` (`getUpcomingSM`, `getRecentMatchesSM`, `getH2HSM`).
+- Adapter já entrega shape AF-compatível, mudança é trivial (search/replace de import + remoção de `API_KEY` guards).
 
-- Lista de experimentos (status, dias rodando, nº decisões A vs B)
-- Botão "Novo Experimento": form com nome, hipótese, escopo, configs A/B (JSON livre — quem cria sabe o que está testando)
-- Detalhe do experimento: placar lado a lado (approvals, GREEN%, ROI, p-value, drawdown), tabela de divergências do dia (mesmo jogo onde A≠B), botões "Promover B → Global" / "Descartar B" / "Pausar" / "Estender N dias"
-- Histórico de experimentos encerrados
+### Bloco 4 — Sinais Alavanca Scanner
+**Arquivo:** `supabase/functions/sinais-alavanca-scanner/index.ts`
+- Mesma migração do Bloco 3: usar `sportmonks-af-adapter.ts` para H2H + recent matches.
+- Manter lógica Under 4.5 intacta.
 
-Promoção é manual: o botão só registra a decisão; aplicar o config ao motor real continua sendo trabalho explícito (edge swap, atualizar prompt, etc.). Evita auto-promoção surpresa.
+### Bloco 5 — Settlement (limpeza)
+**Arquivos:**
+- `supabase/functions/_shared/sportmonks-af-adapter.ts`
+- `supabase/functions/punter-settle-results-v3/index.ts`
+- `supabase/functions/liquidar-sinais-ao-vivo/index.ts`
+- `supabase/functions/settle-bets/index.ts`
 
-### Detalhes técnicos
+Remover o degrau "API-Football" do `resolveFixtureForSettlement`. Nova ordem:
+1. Futodds `/matches-ended` (primário, ~70-80%)
+2. Sportmonks `getFixtureByTeamsAndDate` (fallback)
+3. The Odds API (fallback final)
 
-- Sem tocar `punter_analyses`, `punter_signals`, `virtual_bets` no fluxo A/B — tudo isolado em `ab_decisions`
-- Reaproveita a lógica de `compare_providers_metrics` do `shadow-af-comparison` (mesmo padrão estatístico)
-- p-value via chi-quadrado 2x2 (GREEN/RED × A/B) computado no Postgres
-- Mínimo recomendado exibido na UI: 80 decisões por variante antes de habilitar botão "Promover"
+### Bloco 6 — Live scores (limpeza)
+**Arquivos:** `update-live-scores/index.ts`, `fetch-live-matches/index.ts`
+- Já usam `liveProvider.ts` (Sportmonks-primário + Futodds-fallback). API-Football já foi removida do `liveProvider`. **Sem trabalho aqui**, apenas confirmar.
 
-### Entrega desta sprint
+### Bloco 7 — Limpeza geral
+- Auditar todas as edges (`rg "API_FOOTBALL_KEY|api-sports.io"`) e remover blocos mortos.
+- Remover secret `API_FOOTBALL_KEY` ao final.
+- Atualizar memórias:
+  - `settlement-futodds-first.md` — remover passo AF.
+  - `extra-markets.md` — remover Players.
+  - `cron-spread-2026-05-18.md` — atualizar slot 17:30.
+  - Criar `.lovable/memory/cleanup/api-football-removal-2026-05-18.md`.
 
-Fase 1 (backend completo) + Fase 3 (UI lendo dados, criar/pausar/encerrar experimento, ver métricas e divergências). Fase 2 (integração nas edges) entra como segundo passo, edge por edge, conforme você quiser testar cada mudança — assim não mexo em produção sem necessidade.
+---
 
-Posso começar pela Fase 1+3 agora?
+## Ordem de execução (proposta)
+1. **Blocos 3 + 4** (AH + Alavanca) — baixo risco, adapter pronto, ~30min.
+2. **Bloco 5** (settlement) — limpa fallback AF, deixa Sportmonks no comando, ~20min.
+3. **Bloco 1** (cards via Sportmonks) — média complexidade, requer testar `getTeamStatsSM`, ~45min.
+4. **Bloco 2** (desativar players) — trivial, ~10min.
+5. **Bloco 7** (limpeza + remover secret) — após validar tudo em produção por 24-48h.
+
+---
+
+## Riscos & mitigações
+- **Cards menos precisos**: aceito — média de temporada é suficiente para edge ≥ 4%.
+- **Players cego**: aceito — já estava quebrado, retiramos do feed sem perda real.
+- **Settlement sem AF**: Sportmonks cobre o gap dos 20-30% que Futodds não resolve; The Odds API segura o que sobrar.
+- **AH/Alavanca**: adapter já está em produção em outras pipelines, risco baixo.
+
+---
+
+## Entregáveis
+- 4 edges modificadas (cards, players-disable, AH, alavanca).
+- 4 edges com cleanup de fallback (settle-v3, liquidar-ao-vivo, settle-bets, adapter).
+- 1 cron removido + 1 reaproveitado.
+- 1 secret removida.
+- 4 memórias atualizadas + 1 nova.
+
+## Quer que eu comece pela ordem proposta (Bloco 3+4 primeiro)?

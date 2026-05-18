@@ -19,8 +19,7 @@ import {
   type LeagueTier,
 } from '../_shared/leaguesRegistry.ts';
 
-// Fonte de dados ativa (set per-request)
-const DATA_SOURCE: 'sportmonks' = 'sportmonks'; // API-Football descontinuada (Fase 2)
+// Fonte de dados: Sportmonks (Fase 2 — API-Football removida 18/05/2026)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,13 +28,11 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SVC_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const API_FOOTBALL_KEY = Deno.env.get('API_FOOTBALL_KEY')!;
 const ODDS_API_KEY = Deno.env.get('THE_ODDS_API_KEY') || Deno.env.get('ODDS_API_KEY') || '';
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
 const TELEGRAM_CHAT = Deno.env.get('TELEGRAM_CHAT_ID');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
-const AF_BASE = 'https://v3.football.api-sports.io';
 
 type HALine = '-1.0' | '-0.75' | '-0.5' | '0.0' | '+0.5' | '+0.75' | '+1.0';
 type HAType = 'NEGATIVO' | 'POSITIVO' | 'DNB';
@@ -62,65 +59,26 @@ async function getCachedAllowedHA() {
 }
 
 // =============================================================================
-// HELPERS API-FOOTBALL
+// HELPERS — Sportmonks via adapter
 // =============================================================================
-
-async function afFetch(path: string, params: Record<string, string | number>) {
-  const url = new URL(`${AF_BASE}${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  const r = await fetch(url.toString(), { headers: { 'x-apisports-key': API_FOOTBALL_KEY } });
-  if (!r.ok) throw new Error(`AF ${path} → ${r.status}`);
-  return (await r.json()).response;
-}
 
 async function getUpcoming(): Promise<any[]> {
   const { ids: ALLOWED } = await getCachedAllowedHA();
-  if (DATA_SOURCE === 'sportmonks') {
-    const ligasAF = Array.from(ALLOWED);
-    const sm = await getUpcomingFixturesSM(ligasAF, 25);
-    return sm.map((f) => ({
-      fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
-      league: { id: f.league.id, name: f.league.name, season: f.league.season },
-      teams: f.teams,
-    }));
-  }
-  const now = new Date();
-  const from = now.toISOString().split('T')[0];
-  const to = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
-  const fixtures: any[] = [];
-  const seen = new Set<number>();
-  for (const date of [from, to]) {
-    try {
-      const res = await afFetch('/fixtures', { date, timezone: 'America/Recife' });
-      for (const f of res) {
-        const lid = f?.league?.id;
-        const status = f?.fixture?.status?.short;
-        const ts = f?.fixture?.timestamp ? f.fixture.timestamp * 1000 : new Date(f.fixture.date).getTime();
-        if (!ALLOWED.has(lid)) continue;
-        if (status !== 'NS' && status !== 'TBD') continue;
-        if (ts < now.getTime() || ts > now.getTime() + 25 * 3600 * 1000) continue;
-        if (seen.has(f.fixture.id)) continue;
-        seen.add(f.fixture.id);
-        fixtures.push(f);
-      }
-    } catch (e) { console.error('[HA] getUpcoming err', e); }
-  }
-  console.log(`[HA] ${fixtures.length} jogos encontrados em ligas permitidas (A+B)`);
-  return fixtures;
+  const ligasAF = Array.from(ALLOWED);
+  const sm = await getUpcomingFixturesSM(ligasAF, 25);
+  return sm.map((f) => ({
+    fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
+    league: { id: f.league.id, name: f.league.name, season: f.league.season },
+    teams: f.teams,
+  }));
 }
 
-async function getTeamStats(teamId: number, leagueId: number, season: number) {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getTeamStatsSM(teamId, 20);
-  }
-  try { return await afFetch('/teams/statistics', { team: teamId, league: leagueId, season }); } catch { return null; }
+async function getTeamStats(teamId: number, _leagueId: number, _season: number) {
+  return await getTeamStatsSM(teamId, 20);
 }
 
 async function getRecentFixtures(teamId: number, last = 12): Promise<any[]> {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getRecentFixturesSM(teamId, last);
-  }
-  try { return await afFetch('/fixtures', { team: teamId, last }); } catch { return []; }
+  return await getRecentFixturesSM(teamId, last);
 }
 
 // =============================================================================
@@ -175,47 +133,7 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, f
     } catch (e) { console.warn('[HA] Odds API erro, indo p/ fallback', e); }
   }
 
-  // Fallback via API-Football
-  try {
-    const oddsResp = await afFetch('/odds', { fixture: fixtureId });
-    if (oddsResp && oddsResp.length) {
-      let homeOdd: number | null = null, awayOdd: number | null = null;
-      const haOdds: Partial<Record<HALine, number>> = {};
-      for (const item of oddsResp) {
-        for (const bm of item.bookmakers || []) {
-          for (const bet of bm.bets || []) {
-            const name = (bet.name || '').toLowerCase();
-            if (name === 'match winner' || name === '1x2') {
-              for (const v of bet.values || []) {
-                const val = String(v.value).toLowerCase();
-                const odd = parseFloat(v.odd);
-                if ((val === 'home' || val === '1') && !homeOdd) homeOdd = odd;
-                if ((val === 'away' || val === '2') && !awayOdd) awayOdd = odd;
-              }
-            }
-            if (name.includes('asian handicap')) {
-              for (const v of bet.values || []) {
-                const m = String(v.value).match(/(home|away)\s*\(?(-?\+?\d+(?:\.\d+)?)\)?/i);
-                if (!m) continue;
-                const side = m[1].toLowerCase();
-                const num = parseFloat(m[2]);
-                const adj = side === 'away' ? -num : num;
-                const key = adj > 0 ? '+' + adj.toString() : adj.toString();
-                const lineMap: Record<string, HALine> = {
-                  '0': '0.0', '0.0': '0.0', '+0.5': '+0.5', '+0.75': '+0.75', '+1': '+1.0',
-                  '-0.5': '-0.5', '-0.75': '-0.75', '-1': '-1.0',
-                };
-                const line = lineMap[key];
-                if (line && !haOdds[line]) haOdds[line] = parseFloat(v.odd);
-              }
-            }
-          }
-          if (homeOdd && awayOdd) break;
-        }
-      }
-      if (homeOdd && awayOdd) return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
-    }
-  } catch (e) { console.error('[HA] Fallback err', e); }
+  // API-Football removida (Fase 2). Sem odds da The Odds API → sinal não gerado.
   return empty;
 }
 
@@ -592,7 +510,7 @@ Deno.serve(async (req) => {
   try {
     // data_source ignorado — Sportmonks fixo (Fase 2)
     try { await req.json(); } catch { /* sem body */ }
-    console.log(`[HA] data_source=${DATA_SOURCE} (forçado)`);
+    console.log(`[HA] data_source=sportmonks (Fase 2)`);
 
     const fixtures = await getUpcoming();
     const resultados: any[] = [];
