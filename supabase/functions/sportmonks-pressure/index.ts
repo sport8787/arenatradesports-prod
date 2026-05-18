@@ -395,6 +395,10 @@ serve(async (req) => {
     }
 
     const events = extractEvents(fixture, homeId);
+    const _debugEvents = {
+      rawCount: Array.isArray(fixture?.events) ? fixture.events.length : -1,
+      sampleType: fixture?.events?.[0] ? { type_id: fixture.events[0].type_id, type: fixture.events[0].type } : null,
+    };
 
     const [homeForm, awayForm] = await Promise.all([
       fetchForm(header.home.id),
