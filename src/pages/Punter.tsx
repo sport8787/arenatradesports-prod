@@ -79,6 +79,9 @@ interface PunterSignal {
     analysis: string;
     risk_factors: string;
     simulated_odds?: boolean;
+    sherlock_alert?: boolean | null;
+    sportmonks_probability?: number | null;
+    sportmonks_divergence_pp?: number | null;
   };
 }
 
