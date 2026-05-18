@@ -20,7 +20,7 @@ import {
 } from '../_shared/leaguesRegistry.ts';
 
 // Fonte de dados ativa (set per-request)
-let DATA_SOURCE: 'api-football' | 'sportmonks' = 'api-football';
+const DATA_SOURCE: 'sportmonks' = 'sportmonks'; // API-Football descontinuada (Fase 2)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
