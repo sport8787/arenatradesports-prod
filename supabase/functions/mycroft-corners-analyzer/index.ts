@@ -3,13 +3,17 @@
 // Deploy: supabase functions deploy mycroft-corners-analyzer
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  smSearchTeam,
+  getRecentFixturesSM,
+  getCornersForFixtureSM,
+} from "../_shared/sportmonks-af-adapter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 
 // ════════════════════════════════════════════════════
