@@ -142,6 +142,64 @@ export function saveUserPlans(p: PlansByMarket): void {
   } catch {
     // ignore
   }
+  // Sync com Supabase (best-effort, não bloqueia UI)
+  void syncPlansToSupabase(p);
+}
+
+async function syncPlansToSupabase(p: PlansByMarket): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const rows = (Object.keys(p) as UserMarket[])
+      .filter((m) => p[m])
+      .map((m) => ({ user_id: user.id, market: m, plan: p[m] as any, updated_at: new Date().toISOString() }));
+    if (rows.length === 0) return;
+    await supabase.from('user_trader_plans').upsert(rows, { onConflict: 'user_id,market' });
+  } catch (e) {
+    console.warn('[userTraderPlan] sync falhou:', e);
+  }
+}
+
+/**
+ * Loga um sinal aprovado pelo plano pessoal (idempotente por user+match+market+outcome).
+ * Chamado pelo MeusSinaisPanel quando evaluatePlan retorna passed=true.
+ */
+export async function logUserPlanSignal(params: {
+  match_id: string;
+  match_name: string;
+  league: string;
+  market: UserMarket;
+  outcome: Outcome;
+  line: number | null;
+  market_label: string;
+  selected_odd: number | null;
+  minute: number;
+  reasons: string[];
+  commence_time?: string | null;
+}): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('user_trader_plan_signals').upsert(
+      {
+        user_id: user.id,
+        match_id: params.match_id,
+        match_name: params.match_name,
+        league: params.league,
+        market: params.market,
+        outcome: params.outcome,
+        line: params.line,
+        market_label: params.market_label,
+        selected_odd: params.selected_odd,
+        minute: params.minute,
+        reasons: params.reasons,
+        commence_time: params.commence_time ?? null,
+      },
+      { onConflict: 'user_id,match_id,market,outcome', ignoreDuplicates: true },
+    );
+  } catch (e) {
+    console.warn('[userTraderPlan] logUserPlanSignal falhou:', e);
+  }
 }
 
 // ───────────────────────────── Evaluator ─────────────────────────────
