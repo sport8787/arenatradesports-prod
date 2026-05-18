@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, TrendingDown, Zap, Shield, Activity, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Zap, Shield, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 
 interface MarketAnalysis {
   id: string;
