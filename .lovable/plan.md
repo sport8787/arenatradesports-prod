@@ -1,76 +1,59 @@
+## Sinais Alavanca — Under 4.5 (juros compostos)
 
-# Método dos Ciclos — Alavancagem de Banca
+Nova aba dedicada a sinais Under 4.5 (alta probabilidade, odd baixa 1.10–1.20) para o usuário aplicar juros compostos com uma fração reservada da banca real.
 
-Nova feature para o usuário alavancar uma fração isolada da banca seguindo o método do Nettuno: 5 ciclos sequenciais, cada um buscando dobrar a stake de trabalho com meta de 5% por entrada e fator redutor de 2,5% após cada green.
+### O que será construído
 
-## Onde aparece
-- Rota compartilhada `/ciclos` (acessível por Trader Sports e Punter)
-- Atalho no menu lateral de Arena Trader Sports (`ArenaTraderSports.tsx`)
-- Atalho em `PunterFunctions.tsx` / `PunterMenu.tsx`
-- Atalho em `PunterBancaVirtual.tsx` (já tem o pattern dos QuickBtn)
+1. **Página `/sinais-alavanca`** (atalhos em `/punter` e `/arena-trader-sports`)
+   - 2 seções: **Ao Vivo** e **Pré-Live (hoje/amanhã)**
+   - Cada card mostra: confronto, liga, horário/minuto, odd Under 4.5 atual, score de probabilidade, motivos da aprovação
+   - Banner explicativo no topo: "Reserve 5–10% da sua banca real. Reinvista a cada green: 100 → 110 → 121…" (sem sugerir valor absoluto)
+   - Calculadora simples de juros compostos (input: stake inicial + número de greens previstos → projeção)
 
-## Fluxo do usuário
-1. **Setup inicial** — usuário declara a banca total e a fração isolada (sugerido 5–10%; máx 10% como recomenda Nettuno). O sistema cria a "Banca de Ciclo" isolada (não mexe na Virtual nem na Manual).
-2. **Painel do ciclo ativo** mostra:
-   - Ciclo atual (1–5), stake de trabalho, meta do ciclo (sempre 2x), barra de progresso até a meta
-   - Próxima meta de lucro % por entrada (5% → 4,88% → 4,75% → …), valor R$ correspondente
-   - Saldo atual da banca de ciclo, nº de entradas no ciclo, P&L acumulado
-   - Histórico de entradas (timestamp, jogo opcional, lucro/prejuízo, % meta atingida)
-3. **Registrar entrada** — dois caminhos:
-   - **Manual**: botões Green (digita lucro real) / Red (digita prejuízo real) / Void
-   - **Integrado a Trader Sports**: numa entrada virtual aprovada, botão "Aplicar ao Ciclo" envia o resultado quando liquidar
-4. **Transições automáticas**:
-   - Atinge 2x stake → fecha ciclo, mostra modal "Saque obrigatório" com valor (100/100/50/100/100 conforme tabela Nettuno) e inicia próximo ciclo com nova stake (100/100/150/200/300 proporcional à banca inicial do usuário)
-   - 5º ciclo completo → tela de conclusão (6x banca inicial), oferece reiniciar
-5. **Recovery em RED**:
-   - RED parcial → cria sub-ciclo de recuperação (meta = voltar à stake de trabalho do ciclo)
-   - RED total da stake → modal de reinício, ciclo volta ao zero (mantém histórico)
+2. **Motor de seleção Under 4.5** (compartilhado live + prelive)
+   - **Critérios de aprovação** (todos opcionais, score ponderado, threshold mínimo 70):
+     - Média de gols H2H ≤ 2.8 (peso 25)
+     - Média de gols casa+fora últimos 5/10 jogos ≤ 2.8 (peso 25)
+     - % de jogos Under 4.5 do confronto direto ≥ 85% (peso 20)
+     - Odd Under 4.5 entre 1.06 e 1.25 (peso 10) — fora dessa faixa = descarta
+     - Liga com média de gols/jogo ≤ 2.7 (peso 10)
+     - Ao vivo: minuto ≥ 60 e gols totais ≤ 2 (peso adicional 20, com odd ≥ 1.04)
+   - **Vetos automáticos**:
+     - Já marcou 4+ gols → descarta
+     - Minuto ≥ 30 com 3 gols → descarta (risco real de 5º gol)
+     - Times com média ofensiva > 2.0 gols ambos os lados
+     - xG total esperado > 3.2
 
-## Regras fixas (fiéis ao Nettuno)
-- Meta inicial: 5% por entrada
-- Fator redutor: 2,5% sobre a meta a cada green dentro do mesmo ciclo
-- Estrutura dos 5 ciclos proporcional à banca inicial `B`:
-  ```
-  Ciclo 1: stake B,       meta 2B, saque ao final: B
-  Ciclo 2: stake B,       meta 2B, saque: B
-  Ciclo 3: stake 1.5B,    meta 3B, saque: 0.5B
-  Ciclo 4: stake 2B,      meta 4B, saque: B
-  Ciclo 5: stake 3B,      meta 6B, fim do método
-  ```
-- Bloqueios: mercado Under Limite proibido (alerta UI), recomendação para Match Odds, sempre "a favor do tempo"
+3. **Backend**
+   - Edge function `sinais-alavanca-scanner` (uma só, com modo `live` ou `prelive`)
+   - Cron: prelive 2x/dia (07h e 13h UTC), live a cada 3 min
+   - Tabela `sinais_alavanca` (id, match_id, match_name, league, kickoff, mode, score, odd_under45, criteria jsonb, status, settled_result, created_at)
+   - RLS: leitura pública para autenticados, escrita só service_role
+   - Liquidação automática via trigger ligando ao settlement existente (resultado final ≤ 4 gols = GREEN)
 
-## UI / Componentes novos
-- `src/pages/Ciclos.tsx` — página principal
-- `src/components/ciclos/CycleSetupWizard.tsx` — onboarding (banca total + fração)
-- `src/components/ciclos/ActiveCycleCard.tsx` — card grande do ciclo ativo com meta atual
-- `src/components/ciclos/RegisterEntryDialog.tsx` — modal Green/Red/Void
-- `src/components/ciclos/CycleHistoryTable.tsx` — entradas do ciclo + ciclos passados
-- `src/components/ciclos/CycleProgressBar.tsx` — visual dos 5 ciclos (timeline)
-- `src/components/ciclos/CycleCompleteDialog.tsx` — modal de saque obrigatório + iniciar próximo
-- `src/lib/ciclosMath.ts` — funções puras: `nextTargetPct(green_streak)`, `cycleConfig(initialB, cycleNumber)`, `cycleStatus(...)`
-- Atalho na Arena Trader Sports e Punter
+4. **Histórico/performance** dentro da própria aba
+   - Card de stats: total sinais 30d, % green, odd média, ROI teórico com compostagem
 
-## Backend (Lovable Cloud)
-Duas tabelas novas (RLS por `user_id`):
-- `user_cycles_bankroll` — uma linha por usuário: `total_bankroll`, `isolated_pct`, `initial_bankroll` (B), `current_cycle` (1–5), `current_stake`, `current_balance`, `entries_in_cycle`, `green_streak`, `status` (active/completed/failed)
-- `user_cycles_entries` — log de cada entrada: `cycle_number`, `entry_index`, `target_pct`, `target_amount`, `result` (green/red/void), `profit_loss`, `balance_after`, `match_id` (nullable, vínculo com Trader Sports), `created_at`
+### Detalhes técnicos
 
-RPCs/funções:
-- `start_cycle_method(total, pct)` — cria a banca de ciclo
-- `register_cycle_entry(result, amount, match_id?)` — atualiza estado, avança meta, detecta fechamento de ciclo
-- `advance_cycle()` — chamada ao confirmar saque do modal
-- `reset_cycle()` — em caso de RED total
+- Arquivos novos:
+  - `src/pages/SinaisAlavanca.tsx`
+  - `src/components/sinais-alavanca/AlavancaCard.tsx`
+  - `src/components/sinais-alavanca/CompoundCalculator.tsx`
+  - `supabase/functions/sinais-alavanca-scanner/index.ts`
+  - migração: tabela `sinais_alavanca` + cron + RLS
+- Arquivos editados:
+  - `src/App.tsx` (rota)
+  - `src/pages/PunterMenu.tsx` e `src/pages/ArenaTraderSports.tsx` (atalhos)
+- Fontes de dados: API-Football (estatísticas H2H + média gols + last 5/10), `arena_odds` (odd Under 4.5), `live_matches` (estado live)
+- Reutiliza padrão de `eventos_raros_prelive`/`live` (mesmo formato de scanner + persistência)
+- Liquidação reaproveita `settle-bets` (ou trigger próprio se necessário) lendo `total_goals` ≤ 4
 
-## Integração com Trader Sports
-- Em `ActivePositions` / cards de sinais aprovados: botão secundário "Vincular ao Ciclo" — quando o virtual_bet liquida, trigger atualiza `user_cycles_entries` com result+profit_loss e dispara `register_cycle_entry` via trigger SQL.
+### Comunicação ao usuário
 
-## Fora de escopo (versão 1)
-- Marketplace público de ciclos / ranking entre usuários
-- Aplicação automática (sem confirmação) de qualquer entrada Trader ao ciclo
-- Suporte ao Punter (Banca Manual) além do atalho — pode reusar a mesma `/ciclos`
+A aba deixa claro:
+- "Não é garantia — é alta probabilidade. Defina um teto (ex.: 5–10% da banca real)."
+- "Pare após 2 reds consecutivos — juros compostos amplificam perdas também."
+- Sem sugerir valor absoluto de entrada.
 
-## Resumo técnico
-- 1 migration (2 tabelas + RLS + 3 RPCs + 1 trigger virtual_bets→cycles)
-- 1 nova rota + 6 componentes + 1 lib pura
-- 3 atalhos de navegação (Trader Sports menu, PunterMenu, PunterBancaVirtual)
-- Memória nova: `mem://features/alavancagem/metodo-ciclos`
+Posso seguir e implementar?
