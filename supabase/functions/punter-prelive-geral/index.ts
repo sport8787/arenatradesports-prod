@@ -66,12 +66,14 @@ serve(async (req) => {
   // adicionar/atualizar mercados específicos (corners, cards, players, AH).
   const runs: any[] = [];
 
+  // Nota: mycroft-corners-punter é per-jogo (chamada do card no /punter pelo
+  // usuário), não tem modo batch. Fica fora do cron — escanteios continuam
+  // gerados sob demanda como antes.
   const pipeline = [
     "mycroft-punter-sportmonks",   // 1X2 / DC / O-U / BTTS (Sportmonks + Gemini)
     "handicap-asiatico-prelive",    // AH dedicado
-    "mycroft-corners-punter",       // Escanteios
-    "mycroft-cards-punter",         // Cartões
-    "mycroft-players-punter",       // Marcadores
+    "mycroft-cards-punter",         // Cartões (batch)
+    "mycroft-players-punter",       // Marcadores (batch)
   ];
 
   for (const fn of pipeline) {
