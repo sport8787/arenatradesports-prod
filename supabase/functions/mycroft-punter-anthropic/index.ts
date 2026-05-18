@@ -976,21 +976,21 @@ function calculateTotalsProbabilities(totals: any) {
 }
 
 // ═══════════════════════════════════════════════
-// AI Provider: Gemini (Direct, OpenAI-compatible)
+// AI Provider: Groq (Direct, OpenAI-compatible, llama-3.3-70b-versatile)
 // ═══════════════════════════════════════════════
 
 async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = Deno.env.get('GEMINI_API_KEY')
-  if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
+  const apiKey = Deno.env.get('GROQ_API_KEY')
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured')
 
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gemini-2.5-flash',
+      model: 'llama-3.3-70b-versatile',
       max_completion_tokens: 3000,
       response_format: { type: 'json_object' },
       messages: [
@@ -1002,9 +1002,9 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
 
   if (!response.ok) {
     const errText = await response.text()
-    if (response.status === 429) throw new Error('Rate limit excedido na Gemini')
-    if (response.status === 402 || response.status === 401) throw new Error('Créditos/auth insuficientes na Gemini')
-    throw new Error(`Gemini error ${response.status}: ${errText}`)
+    if (response.status === 429) throw new Error('Rate limit excedido na Groq')
+    if (response.status === 402 || response.status === 401) throw new Error('Créditos/auth insuficientes na Groq')
+    throw new Error(`Groq error ${response.status}: ${errText}`)
   }
 
   const data = await response.json()
