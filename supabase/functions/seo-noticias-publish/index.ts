@@ -320,64 +320,47 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const maxPosts = Math.min(Number(url.searchParams.get("max") ?? 8), 20);
 
-    // 1. Fetch nas duas categorias
-    const [postMatch, preMatch] = await Promise.all([
-      fetchSportmonksNews("post-match"),
-      fetchSportmonksNews("pre-match"),
-    ]);
-    const raw = [
-      ...postMatch.map((i) => ({ ...i, type: "post-match" as const })),
-      ...preMatch.map((i) => ({ ...i, type: "pre-match" as const })),
-    ];
+    // 1. Busca em todas as ligas via Firecrawl (em paralelo)
+    const perLeague = await Promise.all(LEAGUE_QUERIES.map((l) => firecrawlSearchLeague(l)));
+    const raw: FcCandidate[] = perLeague.flat();
+    console.log(`[noticias] firecrawl resultados=${raw.length}`);
 
-    // 2. Filtra por whitelist de ligas
-    const candidates: Array<{ item: SmNewsItem; league: { slug: string; label: string } }> = [];
-    for (const it of raw) {
-      const lg = matchLeague(it.fixture?.league?.name);
-      if (lg) candidates.push({ item: it, league: lg });
-    }
-    console.log(`[noticias] raw=${raw.length} elegíveis=${candidates.length}`);
-
-    // 3. Remove já publicados (por source_id)
-    const sourceIds = candidates.map((c) => String(c.item.id));
+    // 2. Dedup por URL hash (source_id) — remove já publicados
+    const candidatesWithId = raw.map((c) => ({ ...c, sourceId: hashId(c.url) }));
+    const sourceIds = candidatesWithId.map((c) => c.sourceId);
     const { data: existing } = await supabase
       .from("seo_news_posts")
       .select("source_id")
       .in("source_id", sourceIds.length ? sourceIds : ["__none__"]);
     const existingSet = new Set((existing ?? []).map((e: { source_id: string }) => e.source_id));
-    const toPublish = candidates.filter((c) => !existingSet.has(String(c.item.id))).slice(0, maxPosts);
+    const toPublish = candidatesWithId.filter((c) => !existingSet.has(c.sourceId)).slice(0, maxPosts);
 
     console.log(`[noticias] novos=${toPublish.length}`);
 
-    const published: Array<{ slug: string; title: string }> = [];
-    for (const { item, league } of toPublish) {
+    const published: Array<{ slug: string; title: string; url: string }> = [];
+    for (const cand of toPublish) {
       try {
-        const rewritten = await rewriteWithMycroft(item, league.label);
-        const baseSlug = slugify(`${league.slug}-${rewritten.title}`) || `news-${item.id}`;
-        const slug = `${baseSlug}-${item.id}`;
+        const rewritten = await rewriteWithMycroft(cand, cand.league.label);
+        const baseSlug = slugify(`${cand.league.slug}-${rewritten.title}`) || `news-${cand.sourceId}`;
+        const slug = `${baseSlug}-${cand.sourceId}`;
         const post = {
           slug,
-          source_id: String(item.id),
-          kind: item.type ?? "post-match",
-          league: league.label,
-          league_slug: league.slug,
-          fixture_id: item.fixture?.id ?? item.fixture_id ?? null,
-          home_team: item.fixture?.participants?.[0]?.name ?? null,
-          away_team: item.fixture?.participants?.[1]?.name ?? null,
+          source_id: cand.sourceId,
+          kind: "post-match",
+          league: cand.league.label,
+          league_slug: cand.league.slug,
+          fixture_id: null,
+          home_team: null,
+          away_team: null,
           title: rewritten.title,
           summary: rewritten.summary,
           content_html: rewritten.html,
-          source_url: item.url ?? null,
-          source_title: item.title ?? null,
-          hero_image: item.image_path ?? null,
-          published_at: item.published_at ?? new Date().toISOString(),
+          source_url: cand.url,
+          source_title: cand.title ?? null,
+          hero_image: null,
+          published_at: new Date().toISOString(),
         };
-        const html = buildPostHtml({
-          ...post,
-          hero_image: post.hero_image,
-          source_url: post.source_url,
-          source_title: post.source_title,
-        });
+        const html = buildPostHtml(post);
         const path = `noticias/${slug}.html`;
         const publicUrl = await uploadHtml(supabase, path, html);
 
@@ -385,11 +368,12 @@ Deno.serve(async (req) => {
           { ...post, storage_path: path, public_url: publicUrl, updated_at: new Date().toISOString() },
           { onConflict: "source_id" }
         );
-        published.push({ slug, title: post.title });
+        published.push({ slug, title: post.title, url: cand.url });
       } catch (e) {
-        console.warn(`[noticias] falha id=${item.id}`, e);
+        console.warn(`[noticias] falha url=${cand.url}`, e);
       }
     }
+
 
     // 4. Rebuild index
     const { data: latest } = await supabase
