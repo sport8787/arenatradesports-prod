@@ -669,8 +669,30 @@ serve(async (req) => {
         const an = parseJsonRobust(txt);
         if (!an) { errors++; continue; }
 
-        const verdict = String(an.verdict || "VETADO").toUpperCase();
-        const isApproved = verdict.startsWith("APROVADO");
+        // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
+        const gate = applyApprovalBlocks({
+          verdict: String(an.verdict || "VETADO"),
+          market: an.market,
+          odd: Number(an.odd) || 0,
+          estimated_probability: Number(an.estimated_probability) || 0,
+          value_percentage: Number(an.value_percentage) || 0,
+          confidence: Number(an.confidence) || 0,
+          league: g.sport_title || "",
+          bookmaker: an.bookmaker || "",
+          data_strength: an.data_strength || "",
+        });
+        if (gate.demoted) {
+          console.log(`[sm-punter GATE] ${g.home_team} vs ${g.away_team}: ${gate.veto_reason || gate.block_reason}`);
+        }
+        // Sobrescreve com decisão do gate
+        an.verdict = gate.verdict;
+        an.tier = gate.block;
+        an.tier_label = gate.tier_label;
+        an.block_reason = gate.block_reason;
+        if (gate.veto_reason) an.veto_reason = gate.veto_reason;
+        if (gate.stake_percentage > 0) an.stake_percentage = gate.stake_percentage;
+        const verdict = gate.verdict;
+        const isApproved = verdict === "APROVADO";
 
         await sb.from("punter_analyses").upsert({
           match_id: matchId,
