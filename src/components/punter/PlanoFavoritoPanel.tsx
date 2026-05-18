@@ -88,19 +88,6 @@ export default function PlanoFavoritoPanel() {
           <Button size="sm" variant="ghost" onClick={load} disabled={loading} className="h-7 sm:h-8 px-2">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          {isAdmin && (
-            <Button
-              size="sm"
-              onClick={handleRun}
-              disabled={running}
-              className="h-7 sm:h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
-            >
-              {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              <span className="text-[10px] sm:text-[11px] font-mono font-bold">
-                {running ? 'Analisando...' : 'Rodar (Admin)'}
-              </span>
-            </Button>
-          )}
         </div>
       </div>
 
