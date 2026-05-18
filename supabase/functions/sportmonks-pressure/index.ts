@@ -229,17 +229,26 @@ function extractHeader(fixture: any) {
 
 function extractEvents(fixture: any, homeId: number) {
   const list = fixture?.events || [];
+  // Sportmonks v3 type_ids comuns: 14=Goal, 15=Own Goal, 16=Penalty,
+  // 17=Missed Penalty, 18=Substitution, 19=Yellow Card, 20=Red Card,
+  // 21=Yellowred Card, 26=Goal Cancelled.
+  const GOAL_IDS = new Set([14, 15, 16, 26]);
+  const RED_IDS = new Set([20, 21]);
   return list
-    .filter((e: any) => {
-      const t = (e.type?.name || e.type?.code || "").toLowerCase();
-      return t.includes("goal") || t.includes("redcard") || t === "red card" || t.includes("red_card");
+    .map((e: any) => {
+      const tName = (e.type?.name || e.type?.code || e.type?.developer_name || "").toLowerCase();
+      const tId = Number(e.type_id ?? e.type?.id ?? 0);
+      const isGoal = GOAL_IDS.has(tId) || tName.includes("goal");
+      const isRed = RED_IDS.has(tId) || tName.includes("redcard") || tName === "red card" || tName.includes("red_card") || tName.includes("yellowred");
+      if (!isGoal && !isRed) return null;
+      return {
+        minute: Number(e.minute ?? 0),
+        type: isGoal ? "goal" : "red",
+        side: Number(e.participant_id) === homeId ? "home" : "away",
+        player: e.player_name || e.player?.name || "",
+      };
     })
-    .map((e: any) => ({
-      minute: Number(e.minute ?? 0),
-      type: ((e.type?.name || e.type?.code || "").toLowerCase().includes("goal")) ? "goal" : "red",
-      side: Number(e.participant_id) === homeId ? "home" : "away",
-      player: e.player_name || e.player?.name || "",
-    }))
+    .filter((e: any) => e !== null)
     .sort((a: any, b: any) => a.minute - b.minute);
 }
 
@@ -343,8 +352,8 @@ serve(async (req) => {
       }
     }
 
-    const includesPressure = "participants;scores;state;periods;events;pressure";
-    const includesTrends = "participants;scores;state;periods;events;trends";
+    const includesPressure = "participants;scores;state;periods;events.type;pressure";
+    const includesTrends = "participants;scores;state;periods;events.type;trends";
 
     let usedSource: "pressure" | "trends" | "none" = "none";
     let fixture: any = null;
