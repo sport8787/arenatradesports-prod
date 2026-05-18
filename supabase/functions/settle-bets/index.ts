@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+// API_FOOTBALL removida em Fase 2 (18/05/2026) — settlement usa Sportmonks via findFixtureByTeamsAndDate.
 
 // Normalize team/match names for comparison
 const normalize = (name: string) =>
