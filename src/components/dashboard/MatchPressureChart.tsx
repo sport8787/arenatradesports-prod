@@ -291,12 +291,41 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
             activeDot={{ r: 3, fill: AWAY_COLOR, stroke: "hsl(var(--background))", strokeWidth: 1.5 }}
           />
 
+          {/* xG acumulado (overlay opcional) */}
+          {showXg && (data.xgTimeline?.length ?? 0) > 0 && (
+            <>
+              <Line
+                type="monotone"
+                dataKey="xgHome"
+                stroke={HOME_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.9}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="xgAwayNeg"
+                stroke={AWAY_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                strokeOpacity={0.9}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </>
+          )}
+
           <Tooltip
             cursor={{ stroke: "hsl(var(--muted-foreground) / 0.4)", strokeWidth: 1, strokeDasharray: "3 3" }}
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               const home = payload.find((p) => p.dataKey === "home")?.value as number;
               const away = -(payload.find((p) => p.dataKey === "awayNeg")?.value as number);
+              const row = payload[0]?.payload as any;
+              const xgH = row?.xgHomeRaw as number | undefined;
+              const xgA = row?.xgAwayRaw as number | undefined;
               return (
                 <div className="rounded-lg bg-popover/95 border border-border px-2.5 py-1.5 text-xs shadow-xl backdrop-blur-sm">
                   <div className="font-orbitron text-[10px] text-muted-foreground mb-1.5">
@@ -306,11 +335,17 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
                     <span className="w-2 h-2 rounded-full" style={{ background: HOME_COLOR }} />
                     <span className="text-foreground truncate max-w-[120px]">{data.header.home.name}</span>
                     <span className="ml-auto font-bold tabular-nums">{Math.round(home)}</span>
+                    {showXg && xgH !== undefined && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">xG {xgH.toFixed(2)}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: AWAY_COLOR }} />
                     <span className="text-foreground truncate max-w-[120px]">{data.header.away.name}</span>
                     <span className="ml-auto font-bold tabular-nums">{Math.round(away)}</span>
+                    {showXg && xgA !== undefined && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">xG {xgA.toFixed(2)}</span>
+                    )}
                   </div>
                 </div>
               );
