@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Target, ChevronRight, Settings2 } from 'lucide-react';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
-import { loadUserPlans, evaluatePlan, type UserMarket } from '@/lib/userTraderPlan';
+import { loadUserPlans, evaluatePlan, logUserPlanSignal, type UserMarket } from '@/lib/userTraderPlan';
 
 const MARKET_LABEL: Record<UserMarket, string> = {
   '1x2': '1X2',
