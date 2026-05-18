@@ -12,7 +12,10 @@ import {
   DEFAULT_PLANS,
   loadUserPlans,
   saveUserPlans,
+  loadPlanVisibility,
+  savePlanVisibility,
   type PlansByMarket,
+  type PlanVisibility,
   type UserMarket,
   type UserPlan,
   type Outcome,
@@ -188,9 +191,11 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
 export default function ArenaTraderSportsMeuPlano() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<PlansByMarket>(() => loadUserPlans());
+  const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());
   const [tab, setTab] = useState<UserMarket>('1x2');
 
   useEffect(() => { saveUserPlans(plans); }, [plans]);
+  useEffect(() => { savePlanVisibility(visibility); }, [visibility]);
 
   const current = plans[tab] ?? DEFAULT_PLANS[tab]!;
 
@@ -217,6 +222,25 @@ export default function ArenaTraderSportsMeuPlano() {
             <span className="text-primary font-medium"> "Meus Sinais" </span>
             dentro da Arena Trader Sports — em paralelo aos sinais do Mycroft global, sem alterar a aprovação dos outros usuários.
           </p>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card/40 p-4 flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">Visibilidade do plano</p>
+            <p className="text-[12px] text-muted-foreground">
+              {visibility === 'public'
+                ? 'Público — seu plano poderá aparecer no ranking da Liga Mycroft de estrategistas (em breve).'
+                : 'Privado — só você e o admin veem seu plano e ROI.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Privado</span>
+            <Switch
+              checked={visibility === 'public'}
+              onCheckedChange={(v) => setVisibility(v ? 'public' : 'private')}
+            />
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Público</span>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as UserMarket)}>

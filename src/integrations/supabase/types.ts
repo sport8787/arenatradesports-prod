@@ -6411,18 +6411,21 @@ export type Database = {
           plan: Json
           updated_at: string
           user_id: string
+          visibility: string
         }
         Insert: {
           market: string
           plan: Json
           updated_at?: string
           user_id: string
+          visibility?: string
         }
         Update: {
           market?: string
           plan?: Json
           updated_at?: string
           user_id?: string
+          visibility?: string
         }
         Relationships: []
       }
