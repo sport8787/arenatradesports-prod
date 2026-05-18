@@ -962,12 +962,11 @@ Deno.serve(async (req) => {
   mirrorStats.ok = 0
   mirrorStats.fail = 0
 
-  // Lê body
+  // data_source ignorado — Sportmonks fixo (Fase 2)
   let body: any = {}
   try { body = await req.json() } catch { /* sem body */ }
-  DATA_SOURCE = body?.data_source === 'sportmonks' ? 'sportmonks' : 'api-football'
   const triggerSource = String(body?.trigger || 'manual').slice(0, 64)
-  console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE} trigger=${triggerSource}`)
+  console.log(`[PLANO FAVORITO] data_source=${DATA_SOURCE} (forçado) trigger=${triggerSource}`)
 
   // Insere registro de telemetria (id reutilizado no finally)
   let runId: string | null = null
