@@ -61,7 +61,7 @@ serve(async (req) => {
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
     if (!oddsApiKey) throw new Error('THE_ODDS_API_KEY not configured')
 
-    const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY') || ''
+    const apiFootballKey = '' // API-Football removida em Fase 2 (18/05/2026) — helpers AF retornam null/[]
 
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
