@@ -393,8 +393,8 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                 </div>
               )}
               {match.confidence != null && (
-                <div className="flex items-center justify-end gap-1">
-                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Confiança</span>
+                <div className="flex items-center justify-end gap-1" title="Força estatística do sinal. 70% ou mais = entrada recomendada. Abaixo disso, Mycroft só observa.">
+                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Força do sinal</span>
                   <span className="text-xs font-orbitron font-bold text-white tabular-nums">
                     {Math.round(Number(match.confidence))}%
                   </span>
