@@ -4330,6 +4330,7 @@ export type Database = {
         Row: {
           analysis: string | null
           analyzed_by: string | null
+          approval_block: string | null
           away_team: string
           bankroll_at_recalc: number | null
           bookmaker: string | null
@@ -4383,6 +4384,7 @@ export type Database = {
         Insert: {
           analysis?: string | null
           analyzed_by?: string | null
+          approval_block?: string | null
           away_team: string
           bankroll_at_recalc?: number | null
           bookmaker?: string | null
@@ -4436,6 +4438,7 @@ export type Database = {
         Update: {
           analysis?: string | null
           analyzed_by?: string | null
+          approval_block?: string | null
           away_team?: string
           bankroll_at_recalc?: number | null
           bookmaker?: string | null
