@@ -343,8 +343,8 @@ serve(async (req) => {
       }
     }
 
-    const includesPressure = "participants;scores;state;periods;events;pressure";
-    const includesTrends = "participants;scores;state;periods;events;trends";
+    const includesPressure = "participants;scores;state;periods;events.type;pressure";
+    const includesTrends = "participants;scores;state;periods;events.type;trends";
 
     let usedSource: "pressure" | "trends" | "none" = "none";
     let fixture: any = null;
