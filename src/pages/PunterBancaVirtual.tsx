@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Bot, User, CheckCircle2, Activity, Trophy, Award, FileText, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, Bot, User, CheckCircle2, Activity, Trophy, Award, FileText, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBankroll } from '@/hooks/useBankroll';
 import { useManualBankroll } from '@/hooks/useManualBankroll';
