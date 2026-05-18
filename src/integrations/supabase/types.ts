@@ -3797,6 +3797,7 @@ export type Database = {
         Row: {
           analysis: string | null
           analyzed_by: string | null
+          approval_block: string | null
           away_team: string
           bookmaker: string
           commence_time: string
@@ -3807,6 +3808,9 @@ export type Database = {
           fair_odd: number | null
           final_score_away: number | null
           final_score_home: number | null
+          gate_block_reason: string | null
+          gate_demoted: boolean | null
+          gate_veto_reason: string | null
           green_telegram_sent_at: string | null
           home_team: string
           id: string
@@ -3833,6 +3837,7 @@ export type Database = {
         Insert: {
           analysis?: string | null
           analyzed_by?: string | null
+          approval_block?: string | null
           away_team: string
           bookmaker: string
           commence_time: string
@@ -3843,6 +3848,9 @@ export type Database = {
           fair_odd?: number | null
           final_score_away?: number | null
           final_score_home?: number | null
+          gate_block_reason?: string | null
+          gate_demoted?: boolean | null
+          gate_veto_reason?: string | null
           green_telegram_sent_at?: string | null
           home_team: string
           id?: string
@@ -3869,6 +3877,7 @@ export type Database = {
         Update: {
           analysis?: string | null
           analyzed_by?: string | null
+          approval_block?: string | null
           away_team?: string
           bookmaker?: string
           commence_time?: string
@@ -3879,6 +3888,9 @@ export type Database = {
           fair_odd?: number | null
           final_score_away?: number | null
           final_score_home?: number | null
+          gate_block_reason?: string | null
+          gate_demoted?: boolean | null
+          gate_veto_reason?: string | null
           green_telegram_sent_at?: string | null
           home_team?: string
           id?: string
@@ -4213,6 +4225,7 @@ export type Database = {
       punter_signals: {
         Row: {
           analysis_id: string | null
+          approval_block: string | null
           bankroll_at_recalc: number | null
           bookmaker: string
           commence_time: string | null
@@ -4243,6 +4256,7 @@ export type Database = {
         }
         Insert: {
           analysis_id?: string | null
+          approval_block?: string | null
           bankroll_at_recalc?: number | null
           bookmaker: string
           commence_time?: string | null
@@ -4273,6 +4287,7 @@ export type Database = {
         }
         Update: {
           analysis_id?: string | null
+          approval_block?: string | null
           bankroll_at_recalc?: number | null
           bookmaker?: string
           commence_time?: string | null
