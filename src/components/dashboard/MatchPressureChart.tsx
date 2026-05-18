@@ -140,19 +140,35 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
     if (!data.timeline.length) return [];
     const max = Math.max(90, ...data.timeline.map((p) => p.minute));
     const map = new Map(data.timeline.map((p) => [p.minute, p]));
-    const raw: Array<{ minute: number; home: number; away: number }> = [];
+    const xgMap = new Map((data.xgTimeline || []).map((p) => [p.minute, p]));
+    // último valor cumulativo visto (xG é cumulativo)
+    let lastXgH = 0, lastXgA = 0;
+    const raw: Array<{ minute: number; home: number; away: number; xgH: number; xgA: number }> = [];
     for (let m = 0; m <= max; m++) {
       const p = map.get(m);
-      raw.push({ minute: m, home: p?.home ?? 0, away: p?.away ?? 0 });
+      const xg = xgMap.get(m);
+      if (xg) { lastXgH = xg.home; lastXgA = xg.away; }
+      raw.push({ minute: m, home: p?.home ?? 0, away: p?.away ?? 0, xgH: lastXgH, xgA: lastXgA });
     }
-    // média móvel 3'
+    // pico de xG (combinado) para escalar a curva ao range -100..100
+    const xgPeak = Math.max(0.5, ...raw.map((r) => Math.max(r.xgH, r.xgA)));
+    // média móvel 3' para pressão; xG mantém forma original (cumulativa monotônica)
     return raw.map((p, i) => {
       const slice = raw.slice(Math.max(0, i - 2), Math.min(raw.length, i + 3));
       const home = slice.reduce((s, x) => s + x.home, 0) / slice.length;
       const away = slice.reduce((s, x) => s + x.away, 0) / slice.length;
-      return { minute: p.minute, home: Math.round(home), awayNeg: -Math.round(away) };
+      const xgScale = 90 / xgPeak; // escala para ~90% do eixo
+      return {
+        minute: p.minute,
+        home: Math.round(home),
+        awayNeg: -Math.round(away),
+        xgHome: +(p.xgH * xgScale).toFixed(2),
+        xgAwayNeg: -+(p.xgA * xgScale).toFixed(2),
+        xgHomeRaw: p.xgH,
+        xgAwayRaw: p.xgA,
+      };
     });
-  }, [data.timeline]);
+  }, [data.timeline, data.xgTimeline]);
 
   if (series.length === 0) {
     return (
