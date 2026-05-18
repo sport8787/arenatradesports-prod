@@ -1,26 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { smartOddsScannerService, type ScanResult } from '@/services/smartOddsScannerService';
-import { Search, RefreshCw, ExternalLink } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 export default function SmartOddsScannerPanel() {
   const [result, setResult] = useState<ScanResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function scanLive() {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await smartOddsScannerService.scanLive('soccer');
-      setResult(data);
-    } catch (e: any) {
-      setError(e.message || 'Erro no scan');
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await smartOddsScannerService.scanLive('soccer');
+        if (!cancelled) setResult(data);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Erro ao carregar scan');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const opportunities = result?.opportunities || [];
 
