@@ -446,263 +446,89 @@ serve(async (req) => {
       await enrichMatchWithRealOdds(match);
     }
 
-    // Load planos from table + memory rules in parallel (NO MORE KB)
-    const [planos, memoryRules] = await Promise.all([loadPlanos(), loadMemoryRules()]);
+    // ====================================================================
+    // BASELINE DETERMINÍSTICA (sem IA)
+    // ====================================================================
+    // Calcula um veredito inicial a partir de regras estatísticas puras.
+    // Os blocos override mais abaixo (UNDER 2.5 EARLY, BACK AO DOMINANTE,
+    // LAY AO VENCEDOR, SITUACIONAL S1–S4) podem promover esta baseline
+    // para APROVADO / APROVADO_SITUACIONAL / LABAREDA conforme critérios.
+    // ====================================================================
+    const _bs: any = match.stats || {};
+    const _bMin = match.minute ?? 0;
+    const _bScoreH = match.scoreHome ?? 0;
+    const _bScoreA = match.scoreAway ?? 0;
+    const _bTotalGoals = _bScoreH + _bScoreA;
+    const _bDiff = Math.abs(_bScoreH - _bScoreA);
+    const _bPossH = _bs.possession_home ?? 0;
+    const _bPossA = _bs.possession_away ?? 0;
+    const _bShotsTH = _bs.shots_total_home ?? _bs.shots_home ?? 0;
+    const _bShotsTA = _bs.shots_total_away ?? _bs.shots_away ?? 0;
+    const _bSotH = _bs.shots_on_target_home ?? 0;
+    const _bSotA = _bs.shots_on_target_away ?? 0;
+    const _bDangH = _bs.dangerous_attacks_home ?? _bs.attacks_home ?? 0;
+    const _bDangA = _bs.dangerous_attacks_away ?? _bs.attacks_away ?? 0;
+    const _bXgH = _bs.xG_home ?? _bs.xg_home ?? 0;
+    const _bXgA = _bs.xG_away ?? _bs.xg_away ?? 0;
+    const _bXgTotal = _bXgH + _bXgA;
+    const _bSotTotal = _bSotH + _bSotA;
+    const _bDangTotal = _bDangH + _bDangA;
+    const _bShotsTotal = _bShotsTH + _bShotsTA;
 
-    if (!planos.length) {
-      return new Response(JSON.stringify({ error: 'Nenhum plano estratégico ativo encontrado' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const statsEmpty = statsAreEmpty(match.stats);
 
-    const prompt = buildPrompt(match, planos, memoryRules);
+    // Detecção de LABAREDA determinística (potencial de gol tardio / virada)
+    let baselineVerdict: string = 'CUIDADO';
+    let baselineThesis = '';
+    let baselineMarket = 'N/A';
+    let baselineConfidence = 55;
+    let baselinePlanName: string | null = null;
 
-    // Build valid plan_name enum from loaded plans
-    const planEnumValues = planos.map(p => `PLANO ${p.nome.replace('Plano ', '').toUpperCase()}`);
-
-    // Cascata de modelos para mitigar 429 (rate limit por minuto): flash → flash-lite → flash (retry)
-    // Cada modelo tem RPM independente na Gemini API. flash-lite tem RPM mais alto e ainda atende qualidade aceitável.
-    const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-
-    // === MAX_TOKENS ADAPTATIVO ===
-    // Estima saída com base no tamanho do prompt (critérios + planos + stats).
-    // Faixa: 2048 (curto) → 8192 (longo). Permite override em retry pós-truncamento.
-    const computeMaxTokens = (promptText: string): number => {
-      const len = promptText.length;
-      if (len < 2500) return 2048;
-      if (len < 5000) return 3072;
-      if (len < 9000) return 4096;
-      if (len < 14000) return 6144;
-      return 8192;
-    };
-
-    const SYSTEM_FULL = 'Você é Mycroft, analista forense de trading esportivo de elite. Use os status: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO ou AGUARDAR. NUNCA use VETADO — ele não existe mais. JOGO_MORTO = sem oportunidade agora (temporário). LABAREDA = potencial de gol tardio/inversão (min 60+). CUIDADO = potencial com fatores de risco. Só use AGUARDAR se stats forem LITERALMENTE todas zero. Se tem posse, chutes ou ataques, OBRIGATÓRIO decidir APROVADO, LABAREDA, CUIDADO ou JOGO_MORTO. CRÍTICO: plan_name DEVE ser um dos planos carregados ou null. NUNCA invente nomes. IDIOMA: tudo em português brasileiro.';
-    const SYSTEM_SHORT = 'Você é Mycroft. Responda SOMENTE via tool_call sports_analysis. Status válidos: APROVADO, APROVADO_SITUACIONAL, LABAREDA, CUIDADO, JOGO_MORTO, AGUARDAR. Seja CONCISO: thesis ≤ 220 chars, alerts ≤ 3 itens curtos, sem additional_markets a menos que essencial. Português brasileiro.';
-
-    // Compacta prompt cortando linhas longas e seções repetidas para retry.
-    const compactPrompt = (p: string): string => {
-      const lines = p.split('\n');
-      const trimmed = lines.map(l => l.length > 240 ? l.slice(0, 240) + '…' : l);
-      // se ainda muito grande, pega cabeçalho + final (planos/stats finais)
-      const joined = trimmed.join('\n');
-      if (joined.length <= 6000) return joined;
-      const head = joined.slice(0, 3500);
-      const tail = joined.slice(-2200);
-      return `${head}\n\n[...prompt compactado para retry...]\n\n${tail}`;
-    };
-
-    const buildBody = (model: string, opts?: { systemOverride?: string; promptOverride?: string; maxTokensOverride?: number }) => JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: opts?.systemOverride ?? SYSTEM_FULL },
-          { role: 'user', content: opts?.promptOverride ?? prompt },
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'sports_analysis',
-            description: 'Return the structured sports trading analysis. Include additional_markets when multiple independent opportunities exist.',
-            parameters: {
-              type: 'object',
-              properties: {
-                verdict: { type: 'string', enum: ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA', 'CUIDADO', 'JOGO_MORTO', 'AGUARDAR'] },
-                plan_name: { type: 'string', nullable: true, enum: planEnumValues },
-                market: { type: 'string' },
-                odd: { type: 'number' },
-                confidence: { type: 'integer' },
-                thesis: { type: 'string' },
-                criterios_atendidos: { type: 'array', items: { type: 'string' } },
-                criterios_ausentes: { type: 'array', items: { type: 'string' } },
-                fundamentation: { type: 'object', properties: { source: { type: 'string' }, citation: { type: 'string' }, pattern: { type: 'string' }, historical_wr: { type: 'string' } } },
-                risk_management: { type: 'object', properties: { stake_percent: { type: 'number' }, entry: { type: 'string' }, stop: { type: 'string' }, target: { type: 'string' }, rr: { type: 'string' }, ev: { type: 'string' } } },
-                alerts: { type: 'array', items: { type: 'string' } },
-                additional_markets: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      market: { type: 'string' },
-                      odd: { type: 'number' },
-                      confidence: { type: 'integer' },
-                      thesis: { type: 'string' },
-                      stake_percent: { type: 'number' },
-                    },
-                    required: ['market', 'odd', 'confidence', 'thesis', 'stake_percent'],
-                  },
-                },
-              },
-              required: ['verdict', 'market', 'odd', 'confidence', 'thesis', 'risk_management', 'alerts'],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: 'function', function: { name: 'sports_analysis' } },
-        max_tokens: opts?.maxTokensOverride ?? computeMaxTokens(opts?.promptOverride ?? prompt),
-      });
-
-    const adaptiveMaxTokens = computeMaxTokens(prompt);
-    console.log(`[MycroftSports] 🎚️ max_tokens adaptativo=${adaptiveMaxTokens} (prompt_len=${prompt.length})`);
-
-    let response: Response | null = null;
-    let usedModel = MODEL_FALLBACKS[0];
-    for (let i = 0; i < MODEL_FALLBACKS.length; i++) {
-      const m = MODEL_FALLBACKS[i];
-      const r = await fetch(AI_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
-        body: buildBody(m),
-      });
-      if (r.ok) { response = r; usedModel = m; break; }
-      if (r.status === 429) {
-        const txt = await r.text().catch(() => '');
-        console.warn(`[MycroftSports] ⚠️ 429 em ${m} (tentativa ${i + 1}/${MODEL_FALLBACKS.length}) — fallback`, txt.substring(0, 120));
-        // pequeno backoff antes do próximo modelo
-        await new Promise(res => setTimeout(res, 400 + i * 600));
-        continue;
-      }
-      // Erro não-429 → propaga
-      const errorText = await r.text();
-      console.error(`[MycroftSports] Gemini error ${r.status} (${m}):`, errorText);
-      if (r.status === 402) return new Response(JSON.stringify({ error: 'Payment required' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      return new Response(JSON.stringify({ error: `AI error: ${r.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (!response) {
-      console.error('[MycroftSports] ❌ Todos os modelos Gemini retornaram 429 — quota/RPM saturados');
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded em todos os modelos Gemini', code: 'AI_QUOTA_EXHAUSTED' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (usedModel !== MODEL_FALLBACKS[0]) {
-      console.log(`[MycroftSports] ✅ Resposta obtida via fallback model=${usedModel}`);
-    }
-
-    const data = await response.json();
-
-    // Extract from tool call response
-    const choice = data.choices?.[0];
-    let finishReason = choice?.finish_reason;
-    const toolCall = choice?.message?.tool_calls?.[0];
-    let rawText = '';
-    if (toolCall?.function?.arguments) {
-      rawText = toolCall.function.arguments;
+    if (statsEmpty) {
+      baselineVerdict = 'AGUARDAR';
+      baselineThesis = 'Estatísticas indisponíveis no momento — aguardando próximo ciclo de dados.';
+      baselineMarket = 'N/A';
+      baselineConfidence = 50;
+    } else if (_bMin >= 20 && _bTotalGoals === 0 && _bShotsTotal <= 2 && _bDangTotal <= 4 && _bXgTotal <= 0.3) {
+      // Jogo morto clássico: 20'+ sem gol, sem volume ofensivo
+      baselineVerdict = 'JOGO_MORTO';
+      baselineThesis = `Jogo travado (min ${_bMin}, ${_bShotsTotal} finalizações totais, xG ${_bXgTotal.toFixed(2)}). Sem oportunidade clara agora.`;
+      baselineConfidence = 60;
+    } else if (_bMin >= 60 && _bDiff === 1 && _bXgTotal >= 0.8) {
+      // LABAREDA: jogo apertado em fase final com xG vivo
+      const perdedor = _bScoreH < _bScoreA ? match.home : match.away;
+      baselineVerdict = 'LABAREDA';
+      baselineMarket = 'Over 0.5 Próximo Gol';
+      baselineConfidence = 68;
+      baselineThesis = `🔥 LABAREDA: min ${_bMin}, ${perdedor} perdendo por 1, xG total ${_bXgTotal.toFixed(2)}. Potencial de gol tardio.`;
+    } else if (_bMin >= 25 && _bDiff >= 3) {
+      // Jogo decidido sem reação
+      baselineVerdict = 'JOGO_MORTO';
+      baselineThesis = `Placar ${_bScoreH}x${_bScoreA} com diferença ≥3 — jogo decidido, sem mercado claro.`;
+      baselineConfidence = 60;
     } else {
-      rawText = choice?.message?.content || '';
+      // Caso geral: marca como CUIDADO; será promovido pelos overrides se critérios baterem
+      baselineVerdict = 'CUIDADO';
+      baselineThesis = `Análise determinística: ${match.home} ${_bScoreH}x${_bScoreA} ${match.away} (min ${_bMin}). Posse ${_bPossH}%/${_bPossA}%, finalizações ${_bShotsTH}/${_bShotsTA}, xG ${_bXgH.toFixed(2)}/${_bXgA.toFixed(2)}. Sem padrão dominante claro.`;
+      baselineConfidence = 55;
     }
-    if (finishReason === 'length' || finishReason === 'MAX_TOKENS') {
-      console.warn(`[MycroftSports] ⚠️ Resposta truncada (finish_reason=${finishReason}, len=${rawText.length}) — tentando retry compacto`);
-      try {
-        const retryR = await fetch(AI_URL, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
-          body: buildBody(usedModel, {
-            systemOverride: SYSTEM_SHORT,
-            promptOverride: compactPrompt(prompt),
-            maxTokensOverride: Math.min(8192, Math.max(adaptiveMaxTokens, 4096)),
-          }),
-        });
-        if (retryR.ok) {
-          const retryData = await retryR.json();
-          const rChoice = retryData.choices?.[0];
-          const rTool = rChoice?.message?.tool_calls?.[0];
-          const rRaw = rTool?.function?.arguments || rChoice?.message?.content || '';
-          if (rRaw && rRaw.length > 5) {
-            console.log(`[MycroftSports] ♻️ Retry compacto OK (finish=${rChoice?.finish_reason}, len=${rRaw.length})`);
-            rawText = rRaw;
-            finishReason = rChoice?.finish_reason;
-          }
-        } else {
-          console.warn(`[MycroftSports] ⚠️ Retry compacto falhou status=${retryR.status}`);
-          await retryR.text().catch(() => '');
-        }
-      } catch (e) {
-        console.warn('[MycroftSports] ⚠️ Erro no retry compacto:', (e as Error).message);
-      }
-    }
-    console.log('[MycroftSports] Raw:', rawText.substring(0, 300));
 
-    // Safe fallback for empty / truncated responses → returns AGUARDAR instead of 500
-    const safeAguardar = {
-      verdict: 'AGUARDAR',
-      market: 'N/A',
+    const analysis: any = {
+      verdict: baselineVerdict,
+      plan_name: baselinePlanName,
+      market: baselineMarket,
       odd: 0,
-      confidence: 50,
-      thesis: `Resposta da IA indisponível ou truncada (finish_reason=${finishReason || 'none'}). Aguardando próximo ciclo.`,
-      alerts: ['IA truncou ou não retornou JSON válido'],
-      fundamentation: {},
+      confidence: baselineConfidence,
+      thesis: baselineThesis,
+      criterios_atendidos: [],
+      criterios_ausentes: [],
+      fundamentation: { source: 'engine-deterministica', pattern: baselineVerdict, historical_wr: 'n/a' },
       risk_management: { stake_percent: 0, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: 'N/A', ev: 'N/A' },
+      alerts: ['Análise 100% determinística (sem IA).'],
+      ai_engine: 'deterministic-v1',
     };
 
-    // Tenta parsear JSON; em caso de falha pede à IA reenvio estritamente JSON.
-    const tryParse = (txt: string): any | null => {
-      try {
-        return JSON.parse(txt.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-      } catch {
-        // Tenta extrair primeiro objeto JSON balanceado
-        const m = txt.match(/\{[\s\S]*\}/);
-        if (m) {
-          try { return JSON.parse(m[0]); } catch { /* noop */ }
-        }
-        return null;
-      }
-    };
-
-    let analysis: any = null;
-    if (!rawText || rawText.trim().length < 5) {
-      console.warn('[MycroftSports] ⚠️ rawText vazio — tentará retry de reparo antes do fallback');
-    } else {
-      analysis = tryParse(rawText);
-    }
-
-    // Retry de REPARO: pede à IA reenviar payload estritamente JSON, sem markdown/comentários.
-    if (!analysis) {
-      console.warn('[MycroftSports] 🔧 Parse falhou — solicitando reenvio JSON estrito');
-      try {
-        const repairBody = JSON.stringify({
-          model: usedModel,
-          messages: [
-            { role: 'system', content: 'Você é um conversor JSON estrito. Receberá um texto bruto possivelmente quebrado e DEVE retornar SOMENTE um objeto JSON válido — sem markdown, sem ```json, sem comentários, sem texto antes/depois. Mantenha os campos: verdict (APROVADO|APROVADO_SITUACIONAL|LABAREDA|CUIDADO|JOGO_MORTO|AGUARDAR), market (string), odd (number), confidence (integer), thesis (string ≤220 chars), alerts (array de strings), risk_management {stake_percent, entry, stop, target, rr, ev}. Se faltar algum campo, preencha com valores neutros (ex: AGUARDAR/N/A/0). Responda APENAS o JSON.' },
-            { role: 'user', content: `Bruto recebido (pode estar truncado):\n\n${rawText.slice(0, 4000)}` },
-          ],
-          max_tokens: 1200,
-          response_format: { type: 'json_object' },
-        });
-        const repairR = await fetch(AI_URL, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
-          body: repairBody,
-        });
-        if (repairR.ok) {
-          const repairData = await repairR.json();
-          const repairText = repairData.choices?.[0]?.message?.content || '';
-          console.log('[MycroftSports] 🔧 Reparo raw:', repairText.substring(0, 200));
-          analysis = tryParse(repairText);
-          if (analysis) console.log('[MycroftSports] ✅ Reparo JSON bem-sucedido');
-        } else {
-          console.warn(`[MycroftSports] ⚠️ Reparo JSON falhou status=${repairR.status}`);
-          await repairR.text().catch(() => '');
-        }
-      } catch (e) {
-        console.warn('[MycroftSports] ⚠️ Erro no retry de reparo:', (e as Error).message);
-      }
-    }
-
-    // Último recurso: extração regex linha-a-linha do rawText
-    if (!analysis && rawText) {
-      const vm = rawText.match(/"verdict"\s*:\s*"(APROVADO|APROVADO_SITUACIONAL|JOGO_MORTO|LABAREDA|CUIDADO|AGUARDAR)"/);
-      if (vm) {
-        const mm = rawText.match(/"market"\s*:\s*"([^"]+)"/);
-        const om = rawText.match(/"odd"\s*:\s*([\d.]+)/);
-        analysis = {
-          verdict: vm[1], market: mm?.[1] || 'N/A', odd: om ? parseFloat(om[1]) : 1.50,
-          confidence: parseInt(rawText.match(/"confidence"\s*:\s*(\d+)/)?.[1] || '50'),
-          thesis: rawText.match(/"thesis"\s*:\s*"([^"]*)/)?.[1] || 'Análise parcial (resposta truncada)',
-          alerts: ['Resposta truncada — análise parcial'], fundamentation: {},
-          risk_management: { stake_percent: 5, entry: 'N/A', stop: 'N/A', target: 'N/A', rr: '1:1.5', ev: '+10%' },
-        };
-        console.log('[MycroftSports] 🩹 Extração regex aplicada como último recurso');
-      }
-    }
-
-    if (!analysis) {
-      console.warn('[MycroftSports] ⚠️ Todas as tentativas falharam → fallback AGUARDAR');
-      analysis = safeAguardar;
-    }
+    console.log(`[MycroftSports] 🧮 Baseline determinística: ${analysis.verdict} (${match.home} vs ${match.away}, min ${_bMin})`);
 
     // === GUARD TEMPORAL UNDER 2.5 ===
     // Janela válida: 1º tempo, do minuto 10 até o minuto 20.
