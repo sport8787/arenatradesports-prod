@@ -714,6 +714,10 @@ serve(async (req) => {
           analysis: an.analysis || "",
           risk_factors: an.risk_factors || "",
           analyzed_by: "sportmonks",
+          approval_block: gate.block,
+          gate_demoted: gate.demoted || false,
+          gate_veto_reason: gate.veto_reason || null,
+          gate_block_reason: gate.block_reason || null,
         }, { onConflict: "match_id,market", ignoreDuplicates: false });
 
         if (isApproved) {
