@@ -148,21 +148,21 @@ function summarizeTeam(name: string, teamId: number, fixtures: any[]): TeamSumma
 }
 
 // ──────────────────────────────────────────────
-// Gemini call
+// Groq call (OpenAI-compatible, llama-3.3-70b-versatile)
 // ──────────────────────────────────────────────
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
-  if (!GEMINI_KEY) throw new Error("GEMINI_API_KEY missing");
-  const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"];
+  if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
   let lastErr = "";
   for (let attempt = 0; attempt < 3; attempt++) {
     const model = models[Math.min(attempt, models.length - 1)];
     try {
       const r = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${GEMINI_KEY}`,
+            Authorization: `Bearer ${GROQ_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -181,7 +181,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
         return j.choices?.[0]?.message?.content || "";
       }
       const t = await r.text();
-      lastErr = `Gemini ${r.status} (${model}): ${t.slice(0, 200)}`;
+      lastErr = `Groq ${r.status} (${model}): ${t.slice(0, 200)}`;
       // 503/429 → retry com backoff e modelo menor
       if (r.status === 503 || r.status === 429) {
         await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
@@ -194,7 +194,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
       await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
     }
   }
-  throw new Error(lastErr || "Gemini failed");
+  throw new Error(lastErr || "Groq failed");
 }
 
 function parseJsonRobust(raw: string): any | null {
