@@ -365,12 +365,9 @@ serve(async (req) => {
 
   const run = startEdgeRun("mycroft-sports-analysis");
   try {
-    // Migrado para Gemini direto (v1beta OpenAI-compatible). Plano pago configurado.
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    const AI_KEY = GEMINI_API_KEY;
-    const AI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    // AI_MODEL agora é resolvido via cascata MODEL_FALLBACKS abaixo (mitigação de 429 RPM)
-    if (!AI_KEY) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // === ENGINE DETERMINÍSTICA (sem IA) ===
+    // Removida dependência da Gemini API. Toda a análise é feita por regras estatísticas
+    // (Under 2.5 Early, Back ao Dominante, Lay ao Vencedor, Situacional S1–S4, LABAREDA).
 
     const body = await req.json() as { match: MatchData & Record<string, unknown>; force_provider?: string };
     const match = body?.match;
