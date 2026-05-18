@@ -620,6 +620,10 @@ export default function ArenaTraderSports() {
                   ) : null;
                 })()}
               </TabsTrigger>
+              <TabsTrigger value="meus_sinais" className="gap-1.5">
+                <Target className="w-3 h-3" />
+                Meus Sinais
+              </TabsTrigger>
               <TabsTrigger value="all">Todos</TabsTrigger>
               <TabsTrigger value="proximos" className="gap-1.5">
                 Próximos
