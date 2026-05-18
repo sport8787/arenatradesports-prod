@@ -85,7 +85,7 @@ async function firecrawlSearchLeague(league: { slug: string; label: string; quer
       return [];
     }
     const j = await r.json();
-    const arr: FcResult[] = Array.isArray(j?.data) ? j.data : (j?.web?.results ?? j?.results ?? []);
+    const arr: FcResult[] = Array.isArray(j?.data?.web) ? j.data.web : Array.isArray(j?.data) ? j.data : [];
     return arr
       .filter((x) => x?.url && (x?.markdown || x?.description))
       .map((x) => ({ ...x, league: { slug: league.slug, label: league.label } }));
