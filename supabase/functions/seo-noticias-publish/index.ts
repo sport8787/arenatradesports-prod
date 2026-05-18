@@ -18,30 +18,23 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY") ?? "";
 
-const SM_BASE = "https://api.sportmonks.com/v3";
+const FIRECRAWL_BASE = "https://api.firecrawl.dev/v2";
 const SITE_ORIGIN = "https://oraculo-mycroft.com";
 const BUCKET = "seo-static";
 
-// Whitelist de ligas (regex case-insensitive). Casado contra league.name vindo do Sportmonks.
-const LEAGUE_WHITELIST: Array<{ re: RegExp; slug: string; label: string }> = [
-  { re: /brasileir|serie a.*brazil|brazil.*serie a/i, slug: "brasileirao-2026", label: "Brasileirão" },
-  { re: /premier league/i, slug: "premier-league", label: "Premier League" },
-  { re: /laliga|la liga/i, slug: "laliga", label: "LaLiga" },
-  { re: /bundesliga/i, slug: "bundesliga", label: "Bundesliga" },
-  { re: /serie a$|serie a italy|italian serie a/i, slug: "serie-a-italia", label: "Serie A Itália" },
-  { re: /ligue 1/i, slug: "ligue-1", label: "Ligue 1" },
-  { re: /libertadores/i, slug: "libertadores", label: "Libertadores" },
-  { re: /sul-?americana|sudamericana/i, slug: "sul-americana", label: "Sul-Americana" },
+// Queries Firecrawl: 1 por liga. Filtra últimas 24h (tbs:qdr:d). Portais BR.
+const LEAGUE_QUERIES: Array<{ slug: string; label: string; query: string }> = [
+  { slug: "brasileirao-2026", label: "Brasileirão", query: "Brasileirão 2026 análise rodada (site:globoesporte.globo.com OR site:lance.com.br OR site:espn.com.br OR site:uol.com.br)" },
+  { slug: "premier-league", label: "Premier League", query: "Premier League análise rodada (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
+  { slug: "laliga", label: "LaLiga", query: "LaLiga Espanha análise jogo (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
+  { slug: "bundesliga", label: "Bundesliga", query: "Bundesliga Alemanha análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
+  { slug: "serie-a-italia", label: "Serie A Itália", query: "Serie A Italiana análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
+  { slug: "ligue-1", label: "Ligue 1", query: "Ligue 1 França análise (site:globoesporte.globo.com OR site:espn.com.br OR site:lance.com.br)" },
+  { slug: "libertadores", label: "Libertadores", query: "Libertadores análise jogo (site:globoesporte.globo.com OR site:lance.com.br OR site:espn.com.br)" },
 ];
-
-function matchLeague(name: string | null | undefined): { slug: string; label: string } | null {
-  if (!name) return null;
-  for (const l of LEAGUE_WHITELIST) if (l.re.test(name)) return { slug: l.slug, label: l.label };
-  return null;
-}
 
 function slugify(s: string): string {
   return s
@@ -56,100 +49,88 @@ function slugify(s: string): string {
 const escape = (s: string) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
-type SmNewsItem = {
-  id: number;
-  title?: string;
-  text?: string;
-  author?: string;
-  url?: string;
-  image_path?: string;
-  fixture_id?: number;
-  published_at?: string;
-  type?: string;
-  fixture?: {
-    id: number;
-    name?: string;
-    starting_at?: string;
-    league?: { id: number; name: string };
-    participants?: Array<{ name: string; meta?: { location?: string } }>;
-    scores?: Array<{ score?: { goals?: number; participant?: string } }>;
-  };
-};
-
-async function fetchSportmonksNews(endpoint: "post-match" | "pre-match"): Promise<SmNewsItem[]> {
-  if (!SM_TOKEN) {
-    console.warn("[noticias] SPORTMONKS_API_KEY ausente");
-    return [];
+function hashId(url: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < url.length; i++) {
+    h ^= url.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
   }
-  const url = `${SM_BASE}/football/news/${endpoint}?api_token=${SM_TOKEN}&include=fixture.league;fixture.participants;fixture.scores&per_page=50`;
-  const r = await fetch(url);
-  if (!r.ok) {
-    console.warn(`[noticias] sportmonks ${endpoint} fail`, r.status, await r.text().catch(() => ""));
-    return [];
-  }
-  const j = await r.json();
-  return Array.isArray(j?.data) ? j.data : [];
+  return (h >>> 0).toString(16);
 }
 
-function buildFixtureContext(item: SmNewsItem): string {
-  const f = item.fixture;
-  if (!f) return "";
-  const teams = (f.participants ?? []).map((p) => p.name).join(" × ");
-  const scores = (f.scores ?? [])
-    .map((s) => s?.score?.goals)
-    .filter((g) => typeof g === "number");
-  const placar = scores.length === 2 ? `${scores[0]}-${scores[1]}` : "";
-  const data = f.starting_at ? new Date(f.starting_at).toLocaleDateString("pt-BR") : "";
-  return [teams, placar, data, f.league?.name].filter(Boolean).join(" · ");
+type FcResult = { url: string; title?: string; description?: string; markdown?: string };
+type FcCandidate = FcResult & { league: { slug: string; label: string } };
+
+async function firecrawlSearchLeague(league: { slug: string; label: string; query: string }): Promise<FcCandidate[]> {
+  if (!FIRECRAWL_API_KEY) {
+    console.warn("[noticias] FIRECRAWL_API_KEY ausente");
+    return [];
+  }
+  try {
+    const r = await fetch(`${FIRECRAWL_BASE}/search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: league.query,
+        limit: 4,
+        lang: "pt",
+        country: "br",
+        tbs: "qdr:d",
+        scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
+      }),
+    });
+    if (!r.ok) {
+      console.warn(`[noticias] firecrawl ${league.slug} status=${r.status}`, await r.text().catch(() => ""));
+      return [];
+    }
+    const j = await r.json();
+    const arr: FcResult[] = Array.isArray(j?.data) ? j.data : (j?.web?.results ?? j?.results ?? []);
+    return arr
+      .filter((x) => x?.url && (x?.markdown || x?.description))
+      .map((x) => ({ ...x, league: { slug: league.slug, label: league.label } }));
+  } catch (e) {
+    console.warn(`[noticias] firecrawl ${league.slug} err`, e);
+    return [];
+  }
 }
 
-async function rewriteWithMycroft(item: SmNewsItem, leagueLabel: string): Promise<{ title: string; summary: string; html: string }> {
+async function rewriteWithMycroft(item: FcResult, leagueLabel: string): Promise<{ title: string; summary: string; html: string }> {
   const originalTitle = item.title ?? "Análise de jogo";
-  const originalText = item.text ?? "";
-  const context = buildFixtureContext(item);
-  const kind = item.type === "pre-match" ? "PRÉ-JOGO" : "PÓS-JOGO";
+  const originalText = item.markdown ?? item.description ?? "";
 
-  if (!GEMINI_API_KEY) {
-    // Fallback sem IA: copia o texto cru
-    return {
-      title: originalTitle,
-      summary: originalText.slice(0, 180),
-      html: `<p>${escape(originalText)}</p>`,
-    };
+  if (!GEMINI_API_KEY || !originalText) {
+    return { title: originalTitle, summary: originalText.slice(0, 180), html: `<p>${escape(originalText)}</p>` };
   }
 
   const prompt = `Você é Mycroft Holmes, analista frio e dedutivo do Oráculo Mycroft. NÃO TORCE — CALCULA.
-Reescreva a matéria abaixo em **português brasileiro**, no tom Mycroft: jornalístico-técnico, analítico, sem emoji, sem clichê, sem "torcida feliz".
+Reescreva a matéria abaixo em **português brasileiro**, tom Mycroft: jornalístico-técnico, analítico, sem emoji, sem clichê.
 
-CONTEXTO DO JOGO: ${context || "n/d"}
 LIGA: ${leagueLabel}
-TIPO: ${kind}
 TÍTULO ORIGINAL: ${originalTitle}
-MATÉRIA ORIGINAL:
-${originalText.slice(0, 4000)}
+URL FONTE: ${item.url}
+TEXTO ORIGINAL (crawler):
+${originalText.slice(0, 6000)}
 
-REGRAS:
-1. Gere conteúdo ORIGINAL (não copie frases). Mínimo 350 palavras, máximo 600.
-2. Distribua naturalmente keywords SEO: "análise ${leagueLabel}", "${kind === "PRÉ-JOGO" ? "previsão" : "análise pós-jogo"}", "apostas esportivas", "edge", "valor positivo".
-3. Estruture em 3-5 parágrafos, com **negrito** em dados-chave (números, mercados, jogadores).
-4. Termine com 1 parágrafo "Leitura Mycroft" — sua dedução fria sobre o que esse jogo sinaliza para próximas operações.
-5. NÃO invente estatísticas. Use só o que está na matéria original.
+REGRAS OBRIGATÓRIAS:
+1. Conteúdo 100% ORIGINAL — não copie frases inteiras, parafraseie tudo.
+2. 400-650 palavras em 4-6 parágrafos <p>...</p>.
+3. <strong>Negrito</strong> em dados-chave (números, mercados, jogadores).
+4. Distribua keywords SEO: "análise ${leagueLabel}", "apostas esportivas", "edge", "valor positivo", "previsão de jogos".
+5. Termine com parágrafo iniciado por "<strong>Leitura Mycroft:</strong>" — dedução fria sobre impacto operacional.
+6. NÃO invente estatísticas — use só o que está no texto original.
+7. NÃO mencione a fonte no corpo (rodapé do site cuida disso).
 
-Retorne JSON puro (sem markdown fence):
-{"title":"título reescrito até 70 chars","summary":"lead 1 parágrafo até 180 chars","content_html":"<p>...</p><p>...</p>"}`;
+Retorne JSON puro: {"title":"título até 70 chars","summary":"lead 1 parágrafo até 200 chars","content_html":"<p>...</p><p>...</p>"}`;
 
   try {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 2200, responseMimeType: "application/json" },
-        }),
-      }
-    );
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.5, maxOutputTokens: 2400, responseMimeType: "application/json" },
+      }),
+    });
     if (!r.ok) throw new Error(`gemini ${r.status}`);
     const j = await r.json();
     const txt = j?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
@@ -164,6 +145,7 @@ Retorne JSON puro (sem markdown fence):
     return { title: originalTitle, summary: originalText.slice(0, 180), html: `<p>${escape(originalText)}</p>` };
   }
 }
+
 
 function buildPostHtml(post: {
   slug: string;
