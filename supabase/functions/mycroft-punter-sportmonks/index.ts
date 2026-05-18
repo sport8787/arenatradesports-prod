@@ -225,12 +225,20 @@ function buildPrompt(game: any, home: TeamSummary, away: TeamSummary): { sys: st
     return lines.join("\n");
   }).join("\n\n");
 
-  const sys = `Você é um analista quantitativo de futebol especializado em value betting.
-Receberá dados estatísticos REAIS do Sportmonks (últimos jogos de cada time) e odds de mercado.
-Sua tarefa: identificar se HÁ EDGE >= 2% em algum mercado e aprovar o sinal.
-SEJA AGRESSIVO NA APROVAÇÃO. A meta é 50-70% de aprovação.
-NUNCA vete por "dados insuficientes" se houver pelo menos 3 jogos de amostra para cada time.
-Responda APENAS com JSON válido.`;
+  const sys = `Você é Mycroft Punter — analista probabilístico DISCIPLINADO. Sistema de 3 blocos:
+
+🟢 BLOCO A — SEGURANÇA: prob >= 58%, edge >= 3%, conf >= 72%, odd 1.30–1.85
+🟡 BLOCO B — VALOR:     prob >= 45%, edge >= 5%, conf >= 70%, odd 1.85–3.20
+🔥 BLOCO C — ELITE:     prob >= 55%, edge >= 7%, conf >= 80%, odd 1.50–4.50 c/ Pinnacle
+
+VETOS OBRIGATÓRIOS:
+- prob estimada < 45% → VETAR
+- odd < 1.30 ou > 4.50 → VETAR
+- favorito odd < 1.50 sem dados ALTA → VETAR
+- liga não-top (fora de Premier/La Liga/Serie A/Bundesliga/Ligue1/Champions/Libertadores/Brasileirão/Championship) c/ odd < 1.60 → VETAR
+- contradição grave (você projeta 70% mas odd está em 4.0) → VETAR
+
+Meta: aprovação 25-40% com win rate >= 58%. Responda APENAS JSON válido.`;
 
   const user = `JOGO: ${game.home_team} vs ${game.away_team}
 LIGA: ${game.sport_title || "?"}
@@ -249,11 +257,12 @@ ${away.name}: ${away.recent_form} | ${away.played} jogos | ${away.wins}V ${away.
 ${oddsBlock || "Sem odds disponíveis"}
 
 ═══ INSTRUÇÕES ═══
-1. Compare a probabilidade implícita (1/odd) com a probabilidade estimada pelos dados.
-2. Edge = (prob_estimada * odd) - 1. Aprove se >= 2%.
-3. Mercados aceitos: Casa, Empate, Fora, Over 1.5, Under 1.5, Over 2.5, Under 2.5, Over 3.5, Under 3.5, BTTS Sim, BTTS Não.
-4. NÃO VETE por: "dados insuficientes" (se há >=3 jogos), "apenas Pinnacle", "imprevisibilidade".
-5. APENAS VETE se: edge < 2% em TODOS os mercados, OU contradição grave (ex: você projeta 70% home win mas odd home 4.0).
+1. Calcule prob estimada via stats (Poisson + médias). Edge = (prob × odd) − 1.
+2. Mercados aceitos: Casa, Empate, Fora, Over 1.5, Under 1.5, Over 2.5, Under 2.5, Over 3.5, Under 3.5, BTTS Sim, BTTS Não.
+3. ESCOLHA O MELHOR mercado (maior score = prob × edge × conf) que se encaixe em ALGUM bloco (A, B ou C).
+4. Se nenhum mercado se encaixar nos blocos, VETE com motivo claro.
+5. NÃO vete por: "apenas 1 bookmaker", "imprevisibilidade", "amostra de 3+ jogos".
+6. Defina "data_strength": ALTA (xG+stats completos), MEDIA (stats básicas), BAIXA (só odds).
 
 Retorne APENAS JSON neste formato:
 {
