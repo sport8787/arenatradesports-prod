@@ -75,39 +75,15 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('API_FOOTBALL_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'API_FOOTBALL_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabase = getSupabaseAdmin();
 
-    // 1. Fetch all live fixtures — provedor controlado por env
+    // 1. Fetch all live fixtures — sempre via liveProvider (Futodds + Sportmonks).
     let allFixtures: any[] = [];
-    let providerUsed = "api-football";
-    if (LIVE_PROVIDER_PRIMARY === "sportmonks" || LIVE_PROVIDER_PRIMARY === "futodds") {
-      const lr = await getLiveMatches();
-      allFixtures = lr.fixtures;
-      providerUsed = lr.source;
-      console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
-    } else {
-      console.log('[LiveScores] Fetching live fixtures (legacy mode)...');
-      const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-        headers: { 'x-apisports-key': apiKey },
-      });
-      if (!res.ok) {
-        console.error(`[LiveScores] API error: ${res.status}`);
-        return new Response(
-          JSON.stringify({ error: `API error: ${res.status}` }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const data = await res.json();
-      allFixtures = data.response || [];
-    }
+    let providerUsed = "futodds";
+    const lr = await getLiveMatches();
+    allFixtures = lr.fixtures;
+    providerUsed = lr.source;
+    console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
     
     // Filtrar apenas ligas permitidas
     // ⚠️ Futodds usa league_id do BetsAPI (espaço diferente da API-Football).
