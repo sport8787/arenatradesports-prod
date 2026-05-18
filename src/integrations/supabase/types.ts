@@ -3852,6 +3852,10 @@ export type Database = {
           sent_to_telegram: boolean | null
           settle_attempts: number
           settled_at: string | null
+          sherlock_alert: boolean
+          sportmonks_divergence_pp: number | null
+          sportmonks_prediction: Json | null
+          sportmonks_probability: number | null
           stake_percentage: number | null
           telegram_sent_at: string | null
           thesis: string | null
@@ -3892,6 +3896,10 @@ export type Database = {
           sent_to_telegram?: boolean | null
           settle_attempts?: number
           settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_divergence_pp?: number | null
+          sportmonks_prediction?: Json | null
+          sportmonks_probability?: number | null
           stake_percentage?: number | null
           telegram_sent_at?: string | null
           thesis?: string | null
@@ -3932,6 +3940,10 @@ export type Database = {
           sent_to_telegram?: boolean | null
           settle_attempts?: number
           settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_divergence_pp?: number | null
+          sportmonks_prediction?: Json | null
+          sportmonks_probability?: number | null
           stake_percentage?: number | null
           telegram_sent_at?: string | null
           thesis?: string | null
@@ -4258,6 +4270,71 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_predictions_shadow: {
+        Row: {
+          analysis_id: string | null
+          away_team: string | null
+          commence_time: string | null
+          created_at: string
+          divergence_pp: number | null
+          home_team: string | null
+          id: string
+          league: string | null
+          market: string
+          match_id: string
+          mycroft_probability: number | null
+          settled_at: string | null
+          sherlock_alert: boolean
+          sportmonks_probability: number | null
+          verdict: string | null
+          was_green: boolean | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          away_team?: string | null
+          commence_time?: string | null
+          created_at?: string
+          divergence_pp?: number | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          market: string
+          match_id: string
+          mycroft_probability?: number | null
+          settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_probability?: number | null
+          verdict?: string | null
+          was_green?: boolean | null
+        }
+        Update: {
+          analysis_id?: string | null
+          away_team?: string | null
+          commence_time?: string | null
+          created_at?: string
+          divergence_pp?: number | null
+          home_team?: string | null
+          id?: string
+          league?: string | null
+          market?: string
+          match_id?: string
+          mycroft_probability?: number | null
+          settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_probability?: number | null
+          verdict?: string | null
+          was_green?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "punter_predictions_shadow_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "punter_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       punter_quarantine: {
         Row: {
           active_until: string
@@ -4503,6 +4580,9 @@ export type Database = {
           sent_to_telegram: boolean
           settle_attempts: number
           settled_at: string | null
+          sherlock_alert: boolean
+          sportmonks_divergence_pp: number | null
+          sportmonks_probability: number | null
           stake_amount: number | null
           stake_confirmed: boolean
           stake_percentage: number | null
@@ -4557,6 +4637,9 @@ export type Database = {
           sent_to_telegram?: boolean
           settle_attempts?: number
           settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_divergence_pp?: number | null
+          sportmonks_probability?: number | null
           stake_amount?: number | null
           stake_confirmed?: boolean
           stake_percentage?: number | null
@@ -4611,6 +4694,9 @@ export type Database = {
           sent_to_telegram?: boolean
           settle_attempts?: number
           settled_at?: string | null
+          sherlock_alert?: boolean
+          sportmonks_divergence_pp?: number | null
+          sportmonks_probability?: number | null
           stake_amount?: number | null
           stake_confirmed?: boolean
           stake_percentage?: number | null
@@ -5464,6 +5550,36 @@ export type Database = {
           has_real_odds?: boolean
           match_date?: string | null
           odds?: Json
+        }
+        Relationships: []
+      }
+      sportmonks_predictions_cache: {
+        Row: {
+          away_team: string | null
+          commence_time: string | null
+          fetched_at: string
+          home_team: string | null
+          match_id: string
+          payload: Json
+          sm_fixture_id: number | null
+        }
+        Insert: {
+          away_team?: string | null
+          commence_time?: string | null
+          fetched_at?: string
+          home_team?: string | null
+          match_id: string
+          payload?: Json
+          sm_fixture_id?: number | null
+        }
+        Update: {
+          away_team?: string | null
+          commence_time?: string | null
+          fetched_at?: string
+          home_team?: string | null
+          match_id?: string
+          payload?: Json
+          sm_fixture_id?: number | null
         }
         Relationships: []
       }
