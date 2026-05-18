@@ -168,6 +168,18 @@ function escolherPlacarAlvo(ind: Indicadores, scoreMin = 60): {
   if (ind.fragilidade_def_away < 1.8) score3x1 += 25;
   opcoes.push({ tipo: "LAY_3x1", score: score3x1 });
 
+  // BACK_0x0: jogos travados — defesas sólidas, ataques fracos, histórico de 0x0
+  let score0x0 = 0;
+  if (ind.freq_0x0_h2h >= 15) score0x0 += 30;
+  else if (ind.freq_0x0_h2h >= 10) score0x0 += 15;
+  if (ind.media_gols_h2h < 1.8) score0x0 += 20;
+  else if (ind.media_gols_h2h < 2.2) score0x0 += 10;
+  if (ind.clean_sheet_rate_home > 35 && ind.clean_sheet_rate_away > 35) score0x0 += 20;
+  else if (ind.clean_sheet_rate_home > 25 && ind.clean_sheet_rate_away > 25) score0x0 += 10;
+  if (ind.forca_ofensiva_home < 1.3 && ind.forca_ofensiva_away < 1.3) score0x0 += 15;
+  if (ind.fragilidade_def_home < 1.0 && ind.fragilidade_def_away < 1.0) score0x0 += 15;
+  opcoes.push({ tipo: "BACK_0x0", score: score0x0 });
+
   opcoes.sort((a, b) => b.score - a.score);
   if (opcoes[0].score < scoreMin) return { alvo: null, alternativo: null, score: opcoes[0].score };
   return {
