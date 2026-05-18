@@ -247,8 +247,9 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 // API-Football Pro: Full enrichment
 // ═══════════════════════════════════════════════
 
-const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
-const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
+// API-Football removida em Fase 2 (18/05/2026). Helpers abaixo são stubs: retornam null/[] quando apiKey vazia.
+const API_FOOTBALL_BASE = ''
+const apiHeaders = (_key: string) => ({} as Record<string, string>)
 
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null
