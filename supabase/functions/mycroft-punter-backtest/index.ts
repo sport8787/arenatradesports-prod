@@ -1299,6 +1299,16 @@ function analyzeWithCriteria(
     'BTTS Sim': margin / marketBTTS,
   }
 
+  // OVERRIDE with REAL pre-match odds from Sportmonks where available.
+  // This eliminates the synthetic-edge bias on canonical markets.
+  const realOddsUsedForMarkets = new Set<string>()
+  for (const [mk, od] of Object.entries(realOdds)) {
+    if (mk in marketOdds && od >= 1.05 && od <= 50) {
+      marketOdds[mk] = od
+      realOddsUsedForMarkets.add(mk)
+    }
+  }
+
   const modelProbs: Record<string, number> = {
     'Casa': modelHomeWin,
     'Empate': modelDraw,
