@@ -1,8 +1,10 @@
 // liquidar-sinais-ao-vivo
 // Roda a cada 10min via pg_cron. Liquida live_sinais pendentes de HOJE.
-// Provedores: Futodds /matches-ended (primário) → API-Football (fallback).
+// Provedores: Futodds /matches-ended (primário) → Sportmonks (fallback).
 // Liquidação 100% delegada à RPC settle_signal (fonte única de verdade).
+// Fase 2 (18/05/2026): API-Football removida.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +12,6 @@ const cors = {
 };
 
 const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
-const AF_BASE = "https://v3.football.api-sports.io";
 
 interface PendingSignal {
   id: string;
