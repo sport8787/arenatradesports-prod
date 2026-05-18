@@ -538,6 +538,10 @@ export default function ArenaTraderSports() {
                 <TrendingUp className="w-4 h-4 mr-1" />
                 Ciclos
               </GoldButton>
+              <GoldButton size="sm" variant="outline" onClick={() => navigate('/sinais-alavanca')}>
+                <TrendingUp className="w-4 h-4 mr-1" />
+                Sinais Alavanca
+              </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
                 Performance
