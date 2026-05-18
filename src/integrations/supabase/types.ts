@@ -1940,6 +1940,7 @@ export type Database = {
           forca_ofensiva_home: number | null
           fragilidade_def_away: number | null
           fragilidade_def_home: number | null
+          freq_0x0_h2h: number | null
           freq_1x3_h2h: number | null
           freq_2x2_h2h: number | null
           freq_goleada_away: number | null
@@ -1971,6 +1972,7 @@ export type Database = {
           forca_ofensiva_home?: number | null
           fragilidade_def_away?: number | null
           fragilidade_def_home?: number | null
+          freq_0x0_h2h?: number | null
           freq_1x3_h2h?: number | null
           freq_2x2_h2h?: number | null
           freq_goleada_away?: number | null
@@ -2002,6 +2004,7 @@ export type Database = {
           forca_ofensiva_home?: number | null
           fragilidade_def_away?: number | null
           fragilidade_def_home?: number | null
+          freq_0x0_h2h?: number | null
           freq_1x3_h2h?: number | null
           freq_2x2_h2h?: number | null
           freq_goleada_away?: number | null

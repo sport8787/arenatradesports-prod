@@ -30,7 +30,7 @@ const LIGAS_PERMITIDAS = [
   88, 94, 144, 203, 207, 218, 253, 262, 281, 2, 3, 4, 5, 11, 13,
 ];
 
-type PlacarTipo = "LAY_GOLEADA" | "LAY_2x2" | "LAY_1x3" | "LAY_3x1";
+type PlacarTipo = "LAY_GOLEADA" | "LAY_2x2" | "LAY_1x3" | "LAY_3x1" | "BACK_0x0";
 
 interface Indicadores {
   freq_goleada_home: number;
@@ -38,6 +38,7 @@ interface Indicadores {
   freq_goleada_h2h: number;
   freq_2x2_h2h: number;
   freq_1x3_h2h: number;
+  freq_0x0_h2h: number;
   forca_ofensiva_home: number;
   forca_ofensiva_away: number;
   fragilidade_def_home: number;
@@ -122,6 +123,7 @@ function indicadores(statsHome: any, statsAway: any, h2h: any[]): Indicadores {
     freq_goleada_h2h: calcGoleadaH2H(h2h),
     freq_2x2_h2h: calcPlacarH2H(h2h, 2, 2),
     freq_1x3_h2h: calcPlacarH2H(h2h, 1, 3),
+    freq_0x0_h2h: calcPlacarH2H(h2h, 0, 0),
     forca_ofensiva_home: goalsForHome,
     forca_ofensiva_away: goalsForAway,
     fragilidade_def_home: goalsAgainstHome,
@@ -166,6 +168,18 @@ function escolherPlacarAlvo(ind: Indicadores, scoreMin = 60): {
   if (ind.fragilidade_def_away < 1.8) score3x1 += 25;
   opcoes.push({ tipo: "LAY_3x1", score: score3x1 });
 
+  // BACK_0x0: jogos travados — defesas sólidas, ataques fracos, histórico de 0x0
+  let score0x0 = 0;
+  if (ind.freq_0x0_h2h >= 15) score0x0 += 30;
+  else if (ind.freq_0x0_h2h >= 10) score0x0 += 15;
+  if (ind.media_gols_h2h < 1.8) score0x0 += 20;
+  else if (ind.media_gols_h2h < 2.2) score0x0 += 10;
+  if (ind.clean_sheet_rate_home > 35 && ind.clean_sheet_rate_away > 35) score0x0 += 20;
+  else if (ind.clean_sheet_rate_home > 25 && ind.clean_sheet_rate_away > 25) score0x0 += 10;
+  if (ind.forca_ofensiva_home < 1.3 && ind.forca_ofensiva_away < 1.3) score0x0 += 15;
+  if (ind.fragilidade_def_home < 1.0 && ind.fragilidade_def_away < 1.0) score0x0 += 15;
+  opcoes.push({ tipo: "BACK_0x0", score: score0x0 });
+
   opcoes.sort((a, b) => b.score - a.score);
   if (opcoes[0].score < scoreMin) return { alvo: null, alternativo: null, score: opcoes[0].score };
   return {
@@ -186,6 +200,7 @@ function rotuloEstrategia(alvo: string, favorito?: string | null): string {
     case "LAY_2x2": return "LAY 2x2 (placar exato)";
     case "LAY_1x3": return "LAY 1x3 (placar exato)";
     case "LAY_3x1": return "LAY 3x1 (placar exato)";
+    case "BACK_0x0": return "BACK 0x0 — operar a favor do empate sem gols";
     default: return alvo;
   }
 }
@@ -196,6 +211,7 @@ function emojiEstrategia(alvo: string): string {
     case "LAY_2x2": return "🎯";
     case "LAY_1x3": return "🎯";
     case "LAY_3x1": return "🎯";
+    case "BACK_0x0": return "🔒";
     default: return "🔮";
   }
 }
