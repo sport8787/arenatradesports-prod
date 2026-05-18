@@ -52,8 +52,41 @@ export interface UserPlan {
 }
 
 export type PlansByMarket = Partial<Record<UserMarket, UserPlan>>;
+export type PlanVisibility = 'private' | 'public';
 
 const STORAGE_KEY = 'arenaTraderSports.userPlans.v1';
+const VISIBILITY_KEY = 'arenaTraderSports.userPlans.visibility.v1';
+
+export function loadPlanVisibility(): PlanVisibility {
+  try {
+    const raw = window.localStorage.getItem(VISIBILITY_KEY);
+    return raw === 'public' ? 'public' : 'private';
+  } catch {
+    return 'private';
+  }
+}
+
+export function savePlanVisibility(v: PlanVisibility): void {
+  try {
+    window.localStorage.setItem(VISIBILITY_KEY, v);
+  } catch {
+    // ignore
+  }
+  void syncVisibilityToSupabase(v);
+}
+
+async function syncVisibilityToSupabase(v: PlanVisibility): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('user_trader_plans')
+      .update({ visibility: v })
+      .eq('user_id', user.id);
+  } catch (e) {
+    console.warn('[userTraderPlan] syncVisibility falhou:', e);
+  }
+}
 
 export const DEFAULT_PLANS: PlansByMarket = {
   '1x2': {
