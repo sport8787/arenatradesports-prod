@@ -562,6 +562,19 @@ serve(async (req) => {
     const leagueAvg = calculateLeagueAverages(allFixtures)
     console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo`)
 
+    // 2b. Pre-fetch REAL pre-match odds from Sportmonks (uses cache).
+    // Only meaningful when fixtures came from Sportmonks (they carry SM fixture_id).
+    let realOddsByFixture: Map<number, Record<string, number>> = new Map()
+    if (usedSource === 'sportmonks' && Deno.env.get('SPORTMONKS_API_KEY')) {
+      const ids = allFixtures.map((f: any) => Number(f.fixture.id)).filter((n: number) => Number.isFinite(n))
+      console.log(`[Backtest] Buscando odds reais pré-jogo para ${ids.length} fixtures (Sportmonks)...`)
+      realOddsByFixture = await fetchSportmonksOddsBatch(ids, dbClient)
+      const withOdds = Array.from(realOddsByFixture.values()).filter(o => Object.keys(o).length > 0).length
+      console.log(`[Backtest] Odds reais: ${withOdds}/${ids.length} fixtures cobertas`)
+    } else {
+      console.log(`[Backtest] Odds reais NÃO disponíveis (fonte=${usedSource}). Backtest usará odds sintéticas (ROI estimado).`)
+    }
+
     // 3. Simulate game by game (NO LOOKAHEAD)
     const teamStats: Record<string, TeamCumulativeStats> = {}
     const rawAnalyses: {
@@ -582,9 +595,10 @@ serve(async (req) => {
       const awayStats = teamStats[awayTeam]
 
       if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
+        const fixRealOdds = realOddsByFixture.get(Number(fixture.fixture.id)) || {}
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
-          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets
+          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets, fixRealOdds
         )
 
         if (analysis) {
