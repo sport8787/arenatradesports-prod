@@ -99,11 +99,9 @@ export default function PlanoFavoritoPanel() {
         <div className="rounded-md border border-dashed border-border/60 p-5 text-center">
           <TrendingUp className="w-6 h-6 mx-auto text-muted-foreground/60 mb-1.5" />
           <p className="text-xs text-muted-foreground">Nenhum sinal aprovado nas próximas horas.</p>
-          {isAdmin && (
-            <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
-              Use "Rodar análise" para buscar agora.
-            </p>
-          )}
+          <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
+            Análise automática roda via cron.
+          </p>
         </div>
       ) : (
         <ul className="space-y-2">
