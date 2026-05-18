@@ -9,7 +9,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { applyApprovalBlocks } from "../_shared/punterApprovalBlocks.ts";
+import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -620,6 +620,7 @@ serve(async (req) => {
 
     console.log(`[sm-punter] ${games.length} jogos para análise`);
 
+    const gateCfg = await loadGateConfig(sb);
     let approved = 0, vetoed = 0, errors = 0;
     const results: any[] = [];
 
@@ -680,7 +681,7 @@ serve(async (req) => {
           league: g.sport_title || "",
           bookmaker: an.bookmaker || "",
           data_strength: an.data_strength || "",
-        });
+        }, gateCfg);
         if (gate.demoted) {
           console.log(`[sm-punter GATE] ${g.home_team} vs ${g.away_team}: ${gate.veto_reason || gate.block_reason}`);
         }

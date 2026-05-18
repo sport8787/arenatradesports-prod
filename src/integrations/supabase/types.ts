@@ -4123,6 +4123,117 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_gate_config: {
+        Row: {
+          a_conf_min: number
+          a_edge_min: number
+          a_odd_max: number
+          a_odd_min: number
+          a_prob_min: number
+          a_stake_pct: number
+          b_conf_min: number
+          b_edge_min: number
+          b_odd_max: number
+          b_odd_min: number
+          b_prob_min: number
+          b_stake_pct: number
+          c_conf_min: number
+          c_edge_min: number
+          c_odd_max: number
+          c_odd_min: number
+          c_prob_min: number
+          c_requires_pinnacle: boolean
+          c_stake_pct: number
+          conf_inflation_threshold: number
+          edge_inflation_threshold: number
+          enabled: boolean
+          favorite_odd_threshold: number
+          favorite_requires_data_strength: string
+          id: string
+          notes: string | null
+          odd_drop_pct_threshold: number
+          odd_max_global: number
+          odd_min_global: number
+          prob_min_global: number
+          strong_league_regex: string
+          updated_at: string
+          updated_by: string | null
+          weak_league_odd_threshold: number
+        }
+        Insert: {
+          a_conf_min?: number
+          a_edge_min?: number
+          a_odd_max?: number
+          a_odd_min?: number
+          a_prob_min?: number
+          a_stake_pct?: number
+          b_conf_min?: number
+          b_edge_min?: number
+          b_odd_max?: number
+          b_odd_min?: number
+          b_prob_min?: number
+          b_stake_pct?: number
+          c_conf_min?: number
+          c_edge_min?: number
+          c_odd_max?: number
+          c_odd_min?: number
+          c_prob_min?: number
+          c_requires_pinnacle?: boolean
+          c_stake_pct?: number
+          conf_inflation_threshold?: number
+          edge_inflation_threshold?: number
+          enabled?: boolean
+          favorite_odd_threshold?: number
+          favorite_requires_data_strength?: string
+          id?: string
+          notes?: string | null
+          odd_drop_pct_threshold?: number
+          odd_max_global?: number
+          odd_min_global?: number
+          prob_min_global?: number
+          strong_league_regex?: string
+          updated_at?: string
+          updated_by?: string | null
+          weak_league_odd_threshold?: number
+        }
+        Update: {
+          a_conf_min?: number
+          a_edge_min?: number
+          a_odd_max?: number
+          a_odd_min?: number
+          a_prob_min?: number
+          a_stake_pct?: number
+          b_conf_min?: number
+          b_edge_min?: number
+          b_odd_max?: number
+          b_odd_min?: number
+          b_prob_min?: number
+          b_stake_pct?: number
+          c_conf_min?: number
+          c_edge_min?: number
+          c_odd_max?: number
+          c_odd_min?: number
+          c_prob_min?: number
+          c_requires_pinnacle?: boolean
+          c_stake_pct?: number
+          conf_inflation_threshold?: number
+          edge_inflation_threshold?: number
+          enabled?: boolean
+          favorite_odd_threshold?: number
+          favorite_requires_data_strength?: string
+          id?: string
+          notes?: string | null
+          odd_drop_pct_threshold?: number
+          odd_max_global?: number
+          odd_min_global?: number
+          prob_min_global?: number
+          strong_league_regex?: string
+          updated_at?: string
+          updated_by?: string | null
+          weak_league_odd_threshold?: number
+        }
+        Relationships: []
+      }
       punter_quarantine: {
         Row: {
           active_until: string

@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { shadowCompare } from '../_shared/mycroft-rules-engine.ts'
 import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrationFloor.ts'
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
-import { applyApprovalBlocks } from '../_shared/punterApprovalBlocks.ts'
+import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1599,8 +1599,9 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
         console.warn('[Quality] check falhou:', (qErr as Error)?.message)
       }
 
-      // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
+      // ─── BLOCK GATE (3 blocos A/B/C + vetos) — config dinâmica via DB/env ───
       try {
+        const gateCfg = await loadGateConfig(supabaseClient)
         const gate = applyApprovalBlocks({
           verdict: String(analysis.verdict || 'VETADO'),
           market: analysis.market,
@@ -1611,7 +1612,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
           league: game.sport_title || '',
           bookmaker: analysis.bookmaker || '',
           data_strength: analysis.data_strength || '',
-        })
+        }, gateCfg)
         if (gate.demoted) {
           console.log(`[Punter GATE] 🚫 ${game.home_team} vs ${game.away_team}: ${gate.veto_reason || gate.block_reason}`)
         }
