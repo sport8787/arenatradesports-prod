@@ -252,36 +252,39 @@ Deno.serve(async (req) => {
     const sortedDates = Array.from(datesNeeded).sort().slice(-4);
     console.log(`[settle-bets] Fetching ${sortedDates.length} relevant dates: ${sortedDates.join(', ')}`);
 
-    // 3b. Fetch completed game results — prefer API-Football (covers all leagues)
+    // 3b. Sportmonks por-aposta (substitui API-Football) — busca fixture finalizada
     let completedGames: any[] = [];
 
-    if (apiFootballKey && sortedDates.length > 0) {
-      const fetchPromises = sortedDates.map(async (dateStr) => {
+    const smItems = [...eligibleBets, ...pendingSignals];
+    const smConcurrency = 4;
+    for (let i = 0; i < smItems.length; i += smConcurrency) {
+      const chunk = smItems.slice(i, i + smConcurrency);
+      const found = await Promise.all(chunk.map(async (it: any) => {
+        const home = it.home_team || (it.match_name?.split(' x ')?.[0]) || '';
+        const away = it.away_team || (it.match_name?.split(' x ')?.[1]) || '';
+        const iso = it.commence_time || it.match_date || it.placed_at || it.created_at;
+        if (!home || !away || !iso) return null;
         try {
-          const res = await fetch(`${API_FOOTBALL_URL}/fixtures?date=${dateStr}&status=FT-AET-PEN`, {
-            headers: { 'x-apisports-key': apiFootballKey },
-          });
-          if (!res.ok) return [];
-          const data = await res.json();
-          const fixtures = data.response || [];
-          return fixtures.map((fix: any) => ({
-            home_team: fix.teams?.home?.name || '',
-            away_team: fix.teams?.away?.name || '',
-            score_home: fix.goals?.home ?? null,
-            score_away: fix.goals?.away ?? null,
-            commence_time: fix.fixture?.date || null,
-            league: fix.league?.name || '',
-          }));
-        } catch (_) { return []; }
-      });
-      const results = await Promise.all(fetchPromises);
-      completedGames = results.flat();
-      console.log(`[settle-bets] ${completedGames.length} completed games from API-Football`);
+          const sm = await findFixtureByTeamsAndDate(home, away, iso);
+          if (!sm) return null;
+          return {
+            home_team: sm.homeTeam,
+            away_team: sm.awayTeam,
+            score_home: sm.goalsHome,
+            score_away: sm.goalsAway,
+            commence_time: iso,
+            league: '',
+          };
+        } catch { return null; }
+      }));
+      for (const f of found) if (f) completedGames.push(f);
     }
+    console.log(`[settle-bets] ${completedGames.length} jogos encontrados via Sportmonks`);
 
-    // Fallback to The Odds API if API-Football unavailable or returned nothing
+    // Fallback to The Odds API if Sportmonks unavailable or returned nothing
     if (completedGames.length === 0 && oddsApiKey) {
       console.log('[settle-bets] Falling back to The Odds API...');
+
       const allLeagues = [
         'soccer_brazil_campeonato', 'soccer_brazil_serie_b',
         'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
