@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Save, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,57 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// ─── Schema de validação ───────────────────────────────────────
+const pct = (min: number, max: number, label: string) =>
+  z.number({ invalid_type_error: `${label} deve ser número` })
+    .min(min, `${label} deve ser >= ${min}`)
+    .max(max, `${label} deve ser <= ${max}`);
+const odd = (label: string) =>
+  z.number({ invalid_type_error: `${label} deve ser número` })
+    .min(1.01, `${label} deve ser >= 1.01`)
+    .max(20, `${label} deve ser <= 20`);
+
+const blockSchema = (prefix: 'A' | 'B' | 'C') => z.object({
+  [`${prefix.toLowerCase()}_prob_min`]: pct(0, 100, `Bloco ${prefix} prob mín`),
+  [`${prefix.toLowerCase()}_edge_min`]: pct(0, 50, `Bloco ${prefix} edge mín`),
+  [`${prefix.toLowerCase()}_conf_min`]: pct(0, 100, `Bloco ${prefix} conf mín`),
+  [`${prefix.toLowerCase()}_odd_min`]: odd(`Bloco ${prefix} odd mín`),
+  [`${prefix.toLowerCase()}_odd_max`]: odd(`Bloco ${prefix} odd máx`),
+  [`${prefix.toLowerCase()}_stake_pct`]: pct(0.1, 20, `Bloco ${prefix} stake`),
+}).passthrough();
+
+const gateSchema = z.object({
+  prob_min_global: pct(0, 100, 'Prob mínima global'),
+  odd_min_global: odd('Odd mínima global'),
+  odd_max_global: odd('Odd máxima global'),
+  favorite_odd_threshold: odd('Veto favorito (odd)'),
+  favorite_requires_data_strength: z.string().trim().min(1, 'Defina data_strength (ex: ALTA)').max(20),
+  odd_drop_pct_threshold: pct(0, 100, 'Trap line queda'),
+  weak_league_odd_threshold: odd('Liga fraca odd'),
+  strong_league_regex: z.string().trim().min(3, 'Regex muito curto').refine((s) => {
+    try { new RegExp(s, 'i'); return true; } catch { return false; }
+  }, 'Regex inválido'),
+  conf_inflation_threshold: pct(0, 100, 'Conf inflada'),
+  edge_inflation_threshold: pct(0, 50, 'Edge inflado'),
+}).passthrough()
+  .superRefine((data: any, ctx) => {
+    if (data.odd_min_global >= data.odd_max_global) {
+      ctx.addIssue({ code: 'custom', path: ['odd_max_global'], message: 'Odd máx global deve ser > odd mín global' });
+    }
+    (['a', 'b', 'c'] as const).forEach((b) => {
+      if (data[`${b}_odd_min`] >= data[`${b}_odd_max`]) {
+        ctx.addIssue({ code: 'custom', path: [`${b}_odd_max`], message: `Bloco ${b.toUpperCase()}: odd máx deve ser > odd mín` });
+      }
+      if (data[`${b}_odd_min`] < data.odd_min_global || data[`${b}_odd_max`] > data.odd_max_global) {
+        ctx.addIssue({ code: 'custom', path: [`${b}_odd_min`], message: `Bloco ${b.toUpperCase()}: faixa de odd fora dos limites globais (${data.odd_min_global}-${data.odd_max_global})` });
+      }
+      if (data[`${b}_prob_min`] < data.prob_min_global) {
+        ctx.addIssue({ code: 'custom', path: [`${b}_prob_min`], message: `Bloco ${b.toUpperCase()}: prob mín deve ser >= prob mín global (${data.prob_min_global}%)` });
+      }
+    });
+  });
 
 type GateConfig = {
   id: string;
@@ -70,8 +121,27 @@ export default function AdminPunterGateConfig() {
   const set = <K extends keyof GateConfig>(k: K, v: GateConfig[K]) =>
     setCfg(prev => prev ? { ...prev, [k]: v } : prev);
 
+  const errors = useMemo<Record<string, string>>(() => {
+    if (!cfg) return {};
+    const r = gateSchema.safeParse(cfg);
+    if (r.success) return {};
+    const map: Record<string, string> = {};
+    for (const issue of r.error.issues) {
+      const key = String(issue.path[0] ?? '_');
+      if (!map[key]) map[key] = issue.message;
+    }
+    return map;
+  }, [cfg]);
+
+  const errorList = Object.entries(errors);
+  const hasErrors = errorList.length > 0;
+
   const handleSave = async () => {
     if (!cfg) return;
+    if (hasErrors) {
+      toast.error(`Corrija ${errorList.length} erro(s) antes de salvar`);
+      return;
+    }
     setSaving(true);
     const { error } = await (supabase as any)
       .from('punter_gate_config')
@@ -101,17 +171,22 @@ export default function AdminPunterGateConfig() {
   }
   if (!cfg) return null;
 
-  const NumField = ({ k, label, step = 0.01 }: { k: keyof GateConfig; label: string; step?: number }) => (
-    <div className="space-y-1">
-      <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
-      <Input
-        type="number" step={step}
-        value={Number(cfg[k] as any) || 0}
-        onChange={(e) => set(k, Number(e.target.value) as any)}
-        className="h-8 font-mono text-xs"
-      />
-    </div>
-  );
+  const NumField = ({ k, label, step = 0.01 }: { k: keyof GateConfig; label: string; step?: number }) => {
+    const err = errors[k as string];
+    return (
+      <div className="space-y-1">
+        <Label className="text-xs font-mono text-muted-foreground">{label}</Label>
+        <Input
+          type="number" step={step}
+          value={Number(cfg[k] as any) || 0}
+          onChange={(e) => set(k, Number(e.target.value) as any)}
+          className={`h-8 font-mono text-xs ${err ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+          aria-invalid={!!err}
+        />
+        {err && <p className="text-[10px] font-mono text-destructive">{err}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,7 +234,10 @@ export default function AdminPunterGateConfig() {
               <Label className="text-xs font-mono text-muted-foreground">Favorito requer data_strength</Label>
               <Input value={cfg.favorite_requires_data_strength}
                 onChange={(e) => set('favorite_requires_data_strength', e.target.value.toUpperCase())}
-                className="h-8 font-mono text-xs" />
+                className={`h-8 font-mono text-xs ${errors.favorite_requires_data_strength ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                aria-invalid={!!errors.favorite_requires_data_strength}
+              />
+              {errors.favorite_requires_data_strength && <p className="text-[10px] font-mono text-destructive">{errors.favorite_requires_data_strength}</p>}
             </div>
             <NumField k="odd_drop_pct_threshold" label="Trap line: queda 2h > (%)" step={0.5} />
             <NumField k="weak_league_odd_threshold" label="Liga fraca + odd <" />
@@ -171,10 +249,25 @@ export default function AdminPunterGateConfig() {
             <Textarea
               value={cfg.strong_league_regex}
               onChange={(e) => set('strong_league_regex', e.target.value)}
-              className="font-mono text-xs min-h-[70px]"
+              className={`font-mono text-xs min-h-[70px] ${errors.strong_league_regex ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              aria-invalid={!!errors.strong_league_regex}
             />
+            {errors.strong_league_regex && <p className="text-[10px] font-mono text-destructive">{errors.strong_league_regex}</p>}
           </div>
         </section>
+
+        {hasErrors && (
+          <section className="border border-destructive/50 bg-destructive/5 rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-destructive font-mono text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4" /> {errorList.length} erro(s) de validação
+            </div>
+            <ul className="text-[11px] font-mono text-destructive/90 list-disc pl-5 space-y-0.5">
+              {errorList.slice(0, 8).map(([k, msg]) => (
+                <li key={k}><span className="opacity-70">{k}:</span> {msg}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Blocos */}
         {(['a','b','c'] as const).map(b => {
@@ -212,9 +305,9 @@ export default function AdminPunterGateConfig() {
         </section>
 
         <div className="flex gap-2 sticky bottom-4">
-          <Button onClick={handleSave} disabled={saving} className="flex-1 font-mono">
+          <Button onClick={handleSave} disabled={saving || hasErrors} className="flex-1 font-mono">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Salvar configuração
+            {hasErrors ? `Corrija ${errorList.length} erro(s)` : 'Salvar configuração'}
           </Button>
           <Button onClick={handleReset} variant="outline" className="font-mono">
             <RotateCcw className="w-4 h-4 mr-2" /> Restaurar defaults
