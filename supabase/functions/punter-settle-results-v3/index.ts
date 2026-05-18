@@ -93,15 +93,9 @@ function teamsMatch(a: string, b: string): boolean {
   return wa[0] === wb[0] && wa.filter(w => wb.includes(w) && w.length > 2).length > 0;
 }
 
-async function afFetch(path: string, params: Record<string, string | number>) {
-  const url = new URL(`${AF_BASE}${path}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  try {
-    const r = await fetch(url.toString(), { headers: { "x-apisports-key": API_FOOTBALL_KEY } });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d.response ?? null;
-  } catch { return null; }
+async function afFetch(_path: string, _params: Record<string, string | number>) {
+  // [Fase 2 migração] API-Football desativada. Retorna null para neutralizar caminhos legados.
+  return null as any;
 }
 function isFinished(s: string) { return ["FT", "AET", "PEN", "AWD", "WO"].includes(s); }
 function parseFixture(f: any): FixtureResult | null {
