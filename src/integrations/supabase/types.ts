@@ -6231,6 +6231,102 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cycles_bankroll: {
+        Row: {
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          id: string
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance: number
+          current_cycle?: number
+          current_stake: number
+          entries_in_cycle?: number
+          green_streak?: number
+          id?: string
+          initial_bankroll: number
+          isolated_pct: number
+          status?: string
+          total_bankroll: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          current_cycle?: number
+          current_stake?: number
+          entries_in_cycle?: number
+          green_streak?: number
+          id?: string
+          initial_bankroll?: number
+          isolated_pct?: number
+          status?: string
+          total_bankroll?: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_cycles_entries: {
+        Row: {
+          balance_after: number
+          created_at: string
+          cycle_number: number
+          entry_index: number
+          id: string
+          match_id: string | null
+          note: string | null
+          profit_loss: number
+          result: string
+          target_amount: number
+          target_pct: number
+          user_id: string
+        }
+        Insert: {
+          balance_after: number
+          created_at?: string
+          cycle_number: number
+          entry_index: number
+          id?: string
+          match_id?: string | null
+          note?: string | null
+          profit_loss?: number
+          result: string
+          target_amount: number
+          target_pct: number
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          cycle_number?: number
+          entry_index?: number
+          id?: string
+          match_id?: string | null
+          note?: string | null
+          profit_loss?: number
+          result?: string
+          target_amount?: number
+          target_pct?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           created_at: string
@@ -7007,6 +7103,31 @@ export type Database = {
       }
     }
     Functions: {
+      advance_cycle: {
+        Args: never
+        Returns: {
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          id: string
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       backfill_live_sinais_from_notifications: {
         Args: { _days?: number }
         Returns: number
@@ -7088,6 +7209,8 @@ export type Database = {
           sample_size: number
         }[]
       }
+      cycle_stake_for: { Args: { b: number; n: number }; Returns: number }
+      cycle_withdraw_for: { Args: { b: number; n: number }; Returns: number }
       decrement_promo_slot: {
         Args: {
           p_event_type?: string
@@ -7233,6 +7356,15 @@ export type Database = {
         }[]
       }
       refresh_punter_quarantine: { Args: never; Returns: number }
+      register_cycle_entry: {
+        Args: {
+          p_match_id?: string
+          p_note?: string
+          p_profit_loss: number
+          p_result: string
+        }
+        Returns: Json
+      }
       relink_mycroft_analyses: {
         Args: never
         Returns: {
@@ -7241,6 +7373,31 @@ export type Database = {
         }[]
       }
       requeue_stuck_mycroft_jobs: { Args: never; Returns: number }
+      reset_cycle_method: {
+        Args: never
+        Returns: {
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          id: string
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string
@@ -7277,6 +7434,31 @@ export type Database = {
       spend_nt_balance: {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
+      }
+      start_cycle_method: {
+        Args: { p_pct: number; p_total: number }
+        Returns: {
+          created_at: string
+          current_balance: number
+          current_cycle: number
+          current_stake: number
+          entries_in_cycle: number
+          green_streak: number
+          id: string
+          initial_bankroll: number
+          isolated_pct: number
+          status: string
+          total_bankroll: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_cycles_bankroll"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       sync_live_sinal_from_notification: {
         Args: {
