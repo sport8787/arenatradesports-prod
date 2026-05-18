@@ -93,34 +93,24 @@ function findFutodds(ended: any[], home: string, away: string): FinalScore | nul
   return null;
 }
 
-async function apiFootballByDate(ymd: string): Promise<any[]> {
-  const KEY = Deno.env.get("API_FOOTBALL_KEY");
-  if (!KEY) return [];
+// Fallback: Sportmonks via helper compartilhado (1 lookup por home/away/dia).
+async function smFallback(home: string, away: string, isoDate: string): Promise<FinalScore | null> {
   try {
-    const res = await fetch(`${AF_BASE}/fixtures?date=${ymd}`, { headers: { "x-apisports-key": KEY } });
-    if (!res.ok) { await res.text(); return []; }
-    const j = await res.json();
-    return Array.isArray(j?.response) ? j.response : [];
-  } catch (e) { console.error("[af]", e); return []; }
-}
-
-function findAf(fixtures: any[], home: string, away: string): FinalScore | null {
-  for (const f of fixtures) {
-    const h = f?.teams?.home?.name || "";
-    const a = f?.teams?.away?.name || "";
-    if (!teamMatches(home, h) || !teamMatches(away, a)) continue;
-    const status = f?.fixture?.status?.short || "";
-    if (!["FT", "AET", "PEN", "AWD", "WO"].includes(status)) continue;
-    const gh = f?.goals?.home, ga = f?.goals?.away;
-    if (gh == null || ga == null) continue;
+    const sm = await findFixtureByTeamsAndDate(home, away, isoDate);
+    if (!sm) return null;
+    if (sm.goalsHome == null || sm.goalsAway == null) return null;
     return {
-      home: Number(gh), away: Number(ga),
-      ht_home: f?.score?.halftime?.home ?? null,
-      ht_away: f?.score?.halftime?.away ?? null,
-      status, source: "api-football",
+      home: Number(sm.goalsHome),
+      away: Number(sm.goalsAway),
+      ht_home: null,
+      ht_away: null,
+      status: sm.status || "FT",
+      source: "sportmonks",
     };
+  } catch (e) {
+    console.error("[sm-fallback]", e);
+    return null;
   }
-  return null;
 }
 
 Deno.serve(async (req) => {
