@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_decisions: {
+        Row: {
+          created_at: string
+          edge: number | null
+          experiment_id: string
+          id: string
+          market: string
+          match_id: string
+          pnl: number | null
+          probability: number | null
+          raw: Json | null
+          result: string | null
+          settled_at: string | null
+          stake: number | null
+          variant: string
+          verdict: string | null
+        }
+        Insert: {
+          created_at?: string
+          edge?: number | null
+          experiment_id: string
+          id?: string
+          market: string
+          match_id: string
+          pnl?: number | null
+          probability?: number | null
+          raw?: Json | null
+          result?: string | null
+          settled_at?: string | null
+          stake?: number | null
+          variant: string
+          verdict?: string | null
+        }
+        Update: {
+          created_at?: string
+          edge?: number | null
+          experiment_id?: string
+          id?: string
+          market?: string
+          match_id?: string
+          pnl?: number | null
+          probability?: number | null
+          raw?: Json | null
+          result?: string | null
+          settled_at?: string | null
+          stake?: number | null
+          variant?: string
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_decisions_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "ab_experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ab_experiments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          hypothesis: string | null
+          id: string
+          name: string
+          notes: string | null
+          scope: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          variant_a_config: Json
+          variant_b_config: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          hypothesis?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          scope?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          variant_a_config?: Json
+          variant_b_config?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          hypothesis?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          scope?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          variant_a_config?: Json
+          variant_b_config?: Json
+        }
+        Relationships: []
+      }
       ah_odds_snapshot: {
         Row: {
           away_odd: number | null
@@ -7327,6 +7434,22 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      ab_compute_metrics: { Args: { _experiment_id: string }; Returns: Json }
+      ab_list_divergences: {
+        Args: { _experiment_id: string }
+        Returns: {
+          a_edge: number
+          a_prob: number
+          a_result: string
+          a_verdict: string
+          b_edge: number
+          b_prob: number
+          b_result: string
+          b_verdict: string
+          market: string
+          match_id: string
+        }[]
       }
       advance_cycle: {
         Args: never
