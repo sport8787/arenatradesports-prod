@@ -106,6 +106,7 @@ interface BacktestResult {
   confidence: number
   data_strength: string
   tier: string | null
+  used_real_odd?: boolean
 }
 
 // ═══════════════════════════════════════════════
