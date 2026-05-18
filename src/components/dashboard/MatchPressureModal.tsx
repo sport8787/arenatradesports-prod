@@ -77,10 +77,21 @@ export default function MatchPressureModal({
           </div>
         </div>
 
+        {/* Toggle overlay xG */}
+        {hasXg && (
+          <div className="flex items-center justify-end gap-2 px-1">
+            <span className="text-[11px] text-muted-foreground">
+              Sobrepor xG acumulado
+              <span className="ml-1 opacity-60">(explica divergência pressão × placar)</span>
+            </span>
+            <Switch checked={showXg} onCheckedChange={setShowXg} />
+          </div>
+        )}
+
         {/* Gráfico */}
         <div className="rounded-lg bg-background/50 border border-border p-2">
           {data ? (
-            <MatchPressureChart data={data} height={260} />
+            <MatchPressureChart data={data} height={260} showXg={showXg} />
           ) : (
             <PressureFallback loading={loading} error={error} />
           )}
