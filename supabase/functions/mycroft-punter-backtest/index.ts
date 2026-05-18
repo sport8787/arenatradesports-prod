@@ -844,6 +844,7 @@ function buildResult(
     confidence: analysis.confidence,
     data_strength: analysis.dataStrength,
     tier: analysis.tier,
+    used_real_odd: analysis.usedRealOdd,
   }
 }
 
