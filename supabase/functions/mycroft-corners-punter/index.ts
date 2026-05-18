@@ -15,11 +15,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
+// API-Football removida em Fase 2 (18/05/2026) — corners vêm exclusivamente do Sportmonks.
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const BASE_URL = "https://v3.football.api-sports.io";
 
-// Fonte de dados: Sportmonks (API-Football descontinuada — Fase 2)
+// Fonte de dados: Sportmonks
 const DATA_SOURCE: 'sportmonks' = 'sportmonks';
 
 // ════════════════════════════════════════════════════
