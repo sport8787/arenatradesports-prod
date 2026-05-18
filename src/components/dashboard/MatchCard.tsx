@@ -104,23 +104,23 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'CUIDADO':
       return {
         bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
-        label: '⚠️ CUIDADO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
+        label: '🟡 NÃO ENTRE — OBSERVANDO', animate: '', icon: <AlertTriangle className="w-4 h-4" />,
       };
     case 'JOGO_MORTO':
       return {
         bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
-        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
+        label: '💀 SEM CHANCE — NÃO ENTRE', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'VETADO':
     case 'no_value':
       return {
         bg: 'bg-[#1C1917]', border: 'border-[#78716C]', text: 'text-[#A8A29E]',
-        label: '💀 JOGO MORTO', animate: '', icon: <Skull className="w-4 h-4" />,
+        label: '💀 SEM CHANCE — NÃO ENTRE', animate: '', icon: <Skull className="w-4 h-4" />,
       };
     case 'AGUARDAR':
       return {
         bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
-        label: '⏳ AGUARDAR', animate: '', icon: <Clock className="w-4 h-4" />,
+        label: '⏳ AINDA SEM SINAL', animate: '', icon: <Clock className="w-4 h-4" />,
       };
     case 'analyzing':
       return {
