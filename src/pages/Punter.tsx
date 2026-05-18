@@ -29,6 +29,7 @@ import SherlockAnalyticButton from '@/components/punter/SherlockAnalyticButton';
 import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 import ExchangeEdgeBadge from '@/components/punter/ExchangeEdgeBadge';
 import SteamBadge from '@/components/punter/SteamBadge';
+import SportmonksPredictionBadge from '@/components/punter/SportmonksPredictionBadge';
 import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
 import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
