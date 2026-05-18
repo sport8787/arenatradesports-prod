@@ -744,8 +744,8 @@ export default function LiveMatchDetail() {
                 </Badge>
               )}
               {analysis.confidence != null && (
-                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')}>
-                  Confiança {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')} title="Força estatística do sinal. 70% ou mais = entrada recomendada.">
+                  Força {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
                 </Badge>
               )}
             </div>
