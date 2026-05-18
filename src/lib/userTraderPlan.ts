@@ -183,9 +183,16 @@ async function syncPlansToSupabase(p: PlansByMarket): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const visibility = loadPlanVisibility();
     const rows = (Object.keys(p) as UserMarket[])
       .filter((m) => p[m])
-      .map((m) => ({ user_id: user.id, market: m, plan: p[m] as any, updated_at: new Date().toISOString() }));
+      .map((m) => ({
+        user_id: user.id,
+        market: m,
+        plan: p[m] as any,
+        visibility,
+        updated_at: new Date().toISOString(),
+      }));
     if (rows.length === 0) return;
     await supabase.from('user_trader_plans').upsert(rows, { onConflict: 'user_id,market' });
   } catch (e) {
