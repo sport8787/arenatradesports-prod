@@ -1,36 +1,39 @@
 ---
 name: AI Provider Routing
-description: Política definitiva de provedores de IA por edge function — Gemini direto em todo o sistema (Punter revertido em 29/04/2026)
+description: Política definitiva de provedores de IA por edge function — Groq (Llama 3.3 70B) é o provider de produção no Punter; Gemini segue em Trader/chats.
 type: preference
 ---
 
-# Política de Providers de IA (29/Abr/2026)
+# Política de Providers de IA (18/Mai/2026)
 
-Plano pago Gemini ativo. Lovable AI Gateway **descontinuado** em todas as edges.
-**Atualização (29/04/2026):** Arena Punter revertida de OpenAI para Gemini direto após esgotamento da quota OpenAI (`insufficient_quota` HTTP 429). Gemini agora é universal.
+**Atualização (18/05/2026):** Punter migrado para **Groq** (`llama-3.3-70b-versatile` via `https://api.groq.com/openai/v1/chat/completions` + `GROQ_API_KEY`). Gemini segue em uso para Trader, chats e SEO. Lovable AI Gateway permanece descontinuado.
 
-## Regra geral
-- **Default (universal)**: Gemini direto (`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`) com `gemini-2.5-flash` e `GEMINI_API_KEY`.
-- OpenAI direto fica como **opção futura** caso quota seja recarregada — hoje não é usada em produção.
-
-## Mapa por edge
+## Mapa por edge (real)
 | Edge | Provider | Modelo |
 |---|---|---|
+| **mycroft-punter-anthropic** | **Groq** | **llama-3.3-70b-versatile** (max 3000 tk, JSON mode) |
+| **mycroft-punter-sportmonks** | **Groq** | **llama-3.3-70b-versatile** (fallback 8b-instant, max 1500 tk) |
+| analyze-live-matches (fallback) | Groq | llama-3.x |
+| mycroft-analyst-chat | Groq | llama-3.x |
+| mycroft-match-chat | Groq | llama-3.x |
+| mycroft-sports-chat | Groq | llama-3.x |
 | arena-trader-* | Gemini direto | gemini-2.5-flash |
-| mycroft-sports-* / match / analyst chats | Gemini direto | gemini-2.5-flash |
 | mycroft-corners-* | Gemini direto | gemini-2.5-flash |
 | arena-poker-* + mycroft-poker-chat | Gemini direto | gemini-2.5-flash |
 | analyze-real-bets / claude-jury / parse-bet-screenshot | Gemini direto | gemini-2.5-flash |
-| n8n-webhook | Gemini direto | gemini-1.5-flash |
-| **mycroft-punter-analysis** | **Gemini direto** | **gemini-2.5-flash** |
-| **mycroft-punter-anthropic** | **Gemini direto** | **gemini-2.5-flash** |
+| SEO (seo-rodada-*) | Gemini direto | gemini-2.5-flash |
+
+## Botão de teste admin
+- `/punter` tem botão admin-only **"ANALISAR (GROQ · SPORTMONKS)"** que dispara `mycroft-punter-sportmonks` para validar a saída da Groq vs motor automático.
+- Label visível deixa explícito que está usando Groq Llama 3.3 70B + dados Sportmonks Pro.
 
 ## Why
-- Plano pago Gemini elimina rate limits do Free tier.
-- OpenAI account ficou sem créditos (29/04/2026) → quebrou a Arena Punter.
-- Unificar em Gemini reduz SPOF de billing e simplifica fallback.
+- Plano pago Gemini elimina rate limits do Free tier (continua usando em Trader).
+- Groq tem latência muito baixa (~1-2s) e custo competitivo para JSON estruturado do Punter.
+- OpenAI foi descontinuada (insufficient_quota) — não voltar sem aprovação explícita.
 
 ## Como aplicar em novas edges
-- IA para qualquer fluxo (Trader, Punter, chats, análises) → **Gemini direto**.
-- **NUNCA** mais usar `LOVABLE_API_KEY` ou `ai.gateway.lovable.dev`.
-- Se reativar OpenAI no futuro, atualizar este arquivo.
+- **Punter / análises de apostas (1X2, OU, BTTS, AH)** → **Groq** (`llama-3.3-70b-versatile`, JSON mode, max_completion_tokens 1500-3000).
+- **Trader / chats / SEO** → Gemini direto (`gemini-2.5-flash`).
+- **NUNCA** usar `LOVABLE_API_KEY` / `ai.gateway.lovable.dev`.
+- Fallback Groq recomendado em 429/503: `llama-3.1-8b-instant`.

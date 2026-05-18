@@ -1438,12 +1438,12 @@ export default function PunterPage() {
             )}
 
             {isAdmin && (
-              <div className="space-y-1" title="Exclusivo Admin · Análise via Sportmonks Pro (alternativa)">
+              <div className="space-y-1" title="Exclusivo Admin · Análise via Sportmonks Pro + Groq Llama 3.3 70B">
                 <Button
                   onClick={async () => {
                     if (smLoading) return;
                     setSmLoading(true);
-                    toast.info('🔍 Analisando via Sportmonks... (pode levar 1-2 min)');
+                    toast.info('🔍 Analisando via Sportmonks + Groq... (1-2 min)');
                     try {
                       const { data, error } = await supabase.functions.invoke('mycroft-punter-sportmonks', { body: {} });
                       if (error) throw error;
@@ -1452,17 +1452,16 @@ export default function PunterPage() {
                         const tot = data.analyzed ?? 0;
                         const ve = data.vetoed ?? 0;
                         if (ap > 0) {
-                          toast.success(`✅ Sportmonks: ${ap} aprovados · ${ve} vetados (${tot} jogos)`);
-                          // Sinais aprovados aparecerão no próximo refresh do cache
+                          toast.success(`✅ Groq: ${ap} aprovados · ${ve} vetados (${tot} jogos)`);
                         } else {
-                          toast.info(`Sportmonks: 0 aprovados · ${ve} vetados (${tot} jogos)`);
+                          toast.info(`Groq: 0 aprovados · ${ve} vetados (${tot} jogos)`);
                         }
                       } else {
-                        toast.error(data?.error || 'Falha na análise Sportmonks');
+                        toast.error(data?.error || 'Falha na análise Groq');
                       }
                     } catch (e: any) {
-                      console.error('Sportmonks analysis error', e);
-                      toast.error(e?.message || 'Erro ao analisar via Sportmonks');
+                      console.error('Groq analysis error', e);
+                      toast.error(e?.message || 'Erro ao analisar via Groq');
                     } finally {
                       setSmLoading(false);
                     }
@@ -1472,13 +1471,13 @@ export default function PunterPage() {
                   className="w-full font-mono text-xs tracking-wider border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
                 >
                   {smLoading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO SPORTMONKS...</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> ANALISANDO GROQ...</>
                   ) : (
-                    <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR (SPORTMONKS)</>
+                    <><BarChart3 className="mr-2 h-4 w-4" /> ANALISAR (GROQ · SPORTMONKS)</>
                   )}
                 </Button>
                 <p className="text-[10px] font-mono text-muted-foreground text-center">
-                  🔒 Admin · Fonte alternativa · Sportmonks Pro
+                  🔒 Admin · Groq Llama 3.3 70B · Sportmonks Pro
                 </p>
               </div>
             )}
