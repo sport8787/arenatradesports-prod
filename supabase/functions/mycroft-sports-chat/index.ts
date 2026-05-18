@@ -504,10 +504,10 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
 
     let response: Response;
     try {
-      response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-        body: JSON.stringify({ model: "gemini-2.5-flash", messages, temperature: 0.7, max_tokens: query.includes("INSTRUÇÃO ESPECIAL") ? 4000 : 2000 }),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages, temperature: 0.7, max_tokens: query.includes("INSTRUÇÃO ESPECIAL") ? 4000 : 2000 }),
         signal: controller.signal,
       });
     } catch (fetchErr) {
