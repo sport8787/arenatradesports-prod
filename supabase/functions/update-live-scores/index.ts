@@ -67,57 +67,7 @@ function getSupabaseAdmin() {
   );
 }
 
-// Extract statistics from the API response for a fixture
-async function fetchFixtureStats(fixtureId: string, apiKey: string): Promise<any> {
-  try {
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const teams = data.response || [];
-    if (teams.length < 2) return null;
-
-    const home = teams[0]?.statistics || [];
-    const away = teams[1]?.statistics || [];
-
-    const getStat = (arr: any[], type: string) => {
-      const found = arr.find((s: any) => s.type === type);
-      return found?.value ?? null;
-    };
-
-    const parsePossession = (val: any) => {
-      if (val == null) return 0;
-      return parseInt(String(val).replace('%', '')) || 0;
-    };
-
-    return {
-      possession_home: parsePossession(getStat(home, 'Ball Possession')),
-      possession_away: parsePossession(getStat(away, 'Ball Possession')),
-      shots_total_home: getStat(home, 'Total Shots') ?? 0,
-      shots_total_away: getStat(away, 'Total Shots') ?? 0,
-      shots_on_target_home: getStat(home, 'Shots on Goal') ?? 0,
-      shots_on_target_away: getStat(away, 'Shots on Goal') ?? 0,
-      attacks_home: getStat(home, 'Dangerous Attacks') ?? getStat(home, 'Shots insidebox') ?? 0,
-      attacks_away: getStat(away, 'Dangerous Attacks') ?? getStat(away, 'Shots insidebox') ?? 0,
-      corners_home: getStat(home, 'Corner Kicks') ?? 0,
-      corners_away: getStat(away, 'Corner Kicks') ?? 0,
-      fouls_home: getStat(home, 'Fouls') ?? 0,
-      fouls_away: getStat(away, 'Fouls') ?? 0,
-      cards_home: (getStat(home, 'Yellow Cards') ?? 0) + (getStat(home, 'Red Cards') ?? 0),
-      cards_away: (getStat(away, 'Yellow Cards') ?? 0) + (getStat(away, 'Red Cards') ?? 0),
-      passes_home: getStat(home, 'Total passes') ?? 0,
-      passes_away: getStat(away, 'Total passes') ?? 0,
-      passes_accurate_home: getStat(home, 'Passes accurate') ?? 0,
-      passes_accurate_away: getStat(away, 'Passes accurate') ?? 0,
-      xG_home: parseFloat(getStat(home, 'expected_goals') || '0') || null,
-      xG_away: parseFloat(getStat(away, 'expected_goals') || '0') || null,
-    };
-  } catch (e) {
-    console.error(`[LiveScores] Stats fetch error for ${fixtureId}:`, e);
-    return null;
-  }
-}
+// fetchFixtureStats AF removida em Fase 2 — stats vêm de Futodds (_futodds_stats) ou Sportmonks (getFixtureStats).
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
