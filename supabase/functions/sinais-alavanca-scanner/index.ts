@@ -209,26 +209,7 @@ async function runPrelive() {
 }
 
 async function runLive() {
-  const { data: lives } = await sb
-    .from("live_matches")
-    .select("match_id, championship, home_team, away_team, score_home, score_away, minute, status, odds_live")
-    .eq("status", "live");
 
-  let inserted = 0;
-  for (const m of lives || []) {
-    try {
-      const goals = (m.score_home ?? 0) + (m.score_away ?? 0);
-      const minute = m.minute ?? 0;
-  const { data: lives } = await sb
-    .from("live_matches")
-    .select("match_id, championship, home_team, away_team, score_home, score_away, minute, status, odds_live, stats")
-    .eq("status", "live");
-
-  let inserted = 0;
-  for (const m of lives || []) {
-    try {
-      const goals = (m.score_home ?? 0) + (m.score_away ?? 0);
-      const minute = m.minute ?? 0;
       let odd: number | null = null;
       const od = (m as any).odds_live;
       if (od && typeof od === 'object') {
