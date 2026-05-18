@@ -133,10 +133,20 @@ export default function MeusSinaisPanel() {
                   <span className="font-semibold text-foreground truncate">{h.away}</span>
                   <span className="ml-2 text-[10px] font-mono text-destructive">{h.minute}'</span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] uppercase font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                     {MARKET_LABEL[h.market]} · {h.label}
                   </span>
+                  {h.tier === 'APROVADO' ? (
+                    <span className="text-[10px] uppercase font-mono text-success bg-success/10 px-1.5 py-0.5 rounded">✓ APROVADO</span>
+                  ) : (
+                    <span
+                      className="text-[10px] uppercase font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded"
+                      title={`Dados ausentes: ${h.missing.join(', ')}`}
+                    >
+                      ⚠ APROVADO · CONF. REDUZIDA
+                    </span>
+                  )}
                   {h.odd != null && (
                     <span className="text-[10px] font-mono text-success">@ {h.odd.toFixed(2)}</span>
                   )}
@@ -145,6 +155,9 @@ export default function MeusSinaisPanel() {
                 {showDetails && h.reasons.length > 0 && (
                   <div className="mt-1 text-[10px] text-muted-foreground font-mono">
                     {h.reasons.join(' · ')}
+                    {h.missing.length > 0 && (
+                      <span className="text-warning"> · faltando: {h.missing.join(', ')}</span>
+                    )}
                   </div>
                 )}
               </div>
