@@ -1659,6 +1659,7 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
           stake_confirmed: isHoje,
           dismissed: false,
           resultado: null,
+          approval_block: (analysis as any).tier ?? null,
         }, { onConflict: 'match_id,market', ignoreDuplicates: false })
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }
