@@ -54,8 +54,11 @@ export default function Ciclos() {
   const [entries, setEntries] = useState<CycleEntry[]>([]);
 
   // Setup form
+  const [setupMode, setSetupMode] = useState<'horus' | 'manual'>('horus');
   const [totalBankroll, setTotalBankroll] = useState('1000');
   const [isolatedPct, setIsolatedPct] = useState('10');
+  const [horusBankroll, setHorusBankroll] = useState('200');
+  const [horusMode, setHorusMode] = useState<'assisted' | 'simulated'>('simulated');
   const [starting, setStarting] = useState(false);
 
   // Register entry
