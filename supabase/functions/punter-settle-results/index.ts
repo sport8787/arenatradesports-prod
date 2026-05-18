@@ -6,8 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
-const API_BASE = "https://v3.football.api-sports.io";
+// API-Football removida em Fase 2 (18/05/2026). Este v1 está deprecated — usar punter-settle-results-v3.
+const API_FOOTBALL_KEY = "";
+const API_BASE = "";
 
 interface Analysis {
   id: string;

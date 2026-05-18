@@ -61,7 +61,7 @@ serve(async (req) => {
     const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY')
     if (!oddsApiKey) throw new Error('THE_ODDS_API_KEY not configured')
 
-    const apiFootballKey = Deno.env.get('API_FOOTBALL_KEY') || ''
+    const apiFootballKey = '' // API-Football removida em Fase 2 (18/05/2026) — helpers AF retornam null/[]
 
     const now = new Date()
     const maxTime = new Date(now.getTime() + hours_ahead * 60 * 60 * 1000)
@@ -247,8 +247,9 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 // API-Football Pro: Full enrichment
 // ═══════════════════════════════════════════════
 
-const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io'
-const apiHeaders = (key: string) => ({ 'x-apisports-key': key })
+// API-Football removida em Fase 2 (18/05/2026). Helpers abaixo são stubs: retornam null/[] quando apiKey vazia.
+const API_FOOTBALL_BASE = ''
+const apiHeaders = (_key: string) => ({} as Record<string, string>)
 
 async function searchTeamId(teamName: string, apiKey: string): Promise<number | null> {
   if (!apiKey) return null

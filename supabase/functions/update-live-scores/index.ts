@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+// API-Football removida em Fase 2 (18/05/2026). Provedores: Futodds (primário) + Sportmonks (fallback).
 const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds").toLowerCase();
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
@@ -67,57 +67,7 @@ function getSupabaseAdmin() {
   );
 }
 
-// Extract statistics from the API response for a fixture
-async function fetchFixtureStats(fixtureId: string, apiKey: string): Promise<any> {
-  try {
-    const res = await fetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const teams = data.response || [];
-    if (teams.length < 2) return null;
-
-    const home = teams[0]?.statistics || [];
-    const away = teams[1]?.statistics || [];
-
-    const getStat = (arr: any[], type: string) => {
-      const found = arr.find((s: any) => s.type === type);
-      return found?.value ?? null;
-    };
-
-    const parsePossession = (val: any) => {
-      if (val == null) return 0;
-      return parseInt(String(val).replace('%', '')) || 0;
-    };
-
-    return {
-      possession_home: parsePossession(getStat(home, 'Ball Possession')),
-      possession_away: parsePossession(getStat(away, 'Ball Possession')),
-      shots_total_home: getStat(home, 'Total Shots') ?? 0,
-      shots_total_away: getStat(away, 'Total Shots') ?? 0,
-      shots_on_target_home: getStat(home, 'Shots on Goal') ?? 0,
-      shots_on_target_away: getStat(away, 'Shots on Goal') ?? 0,
-      attacks_home: getStat(home, 'Dangerous Attacks') ?? getStat(home, 'Shots insidebox') ?? 0,
-      attacks_away: getStat(away, 'Dangerous Attacks') ?? getStat(away, 'Shots insidebox') ?? 0,
-      corners_home: getStat(home, 'Corner Kicks') ?? 0,
-      corners_away: getStat(away, 'Corner Kicks') ?? 0,
-      fouls_home: getStat(home, 'Fouls') ?? 0,
-      fouls_away: getStat(away, 'Fouls') ?? 0,
-      cards_home: (getStat(home, 'Yellow Cards') ?? 0) + (getStat(home, 'Red Cards') ?? 0),
-      cards_away: (getStat(away, 'Yellow Cards') ?? 0) + (getStat(away, 'Red Cards') ?? 0),
-      passes_home: getStat(home, 'Total passes') ?? 0,
-      passes_away: getStat(away, 'Total passes') ?? 0,
-      passes_accurate_home: getStat(home, 'Passes accurate') ?? 0,
-      passes_accurate_away: getStat(away, 'Passes accurate') ?? 0,
-      xG_home: parseFloat(getStat(home, 'expected_goals') || '0') || null,
-      xG_away: parseFloat(getStat(away, 'expected_goals') || '0') || null,
-    };
-  } catch (e) {
-    console.error(`[LiveScores] Stats fetch error for ${fixtureId}:`, e);
-    return null;
-  }
-}
+// fetchFixtureStats AF removida em Fase 2 — stats vêm de Futodds (_futodds_stats) ou Sportmonks (getFixtureStats).
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -125,39 +75,15 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('API_FOOTBALL_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'API_FOOTBALL_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabase = getSupabaseAdmin();
 
-    // 1. Fetch all live fixtures — provedor controlado por env
+    // 1. Fetch all live fixtures — sempre via liveProvider (Futodds + Sportmonks).
     let allFixtures: any[] = [];
-    let providerUsed = "api-football";
-    if (LIVE_PROVIDER_PRIMARY === "sportmonks" || LIVE_PROVIDER_PRIMARY === "futodds") {
-      const lr = await getLiveMatches();
-      allFixtures = lr.fixtures;
-      providerUsed = lr.source;
-      console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
-    } else {
-      console.log('[LiveScores] Fetching live fixtures (legacy mode)...');
-      const res = await fetch(`${API_FOOTBALL_URL}/fixtures?live=all`, {
-        headers: { 'x-apisports-key': apiKey },
-      });
-      if (!res.ok) {
-        console.error(`[LiveScores] API error: ${res.status}`);
-        return new Response(
-          JSON.stringify({ error: `API error: ${res.status}` }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const data = await res.json();
-      allFixtures = data.response || [];
-    }
+    let providerUsed = "futodds";
+    const lr = await getLiveMatches();
+    allFixtures = lr.fixtures;
+    providerUsed = lr.source;
+    console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
     
     // Filtrar apenas ligas permitidas
     // ⚠️ Futodds usa league_id do BetsAPI (espaço diferente da API-Football).
@@ -272,7 +198,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         };
 
-        // Fetch full stats — Futodds (_futodds_stats inline) → Sportmonks (_raw) → API-Football
+        // Fetch full stats — Futodds (_futodds_stats inline) → Sportmonks (_raw). AF removida em Fase 2.
         if (needsStatsSet.has(fixtureId) && minute >= 15) {
           let stats: any = null;
           if (fixture._source === 'futodds' && fixture._futodds_stats) {
@@ -284,13 +210,10 @@ serve(async (req) => {
             const r = await getFixtureStats({ sm_id: fixture.fixture.sm_id, raw: fixture._raw, af_id: fixtureId });
             stats = r.stats ? { ...r.stats } : null;
           }
-          if (!stats) {
-            stats = await fetchFixtureStats(fixtureId, apiKey);
-          }
           if (stats) {
             updatePayload.stats = stats;
             statsFetched++;
-            console.log(`[LiveScores] Stats ${fixtureId} (src=${stats.source || 'api-football'}): Poss ${stats.possession_home}-${stats.possession_away}, Pressure ${stats.pressure_home ?? '-'}/${stats.pressure_away ?? '-'}`);
+            console.log(`[LiveScores] Stats ${fixtureId} (src=${stats.source || 'sportmonks'}): Poss ${stats.possession_home}-${stats.possession_away}, Pressure ${stats.pressure_home ?? '-'}/${stats.pressure_away ?? '-'}`);
           }
         }
 

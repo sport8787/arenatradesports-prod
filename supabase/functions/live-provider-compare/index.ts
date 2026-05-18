@@ -11,7 +11,7 @@ const AF_BASE = "https://v3.football.api-sports.io";
 
 async function fetchAF() {
   const t0 = Date.now();
-  const key = Deno.env.get("API_FOOTBALL_KEY");
+  const key = ""; // API-Football removida em Fase 2 (18/05/2026) — comparação AF retorna sempre "deprecated"
   if (!key) return { ok: false, ms: 0, count: 0, error: "no_api_football_key" };
   try {
     const res = await fetch(`${AF_BASE}/fixtures?live=all`, { headers: { "x-apisports-key": key } });

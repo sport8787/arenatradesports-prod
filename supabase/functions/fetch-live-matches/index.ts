@@ -19,7 +19,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
+// API_FOOTBALL removida em Fase 2 (18/05/2026) — Futodds + Sportmonks cobrem live scores.
 const LIVE_STATUS_SHORTS = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP']);
 const FINISHED_STATUS_SHORTS = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
 const STALE_FINISH_GRACE_MS = 5 * 60 * 1000;

@@ -11,17 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('API_FOOTBALL_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'API_FOOTBALL_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // API-Football removida em Fase 2 (18/05/2026). Widgets AF descontinuados — página /punter/widgets exibirá erro.
     return new Response(
-      JSON.stringify({ key: apiKey }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'widgets_deprecated', message: 'API-Football foi removida. Widgets indisponíveis.' }),
+      { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     return new Response(

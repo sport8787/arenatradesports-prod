@@ -15,72 +15,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const API_KEY = Deno.env.get("API_FOOTBALL_KEY") || "";
+// API-Football removida em Fase 2 (18/05/2026) — corners vêm exclusivamente do Sportmonks.
 const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const BASE_URL = "https://v3.football.api-sports.io";
 
-// Fonte de dados: Sportmonks (API-Football descontinuada — Fase 2)
+// Fonte de dados: Sportmonks
 const DATA_SOURCE: 'sportmonks' = 'sportmonks';
 
 // ════════════════════════════════════════════════════
-// BUSCAR TEAM ID POR NOME (API-Football /teams)
+// BUSCAR TEAM ID POR NOME (Sportmonks)
 // ════════════════════════════════════════════════════
 async function buscarTeamIdPorNome(teamName: string): Promise<{ id: number; name: string } | null> {
-  if (DATA_SOURCE === 'sportmonks') {
-    const r = await smSearchTeam(teamName);
-    if (r) console.log(`[Corners-SM] Team found: "${teamName}" → SM ID ${r.id} (${r.name})`);
-    else console.warn(`[Corners-SM] Team not found: "${teamName}"`);
-    return r;
-  }
-  try {
-    const url = `${BASE_URL}/teams?search=${encodeURIComponent(teamName)}`;
-    const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
-    const data = await res.json();
-    const teams = data.response || [];
-    if (teams.length > 0) {
-      // Pegar o primeiro resultado (mais relevante)
-      const team = teams[0].team;
-      console.log(`[Corners] Team found: "${teamName}" → ID ${team.id} (${team.name})`);
-      return { id: team.id, name: team.name };
-    }
-    console.warn(`[Corners] Team not found: "${teamName}"`);
-    return null;
-  } catch (err) {
-    console.error(`[Corners] Error searching team "${teamName}":`, err);
-    return null;
-  }
+  const r = await smSearchTeam(teamName);
+  if (r) console.log(`[Corners-SM] Team found: "${teamName}" → SM ID ${r.id} (${r.name})`);
+  else console.warn(`[Corners-SM] Team not found: "${teamName}"`);
+  return r;
 }
 
 // ════════════════════════════════════════════════════
 // BUSCAR FIXTURES RECENTES DO TIME
 // ════════════════════════════════════════════════════
-async function buscarFixturesRecentes(teamId: number, season: number, limit: number = 8) {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getRecentFixturesSM(teamId, limit);
-  }
-  const url = `${BASE_URL}/fixtures?team=${teamId}&season=${season}&last=${limit}&status=FT`;
-  const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
-  const data = await res.json();
-  return data.response || [];
+async function buscarFixturesRecentes(teamId: number, _season: number, limit: number = 8) {
+  return await getRecentFixturesSM(teamId, limit);
 }
 
 // ════════════════════════════════════════════════════
-// BUSCAR ESTATÍSTICAS DE UM FIXTURE (Corner Kicks)
+// BUSCAR ESTATÍSTICAS DE UM FIXTURE (Corner Kicks) — Sportmonks
 // ════════════════════════════════════════════════════
 async function buscarEstatisticasFixture(fixtureId: number, teamId: number): Promise<number> {
-  if (DATA_SOURCE === 'sportmonks') {
-    return await getCornersForFixtureSM(fixtureId, teamId);
-  }
-  try {
-    const url = `${BASE_URL}/fixtures/statistics?fixture=${fixtureId}&team=${teamId}`;
-    const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
-    const data = await res.json();
-    const stats = data.response?.[0]?.statistics || [];
-    const corners = stats.find((s: any) => s.type === "Corner Kicks");
-    return parseInt(corners?.value || "0") || 0;
-  } catch {
-    return 0;
-  }
+  return await getCornersForFixtureSM(fixtureId, teamId);
 }
 
 // ════════════════════════════════════════════════════

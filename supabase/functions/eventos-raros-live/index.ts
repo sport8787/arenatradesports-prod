@@ -15,7 +15,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
+const API_FOOTBALL_KEY = ""; // API-Football removida em Fase 2 (18/05/2026) — eventos-raros-live precisa migrar para Sportmonks
 const BETFAIR_MODE = Deno.env.get("BETFAIR_MODE") ?? "simulado";
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 // Eventos raros LIVE vão APENAS para o grupo Trader.

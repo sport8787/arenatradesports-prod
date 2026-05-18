@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-const MAX_GAMES = 15, BATCH = 3, BATCH_COOLDOWN_MS = 12_000, API_FB = 'https://v3.football.api-sports.io'
+const MAX_GAMES = 15, BATCH = 3, BATCH_COOLDOWN_MS = 12_000, API_FB = '' // API-Football removida em Fase 2 (18/05/2026)
 const MAX_EXEC_MS = 110_000 // 110s guard — must return BEFORE gateway kills the connection (~120s)
 let execStart = 0
 let geminiRateLimitUntil = 0
@@ -1495,7 +1495,7 @@ serve(async (req) => {
     const leagues:string[] = sport?[sport]:sports
     console.log(`[Mycroft Punter] Leagues: ${leagues.length}, Hours: ${hours_ahead}h, Corners: ${include_corners}, Cards: ${include_cards}`)
     const oddsKey=Deno.env.get('THE_ODDS_API_KEY'); if(!oddsKey) throw new Error('THE_ODDS_API_KEY not configured')
-    const apiKey=Deno.env.get('API_FOOTBALL_KEY')||''
+    const apiKey='' // API-Football removida em Fase 2 — estaduais sem odds não terão fallback (skip)
     const now=new Date(), maxT=new Date(now.getTime()+hours_ahead*36e5)
     const games:any[]=[], noOdds:string[]=[]
 

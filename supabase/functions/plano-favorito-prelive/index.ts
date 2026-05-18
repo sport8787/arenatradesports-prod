@@ -28,13 +28,12 @@ const DATA_SOURCE: 'sportmonks' = 'sportmonks'
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const API_FOOTBALL_KEY  = Deno.env.get('API_FOOTBALL_KEY') ?? ''
+// API_FOOTBALL_KEY removida em Fase 2 (18/05/2026) — fonte única: Sportmonks via adapter.
 const ODDS_API_KEY      = Deno.env.get('ODDS_API_KEY') ?? ''
 const TELEGRAM_TOKEN    = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? ''
 const TELEGRAM_CHAT     = Deno.env.get('TELEGRAM_CHAT_ID') ?? ''
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY)
-const AF_BASE  = 'https://v3.football.api-sports.io'
 
 // =============================================================================
 // LIGAS PERMITIDAS — vêm do registry (tabela trader_leagues, tiers A+B)
@@ -113,13 +112,10 @@ interface Analise {
 // HELPERS API
 // =============================================================================
 
-async function afFetch(path: string, params: Record<string, string | number>) {
-  const url = new URL(`${AF_BASE}${path}`)
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)))
-  const r = await fetch(url.toString(), { headers: { 'x-apisports-key': API_FOOTBALL_KEY } })
-  if (!r.ok) throw new Error(`AF ${path} → ${r.status}`)
-  const d = await r.json()
-  return d.response
+async function afFetch(_path: string, _params: Record<string, string | number>): Promise<any[]> {
+  // API-Football removida em Fase 2 (18/05/2026). Stub mantido só para os caminhos AF mortos.
+  console.warn('[plano-favorito] afFetch chamado mas AF foi removida — retornando []')
+  return []
 }
 
 async function getTeamStats(teamId: number, leagueId: number, season: number): Promise<TeamStats | null> {
