@@ -68,9 +68,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_FOOTBALL_KEY = Deno.env.get("API_FOOTBALL_KEY")!;
+// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks → The Odds API.
 const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
-const AF_BASE = "https://v3.football.api-sports.io";
 
 type Resultado = "GREEN" | "RED" | "VOID" | "MEIO_GREEN" | "MEIO_RED" | "REEMBOLSO";
 interface FixtureResult {
