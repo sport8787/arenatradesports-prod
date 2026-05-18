@@ -431,7 +431,7 @@ Deno.serve(async (req) => {
       skipped: allPending.length - eligibleBets.length,
       results,
       completed_games: completedGames.length,
-      source: apiFootballKey ? 'api-football' : 'odds-api',
+      source: 'sportmonks+odds-api',
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
