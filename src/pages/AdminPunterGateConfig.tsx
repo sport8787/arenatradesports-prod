@@ -234,7 +234,10 @@ export default function AdminPunterGateConfig() {
               <Label className="text-xs font-mono text-muted-foreground">Favorito requer data_strength</Label>
               <Input value={cfg.favorite_requires_data_strength}
                 onChange={(e) => set('favorite_requires_data_strength', e.target.value.toUpperCase())}
-                className="h-8 font-mono text-xs" />
+                className={`h-8 font-mono text-xs ${errors.favorite_requires_data_strength ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                aria-invalid={!!errors.favorite_requires_data_strength}
+              />
+              {errors.favorite_requires_data_strength && <p className="text-[10px] font-mono text-destructive">{errors.favorite_requires_data_strength}</p>}
             </div>
             <NumField k="odd_drop_pct_threshold" label="Trap line: queda 2h > (%)" step={0.5} />
             <NumField k="weak_league_odd_threshold" label="Liga fraca + odd <" />
@@ -246,10 +249,25 @@ export default function AdminPunterGateConfig() {
             <Textarea
               value={cfg.strong_league_regex}
               onChange={(e) => set('strong_league_regex', e.target.value)}
-              className="font-mono text-xs min-h-[70px]"
+              className={`font-mono text-xs min-h-[70px] ${errors.strong_league_regex ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              aria-invalid={!!errors.strong_league_regex}
             />
+            {errors.strong_league_regex && <p className="text-[10px] font-mono text-destructive">{errors.strong_league_regex}</p>}
           </div>
         </section>
+
+        {hasErrors && (
+          <section className="border border-destructive/50 bg-destructive/5 rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-destructive font-mono text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4" /> {errorList.length} erro(s) de validação
+            </div>
+            <ul className="text-[11px] font-mono text-destructive/90 list-disc pl-5 space-y-0.5">
+              {errorList.slice(0, 8).map(([k, msg]) => (
+                <li key={k}><span className="opacity-70">{k}:</span> {msg}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Blocos */}
         {(['a','b','c'] as const).map(b => {
