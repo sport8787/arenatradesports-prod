@@ -108,7 +108,7 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
     ];
 
     // Cadeia de modelos: tenta o forte primeiro, depois cai pro lite
-    const modelChain = [AI_MODEL, "gemini-2.5-flash-lite", "gemini-2.5-flash"];
+    const modelChain = [AI_MODEL, "llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
     let resp: Response | null = null;
     let data: any = null;
     let answer = "";
