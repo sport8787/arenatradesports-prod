@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
+import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
 import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
@@ -27,12 +28,6 @@ const STALE_FINISH_GRACE_MS = 5 * 60 * 1000;
 // === Performance tuning ===
 const STATS_CONCURRENCY = 8;          // parallel fixture-stats requests
 const ANALYSIS_CONCURRENCY = 4;       // parallel Mycroft analyses
-const STATS_CACHE_TTL_MS = 25_000;    // re-use stats within ~25s window
-const SCHEDULED_FETCH_INTERVAL_MS = 15 * 60 * 1000; // refresh scheduled list every 15min only
-
-// Module-scoped caches (persist across invocations within the same isolate)
-const statsCache = new Map<number, { ts: number; stats: FixtureStats | null }>();
-let lastScheduledFetchAt = 0;
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -102,129 +97,6 @@ interface FixtureStats {
   xG_away: number;
 }
 
-// Robust stat getter from uploaded fix - handles null, string percentages, numbers
-function getStat(stats: any[], type: string): number {
-  const found = stats.find((s: any) => s.type === type);
-  if (!found) return 0;
-  const value = found.value;
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'string') {
-    return parseInt(value.replace('%', ''), 10) || 0;
-  }
-  return typeof value === 'number' ? value : 0;
-}
-
-// Persistent DB cache TTL (longer than in-memory; survives across isolate cold starts)
-const PERSISTENT_STATS_TTL_SEC = 25;
-
-async function fetchFromPersistentCache(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  fixtureId: number,
-): Promise<FixtureStats | null | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from('fixture_stats_cache')
-      .select('stats, expires_at')
-      .eq('fixture_id', String(fixtureId))
-      .maybeSingle();
-    if (error || !data) return undefined;
-    if (new Date(data.expires_at).getTime() < Date.now()) return undefined;
-    return (data.stats as FixtureStats | null) ?? null;
-  } catch {
-    return undefined;
-  }
-}
-
-async function writePersistentCache(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  fixtureId: number,
-  stats: FixtureStats | null,
-): Promise<void> {
-  try {
-    const expiresAt = new Date(Date.now() + PERSISTENT_STATS_TTL_SEC * 1000).toISOString();
-    await supabase
-      .from('fixture_stats_cache')
-      .upsert(
-        { fixture_id: String(fixtureId), stats, fetched_at: new Date().toISOString(), expires_at: expiresAt },
-        { onConflict: 'fixture_id' },
-      );
-  } catch (e) {
-    console.warn('[FetchLive] persistent cache write failed:', e);
-  }
-}
-
-async function fetchFixtureStats(
-  fixtureId: number,
-  apiKey: string,
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-): Promise<FixtureStats | null> {
-  // L1: in-memory isolate cache
-  const cached = statsCache.get(fixtureId);
-  if (cached && Date.now() - cached.ts < STATS_CACHE_TTL_MS) {
-    return cached.stats;
-  }
-
-  // L2: persistent DB cache (shared across isolates / cron runs)
-  const persistent = await fetchFromPersistentCache(supabase, fixtureId);
-  if (persistent !== undefined) {
-    statsCache.set(fixtureId, { ts: Date.now(), stats: persistent });
-    return persistent;
-  }
-
-  try {
-    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
-      headers: { 'x-apisports-key': apiKey },
-      retries: 2,
-      timeoutMs: 8_000,
-      breakerKey: 'api-football',
-    });
-    if (!res.ok) {
-      console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
-      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-      await writePersistentCache(supabase, fixtureId, null);
-      return null;
-    }
-
-    const data = await res.json();
-    const teams = data.response;
-    if (!teams || teams.length < 2) {
-      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-      await writePersistentCache(supabase, fixtureId, null);
-      return null;
-    }
-
-    const homeStats = teams[0].statistics || [];
-    const awayStats = teams[1].statistics || [];
-
-    const shotsInsideHome = getStat(homeStats, 'Shots insidebox');
-    const shotsInsideAway = getStat(awayStats, 'Shots insidebox');
-
-    const result: FixtureStats = {
-      attacks_home: shotsInsideHome + getStat(homeStats, 'Shots outsidebox'),
-      attacks_away: shotsInsideAway + getStat(awayStats, 'Shots outsidebox'),
-      dangerous_attacks_home: shotsInsideHome,
-      dangerous_attacks_away: shotsInsideAway,
-      possession_home: getStat(homeStats, 'Ball Possession'),
-      possession_away: getStat(awayStats, 'Ball Possession'),
-      shots_home: getStat(homeStats, 'Shots on Goal'),
-      shots_away: getStat(awayStats, 'Shots on Goal'),
-      shots_total_home: getStat(homeStats, 'Total Shots'),
-      shots_total_away: getStat(awayStats, 'Total Shots'),
-      shots_on_target_home: getStat(homeStats, 'Shots on Goal'),
-      shots_on_target_away: getStat(awayStats, 'Shots on Goal'),
-      xG_home: parseFloat(String(getStat(homeStats, 'expected_goals'))) || 0,
-      xG_away: parseFloat(String(getStat(awayStats, 'expected_goals'))) || 0,
-    };
-
-    statsCache.set(fixtureId, { ts: Date.now(), stats: result });
-    await writePersistentCache(supabase, fixtureId, result);
-    return result;
-  } catch (e) {
-    console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
-    statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-    return null;
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
