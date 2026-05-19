@@ -577,7 +577,6 @@ export default function ArenaBlackjack() {
     }
   };
 
-  const handleResult = async (result: HandResult) => {
   const handleCashbackSurrender = async () => {
     const refundRatio = Math.min(100, Math.max(0, config.cashbackPercent)) / 100;
     const profitAmount = -currentBet * (1 - refundRatio);
