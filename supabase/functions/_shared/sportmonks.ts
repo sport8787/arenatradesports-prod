@@ -150,7 +150,7 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
 export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;periods;inplayodds",
+    include: "scores;participants;state;league;statistics;xgfixture;periods;inplayodds",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
@@ -166,7 +166,7 @@ export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
 export async function fetchFixtureById(smId: number): Promise<any | null> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl(`/football/fixtures/${smId}`, {
-    include: "scores;participants;state;league;statistics;periods",
+    include: "scores;participants;state;league;statistics;xgfixture;periods",
   });
   const res = await resilientFetch(url, { breakerKey: "sportmonks", timeoutMs: 10_000, retries: 1 });
   if (!res.ok) return null;
