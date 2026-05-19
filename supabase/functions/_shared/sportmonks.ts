@@ -61,7 +61,9 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
 
 // Mapa Sportmonks "type_id" para nomes API-Football padrão (ajustar conforme probe)
 // IDs comuns: 41=Shots Total, 42=Shots On Target, 45=Possession, 34=Corners, 84=Yellow Cards,
-// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks, 5321=xG
+// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks
+// xG real vive no include "xgfixture" com type_ids 5304 e 5305 (ambos = Expected Goals,
+// um por participante). O location ("home"/"away") indica o lado correto.
 const SM_STAT_MAP: Record<number, string> = {
   41: "shots_total",
   42: "shots_on_target",
@@ -73,7 +75,9 @@ const SM_STAT_MAP: Record<number, string> = {
   80: "passes",
   81: "passes_accurate",
   44: "attacks",
-  5321: "xg",
+  5304: "xg",
+  5305: "xg",
+  5321: "xg", // legado — mantido por segurança caso o plano antigo ainda retorne
 };
 
 function extractStats(fixture: any): NormalizedStats {
