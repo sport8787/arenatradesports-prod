@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
+import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
 import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
@@ -27,12 +28,6 @@ const STALE_FINISH_GRACE_MS = 5 * 60 * 1000;
 // === Performance tuning ===
 const STATS_CONCURRENCY = 8;          // parallel fixture-stats requests
 const ANALYSIS_CONCURRENCY = 4;       // parallel Mycroft analyses
-const STATS_CACHE_TTL_MS = 25_000;    // re-use stats within ~25s window
-const SCHEDULED_FETCH_INTERVAL_MS = 15 * 60 * 1000; // refresh scheduled list every 15min only
-
-// Module-scoped caches (persist across invocations within the same isolate)
-const statsCache = new Map<number, { ts: number; stats: FixtureStats | null }>();
-let lastScheduledFetchAt = 0;
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -102,129 +97,6 @@ interface FixtureStats {
   xG_away: number;
 }
 
-// Robust stat getter from uploaded fix - handles null, string percentages, numbers
-function getStat(stats: any[], type: string): number {
-  const found = stats.find((s: any) => s.type === type);
-  if (!found) return 0;
-  const value = found.value;
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'string') {
-    return parseInt(value.replace('%', ''), 10) || 0;
-  }
-  return typeof value === 'number' ? value : 0;
-}
-
-// Persistent DB cache TTL (longer than in-memory; survives across isolate cold starts)
-const PERSISTENT_STATS_TTL_SEC = 25;
-
-async function fetchFromPersistentCache(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  fixtureId: number,
-): Promise<FixtureStats | null | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from('fixture_stats_cache')
-      .select('stats, expires_at')
-      .eq('fixture_id', String(fixtureId))
-      .maybeSingle();
-    if (error || !data) return undefined;
-    if (new Date(data.expires_at).getTime() < Date.now()) return undefined;
-    return (data.stats as FixtureStats | null) ?? null;
-  } catch {
-    return undefined;
-  }
-}
-
-async function writePersistentCache(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  fixtureId: number,
-  stats: FixtureStats | null,
-): Promise<void> {
-  try {
-    const expiresAt = new Date(Date.now() + PERSISTENT_STATS_TTL_SEC * 1000).toISOString();
-    await supabase
-      .from('fixture_stats_cache')
-      .upsert(
-        { fixture_id: String(fixtureId), stats, fetched_at: new Date().toISOString(), expires_at: expiresAt },
-        { onConflict: 'fixture_id' },
-      );
-  } catch (e) {
-    console.warn('[FetchLive] persistent cache write failed:', e);
-  }
-}
-
-async function fetchFixtureStats(
-  fixtureId: number,
-  apiKey: string,
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-): Promise<FixtureStats | null> {
-  // L1: in-memory isolate cache
-  const cached = statsCache.get(fixtureId);
-  if (cached && Date.now() - cached.ts < STATS_CACHE_TTL_MS) {
-    return cached.stats;
-  }
-
-  // L2: persistent DB cache (shared across isolates / cron runs)
-  const persistent = await fetchFromPersistentCache(supabase, fixtureId);
-  if (persistent !== undefined) {
-    statsCache.set(fixtureId, { ts: Date.now(), stats: persistent });
-    return persistent;
-  }
-
-  try {
-    const res = await resilientFetch(`${API_FOOTBALL_URL}/fixtures/statistics?fixture=${fixtureId}`, {
-      headers: { 'x-apisports-key': apiKey },
-      retries: 2,
-      timeoutMs: 8_000,
-      breakerKey: 'api-football',
-    });
-    if (!res.ok) {
-      console.error(`[FetchLive] Stats API error ${res.status} for fixture ${fixtureId}`);
-      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-      await writePersistentCache(supabase, fixtureId, null);
-      return null;
-    }
-
-    const data = await res.json();
-    const teams = data.response;
-    if (!teams || teams.length < 2) {
-      statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-      await writePersistentCache(supabase, fixtureId, null);
-      return null;
-    }
-
-    const homeStats = teams[0].statistics || [];
-    const awayStats = teams[1].statistics || [];
-
-    const shotsInsideHome = getStat(homeStats, 'Shots insidebox');
-    const shotsInsideAway = getStat(awayStats, 'Shots insidebox');
-
-    const result: FixtureStats = {
-      attacks_home: shotsInsideHome + getStat(homeStats, 'Shots outsidebox'),
-      attacks_away: shotsInsideAway + getStat(awayStats, 'Shots outsidebox'),
-      dangerous_attacks_home: shotsInsideHome,
-      dangerous_attacks_away: shotsInsideAway,
-      possession_home: getStat(homeStats, 'Ball Possession'),
-      possession_away: getStat(awayStats, 'Ball Possession'),
-      shots_home: getStat(homeStats, 'Shots on Goal'),
-      shots_away: getStat(awayStats, 'Shots on Goal'),
-      shots_total_home: getStat(homeStats, 'Total Shots'),
-      shots_total_away: getStat(awayStats, 'Total Shots'),
-      shots_on_target_home: getStat(homeStats, 'Shots on Goal'),
-      shots_on_target_away: getStat(awayStats, 'Shots on Goal'),
-      xG_home: parseFloat(String(getStat(homeStats, 'expected_goals'))) || 0,
-      xG_away: parseFloat(String(getStat(awayStats, 'expected_goals'))) || 0,
-    };
-
-    statsCache.set(fixtureId, { ts: Date.now(), stats: result });
-    await writePersistentCache(supabase, fixtureId, result);
-    return result;
-  } catch (e) {
-    console.error(`[FetchLive] Stats fetch error for fixture ${fixtureId}:`, e);
-    statsCache.set(fixtureId, { ts: Date.now(), stats: null });
-    return null;
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -323,32 +195,25 @@ serve(async (req) => {
       liveFixtures,
       STATS_CONCURRENCY,
       async (f: any) => {
-        // Sportmonks: aproveita stats já vindas no payload (_raw) ou faz refetch via liveProvider
-        if (f._source === 'sportmonks') {
-          const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, af_id: String(f.fixture.id) });
-          if (r.stats) {
-            // Adapta para shape FixtureStats interno desta edge
-            return {
-              attacks_home: r.stats.attacks_home,
-              attacks_away: r.stats.attacks_away,
-              dangerous_attacks_home: r.stats.attacks_home,
-              dangerous_attacks_away: r.stats.attacks_away,
-              possession_home: r.stats.possession_home,
-              possession_away: r.stats.possession_away,
-              shots_home: r.stats.shots_on_target_home,
-              shots_away: r.stats.shots_on_target_away,
-              shots_total_home: r.stats.shots_total_home,
-              shots_total_away: r.stats.shots_total_away,
-              shots_on_target_home: r.stats.shots_on_target_home,
-              shots_on_target_away: r.stats.shots_on_target_away,
-              xG_home: r.stats.xG_home ?? 0,
-              xG_away: r.stats.xG_away ?? 0,
-              _source: r.source,
-            } as any;
-          }
-          // Sportmonks falhou — cai no caminho legado (API-Football)
-        }
-        return fetchFixtureStats(f.fixture.id, apiKey, supabase);
+        const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, _source: f._source });
+        if (!r.stats) return null;
+        return {
+          attacks_home: r.stats.attacks_home,
+          attacks_away: r.stats.attacks_away,
+          dangerous_attacks_home: r.stats.attacks_home,
+          dangerous_attacks_away: r.stats.attacks_away,
+          possession_home: r.stats.possession_home,
+          possession_away: r.stats.possession_away,
+          shots_home: r.stats.shots_on_target_home,
+          shots_away: r.stats.shots_on_target_away,
+          shots_total_home: r.stats.shots_total_home,
+          shots_total_away: r.stats.shots_total_away,
+          shots_on_target_home: r.stats.shots_on_target_home,
+          shots_on_target_away: r.stats.shots_on_target_away,
+          xG_home: r.stats.xG_home ?? 0,
+          xG_away: r.stats.xG_away ?? 0,
+          _source: r.source,
+        } as any;
       },
     );
     const statsMap = new Map<string, FixtureStats | null>();
@@ -589,80 +454,66 @@ serve(async (req) => {
       console.log(`[FetchLive] ⏭️ Scheduled fetch skipped (${isOverBudget() ? 'over budget' : `gate: minute=${nowMin}`})`);
     }
     if (schedShouldRun) try {
-      lastScheduledFetchAt = Date.now();
       const today = new Date().toISOString().split('T')[0];
       console.log(`[FetchLive] Fetching scheduled fixtures for ${today}...`);
-      const schedRes = await resilientFetch(`${API_FOOTBALL_URL}/fixtures?date=${today}&status=NS-1H-2H-HT-ET-BT-P-SUSP-INT-LIVE`, {
-        headers: { 'x-apisports-key': apiKey },
-        retries: 2,
-        timeoutMs: 15_000,
-        breakerKey: 'api-football',
-      });
+      const allowedLeagueIds = Array.from(allowedIds).filter((id) => !LIGAS_BLOQUEADAS.includes(id));
+      const schedFixtures = await getUpcomingFixturesSM(allowedLeagueIds, 36);
+      console.log(`[FetchLive] Found ${schedFixtures.length} scheduled fixtures via Sportmonks`);
 
-      if (schedRes.ok) {
-        const schedData = await schedRes.json();
-        const schedFixtures = schedData.response || [];
-        console.log(`[FetchLive] Found ${schedFixtures.length} fixtures for today`);
+      const schedPayloads: any[] = [];
+      for (const fix of schedFixtures) {
+        const fixtureDate = new Date(fix.fixture.date);
+        const matchDate = fixtureDate.toISOString().split('T')[0];
+        const matchTime = fixtureDate.toTimeString().slice(0, 5);
+        const checkTime = new Date(fixtureDate.getTime() - 15 * 60000).toISOString();
 
-        const schedPayloads: any[] = [];
-        for (const fix of schedFixtures) {
-          const fixtureDate = new Date(fix.fixture.date);
-          const matchDate = fixtureDate.toISOString().split('T')[0];
-          const matchTime = fixtureDate.toTimeString().slice(0, 5);
-          const checkTime = new Date(fixtureDate.getTime() - 15 * 60000).toISOString();
+        const leagueName = fix.league?.name || 'Unknown';
+        const homeTeam = fix.teams?.home?.name || 'TBD';
+        const awayTeam = fix.teams?.away?.name || 'TBD';
+        const eventId = String(fix.fixture.id);
+        const fixtureStatus = fix.fixture.status?.short || 'NS';
 
-          const leagueName = fix.league?.name || 'Unknown';
-          const homeTeam = fix.teams?.home?.name || 'TBD';
-          const awayTeam = fix.teams?.away?.name || 'TBD';
-          const eventId = String(fix.fixture.id);
-          const fixtureStatus = fix.fixture.status?.short || 'NS';
+        const leagueLower = leagueName.toLowerCase();
+        let relevance = 1;
+        if (leagueLower.includes('brasileir') || leagueLower.includes('premier') || leagueLower.includes('champions')) relevance = 5;
+        else if (leagueLower.includes('la liga') || leagueLower.includes('bundesliga') || leagueLower.includes('serie a') || leagueLower.includes('ligue 1')) relevance = 4;
+        else if (leagueLower.includes('copa') || leagueLower.includes('libertadores')) relevance = 4;
+        else if (leagueLower.includes('serie b') || leagueLower.includes('championship')) relevance = 3;
+        else relevance = 2;
 
-          const leagueLower = leagueName.toLowerCase();
-          let relevance = 1;
-          if (leagueLower.includes('brasileir') || leagueLower.includes('premier') || leagueLower.includes('champions')) relevance = 5;
-          else if (leagueLower.includes('la liga') || leagueLower.includes('bundesliga') || leagueLower.includes('serie a') || leagueLower.includes('ligue 1')) relevance = 4;
-          else if (leagueLower.includes('copa') || leagueLower.includes('libertadores')) relevance = 4;
-          else if (leagueLower.includes('serie b') || leagueLower.includes('championship')) relevance = 3;
-          else relevance = 2;
+        let gameStatus = 'scheduled';
+        if (['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'].includes(fixtureStatus)) gameStatus = 'live';
+        else if (['FT', 'AET', 'PEN'].includes(fixtureStatus)) gameStatus = 'finished';
 
-          let gameStatus = 'scheduled';
-          if (['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'].includes(fixtureStatus)) gameStatus = 'live';
-          else if (['FT', 'AET', 'PEN'].includes(fixtureStatus)) gameStatus = 'finished';
-
-          schedPayloads.push({
-            match_date: matchDate,
-            match_time: matchTime,
-            match_datetime: fixtureDate.toISOString(),
-            league_name: leagueName,
-            home_team: homeTeam,
-            away_team: awayTeam,
-            event_id: eventId,
-            match_id: eventId,
-            status: gameStatus,
-            check_time: checkTime,
-            relevance_score: relevance,
-            updated_at: new Date().toISOString(),
-          });
-        }
-
-        // Batched insert with ignoreDuplicates — write amplification fix.
-        // Antes: cada execução reescrevia ~30k rows com updated_at=now() (35M+ UPDATEs).
-        // Agora: só insere fixtures novos. Status ao vivo é mantido em `live_matches`
-        // (fonte de verdade); transições de status são tratadas em outro caminho.
-        const SCHED_CHUNK = 200;
-        for (let i = 0; i < schedPayloads.length; i += SCHED_CHUNK) {
-          const slice = schedPayloads.slice(i, i + SCHED_CHUNK);
-          const { error: upsertErr } = await supabase
-            .from('scheduled_games')
-            .upsert(slice, {
-              onConflict: 'match_date,match_time,home_team,away_team',
-              ignoreDuplicates: true,
-            });
-          if (!upsertErr) scheduledCount += slice.length;
-          else console.warn('[FetchLive] sched batch insert error:', upsertErr.message);
-        }
-        console.log(`[FetchLive] Saved ${scheduledCount} scheduled games (batched)`);
+        schedPayloads.push({
+          match_date: matchDate,
+          match_time: matchTime,
+          match_datetime: fixtureDate.toISOString(),
+          league_name: leagueName,
+          home_team: homeTeam,
+          away_team: awayTeam,
+          event_id: eventId,
+          match_id: eventId,
+          status: gameStatus,
+          check_time: checkTime,
+          relevance_score: relevance,
+          updated_at: new Date().toISOString(),
+        });
       }
+
+      const SCHED_CHUNK = 200;
+      for (let i = 0; i < schedPayloads.length; i += SCHED_CHUNK) {
+        const slice = schedPayloads.slice(i, i + SCHED_CHUNK);
+        const { error: upsertErr } = await supabase
+          .from('scheduled_games')
+          .upsert(slice, {
+            onConflict: 'match_date,match_time,home_team,away_team',
+            ignoreDuplicates: true,
+          });
+        if (!upsertErr) scheduledCount += slice.length;
+        else console.warn('[FetchLive] sched batch insert error:', upsertErr.message);
+      }
+      console.log(`[FetchLive] Saved ${scheduledCount} scheduled games (batched)`);
     } catch (schedErr) {
       console.error('[FetchLive] Scheduled games fetch error:', schedErr);
     }
