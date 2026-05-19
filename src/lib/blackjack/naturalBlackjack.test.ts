@@ -7,7 +7,7 @@ import {
 describe("isNaturalBlackjack", () => {
   it("A + 10-valued card with 2 cards is natural BJ", () => {
     expect(isNaturalBlackjack(["AS", "JH"])).toBe(true);
-    expect(isNaturalBlackjack(["AH", "TD"])).toBe(true);
+    expect(isNaturalBlackjack(["AH", "10D"])).toBe(true);
     expect(isNaturalBlackjack(["AC", "QS"])).toBe(true);
     expect(isNaturalBlackjack(["AD", "KH"])).toBe(true);
     expect(isNaturalBlackjack(["JH", "AS"])).toBe(true); // ordem indiferente
@@ -44,13 +44,13 @@ describe("resolveAfterDealerHoleCard", () => {
 
   it("encerra com BLACKJACK mesmo se dealer fizer 21 com 3+ cartas (cenário hipotético: paga 1.5:1 pois jogador encerra antes)", () => {
     // O dealer só joga se o jogador não tiver BJ; mas garantimos: a função encerra com a 2ª carta.
-    expect(resolveAfterDealerHoleCard(player, ["TS", "9D"], false)).toBe("blackjack"); // dealer 19
+    expect(resolveAfterDealerHoleCard(player, ["10S", "9D"], false)).toBe("blackjack"); // dealer 19
     expect(resolveAfterDealerHoleCard(player, ["6H", "AC"], false)).toBe("blackjack"); // dealer soft 17
   });
 
   it("PUSH quando dealer também tem blackjack natural (A+10/J/Q/K)", () => {
     expect(resolveAfterDealerHoleCard(player, ["AC", "KS"], false)).toBe("push");
-    expect(resolveAfterDealerHoleCard(player, ["TH", "AD"], false)).toBe("push");
+    expect(resolveAfterDealerHoleCard(player, ["10H", "AD"], false)).toBe("push");
     expect(resolveAfterDealerHoleCard(player, ["AS", "JC"], false)).toBe("push");
     expect(resolveAfterDealerHoleCard(player, ["QC", "AH"], false)).toBe("push");
   });
@@ -71,7 +71,7 @@ describe("resolveAfterDealerHoleCard", () => {
   });
 
   it("dealer com 10/J/Q/K + carta baixa (sem A) — não é push", () => {
-    expect(resolveAfterDealerHoleCard(player, ["TS", "5D"], false)).toBe("blackjack");
+    expect(resolveAfterDealerHoleCard(player, ["10S", "5D"], false)).toBe("blackjack");
     expect(resolveAfterDealerHoleCard(player, ["KS", "6D"], false)).toBe("blackjack");
     expect(resolveAfterDealerHoleCard(player, ["JC", "2H"], false)).toBe("blackjack");
     expect(resolveAfterDealerHoleCard(player, ["QH", "7D"], false)).toBe("blackjack");
