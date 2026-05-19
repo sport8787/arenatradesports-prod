@@ -38,7 +38,7 @@ import { MiniHybridDisplay } from '@/components/arena-blackjack/HybridBettingDis
 import { BettingSystemSelector } from '@/components/arena-blackjack/BettingSystemSelector';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'player_bj_check' | 'select_dealer2' | 'result' | 'split_result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 interface SplitHand {
