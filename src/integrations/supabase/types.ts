@@ -6848,6 +6848,8 @@ export type Database = {
           minute: number | null
           outcome: string
           placed_at: string
+          plan_id: string | null
+          plan_name: string | null
           profit_loss: number | null
           reasons: Json | null
           selected_odd: number | null
@@ -6867,6 +6869,8 @@ export type Database = {
           minute?: number | null
           outcome: string
           placed_at?: string
+          plan_id?: string | null
+          plan_name?: string | null
           profit_loss?: number | null
           reasons?: Json | null
           selected_odd?: number | null
@@ -6886,6 +6890,8 @@ export type Database = {
           minute?: number | null
           outcome?: string
           placed_at?: string
+          plan_id?: string | null
+          plan_name?: string | null
           profit_loss?: number | null
           reasons?: Json | null
           selected_odd?: number | null
@@ -6912,6 +6918,42 @@ export type Database = {
         }
         Update: {
           market?: string
+          plan?: Json
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
+      user_trader_plans_v2: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          market: string
+          name: string
+          plan: Json
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          market: string
+          name: string
+          plan: Json
+          updated_at?: string
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          market?: string
+          name?: string
           plan?: Json
           updated_at?: string
           user_id?: string
