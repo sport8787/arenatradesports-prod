@@ -98,11 +98,19 @@ function extractStats(fixture: any): NormalizedStats {
   const homeId = participants.find((p: any) => p.meta?.location === "home")?.id;
   const awayId = participants.find((p: any) => p.meta?.location === "away")?.id;
 
-  const sList = fixture.statistics || [];
+  // Junta statistics + xgfixture (xG mora num include separado em planos Pro+)
+  const sList = [
+    ...((fixture.statistics as any[]) || []),
+    ...((fixture.xgfixture as any[]) || []),
+  ];
   for (const s of sList) {
     const key = SM_STAT_MAP[s.type_id];
     if (!key) continue;
-    const isHome = s.participant_id === homeId;
+    // location explícito do payload tem prioridade; fallback por participant_id
+    const loc = (s.location || "").toLowerCase();
+    const isHome = loc === "home" || (!loc && s.participant_id === homeId);
+    const isAway = loc === "away" || (!loc && s.participant_id === awayId);
+    if (!isHome && !isAway) continue;
     const suffix = isHome ? "_home" : "_away";
     const val = Number(s.data?.value ?? 0);
 
