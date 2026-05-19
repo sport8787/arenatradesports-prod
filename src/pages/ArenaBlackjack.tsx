@@ -578,6 +578,49 @@ export default function ArenaBlackjack() {
   };
 
   const handleResult = async (result: HandResult) => {
+  const handleCashbackSurrender = async () => {
+    const refundRatio = Math.min(100, Math.max(0, config.cashbackPercent)) / 100;
+    const profitAmount = -currentBet * (1 - refundRatio);
+    const newBankroll = bankroll + profitAmount;
+    setBankroll(newBankroll);
+
+    updateBettingState('loss', currentBet);
+    setHandsPlayed(prev => prev + 1);
+    setHandsLost(prev => prev + 1);
+    setConsecutiveLosses(prev => prev + 1);
+    setResultHistory(prev => [...prev.slice(-19), 'loss']);
+
+    toast.info(`💸 Cashback ${config.cashbackPercent}% — Devolução R$${(currentBet * refundRatio).toFixed(2)} (perda líquida R$${Math.abs(profitAmount).toFixed(2)})`);
+
+    if (sessionId && user) {
+      await supabase.from('blackjack_hands').insert({
+        session_id: sessionId, hand_number: handsPlayed + 1,
+        player_cards: playerCards, player_total: hand.total,
+        player_soft: hand.soft, dealer_card: dealerCards[0] || '',
+        running_count: runningCount, true_count: countingState.trueCount,
+        recommended_action: decision?.action || null,
+        player_action: 'cashback_surrender',
+        was_deviation: false,
+        bet_amount: currentBet, bet_units: currentBet / config.baseUnit,
+        result: 'loss', profit_loss: profitAmount,
+      } as any);
+      await supabase.from('blackjack_sessions').update({
+        current_bankroll: newBankroll, hands_played: handsPlayed + 1,
+        hands_lost: handsLost + 1,
+        total_profit: newBankroll - config.initialBankroll,
+      } as any).eq('id', sessionId);
+    }
+
+    const profitNow = newBankroll - config.initialBankroll;
+    if ((Math.abs(profitNow) >= config.stopLoss && profitNow < 0) || profitNow >= config.stopWin) {
+      setStopReason(profitNow >= config.stopWin ? 'stop_win' : 'stop_loss');
+      setPhase('stopped');
+      return;
+    }
+    resetHand();
+  };
+
+  const handleResult = async (result: HandResult) => {
     const profitAmount = calculateProfit(result, currentBet, config.blackjackPayout);
     const newBankroll = bankroll + profitAmount;
     setBankroll(newBankroll);
