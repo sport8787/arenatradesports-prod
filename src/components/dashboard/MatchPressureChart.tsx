@@ -170,6 +170,8 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
     });
   }, [data.timeline, data.xgTimeline]);
 
+  const uid = useMemo(() => Math.random().toString(36).slice(2, 8), []);
+
   if (series.length === 0) {
     return (
       <div className="flex items-center justify-center text-xs text-muted-foreground py-8">
@@ -184,7 +186,6 @@ export function MatchPressureChart({ data, height = 220, showAxis = true, showEv
   const goalEvents = showEvents ? data.events.filter((e) => e.type === "goal") : [];
   const redEvents = showEvents ? data.events.filter((e) => e.type === "red") : [];
   const currentMinute = data.header.minute || 0;
-  const uid = useMemo(() => Math.random().toString(36).slice(2, 8), []);
   const gradHome = `pressGradH-${uid}`;
   const gradAway = `pressGradA-${uid}`;
 
