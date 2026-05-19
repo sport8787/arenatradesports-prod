@@ -1,93 +1,104 @@
-# Plano de Migração — Fase 2: Remoção total da API-Football
+# Modo Blackjack Ao Vivo — Plano de Implementação
 
-## Objetivo
-Eliminar dependência da API-Football do projeto. Stack final: **Futodds** (placar/odds ao vivo + matches-ended) + **Sportmonks** (stats, H2H, AH, predictions, fallback de liquidação) + **The Odds API** (odds pré-live + fallback final).
+Nova modalidade **separada** do modo simulado existente. Não altera lógica do simulado.
 
-Justificativa já validada na auditoria: Futodds cobre placar ao vivo com latência ~30-60s e Sportmonks `/livescores/inplay` com ~10-30s — AF é redundante. Settlement já roda Futodds-first em 70-80% dos casos.
+## Arquitetura
 
----
+Nova rota `/arena-blackjack/ao-vivo` (entrada pelo seletor de modos na `ArenaBlackjack`). Toda lógica em arquivos novos para isolamento total. Reaproveita `src/lib/blackjack/counting-and-trap.ts`, `decision-engine.ts` e `betting-system.ts` já existentes.
 
-## Escopo por bloco
+### Arquivos novos
 
-### Bloco 1 — Cards (Punter)
-**Arquivo:** `supabase/functions/mycroft-cards-punter/index.ts`
-- Substituir `findTeam` + `buscarMediaCartoes` (AF `/teams/search` + `/fixtures` + `/fixtures/statistics`) por `getTeamStatsSM` do `sportmonks-af-adapter.ts`.
-- Sportmonks expõe `yellowcards`/`redcards` agregados na temporada via `teams/seasons` includes. Calcular `avg_total_jogo = (homeYC+homeRC+awayYC+awayRC) / matchesPlayed`.
-- Qualidade esperada: ~70% da precisão do AF (sem detalhe por jogo, mas média de temporada é mais estável amostralmente).
-- Manter lógica de Poisson, edge ≥ 4% e `APROVADO_SITUACIONAL` quando não houver odd.
+```text
+src/pages/ArenaBlackjackLive.tsx          # página principal (orquestrador)
+src/components/arena-blackjack/live/
+  SessionSetup.tsx                        # passo 1: config inicial
+  ClassicTable.tsx                        # mesa 7 posições
+  InfinityTable.tsx                       # mesa fluxo dinâmico
+  CardKeypad.tsx                          # teclado A,2..10,J,Q,K
+  CountingPanel.tsx                       # RC/TC + indicador 4 níveis
+  DecisionSuggestion.tsx                  # card "Sugestão"
+  ShuffleButton.tsx                       # "Embaralhou"
+  SessionHistory.tsx                      # tabela + gráfico
+  RoundFlowController.tsx                 # máquina de estados da rodada
+src/lib/blackjack/live/
+  liveSessionMachine.ts                   # FSM: setup → deal → player → others → dealer → resolve
+  liveBetSizing.ts                        # Martingale Conservador + override TC≥4
+  penetrationUtils.ts                     # 60/75/85% → cálculo decks restantes
+  liveTypes.ts                            # tipos compartilhados
+```
 
-### Bloco 2 — Players (Punter)
-**Arquivo:** `supabase/functions/mycroft-players-punter/index.ts`
-- **Desativar permanentemente**: remover cron `punter-prelive-players-1730-brt` e marcar edge como deprecated (mantém arquivo com early-return e log de aviso).
-- Atualizar memória `extra-markets.md` removendo seção Players.
-- Realocar slot 17:30 BRT: liberar para `mycroft-extra-markets` rodar segunda passada (reanálise vespertina de DC/AH).
+### Estado da sessão (in-memory + localStorage)
 
-### Bloco 3 — Handicap Asiático Pré-live
-**Arquivo:** `supabase/functions/handicap-asiatico-prelive/index.ts`
-- Trocar chamadas `v3.football.api-sports.io` por helpers do `sportmonks-af-adapter.ts` (`getUpcomingSM`, `getRecentMatchesSM`, `getH2HSM`).
-- Adapter já entrega shape AF-compatível, mudança é trivial (search/replace de import + remoção de `API_KEY` guards).
+```ts
+{
+  tableType: 'classic' | 'infinity',
+  decks: 4|6|8,
+  penetration: 0.60|0.75|0.85,
+  baseBet: number,
+  bettingSystem: 'martingale'|'kelly'|'hybrid',
+  bankroll: { initial, current },
+  positions: { 1..7: 'active'|'empty'|'mine' },  // classic only
+  count: { running, trueCount, cardsSeen, shuffles: [{roundsBefore}] },
+  currentBet: number, redStreak: number,
+  history: Round[],
+}
+```
 
-### Bloco 4 — Sinais Alavanca Scanner
-**Arquivo:** `supabase/functions/sinais-alavanca-scanner/index.ts`
-- Mesma migração do Bloco 3: usar `sportmonks-af-adapter.ts` para H2H + recent matches.
-- Manter lógica Under 4.5 intacta.
+## Fluxo das rodadas
 
-### Bloco 5 — Settlement (limpeza)
-**Arquivos:**
-- `supabase/functions/_shared/sportmonks-af-adapter.ts`
-- `supabase/functions/punter-settle-results-v3/index.ts`
-- `supabase/functions/liquidar-sinais-ao-vivo/index.ts`
-- `supabase/functions/settle-bets/index.ts`
+### Mesa Clássica
+`dealer_up → pos1..N → minha_decisão (com sugestão) → cartas extras outras posições → hole_card → resolução`
 
-Remover o degrau "API-Football" do `resolveFixtureForSettlement`. Nova ordem:
-1. Futodds `/matches-ended` (primário, ~70-80%)
-2. Sportmonks `getFixtureByTeamsAndDate` (fallback)
-3. The Odds API (fallback final)
+Posições marcadas como `empty` são puladas. Toggle ativa/desativa sem resetar sessão.
 
-### Bloco 6 — Live scores (limpeza)
-**Arquivos:** `update-live-scores/index.ts`, `fetch-live-matches/index.ts`
-- Já usam `liveProvider.ts` (Sportmonks-primário + Futodds-fallback). API-Football já foi removida do `liveProvider`. **Sem trabalho aqui**, apenas confirmar.
+### Mesa Infinity
+`minhas_cartas → loop "outros jogadores?" (S/N) → dealer_up → minha_decisão → loop "alguém pediu carta?" → hole_card → resolução`
 
-### Bloco 7 — Limpeza geral
-- Auditar todas as edges (`rg "API_FOOTBALL_KEY|api-sports.io"`) e remover blocos mortos.
-- Remover secret `API_FOOTBALL_KEY` ao final.
-- Atualizar memórias:
-  - `settlement-futodds-first.md` — remover passo AF.
-  - `extra-markets.md` — remover Players.
-  - `cron-spread-2026-05-18.md` — atualizar slot 17:30.
-  - Criar `.lovable/memory/cleanup/api-football-removal-2026-05-18.md`.
+`RoundFlowController` é uma FSM que emite o próximo prompt; UI reage.
 
----
+## Contagem Hi-Lo
 
-## Ordem de execução (status)
-1. ✅ **Blocos 3 + 4** (AH + Alavanca) — migrados.
-2. ✅ **Bloco 5** (settlement) — Futodds → Sportmonks → Odds API.
-3. ✅ **Bloco 1** (cards via Sportmonks) — `getTeamCardsAvgSM` adicionado ao adapter; edge migrada.
-4. ✅ **Bloco 2** (players desativado).
-5. ✅ **Bloco 7** (varredura) — todas as 16 edges restantes foram neutralizadas:
-   - **0 reads** de `Deno.env.get('API_FOOTBALL_KEY')` no projeto inteiro.
-   - 5 URLs literais `api-sports.io` permanecem em código MORTO (apiKey vazia → early-return), em:
-     `mycroft-punter-backtest`, `fetch-daily-odds`, `eventos-raros-live`, `eventos-raros-prelive`, `live-provider-compare`.
-   - **Pendente migração real (não bloqueia remoção do secret):**
-     `eventos-raros-prelive` e `eventos-raros-live` precisam de port completo para Sportmonks (hoje retornam 0 candidatos).
-   - **Frontend:** página `/punter/widgets` retornará 410 (widgets AF descontinuados) — avaliar remoção do menu.
-6. ⏳ **Próximo passo:** remover o secret `API_FOOTBALL_KEY` via `delete_secret`.
+- Cada carta clicada via `CardKeypad` chama `updateCount()` (já existe). J/Q/K = -1 automaticamente.
+- Decks restantes = `decks - cardsSeen/52`, ajustado pela penetração (alerta visual quando atinge limite).
+- True Count com 4 faixas: ≤0 vermelho, 1-2 amarelo, 3-4 verde, ≥5 dourado.
+- Botão **Embaralhou** zera `running/trueCount/cardsSeen`, registra `shuffles.push({roundsBefore})`, mantém banca e histórico, exibe toast de confirmação.
 
----
+## Sugestão de decisão
 
-## Riscos & mitigações
-- **Cards menos precisos**: aceito — média de temporada é suficiente para edge ≥ 4%.
-- **Players cego**: aceito — já estava quebrado, retiramos do feed sem perda real.
-- **Settlement sem AF**: Sportmonks cobre o gap dos 20-30% que Futodds não resolve; The Odds API segura o que sobrar.
-- **AH/Alavanca**: adapter já está em produção em outras pipelines, risco baixo.
+Usa `decision-engine.ts` (estratégia básica) + desvios Illustrious 18 ativados por TC:
+- TC≥0: 16 vs 10 → STAND
+- TC≥3: 12 vs 3 → STAND, 10 vs 10 → DOUBLE
+- TC≥4: 9 vs 2 → DOUBLE
+- TC negativo: bloqueia DOUBLE/SPLIT marginais
 
----
+## Martingale Conservador Ao Vivo
 
-## Entregáveis
-- 4 edges modificadas (cards, players-disable, AH, alavanca).
-- 4 edges com cleanup de fallback (settle-v3, liquidar-ao-vivo, settle-bets, adapter).
-- 1 cron removido + 1 reaproveitado.
-- 1 secret removida.
-- 4 memórias atualizadas + 1 nova.
+- Base configurada na sessão. RED: `bet += 2`. WIN em recovery: `bet -= 2` até a base.
+- Limite configurável de reds (default 4) → pausa + alerta.
+- Override: se TC ≥ 4, sugestão aumenta independente de streak.
+- Modo Kelly e Híbrido reaproveitam `bankrollAiService` / `hybrid-betting-system` já existentes.
 
-## Quer que eu comece pela ordem proposta (Bloco 3+4 primeiro)?
+## Histórico
+
+Tabela + gráfico (Recharts já no projeto) de evolução da banca. Métricas: rodadas, G/R/P, banca ini/atual, P&L, # resets, TC médio.
+
+## Integração
+
+- Botão "🔴 Modo Ao Vivo" na `ArenaBlackjack` atual roteando para `/arena-blackjack/ao-vivo`.
+- Rota adicionada em `App.tsx` sob `RequireArena`/`RequireSubscription` iguais à arena existente.
+- Sem mudanças de banco de dados nesta fase (sessão local). Persistência em DB pode vir depois se desejado.
+
+## Detalhes técnicos
+
+- Sem chamadas a Supabase neste modo (puro client-side).
+- Tokens semânticos do design system (sem cores hardcoded).
+- `framer-motion` para transições de etapa.
+- LocalStorage key `blackjack-live-session-v1` para resumir sessão interrompida.
+
+## Fora de escopo (confirmar se quiser depois)
+
+- Persistir sessões no DB / leaderboard.
+- Split/seguros completos no modo ao vivo (versão 1: hit/stand/double/surrender).
+- Multi-mãos próprias simultâneas.
+
+Posso seguir com essa estrutura?
