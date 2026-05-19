@@ -95,21 +95,36 @@ async function mergeProviders(): Promise<LiveResult> {
   const smLeagues = new Set<number>();
   for (const f of sm) if (f?.league?.id != null) smLeagues.add(Number(f.league.id));
 
-  // Dedup por chave (league+teams+date). Sportmonks tem prioridade.
+  // Chave alternativa por times+data (sem league_id) — Futodds e Sportmonks usam league_ids
+  // distintos para o MESMO jogo, então dedup só por league_id deixa passar duplicata.
+  // xG vive na Sportmonks → SM SEMPRE vence; Futodds só entra se o jogo não existe no SM.
+  function teamDayKey(f: any): string {
+    const h = String(f?.teams?.home?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+    const a = String(f?.teams?.away?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+    const d = String(f?.fixture?.date ?? "").slice(0, 10);
+    return `${h}|${a}|${d}`;
+  }
+
   const seen = new Set<string>();
+  const smTeamDay = new Set<string>();
   const merged: any[] = [];
   for (const f of sm) {
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
+    smTeamDay.add(teamDayKey(f));
     merged.push(f);
   }
   let addedFromFutodds = 0;
+  let skippedDup = 0;
   const filledLeagues = new Set<number>();
   for (const f of fd) {
     const lid = Number(f?.league?.id ?? -1);
     // Só adiciona Futodds para ligas que o Sportmonks NÃO trouxe
     if (smLeagues.has(lid)) continue;
+    // 🚫 DEDUP CROSS-PROVIDER: se SM já tem mesmo time+dia, Futodds é descartado
+    // (evita Fluminense com xG via SM + Fluminense sem xG via Futodds coexistindo).
+    if (smTeamDay.has(teamDayKey(f))) { skippedDup++; continue; }
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
