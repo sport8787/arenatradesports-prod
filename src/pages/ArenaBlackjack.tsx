@@ -542,6 +542,14 @@ export default function ArenaBlackjack() {
       return;
     }
     
+    // Se o jogador tem Blackjack natural, a 2ª carta do dealer é apenas para contagem.
+    // A mão encerra aqui: PUSH se dealer também tiver BJ, caso contrário BLACKJACK pago.
+    const playerHasNaturalBJ = playerCards.length === 2 && calculateHandTotal(playerCards).total === 21;
+    if (playerHasNaturalBJ && !splitMode) {
+      setHandStep('result');
+      return;
+    }
+    
     const { total: dealerTotal } = calculateHandTotal(newDealerCards);
     if (dealerTotal < 17) {
       setHandStep('select_dealer2');
