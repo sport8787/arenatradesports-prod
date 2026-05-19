@@ -1,11 +1,13 @@
 /**
  * Plano Pessoal do usuário para Arena Trader Sports (ao vivo).
- * Modo paralelo: roda em cima dos jogos já carregados, no cliente.
- * Mycroft global continua aprovando os "Sinais Aprovados" — esta feature é uma
- * lista extra "Meus Sinais" baseada SOMENTE nos critérios do usuário.
  *
- * Persistência: salva no localStorage E sincroniza com Supabase (user_trader_plans)
- * para que o admin possa comparar com o plano global.
+ * v2 — múltiplos planos NOMEADOS por usuário. Cada plano tem um id + nome,
+ * o mercado-alvo, o outcome e os critérios. O usuário pode criar quantos
+ * planos quiser (ex.: "Back Favorito Casa", "Over 1.5 HT", "BTTS conservador").
+ *
+ * Persistência:
+ *  - Supabase (user_trader_plans_v2) é fonte da verdade quando logado.
+ *  - localStorage funciona como cache offline / fallback anônimo.
  */
 
 import type { LiveMatch } from '@/hooks/useLiveMatches';
@@ -18,105 +20,94 @@ export type Outcome =
   | 'yes' | 'no'
   | 'corners_over';
 
-export interface UserPlan {
-  enabled: boolean;
+export interface UserPlanCriteria {
   market: UserMarket;
   outcome: Outcome;
-  /** Linha do mercado (Over 2.5 → 2.5; Corners Over 8.5 → 8.5). */
   line?: number;
   obrigatorios: {
     minuto_min: number;
     minuto_max: number;
     odd_min: number;
     odd_max: number;
-    /** Diferença mínima de xG a favor do time apostado (não usado em over/under, btts). */
     xg_diff_min?: number;
-    /** Posse mínima do time apostado (1x2). */
     posse_min?: number;
-    /** Finalizações no gol mínimas (1x2 → do time; OU/BTTS → totais). */
     shots_on_target_min?: number;
-    /** Diferença mínima de posse Casa - Visitante (positivo = casa domina). */
     posse_diff_min?: number;
-    /** Chutes totais combinados (casa + visitante). */
     shots_total_min?: number;
-    /** Chutes no gol totais combinados (casa + visitante). */
     shots_on_target_total_min?: number;
-    /** Escanteios totais combinados (casa + visitante). */
     corners_total_min?: number;
-    /** Mín. de cartões vermelhos no adversário (1x2). Em OU/BTTS/Corners: total na partida. */
     red_cards_adv_min?: number;
   };
   reforco: {
-    /** Diferença de ataques perigosos a favor (1x2). */
     ataques_perigosos_diff_min?: number;
-    /** Placar permitido para 1x2: 'losing_by_1' | 'drawing' | 'winning'. */
     placar_permitido?: Array<'losing_by_1' | 'drawing' | 'winning_by_1' | 'winning_2plus'>;
   };
   vetos: {
     veto_time_vencendo?: boolean;
     veto_diff_2gols?: boolean;
     veto_xg_adversario_maior?: boolean;
-    veto_apos_min?: number; // se minuto > este valor, veta
+    veto_apos_min?: number;
     veto_antes_min?: number;
   };
 }
 
-/** Tier final do sinal aprovado pelo plano pessoal. */
-export type PlanTier = 'APROVADO' | 'APROVADO_CONF_REDUZIDA';
+export interface UserPlan extends UserPlanCriteria {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
 
-export type PlansByMarket = Partial<Record<UserMarket, UserPlan>>;
+export type PlanTier = 'APROVADO' | 'APROVADO_CONF_REDUZIDA';
 export type PlanVisibility = 'private' | 'public';
 
-const STORAGE_KEY = 'arenaTraderSports.userPlans.v1';
+const STORAGE_KEY = 'arenaTraderSports.userPlans.v2';
 const VISIBILITY_KEY = 'arenaTraderSports.userPlans.visibility.v1';
 
-export function loadPlanVisibility(): PlanVisibility {
-  try {
-    const raw = window.localStorage.getItem(VISIBILITY_KEY);
-    return raw === 'public' ? 'public' : 'private';
-  } catch {
-    return 'private';
-  }
-}
+// ───────────────────────────── Templates ─────────────────────────────
 
-export function savePlanVisibility(v: PlanVisibility): void {
-  try {
-    window.localStorage.setItem(VISIBILITY_KEY, v);
-  } catch {
-    // ignore
-  }
-  void syncVisibilityToSupabase(v);
-}
-
-async function syncVisibilityToSupabase(v: PlanVisibility): Promise<void> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from('user_trader_plans')
-      .update({ visibility: v })
-      .eq('user_id', user.id);
-  } catch (e) {
-    console.warn('[userTraderPlan] syncVisibility falhou:', e);
-  }
-}
-
-export const DEFAULT_PLANS: PlansByMarket = {
-  '1x2': {
-    enabled: false,
+export const PLAN_TEMPLATES: Record<string, Omit<UserPlan, 'id'>> = {
+  back_favorito: {
+    name: 'Back Favorito (permissivo)',
+    enabled: true,
+    market: '1x2',
+    outcome: 'home',
+    obrigatorios: {
+      minuto_min: 15,
+      minuto_max: 75,
+      odd_min: 1.40,
+      odd_max: 2.20,
+      xg_diff_min: 0,
+      posse_min: 50,
+      shots_on_target_min: 1,
+    },
+    reforco: {
+      ataques_perigosos_diff_min: 2,
+      placar_permitido: ['drawing', 'losing_by_1', 'winning_by_1'],
+    },
+    vetos: {
+      veto_time_vencendo: false,
+      veto_diff_2gols: true,
+      veto_xg_adversario_maior: false,
+      veto_apos_min: 80,
+    },
+  },
+  back_dominante: {
+    name: 'Back Dominante (criterioso)',
+    enabled: true,
     market: '1x2',
     outcome: 'home',
     obrigatorios: {
       minuto_min: 20,
       minuto_max: 75,
-      odd_min: 1.4,
+      odd_min: 1.5,
       odd_max: 3.0,
-      xg_diff_min: 0.15,
-      posse_min: 52,
-      shots_on_target_min: 2,
+      xg_diff_min: 0.3,
+      posse_min: 55,
+      shots_on_target_min: 3,
+      posse_diff_min: 10,
     },
     reforco: {
-      ataques_perigosos_diff_min: 3,
+      ataques_perigosos_diff_min: 5,
       placar_permitido: ['drawing', 'losing_by_1'],
     },
     vetos: {
@@ -126,23 +117,42 @@ export const DEFAULT_PLANS: PlansByMarket = {
       veto_apos_min: 75,
     },
   },
-  over_under: {
-    enabled: false,
+  over_15_ht: {
+    name: 'Over 1.5 HT',
+    enabled: true,
+    market: 'over_under',
+    outcome: 'over',
+    line: 1.5,
+    obrigatorios: {
+      minuto_min: 15,
+      minuto_max: 40,
+      odd_min: 1.50,
+      odd_max: 3.50,
+      shots_on_target_min: 3,
+      shots_total_min: 6,
+    },
+    reforco: {},
+    vetos: { veto_apos_min: 42 },
+  },
+  over_25_ft: {
+    name: 'Over 2.5 FT',
+    enabled: true,
     market: 'over_under',
     outcome: 'over',
     line: 2.5,
     obrigatorios: {
       minuto_min: 15,
-      minuto_max: 70,
-      odd_min: 1.4,
+      minuto_max: 65,
+      odd_min: 1.40,
       odd_max: 3.0,
-      shots_on_target_min: 4,
+      shots_on_target_min: 5,
     },
     reforco: {},
-    vetos: { veto_apos_min: 75 },
+    vetos: { veto_apos_min: 70 },
   },
-  btts: {
-    enabled: false,
+  btts_yes: {
+    name: 'BTTS Sim',
+    enabled: true,
     market: 'btts',
     outcome: 'yes',
     obrigatorios: {
@@ -150,13 +160,14 @@ export const DEFAULT_PLANS: PlansByMarket = {
       minuto_max: 70,
       odd_min: 1.5,
       odd_max: 3.5,
-      shots_on_target_min: 3,
+      shots_on_target_min: 2,
     },
     reforco: {},
     vetos: { veto_apos_min: 75 },
   },
-  corners: {
-    enabled: false,
+  corners_over: {
+    name: 'Escanteios Over 8.5',
+    enabled: true,
     market: 'corners',
     outcome: 'corners_over',
     line: 8.5,
@@ -171,52 +182,153 @@ export const DEFAULT_PLANS: PlansByMarket = {
   },
 };
 
-export function loadUserPlans(): PlansByMarket {
+export function createPlanFromTemplate(templateKey: keyof typeof PLAN_TEMPLATES): UserPlan {
+  const t = PLAN_TEMPLATES[templateKey];
+  return { ...t, id: cryptoId() };
+}
+
+export function createEmptyPlan(market: UserMarket): UserPlan {
+  const defaults: Record<UserMarket, UserPlanCriteria> = {
+    '1x2': { market: '1x2', outcome: 'home', obrigatorios: { minuto_min: 20, minuto_max: 75, odd_min: 1.4, odd_max: 3.0 }, reforco: {}, vetos: {} },
+    over_under: { market: 'over_under', outcome: 'over', line: 2.5, obrigatorios: { minuto_min: 15, minuto_max: 70, odd_min: 1.4, odd_max: 3.0 }, reforco: {}, vetos: {} },
+    btts: { market: 'btts', outcome: 'yes', obrigatorios: { minuto_min: 15, minuto_max: 70, odd_min: 1.5, odd_max: 3.5 }, reforco: {}, vetos: {} },
+    corners: { market: 'corners', outcome: 'corners_over', line: 8.5, obrigatorios: { minuto_min: 20, minuto_max: 75, odd_min: 1.5, odd_max: 3.5 }, reforco: {}, vetos: {} },
+  };
+  return { id: cryptoId(), name: 'Novo plano', enabled: true, ...defaults[market] };
+}
+
+function cryptoId(): string {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PLANS;
-    const parsed = JSON.parse(raw) as PlansByMarket;
-    return { ...DEFAULT_PLANS, ...parsed };
+    return crypto.randomUUID();
   } catch {
-    return DEFAULT_PLANS;
+    return `p_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
   }
 }
 
-export function saveUserPlans(p: PlansByMarket): void {
+// ───────────────────────────── Visibility ─────────────────────────────
+
+export function loadPlanVisibility(): PlanVisibility {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    const raw = window.localStorage.getItem(VISIBILITY_KEY);
+    return raw === 'public' ? 'public' : 'private';
   } catch {
-    // ignore
+    return 'private';
   }
-  // Sync com Supabase (best-effort, não bloqueia UI)
-  void syncPlansToSupabase(p);
 }
 
-async function syncPlansToSupabase(p: PlansByMarket): Promise<void> {
+export function savePlanVisibility(v: PlanVisibility): void {
+  try { window.localStorage.setItem(VISIBILITY_KEY, v); } catch { /* ignore */ }
+  void syncVisibilityToSupabase(v);
+}
+
+async function syncVisibilityToSupabase(v: PlanVisibility): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const visibility = loadPlanVisibility();
-    const rows = (Object.keys(p) as UserMarket[])
-      .filter((m) => p[m])
-      .map((m) => ({
-        user_id: user.id,
-        market: m,
-        plan: p[m] as any,
-        visibility,
-        updated_at: new Date().toISOString(),
-      }));
-    if (rows.length === 0) return;
-    await supabase.from('user_trader_plans').upsert(rows, { onConflict: 'user_id,market' });
+    await supabase.from('user_trader_plans_v2').update({ visibility: v }).eq('user_id', user.id);
   } catch (e) {
-    console.warn('[userTraderPlan] sync falhou:', e);
+    console.warn('[userTraderPlan] syncVisibility falhou:', e);
   }
 }
 
-/**
- * Loga um sinal aprovado pelo plano pessoal (idempotente por user+match+market+outcome).
- * Chamado pelo MeusSinaisPanel quando evaluatePlan retorna passed=true.
- */
+// ───────────────────────────── CRUD ─────────────────────────────
+
+function readLocal(): UserPlan[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p) => p && p.id && p.name && p.market);
+  } catch { return []; }
+}
+
+function writeLocal(plans: UserPlan[]): void {
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(plans)); } catch { /* ignore */ }
+}
+
+/** Carrega todos os planos do usuário (Supabase quando logado, localStorage como fallback/cache). */
+export async function loadUserPlans(): Promise<UserPlan[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data, error } = await supabase
+        .from('user_trader_plans_v2')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      const rows = (data || []).map((r: any) => ({
+        ...(r.plan as UserPlanCriteria),
+        id: r.id,
+        name: r.name,
+        enabled: r.enabled,
+      })) as UserPlan[];
+      writeLocal(rows);
+      return rows;
+    }
+  } catch (e) {
+    console.warn('[userTraderPlan] loadUserPlans Supabase falhou, usando cache local', e);
+  }
+  return readLocal();
+}
+
+/** Versão sincrona (cache local) — para uso em components que precisam de valor inicial sem await. */
+export function loadUserPlansSync(): UserPlan[] {
+  return readLocal();
+}
+
+/** Cria ou atualiza UM plano. */
+export async function saveUserPlan(plan: UserPlan): Promise<UserPlan> {
+  const all = readLocal();
+  const idx = all.findIndex((p) => p.id === plan.id);
+  if (idx >= 0) all[idx] = plan; else all.push(plan);
+  writeLocal(all);
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const visibility = loadPlanVisibility();
+      const { market, outcome, line, obrigatorios, reforco, vetos } = plan;
+      const planBody: UserPlanCriteria = { market, outcome, line, obrigatorios, reforco, vetos };
+      await supabase.from('user_trader_plans_v2').upsert({
+        id: plan.id,
+        user_id: user.id,
+        name: plan.name,
+        market: plan.market,
+        plan: planBody as any,
+        enabled: plan.enabled,
+        visibility,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    }
+  } catch (e) {
+    console.warn('[userTraderPlan] saveUserPlan sync falhou:', e);
+  }
+  return plan;
+}
+
+export async function deleteUserPlan(id: string): Promise<void> {
+  const all = readLocal().filter((p) => p.id !== id);
+  writeLocal(all);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) await supabase.from('user_trader_plans_v2').delete().eq('id', id).eq('user_id', user.id);
+  } catch (e) {
+    console.warn('[userTraderPlan] deleteUserPlan sync falhou:', e);
+  }
+}
+
+export async function duplicateUserPlan(id: string): Promise<UserPlan | null> {
+  const all = readLocal();
+  const src = all.find((p) => p.id === id);
+  if (!src) return null;
+  const copy: UserPlan = { ...src, id: cryptoId(), name: `${src.name} (cópia)` };
+  await saveUserPlan(copy);
+  return copy;
+}
+
+/** Loga um sinal aprovado pelo plano pessoal (idempotente por user+match+plan_id). */
 export async function logUserPlanSignal(params: {
   match_id: string;
   match_name: string;
@@ -229,6 +341,8 @@ export async function logUserPlanSignal(params: {
   minute: number;
   reasons: string[];
   commence_time?: string | null;
+  plan_id?: string | null;
+  plan_name?: string | null;
 }): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -247,6 +361,8 @@ export async function logUserPlanSignal(params: {
         minute: params.minute,
         reasons: params.reasons,
         commence_time: params.commence_time ?? null,
+        plan_id: params.plan_id ?? null,
+        plan_name: params.plan_name ?? null,
       },
       { onConflict: 'user_id,match_id,market,outcome', ignoreDuplicates: true },
     );
@@ -259,16 +375,16 @@ export async function logUserPlanSignal(params: {
 
 export interface EvalResult {
   passed: boolean;
-  reasons: string[];      // por que passou
-  failed_by: string[];    // por que NÃO passou (ou veto)
-  market_label: string;   // ex "1X2 · CASA"
+  reasons: string[];
+  failed_by: string[];
+  market_label: string;
   selected_odd: number | null;
-  shouldShow: boolean;    // true se atende min/max minuto (para listar como elegível)
-  tier: PlanTier;         // APROVADO ou APROVADO_CONF_REDUZIDA
-  missing_stats: string[];// stats opcionais ausentes que reduziram a confiança
+  shouldShow: boolean;
+  tier: PlanTier;
+  missing_stats: string[];
 }
 
-function pickOdd(lm: LiveMatch, plan: UserPlan): number | null {
+function pickOdd(lm: LiveMatch, plan: UserPlanCriteria): number | null {
   const od: any = (lm as any).odds_live ?? null;
   if (!od) return null;
   if (plan.market === '1x2') {
@@ -280,25 +396,20 @@ function pickOdd(lm: LiveMatch, plan: UserPlan): number | null {
     if (plan.outcome === 'over') return od.over25 ?? null;
     if (plan.outcome === 'under') return od.under25 ?? null;
   }
-  // BTTS e corners: odd não vem no payload padrão, retorna null e o check de odd é skipado.
   return null;
 }
 
-function marketLabel(plan: UserPlan): string {
+function marketLabel(plan: UserPlanCriteria): string {
   if (plan.market === '1x2') {
     const out = plan.outcome === 'home' ? 'CASA' : plan.outcome === 'away' ? 'FORA' : 'EMPATE';
     return `1X2 · ${out}`;
   }
-  if (plan.market === 'over_under') {
-    return `${plan.outcome === 'over' ? 'OVER' : 'UNDER'} ${plan.line ?? 2.5} GOLS`;
-  }
-  if (plan.market === 'btts') {
-    return `AMBAS MARCAM · ${plan.outcome === 'yes' ? 'SIM' : 'NÃO'}`;
-  }
+  if (plan.market === 'over_under') return `${plan.outcome === 'over' ? 'OVER' : 'UNDER'} ${plan.line ?? 2.5} GOLS`;
+  if (plan.market === 'btts') return `AMBAS MARCAM · ${plan.outcome === 'yes' ? 'SIM' : 'NÃO'}`;
   return `ESCANTEIOS OVER ${plan.line ?? 8.5}`;
 }
 
-export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
+export function evaluatePlan(lm: LiveMatch, plan: UserPlanCriteria): EvalResult {
   const reasons: string[] = [];
   const failed: string[] = [];
   const s: any = lm.stats || {};
@@ -320,11 +431,6 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     missing_stats: missing,
   };
 
-  /**
-   * Soft check: se o stat está faltando/zerado (provavelmente ausente vindo de
-   * Sportmonks/Futodds), NÃO veta — apenas marca como "missing" e degrada o tier
-   * para APROVADO_CONF_REDUZIDA. Se o valor existe e está abaixo, aí sim falha.
-   */
   const softCheckStat = (
     rawValue: number | null | undefined,
     threshold: number,
@@ -332,27 +438,18 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     fmt?: (v: number) => string,
   ) => {
     const v = rawValue == null ? 0 : Number(rawValue);
-    if (!Number.isFinite(v) || v === 0) {
-      missing.push(label);
-      return;
-    }
+    if (!Number.isFinite(v) || v === 0) { missing.push(label); return; }
     if (v < threshold) failed.push(`${label} ${fmt ? fmt(v) : v} < ${threshold}`);
     else reasons.push(`${label} ${fmt ? fmt(v) : v} ✓`);
   };
 
-  // Janela de minuto
-  if (minute < plan.obrigatorios.minuto_min) {
-    failed.push(`Min ${minute} < ${plan.obrigatorios.minuto_min}`);
-  } else {
-    reasons.push(`Min ${minute} dentro da janela`);
-  }
+  if (minute < plan.obrigatorios.minuto_min) failed.push(`Min ${minute} < ${plan.obrigatorios.minuto_min}`);
+  else reasons.push(`Min ${minute} dentro da janela`);
   if (minute > plan.obrigatorios.minuto_max) failed.push(`Min ${minute} > ${plan.obrigatorios.minuto_max}`);
 
-  // Vetos
   if (plan.vetos.veto_apos_min && minute > plan.vetos.veto_apos_min) failed.push(`Veto: após ${plan.vetos.veto_apos_min}'`);
   if (plan.vetos.veto_antes_min && minute < plan.vetos.veto_antes_min) failed.push(`Veto: antes de ${plan.vetos.veto_antes_min}'`);
 
-  // Odd
   if (oddPicked != null) {
     if (oddPicked < plan.obrigatorios.odd_min) failed.push(`Odd ${oddPicked.toFixed(2)} < ${plan.obrigatorios.odd_min}`);
     else if (oddPicked > plan.obrigatorios.odd_max) failed.push(`Odd ${oddPicked.toFixed(2)} > ${plan.obrigatorios.odd_max}`);
@@ -361,7 +458,6 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     failed.push('Sem odd ao vivo');
   }
 
-  // Stats globais (todos os mercados)
   const possH = Number(s.possession_home ?? 0);
   const possA = Number(s.possession_away ?? 0);
   const shotsTotal = Number(s.shots_home ?? 0) + Number(s.shots_away ?? 0);
@@ -370,17 +466,10 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
   const redH = Number(s.red_cards_home ?? s.redcards_home ?? 0);
   const redA = Number(s.red_cards_away ?? s.redcards_away ?? 0);
 
-  if (plan.obrigatorios.shots_total_min != null) {
-    softCheckStat(shotsTotal, plan.obrigatorios.shots_total_min, 'Chutes totais');
-  }
-  if (plan.obrigatorios.shots_on_target_total_min != null) {
-    softCheckStat(sotTotal, plan.obrigatorios.shots_on_target_total_min, 'Chutes no gol (total)');
-  }
-  if (plan.obrigatorios.corners_total_min != null) {
-    softCheckStat(cornersTotal, plan.obrigatorios.corners_total_min, 'Escanteios (total)');
-  }
+  if (plan.obrigatorios.shots_total_min != null) softCheckStat(shotsTotal, plan.obrigatorios.shots_total_min, 'Chutes totais');
+  if (plan.obrigatorios.shots_on_target_total_min != null) softCheckStat(sotTotal, plan.obrigatorios.shots_on_target_total_min, 'Chutes no gol (total)');
+  if (plan.obrigatorios.corners_total_min != null) softCheckStat(cornersTotal, plan.obrigatorios.corners_total_min, 'Escanteios (total)');
 
-  // ============ Específico por mercado ============
   if (plan.market === '1x2') {
     const isHome = plan.outcome === 'home';
     const isDraw = plan.outcome === 'draw';
@@ -391,7 +480,6 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
     const meAtaq = isHome ? (s.dangerous_attacks_home ?? s.attacks_home ?? 0) : (s.dangerous_attacks_away ?? s.attacks_away ?? 0);
     const advAtaq = isHome ? (s.dangerous_attacks_away ?? s.attacks_away ?? 0) : (s.dangerous_attacks_home ?? s.attacks_home ?? 0);
     const advRed = isHome ? redA : redH;
-
     const myScore = isHome ? sh : sa;
     const advScore = isHome ? sa : sh;
     const diff = myScore - advScore;
@@ -407,12 +495,8 @@ export function evaluatePlan(lm: LiveMatch, plan: UserPlan): EvalResult {
         else if (xgDiff < plan.obrigatorios.xg_diff_min) failed.push(`xG diff ${xgDiff.toFixed(2)} < ${plan.obrigatorios.xg_diff_min}`);
         else reasons.push(`xG +${xgDiff.toFixed(2)}`);
       }
-      if (plan.obrigatorios.posse_min != null) {
-        softCheckStat(mePoss, plan.obrigatorios.posse_min, 'Posse', (v) => `${v}%`);
-      }
-      if (plan.obrigatorios.shots_on_target_min != null) {
-        softCheckStat(meShots, plan.obrigatorios.shots_on_target_min, 'SoT (time)');
-      }
+      if (plan.obrigatorios.posse_min != null) softCheckStat(mePoss, plan.obrigatorios.posse_min, 'Posse', (v) => `${v}%`);
+      if (plan.obrigatorios.shots_on_target_min != null) softCheckStat(meShots, plan.obrigatorios.shots_on_target_min, 'SoT (time)');
 
       if (plan.obrigatorios.posse_diff_min != null) {
         if (possH === 0 && possA === 0) missing.push('Diferença de posse');

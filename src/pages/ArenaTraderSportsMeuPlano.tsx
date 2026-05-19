@@ -1,20 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, RotateCcw, Target } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Target, Pencil, Copy, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import {
-  DEFAULT_PLANS,
   loadUserPlans,
-  saveUserPlans,
+  loadUserPlansSync,
+  saveUserPlan,
+  deleteUserPlan,
+  duplicateUserPlan,
+  createEmptyPlan,
+  createPlanFromTemplate,
+  PLAN_TEMPLATES,
   loadPlanVisibility,
   savePlanVisibility,
-  type PlansByMarket,
   type PlanVisibility,
   type UserMarket,
   type UserPlan,
@@ -34,14 +43,8 @@ const OUTCOMES: Record<UserMarket, { value: Outcome; label: string }[]> = {
     { value: 'draw', label: 'Empate' },
     { value: 'away', label: 'Fora' },
   ],
-  over_under: [
-    { value: 'over', label: 'Over' },
-    { value: 'under', label: 'Under' },
-  ],
-  btts: [
-    { value: 'yes', label: 'Sim' },
-    { value: 'no', label: 'Não' },
-  ],
+  over_under: [{ value: 'over', label: 'Over' }, { value: 'under', label: 'Under' }],
+  btts: [{ value: 'yes', label: 'Sim' }, { value: 'no', label: 'Não' }],
   corners: [{ value: 'corners_over', label: 'Over Escanteios' }],
 };
 
@@ -52,15 +55,9 @@ function NumberField({
     <div className="space-y-1">
       <Label className="text-[11px] text-muted-foreground">{label}{suffix ? ` (${suffix})` : ''}</Label>
       <Input
-        type="number"
-        step={step}
-        min={min}
-        max={max}
+        type="number" step={step} min={min} max={max}
         value={value ?? ''}
-        onChange={(e) => {
-          const v = e.target.value;
-          onChange(v === '' ? undefined : Number(v));
-        }}
+        onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
         className="h-9"
       />
     </div>
@@ -71,15 +68,45 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
   const isWith1x2 = plan.market === '1x2';
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Switch checked={plan.enabled} onCheckedChange={(v) => onChange({ ...plan, enabled: v })} />
-          <span className="text-sm font-medium">Ativar plano para este mercado</span>
+      {/* Nome + ativar */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">Nome do plano</Label>
+          <Input
+            value={plan.name}
+            onChange={(e) => onChange({ ...plan, name: e.target.value })}
+            placeholder='Ex.: "Back Favorito Casa"'
+            className="h-10 text-base font-medium"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">Aposta em:</Label>
+        <div className="flex items-center gap-2 pb-1">
+          <Switch checked={plan.enabled} onCheckedChange={(v) => onChange({ ...plan, enabled: v })} />
+          <span className="text-sm font-medium">Ativo</span>
+        </div>
+      </div>
+
+      {/* Mercado + outcome */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Mercado</Label>
           <select
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={plan.market}
+            onChange={(e) => {
+              const market = e.target.value as UserMarket;
+              const defaults = createEmptyPlan(market);
+              onChange({ ...defaults, id: plan.id, name: plan.name, enabled: plan.enabled });
+            }}
+          >
+            {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
+              <option key={m} value={m}>{MARKET_LABELS[m]}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Aposta em</Label>
+          <select
+            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             value={plan.outcome}
             onChange={(e) => onChange({ ...plan, outcome: e.target.value as Outcome })}
           >
@@ -87,17 +114,18 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          {(plan.market === 'over_under' || plan.market === 'corners') && (
+        </div>
+        {(plan.market === 'over_under' || plan.market === 'corners') && (
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">Linha</Label>
             <Input
-              type="number"
-              step={0.5}
+              type="number" step={0.5}
               value={plan.line ?? ''}
               onChange={(e) => onChange({ ...plan, line: e.target.value === '' ? undefined : Number(e.target.value) })}
-              className="h-9 w-20"
-              placeholder="Linha"
+              className="h-9"
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <section className="space-y-2">
@@ -111,7 +139,6 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
             onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, odd_min: v ?? 1.3 } })} />
           <NumberField label="Odd máx" step={0.05} value={plan.obrigatorios.odd_max}
             onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, odd_max: v ?? 3 } })} />
-
           {isWith1x2 && (
             <>
               <NumberField label="xG diff mín" step={0.05} value={plan.obrigatorios.xg_diff_min}
@@ -151,7 +178,6 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
             onChange={(v) => onChange({ ...plan, obrigatorios: { ...plan.obrigatorios, red_cards_adv_min: v } })} />
         </div>
       </section>
-
 
       {isWith1x2 && (
         <section className="space-y-2">
@@ -214,19 +240,94 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
   );
 }
 
+function summarizeCriteria(p: UserPlan): string[] {
+  const out: string[] = [];
+  out.push(`Min ${p.obrigatorios.minuto_min}-${p.obrigatorios.minuto_max}'`);
+  out.push(`Odd ${p.obrigatorios.odd_min}-${p.obrigatorios.odd_max}`);
+  if (p.obrigatorios.xg_diff_min != null) out.push(`xG diff ≥ ${p.obrigatorios.xg_diff_min}`);
+  if (p.obrigatorios.posse_min != null) out.push(`Posse ≥ ${p.obrigatorios.posse_min}%`);
+  if (p.obrigatorios.shots_on_target_min != null) out.push(`SoT ≥ ${p.obrigatorios.shots_on_target_min}`);
+  if (p.vetos.veto_time_vencendo) out.push('veto: vencendo');
+  if (p.vetos.veto_diff_2gols) out.push('veto: Δ≥2');
+  return out;
+}
+
+function outcomeLabel(p: UserPlan): string {
+  const map: Record<Outcome, string> = {
+    home: 'Casa', away: 'Fora', draw: 'Empate',
+    over: `Over ${p.line ?? 2.5}`, under: `Under ${p.line ?? 2.5}`,
+    yes: 'Sim', no: 'Não',
+    corners_over: `Esc Over ${p.line ?? 8.5}`,
+  };
+  return map[p.outcome];
+}
+
 export default function ArenaTraderSportsMeuPlano() {
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<PlansByMarket>(() => loadUserPlans());
+  const [plans, setPlans] = useState<UserPlan[]>(() => loadUserPlansSync());
+  const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());
-  const [tab, setTab] = useState<UserMarket>('1x2');
+  const [tab, setTab] = useState<'list' | 'editor'>('list');
+  const [editing, setEditing] = useState<UserPlan | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  useEffect(() => { saveUserPlans(plans); }, [plans]);
+  useEffect(() => {
+    (async () => {
+      const rows = await loadUserPlans();
+      setPlans(rows);
+      setLoading(false);
+    })();
+  }, []);
+
   useEffect(() => { savePlanVisibility(visibility); }, [visibility]);
 
-  const current = plans[tab] ?? DEFAULT_PLANS[tab]!;
+  const openNew = (templateKey?: keyof typeof PLAN_TEMPLATES) => {
+    const p = templateKey ? createPlanFromTemplate(templateKey) : createEmptyPlan('1x2');
+    setEditing({ ...p, name: templateKey ? p.name : 'Novo plano' });
+    setTab('editor');
+  };
 
-  const setCurrent = (p: UserPlan) => setPlans({ ...plans, [tab]: p });
-  const resetMarket = () => setPlans({ ...plans, [tab]: DEFAULT_PLANS[tab]! });
+  const openEdit = (p: UserPlan) => { setEditing({ ...p }); setTab('editor'); };
+
+  const handleSave = async () => {
+    if (!editing) return;
+    if (!editing.name.trim()) {
+      toast({ title: 'Dê um nome ao plano', description: 'O campo Nome é obrigatório.', variant: 'destructive' });
+      return;
+    }
+    const saved = await saveUserPlan(editing);
+    setPlans((prev) => {
+      const idx = prev.findIndex((p) => p.id === saved.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
+      return [...prev, saved];
+    });
+    toast({ title: 'Plano salvo', description: `"${saved.name}" vai filtrar a próxima sincronização.` });
+    setTab('list');
+    setEditing(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteUserPlan(id);
+    setPlans((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDelete(null);
+    toast({ title: 'Plano excluído' });
+  };
+
+  const handleDuplicate = async (id: string) => {
+    const copy = await duplicateUserPlan(id);
+    if (copy) {
+      setPlans((prev) => [...prev, copy]);
+      toast({ title: 'Plano duplicado', description: `Criado "${copy.name}"` });
+    }
+  };
+
+  const handleToggleEnabled = async (p: UserPlan, enabled: boolean) => {
+    const updated = { ...p, enabled };
+    await saveUserPlan(updated);
+    setPlans((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+  };
+
+  const enabledCount = useMemo(() => plans.filter((p) => p.enabled).length, [plans]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -236,65 +337,157 @@ export default function ArenaTraderSportsMeuPlano() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <Target className="w-4 h-4 text-primary" />
-          <h1 className="font-mono text-sm font-semibold tracking-tight">MEU PLANO PESSOAL · ARENA TRADER SPORTS</h1>
+          <h1 className="font-mono text-sm font-semibold tracking-tight">MEUS PLANOS · ARENA TRADER SPORTS</h1>
+          <Badge variant="outline" className="ml-auto text-[10px] font-mono">
+            {plans.length} planos · {enabledCount} ativo{enabledCount === 1 ? '' : 's'}
+          </Badge>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-4xl space-y-4">
+      <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
         <div className="rounded-lg border border-border bg-card/40 p-4 text-sm space-y-1">
           <p className="font-medium text-foreground">Como funciona</p>
           <p className="text-muted-foreground text-[13px]">
-            Estes critérios rodam no seu navegador em cima dos jogos ao vivo. Os sinais que passarem aparecem em
+            Crie quantos planos quiser, cada um com seus próprios critérios. Os planos <span className="text-success font-medium">ativos</span> rodam no seu navegador em cima dos jogos ao vivo e os sinais aparecem em
             <span className="text-primary font-medium"> "Meus Sinais" </span>
-            dentro da Arena Trader Sports — em paralelo aos sinais do Mycroft global, sem alterar a aprovação dos outros usuários.
+            dentro da Arena Trader Sports — em paralelo aos sinais do Mycroft global.
           </p>
         </div>
 
         <div className="rounded-lg border border-border bg-card/40 p-4 flex items-start justify-between gap-4">
           <div className="space-y-0.5">
-            <p className="text-sm font-medium text-foreground">Visibilidade do plano</p>
+            <p className="text-sm font-medium text-foreground">Visibilidade</p>
             <p className="text-[12px] text-muted-foreground">
               {visibility === 'public'
-                ? 'Público — seu plano poderá aparecer no ranking da Liga Mycroft de estrategistas (em breve).'
-                : 'Privado — só você e o admin veem seu plano e ROI.'}
+                ? 'Público — seus planos podem aparecer no ranking da Liga Mycroft (em breve).'
+                : 'Privado — só você e o admin veem seus planos e ROI.'}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Privado</span>
-            <Switch
-              checked={visibility === 'public'}
-              onCheckedChange={(v) => setVisibility(v ? 'public' : 'private')}
-            />
+            <Switch checked={visibility === 'public'} onCheckedChange={(v) => setVisibility(v ? 'public' : 'private')} />
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Público</span>
           </div>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as UserMarket)}>
-          <TabsList className="grid grid-cols-4 w-full">
-            {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
-              <TabsTrigger key={m} value={m} className="text-xs">
-                {MARKET_LABELS[m]}
-                {plans[m]?.enabled && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-success" />}
-              </TabsTrigger>
-            ))}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="list">Meus planos ({plans.length})</TabsTrigger>
+            <TabsTrigger value="editor" disabled={!editing}>
+              {editing ? (editing.name || 'Editor') : 'Editor'}
+            </TabsTrigger>
           </TabsList>
 
-          {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
-            <TabsContent key={m} value={m} className="mt-5">
-              <PlanEditor plan={plans[m] ?? DEFAULT_PLANS[m]!} onChange={(p) => setPlans({ ...plans, [m]: p })} />
-            </TabsContent>
-          ))}
-        </Tabs>
+          {/* LISTA */}
+          <TabsContent value="list" className="mt-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => openNew()}>
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Novo plano
+                </Button>
+                {Object.entries(PLAN_TEMPLATES).map(([key, t]) => (
+                  <Button key={key} size="sm" variant="outline" onClick={() => openNew(key as keyof typeof PLAN_TEMPLATES)}>
+                    <Sparkles className="w-3 h-3 mr-1" /> {t.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <Button variant="outline" size="sm" onClick={resetMarket}>
-            <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Resetar este mercado
-          </Button>
-          <Button size="sm" onClick={() => { saveUserPlans(plans); toast({ title: 'Plano salvo', description: 'Vai filtrar a próxima sincronização.' }); }}>
-            <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar
-          </Button>
-        </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando seus planos…
+              </div>
+            ) : plans.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
+                <Target className="w-8 h-8 mx-auto text-muted-foreground" />
+                <p className="text-sm text-foreground font-medium">Você ainda não tem planos salvos.</p>
+                <p className="text-[12px] text-muted-foreground">Use um dos templates acima ou clique em "Novo plano" para começar do zero.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {plans.map((p) => (
+                  <div key={p.id} className="rounded-lg border border-border bg-card/40 p-4 space-y-3 hover:border-primary/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-foreground truncate">{p.name}</h3>
+                          <Badge variant="outline" className="text-[10px] font-mono">{MARKET_LABELS[p.market]}</Badge>
+                          <Badge variant="outline" className="text-[10px] font-mono">{outcomeLabel(p)}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-[10px] uppercase font-mono ${p.enabled ? 'text-success' : 'text-muted-foreground'}`}>
+                          {p.enabled ? 'ATIVO' : 'OFF'}
+                        </span>
+                        <Switch checked={p.enabled} onCheckedChange={(v) => handleToggleEnabled(p, v)} />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {summarizeCriteria(p).map((s, i) => (
+                        <span key={i} className="text-[10px] font-mono text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
+                        <Pencil className="w-3 h-3 mr-1" /> Editar
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(p.id)}>
+                        <Copy className="w-3 h-3 mr-1" /> Duplicar
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive ml-auto"
+                        onClick={() => setConfirmDelete(p.id)}>
+                        <Trash2 className="w-3 h-3 mr-1" /> Excluir
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* EDITOR */}
+          <TabsContent value="editor" className="mt-5">
+            {editing ? (
+              <div className="space-y-5">
+                <PlanEditor plan={editing} onChange={setEditing} />
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" onClick={() => { setTab('list'); setEditing(null); }}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={handleSave}>
+                    <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar plano
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground text-sm">
+                Selecione um plano para editar ou crie um novo.
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este plano?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os sinais já gerados ficam no histórico, mas o plano para de filtrar jogos ao vivo. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && handleDelete(confirmDelete)} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
