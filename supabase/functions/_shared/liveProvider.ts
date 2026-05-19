@@ -135,7 +135,7 @@ async function mergeProviders(): Promise<LiveResult> {
 
   console.log(
     `[liveProvider] mode=merge sm=${sm.length} fd=${fd.length} → total=${merged.length} ` +
-    `(futodds_added=${addedFromFutodds} leagues_filled=${[...filledLeagues].join(",") || "-"}) ` +
+    `(futodds_added=${addedFromFutodds} skipped_dup=${skippedDup} leagues_filled=${[...filledLeagues].join(",") || "-"}) ` +
     `smErr=${smErr ?? "ok"} fdErr=${fdErr ?? "ok"}`,
   );
 
