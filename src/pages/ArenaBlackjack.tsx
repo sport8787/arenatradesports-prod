@@ -135,6 +135,7 @@ export default function ArenaBlackjack() {
     initialBankroll: 500, baseUnit: 5, increment: 2,
     maxBet: 50, stopLoss: 100, stopWin: 150,
     blackjackPayout: 1.5, useCounting: true,
+    cashbackMode: false, cashbackPercent: 50,
   });
 
   // Hybrid betting config
