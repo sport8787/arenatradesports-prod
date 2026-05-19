@@ -38,7 +38,7 @@ import { MiniHybridDisplay } from '@/components/arena-blackjack/HybridBettingDis
 import { BettingSystemSelector } from '@/components/arena-blackjack/BettingSystemSelector';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'player_bj_check' | 'select_dealer2' | 'result' | 'split_result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'ten_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'player_bj_check' | 'select_dealer2' | 'result' | 'split_result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 interface SplitHand {
@@ -326,6 +326,8 @@ export default function ArenaBlackjack() {
     addToCount([card]);
     if (card === 'A' || card === 'AS') {
       setHandStep('insurance_check');
+    } else if (['10', 'J', 'Q', 'K'].includes(card)) {
+      setHandStep('ten_check');
     } else {
       setHandStep('select_player');
     }
@@ -334,6 +336,17 @@ export default function ArenaBlackjack() {
   const handleInsuranceAnswer = (dealerHasBJ: boolean) => {
     if (dealerHasBJ) {
       setDealerBJConfirmed(true);
+      setHandStep('insurance_bj_card');
+    } else {
+      setDealerBJConfirmed(false);
+      setHandStep('select_player');
+    }
+  };
+
+  const handleTenAnswer = (dealerHasBJ: boolean) => {
+    if (dealerHasBJ) {
+      setDealerBJConfirmed(true);
+      // Up-card é 10/J/Q/K → hole card é Ás
       setHandStep('insurance_bj_card');
     } else {
       setDealerBJConfirmed(false);
@@ -797,7 +810,9 @@ export default function ArenaBlackjack() {
   const { total: playerTotal } = playerCards.length > 0 ? calculateHandTotal(playerCards) : { total: 0 };
   const isBust = playerTotal > 21;
   const isPlayerBJ = playerCards.length === 2 && playerTotal === 21;
-  const isDealerBJ = dealerCards.length >= 2 && calculateHandTotal(dealerCards).total === 21;
+  const isDealerBJ = dealerCards.length === 2 && calculateHandTotal(dealerCards).total === 21;
+  const dealerUpCard = dealerCards[0];
+  const dealerUpIsTen = !!dealerUpCard && ['10', 'J', 'Q', 'K'].includes(dealerUpCard);
 
   return (
     <div className="min-h-screen bg-background p-3 pb-6">
@@ -966,14 +981,40 @@ export default function ArenaBlackjack() {
               </>
             )}
 
+            {handStep === 'ten_check' && (
+              <>
+                <StepLabel text="🃏 Dealer mostra 10/J/Q/K — Check de Blackjack" active />
+                <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 text-center space-y-2">
+                  <p className="text-sm font-semibold text-foreground">O dealer mostrou Blackjack?</p>
+                  <p className="text-xs text-muted-foreground">Se SIM, a hole card é um Ás. Mesmo assim precisamos registrá-la para a contagem.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => handleTenAnswer(true)}
+                    className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all">
+                    ✅ SIM
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => handleTenAnswer(false)}
+                    className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--success))] text-white hover:bg-[hsl(var(--success)_/_0.8)] transition-all">
+                    ❌ NÃO
+                  </motion.button>
+                </div>
+              </>
+            )}
+
             {handStep === 'insurance_bj_card' && (
               <>
                 <StepLabel text="🃏 Dealer fez BJ — Qual a 2ª carta do Dealer?" active />
-                <p className="text-xs text-center text-muted-foreground mb-2">Selecione a carta que completou o Blackjack (10, J, Q ou K)</p>
-                <div className="grid grid-cols-4 gap-3">
-                  {['10', 'J', 'Q', 'K'].map(v => (
+                <p className="text-xs text-center text-muted-foreground mb-2">
+                  {dealerUpIsTen
+                    ? 'Selecione o Ás que completou o Blackjack (para fins de contagem)'
+                    : 'Selecione a carta que completou o Blackjack (10, J, Q ou K)'}
+                </p>
+                <div className={`grid gap-3 ${dealerUpIsTen ? 'grid-cols-1' : 'grid-cols-4'}`}>
+                  {(dealerUpIsTen ? ['A'] : ['10', 'J', 'Q', 'K']).map(v => (
                     <motion.button key={`bj-${v}`} whileTap={{ scale: 0.9 }}
-                      onClick={() => handleInsuranceBJCard(v + 'S')}
+                      onClick={() => handleInsuranceBJCard(v)}
                       className="py-4 rounded-xl font-bold text-lg bg-destructive/20 border-2 border-destructive/50 text-destructive hover:bg-destructive/30 transition-all">
                       {v}
                     </motion.button>
