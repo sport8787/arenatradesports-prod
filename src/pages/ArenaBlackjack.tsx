@@ -38,7 +38,7 @@ import { MiniHybridDisplay } from '@/components/arena-blackjack/HybridBettingDis
 import { BettingSystemSelector } from '@/components/arena-blackjack/BettingSystemSelector';
 
 type GamePhase = 'config' | 'playing' | 'stopped';
-type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'select_dealer2' | 'result' | 'split_result';
+type HandStep = 'select_dealer' | 'insurance_check' | 'insurance_bj_card' | 'insurance_bj_player' | 'select_player' | 'action' | 'hit_card' | 'double_card' | 'split_select_card' | 'split_action' | 'split_hit_card' | 'split_double_card' | 'player_bj_check' | 'select_dealer2' | 'result' | 'split_result';
 type HandResult = 'win' | 'loss' | 'push' | 'blackjack';
 
 interface SplitHand {
@@ -371,9 +371,9 @@ export default function ArenaBlackjack() {
       // Check for natural blackjack
       const { total } = calculateHandTotal(newCards);
       if (total === 21 && newCards.length === 2) {
-        // Auto-detect blackjack — skip action, go directly to dealer reveal
+        // Natural BJ — pergunta se o jogador consegue ver a 2ª carta do dealer
         toast.success('🃏 BLACKJACK NATURAL! Parabéns!');
-        setHandStep('select_dealer2');
+        setHandStep('player_bj_check');
         return;
       }
       setHandStep('action');
@@ -1103,6 +1103,32 @@ export default function ArenaBlackjack() {
                 </div>
                 <ValueCardGrid onSelect={handleSplitDoubleCard} />
               </>
+            )}
+
+            {handStep === 'player_bj_check' && (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="space-y-3">
+                <div className="text-center p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-2">
+                  <div className="text-2xl font-orbitron font-bold text-primary">🃏 BLACKJACK NATURAL!</div>
+                  <div className="text-sm text-foreground">Parabéns! Você ganhou com Blackjack — paga {config.blackjackPayout}:1 → +R${(currentBet * config.blackjackPayout).toFixed(2)}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/20 border border-border text-center">
+                  <p className="text-sm font-semibold text-foreground mb-1">Você consegue ver a 2ª carta do dealer?</p>
+                  <p className="text-xs text-muted-foreground">Se a mesa revelar a carta oculta, informe para checar empate (push). Caso contrário, finalizamos a mão como Blackjack.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => setHandStep('select_dealer2')}
+                    className="py-4 rounded-xl font-orbitron font-bold bg-[hsl(var(--warning))] text-black hover:bg-[hsl(var(--warning)_/_0.85)] transition-all">
+                    ✅ SIM, informar carta
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => handleResult('blackjack')}
+                    className="py-4 rounded-xl font-orbitron font-bold bg-primary text-primary-foreground hover:bg-primary/80 transition-all">
+                    🃏 NÃO — Pagar BJ
+                  </motion.button>
+                </div>
+              </motion.div>
             )}
 
             {handStep === 'select_dealer2' && (
