@@ -981,14 +981,40 @@ export default function ArenaBlackjack() {
               </>
             )}
 
+            {handStep === 'ten_check' && (
+              <>
+                <StepLabel text="🃏 Dealer mostra 10/J/Q/K — Check de Blackjack" active />
+                <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 text-center space-y-2">
+                  <p className="text-sm font-semibold text-foreground">O dealer mostrou Blackjack?</p>
+                  <p className="text-xs text-muted-foreground">Se SIM, a hole card é um Ás. Mesmo assim precisamos registrá-la para a contagem.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => handleTenAnswer(true)}
+                    className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive)_/_0.8)] transition-all">
+                    ✅ SIM
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => handleTenAnswer(false)}
+                    className="py-5 rounded-xl font-orbitron font-bold text-lg bg-[hsl(var(--success))] text-white hover:bg-[hsl(var(--success)_/_0.8)] transition-all">
+                    ❌ NÃO
+                  </motion.button>
+                </div>
+              </>
+            )}
+
             {handStep === 'insurance_bj_card' && (
               <>
                 <StepLabel text="🃏 Dealer fez BJ — Qual a 2ª carta do Dealer?" active />
-                <p className="text-xs text-center text-muted-foreground mb-2">Selecione a carta que completou o Blackjack (10, J, Q ou K)</p>
-                <div className="grid grid-cols-4 gap-3">
-                  {['10', 'J', 'Q', 'K'].map(v => (
+                <p className="text-xs text-center text-muted-foreground mb-2">
+                  {dealerUpIsTen
+                    ? 'Selecione o Ás que completou o Blackjack (para fins de contagem)'
+                    : 'Selecione a carta que completou o Blackjack (10, J, Q ou K)'}
+                </p>
+                <div className={`grid gap-3 ${dealerUpIsTen ? 'grid-cols-1' : 'grid-cols-4'}`}>
+                  {(dealerUpIsTen ? ['A'] : ['10', 'J', 'Q', 'K']).map(v => (
                     <motion.button key={`bj-${v}`} whileTap={{ scale: 0.9 }}
-                      onClick={() => handleInsuranceBJCard(v + 'S')}
+                      onClick={() => handleInsuranceBJCard(v)}
                       className="py-4 rounded-xl font-bold text-lg bg-destructive/20 border-2 border-destructive/50 text-destructive hover:bg-destructive/30 transition-all">
                       {v}
                     </motion.button>
