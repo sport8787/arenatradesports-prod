@@ -693,6 +693,22 @@ export default function ArenaBlackjack() {
             </AlertDescription>
           </Alert>
 
+          <button
+            type="button"
+            onClick={() => navigate('/arena-blackjack/ao-vivo')}
+            className="w-full rounded-lg border border-primary/50 bg-primary/10 hover:bg-primary/20 transition-colors p-4 text-left"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-primary">🔴 Modo Blackjack Ao Vivo</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mesa Clássica ou Infinity · contagem Hi-Lo em tempo real · sugestão de aposta por TC + Martingale/Kelly.
+                </p>
+              </div>
+              <ArrowLeft className="w-5 h-5 rotate-180 text-primary" />
+            </div>
+          </button>
+
           {/* Betting System Selector */}
           <BettingSystemSelector
             initialBankroll={config.initialBankroll}
