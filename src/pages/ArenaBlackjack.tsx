@@ -326,6 +326,8 @@ export default function ArenaBlackjack() {
     addToCount([card]);
     if (card === 'A' || card === 'AS') {
       setHandStep('insurance_check');
+    } else if (['10', 'J', 'Q', 'K'].includes(card)) {
+      setHandStep('ten_check');
     } else {
       setHandStep('select_player');
     }
@@ -334,6 +336,17 @@ export default function ArenaBlackjack() {
   const handleInsuranceAnswer = (dealerHasBJ: boolean) => {
     if (dealerHasBJ) {
       setDealerBJConfirmed(true);
+      setHandStep('insurance_bj_card');
+    } else {
+      setDealerBJConfirmed(false);
+      setHandStep('select_player');
+    }
+  };
+
+  const handleTenAnswer = (dealerHasBJ: boolean) => {
+    if (dealerHasBJ) {
+      setDealerBJConfirmed(true);
+      // Up-card é 10/J/Q/K → hole card é Ás
       setHandStep('insurance_bj_card');
     } else {
       setDealerBJConfirmed(false);
