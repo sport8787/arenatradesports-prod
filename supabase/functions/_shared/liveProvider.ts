@@ -70,7 +70,77 @@ async function trySportmonks(): Promise<LiveResult> {
   return { fixtures: compat, source: "sportmonks", count: compat.length };
 }
 
+const MODE = (Deno.env.get("LIVE_PROVIDER_MODE") || "merge").toLowerCase(); // merge | fallback
+
+function fixtureKey(f: any): string {
+  const lid = f?.league?.id ?? "";
+  const h = String(f?.teams?.home?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+  const a = String(f?.teams?.away?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+  const d = String(f?.fixture?.date ?? "").slice(0, 10);
+  return `${lid}|${h}|${a}|${d}`;
+}
+
+async function mergeProviders(): Promise<LiveResult> {
+  const [smR, fdR] = await Promise.allSettled([trySportmonks(), tryFutodds()]);
+  const sm = smR.status === "fulfilled" ? smR.value.fixtures : [];
+  const fd = fdR.status === "fulfilled" ? fdR.value.fixtures : [];
+  const smErr = smR.status === "rejected" ? (smR.reason as Error)?.message : null;
+  const fdErr = fdR.status === "rejected" ? (fdR.reason as Error)?.message : null;
+
+  if (!sm.length && !fd.length) {
+    throw new Error(`all_providers_empty: sm=${smErr ?? "0"} fd=${fdErr ?? "0"}`);
+  }
+
+  // Ligas que o Sportmonks cobriu nesta janela
+  const smLeagues = new Set<number>();
+  for (const f of sm) if (f?.league?.id != null) smLeagues.add(Number(f.league.id));
+
+  // Dedup por chave (league+teams+date). Sportmonks tem prioridade.
+  const seen = new Set<string>();
+  const merged: any[] = [];
+  for (const f of sm) {
+    const k = fixtureKey(f);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(f);
+  }
+  let addedFromFutodds = 0;
+  const filledLeagues = new Set<number>();
+  for (const f of fd) {
+    const lid = Number(f?.league?.id ?? -1);
+    // Só adiciona Futodds para ligas que o Sportmonks NÃO trouxe
+    if (smLeagues.has(lid)) continue;
+    const k = fixtureKey(f);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(f);
+    addedFromFutodds++;
+    filledLeagues.add(lid);
+  }
+
+  console.log(
+    `[liveProvider] mode=merge sm=${sm.length} fd=${fd.length} → total=${merged.length} ` +
+    `(futodds_added=${addedFromFutodds} leagues_filled=${[...filledLeagues].join(",") || "-"}) ` +
+    `smErr=${smErr ?? "ok"} fdErr=${fdErr ?? "ok"}`,
+  );
+
+  return {
+    fixtures: merged,
+    source: sm.length >= fd.length ? "sportmonks" : "futodds",
+    count: merged.length,
+    fallback_reason: addedFromFutodds > 0 ? `futodds_filled_${addedFromFutodds}_fixtures` : undefined,
+  };
+}
+
 export async function getLiveMatches(): Promise<LiveResult> {
+  if (MODE === "merge") {
+    try {
+      return await mergeProviders();
+    } catch (e) {
+      console.warn(`[liveProvider] merge failed → fallback sequencial. ${(e as Error).message}`);
+    }
+  }
+
   const order: Array<"futodds" | "sportmonks"> =
     PRIMARY === "futodds" ? ["futodds", "sportmonks"] : ["sportmonks", "futodds"];
 
