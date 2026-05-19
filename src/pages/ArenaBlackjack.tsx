@@ -194,7 +194,7 @@ export default function ArenaBlackjack() {
       cards: activeCards, total, soft,
       canSplit: !splitMode && activeCards.length === 2 && getCardValue(activeCards[0]) === getCardValue(activeCards[1]) && bankroll >= currentBet * 2,
       canDouble: activeCards.length === 2 && (total === 10 || total === 11) && bankroll >= totalBetNeeded + (splitMode ? splitHands[activeSplitHand]?.bet || 0 : currentBet),
-      canSurrender: !splitMode && activeCards.length === 2
+      canSurrender: !splitMode && activeCards.length >= 2 && (config.cashbackMode ? total <= 21 : activeCards.length === 2)
     };
   })();
 
