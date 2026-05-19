@@ -11,9 +11,12 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface PlanRow {
+  id?: string;
   user_id: string;
+  name?: string;
   market: string;
   plan: any;
+  enabled?: boolean;
   updated_at: string;
 }
 
@@ -68,7 +71,7 @@ export default function AdminUserTraderPlans() {
     (async () => {
       setLoading(true);
       const [{ data: p }, { data: s }] = await Promise.all([
-        supabase.from('user_trader_plans').select('*').order('updated_at', { ascending: false }),
+        supabase.from('user_trader_plans_v2').select('*').order('updated_at', { ascending: false }),
         supabase.from('user_trader_plan_signals').select('*').order('placed_at', { ascending: false }).limit(2000),
       ]);
       if (cancel) return;
@@ -224,12 +227,15 @@ export default function AdminUserTraderPlans() {
                                       <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Configuração por mercado</h4>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {u.plans.map((p) => (
-                                          <Card key={p.market} className="border-border/50">
+                                          <Card key={p.id || p.market} className="border-border/50">
                                             <CardHeader className="pb-2">
                                               <CardTitle className="text-sm flex items-center justify-between">
-                                                <span>{p.market.toUpperCase()}</span>
-                                                <Badge variant={p.plan?.enabled ? 'default' : 'outline'} className="text-[10px]">
-                                                  {p.plan?.enabled ? 'ATIVO' : 'inativo'}
+                                                <span className="truncate">
+                                                  {p.name || p.market.toUpperCase()}
+                                                  <span className="text-[10px] text-muted-foreground ml-2 font-normal">[{p.market.toUpperCase()}]</span>
+                                                </span>
+                                                <Badge variant={p.enabled ? 'default' : 'outline'} className="text-[10px]">
+                                                  {p.enabled ? 'ATIVO' : 'inativo'}
                                                 </Badge>
                                               </CardTitle>
                                             </CardHeader>
