@@ -412,6 +412,8 @@ export default function ArenaBlackjack() {
     } else if (action === 'double') {
       setCurrentBet(prev => prev * 2);
       setHandStep('double_card');
+    } else if (action === 'surrender' && config.cashbackMode) {
+      handleCashbackSurrender();
     } else if (action === 'stand' || action === 'surrender') {
       setHandStep('select_dealer2');
     } else if (action === 'split') {
