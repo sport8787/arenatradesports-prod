@@ -65,6 +65,7 @@ const PunterAuditoria = React.lazy(() => import("./pages/PunterAuditoria"));
 const ArenaTrader = React.lazy(() => import("./pages/ArenaTrader"));
 const ArenaTraderRankings = React.lazy(() => import("./pages/ArenaTraderRankings"));
 const ArenaBlackjack = React.lazy(() => import("./pages/ArenaBlackjack"));
+const ArenaBlackjackLive = React.lazy(() => import("./pages/ArenaBlackjackLive"));
 const MycroftMemory = React.lazy(() => import("./pages/MycroftMemory"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const AdminHub = React.lazy(() => import("./pages/AdminHub"));
@@ -195,6 +196,7 @@ const App = () => {
                 <Route path="/arena-trader" element={<RequireSubscription><ArenaTrader /></RequireSubscription>} />
                 <Route path="/arena-trader/rankings" element={<RequireSubscription><ArenaTraderRankings /></RequireSubscription>} />
                 <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
+                <Route path="/arena-blackjack/ao-vivo" element={<RequireSubscription><ArenaBlackjackLive /></RequireSubscription>} />
                 <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/hub" element={<AdminHub />} />
