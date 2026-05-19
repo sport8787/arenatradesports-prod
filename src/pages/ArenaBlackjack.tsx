@@ -371,9 +371,9 @@ export default function ArenaBlackjack() {
       // Check for natural blackjack
       const { total } = calculateHandTotal(newCards);
       if (total === 21 && newCards.length === 2) {
-        // Auto-detect blackjack — skip action, go directly to dealer reveal
+        // Natural BJ — pergunta se o jogador consegue ver a 2ª carta do dealer
         toast.success('🃏 BLACKJACK NATURAL! Parabéns!');
-        setHandStep('select_dealer2');
+        setHandStep('player_bj_check');
         return;
       }
       setHandStep('action');
