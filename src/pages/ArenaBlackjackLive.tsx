@@ -134,7 +134,7 @@ export default function ArenaBlackjackLive() {
 
   function handleShuffle() {
     if (!session) return;
-    const roundsBefore = session.history.length - (session.shuffles.at(-1)?.roundsBefore ?? 0);
+    const roundsBefore = session.history.length - (session.shuffles[session.shuffles.length - 1]?.roundsBefore ?? 0);
     setSession({
       ...session,
       count: { running: 0, cardsSeen: 0, history: session.count.history },
