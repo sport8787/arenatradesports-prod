@@ -810,7 +810,9 @@ export default function ArenaBlackjack() {
   const { total: playerTotal } = playerCards.length > 0 ? calculateHandTotal(playerCards) : { total: 0 };
   const isBust = playerTotal > 21;
   const isPlayerBJ = playerCards.length === 2 && playerTotal === 21;
-  const isDealerBJ = dealerCards.length >= 2 && calculateHandTotal(dealerCards).total === 21;
+  const isDealerBJ = dealerCards.length === 2 && calculateHandTotal(dealerCards).total === 21;
+  const dealerUpCard = dealerCards[0];
+  const dealerUpIsTen = !!dealerUpCard && ['10', 'J', 'Q', 'K'].includes(dealerUpCard);
 
   return (
     <div className="min-h-screen bg-background p-3 pb-6">
