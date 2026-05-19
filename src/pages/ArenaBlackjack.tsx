@@ -882,6 +882,33 @@ export default function ArenaBlackjack() {
                 </button>
               </div>
 
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Blackjack Cashback</div>
+                    <div className="text-[10px] text-muted-foreground">Permite render mesmo após COMPRAR — recebe % da aposta de volta</div>
+                  </div>
+                  <button
+                    onClick={() => setConfig(prev => ({ ...prev, cashbackMode: !prev.cashbackMode }))}
+                    className={`w-12 h-6 rounded-full transition-all shrink-0 ${config.cashbackMode ? 'bg-primary' : 'bg-muted'}`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-all ${config.cashbackMode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {config.cashbackMode && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">% Devolvido na desistência</Label>
+                    <Input
+                      type="number" min={0} max={100}
+                      value={config.cashbackPercent}
+                      onChange={e => setConfig(prev => ({ ...prev, cashbackPercent: Math.min(100, Math.max(0, Number(e.target.value))) }))}
+                    />
+                    <div className="text-[10px] text-muted-foreground">
+                      Padrão 50%. Ex.: aposta R${config.baseUnit} → devolve R${(config.baseUnit * config.cashbackPercent / 100).toFixed(2)}, perda líquida R${(config.baseUnit * (1 - config.cashbackPercent / 100)).toFixed(2)}.
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <GoldButton className="w-full" onClick={startSession}>
                 <Play className="w-4 h-4 mr-2" /> Iniciar Sessão
               </GoldButton>
