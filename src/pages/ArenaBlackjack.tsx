@@ -135,6 +135,7 @@ export default function ArenaBlackjack() {
     initialBankroll: 500, baseUnit: 5, increment: 2,
     maxBet: 50, stopLoss: 100, stopWin: 150,
     blackjackPayout: 1.5, useCounting: true,
+    cashbackMode: false, cashbackPercent: 50,
   });
 
   // Hybrid betting config
@@ -193,7 +194,7 @@ export default function ArenaBlackjack() {
       cards: activeCards, total, soft,
       canSplit: !splitMode && activeCards.length === 2 && getCardValue(activeCards[0]) === getCardValue(activeCards[1]) && bankroll >= currentBet * 2,
       canDouble: activeCards.length === 2 && (total === 10 || total === 11) && bankroll >= totalBetNeeded + (splitMode ? splitHands[activeSplitHand]?.bet || 0 : currentBet),
-      canSurrender: !splitMode && activeCards.length === 2
+      canSurrender: !splitMode && activeCards.length >= 2 && (config.cashbackMode ? total <= 21 : activeCards.length === 2)
     };
   })();
 
@@ -411,6 +412,8 @@ export default function ArenaBlackjack() {
     } else if (action === 'double') {
       setCurrentBet(prev => prev * 2);
       setHandStep('double_card');
+    } else if (action === 'surrender' && config.cashbackMode) {
+      handleCashbackSurrender();
     } else if (action === 'stand' || action === 'surrender') {
       setHandStep('select_dealer2');
     } else if (action === 'split') {
@@ -572,6 +575,49 @@ export default function ArenaBlackjack() {
     } else {
       setHandStep('result');
     }
+  };
+
+  const handleResult = async (result: HandResult) => {
+  const handleCashbackSurrender = async () => {
+    const refundRatio = Math.min(100, Math.max(0, config.cashbackPercent)) / 100;
+    const profitAmount = -currentBet * (1 - refundRatio);
+    const newBankroll = bankroll + profitAmount;
+    setBankroll(newBankroll);
+
+    updateBettingState('loss', currentBet);
+    setHandsPlayed(prev => prev + 1);
+    setHandsLost(prev => prev + 1);
+    setConsecutiveLosses(prev => prev + 1);
+    setResultHistory(prev => [...prev.slice(-19), 'loss']);
+
+    toast.info(`💸 Cashback ${config.cashbackPercent}% — Devolução R$${(currentBet * refundRatio).toFixed(2)} (perda líquida R$${Math.abs(profitAmount).toFixed(2)})`);
+
+    if (sessionId && user) {
+      await supabase.from('blackjack_hands').insert({
+        session_id: sessionId, hand_number: handsPlayed + 1,
+        player_cards: playerCards, player_total: hand.total,
+        player_soft: hand.soft, dealer_card: dealerCards[0] || '',
+        running_count: runningCount, true_count: countingState.trueCount,
+        recommended_action: decision?.action || null,
+        player_action: 'cashback_surrender',
+        was_deviation: false,
+        bet_amount: currentBet, bet_units: currentBet / config.baseUnit,
+        result: 'loss', profit_loss: profitAmount,
+      } as any);
+      await supabase.from('blackjack_sessions').update({
+        current_bankroll: newBankroll, hands_played: handsPlayed + 1,
+        hands_lost: handsLost + 1,
+        total_profit: newBankroll - config.initialBankroll,
+      } as any).eq('id', sessionId);
+    }
+
+    const profitNow = newBankroll - config.initialBankroll;
+    if ((Math.abs(profitNow) >= config.stopLoss && profitNow < 0) || profitNow >= config.stopWin) {
+      setStopReason(profitNow >= config.stopWin ? 'stop_win' : 'stop_loss');
+      setPhase('stopped');
+      return;
+    }
+    resetHand();
   };
 
   const handleResult = async (result: HandResult) => {
@@ -834,6 +880,33 @@ export default function ArenaBlackjack() {
                   className={`w-12 h-6 rounded-full transition-all ${config.useCounting ? 'bg-primary' : 'bg-muted'}`}>
                   <div className={`w-5 h-5 rounded-full bg-white transition-all ${config.useCounting ? 'translate-x-6' : 'translate-x-0.5'}`} />
                 </button>
+              </div>
+
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Blackjack Cashback</div>
+                    <div className="text-[10px] text-muted-foreground">Permite render mesmo após COMPRAR — recebe % da aposta de volta</div>
+                  </div>
+                  <button
+                    onClick={() => setConfig(prev => ({ ...prev, cashbackMode: !prev.cashbackMode }))}
+                    className={`w-12 h-6 rounded-full transition-all shrink-0 ${config.cashbackMode ? 'bg-primary' : 'bg-muted'}`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-all ${config.cashbackMode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {config.cashbackMode && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">% Devolvido na desistência</Label>
+                    <Input
+                      type="number" min={0} max={100}
+                      value={config.cashbackPercent}
+                      onChange={e => setConfig(prev => ({ ...prev, cashbackPercent: Math.min(100, Math.max(0, Number(e.target.value))) }))}
+                    />
+                    <div className="text-[10px] text-muted-foreground">
+                      Padrão 50%. Ex.: aposta R${config.baseUnit} → devolve R${(config.baseUnit * config.cashbackPercent / 100).toFixed(2)}, perda líquida R${(config.baseUnit * (1 - config.cashbackPercent / 100)).toFixed(2)}.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <GoldButton className="w-full" onClick={startSession}>
@@ -1131,7 +1204,9 @@ export default function ArenaBlackjack() {
                           ${action === decision.action ? 'ring-2 ring-white/50 shadow-lg scale-[1.02]' : 'opacity-70'}
                         `}
                       >
-                        {ACTION_LABELS[action]}
+                        {action === 'surrender' && config.cashbackMode
+                          ? `CASHBACK ${config.cashbackPercent}%`
+                          : ACTION_LABELS[action]}
                       </motion.button>
                     ))}
                 </div>
