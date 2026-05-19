@@ -61,7 +61,9 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
 
 // Mapa Sportmonks "type_id" para nomes API-Football padrão (ajustar conforme probe)
 // IDs comuns: 41=Shots Total, 42=Shots On Target, 45=Possession, 34=Corners, 84=Yellow Cards,
-// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks, 5321=xG
+// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks
+// xG real vive no include "xgfixture" com type_ids 5304 e 5305 (ambos = Expected Goals,
+// um por participante). O location ("home"/"away") indica o lado correto.
 const SM_STAT_MAP: Record<number, string> = {
   41: "shots_total",
   42: "shots_on_target",
@@ -73,7 +75,9 @@ const SM_STAT_MAP: Record<number, string> = {
   80: "passes",
   81: "passes_accurate",
   44: "attacks",
-  5321: "xg",
+  5304: "xg",
+  5305: "xg",
+  5321: "xg", // legado — mantido por segurança caso o plano antigo ainda retorne
 };
 
 function extractStats(fixture: any): NormalizedStats {
@@ -94,11 +98,19 @@ function extractStats(fixture: any): NormalizedStats {
   const homeId = participants.find((p: any) => p.meta?.location === "home")?.id;
   const awayId = participants.find((p: any) => p.meta?.location === "away")?.id;
 
-  const sList = fixture.statistics || [];
+  // Junta statistics + xgfixture (xG mora num include separado em planos Pro+)
+  const sList = [
+    ...((fixture.statistics as any[]) || []),
+    ...((fixture.xgfixture as any[]) || []),
+  ];
   for (const s of sList) {
     const key = SM_STAT_MAP[s.type_id];
     if (!key) continue;
-    const isHome = s.participant_id === homeId;
+    // location explícito do payload tem prioridade; fallback por participant_id
+    const loc = (s.location || "").toLowerCase();
+    const isHome = loc === "home" || (!loc && s.participant_id === homeId);
+    const isAway = loc === "away" || (!loc && s.participant_id === awayId);
+    if (!isHome && !isAway) continue;
     const suffix = isHome ? "_home" : "_away";
     const val = Number(s.data?.value ?? 0);
 
@@ -138,7 +150,7 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
 export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;periods;inplayodds",
+    include: "scores;participants;state;league;statistics;xgfixture;periods;inplayodds",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
@@ -154,7 +166,7 @@ export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
 export async function fetchFixtureById(smId: number): Promise<any | null> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
   const url = smUrl(`/football/fixtures/${smId}`, {
-    include: "scores;participants;state;league;statistics;periods",
+    include: "scores;participants;state;league;statistics;xgfixture;periods",
   });
   const res = await resilientFetch(url, { breakerKey: "sportmonks", timeoutMs: 10_000, retries: 1 });
   if (!res.ok) return null;
