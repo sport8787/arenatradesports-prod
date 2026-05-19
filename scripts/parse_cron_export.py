@@ -21,7 +21,7 @@ chunks = re.split(r"\bmap\[active:", src)[1:]  # primeiro elemento é prefixo do
 jobs = []
 for ch in chunks:
     # ch começa com "true command:" (ou false)
-    m = re.match(r"(true|false)\s+command:(.*?)\s+jobid:\d+\s+jobname:(\S+)\s+schedule:(.*?)\]\s*$", ch, re.DOTALL)
+    m = re.match(r"(true|false)\s+command:(.*?)\s+jobname:(\S+)\s+schedule:(.*?)\]\s*$", ch, re.DOTALL)
     if not m:
         print("⚠️ chunk não bateu:", ch[:200], file=sys.stderr)
         continue
