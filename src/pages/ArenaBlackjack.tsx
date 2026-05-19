@@ -1204,7 +1204,9 @@ export default function ArenaBlackjack() {
                           ${action === decision.action ? 'ring-2 ring-white/50 shadow-lg scale-[1.02]' : 'opacity-70'}
                         `}
                       >
-                        {ACTION_LABELS[action]}
+                        {action === 'surrender' && config.cashbackMode
+                          ? `CASHBACK ${config.cashbackPercent}%`
+                          : ACTION_LABELS[action]}
                       </motion.button>
                     ))}
                 </div>
