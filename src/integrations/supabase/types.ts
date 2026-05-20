@@ -3119,11 +3119,14 @@ export type Database = {
           approved_at_minute: number | null
           approved_at_score_away: number | null
           approved_at_score_home: number | null
+          away_team: string | null
+          championship: string | null
           confidence: number | null
           created_at: string
           final_score_away: number | null
           final_score_home: number | null
           fundamentation: Json | null
+          home_team: string | null
           id: string
           latency_ms: number | null
           market: string | null
@@ -3146,11 +3149,14 @@ export type Database = {
           approved_at_minute?: number | null
           approved_at_score_away?: number | null
           approved_at_score_home?: number | null
+          away_team?: string | null
+          championship?: string | null
           confidence?: number | null
           created_at?: string
           final_score_away?: number | null
           final_score_home?: number | null
           fundamentation?: Json | null
+          home_team?: string | null
           id?: string
           latency_ms?: number | null
           market?: string | null
@@ -3173,11 +3179,14 @@ export type Database = {
           approved_at_minute?: number | null
           approved_at_score_away?: number | null
           approved_at_score_home?: number | null
+          away_team?: string | null
+          championship?: string | null
           confidence?: number | null
           created_at?: string
           final_score_away?: number | null
           final_score_home?: number | null
           fundamentation?: Json | null
+          home_team?: string | null
           id?: string
           latency_ms?: number | null
           market?: string | null

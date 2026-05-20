@@ -200,6 +200,9 @@ Deno.serve(async (req) => {
 
         await sb.from("mycroft_analyses_shadow_ai").insert({
           match_id: m.match_id,
+          home_team: m.home_team ?? null,
+          away_team: m.away_team ?? null,
+          championship: m.championship ?? null,
           verdict,
           market: market || "N/A",
           thesis: a.thesis ?? null,
@@ -211,7 +214,7 @@ Deno.serve(async (req) => {
           approved_at_minute: minute,
           approved_at_score_home: m.score_home ?? null,
           approved_at_score_away: m.score_away ?? null,
-          stats_snapshot: isApproved ? { provider: "gemini-ai", minute, score_home: m.score_home ?? 0, score_away: m.score_away ?? 0, stats: m.stats || {} } : null,
+          stats_snapshot: isApproved ? { provider: "gemini-ai", minute, score_home: m.score_home ?? 0, score_away: m.score_away ?? 0, home_team: m.home_team, away_team: m.away_team, championship: m.championship, stats: m.stats || {} } : null,
           latency_ms: aiRes.ms,
           raw_response: { raw: aiRes.raw?.slice(0, 4000) ?? null },
         });
