@@ -117,20 +117,11 @@ Deno.serve(async (req) => {
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Article","headline":"Palpites Brasileirão 2026 — ${escape(rodada)}ª Rodada por IA","author":{"@type":"Organization","name":"Oráculo Mycroft"},"publisher":{"@type":"Organization","name":"Oráculo Mycroft","logo":{"@type":"ImageObject","url":"https://oraculo-mycroft.com/favicon.png"}},"datePublished":"${dateNow}","dateModified":"${dateNow}","image":"https://oraculo-mycroft.com/og-image.jpg","mainEntityOfPage":"${canonical}"}
 </script>
+<link rel="stylesheet" href="/blog/blog.css" />
 <style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:0 auto;padding:2rem 1.25rem;line-height:1.7;color:#0f172a;background:#fff}
-h1{font-size:2rem;line-height:1.25;margin:0 0 1rem}
-h2{font-size:1.35rem;margin:2rem 0 .5rem;border-bottom:1px solid #e2e8f0;padding-bottom:.25rem}
-a{color:#0369a1}
-.muted{color:#64748b;font-size:.9rem}
-.cta{display:inline-block;margin:1.5rem 0;background:#0a1628;color:#fff;padding:.75rem 1.25rem;border-radius:6px;text-decoration:none}
-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.95rem}
-th,td{padding:.55rem;border:1px solid #e2e8f0;text-align:left}
-th{background:#f8fafc}
-.green{color:#166534;font-weight:600}
-.summary{background:#f8fafc;border-left:3px solid #0a1628;padding:1rem 1.25rem;margin:1.25rem 0;border-radius:4px}
+.green{color:#4ade80;font-weight:600}
+.summary{background:var(--bg-card,#122444);border-left:3px solid var(--gold,#c9a84c);padding:1rem 1.25rem;margin:1.5rem auto;border-radius:8px;max-width:820px}
 .summary p{margin:.5rem 0}
-nav a{margin-right:1rem}
 </style>
 </head>
 <body>
