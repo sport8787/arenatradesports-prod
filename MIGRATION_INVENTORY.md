@@ -13,6 +13,10 @@
 | **D** | Storage (4 buckets) | ✅ | 81/81 objects (`audio-cache` 41, `public-assets` 3, `seo-static` 23, `sports-knowledge-base` 14) |
 | **E** | Cron + Triggers (SQL gerado, **não aplicado** no espelho ainda) | 🟡 | 62 jobs + 4 triggers em `/mnt/documents/recreate_cron_jobs_dest.sql` e `/mnt/documents/recreate_notification_triggers_dest.sql` |
 
+### Fase F — auth.users (20/05/2026)
+- ✅ 161/161 usuários migrados via `migrate-auth-to-mirror` (password_hash bcrypt preservado, UUIDs mantidos).
+- ⚠️ Validar `auth.identities` (Google OAuth) — a edge atual só replica `auth.users`; identidades sociais podem precisar de re-link no Google Cloud Console pós-cutover.
+
 ### Edge functions de migração (deployadas no projeto origem)
 - `migrate-auth-to-mirror` (auth.users — ainda **não executada**)
 - `migrate-table-to-mirror` + wrapper `run-table-migration`
