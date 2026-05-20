@@ -36,6 +36,9 @@ interface ShadowAiSignal {
   stats_snapshot?: any;
   latency_ms?: number | null;
   model?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
+  championship?: string | null;
 }
 
 interface MatchInfo {
