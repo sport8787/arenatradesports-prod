@@ -26,8 +26,9 @@ Todas protegidas por header `X-Migration-Token` (secret `MIGRATION_TOKEN`).
 
 ## 0.2 Pendências bloqueantes do cutover real
 
-1. ❌ **Migrar `auth.users` + `auth.identities`** — chamar `migrate-auth-to-mirror`
-2. ❌ **Reseed `user_roles`** após auth.users
+1. ✅ **Migrar `auth.users`** — concluído 20/05/2026 (161 users)
+2. ⚠️ **Migrar `auth.identities`** (Google OAuth) — pendente; pode exigir re-consent dos usuários sociais
+3. ❌ **Reseed `user_roles`** após auth.users (revalidar — Fase A já fez, mas conferir FKs)
 3. ❌ **Aplicar SQL no espelho:** `recreate_cron_jobs_dest.sql` + `recreate_notification_triggers_dest.sql`
 4. ❌ **Re-registrar ~25 secrets** no espelho (lista em §2.6)
 5. ❌ **Re-deploy ~80 edge functions** no espelho
