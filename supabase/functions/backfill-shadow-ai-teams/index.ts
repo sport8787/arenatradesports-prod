@@ -55,8 +55,8 @@ async function fetchTeamsFutodds(matchId: string): Promise<{ home: string | null
   const found = (arr || []).find((m: any) => String(m.id ?? m.match_id ?? m.fixture_id) === matchId);
   if (found) return pickTeamsFromFD(found);
 
-  // Tentativa 2: ended dos últimos 3 dias
-  for (let d = 0; d <= 3; d++) {
+  // Tentativa 2: ended dos últimos 10 dias
+  for (let d = 0; d <= 10; d++) {
     const date = new Date(Date.now() - d * 86400_000).toISOString().slice(0, 10);
     const j = await fdGet(`/matches-ended?date=${date}`);
     const list = Array.isArray(j) ? j : (j?.data ?? []);
