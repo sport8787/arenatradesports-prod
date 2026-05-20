@@ -1133,15 +1133,18 @@ serve(async (req) => {
     }
 
     // === MÓDULO DE LEITURA SITUACIONAL (server-side override) ===
-    // Se JOGO_MORTO por dados insuficientes, tentar regras S1-S4
-    if (analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'APROVADO_SITUACIONAL') {
+    // Roda quando JOGO_MORTO por dados insuficientes, APROVADO_SITUACIONAL ou CUIDADO
+    // (baseline neutra) — assim regras S1-S4 podem promover jogos com pressão clara
+    // mesmo quando o motor inicial não identificou padrão dominante.
+    if (analysis.verdict === 'JOGO_MORTO' || analysis.verdict === 'APROVADO_SITUACIONAL' || analysis.verdict === 'CUIDADO') {
       const isDataGapDead = analysis.verdict === 'JOGO_MORTO' && (
         (analysis.alerts || []).some((a: string) => /dados ausentes|dados insuficientes|sem dados|confiança.*penalidade|critérios.*ausentes/i.test(a)) ||
         (analysis.criterios_ausentes?.length > 0)
       );
       const isAISituational = analysis.verdict === 'APROVADO_SITUACIONAL';
+      const isBaselineCuidado = analysis.verdict === 'CUIDADO';
 
-      if (isDataGapDead || isAISituational) {
+      if (isDataGapDead || isAISituational || isBaselineCuidado) {
         const s = match.stats || {};
         const min = match.minute ?? 0;
         const scoreH = match.scoreHome ?? 0;
