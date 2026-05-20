@@ -1,7 +1,40 @@
 # Migration Inventory — Supabase / Lovable Cloud
 
-> **Status:** ❄️ Não migrar agora. Este documento existe como **seguro** para o dia em que a migração for inevitável.  
-> **Última atualização:** 18/05/2026 — backup schema + seed config já replicados no projeto-espelho.
+> **Status:** 🟡 Espelho **carregado em modo cold-standby** (20/05/2026). Cutover real ainda não executado — app continua apontando para `affquongjlhmusxzohjl`.
+> **Última atualização:** 20/05/2026 — Fases A-E concluídas no espelho. Patches de cutover prontos em `/mnt/documents/cutover_frontend_patches.md`.
+
+## 0.1 Execução das Fases A-E (20/05/2026)
+
+| Fase | Escopo | Status | Volumetria |
+|---|---|---|---|
+| **A** | `user_roles`, `profiles`, `push_subscriptions` | ✅ | 4 / 157 / 4 |
+| **B** | Bankrolls (×4) + caps + prefs + checklist + promos | ✅ | 161 ×4, 161 caps, 18+18, 3 codes, 5 redemptions |
+| **C** | Transacionais grandes (analyses, signals, bets, logs) | ✅ | `mycroft_analyses` 10.345, `punter_analyses` 1.693, `punter_signals` 366, `bc_rewards_log` 7.437, `edge_function_runs` 4.026, `cron_logs` 5.189, `ai_response_cache` 335, `mycroft_chat_logs` 198, `mycroft_analyses_shadow_af` 1.302 |
+| **D** | Storage (4 buckets) | ✅ | 81/81 objects (`audio-cache` 41, `public-assets` 3, `seo-static` 23, `sports-knowledge-base` 14) |
+| **E** | Cron + Triggers (SQL gerado, **não aplicado** no espelho ainda) | 🟡 | 62 jobs + 4 triggers em `/mnt/documents/recreate_cron_jobs_dest.sql` e `/mnt/documents/recreate_notification_triggers_dest.sql` |
+
+### Edge functions de migração (deployadas no projeto origem)
+- `migrate-auth-to-mirror` (auth.users — ainda **não executada**)
+- `migrate-table-to-mirror` + wrapper `run-table-migration`
+- `migrate-storage-to-mirror` + wrapper `run-storage-migration`
+
+Todas protegidas por header `X-Migration-Token` (secret `MIGRATION_TOKEN`).
+
+## 0.2 Pendências bloqueantes do cutover real
+
+1. ❌ **Migrar `auth.users` + `auth.identities`** — chamar `migrate-auth-to-mirror`
+2. ❌ **Reseed `user_roles`** após auth.users
+3. ❌ **Aplicar SQL no espelho:** `recreate_cron_jobs_dest.sql` + `recreate_notification_triggers_dest.sql`
+4. ❌ **Re-registrar ~25 secrets** no espelho (lista em §2.6)
+5. ❌ **Re-deploy ~80 edge functions** no espelho
+6. ❌ **Fix trigger** `calibrate_punter_1x2_verdict` (bug `format()` com `%` sem escape)
+7. ❌ **Re-enable USER triggers** nas tabelas Fase C do espelho (foram disabled durante import)
+8. ❌ **Habilitar extensões** no espelho: `pg_cron`, `pg_net`, `pgcrypto`, `pg_stat_statements`
+9. ❌ **Aplicar patches frontend + vercel.json** — ver `/mnt/documents/cutover_frontend_patches.md`
+10. ❌ **Re-registrar Google OAuth callback** no Google Cloud Console
+11. ❌ **Atualizar `.env` Lovable Cloud** → novo `VITE_SUPABASE_URL` / project ref / anon key
+
+---
 
 ---
 
