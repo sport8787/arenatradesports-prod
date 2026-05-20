@@ -40,12 +40,12 @@ function pick(item: any) {
   return {
     home: item.home_name || item.home_team || item.home || item.localteam?.name || null,
     away: item.away_name || item.away_team || item.away || item.visitorteam?.name || null,
-    league: item.league_name || item.league || item.championship || item.league?.name || null,
+    league: item.competition_name || item.league_name || item.league || item.championship || null,
   };
 }
 
 function idOf(m: any): string {
-  return String(m.id ?? m.match_id ?? m.fixture_id ?? m.event_id ?? "");
+  return String(m.eventId ?? m.id ?? m.match_id ?? m.fixture_id ?? m.event_id ?? "");
 }
 
 async function fetchTeamsFutodds(matchId: string, fdCache: Map<string, any[]>) {
