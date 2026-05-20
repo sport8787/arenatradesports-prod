@@ -11,6 +11,7 @@
     { "source": "/blog/", "destination": "/blog/index.html" },
     { "source": "/blog/brasileirao-2026", "destination": "/blog/brasileirao-2026/index.html" },
     { "source": "/blog/brasileirao-2026/", "destination": "/blog/brasileirao-2026/index.html" },
-    { "source": "/((?!.*\\.[a-zA-Z0-9]+$|blog|landing|robots\\.txt|sitemap\\.xml|sw\\.js|assets|kb|docs|placeholder|og-image).*)", "destination": "/index.html" }
+    { "source": "/lp/:slug", "destination": "/lp/:slug.html" },
+    { "source": "/((?!.*\\.[a-zA-Z0-9]+$|blog|lp|landing|robots\\.txt|sitemap\\.xml|sw\\.js|assets|kb|docs|placeholder|og-image).*)", "destination": "/index.html" }
   ]
 }
