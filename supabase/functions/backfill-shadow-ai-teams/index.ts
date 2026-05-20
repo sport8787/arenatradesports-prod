@@ -9,9 +9,11 @@ const cors = {
 };
 
 const TOKEN = Deno.env.get("SPORTMONKS_API_KEY") ?? "";
+const FUTODDS_KEY = Deno.env.get("FUTODDS_API_KEY") ?? "";
 const BASE = "https://api.sportmonks.com/v3";
+const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
 
-async function fetchTeams(smId: number): Promise<{ home: string | null; away: string | null; league: string | null }> {
+async function fetchTeamsSM(smId: number): Promise<{ home: string | null; away: string | null; league: string | null }> {
   const url = `${BASE}/football/fixtures/${smId}?api_token=${TOKEN}&include=participants;league`;
   const r = await fetch(url);
   if (!r.ok) return { home: null, away: null, league: null };
@@ -26,6 +28,42 @@ async function fetchTeams(smId: number): Promise<{ home: string | null; away: st
     away: away?.name ?? null,
     league: f.league?.name ?? null,
   };
+}
+
+async function fdGet(path: string): Promise<any> {
+  if (!FUTODDS_KEY) return null;
+  const r = await fetch(`${FUTODDS_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${FUTODDS_KEY}`, "X-API-Key": FUTODDS_KEY, Accept: "application/json" },
+  });
+  if (!r.ok) return null;
+  return await r.json().catch(() => null);
+}
+
+function pickTeamsFromFD(item: any): { home: string | null; away: string | null; league: string | null } {
+  if (!item) return { home: null, away: null, league: null };
+  return {
+    home: item.home_name || item.home_team || item.home || null,
+    away: item.away_name || item.away_team || item.away || null,
+    league: item.league_name || item.league || item.championship || null,
+  };
+}
+
+async function fetchTeamsFutodds(matchId: string): Promise<{ home: string | null; away: string | null; league: string | null }> {
+  // Tentativa 1: live full
+  const live = await fdGet("/matches-betfair-live");
+  const arr = Array.isArray(live) ? live : (live?.data ?? []);
+  const found = (arr || []).find((m: any) => String(m.id ?? m.match_id ?? m.fixture_id) === matchId);
+  if (found) return pickTeamsFromFD(found);
+
+  // Tentativa 2: ended dos últimos 3 dias
+  for (let d = 0; d <= 3; d++) {
+    const date = new Date(Date.now() - d * 86400_000).toISOString().slice(0, 10);
+    const j = await fdGet(`/matches-ended?date=${date}`);
+    const list = Array.isArray(j) ? j : (j?.data ?? []);
+    const f = (list || []).find((m: any) => String(m.id ?? m.match_id ?? m.fixture_id) === matchId);
+    if (f) return pickTeamsFromFD(f);
+  }
+  return { home: null, away: null, league: null };
 }
 
 Deno.serve(async (req) => {
