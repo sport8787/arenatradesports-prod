@@ -1221,7 +1221,7 @@ serve(async (req) => {
           }
         }
         // REGRA S4
-        if (!situationalRule && min >= 10 && min <= 40 && (homeDominant || awayDominant)) {
+        if (!situationalRule && min >= 10 && min <= 40 && (effHomeDominant || effAwayDominant)) {
           if (domXg >= 0.6 && domGoals <= 1 && domSot >= 3 && domGoals === 0) {
             situationalRule = 'S4';
             situationalMarket = 'Over 0.5 HT';
