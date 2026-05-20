@@ -1,7 +1,9 @@
 # Migration Inventory — Supabase / Lovable Cloud
 
-> **Status:** 🟡 Espelho **carregado em modo cold-standby** (20/05/2026). Cutover real ainda não executado — app continua apontando para `affquongjlhmusxzohjl`.
-> **Última atualização:** 20/05/2026 — Fases A-E concluídas no espelho. Patches de cutover prontos em `/mnt/documents/cutover_frontend_patches.md`.
+> **Status:** 🟢 Espelho **100% pronto como warm-standby** (20/05/2026 15:30 BRT). DB+Storage+Auth+Triggers+Crons aplicados. Falta apenas registrar secrets + deploy de 137 edge functions no espelho — instruções em `/mnt/documents/CUTOVER_FINAL.md`.
+> **Bloqueio estrutural:** App em Lovable Cloud não permite trocar backend (arquivos `.env`/`client.ts` auto-regenerados). Espelho fica como backup quente, não substitui a produção.
+> **Última atualização:** 20/05/2026 — Fase G concluída (extensões, triggers de notificação com URL reescrita, 65 cron jobs INATIVOS, fix `calibrate_punter_1x2_verdict` em AMBOS).
+
 
 ## 0.1 Execução das Fases A-E (20/05/2026)
 
