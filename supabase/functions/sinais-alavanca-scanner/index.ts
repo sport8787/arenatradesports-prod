@@ -25,10 +25,29 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-// Ligas tipicamente mais defensivas / previsíveis para Under
+// Ligas tipicamente mais defensivas / previsíveis para Under.
+// IMPORTANTE: só inclua IDs API-Football que estejam mapeados em
+// LEAGUE_AF_TO_SM (sportmonks-af-adapter.ts) — IDs fora do mapa
+// são silenciosamente descartados pelo adapter Sportmonks.
 const LIGAS_PERMITIDAS = [
-  39, 40, 41, 78, 79, 135, 136, 140, 141, 61, 62, 71, 72, 73, 75, 76,
-  88, 94, 144, 203, 207, 218, 253, 262, 281, 2, 3, 4, 5, 11, 13,
+  39,  // Premier League
+  40,  // Championship
+  78,  // Bundesliga
+  79,  // 2. Bundesliga
+  135, // Serie A (IT)
+  140, // La Liga
+  61,  // Ligue 1
+  71,  // Brasileirão A
+  72,  // Brasileirão B
+  88,  // Eredivisie
+  94,  // Primeira Liga (PT)
+  144, // Jupiler Pro League (BE)
+  179, // Scottish Premiership
+  197, // Super League (GR)
+  203, // Süper Lig (TR)
+  253, // MLS
+  262, // Liga MX
+  307, // Saudi Pro League
 ];
 
 const SCORE_THRESHOLD = 70;
