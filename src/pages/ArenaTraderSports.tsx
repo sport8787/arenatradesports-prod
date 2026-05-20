@@ -31,6 +31,7 @@ import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
+import ShadowAiApprovedTab from '@/components/dashboard/ShadowAiApprovedTab';
 import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
 import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
