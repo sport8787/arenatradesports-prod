@@ -56,12 +56,16 @@ type Period = '7d' | '30d';
 
 function shadowAiSignalToMatch(s: ShadowAiSignal, m?: MatchInfo, lmExtra?: any): Match {
   const stats = lmExtra?.stats || s.stats_snapshot?.stats || {};
+  const snap = s.stats_snapshot || {};
+  const home = m?.home_team || s.home_team || snap.home_team || 'Casa';
+  const away = m?.away_team || s.away_team || snap.away_team || 'Fora';
+  const championship = m?.championship || s.championship || snap.championship || '—';
   return {
     id: s.id,
-    championship: m?.championship || '—',
-    championshipColor: getChampionshipColor(m?.championship || ''),
-    home: m?.home_team || 'Casa',
-    away: m?.away_team || 'Fora',
+    championship,
+    championshipColor: getChampionshipColor(championship),
+    home,
+    away,
     homeLogo: lmExtra?.home_logo || '⚽',
     awayLogo: lmExtra?.away_logo || '⚽',
     scoreHome: s.final_score_home ?? m?.score_home ?? 0,
