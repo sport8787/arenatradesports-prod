@@ -1166,20 +1166,28 @@ serve(async (req) => {
 
         const homeDominant = possH > possA && (sotH > sotA || xgH > xgA);
         const awayDominant = possA > possH && (sotA > sotH || xgA > xgH);
-        const domXg = homeDominant ? xgH : xgA;
-        const domPoss = homeDominant ? possH : possA;
-        const domSot = homeDominant ? sotH : sotA;
-        const oppSot = homeDominant ? sotA : sotH;
-        const domGoals = homeDominant ? scoreH : scoreA;
-        const domName = homeDominant ? match.home : match.away;
+        // Dominância de xG esmagadora (≥3x e dom ≥0.3) override: ignora exigência de posse
+        const xgCrushHome = xgH >= 0.3 && xgH >= 3 * Math.max(xgA, 0.05);
+        const xgCrushAway = xgA >= 0.3 && xgA >= 3 * Math.max(xgH, 0.05);
+        const xgCrushSide: 'home' | 'away' | null = xgCrushHome ? 'home' : (xgCrushAway ? 'away' : null);
+        const effHomeDominant = homeDominant || xgCrushHome;
+        const effAwayDominant = awayDominant || xgCrushAway;
+        const domXg = effHomeDominant ? xgH : xgA;
+        const domPoss = effHomeDominant ? possH : possA;
+        const domSot = effHomeDominant ? sotH : sotA;
+        const oppSot = effHomeDominant ? sotA : sotH;
+        const domGoals = effHomeDominant ? scoreH : scoreA;
+        const domName = effHomeDominant ? match.home : match.away;
 
         // REGRA S1
         if (!situationalRule && min >= 5 && min <= 35) {
           const placarOk = (scoreH + scoreA) <= 1;
           const xgOk = domXg >= 0.4 || domSot >= 2;
-          const possOk = domPoss >= 58;
+          // posse ≥58% OU dominância de xG esmagadora do mesmo lado dominante
+          const possOk = domPoss >= 58 || (xgCrushSide !== null &&
+            ((xgCrushSide === 'home' && effHomeDominant) || (xgCrushSide === 'away' && effAwayDominant)));
           const oppClean = oppSot === 0;
-          if ((homeDominant || awayDominant) && placarOk && xgOk && possOk && oppClean) {
+          if ((effHomeDominant || effAwayDominant) && placarOk && xgOk && possOk && oppClean) {
             situationalRule = 'S1';
             situationalMarket = min < 45 ? 'Over 0.5 HT' : 'Over 1.5 Total';
             situationalConf = 65;
