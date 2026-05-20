@@ -664,6 +664,12 @@ export default function ArenaTraderSports() {
                   Aprovados (AF)
                 </TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger value="aprovados_ai" className="gap-1.5 border border-violet-500/40 text-violet-600">
+                  <FlaskConical className="w-3 h-3" />
+                  Aprovados (IA)
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
 
