@@ -97,22 +97,29 @@ Deno.serve(async (req) => {
 
   for (const r of rows || []) {
     const mid = String(r.match_id || "");
-    let smId: number | null = null;
-    if (mid.startsWith("sm_")) smId = Number(mid.slice(3));
-    else if (/^\d+$/.test(mid)) smId = Number(mid);
-    if (!smId || !Number.isFinite(smId)) { failed++; continue; }
-
     let info = byMatch.get(mid);
     if (!info) {
       try {
-        info = await fetchTeams(smId);
+        if (mid.startsWith("sm_")) {
+          const smId = Number(mid.slice(3));
+          info = Number.isFinite(smId) ? await fetchTeamsSM(smId) : { home: null, away: null, league: null };
+        } else if (/^\d+$/.test(mid)) {
+          // Tenta Futodds primeiro (IDs numéricos costumam ser FD)
+          info = await fetchTeamsFutodds(mid);
+          if (!info.home) {
+            const smTry = await fetchTeamsSM(Number(mid));
+            if (smTry.home) info = smTry;
+          }
+        } else {
+          info = { home: null, away: null, league: null };
+        }
         byMatch.set(mid, info);
-      } catch (e) {
+      } catch (_e) {
         info = { home: null, away: null, league: null };
       }
     }
 
-    if (info.home && info.away) {
+    if (info && info.home && info.away) {
       const { error: uErr } = await sb
         .from("mycroft_analyses_shadow_ai")
         .update({ home_team: info.home, away_team: info.away, championship: info.league })
