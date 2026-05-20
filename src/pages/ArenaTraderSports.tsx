@@ -740,6 +740,10 @@ export default function ArenaTraderSports() {
             <ShadowAfApprovedTab />
           )}
 
+          {statusFilter === 'aprovados_ai' && isAdmin && (
+            <ShadowAiApprovedTab />
+          )}
+
           {/* Simulation Panel - shown when "Simulado" tab is active */}
           {statusFilter === 'simulado' && (
             <SimulationPanel onFetched={refetch} />
