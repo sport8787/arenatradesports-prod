@@ -49,6 +49,9 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const dryRun = body.dryRun === true;
   const limit: number | null = body.limit ?? null;
+  const emailsFilter: string[] | null = Array.isArray(body.emails)
+    ? body.emails.map((e: string) => e.toLowerCase().trim()).filter(Boolean)
+    : null;
 
   const src = createClient(SRC_URL, SRC_KEY, { auth: { persistSession: false } });
 
