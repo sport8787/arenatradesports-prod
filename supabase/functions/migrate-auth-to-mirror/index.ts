@@ -49,6 +49,9 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const dryRun = body.dryRun === true;
   const limit: number | null = body.limit ?? null;
+  const emailsFilter: string[] | null = Array.isArray(body.emails)
+    ? body.emails.map((e: string) => e.toLowerCase().trim()).filter(Boolean)
+    : null;
 
   const src = createClient(SRC_URL, SRC_KEY, { auth: { persistSession: false } });
 
@@ -68,7 +71,10 @@ Deno.serve(async (req) => {
     page++;
     if (limit && users.length >= limit) break;
   }
-  const list = limit ? users.slice(0, limit) : users;
+  let list = limit ? users.slice(0, limit) : users;
+  if (emailsFilter && emailsFilter.length) {
+    list = users.filter((u) => u.email && emailsFilter.includes(u.email.toLowerCase()));
+  }
 
   if (dryRun) {
     return new Response(
