@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     page++;
     if (limit && users.length >= limit) break;
   }
-  let list = limit ? users.slice(0, limit) : users;
+  let list = users.slice(offset, limit ? offset + limit : undefined);
   if (emailsFilter && emailsFilter.length) {
     list = users.filter((u) => u.email && emailsFilter.includes(u.email.toLowerCase()));
   }
