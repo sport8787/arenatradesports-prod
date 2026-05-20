@@ -15,6 +15,14 @@ import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 
+const HardRedirect = ({ to }: { to: string }) => {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return <div className="min-h-screen bg-background flex items-center justify-center" />;
+};
+
 const MultiBetOptimizer = React.lazy(() => import("./pages/MultiBetOptimizer"));
 const LandingPage = React.lazy(() => import("./pages/LandingPage"));
 const Paywall = React.lazy(() => import("./pages/Paywall"));
@@ -134,10 +142,10 @@ const App = () => {
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
-                <Route path="/blog" element={<Navigate to="/blog/index.html" replace />} />
-                <Route path="/blog/" element={<Navigate to="/blog/index.html" replace />} />
-                <Route path="/blog/brasileirao-2026" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
-                <Route path="/blog/brasileirao-2026/" element={<Navigate to="/blog/brasileirao-2026/index.html" replace />} />
+                <Route path="/blog" element={<HardRedirect to="/blog/index.html" />} />
+                <Route path="/blog/" element={<HardRedirect to="/blog/index.html" />} />
+                <Route path="/blog/brasileirao-2026" element={<HardRedirect to="/blog/brasileirao-2026/index.html" />} />
+                <Route path="/blog/brasileirao-2026/" element={<HardRedirect to="/blog/brasileirao-2026/index.html" />} />
                 <Route path="/lobby" element={<Index />} />
                 <Route path="/links" element={<Links />} />
                 <Route path="/auth" element={<Auth />} />
