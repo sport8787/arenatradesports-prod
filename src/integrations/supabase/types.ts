@@ -3113,6 +3113,90 @@ export type Database = {
         }
         Relationships: []
       }
+      mycroft_analyses_shadow_ai: {
+        Row: {
+          alerts: Json | null
+          approved_at_minute: number | null
+          approved_at_score_away: number | null
+          approved_at_score_home: number | null
+          confidence: number | null
+          created_at: string
+          final_score_away: number | null
+          final_score_home: number | null
+          fundamentation: Json | null
+          id: string
+          latency_ms: number | null
+          market: string | null
+          match_id: string
+          model: string | null
+          odd: number | null
+          plan_name: string | null
+          provider: string
+          raw_response: Json | null
+          result: string | null
+          risk_management: Json | null
+          settle_reason: string | null
+          settled_at: string | null
+          stats_snapshot: Json | null
+          thesis: string | null
+          verdict: string
+        }
+        Insert: {
+          alerts?: Json | null
+          approved_at_minute?: number | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          confidence?: number | null
+          created_at?: string
+          final_score_away?: number | null
+          final_score_home?: number | null
+          fundamentation?: Json | null
+          id?: string
+          latency_ms?: number | null
+          market?: string | null
+          match_id: string
+          model?: string | null
+          odd?: number | null
+          plan_name?: string | null
+          provider?: string
+          raw_response?: Json | null
+          result?: string | null
+          risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
+          stats_snapshot?: Json | null
+          thesis?: string | null
+          verdict: string
+        }
+        Update: {
+          alerts?: Json | null
+          approved_at_minute?: number | null
+          approved_at_score_away?: number | null
+          approved_at_score_home?: number | null
+          confidence?: number | null
+          created_at?: string
+          final_score_away?: number | null
+          final_score_home?: number | null
+          fundamentation?: Json | null
+          id?: string
+          latency_ms?: number | null
+          market?: string | null
+          match_id?: string
+          model?: string | null
+          odd?: number | null
+          plan_name?: string | null
+          provider?: string
+          raw_response?: Json | null
+          result?: string | null
+          risk_management?: Json | null
+          settle_reason?: string | null
+          settled_at?: string | null
+          stats_snapshot?: Json | null
+          thesis?: string | null
+          verdict?: string
+        }
+        Relationships: []
+      }
       mycroft_analysis_queue: {
         Row: {
           attempts: number
@@ -7908,6 +7992,15 @@ export type Database = {
         Returns: string
       }
       settle_mycroft_shadow_af: {
+        Args: {
+          p_id: string
+          p_reason?: string
+          p_score_away: number
+          p_score_home: number
+        }
+        Returns: string
+      }
+      settle_mycroft_shadow_ai: {
         Args: {
           p_id: string
           p_reason?: string

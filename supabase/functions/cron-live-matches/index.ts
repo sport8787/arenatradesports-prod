@@ -104,6 +104,16 @@ serve(async (req) => {
       result.analysis = { skipped: true, reason: 'analyze_disabled' };
     }
 
+    // Shadow AI (Gemini via Lovable AI Gateway) — análise paralela pura de IA.
+    // O kill switch (shadow_ai_cron) é checado dentro da própria edge.
+    // Fire-and-forget para não atrasar o cron.
+    fetch(`${baseUrl}/functions/v1/analyze-live-shadow-ai`, { method: 'POST', headers })
+      .then(r => r.json())
+      .then(r => console.log(`[CronLive] 🤖 Shadow AI: processed=${r?.processed ?? 0} approved=${r?.approved ?? 0} skipped=${r?.skipped ?? 0}`))
+      .catch(e => console.warn('[CronLive] Shadow AI erro:', e instanceof Error ? e.message : String(e)));
+
+
+
     // Worker da fila: drena análises enfileiradas pelo fetch-live-matches quando ele estourou o budget.
     // Roda em background — não bloqueia a próxima execução do cron.
     const queueRes = await fetch(`${baseUrl}/functions/v1/process-mycroft-queue`, {

@@ -31,6 +31,7 @@ import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
+import ShadowAiApprovedTab from '@/components/dashboard/ShadowAiApprovedTab';
 import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
 import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -107,7 +108,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_af' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_af' | 'aprovados_ai' | 'scheduled' | 'finished' | 'simulado';
 
 /**
  * Normaliza um mercado para uma chave curta usada no filtro
@@ -153,7 +154,7 @@ export default function ArenaTraderSports() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
-    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','scheduled','finished','simulado'];
+    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','scheduled','finished','simulado'];
     return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
   });
   useEffect(() => {
@@ -664,6 +665,12 @@ export default function ArenaTraderSports() {
                   Aprovados (AF)
                 </TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger value="aprovados_ai" className="gap-1.5 border border-violet-500/40 text-violet-600">
+                  <FlaskConical className="w-3 h-3" />
+                  Aprovados (IA)
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
 
@@ -732,6 +739,10 @@ export default function ArenaTraderSports() {
 
           {statusFilter === 'aprovados_af' && isAdmin && (
             <ShadowAfApprovedTab />
+          )}
+
+          {statusFilter === 'aprovados_ai' && isAdmin && (
+            <ShadowAiApprovedTab />
           )}
 
           {/* Simulation Panel - shown when "Simulado" tab is active */}
