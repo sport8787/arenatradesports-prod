@@ -231,19 +231,15 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <div ref={videoRef} className="bg-black flex items-center justify-center">
-                    {shouldLoadVturb && !vturbFailed ? (
-                      <vturb-smartplayer
-                        key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                        id={`vid-${VTURB_PLAYER_ID}`}
-                        style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-                      />
-                    ) : (
-                      <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
-                        Carregando demonstração…
-                      </div>
-                    )}
+                  <div ref={videoRef} className="bg-black">
+                    <img
+                      src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
+                      alt="Performance real do Arena Punter em 7 dias: ROI +25,6%, Win Rate 67,9%, 115 sinais"
+                      className="w-full h-auto block"
+                      loading="eager"
+                    />
                   </div>
+
                 </div>
               </div>
 
