@@ -11,6 +11,7 @@ import {
   getRecentFixturesSM,
   getTeamStatsSM,
 } from '../_shared/sportmonks-af-adapter.ts';
+import { fetchSportmonksPrematchOdds } from '../_shared/sportmonksPrematchOdds.ts';
 import {
   getAllowedLeagueIds,
   getOddsSportKeyMap,
@@ -133,7 +134,20 @@ async function getOddsHA(homeTeam: string, awayTeam: string, leagueId: number, f
     } catch (e) { console.warn('[HA] Odds API erro, indo p/ fallback', e); }
   }
 
-  // API-Football removida (Fase 2). Sem odds da The Odds API → sinal não gerado.
+  const smOdds = await fetchSportmonksPrematchOdds(fixtureId);
+  const homeOdd = smOdds['Casa'] ?? null;
+  const awayOdd = smOdds['Fora'] ?? null;
+  if (homeOdd && awayOdd) {
+    const haOdds: Partial<Record<HALine, number>> = {};
+    for (const line of ['-1.0', '-0.75', '-0.5', '0.0', '+0.5', '+0.75', '+1.0'] as HALine[]) {
+      const homeKey = `AH Casa ${line}`;
+      const awayKey = `AH Fora ${line}`;
+      haOdds[line] = smOdds[homeKey] ?? smOdds[awayKey] ?? null ?? undefined;
+    }
+    return { favOdd: Math.min(homeOdd, awayOdd), undOdd: Math.max(homeOdd, awayOdd), haOdds };
+  }
+
+  // API-Football removida (Fase 2). Sem odds reais → sinal não gerado.
   return empty;
 }
 
