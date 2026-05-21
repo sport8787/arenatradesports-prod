@@ -525,7 +525,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href={plan.url} target="_blank" rel="noopener noreferrer" className={`w-full py-3 rounded-lg font-bold transition block text-center ${plan.popular ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700 shadow-lg shadow-yellow-500/25' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
+                <a href={plan.url} target="_blank" rel="noopener noreferrer" onClick={() => { const price = parseFloat(plan.price.replace(',', '.')); track.checkoutInitiated(plan.name, price, 'paywall'); fireAdsConversion(price); }} className={`w-full py-3 rounded-lg font-bold transition block text-center ${plan.popular ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700 shadow-lg shadow-yellow-500/25' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
                   {plan.cta}
                 </a>
               </motion.div>
