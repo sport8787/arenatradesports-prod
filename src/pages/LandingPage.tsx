@@ -90,7 +90,8 @@ export default function LandingPage() {
 
   return (
     <>
-    <div className="bg-[#0a0f1e] text-white min-h-screen">
+      <AgeDisclaimerBanner />
+      <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
       <header className="fixed top-0 w-full bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
