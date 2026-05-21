@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
+import HouseEdgeEducation, { ComunicadoImportante } from '@/components/landing/HouseEdgeEducation';
 
 const WHATSAPP_NUMBER = '5534991290648';
 const waLink = (text: string) =>
