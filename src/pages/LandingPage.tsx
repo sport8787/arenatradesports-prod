@@ -112,9 +112,15 @@ export default function LandingPage() {
               {pitchUnlocked && (
                 <>
                   <button onClick={ctaHandler('header', 'login')} className="text-sm text-gray-300 hover:text-white transition">Login</button>
-                  <button onClick={ctaHandler('header', 'testar_7_dias')} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
-                    TESTAR 7 DIAS GRÁTIS
-                  </button>
+                  <a
+                    href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track.funnelCtaClicked('header', 'falar_consultor')}
+                    className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25"
+                  >
+                    FALAR COM UM CONSULTOR
+                  </a>
                 </>
               )}
             </div>
@@ -171,17 +177,17 @@ export default function LandingPage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                    <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
-                      TESTAR GRÁTIS POR 7 DIAS
+                    <a
+                      href="#planos"
+                      onClick={() => track.funnelCtaClicked('hero', 'criar_conta_planos')}
+                      className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group"
+                    >
+                      CRIAR MINHA CONTA AGORA
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                    </button>
-                    <a href="https://t.me/oraculo_mycroft" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-[#229ED9]/10 border border-[#229ED9]/40 text-[#229ED9] font-semibold rounded-lg hover:bg-[#229ED9]/20 transition backdrop-blur-sm flex items-center justify-center gap-2">
-                      <Users className="w-5 h-5" />
-                      Grupo VIP Telegram
                     </a>
                   </div>
 
-                  <p className="text-sm text-gray-400 mb-8">✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques • ⚡ Acesso imediato</p>
+                  <p className="text-sm text-gray-400 mb-8">⚡ Acesso imediato após pagamento • 🔒 Suporte humano por WhatsApp</p>
 
                   <div className="flex items-center gap-8 flex-wrap">
                     <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
@@ -259,21 +265,22 @@ export default function LandingPage() {
                   </div>
 
                   <p className="text-2xl font-black text-white leading-tight mb-2">
-                    Teste o Oráculo <span className="text-yellow-400">grátis por 7 dias</span>
+                    Oráculo Mycroft <span className="text-yellow-400">trabalha pra você 24h por dia</span>
                   </p>
                   <p className="text-sm text-gray-300 mb-4">
-                    Acesso imediato. Sem cartão. Cancele quando quiser.
+                    Ele não aposta com emoção — ele busca jogos onde <strong className="text-white">você tem a vantagem</strong>.
                   </p>
 
-                  <button
-                    onClick={ctaHandler('hero_cta_card', 'comecar_teste_gratis')}
+                  <a
+                    href="#planos"
+                    onClick={() => track.funnelCtaClicked('hero_cta_card', 'criar_minha_conta_agora')}
                     className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
                   >
-                    CRIAR CONTA GRÁTIS
+                    CRIAR MINHA CONTA AGORA
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                  </button>
+                  </a>
                   <p className="text-[11px] text-yellow-400/90 mt-2 text-center">
-                    🎁 E-book "Apostas de Valor" liberado dentro do app
+                    🎁 Acesso liberado em segundos após pagamento
                   </p>
 
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-yellow-500/20">
@@ -286,8 +293,8 @@ export default function LandingPage() {
                       <p className="text-[10px] text-gray-400">Win rate</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-bold text-yellow-400">7 dias</p>
-                      <p className="text-[10px] text-gray-400">100% grátis</p>
+                      <p className="text-lg font-bold text-yellow-400">24h</p>
+                      <p className="text-[10px] text-gray-400">Trabalhando por você</p>
                     </div>
                   </div>
                 </div>
@@ -326,7 +333,7 @@ export default function LandingPage() {
 
 
 
-      {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
+      {/* Bloco CTA reforçado — pós-Hero, antes da prova social */}
       <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
         <div className="container mx-auto max-w-3xl">
           <div className="bg-gradient-to-br from-yellow-500/10 via-yellow-600/5 to-transparent border-2 border-yellow-500/40 rounded-2xl p-8 sm:p-10 text-center shadow-2xl shadow-yellow-500/10">
@@ -334,23 +341,21 @@ export default function LandingPage() {
               Acesso liberado em segundos
             </p>
             <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-3">
-              Comece grátis agora — <span className="text-yellow-400">7 dias de acesso completo</span>
+              O Mycroft <span className="text-yellow-400">trabalha por você 24h por dia</span>
             </h2>
             <p className="text-sm sm:text-base text-gray-300 mb-6 max-w-xl mx-auto">
-              Sem cartão. Sem WhatsApp. Crie sua conta em 30 segundos e veja sinais reais com edge matemático já na primeira sessão.
+              Ele não aposta com emoção — busca jogos onde <strong className="text-white">você tem a vantagem matemática</strong>. Escolha seu plano e tenha acesso imediato.
             </p>
-            <button
-              onClick={ctaHandler('post_vsl_cta', 'criar_conta_gratis')}
+            <a
+              href="#planos"
+              onClick={() => track.funnelCtaClicked('post_vsl_cta', 'criar_minha_conta_agora')}
               className="px-8 sm:px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base sm:text-lg rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
             >
-              CRIAR CONTA GRÁTIS
+              CRIAR MINHA CONTA AGORA
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-            </button>
-            <p className="text-xs text-yellow-400/90 mt-4">
-              🎁 Bônus: e-book "Apostas de Valor" liberado dentro do app
-            </p>
-            <p className="text-[11px] text-gray-500 mt-2">
-              ✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques
+            </a>
+            <p className="text-[11px] text-gray-500 mt-3">
+              ⚡ Acesso imediato após pagamento • 🔒 Suporte humano por WhatsApp
             </p>
           </div>
         </div>
@@ -480,7 +485,7 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-2">GARANTIA DOBRO OU SEU DINHEIRO DE VOLTA</h3>
                 <p className="text-gray-300 leading-relaxed">Se você seguir 95%+ das recomendações e não tiver ROI positivo em 3 meses, devolvemos em dobro sua assinatura. Sem letrinhas miúdas.</p>
               </div>
-              <button onClick={ctaHandler('resultados', 'garantia_dobro_quero_testar')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg">QUERO TESTAR</button>
+              <a href="#planos" onClick={() => track.funnelCtaClicked('resultados', 'quero_vencer_a_casa')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg whitespace-nowrap">QUERO VENCER A CASA</a>
             </div>
           </div>
         </div>
@@ -522,6 +527,31 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Day Pass — teste 24h */}
+          <div className="mt-10 rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-yellow-500/5 to-transparent p-6 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="w-12 h-12 rounded-xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shrink-0">
+                <span className="text-2xl">🎟️</span>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">Quer testar antes de assinar?</div>
+                <div className="text-sm text-gray-300 mt-1">
+                  <strong className="text-white">Day Pass de 24h por R$ 9,90</strong> — libera tudo (Punter + Trader Sports + Hórus) por um dia inteiro.
+                </div>
+              </div>
+            </div>
+            <a
+              href="https://pay.kiwify.com.br/uoPvQjZ"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track.checkoutInitiated('Day Pass 24h', 9.9, 'oferta_especial')}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-bold text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/30"
+            >
+              QUERO O DAY PASS R$ 9,90
+            </a>
+          </div>
+
           <p className="text-center text-gray-400 mt-8">💳 Aceita PIX, cartão e boleto • 🔒 Seguro e criptografado • 🔄 Cancele quando quiser</p>
         </div>
       </section>
@@ -564,11 +594,17 @@ export default function LandingPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
           <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
-          <button onClick={ctaHandler('cta_final', 'comecar_agora')} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
-            COMEÇAR AGORA
+          <a
+            href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track.funnelCtaClicked('cta_final', 'falar_consultor')}
+            className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 inline-flex items-center gap-3 mx-auto group"
+          >
+            QUERO FALAR COM UM CONSULTOR
             <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition" />
-          </button>
-          <p className="text-sm text-gray-400 mt-4">✅ 7 dias grátis • ❌ Sem cartão de crédito • 🔒 Cancele quando quiser</p>
+          </a>
+          <p className="text-sm text-gray-400 mt-4">⚡ Atendimento humano por WhatsApp • 🔒 Sem robô, sem enrolação</p>
         </div>
       </section>
 
@@ -658,9 +694,9 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-4 text-center">
-              <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
-                COMEÇAR AGORA — 7 DIAS GRÁTIS
-              </button>
+              <a href="#planos" onClick={() => { setShowDemo(false); track.funnelCtaClicked('demo_modal', 'quero_vencer_a_casa'); }} className="inline-block px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
+                QUERO VENCER A CASA
+              </a>
             </div>
           </div>
         </div>
@@ -702,42 +738,67 @@ const COMPARISONS = [
 
 const PRICING_PLANS = [
   {
-    name: "Starter",
-    price: "99,90",
-    description: "Para começar a investir",
-    features: ["Mycroft IA (Asset Score básico)", "Até 50 posições/mês", "Dashboard completo", "Track record auditável", "Suporte por email"],
-    cta: "COMEÇAR AGORA",
+    name: "Plano Iniciante",
+    price: "49,90",
+    description: "Para quem quer seguir os métodos prontos do Mycroft",
+    features: [
+      "Arena Punter (sinais pré-jogo prontos)",
+      "Métodos globais do Mycroft já calibrados",
+      "Asset Score + Edge calculado",
+      "Telegram VIP de sinais",
+      "Push de novos sinais aprovados",
+      "Bônus: Arena Blackjack (Hi-Lo + estratégia básica)",
+      "Suporte por WhatsApp",
+    ],
+    cta: "ASSINAR INICIANTE",
     popular: false,
-    url: "https://pay.kiwify.com.br/5lryTVK",
+    url: "https://pay.kiwify.com.br/v30QXM1",
   },
   {
-    name: "Professional",
-    price: "199,90",
-    description: "Mais popular",
-    features: ["Tudo do Starter +", "Hórus IA (proteção tilt)", "Posições ilimitadas", "Dual Bankroll", "Sharp Money Detector", "Garantia Dobro", "Suporte prioritário"],
-    cta: "ASSINAR AGORA",
+    name: "Plano Profissional",
+    price: "149,90",
+    description: "Crie seus próprios métodos e alavanque com o Hórus",
+    features: [
+      "Tudo do Iniciante +",
+      "Arena Trader Sports (ao vivo)",
+      "🚀 Método dos Ciclos (Nettuno) — Hórus pilota alavancagem",
+      "🛠️ Crie seus próprios métodos (Meu Plano)",
+      "LABAREDA, APROVADO e cash-out em tempo real",
+      "Eventos Raros (LAY Goleada, 2x2…)",
+      "Bônus: Blackjack com Kelly Híbrido + Modo Ao Vivo",
+      "Suporte prioritário WhatsApp",
+    ],
+    cta: "ASSINAR PROFISSIONAL",
     popular: true,
-    url: "https://pay.kiwify.com.br/O4zEN7O",
+    url: "https://pay.kiwify.com.br/LB1G2nE",
   },
   {
-    name: "Enterprise",
-    price: "299,00",
-    description: "Para profissionais",
-    features: ["Tudo do Professional +", "API access completa", "Auto-execution (bot)", "Portfolio Optimization", "Self Learning Engine", "Integração Fullbet", "Suporte 24/7", "Consultoria mensal"],
-    cta: "FALAR COM VENDAS",
+    name: "Plano Elite",
+    price: "249,90",
+    description: "Mycroft no seu ouvido em tempo real dentro de cada jogo",
+    features: [
+      "Tudo do Profissional +",
+      "💬 Chat Mycroft AO VIVO dentro de cada jogo (Cash Out assistido)",
+      "Banca Real Betfair Exchange integrada",
+      "Gerador de Múltiplas (IA + Kelly)",
+      "Sherlock estatístico ilimitado",
+      "Bônus: Blackjack completa + Arena Trader Financeiro (WIN/WDO/BTC)",
+      "Mentoria via WhatsApp",
+    ],
+    cta: "ASSINAR ELITE",
     popular: false,
-    url: "https://wa.me/5534991290648?text=Ol%C3%A1%2C%20tenho%20interesse%20no%20plano%20Enterprise%20do%20Mycroft.",
+    url: "https://pay.kiwify.com.br/on6ZUQp",
   },
 ];
 
 const FAQ = [
-  { question: "O teste grátis realmente libera TUDO?", answer: "Sim. Os 7 dias de teste dão acesso completo às duas arenas — Punter e Trader Sports — com todas as funções ativas: Mycroft IA, Hórus, Dual Bankroll, sinais ao vivo, chat por jogo e gestão de banca virtual. Zero limitação. Se não gostar, cancela em 2 cliques." },
-  { question: "Sem cartão de crédito — como funciona?", answer: "Basta criar conta com e-mail. Não pedimos dados de pagamento para começar. Após os 7 dias, você escolhe se quer continuar. Não há cobrança automática e nenhum cartão é armazenado durante o trial." },
-  { question: "Sem letras miúdas — o que significa?", answer: "Significa transparência total: sem taxa oculta, sem fidelidade, sem multa de cancelamento, sem pegadinha no prazo. Tudo que prometemos está escrito em tamanho legível. Garantia dobro é real e auditável." },
+  { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento na Kiwify. Você recebe e-mail com os dados de login e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + Betfair Exchange)." },
+  { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera tudo (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher seu plano." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): sinais prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Plano) e o Método dos Ciclos do Hórus para alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo, integração com a Betfair Exchange e o Trader Financeiro (WIN/WDO/BTC)." },
   { question: "Vocês são mais uma sala de sinais?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
-  { question: "Como funciona a Garantia Dobro?", answer: "Simples: se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
+  { question: "Como funciona a Garantia Dobro?", answer: "Se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
   { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
   { question: "Quanto preciso investir para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por posição). Mas você pode começar com R$ 500 e ir aumentando conforme os resultados. O importante é gestão de banca, não valor absoluto." },
-  { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa, sem enrolação. Cancela em 2 cliques no dashboard. Se cancelar no meio do mês, continuamos te atendendo até o fim do período pago. Simples assim." },
-  { question: "Como é o suporte?", answer: "Starter: email com resposta em até 24h. Professional: chat + email com resposta em até 6h. Enterprise: suporte 24/7 + consultoria mensal + canal direto no Slack. Nada de bot. Pessoas reais que entendem do produto." },
+  { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa, sem enrolação. Cancela direto na Kiwify a qualquer momento. Se cancelar no meio do mês, continuamos te atendendo até o fim do período pago." },
+  { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Nada de bot — pessoas reais que entendem do produto." },
 ];
