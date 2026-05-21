@@ -114,10 +114,24 @@ export default function OfertaEspecial() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/5 via-transparent to-primary/10" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-primary/10 rounded-full blur-2xl" />
+    <div className="oferta-light min-h-screen bg-white text-slate-900 p-4 relative overflow-hidden">
+      <style>{`
+        .oferta-light, .oferta-light * { color: #0f172a; }
+        .oferta-light .text-muted-foreground { color: #475569 !important; }
+        .oferta-light .text-foreground { color: #0f172a !important; }
+        .oferta-light [class*="text-yellow-"] { color: #b45309 !important; }
+        .oferta-light .text-yellow-400 { color: #b45309 !important; }
+        .oferta-light .text-emerald-500 { color: #059669 !important; }
+        .oferta-light .text-violet-400 { color: #7c3aed !important; }
+        .oferta-light .text-sky-400 { color: #0284c7 !important; }
+        .oferta-light .text-white { color: #ffffff !important; }
+        .oferta-light .bg-card\\/80, .oferta-light .bg-card\\/60 { background-color: rgba(255,255,255,0.95) !important; }
+        .oferta-light .bg-muted\\/30 { background-color: rgba(241,245,249,0.8) !important; }
+        .oferta-light .border-border\\/50, .oferta-light .border-border\\/30 { border-color: rgba(15,23,42,0.12) !important; }
+      `}</style>
+      <div className="absolute inset-0 bg-gradient-to-b from-yellow-100 via-white to-yellow-50 pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-300/30 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-amber-200/30 rounded-full blur-2xl pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
