@@ -569,11 +569,17 @@ export default function LandingPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
           <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
-          <button onClick={ctaHandler('cta_final', 'comecar_agora')} className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 flex items-center gap-3 mx-auto group">
-            COMEÇAR AGORA
+          <a
+            href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track.funnelCtaClicked('cta_final', 'falar_consultor')}
+            className="px-12 py-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black text-lg font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-2xl shadow-yellow-500/25 inline-flex items-center gap-3 mx-auto group"
+          >
+            QUERO FALAR COM UM CONSULTOR
             <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition" />
-          </button>
-          <p className="text-sm text-gray-400 mt-4">✅ 7 dias grátis • ❌ Sem cartão de crédito • 🔒 Cancele quando quiser</p>
+          </a>
+          <p className="text-sm text-gray-400 mt-4">⚡ Atendimento humano por WhatsApp • 🔒 Sem robô, sem enrolação</p>
         </div>
       </section>
 
