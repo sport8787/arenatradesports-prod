@@ -159,13 +159,15 @@
     }
     </script>
 
-    <!-- Google Analytics -->
+    <!-- Google Analytics + Google Ads -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-8RL62GYHLF"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
       gtag('js', new Date());
       gtag('config', 'G-8RL62GYHLF');
+      gtag('config', 'AW-18134679461');
     </script>
 
     <!-- Meta Pixel Code -->
@@ -179,7 +181,13 @@
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       'https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', '2800875363610800');
-      fbq('track', 'PageView');
+      // PageView automático SÓ nas LPs públicas. Dentro do app (SPA autenticada),
+      // o disparo é manual via track.pageView/checkoutInitiated para não inflar o volume.
+      (function(){
+        var p = window.location.pathname || '/';
+        var isPublicLP = p === '/' || p === '/oferta-especial' || p.indexOf('/lp/') === 0 || p.indexOf('/landing') === 0;
+        if (isPublicLP) fbq('track', 'PageView');
+      })();
     </script>
     <!-- End Meta Pixel Code -->
 
