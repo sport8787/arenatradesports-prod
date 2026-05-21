@@ -48,7 +48,7 @@ export default function LandingPage() {
   // Redireciona usuários logados direto para o lobby
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/menu', { replace: true });
+      navigate('/lobby', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 
