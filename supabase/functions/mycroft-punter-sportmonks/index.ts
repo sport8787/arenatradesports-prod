@@ -213,18 +213,10 @@ function parseJsonRobust(raw: string): any | null {
 // Build prompt
 // ──────────────────────────────────────────────
 function buildPrompt(game: any, home: TeamSummary, away: TeamSummary): { sys: string; user: string } {
-  const oddsBlock = (game.bookmakers || []).slice(0, 3).map((b: any) => {
-    const h2h = b.markets?.find((m: any) => m.key === "h2h");
-    const tot = b.markets?.find((m: any) => m.key === "totals");
-    const lines: string[] = [`${b.title}:`];
-    if (h2h) {
-      for (const o of h2h.outcomes || []) lines.push(`  ${o.name}: ${o.price}`);
-    }
-    if (tot) {
-      for (const o of tot.outcomes || []) lines.push(`  ${o.name} ${o.point}: ${o.price}`);
-    }
-    return lines.join("\n");
-  }).join("\n\n");
+  const prematchMarkets = Array.isArray(game.prematch_markets) ? game.prematch_markets : [];
+  const oddsBlock = prematchMarkets.length > 0
+    ? prematchMarkets.map((entry: any) => `  ${entry.market}: ${entry.odd}`).join("\n")
+    : "Sem odds disponíveis";
 
   const sys = `Você é Mycroft Punter — analista probabilístico DISCIPLINADO. Sistema de 3 blocos:
 
@@ -255,7 +247,7 @@ ${away.name}: ${away.recent_form} | ${away.played} jogos | ${away.wins}V ${away.
   Over 2.5: ${away.over25_pct}% | Over 1.5: ${away.over15_pct}% | BTTS: ${away.btts_pct}%
 
 ═══ ODDS DE MERCADO ═══
-${oddsBlock || "Sem odds disponíveis"}
+${oddsBlock}
 
 ═══ INSTRUÇÕES ═══
 1. Calcule prob estimada via stats (Poisson + médias). Edge = (prob × odd) − 1.
