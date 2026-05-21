@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket } from 'lucide-react';
+import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, Spade, LineChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,9 @@ const PLANS = [
       'Push de novos sinais aprovados',
       'Suporte por WhatsApp',
     ],
+    bonus: [
+      'Arena Blackjack — estratégia básica + contagem Hi-Lo',
+    ],
     waText: 'Olá! Tenho interesse no Plano Iniciante (R$ 49,90). Pode me explicar?',
     popular: false,
   },
@@ -42,6 +45,9 @@ const PLANS = [
       'Eventos Raros (LAY Goleada, 2x2…)',
       'Suporte prioritário WhatsApp',
     ],
+    bonus: [
+      'Arena Blackjack com Kelly Híbrido + Modo Ao Vivo',
+    ],
     waText: 'Olá! Tenho interesse no Plano Profissional do Esporte (R$ 149,90). Pode me explicar?',
     popular: true,
   },
@@ -58,6 +64,10 @@ const PLANS = [
       'Chat Mycroft dentro de cada jogo',
       'Sherlock estatístico ilimitado',
       'Mentoria via WhatsApp',
+    ],
+    bonus: [
+      'Arena Blackjack completa (todas as features)',
+      'Arena Trader Financeiro (WIN / WDO / BTC)',
     ],
     waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
     popular: false,
