@@ -247,7 +247,7 @@ const Auth = () => {
       toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
     } else {
       toast({ title: 'Nickname salvo!', description: `Bem-vindo, ${newNickname}!` });
-      navigate('/menu');
+      navigate('/lobby');
     }
   };
 
