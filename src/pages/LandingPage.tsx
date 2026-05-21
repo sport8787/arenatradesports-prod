@@ -265,21 +265,22 @@ export default function LandingPage() {
                   </div>
 
                   <p className="text-2xl font-black text-white leading-tight mb-2">
-                    Teste o Oráculo <span className="text-yellow-400">grátis por 7 dias</span>
+                    Oráculo Mycroft <span className="text-yellow-400">trabalha pra você 24h por dia</span>
                   </p>
                   <p className="text-sm text-gray-300 mb-4">
-                    Acesso imediato. Sem cartão. Cancele quando quiser.
+                    Ele não aposta com emoção — ele busca jogos onde <strong className="text-white">você tem a vantagem</strong>.
                   </p>
 
-                  <button
-                    onClick={ctaHandler('hero_cta_card', 'comecar_teste_gratis')}
+                  <a
+                    href="#planos"
+                    onClick={() => track.funnelCtaClicked('hero_cta_card', 'criar_minha_conta_agora')}
                     className="w-full py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
                   >
-                    CRIAR CONTA GRÁTIS
+                    CRIAR MINHA CONTA AGORA
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                  </button>
+                  </a>
                   <p className="text-[11px] text-yellow-400/90 mt-2 text-center">
-                    🎁 E-book "Apostas de Valor" liberado dentro do app
+                    🎁 Acesso liberado em segundos após pagamento
                   </p>
 
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-yellow-500/20">
@@ -292,8 +293,8 @@ export default function LandingPage() {
                       <p className="text-[10px] text-gray-400">Win rate</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-bold text-yellow-400">7 dias</p>
-                      <p className="text-[10px] text-gray-400">100% grátis</p>
+                      <p className="text-lg font-bold text-yellow-400">24h</p>
+                      <p className="text-[10px] text-gray-400">Trabalhando por você</p>
                     </div>
                   </div>
                 </div>
