@@ -177,17 +177,17 @@ export default function LandingPage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                    <button onClick={ctaHandler('hero', 'testar_gratis_7_dias_primary')} className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group">
-                      TESTAR GRÁTIS POR 7 DIAS
+                    <a
+                      href="#planos"
+                      onClick={() => track.funnelCtaClicked('hero', 'criar_conta_planos')}
+                      className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group"
+                    >
+                      CRIAR MINHA CONTA AGORA
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                    </button>
-                    <a href="https://t.me/oraculo_mycroft" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-[#229ED9]/10 border border-[#229ED9]/40 text-[#229ED9] font-semibold rounded-lg hover:bg-[#229ED9]/20 transition backdrop-blur-sm flex items-center justify-center gap-2">
-                      <Users className="w-5 h-5" />
-                      Grupo VIP Telegram
                     </a>
                   </div>
 
-                  <p className="text-sm text-gray-400 mb-8">✅ Sem cartão de crédito • 🔒 Cancele em 2 cliques • ⚡ Acesso imediato</p>
+                  <p className="text-sm text-gray-400 mb-8">⚡ Acesso imediato após pagamento • 🔒 Suporte humano por WhatsApp</p>
 
                   <div className="flex items-center gap-8 flex-wrap">
                     <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
