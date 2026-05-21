@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
+import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { fetchSportmonksPrematchOdds, listPrematchMarkets, normalizePrematchMarketLabel } from "../_shared/sportmonksPrematchOdds.ts";
 
 const corsHeaders = {
