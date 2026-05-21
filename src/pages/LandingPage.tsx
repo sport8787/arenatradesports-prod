@@ -112,9 +112,15 @@ export default function LandingPage() {
               {pitchUnlocked && (
                 <>
                   <button onClick={ctaHandler('header', 'login')} className="text-sm text-gray-300 hover:text-white transition">Login</button>
-                  <button onClick={ctaHandler('header', 'testar_7_dias')} className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25">
-                    TESTAR 7 DIAS GRÁTIS
-                  </button>
+                  <a
+                    href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track.funnelCtaClicked('header', 'falar_consultor')}
+                    className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/25"
+                  >
+                    FALAR COM UM CONSULTOR
+                  </a>
                 </>
               )}
             </div>
