@@ -187,6 +187,22 @@ export default function OfertaEspecial() {
                       </li>
                     ))}
                   </ul>
+
+                  {plan.bonus && plan.bonus.length > 0 && (
+                    <div className="pt-3 mt-1 border-t border-yellow-500/20">
+                      <div className="text-[10px] font-bold tracking-widest text-yellow-400/90 mb-2">
+                        🎁 BÔNUS INCLUSOS
+                      </div>
+                      <ul className="space-y-1.5 text-sm">
+                        {plan.bonus.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-foreground/90">
+                            <Sparkles className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <a
