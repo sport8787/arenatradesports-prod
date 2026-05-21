@@ -68,8 +68,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks → The Odds API.
-const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
+// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks.
 
 type Resultado = "GREEN" | "RED" | "VOID" | "MEIO_GREEN" | "MEIO_RED" | "REEMBOLSO";
 interface FixtureResult {
@@ -209,33 +208,6 @@ async function fetchCorners(fixtureId: number): Promise<{ home: number; away: nu
     if (team === data[0]) h = val; else a = val;
   }
   return { home: h, away: a };
-}
-
-const ODDS_SPORTS = [
-  "soccer_epl","soccer_spain_la_liga","soccer_italy_serie_a","soccer_germany_bundesliga","soccer_france_ligue_one",
-  "soccer_brazil_campeonato","soccer_netherlands_eredivisie","soccer_portugal_primeira_liga","soccer_germany_bundesliga2",
-  "soccer_italy_serie_b","soccer_france_ligue_two","soccer_turkey_super_league","soccer_belgium_first_div",
-  "soccer_scotland_premiership","soccer_greece_super_league","soccer_saudi_pro_league","soccer_argentina_primera_division",
-  "soccer_mexico_ligamx","soccer_usa_mls","soccer_uefa_champs_league","soccer_uefa_europa_league",
-];
-async function buscarPorOddsAPI(home: string, away: string): Promise<FixtureResult | null> {
-  if (!ODDS_API_KEY) return null;
-  for (const sport of ODDS_SPORTS) {
-    try {
-      const r = await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/scores/?apiKey=${ODDS_API_KEY}&daysFrom=3`);
-      if (!r.ok) continue;
-      const data = await r.json() as any[];
-      for (const g of data) {
-        if (!g.completed || !g.scores) continue;
-        if (!teamsMatch(g.home_team, home) || !teamsMatch(g.away_team, away)) continue;
-        const hs = g.scores.find((s: any) => s.name === g.home_team);
-        const as = g.scores.find((s: any) => s.name === g.away_team);
-        if (!hs || !as) continue;
-        return { homeTeam: g.home_team, awayTeam: g.away_team, goalsHome: parseInt(hs.score), goalsAway: parseInt(as.score), status: "FT" };
-      }
-    } catch { continue; }
-  }
-  return null;
 }
 
 // Cache Sportmonks por data — 1 fetch /fixtures/date/{ymd} por dia único.
