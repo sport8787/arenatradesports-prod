@@ -19,6 +19,7 @@ const StickyMobileCTA = lazy(() => import('@/components/landing/StickyMobileCTA'
 const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsApp'));
 const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
+const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
@@ -35,9 +36,8 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const { decrementSlot } = usePromoSlots();
-  const [shouldLoadVturb, setShouldLoadVturb] = useState(false);
-  const [vturbFailed, setVturbFailed] = useState(false);
   // Headline fixa (variante B) — A/B test pausado a pedido
+
   const [h1Variant] = useState(() => { getH1Variant(); return H1_VARIANTS.B; });
 
   // Track landing view (com UTMs anexadas) — uma vez por sessão
@@ -72,121 +72,17 @@ export default function LandingPage() {
   const VTURB_PLAYER_ID = '6a00acb708dd22f8e61508b7';
   const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/${VTURB_PLAYER_ID}/v4/player.js`;
 
-  // Tracking do player VSL
-  useVturbTracking(`vid-${VTURB_PLAYER_ID}`, shouldLoadVturb);
-  const { unlocked: pitchUnlocked, currentTime: vslCurrentTime } = useVslDelay(
-    VTURB_PLAYER_ID,
-    VSL_PITCH_DELAY_SECONDS,
-    shouldLoadVturb,
-  );
+  // VSL removida: a prova agora vem em prints reais (ProvaRealPrints).
+  // Mantemos hooks como no-op para preservar telemetria existente sem efeitos colaterais.
+  useVturbTracking(`vid-${VTURB_PLAYER_ID}`, false);
+  useVslDelay(VTURB_PLAYER_ID, VSL_PITCH_DELAY_SECONDS, false);
+  const pitchUnlocked = true;
+  const vslCurrentTime = 0;
   const [showDemo, setShowDemo] = useState(false);
-  const [vturbReloadKey, setVturbReloadKey] = useState(0);
+  const [vturbReloadKey] = useState(0);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // (VSL removida — toda lógica de carga/retry do VTurb foi descontinuada)
 
-    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
-    const isSlowConnection =
-      'connection' in navigator &&
-      ((navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection?.saveData ||
-        ['slow-2g', '2g', '3g'].includes(
-          (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || ''
-        ));
-
-    if (!isMobileViewport && !isSlowConnection) {
-      setShouldLoadVturb(true);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setShouldLoadVturb(true), 1800);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  // Telemetria: marca momento em que decidimos começar a carregar o player
-  useEffect(() => {
-    if (!shouldLoadVturb) return;
-    track.videoEvent('vsl_load_triggered', {
-      player_id: VTURB_PLAYER_ID,
-      pitch_delay_seconds: VSL_PITCH_DELAY_SECONDS,
-      timestamp: Date.now(),
-    });
-  }, [shouldLoadVturb, VTURB_PLAYER_ID]);
-
-  // Força reload total do script VTurb para evitar cache/CDN/browser e re-renderizações inconsistentes
-  useEffect(() => {
-    if (!shouldLoadVturb || vturbFailed) return;
-
-    document
-      .querySelectorAll('script[src*="scripts.converteai.net"]')
-      .forEach((el) => el.remove());
-
-    document
-      .querySelectorAll(`vturb-smartplayer[id="vid-${VTURB_PLAYER_ID}"]`)
-      .forEach((el) => {
-        el.innerHTML = '';
-      });
-
-    try {
-      delete (window as any).smartplayer;
-      delete (window as any).vturb;
-      delete (window as any).VTurb;
-    } catch {
-      // noop
-    }
-
-    const scriptStartedAt = Date.now();
-    const s = document.createElement('script');
-    s.src = `${VTURB_SCRIPT_SRC}?cb=${Date.now()}-${vturbReloadKey}`;
-    s.async = true;
-    s.setAttribute('data-vturb-player', VTURB_PLAYER_ID);
-    s.setAttribute('data-vturb-reload-key', String(vturbReloadKey));
-    s.onload = () => {
-      track.videoEvent('vsl_script_loaded', {
-        player_id: VTURB_PLAYER_ID,
-        reload_key: vturbReloadKey,
-        load_ms: Date.now() - scriptStartedAt,
-      });
-    };
-    s.onerror = () => {
-      track.videoEvent('vsl_script_error', {
-        player_id: VTURB_PLAYER_ID,
-        reload_key: vturbReloadKey,
-        elapsed_ms: Date.now() - scriptStartedAt,
-      });
-      setVturbFailed(true);
-    };
-    document.head.appendChild(s);
-
-    const retry = window.setTimeout(() => {
-      const hasPlayerInstance = Boolean((window as any).smartplayer?.instances?.length);
-      if (!hasPlayerInstance && vturbReloadKey < 1) {
-        track.videoEvent('vsl_player_retry', {
-          player_id: VTURB_PLAYER_ID,
-          reload_key: vturbReloadKey,
-          reason: 'no_instance_after_2500ms',
-        });
-        setVturbReloadKey((current) => current + 1);
-      } else if (!hasPlayerInstance) {
-        track.videoEvent('vsl_player_failed', {
-          player_id: VTURB_PLAYER_ID,
-          reload_key: vturbReloadKey,
-          reason: 'no_instance_after_retry',
-        });
-        setVturbFailed(true);
-      } else {
-        track.videoEvent('vsl_player_ready', {
-          player_id: VTURB_PLAYER_ID,
-          reload_key: vturbReloadKey,
-          ready_ms: Date.now() - scriptStartedAt,
-        });
-      }
-    }, 2500);
-
-    return () => {
-      window.clearTimeout(retry);
-      s.remove();
-    };
-  }, [VTURB_PLAYER_ID, VTURB_SCRIPT_SRC, shouldLoadVturb, vturbFailed, vturbReloadKey]);
 
   return (
     <>
@@ -335,19 +231,15 @@ export default function LandingPage() {
                     </div>
                     <div className="ml-4 px-4 py-1 bg-[#0f1729] rounded text-xs text-gray-400">demo.oraculo-mycroft.com</div>
                   </div>
-                  <div ref={videoRef} className="bg-black flex items-center justify-center">
-                    {shouldLoadVturb && !vturbFailed ? (
-                      <vturb-smartplayer
-                        key={`hero-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                        id={`vid-${VTURB_PLAYER_ID}`}
-                        style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-                      />
-                    ) : (
-                      <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
-                        Carregando demonstração…
-                      </div>
-                    )}
+                  <div ref={videoRef} className="bg-black">
+                    <img
+                      src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
+                      alt="Performance real do Arena Punter em 7 dias: ROI +25,6%, Win Rate 67,9%, 115 sinais"
+                      className="w-full h-auto block"
+                      loading="eager"
+                    />
                   </div>
+
                 </div>
               </div>
 
@@ -417,11 +309,16 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
+      {/* 🔥 PROVA REAL EM PRINTS — substituiu a VSL */}
+      <Suspense fallback={null}>
+        <ProvaRealPrints onCTA={ctaHandler('prova_real_prints', 'testar_gratis_7_dias')} />
+      </Suspense>
 
-      {/* 🔒 GATE: tudo abaixo só aparece após o pitch da VSL (8 min de vídeo assistido) */}
+      {/* Tudo abaixo segue exibido (gate de VSL desativado) */}
       {pitchUnlocked && (
       <>
+
+
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
@@ -747,18 +644,13 @@ export default function LandingPage() {
               Fechar ✕
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
-              {shouldLoadVturb && !vturbFailed ? (
-                <vturb-smartplayer
-                  key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                  id={`vid-${VTURB_PLAYER_ID}`}
-                  style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-                />
-              ) : (
-                <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
-                  Carregando demonstração…
-                </div>
-              )}
+              <img
+                src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
+                alt="Resultado real Punter 7 dias"
+                className="w-full h-auto"
+              />
             </div>
+
             <div className="mt-4 text-center">
               <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
                 COMEÇAR AGORA — 7 DIAS GRÁTIS
