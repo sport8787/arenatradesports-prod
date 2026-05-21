@@ -27,6 +27,7 @@ const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEd
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
+import { fireAdsConversion } from '@/lib/googleAds';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
 import { useVturbTracking } from '@/hooks/useVturbTracking';
 import { useVslDelay } from '@/hooks/useVslDelay';
