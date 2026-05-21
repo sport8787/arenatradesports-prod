@@ -43,6 +43,13 @@ const arenas = [
     icon: Trophy,
     accent: 'from-purple-500/20 to-purple-700/10 border-purple-500/40',
   },
+  {
+    title: 'Funções Avançadas',
+    description: 'Configurações, ferramentas e ajustes do Oráculo.',
+    href: '/menu',
+    icon: Settings2,
+    accent: 'from-slate-500/20 to-slate-700/10 border-slate-500/40',
+  },
 ];
 
 export default function Index() {
