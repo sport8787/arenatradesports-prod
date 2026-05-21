@@ -669,9 +669,9 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-4 text-center">
-              <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
-                COMEÇAR AGORA — 7 DIAS GRÁTIS
-              </button>
+              <a href="#planos" onClick={() => { setShowDemo(false); track.funnelCtaClicked('demo_modal', 'quero_vencer_a_casa'); }} className="inline-block px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
+                QUERO VENCER A CASA
+              </a>
             </div>
           </div>
         </div>
